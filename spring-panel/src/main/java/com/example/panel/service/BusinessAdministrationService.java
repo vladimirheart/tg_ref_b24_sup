@@ -1,6 +1,8 @@
 package com.example.panel.service;
 
 import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
 import java.util.regex.Pattern;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -36,7 +38,11 @@ public class BusinessAdministrationService {
                  WHERE grant_scope = 'ALL_BUSINESSES' AND is_active = TRUE
                  ORDER BY user_id
                 """, (rs, row) -> new AllGrant(rs.getLong("user_id"), rs.getString("role_code")));
-        return new Overview(businesses, users, memberships, allGrants);
+        List<Location> locations = jdbc.query("""
+                SELECT id, business_id, location_name, location_type, city, status
+                  FROM business_locations ORDER BY business_id, id
+                """, (rs, row) -> mapLocation(rs));
+        return new Overview(businesses, users, memberships, allGrants, locations);
     }
 
     public Business createBusiness(String code, String displayName) {
@@ -94,6 +100,64 @@ public class BusinessAdministrationService {
                 """, userId);
     }
 
+    /** Creates a location inside one active business; no external mapping is implied. */
+    public Optional<Location> createLocation(long businessId, String locationName,
+                                             String locationType, String city) {
+        requirePositiveIds(businessId);
+        String name = requiredText(locationName, 200, "Invalid location name");
+        String type = optionalText(locationType, 80, "Invalid location type");
+        String cityName = optionalText(city, 120, "Invalid city");
+        return jdbc.query("""
+                INSERT INTO business_locations(
+                    business_id, location_name, normalized_location_name, location_type, city)
+                SELECT business.id, ?, ?, ?, ?
+                  FROM businesses business
+                 WHERE business.id = ? AND business.status = 'active'
+                RETURNING id, business_id, location_name, location_type, city, status
+                """, (rs, row) -> mapLocation(rs),
+                name, name.toLowerCase(Locale.ROOT), type, cityName, businessId)
+                .stream().findFirst();
+    }
+
+    /** Archive/restore preserves location identity and external mapping references. */
+    public boolean setLocationStatus(long businessId, long locationId, String status) {
+        requirePositiveIds(businessId, locationId);
+        if (!"active".equals(status) && !"archived".equals(status)) {
+            throw new IllegalArgumentException("Invalid location status");
+        }
+        return jdbc.update("""
+                UPDATE business_locations location
+                   SET status = ?, updated_at = CURRENT_TIMESTAMP
+                 WHERE location.id = ? AND location.business_id = ?
+                   AND EXISTS (
+                       SELECT 1 FROM businesses business
+                        WHERE business.id = location.business_id
+                          AND business.status = 'active')
+                """, status, locationId, businessId) == 1;
+    }
+
+    private Location mapLocation(java.sql.ResultSet rs) throws java.sql.SQLException {
+        return new Location(rs.getLong("id"), rs.getLong("business_id"),
+                rs.getString("location_name"), rs.getString("location_type"),
+                rs.getString("city"), rs.getString("status"));
+    }
+
+    private String requiredText(String value, int maxLength, String error) {
+        String result = optionalText(value, maxLength, error);
+        if (result.isEmpty()) {
+            throw new IllegalArgumentException(error);
+        }
+        return result;
+    }
+
+    private String optionalText(String value, int maxLength, String error) {
+        String result = value == null ? "" : value.strip();
+        if (result.length() > maxLength || result.chars().anyMatch(Character::isISOControl)) {
+            throw new IllegalArgumentException(error);
+        }
+        return result;
+    }
+
     private String requireRole(String roleCode) {
         if (roleCode == null) {
             throw new IllegalArgumentException("Invalid business role");
@@ -125,7 +189,12 @@ public class BusinessAdministrationService {
     public record AllGrant(long userId, String roleCode) {
     }
 
+    public record Location(long id, long businessId, String locationName,
+                           String locationType, String city, String status) {
+    }
+
     public record Overview(List<Business> businesses, List<PanelUser> users,
-                           List<Membership> memberships, List<AllGrant> allGrants) {
+                           List<Membership> memberships, List<AllGrant> allGrants,
+                           List<Location> locations) {
     }
 }

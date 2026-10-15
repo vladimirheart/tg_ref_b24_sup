@@ -31,6 +31,24 @@ class BusinessAdministrationServicePostgresIntegrationTest {
         assertThat(created.status()).isEqualTo("active");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM business_channel_bindings", Integer.class)).isZero();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM business_locations", Integer.class)).isZero();
+        BusinessAdministrationService.Location location = service.createLocation(
+                created.id(), "  Центр  ", "  магазин  ", "  Москва  ").orElseThrow();
+        assertThat(location.locationName()).isEqualTo("Центр");
+        assertThat(location.locationType()).isEqualTo("магазин");
+        assertThat(location.city()).isEqualTo("Москва");
+        assertThat(location.status()).isEqualTo("active");
+        BusinessAdministrationService.Location sameNameElsewhere = service.createLocation(
+                sushi, "Центр", "магазин", "Москва").orElseThrow();
+        assertThat(sameNameElsewhere.id()).isNotEqualTo(location.id());
+        assertThatThrownBy(() -> service.createLocation(created.id(), "цЕНТР", "магазин", "Москва"))
+                .isInstanceOf(DuplicateKeyException.class);
+        assertThat(service.setLocationStatus(sushi, location.id(), "archived")).isFalse();
+        assertThat(service.setLocationStatus(created.id(), location.id(), "archived")).isTrue();
+        assertThat(service.overview().locations()).extracting(BusinessAdministrationService.Location::status)
+                .contains("archived");
+        assertThat(service.setLocationStatus(created.id(), location.id(), "active")).isTrue();
+        assertThat(service.overview().locations()).hasSize(2);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM business_channel_bindings", Integer.class)).isZero();
 
         assertThat(service.grantMembership(created.id(), 1L, "OPERATOR")).isTrue();
         assertThat(access.resolveAccessibleBusinessIds(1L)).containsExactly(created.id());
@@ -68,6 +86,7 @@ class BusinessAdministrationServicePostgresIntegrationTest {
         migrate(jdbc);
         BusinessAdministrationService service = new BusinessAdministrationService(jdbc);
         long sushi = businessId(jdbc, "sushi");
+        long bliny = businessId(jdbc, "bliny");
         assertThatThrownBy(() -> service.createBusiness("Sushi", "Duplicate name"))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> service.createBusiness("bad code", "Name"))
@@ -84,6 +103,15 @@ class BusinessAdministrationServicePostgresIntegrationTest {
         assertThat(service.grantAllBusinesses(999L, "VIEWER")).isFalse();
         jdbc.update("UPDATE businesses SET status = 'archived' WHERE id = ?", sushi);
         assertThat(service.grantMembership(sushi, 1L, "VIEWER")).isFalse();
+        assertThat(service.createLocation(sushi, "Центр", "", "")).isEmpty();
+        assertThatThrownBy(() -> service.createLocation(0L, "Центр", "", ""))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.createLocation(bliny, " ", "", ""))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.createLocation(bliny, "Центр", "x\ny", ""))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.setLocationStatus(bliny, 1L, "deleted"))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     private JdbcTemplate freshSchema(String prefix) {
@@ -105,4 +133,5 @@ class BusinessAdministrationServicePostgresIntegrationTest {
     private long businessId(JdbcTemplate jdbc, String code) {
         return jdbc.queryForObject("SELECT id FROM businesses WHERE code = ?", Long.class, code);
     }
+
 }

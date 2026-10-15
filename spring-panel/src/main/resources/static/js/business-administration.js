@@ -25,7 +25,7 @@
     });
     if (!response.ok) {
       const message = response.status === 403 ? 'Недостаточно прав для управления бизнесами.'
-        : response.status === 409 ? 'Такой код бизнеса уже существует.'
+        : response.status === 409 ? 'Такая запись уже существует.'
           : response.status === 404 ? 'Бизнес или сотрудник не найден.'
             : response.status === 400 ? 'Проверьте введённые данные.'
               : 'Не удалось выполнить операцию.';
@@ -69,6 +69,8 @@
     const businesses = new Map(data.businesses.map((business) => [business.id, business.displayName]));
     fillSelect('membershipBusiness', data.businesses.filter((business) => business.status === 'active'),
       (business) => business.displayName);
+    fillSelect('locationBusiness', data.businesses.filter((business) => business.status === 'active'),
+      (business) => business.displayName);
     fillSelect('membershipUser', data.users, (user) => user.username);
     fillSelect('allGrantUser', data.users, (user) => user.username);
 
@@ -80,6 +82,35 @@
       cell(row, business.code);
       cell(row, business.status === 'active' ? 'Активен' : 'Архив');
       catalog.appendChild(row);
+    }
+
+    const locationRows = page.querySelector('#businessLocationRows');
+    locationRows.replaceChildren();
+    for (const location of data.locations) {
+      const row = document.createElement('tr');
+      cell(row, businesses.get(location.businessId) || location.businessId);
+      cell(row, location.locationName);
+      cell(row, location.locationType);
+      cell(row, location.city);
+      cell(row, location.status === 'active' ? 'Активна' : 'Архив');
+      const action = cell(row, '');
+      const business = data.businesses.find((item) => item.id === location.businessId);
+      if (business?.status === 'active') {
+        const active = location.status === 'active';
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `btn btn-sm ${active ? 'btn-outline-danger' : 'btn-outline-primary'}`;
+        button.textContent = active ? 'Архивировать' : 'Восстановить';
+        button.addEventListener('click', async () => {
+          if (active && !window.confirm('Архивировать эту локацию? Её идентификатор и связи сохранятся.')) return;
+          await perform(async () => {
+            await request(`/businesses/${location.businessId}/locations/${location.id}/status`,
+              'PUT', { status: active ? 'archived' : 'active' });
+          }, active ? 'Локация архивирована.' : 'Локация восстановлена.');
+        });
+        action.appendChild(button);
+      }
+      locationRows.appendChild(row);
     }
 
     const membershipRows = page.querySelector('#businessMembershipRows');
@@ -146,6 +177,18 @@
     perform(async () => {
       await request(`/businesses/${businessId}/memberships/${userId}`, 'PUT', { roleCode });
     }, 'Доступ к бизнесу сохранён.');
+  });
+
+  page.querySelector('#businessLocationForm').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const businessId = page.querySelector('#locationBusiness').value;
+    const data = Object.fromEntries(new FormData(form));
+    perform(async () => {
+      await request(`/businesses/${businessId}/locations`, 'POST', data);
+      form.reset();
+      page.querySelector('#locationBusiness').value = businessId;
+    }, 'Локация добавлена только в выбранный бизнес.');
   });
 
   page.querySelector('#allBusinessGrantForm').addEventListener('submit', (event) => {

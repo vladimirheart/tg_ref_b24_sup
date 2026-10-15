@@ -59,6 +59,28 @@
                 </table></div>
             </div></div>
         </section>
+        <section class="col-12" aria-labelledby="businessLocationsTitle">
+            <div class="card"><div class="card-body">
+                <h2 class="h5" id="businessLocationsTitle">Локации бизнесов</h2>
+                <p class="text-muted small">Локация принадлежит только выбранному бизнесу. Создание не подключает iiko, канал или старые обращения.</p>
+                <form id="businessLocationForm" class="row g-2 align-items-end mb-3">
+                    <div class="col-md-3"><label class="form-label" for="locationBusiness">Бизнес</label>
+                        <select class="form-select" id="locationBusiness" required></select></div>
+                    <div class="col-md-3"><label class="form-label" for="locationName">Название</label>
+                        <input class="form-control" id="locationName" name="locationName" maxlength="200" required></div>
+                    <div class="col-md-2"><label class="form-label" for="locationType">Тип</label>
+                        <input class="form-control" id="locationType" name="locationType" maxlength="80"></div>
+                    <div class="col-md-2"><label class="form-label" for="locationCity">Город</label>
+                        <input class="form-control" id="locationCity" name="city" maxlength="120"></div>
+                    <div class="col-md-2"><button class="btn btn-primary w-100" type="submit">Добавить</button></div>
+                </form>
+                <div class="table-responsive"><table class="table table-sm align-middle">
+                    <thead><tr><th scope="col">Бизнес</th><th scope="col">Локация</th><th scope="col">Тип</th>
+                        <th scope="col">Город</th><th scope="col">Статус</th><th scope="col"></th></tr></thead>
+                    <tbody id="businessLocationRows"></tbody>
+                </table></div>
+            </div></div>
+        </section>
         <section class="col-12" aria-labelledby="allBusinessGrantTitle">
             <div class="card"><div class="card-body">
                 <h2 class="h5" id="allBusinessGrantTitle">Доступ ко всем бизнесам</h2>
@@ -82,6 +104,6 @@
     </div>
 </main>
 <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js"></script>
-<script th:src="@{/js/business-administration.js(v='20261014-r86')}"></script>
+<script th:src="@{/js/business-administration.js(v='20261015-r89')}"></script>
 </body>
 </html>

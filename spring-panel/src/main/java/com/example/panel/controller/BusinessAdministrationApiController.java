@@ -124,6 +124,49 @@ public class BusinessAdministrationApiController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/businesses/{businessId}/locations")
+    public ResponseEntity<BusinessAdministrationService.Location> createLocation(
+            @PathVariable long businessId, @RequestBody(required = false) CreateLocationRequest request,
+            Authentication authentication) {
+        requireFoundation();
+        if (request == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Location details are required");
+        }
+        try {
+            BusinessAdministrationService.Location created = service.createLocation(
+                    businessId, request.locationName(), request.locationType(), request.city())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business not found"));
+            log.info("Business location created: actor={}, businessId={}, locationId={}",
+                    actor(authentication), businessId, created.id());
+            return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        } catch (DuplicateKeyException ex) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Location already exists", ex);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        }
+    }
+
+    @PutMapping("/businesses/{businessId}/locations/{locationId}/status")
+    public ResponseEntity<Void> setLocationStatus(
+            @PathVariable long businessId, @PathVariable long locationId,
+            @RequestBody(required = false) LocationStatusRequest request,
+            Authentication authentication) {
+        requireFoundation();
+        if (request == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Location status is required");
+        }
+        try {
+            if (!service.setLocationStatus(businessId, locationId, request.status())) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Location not found");
+            }
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        }
+        log.info("Business location status updated: actor={}, businessId={}, locationId={}, status={}",
+                actor(authentication), businessId, locationId, request.status());
+        return ResponseEntity.noContent().build();
+    }
+
     private void requireFoundation() {
         if (!flags.isFoundationEnabled()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
@@ -138,5 +181,11 @@ public class BusinessAdministrationApiController {
     }
 
     public record RoleRequest(String roleCode) {
+    }
+
+    public record CreateLocationRequest(String locationName, String locationType, String city) {
+    }
+
+    public record LocationStatusRequest(String status) {
     }
 }

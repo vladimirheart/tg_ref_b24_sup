@@ -59,6 +59,7 @@ class BusinessPagesWebMvcTest {
                 .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")))
                 .andExpect(status().isOk())
                 .andExpect(view().name("businesses/manage"))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"businessCreateForm\"")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"businessCreateForm\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"businessLocationForm\"")));
     }
 }
