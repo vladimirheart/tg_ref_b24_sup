@@ -169,7 +169,12 @@ class BusinessAdministrationServicePostgresIntegrationTest {
         BusinessAdministrationService service = new BusinessAdministrationService(jdbc);
         long sushi = businessId(jdbc, "sushi");
         long bliny = businessId(jdbc, "bliny");
-        jdbc.update("INSERT INTO channels(id, is_active) VALUES (10, TRUE)");
+        jdbc.update("INSERT INTO channels(id, channel_name, platform, is_active) "
+                + "VALUES (10, 'Support', 'telegram', TRUE), (5, 'VK', 'vk', TRUE)");
+
+        assertThat(service.listChannels()).containsExactly(
+                new BusinessAdministrationService.ChannelSummary(5L, "VK", "vk", true),
+                new BusinessAdministrationService.ChannelSummary(10L, "Support", "telegram", true));
 
         assertThat(service.previewChannelBinding(999L)).isEmpty();
         assertThatThrownBy(() -> service.previewChannelBinding(0L))
@@ -203,6 +208,8 @@ class BusinessAdministrationServicePostgresIntegrationTest {
         jdbc.update("UPDATE channels SET is_active = FALSE WHERE id = 10");
         assertThat(service.previewChannelBinding(10L).orElseThrow().classification())
                 .isEqualTo("CHANNEL_INACTIVE");
+        assertThat(service.listChannels()).contains(
+                new BusinessAdministrationService.ChannelSummary(10L, "Support", "telegram", false));
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM business_channel_bindings WHERE channel_id = 10", Integer.class))
                 .isEqualTo(2);
     }
@@ -210,7 +217,8 @@ class BusinessAdministrationServicePostgresIntegrationTest {
     private JdbcTemplate freshSchema(String prefix) {
         JdbcTemplate jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType(prefix);
         jdbc.execute("CREATE TABLE users (id BIGINT PRIMARY KEY, username TEXT NOT NULL UNIQUE)");
-        jdbc.execute("CREATE TABLE channels (id BIGINT PRIMARY KEY, is_active BOOLEAN NOT NULL DEFAULT TRUE)");
+        jdbc.execute("CREATE TABLE channels (id BIGINT PRIMARY KEY, channel_name TEXT NOT NULL DEFAULT '', "
+                + "platform TEXT DEFAULT 'telegram', is_active BOOLEAN NOT NULL DEFAULT TRUE)");
         jdbc.execute("CREATE TABLE tickets (user_id BIGINT NOT NULL, ticket_id TEXT NOT NULL, PRIMARY KEY (user_id, ticket_id))");
         return jdbc;
     }

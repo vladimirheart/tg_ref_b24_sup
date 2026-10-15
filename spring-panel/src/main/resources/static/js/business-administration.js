@@ -7,6 +7,7 @@
   const status = page.querySelector('[data-business-status]');
   const csrf = document.querySelector('meta[name="_csrf"]')?.content || '';
   let snapshot = null;
+  let previewRequestId = 0;
 
   function announce(message, error = false) {
     status.textContent = message;
@@ -26,7 +27,7 @@
     if (!response.ok) {
       const message = response.status === 403 ? 'Недостаточно прав для управления бизнесами.'
         : response.status === 409 ? 'Такая запись уже существует.'
-          : response.status === 404 ? 'Бизнес или сотрудник не найден.'
+          : response.status === 404 ? 'Бизнес, канал или сотрудник не найден.'
             : response.status === 400 ? 'Проверьте введённые данные.'
               : 'Не удалось выполнить операцию.';
       throw new Error(message);
@@ -177,6 +178,81 @@
     render(await request('/overview'));
   }
 
+  const classificationLabels = {
+    CHANNEL_INACTIVE: 'Канал выключен',
+    NO_ACTIVE_BINDING: 'Нет активных привязок',
+    SINGLE_BUSINESS: 'Одна активная привязка к бизнесу',
+    NEEDS_EXPLICIT_DECISION: 'Требуется явное решение по маршрутизации'
+  };
+  const modeLabels = {
+    SINGLE_BUSINESS: 'Один бизнес',
+    EXPLICIT_SELECTION: 'Явный выбор',
+    VERIFIED_EXTERNAL_MAPPING: 'Проверенное внешнее сопоставление',
+    VERIFIED_LOCATION_MAPPING: 'Проверенное сопоставление локации'
+  };
+
+  async function showChannelPreview(channel) {
+    const requestId = ++previewRequestId;
+    const panel = page.querySelector('#channelBindingPreview');
+    const details = page.querySelector('#channelBindingRows');
+    const previewStatus = page.querySelector('[data-channel-preview-status]');
+    panel.hidden = false;
+    page.querySelector('[data-channel-preview-title]').textContent =
+      `Привязки канала «${channel.channelName || `#${channel.id}`}»`;
+    previewStatus.textContent = 'Загрузка привязок…';
+    previewStatus.className = 'small text-muted';
+    details.replaceChildren();
+    try {
+      const preview = await request(`/channels/${channel.id}/binding-preview`);
+      if (requestId !== previewRequestId) return;
+      previewStatus.textContent = `${classificationLabels[preview.classification] || 'Статус не определён'}. Это только просмотр, не назначение бизнеса обращению.`;
+      if (!preview.bindings.length) {
+        const row = document.createElement('tr');
+        const empty = cell(row, 'Привязок нет.');
+        empty.colSpan = 4;
+        details.appendChild(row);
+      }
+      for (const binding of preview.bindings) {
+        const row = document.createElement('tr');
+        cell(row, binding.businessCode || `#${binding.businessId}`);
+        cell(row, modeLabels[binding.resolutionMode] || binding.resolutionMode);
+        cell(row, binding.businessStatus === 'active' ? 'Активен' : 'Архив');
+        cell(row, binding.active ? 'Активна' : 'Выключена');
+        details.appendChild(row);
+      }
+    } catch (error) {
+      if (requestId !== previewRequestId) return;
+      previewStatus.textContent = error.message || 'Не удалось загрузить привязки.';
+      previewStatus.className = 'small text-danger';
+    }
+  }
+
+  async function loadChannels() {
+    const channelStatus = page.querySelector('[data-channel-list-status]');
+    try {
+      const channels = await request('/channels');
+      const rows = page.querySelector('#businessChannelRows');
+      rows.replaceChildren();
+      for (const channel of channels) {
+        const row = document.createElement('tr');
+        cell(row, `${channel.channelName || 'Без названия'} (#${channel.id})`);
+        cell(row, channel.platform || '—');
+        cell(row, channel.active ? 'Активен' : 'Выключен');
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn btn-sm btn-outline-primary';
+        button.textContent = 'Привязки';
+        button.addEventListener('click', () => showChannelPreview(channel));
+        cell(row, '').appendChild(button);
+        rows.appendChild(row);
+      }
+      channelStatus.textContent = channels.length ? `Каналов: ${channels.length}.` : 'Каналов пока нет.';
+    } catch (error) {
+      channelStatus.textContent = error.message || 'Не удалось загрузить каналы.';
+      channelStatus.className = 'text-danger small';
+    }
+  }
+
   async function perform(action, success) {
     try {
       await action();
@@ -231,4 +307,5 @@
   refresh().then(() => announce(snapshot.businesses.length
     ? 'Каталог и права загружены.' : 'Бизнесов пока нет.'))
     .catch((error) => announce(error.message || 'Не удалось загрузить каталог.', true));
+  loadChannels();
 })();

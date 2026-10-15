@@ -45,6 +45,16 @@ public class BusinessAdministrationService {
         return new Overview(businesses, users, memberships, allGrants, locations);
     }
 
+    /** Admin inventory only; channel metadata does not determine a ticket's business. */
+    public List<ChannelSummary> listChannels() {
+        return jdbc.query("""
+                SELECT id, channel_name, platform, is_active
+                  FROM channels ORDER BY id
+                """, (rs, row) -> new ChannelSummary(rs.getLong("id"),
+                rs.getString("channel_name"), rs.getString("platform"),
+                rs.getBoolean("is_active")));
+    }
+
     /** Read-only channel-binding inventory; classification is not permission to assign a ticket owner. */
     public Optional<ChannelBindingPreview> previewChannelBinding(long channelId) {
         requirePositiveIds(channelId);
@@ -267,6 +277,9 @@ public class BusinessAdministrationService {
 
     public record ChannelBindingPreview(long channelId, boolean channelActive,
                                         String classification, List<ChannelBinding> bindings) {
+    }
+
+    public record ChannelSummary(long id, String channelName, String platform, boolean active) {
     }
 
     public record Overview(List<Business> businesses, List<PanelUser> users,

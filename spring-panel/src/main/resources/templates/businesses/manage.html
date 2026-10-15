@@ -81,6 +81,25 @@
                 </table></div>
             </div></div>
         </section>
+        <section class="col-12" aria-labelledby="businessChannelsTitle">
+            <div class="card"><div class="card-body">
+                <h2 class="h5" id="businessChannelsTitle">Каналы и привязки</h2>
+                <p class="text-muted small">Только просмотр. Привязки не назначают бизнес старым обращениям и не включают маршрутизацию новых.</p>
+                <p class="text-muted small" role="status" aria-live="polite" data-channel-list-status>Загрузка каналов…</p>
+                <div class="table-responsive"><table class="table table-sm align-middle">
+                    <thead><tr><th scope="col">Канал</th><th scope="col">Платформа</th><th scope="col">Статус</th><th scope="col"></th></tr></thead>
+                    <tbody id="businessChannelRows"></tbody>
+                </table></div>
+                <div id="channelBindingPreview" hidden>
+                    <h3 class="h6" data-channel-preview-title></h3>
+                    <p class="small" role="status" aria-live="polite" data-channel-preview-status></p>
+                    <div class="table-responsive"><table class="table table-sm align-middle">
+                        <thead><tr><th scope="col">Бизнес</th><th scope="col">Режим</th><th scope="col">Статус бизнеса</th><th scope="col">Привязка</th></tr></thead>
+                        <tbody id="channelBindingRows"></tbody>
+                    </table></div>
+                </div>
+            </div></div>
+        </section>
         <section class="col-12" aria-labelledby="allBusinessGrantTitle">
             <div class="card"><div class="card-body">
                 <h2 class="h5" id="allBusinessGrantTitle">Доступ ко всем бизнесам</h2>
@@ -104,6 +123,6 @@
     </div>
 </main>
 <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js"></script>
-<script th:src="@{/js/business-administration.js(v='20261015-r94')}"></script>
+<script th:src="@{/js/business-administration.js(v='20261015-r97')}"></script>
 </body>
 </html>

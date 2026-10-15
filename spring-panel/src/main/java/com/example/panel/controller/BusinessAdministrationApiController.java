@@ -2,6 +2,7 @@ package com.example.panel.controller;
 
 import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.service.BusinessAdministrationService;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
@@ -38,6 +39,12 @@ public class BusinessAdministrationApiController {
     public BusinessAdministrationService.Overview overview() {
         requireFoundation();
         return service.overview();
+    }
+
+    @GetMapping("/channels")
+    public List<BusinessAdministrationService.ChannelSummary> channels() {
+        requireFoundation();
+        return service.listChannels();
     }
 
     @GetMapping("/channels/{channelId}/binding-preview")

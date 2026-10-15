@@ -229,4 +229,30 @@ class BusinessAdministrationApiControllerWebMvcTest {
                 .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test
+    void channelInventoryRequiresGlobalAdminAndExposesOnlySafeMetadata() throws Exception {
+        String path = "/api/business-admin/channels";
+        when(flags.isFoundationEnabled()).thenReturn(true);
+        mvc.perform(get(path)
+                .with(user("business-admin").authorities(() -> "PAGE_SETTINGS", () -> "BUSINESS_ADMIN")))
+                .andExpect(status().isForbidden());
+        when(flags.isFoundationEnabled()).thenReturn(false);
+        mvc.perform(get(path)
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")))
+                .andExpect(status().isNotFound());
+        verify(service, never()).listChannels();
+
+        when(flags.isFoundationEnabled()).thenReturn(true);
+        when(service.listChannels()).thenReturn(List.of(
+                new BusinessAdministrationService.ChannelSummary(10L, "Support", "telegram", true)));
+        mvc.perform(get(path)
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(10))
+                .andExpect(jsonPath("$[0].channelName").value("Support"))
+                .andExpect(jsonPath("$[0].platform").value("telegram"))
+                .andExpect(jsonPath("$[0].active").value(true))
+                .andExpect(jsonPath("$[0].token").doesNotExist());
+    }
 }
