@@ -135,7 +135,9 @@
           currentTicketPublicId !== ticket.ticketPublicId ||
           (select.value !== 'all' && select.value !== String(ticket.businessId))) return;
       if (snapshot.ticket.ticketPublicId !== ticket.ticketPublicId ||
-          snapshot.ticket.businessId !== ticket.businessId) return;
+          snapshot.ticket.businessId !== ticket.businessId ||
+          snapshot.ticket.userId !== ticket.userId ||
+          snapshot.ticket.ticketId !== ticket.ticketId) return;
       if (!snapshot.relationVerified) {
         answersStatus.textContent = 'Ответы недоступны: legacy ID обращения не имеет однозначной связи с ними.';
         return;
@@ -178,11 +180,15 @@
       const snapshot = await getJson(`/api/business-scope/tickets/${encodeURIComponent(ticket.ticketPublicId)}/history?limit=50`);
       if (expectedGeneration !== generation || request !== cardRequest) return;
       const detail = snapshot.ticket;
-      if (detail.ticketPublicId !== ticket.ticketPublicId) return;
+      if (detail.ticketPublicId !== ticket.ticketPublicId ||
+          detail.businessId !== ticket.businessId || detail.userId !== ticket.userId ||
+          detail.ticketId !== ticket.ticketId) return;
       if (select.value !== 'all' && select.value !== String(detail.businessId)) return;
       card.querySelector('[data-ticket-business]').textContent = detail.businessName;
       card.querySelector('[data-ticket-id]').textContent = detail.ticketId;
       card.querySelector('[data-ticket-user]').textContent = String(detail.userId);
+      card.querySelector('[data-ticket-client]').textContent = detail.clientName || 'Не указано';
+      card.querySelector('[data-ticket-problem]').textContent = detail.problemPreview || 'Не указана';
       card.querySelector('[data-ticket-public]').textContent = detail.ticketPublicId;
       card.querySelector('[data-ticket-status]').textContent = statusLabel(detail.status);
       history.replaceChildren();
@@ -287,7 +293,10 @@
         const row = document.createElement('tr');
         cell(row, ticket.businessName);
         cell(row, ticket.ticketId);
-        cell(row, ticket.userId);
+        cell(row, ticket.clientName || `ID ${ticket.userId}`);
+        const problem = cell(row, ticket.problemPreview
+          ? `${ticket.problemPreview.slice(0, 120)}${ticket.problemPreview.length > 120 ? '…' : ''}` : '—');
+        problem.className = 'small text-break';
         cell(row, statusLabel(ticket.status));
         const action = cell(row, '');
         if (ticket.ticketPublicId) {

@@ -1,6 +1,8 @@
 package com.example.panel.service;
 
 import com.example.panel.storage.AttachmentStorageKeyResolver;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -201,9 +203,13 @@ public class BusinessScopedTicketReadService {
         String sql = """
                 SELECT ticket.user_id, ticket.ticket_id, ticket.ticket_public_id, ticket.status,
                        business.id AS business_id, business.code AS business_code,
-                       business.display_name AS business_name
+                       business.display_name AS business_name,
+                       left(root.client_name, 200) AS client_name,
+                       left(root.problem, 500) AS problem_preview
                   FROM tickets ticket
                   JOIN businesses business ON business.id = ticket.business_id
+                  LEFT JOIN messages root ON root.group_msg_id = ticket.group_msg_id
+                       AND root.user_id = ticket.user_id AND root.ticket_id = ticket.ticket_id
                  WHERE ticket.business_id IN (:businessIds)
                    AND business.status = 'active'
                    AND (EXISTS (
@@ -220,14 +226,8 @@ public class BusinessScopedTicketReadService {
                 + (status == null ? "" : " AND ticket.status = :status\n")
                 + (ticketId == null ? "" : " AND (ticket.ticket_id = :ticketId OR ticket.ticket_public_id = :ticketId)\n")
                 + (query == null ? "" : """
-                   AND EXISTS (
-                       SELECT 1 FROM messages root
-                        WHERE root.group_msg_id = ticket.group_msg_id
-                          AND root.user_id = ticket.user_id
-                          AND root.ticket_id = ticket.ticket_id
-                          AND (strpos(lower(coalesce(root.client_name, '')), lower(:query)) > 0
-                               OR strpos(lower(coalesce(root.problem, '')), lower(:query)) > 0)
-                   )
+                   AND (strpos(lower(coalesce(root.client_name, '')), lower(:query)) > 0
+                        OR strpos(lower(coalesce(root.problem, '')), lower(:query)) > 0)
                    """)
                 + """
                  ORDER BY ticket.business_id, ticket.user_id, ticket.ticket_id
@@ -241,11 +241,7 @@ public class BusinessScopedTicketReadService {
                         .addValue("query", query == null ? null : query.strip())
                         .addValue("limit", limit)
                         .addValue("offset", offset),
-                (rs, rowNum) -> new TicketRow(
-                        rs.getLong("user_id"), rs.getString("ticket_id"),
-                        rs.getString("ticket_public_id"), rs.getLong("business_id"),
-                        rs.getString("business_code"), rs.getString("business_name"),
-                        rs.getString("status")));
+                (rs, rowNum) -> ticketRow(rs));
     }
 
     public Optional<TicketRow> findByPublicId(Long userId, String publicId) {
@@ -259,9 +255,13 @@ public class BusinessScopedTicketReadService {
         List<TicketRow> rows = namedJdbcTemplate.query("""
                 SELECT ticket.user_id, ticket.ticket_id, ticket.ticket_public_id, ticket.status,
                        business.id AS business_id, business.code AS business_code,
-                       business.display_name AS business_name
+                       business.display_name AS business_name,
+                       left(root.client_name, 200) AS client_name,
+                       left(root.problem, 500) AS problem_preview
                   FROM tickets ticket
                   JOIN businesses business ON business.id = ticket.business_id
+                  LEFT JOIN messages root ON root.group_msg_id = ticket.group_msg_id
+                       AND root.user_id = ticket.user_id AND root.ticket_id = ticket.ticket_id
                  WHERE ticket.ticket_public_id = :publicId
                    AND ticket.business_id IN (:businessIds)
                    AND business.status = 'active'
@@ -279,11 +279,7 @@ public class BusinessScopedTicketReadService {
                         .addValue("publicId", publicId)
                         .addValue("businessIds", ids)
                         .addValue("userId", userId),
-                (rs, rowNum) -> new TicketRow(
-                        rs.getLong("user_id"), rs.getString("ticket_id"),
-                        rs.getString("ticket_public_id"), rs.getLong("business_id"),
-                        rs.getString("business_code"), rs.getString("business_name"),
-                        rs.getString("status")));
+                (rs, rowNum) -> ticketRow(rs));
         return rows.stream().findFirst();
     }
 
@@ -307,11 +303,15 @@ public class BusinessScopedTicketReadService {
                 SELECT ticket.user_id, ticket.ticket_id, ticket.ticket_public_id, ticket.status,
                        business.id AS business_id, business.code AS business_code,
                        business.display_name AS business_name,
+                       left(root.client_name, 200) AS client_name,
+                       left(root.problem, 500) AS problem_preview,
                        history.id AS history_id, history.sender, history.message,
                        history.timestamp AS history_timestamp, history.message_type,
                        history.attachment
                   FROM tickets ticket
                   JOIN businesses business ON business.id = ticket.business_id
+                  LEFT JOIN messages root ON root.group_msg_id = ticket.group_msg_id
+                       AND root.user_id = ticket.user_id AND root.ticket_id = ticket.ticket_id
                   LEFT JOIN LATERAL (
                       SELECT h.id, h.sender, h.message, h.timestamp, h.message_type, h.attachment
                         FROM chat_history h
@@ -347,11 +347,7 @@ public class BusinessScopedTicketReadService {
                     List<HistoryEntry> entries = new ArrayList<>();
                     while (rs.next()) {
                         if (ticket == null) {
-                            ticket = new TicketRow(
-                                    rs.getLong("user_id"), rs.getString("ticket_id"),
-                                    rs.getString("ticket_public_id"), rs.getLong("business_id"),
-                                    rs.getString("business_code"), rs.getString("business_name"),
-                                    rs.getString("status"));
+                            ticket = ticketRow(rs);
                         }
                         if (rs.getObject("history_id") != null) {
                             entries.add(new HistoryEntry(
@@ -387,10 +383,14 @@ public class BusinessScopedTicketReadService {
                     SELECT ticket.user_id, ticket.ticket_id, ticket.ticket_public_id, ticket.status,
                            business.id AS business_id, business.code AS business_code,
                            business.display_name AS business_name,
+                           left(root.client_name, 200) AS client_name,
+                           left(root.problem, 500) AS problem_preview,
                            (SELECT COUNT(*) FROM tickets same_id
                              WHERE same_id.ticket_id = ticket.ticket_id) = 1 AS relation_verified
                       FROM tickets ticket
                       JOIN businesses business ON business.id = ticket.business_id
+                      LEFT JOIN messages root ON root.group_msg_id = ticket.group_msg_id
+                           AND root.user_id = ticket.user_id AND root.ticket_id = ticket.ticket_id
                      WHERE ticket.ticket_public_id = :publicId
                        AND ticket.business_id IN (:businessIds)
                        AND business.status = 'active'
@@ -430,10 +430,7 @@ public class BusinessScopedTicketReadService {
                     List<AnswerEntry> answers = new ArrayList<>();
                     while (rs.next()) {
                         if (ticket == null) {
-                            ticket = new TicketRow(rs.getLong("user_id"), rs.getString("ticket_id"),
-                                    rs.getString("ticket_public_id"), rs.getLong("business_id"),
-                                    rs.getString("business_code"), rs.getString("business_name"),
-                                    rs.getString("status"));
+                            ticket = ticketRow(rs);
                             relationVerified = rs.getBoolean("relation_verified");
                         }
                         if (rs.getString("answer_question_id") != null) {
@@ -535,6 +532,13 @@ public class BusinessScopedTicketReadService {
         return true;
     }
 
+    private TicketRow ticketRow(ResultSet rs) throws SQLException {
+        return new TicketRow(rs.getLong("user_id"), rs.getString("ticket_id"),
+                rs.getString("ticket_public_id"), rs.getLong("business_id"),
+                rs.getString("business_code"), rs.getString("business_name"),
+                rs.getString("status"), rs.getString("client_name"), rs.getString("problem_preview"));
+    }
+
     public record BusinessOption(long id, String code, String displayName) {
     }
 
@@ -549,7 +553,12 @@ public class BusinessScopedTicketReadService {
 
     public record TicketRow(long userId, String ticketId, String ticketPublicId,
                             long businessId, String businessCode, String businessName,
-                            String status) {
+                            String status, String clientName, String problemPreview) {
+        public TicketRow(long userId, String ticketId, String ticketPublicId,
+                         long businessId, String businessCode, String businessName, String status) {
+            this(userId, ticketId, ticketPublicId, businessId, businessCode, businessName,
+                    status, null, null);
+        }
     }
 
     public record TicketPage(List<TicketRow> tickets, boolean hasMore) {

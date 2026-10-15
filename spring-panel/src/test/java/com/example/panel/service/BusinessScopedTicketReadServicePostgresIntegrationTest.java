@@ -47,6 +47,10 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         String blinyId = "fedcba9876543210fedcba9876543210";
         jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id, ticket_public_id) VALUES (11, 'same', ?, ?)", sushi, sushiId);
         jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id, ticket_public_id) VALUES (22, 'same', ?, ?)", bliny, blinyId);
+        jdbc.update("UPDATE tickets SET group_msg_id = 101 WHERE user_id = 11");
+        jdbc.update("UPDATE tickets SET group_msg_id = 202 WHERE user_id = 22");
+        jdbc.update("INSERT INTO messages(group_msg_id, user_id, ticket_id, client_name, problem) VALUES "
+                + "(101, 11, 'same', 'Иван', 'Нет света'), (202, 22, 'same', 'Анна', 'Нет сети')");
         jdbc.update("INSERT INTO chat_history(user_id, ticket_id, ticket_owner_user_id, sender, message) VALUES (11, 'same', 11, 'client', 'sushi')");
         jdbc.update("INSERT INTO chat_history(user_id, ticket_id, ticket_owner_user_id, sender, message) VALUES (22, 'same', 22, 'client', 'bliny')");
         jdbc.update("INSERT INTO chat_history(user_id, ticket_id, sender, message) VALUES (11, 'same', 'client', 'legacy-unlinked')");
@@ -58,6 +62,8 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
                 jdbc, new BusinessAccessService(jdbc));
         assertThat(service.findHistoryByPublicId(1L, sushiId, null, 50)).get()
                 .extracting(snapshot -> snapshot.entries().get(0).message()).isEqualTo("sushi");
+        assertThat(service.findHistoryByPublicId(1L, sushiId, null, 50).orElseThrow().ticket().clientName())
+                .isEqualTo("Иван");
         assertThat(service.findHistoryByPublicId(1L, blinyId, null, 50)).isEmpty();
         assertThat(service.findHistoryByPublicId(2L, blinyId, null, 50)).get()
                 .extracting(snapshot -> snapshot.entries().get(0).message()).isEqualTo("bliny");
@@ -209,6 +215,9 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         jdbc.update("INSERT INTO business_memberships(user_id, business_id, role_code) VALUES (1, ?, 'VIEWER')", sushi);
         jdbc.update("INSERT INTO business_access_grants(user_id, grant_scope, role_code) VALUES (2, 'ALL_BUSINESSES', 'VIEWER')");
         jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id, ticket_public_id) VALUES (11, 'same', ?, ?)", sushi, publicId);
+        jdbc.update("UPDATE tickets SET group_msg_id = 101 WHERE user_id = 11");
+        jdbc.update("INSERT INTO messages(group_msg_id, user_id, ticket_id, client_name, problem) "
+                + "VALUES (101, 11, 'same', 'Иван', 'Нет света')");
         jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id, ticket_public_id) VALUES (22, 'other', ?, ?)", bliny, blinyId);
         jdbc.update("INSERT INTO ticket_attributes(ticket_id, question_id, question_text, input_type, value_label, value_text) "
                 + "VALUES ('same', 'q2', 'Адрес', 'text', NULL, '<script>адрес</script>'), "
@@ -218,6 +227,7 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
 
         var readable = service.findAnswersByPublicId(1L, publicId).orElseThrow();
         assertThat(readable.relationVerified()).isTrue();
+        assertThat(readable.ticket().clientName()).isEqualTo("Иван");
         assertThat(readable.answers()).extracting(BusinessScopedTicketReadService.AnswerEntry::questionId)
                 .containsExactly("q1", "q2");
         assertThat(readable.answers().get(1).valueText()).isEqualTo("<script>адрес</script>");
@@ -368,12 +378,6 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         JdbcTemplate jdbc = freshSchema("business_scoped_root_search");
         jdbc.update("INSERT INTO users(id, username) VALUES (1, 'direct'), (2, 'all-reader')");
         migrate(jdbc);
-        jdbc.execute("""
-                CREATE TABLE messages (
-                    group_msg_id BIGINT PRIMARY KEY, user_id BIGINT, ticket_id TEXT,
-                    client_name TEXT, problem TEXT
-                )
-                """);
         long sushi = businessId(jdbc, "sushi");
         long bliny = businessId(jdbc, "bliny");
         jdbc.update("INSERT INTO business_memberships(user_id, business_id, role_code) VALUES (1, ?, 'VIEWER')", sushi);
@@ -395,6 +399,17 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         BusinessScopedTicketReadService service = new BusinessScopedTicketReadService(
                 jdbc, new BusinessAccessService(jdbc));
         var all = BusinessAccessService.AllAccessibleBusinesses.INSTANCE;
+
+        jdbc.update("UPDATE tickets SET ticket_public_id = '0123456789abcdef0123456789abcdef' WHERE user_id = 11");
+        assertThat(service.findByPublicId(1L, "0123456789abcdef0123456789abcdef")
+                .orElseThrow().clientName()).isEqualTo("Иван");
+        assertThat(service.listTickets(1L, all, 50, 0).stream()
+                .filter(row -> row.userId() == 11L).findFirst().orElseThrow().problemPreview())
+                .isEqualTo("Нет света");
+        assertThat(service.listTickets(1L, all, 50, 0).stream()
+                .filter(row -> row.userId() == 55L).findFirst().orElseThrow().clientName()).isNull();
+        assertThat(service.listTickets(1L, all, 50, 0).stream()
+                .filter(row -> row.userId() == 77L).findFirst().orElseThrow().problemPreview()).isNull();
 
         assertThat(service.listTickets(1L, all, 50, 0, null, null, " иВан "))
                 .extracting(BusinessScopedTicketReadService.TicketRow::userId).containsExactly(11L);
@@ -437,6 +452,14 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
                 .extracting(BusinessScopedTicketReadService.TicketRow::userId).containsExactly(11L);
         assertThat(service.exportTickets(2L, all, null, null, "Иван"))
                 .extracting(BusinessScopedTicketReadService.TicketRow::userId).containsExactly(11L);
+        jdbc.update("UPDATE messages SET client_name = ?, problem = ? WHERE group_msg_id = 101",
+                "И".repeat(205), "П".repeat(505) + "TAIL");
+        var fullTextMatch = service.exportTickets(2L, all, null, null, "tail");
+        assertThat(fullTextMatch).hasSize(1);
+        assertThat(fullTextMatch.get(0).clientName()).hasSize(200);
+        assertThat(fullTextMatch.get(0).problemPreview()).hasSize(500);
+        assertThat(service.findByPublicId(2L, "0123456789abcdef0123456789abcdef")
+                .orElseThrow().problemPreview()).hasSize(500);
     }
 
     @Test
@@ -578,6 +601,8 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         jdbc.execute("CREATE TABLE channels (id BIGINT PRIMARY KEY)");
         jdbc.execute("CREATE TABLE tickets (user_id BIGINT NOT NULL, ticket_id TEXT NOT NULL, "
                 + "group_msg_id BIGINT, status TEXT DEFAULT 'pending', PRIMARY KEY (user_id, ticket_id))");
+        jdbc.execute("CREATE TABLE messages (group_msg_id BIGINT PRIMARY KEY, user_id BIGINT, "
+                + "ticket_id TEXT, client_name TEXT, problem TEXT)");
         return jdbc;
     }
 
