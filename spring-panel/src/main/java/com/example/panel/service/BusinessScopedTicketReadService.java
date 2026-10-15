@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import com.example.panel.storage.AttachmentStorageKeyResolver;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -231,6 +232,89 @@ public class BusinessScopedTicketReadService {
                 });
     }
 
+    /** A binary locator is issued only for one explicit history owner and unambiguous storage key. */
+    public Optional<AttachmentReference> findAttachmentByPublicId(Long userId, String publicId, long historyId) {
+        if (historyId < 1 || publicId == null || !PUBLIC_ID.matcher(publicId).matches()) {
+            return Optional.empty();
+        }
+        Set<Long> ids = accessService.resolveAccessibleBusinessIds(userId);
+        if (ids.isEmpty()) {
+            return Optional.empty();
+        }
+        List<AttachmentReference> rows = namedJdbcTemplate.query("""
+                SELECT ticket.ticket_id, history.attachment, metadata.storage_key,
+                       metadata.original_name
+                  FROM tickets ticket
+                  JOIN businesses business ON business.id = ticket.business_id
+                  JOIN chat_history history ON history.id = :historyId
+                       AND history.ticket_owner_user_id = ticket.user_id
+                       AND history.ticket_id = ticket.ticket_id
+                       AND history.deleted_at IS NULL
+                  JOIN chat_attachment_metadata metadata ON metadata.chat_history_id = history.id
+                       AND metadata.ticket_id = ticket.ticket_id
+                       AND metadata.deleted_at IS NULL
+                       AND metadata.archived_at IS NULL
+                       AND metadata.storage_class = 'dialog_attachment'
+                       AND metadata.normalization_status = 'normalized'
+                       AND metadata.availability_status = 'available'
+                       AND metadata.storage_provider IN ('local_fs', 's3')
+                       AND metadata.storage_key IS NOT NULL
+                 WHERE ticket.ticket_public_id = :publicId
+                   AND ticket.business_id IN (:businessIds)
+                   AND business.status = 'active'
+                   AND (SELECT COUNT(*) FROM tickets same_id
+                         WHERE same_id.ticket_id = ticket.ticket_id) = 1
+                   AND NOT EXISTS (
+                       SELECT 1 FROM chat_attachment_metadata other
+                        WHERE other.storage_key = metadata.storage_key
+                          AND other.id <> metadata.id
+                   )
+                   AND (EXISTS (
+                       SELECT 1 FROM business_memberships membership
+                        WHERE membership.business_id = business.id
+                          AND membership.user_id = :userId AND membership.is_active = TRUE
+                   ) OR EXISTS (
+                       SELECT 1 FROM business_access_grants access_grant
+                        WHERE access_grant.user_id = :userId
+                          AND access_grant.grant_scope = 'ALL_BUSINESSES'
+                          AND access_grant.is_active = TRUE
+                   ))
+                """, new MapSqlParameterSource()
+                        .addValue("historyId", historyId)
+                        .addValue("publicId", publicId)
+                        .addValue("businessIds", ids)
+                        .addValue("userId", userId),
+                (rs, rowNum) -> {
+                    String ticketId = rs.getString("ticket_id");
+                    String rawReference = rs.getString("attachment");
+                    String storageKey = rs.getString("storage_key");
+                    String expected = AttachmentStorageKeyResolver.normalizeStorageKey(ticketId, rawReference);
+                    if (expected == null || !expected.equals(storageKey)
+                            || !safeStorageKey(ticketId, storageKey)) {
+                        return null;
+                    }
+                    String originalName = AttachmentStorageKeyResolver.resolveOriginalName(
+                            rs.getString("original_name"), rawReference, storageKey);
+                    return new AttachmentReference(storageKey, originalName);
+                });
+        return rows.stream().filter(java.util.Objects::nonNull).findFirst();
+    }
+
+    private boolean safeStorageKey(String ticketId, String storageKey) {
+        if (ticketId == null || storageKey == null || storageKey.length() > 4096
+                || !storageKey.startsWith(ticketId + "/")
+                || storageKey.chars().anyMatch(Character::isISOControl)) {
+            return false;
+        }
+        for (String part : storageKey.split("/", -1)) {
+            if (part.isBlank() || ".".equals(part) || "..".equals(part)
+                    || !part.equals(part.trim()) || part.endsWith(".")) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public record BusinessOption(long id, String code, String displayName) {
     }
 
@@ -244,5 +328,8 @@ public class BusinessScopedTicketReadService {
 
     public record TicketHistory(TicketRow ticket, List<HistoryEntry> entries,
                                 boolean hasMore, Long nextBeforeId) {
+    }
+
+    public record AttachmentReference(String storageKey, String originalName) {
     }
 }

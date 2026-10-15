@@ -67,7 +67,7 @@
         empty.textContent = 'Подтверждённых записей истории пока нет.';
         history.appendChild(empty);
       }
-      history.append(...snapshot.entries.map(historyItem));
+      history.append(...snapshot.entries.map((entry) => historyItem(entry, detail.ticketPublicId)));
       currentTicketPublicId = detail.ticketPublicId;
       historyBefore = snapshot.nextBeforeId;
       older.hidden = !snapshot.hasMore;
@@ -79,13 +79,20 @@
     }
   }
 
-  function historyItem(entry) {
+  function historyItem(entry, publicId) {
     const item = document.createElement('li');
     item.className = 'list-group-item';
     const sender = entry.sender || 'Неизвестный отправитель';
     const time = entry.timestamp ? new Date(entry.timestamp).toLocaleString('ru-RU') : 'Время неизвестно';
     const body = entry.message || (entry.hasAttachment ? '[Вложение]' : '[Без текста]');
     item.textContent = `${sender} · ${time}: ${body}`;
+    if (entry.hasAttachment) {
+      const link = document.createElement('a');
+      link.href = `/api/business-scope/tickets/${encodeURIComponent(publicId)}/history/${encodeURIComponent(entry.id)}/attachment`;
+      link.textContent = 'Скачать вложение';
+      link.className = 'ms-2';
+      item.appendChild(link);
+    }
     return item;
   }
 
@@ -102,7 +109,7 @@
       if (expectedGeneration !== generation || request !== cardRequest || publicId !== currentTicketPublicId) return;
       if (snapshot.ticket.ticketPublicId !== publicId ||
           (select.value !== 'all' && select.value !== String(snapshot.ticket.businessId))) return;
-      history.prepend(...snapshot.entries.map(historyItem));
+      history.prepend(...snapshot.entries.map((entry) => historyItem(entry, publicId)));
       historyBefore = snapshot.nextBeforeId;
       older.hidden = !snapshot.hasMore;
     } catch (error) {

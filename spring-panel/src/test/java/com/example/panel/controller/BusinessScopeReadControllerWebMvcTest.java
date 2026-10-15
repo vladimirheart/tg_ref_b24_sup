@@ -2,6 +2,9 @@ package com.example.panel.controller;
 
 import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.service.BusinessScopedTicketReadService;
+import com.example.panel.storage.AttachmentObjectStorageService;
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -17,6 +20,8 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(BusinessScopeReadController.class)
@@ -38,6 +43,9 @@ class BusinessScopeReadControllerWebMvcTest {
 
     @MockBean
     private MultibusinessFeatureFlags flags;
+
+    @MockBean
+    private AttachmentObjectStorageService objectStorageService;
 
     @Test
     void requiresDialogsPageAndEnabledFoundation() throws Exception {
@@ -110,6 +118,38 @@ class BusinessScopeReadControllerWebMvcTest {
         mvc.perform(get(path).param("before", "abc")
                 .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isBadRequest());
+        when(flags.isFoundationEnabled()).thenReturn(false);
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void attachmentRequiresCurrentScopeAndReturnsOnlyVerifiedBinary() throws Exception {
+        when(flags.isFoundationEnabled()).thenReturn(true);
+        when(service.requireAuthenticatedUserId("operator")).thenReturn(1L);
+        String path = "/api/business-scope/tickets/" + PUBLIC_ID + "/history/7/attachment";
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_SETTINGS")))
+                .andExpect(status().isForbidden());
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isNotFound());
+        mvc.perform(get("/api/business-scope/tickets/" + PUBLIC_ID + "/history/nope/attachment")
+                .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isBadRequest());
+        var reference = new BusinessScopedTicketReadService.AttachmentReference(
+                "ticket/file.bin", "../document.txt");
+        when(service.findAttachmentByPublicId(1L, PUBLIC_ID, 7L)).thenReturn(Optional.of(reference));
+        byte[] contents = "verified".getBytes(StandardCharsets.UTF_8);
+        when(objectStorageService.openDialogAttachmentByStorageKey("ticket/file.bin"))
+                .thenReturn(new AttachmentObjectStorageService.StoredBinary(
+                        "ticket/file.bin", "text/plain", contents.length, new ByteArrayInputStream(contents)));
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("document.txt")))
+                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("../"))))
+                .andExpect(content().bytes(contents));
         when(flags.isFoundationEnabled()).thenReturn(false);
         mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isNotFound());

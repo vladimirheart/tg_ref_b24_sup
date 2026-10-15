@@ -116,6 +116,79 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
     }
 
     @Test
+    void attachmentRequiresExactHistoryMetadataAndUnambiguousRawNamespace() throws Exception {
+        JdbcTemplate jdbc = freshSchema("business_scoped_attachment");
+        jdbc.update("INSERT INTO users(id, username) VALUES (1, 'reader'), (2, 'outsider')");
+        migrate(jdbc);
+        jdbc.execute("""
+                CREATE TABLE chat_history (
+                    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                    user_id BIGINT, ticket_id TEXT, sender TEXT, message TEXT,
+                    timestamp TIMESTAMP WITH TIME ZONE, message_type TEXT,
+                    attachment TEXT, deleted_at TIMESTAMP WITH TIME ZONE
+                )
+                """);
+        jdbc.execute(Files.readString(HISTORY_OWNER));
+        jdbc.execute("""
+                CREATE TABLE chat_attachment_metadata (
+                    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                    chat_history_id BIGINT NOT NULL UNIQUE REFERENCES chat_history(id),
+                    ticket_id TEXT, storage_key TEXT, original_name TEXT,
+                    storage_provider TEXT, storage_class TEXT,
+                    normalization_status TEXT, availability_status TEXT,
+                    archived_at TIMESTAMP WITH TIME ZONE, deleted_at TIMESTAMP WITH TIME ZONE
+                )
+                """);
+        long sushi = businessId(jdbc, "sushi");
+        long bliny = businessId(jdbc, "bliny");
+        String publicId = "0123456789abcdef0123456789abcdef";
+        jdbc.update("INSERT INTO business_memberships(user_id, business_id, role_code) VALUES (1, ?, 'VIEWER')", sushi);
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id, ticket_public_id) VALUES (11, 'same', ?, ?)", sushi, publicId);
+        jdbc.update("INSERT INTO chat_history(ticket_id, ticket_owner_user_id, message, attachment) VALUES ('same', 11, 'file', 'file.bin')");
+        long historyId = jdbc.queryForObject("SELECT id FROM chat_history WHERE message = 'file'", Long.class);
+        jdbc.update("""
+                INSERT INTO chat_attachment_metadata(
+                    chat_history_id, ticket_id, storage_key, original_name,
+                    storage_provider, storage_class, normalization_status, availability_status
+                ) VALUES (?, 'same', 'same/file.bin', 'invoice.pdf',
+                          'local_fs', 'dialog_attachment', 'normalized', 'available')
+                """, historyId);
+        BusinessScopedTicketReadService service = new BusinessScopedTicketReadService(
+                jdbc, new BusinessAccessService(jdbc));
+        assertThat(service.findAttachmentByPublicId(1L, publicId, historyId))
+                .get().extracting(BusinessScopedTicketReadService.AttachmentReference::storageKey)
+                .isEqualTo("same/file.bin");
+        assertThat(service.findAttachmentByPublicId(2L, publicId, historyId)).isEmpty();
+        assertThat(service.findAttachmentByPublicId(1L, publicId, historyId + 100)).isEmpty();
+
+        jdbc.update("UPDATE chat_attachment_metadata SET storage_key = 'other/file.bin'");
+        assertThat(service.findAttachmentByPublicId(1L, publicId, historyId)).isEmpty();
+        jdbc.update("UPDATE chat_attachment_metadata SET storage_key = 'same/file.bin', storage_provider = 'external_url'");
+        assertThat(service.findAttachmentByPublicId(1L, publicId, historyId)).isEmpty();
+        jdbc.update("UPDATE chat_attachment_metadata SET storage_provider = 'local_fs', deleted_at = CURRENT_TIMESTAMP");
+        assertThat(service.findAttachmentByPublicId(1L, publicId, historyId)).isEmpty();
+        jdbc.update("UPDATE chat_attachment_metadata SET deleted_at = NULL");
+
+        jdbc.update("INSERT INTO chat_history(ticket_id, ticket_owner_user_id, message, attachment) VALUES ('same', 11, 'duplicate', 'file.bin')");
+        long duplicateId = jdbc.queryForObject("SELECT id FROM chat_history WHERE message = 'duplicate'", Long.class);
+        jdbc.update("""
+                INSERT INTO chat_attachment_metadata(
+                    chat_history_id, ticket_id, storage_key, original_name,
+                    storage_provider, storage_class, normalization_status, availability_status
+                ) VALUES (?, 'same', 'same/file.bin', 'other.pdf',
+                          'local_fs', 'dialog_attachment', 'normalized', 'available')
+                """, duplicateId);
+        assertThat(service.findAttachmentByPublicId(1L, publicId, historyId)).isEmpty();
+        jdbc.update("DELETE FROM chat_attachment_metadata WHERE chat_history_id = ?", duplicateId);
+
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id) VALUES (22, 'same', ?)", bliny);
+        assertThat(service.findAttachmentByPublicId(1L, publicId, historyId)).isEmpty();
+        jdbc.update("DELETE FROM tickets WHERE user_id = 22 AND ticket_id = 'same'");
+        jdbc.update("UPDATE business_memberships SET is_active = FALSE WHERE user_id = 1");
+        assertThat(service.findAttachmentByPublicId(1L, publicId, historyId)).isEmpty();
+    }
+
+    @Test
     void listsOnlyCanonicalOwnersWithinDirectOrAllGrantedScope() throws Exception {
         JdbcTemplate jdbc = freshSchema("business_scoped_ticket_read");
         jdbc.update("INSERT INTO users(id, username) VALUES (1, 'sushi-reader'), (2, 'all-reader'), (3, 'no-grant')");
