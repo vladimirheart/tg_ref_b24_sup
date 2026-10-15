@@ -3,8 +3,10 @@ package com.example.panel.service.integration;
 import com.example.panel.support.PostgresqlJdbcTestSupport;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -89,6 +91,76 @@ class IntegrationInboundEventInboxServiceTest {
             Integer.class,
             "evt-3"
         )).isEqualTo(2);
+    }
+
+    @Test
+    void processedTicketCreationCannotBeReplayedWithDifferentOwner() {
+        JdbcTemplate jdbc = jdbcTemplate();
+        createSchema(jdbc);
+        IntegrationInboundEventInboxService service = new IntegrationInboundEventInboxService(
+            jdbc, new ObjectMapper().findAndRegisterModules());
+        ConversationTicketCreatedEvent original = ticketEvent("evt-frozen", 51L);
+        ConversationTicketCreatedEvent changed = ticketEvent("evt-frozen", 52L);
+        assertThat(service.beginProcessing(original.eventId(), original.eventKind(), original.platform(),
+            original.channelId(), original.ticketId(), "routing", original, null)).isTrue();
+        service.markProcessed(original.eventId());
+
+        assertThatThrownBy(() -> service.beginProcessing(changed.eventId(), changed.eventKind(),
+            changed.platform(), changed.channelId(), changed.ticketId(), "routing", changed, null))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("identity or business mismatch");
+        assertThat(jdbc.queryForObject("SELECT attempt_count FROM integration_inbound_event_inbox WHERE event_id = ?",
+            Integer.class, original.eventId())).isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+            "SELECT payload_json::jsonb ->> 'businessId' FROM integration_inbound_event_inbox WHERE event_id = ?",
+            String.class, original.eventId())).isEqualTo("51");
+    }
+
+    @Test
+    void failedTicketCreationCannotOverwriteOwnerButSameOwnerCanRetry() {
+        JdbcTemplate jdbc = jdbcTemplate();
+        createSchema(jdbc);
+        IntegrationInboundEventInboxService service = new IntegrationInboundEventInboxService(
+            jdbc, new ObjectMapper().findAndRegisterModules());
+        ConversationTicketCreatedEvent original = ticketEvent("evt-failed", 51L);
+        ConversationTicketCreatedEvent changed = ticketEvent("evt-failed", 52L);
+        assertThat(service.beginProcessing(original.eventId(), original.eventKind(), original.platform(),
+            original.channelId(), original.ticketId(), "routing", original, null)).isTrue();
+        service.markFailed(original.eventId(), new IllegalStateException("first attempt"));
+
+        assertThatThrownBy(() -> service.beginProcessing(changed.eventId(), changed.eventKind(),
+            changed.platform(), changed.channelId(), changed.ticketId(), "routing", changed, null))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("identity or business mismatch");
+        assertThat(jdbc.queryForObject("SELECT attempt_count FROM integration_inbound_event_inbox WHERE event_id = ?",
+            Integer.class, original.eventId())).isEqualTo(1);
+        assertThat(service.beginProcessing(original.eventId(), original.eventKind(), original.platform(),
+            original.channelId(), original.ticketId(), "routing", original, null)).isTrue();
+        assertThat(jdbc.queryForObject("SELECT attempt_count FROM integration_inbound_event_inbox WHERE event_id = ?",
+            Integer.class, original.eventId())).isEqualTo(2);
+    }
+
+    @Test
+    void oldTicketCreationPayloadWithoutBusinessIdRemainsIdempotent() {
+        JdbcTemplate jdbc = jdbcTemplate();
+        createSchema(jdbc);
+        IntegrationInboundEventInboxService service = new IntegrationInboundEventInboxService(
+            jdbc, new ObjectMapper().findAndRegisterModules());
+        ConversationTicketCreatedEvent old = ticketEvent("evt-old", null);
+        assertThat(service.beginProcessing(old.eventId(), old.eventKind(), old.platform(),
+            old.channelId(), old.ticketId(), "routing", old, null)).isTrue();
+        service.markProcessed(old.eventId());
+        jdbc.update("UPDATE integration_inbound_event_inbox "
+            + "SET payload_json = (payload_json::jsonb - 'businessId')::text WHERE event_id = ?", old.eventId());
+
+        assertThat(service.beginProcessing(old.eventId(), old.eventKind(), old.platform(),
+            old.channelId(), old.ticketId(), "routing", old, null)).isFalse();
+    }
+
+    private ConversationTicketCreatedEvent ticketEvent(String eventId, Long businessId) {
+        return new ConversationTicketCreatedEvent(eventId, "ticket.created.initial_contact", "telegram",
+            25L, "T-25", 901L, "tg-901", "client", "Client", "Legacy", "", "", "", "Help",
+            null, List.of(), List.of(), businessId);
     }
 
     private JdbcTemplate jdbcTemplate() {

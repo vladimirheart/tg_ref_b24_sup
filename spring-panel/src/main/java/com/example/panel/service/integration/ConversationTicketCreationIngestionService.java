@@ -20,6 +20,7 @@ import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -104,7 +105,22 @@ public class ConversationTicketCreationIngestionService {
         TicketId canonicalLocator = new TicketId();
         canonicalLocator.setUserId(event.userId());
         canonicalLocator.setTicketId(event.ticketId());
+        boolean strictBusinessWrite = multibusinessFeatureFlags.isTicketWriteRequiresBusiness();
+        if (strictBusinessWrite && !multibusinessFeatureFlags.isFoundationEnabled()) {
+            throw new IllegalStateException("Business ticket writes require the multibusiness foundation");
+        }
         if (ticketRepository.existsById(canonicalLocator)) {
+            if (strictBusinessWrite) {
+                // A retry keeps the ticket's frozen owner even if channel bindings changed later.
+                Ticket existing = ticketRepository.findById(canonicalLocator)
+                    .orElseThrow(() -> new IllegalStateException("Ticket creation replay lost its existing ticket"));
+                Long existingChannelId = existing.getChannel() != null ? existing.getChannel().getId() : null;
+                if (event.businessId() == null || event.businessId() <= 0
+                    || !Objects.equals(existing.getBusinessId(), event.businessId())
+                    || !Objects.equals(existingChannelId, event.channelId())) {
+                    throw new IllegalStateException("Ticket creation replay business or channel mismatch");
+                }
+            }
             return;
         }
         // Legacy child records still use a bare ticket_id; a cross-user collision
@@ -114,10 +130,7 @@ public class ConversationTicketCreationIngestionService {
         }
 
         Long businessId = null;
-        if (multibusinessFeatureFlags.isTicketWriteRequiresBusiness()) {
-            if (!multibusinessFeatureFlags.isFoundationEnabled()) {
-                throw new IllegalStateException("Business ticket writes require the multibusiness foundation");
-            }
+        if (strictBusinessWrite) {
             businessId = businessTicketWriteScopeResolver.requireSingleBusinessBinding(
                 event.channelId(), event.businessId());
         }

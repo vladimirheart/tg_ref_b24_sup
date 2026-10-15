@@ -407,6 +407,113 @@ class ConversationTicketCreationIngestionServiceTest {
     }
 
     @Test
+    void strictReplayAcceptsFrozenOwnerWithoutRecheckingCurrentChannelBinding() {
+        IntegrationInboundEventInboxService inbox = mock(IntegrationInboundEventInboxService.class);
+        ChannelRepository channels = mock(ChannelRepository.class);
+        MessageRepository messages = mock(MessageRepository.class);
+        TicketRepository tickets = mock(TicketRepository.class);
+        BusinessTicketWriteScopeResolver resolver = mock(BusinessTicketWriteScopeResolver.class);
+        ConversationTicketCreatedEvent event = eventWithBusinessId(51L);
+        ConversationTicketCreationIngestionService service = service(inbox, channels, messages, tickets,
+            strictFlags(), resolver);
+        Channel channel = new Channel();
+        channel.setId(25L);
+        Ticket existing = new Ticket();
+        existing.setBusinessId(51L);
+        existing.setChannel(channel);
+        TicketId locator = new TicketId();
+        locator.setUserId(event.userId());
+        locator.setTicketId(event.ticketId());
+        when(inbox.beginProcessing(eq(event.eventId()), eq(event.eventKind()), eq(event.platform()),
+            eq(event.channelId()), eq(event.ticketId()), eq("integration.ticket.telegram"),
+            eq(event), eq(event.occurredAt()))).thenReturn(true);
+        when(channels.findById(25L)).thenReturn(Optional.of(channel));
+        when(tickets.existsById(locator)).thenReturn(true);
+        when(tickets.findById(locator)).thenReturn(Optional.of(existing));
+
+        service.ingest(event, "integration.ticket.telegram");
+
+        verify(resolver, never()).requireSingleBusinessBinding(any(), any());
+        verify(messages, never()).save(any());
+        verify(tickets, never()).save(any());
+        verify(inbox).markProcessed(event.eventId());
+    }
+
+    @Test
+    void strictReplayRejectsDifferentBusinessOrMissingOwner() {
+        for (Long replayBusinessId : new Long[] {52L, null}) {
+            IntegrationInboundEventInboxService inbox = mock(IntegrationInboundEventInboxService.class);
+            ChannelRepository channels = mock(ChannelRepository.class);
+            MessageRepository messages = mock(MessageRepository.class);
+            TicketRepository tickets = mock(TicketRepository.class);
+            ConversationTicketCreatedEvent event = eventWithBusinessId(replayBusinessId);
+            ConversationTicketCreationIngestionService service = service(inbox, channels, messages, tickets,
+                strictFlags(), mock(BusinessTicketWriteScopeResolver.class));
+            Channel channel = new Channel();
+            channel.setId(25L);
+            Ticket existing = new Ticket();
+            existing.setBusinessId(51L);
+            existing.setChannel(channel);
+            TicketId locator = new TicketId();
+            locator.setUserId(event.userId());
+            locator.setTicketId(event.ticketId());
+            when(inbox.beginProcessing(eq(event.eventId()), eq(event.eventKind()), eq(event.platform()),
+                eq(event.channelId()), eq(event.ticketId()), eq("integration.ticket.telegram"),
+                eq(event), eq(event.occurredAt()))).thenReturn(true);
+            when(channels.findById(25L)).thenReturn(Optional.of(channel));
+            when(tickets.existsById(locator)).thenReturn(true);
+            when(tickets.findById(locator)).thenReturn(Optional.of(existing));
+
+            assertThatThrownBy(() -> service.ingest(event, "integration.ticket.telegram"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("replay business or channel mismatch");
+            verify(messages, never()).save(any());
+            verify(tickets, never()).save(any());
+            verify(inbox).markFailed(eq(event.eventId()), any(Exception.class));
+            verify(inbox, never()).markProcessed(any());
+        }
+    }
+
+    @Test
+    void strictReplayRejectsDifferentChannel() {
+        IntegrationInboundEventInboxService inbox = mock(IntegrationInboundEventInboxService.class);
+        ChannelRepository channels = mock(ChannelRepository.class);
+        MessageRepository messages = mock(MessageRepository.class);
+        TicketRepository tickets = mock(TicketRepository.class);
+        ConversationTicketCreatedEvent original = eventWithBusinessId(51L);
+        ConversationTicketCreatedEvent event = new ConversationTicketCreatedEvent(original.eventId(),
+            original.eventKind(), original.platform(), 26L, original.ticketId(), original.userId(),
+            original.userIdentity(), original.username(), original.clientName(), original.business(),
+            original.locationType(), original.city(), original.locationName(), original.problem(),
+            original.occurredAt(), original.attributes(), original.historyEntries(), original.businessId());
+        ConversationTicketCreationIngestionService service = service(inbox, channels, messages, tickets,
+            strictFlags(), mock(BusinessTicketWriteScopeResolver.class));
+        Channel originalChannel = new Channel();
+        originalChannel.setId(25L);
+        Channel replayChannel = new Channel();
+        replayChannel.setId(26L);
+        Ticket existing = new Ticket();
+        existing.setBusinessId(51L);
+        existing.setChannel(originalChannel);
+        TicketId locator = new TicketId();
+        locator.setUserId(event.userId());
+        locator.setTicketId(event.ticketId());
+        when(inbox.beginProcessing(eq(event.eventId()), eq(event.eventKind()), eq(event.platform()),
+            eq(event.channelId()), eq(event.ticketId()), eq("integration.ticket.telegram"),
+            eq(event), eq(event.occurredAt()))).thenReturn(true);
+        when(channels.findById(26L)).thenReturn(Optional.of(replayChannel));
+        when(tickets.existsById(locator)).thenReturn(true);
+        when(tickets.findById(locator)).thenReturn(Optional.of(existing));
+
+        assertThatThrownBy(() -> service.ingest(event, "integration.ticket.telegram"))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("replay business or channel mismatch");
+        verify(messages, never()).save(any());
+        verify(tickets, never()).save(any());
+        verify(inbox).markFailed(eq(event.eventId()), any(Exception.class));
+    }
+
+    @Test
     void legacyEventJsonWithoutCanonicalOwnerStillDeserializes() throws Exception {
         ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
         ObjectNode oldPayload = (ObjectNode) mapper.valueToTree(minimalEvent("evt-old", 901L, "T-OLD"));

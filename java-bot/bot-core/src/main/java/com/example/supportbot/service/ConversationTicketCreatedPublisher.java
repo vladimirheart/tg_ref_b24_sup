@@ -53,7 +53,8 @@ public class ConversationTicketCreatedPublisher {
             problem,
             command.startedAt(),
             mapAttributes(command.attributes()),
-            command.historyEntries()
+            command.historyEntries(),
+            command.businessId()
         );
         boolean queued = integrationTransportOutboxService.enqueueConversationTicketCreated(event, rabbitProperties);
         if (queued) {

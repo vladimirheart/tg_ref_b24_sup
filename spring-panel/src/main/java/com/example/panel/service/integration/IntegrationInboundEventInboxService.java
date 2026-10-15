@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.panel.converter.LenientOffsetDateTimeConverter;
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.util.Objects;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -105,6 +106,9 @@ public class IntegrationInboundEventInboxService {
         if (record == null) {
             return false;
         }
+        if (payload instanceof ConversationTicketCreatedEvent ticketEvent) {
+            requireMatchingTicketCreationIdentity(record, ticketEvent);
+        }
         if ("processed".equalsIgnoreCase(record.status())) {
             return false;
         }
@@ -136,7 +140,8 @@ public class IntegrationInboundEventInboxService {
 
     private ExistingInboxRecord loadExistingRecord(String eventId) {
         return jdbcTemplate.query("""
-                SELECT status, processing_started_at, updated_at, received_at
+                SELECT status, processing_started_at, updated_at, received_at,
+                       event_kind, platform, channel_id, ticket_id, payload_json
                   FROM integration_inbound_event_inbox
                  WHERE event_id = ?
                 """,
@@ -148,11 +153,32 @@ public class IntegrationInboundEventInboxService {
                     rs.getString("status"),
                     parseOffsetDateTime(rs.getString("processing_started_at")),
                     parseOffsetDateTime(rs.getString("updated_at")),
-                    parseOffsetDateTime(rs.getString("received_at"))
+                    parseOffsetDateTime(rs.getString("received_at")),
+                    rs.getString("event_kind"), rs.getString("platform"),
+                    rs.getObject("channel_id", Long.class), rs.getString("ticket_id"),
+                    rs.getString("payload_json")
                 );
             },
             eventId
         );
+    }
+
+    private void requireMatchingTicketCreationIdentity(ExistingInboxRecord record,
+                                                       ConversationTicketCreatedEvent incoming) {
+        ConversationTicketCreatedEvent original;
+        try {
+            original = objectMapper.readValue(record.payloadJson(), ConversationTicketCreatedEvent.class);
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("Duplicate ticket creation inbox event has invalid stored payload", ex);
+        }
+        if (!Objects.equals(record.eventKind(), incoming.eventKind())
+            || !Objects.equals(record.platform(), incoming.platform())
+            || !Objects.equals(record.channelId(), incoming.channelId())
+            || !Objects.equals(record.ticketId(), incoming.ticketId())
+            || !Objects.equals(original.userId(), incoming.userId())
+            || !Objects.equals(original.businessId(), incoming.businessId())) {
+            throw new IllegalStateException("Duplicate ticket creation inbox event identity or business mismatch");
+        }
     }
 
     private OffsetDateTime parseOffsetDateTime(String rawValue) {
@@ -178,7 +204,12 @@ public class IntegrationInboundEventInboxService {
     private record ExistingInboxRecord(String status,
                                        OffsetDateTime processingStartedAt,
                                        OffsetDateTime updatedAt,
-                                       OffsetDateTime receivedAt) {
+                                       OffsetDateTime receivedAt,
+                                       String eventKind,
+                                       String platform,
+                                       Long channelId,
+                                       String ticketId,
+                                       String payloadJson) {
 
         private boolean isReclaimable(OffsetDateTime staleThreshold) {
             if ("failed".equalsIgnoreCase(status) || "received".equalsIgnoreCase(status)) {

@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,7 +68,7 @@ public class IntegrationTransportOutboxService {
 
     public boolean enqueueConversationTicketCreated(ConversationTicketCreatedEvent event,
                                                     IntegrationRabbitProperties properties) {
-        return enqueue(
+        boolean inserted = enqueue(
             event.eventId(),
             "bot.inbound.ticket-created",
             event.eventKind(),
@@ -79,6 +80,33 @@ public class IntegrationTransportOutboxService {
             event.ticketId(),
             null
         );
+        if (!inserted) {
+            requireMatchingTicketCreationIdentity(event);
+        }
+        return inserted;
+    }
+
+    private void requireMatchingTicketCreationIdentity(ConversationTicketCreatedEvent incoming) {
+        List<String> payloads = jdbcTemplate.query(
+            "SELECT payload_json FROM integration_transport_outbox WHERE event_id = ?",
+            (rs, row) -> rs.getString("payload_json"), incoming.eventId().trim());
+        if (payloads.size() != 1) {
+            throw new IllegalStateException("Duplicate ticket creation event has no stored payload");
+        }
+        ConversationTicketCreatedEvent original;
+        try {
+            original = transportObjectMapper.readValue(payloads.get(0), ConversationTicketCreatedEvent.class);
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("Duplicate ticket creation event has invalid stored payload", ex);
+        }
+        if (!Objects.equals(original.channelId(), incoming.channelId())
+            || !Objects.equals(original.platform(), incoming.platform())
+            || !Objects.equals(original.userId(), incoming.userId())
+            || !Objects.equals(original.ticketId(), incoming.ticketId())
+            || !Objects.equals(original.businessId(), incoming.businessId())
+            || !Objects.equals(original.eventKind(), incoming.eventKind())) {
+            throw new IllegalStateException("Duplicate ticket creation event identity or business mismatch");
+        }
     }
 
     @Scheduled(fixedDelayString = "${app.integration.outbox.dispatch-interval-ms:1500}")

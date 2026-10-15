@@ -1,6 +1,7 @@
 package com.example.supportbot.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
@@ -129,10 +130,14 @@ class IntegrationTransportOutboxServiceTest {
                 null,
                 null,
                 OffsetDateTime.now()
-            ))
+            )),
+            51L
         );
 
         service.enqueueConversationTicketCreated(event, properties);
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT payload_json::jsonb ->> 'businessId' FROM integration_transport_outbox WHERE event_id = ?",
+            String.class, event.eventId())).isEqualTo("51");
         service.dispatchScheduled();
 
         assertThat(statusOf(event.eventId())).isEqualTo("published");
@@ -193,12 +198,46 @@ class IntegrationTransportOutboxServiceTest {
         );
 
         assertThat(service.enqueueConversationTicketCreated(event, properties)).isTrue();
+        jdbcTemplate.update("UPDATE integration_transport_outbox "
+            + "SET payload_json = (payload_json::jsonb - 'businessId')::text WHERE event_id = ?", event.eventId());
         assertThat(service.enqueueConversationTicketCreated(event, properties)).isFalse();
         assertThat(jdbcTemplate.queryForObject(
             "SELECT COUNT(*) FROM integration_transport_outbox WHERE event_id = ?",
             Integer.class,
             event.eventId()
         )).isEqualTo(1);
+    }
+
+    @Test
+    void duplicateTicketCreationCannotChangeFrozenOwnerOrChannel() {
+        ConversationTicketCreatedEvent original = new ConversationTicketCreatedEvent(
+            "frozen-ticket-event", "ticket.created.initial_contact", "telegram", 10L,
+            "T-FROZEN", 20L, "u20", "tester", "Test User", "legacy", "type", "city",
+            "location", "problem", OffsetDateTime.parse("2026-10-15T10:00:00Z"),
+            List.of(), List.of(), 51L);
+        assertThat(service.enqueueConversationTicketCreated(original, properties)).isTrue();
+        ConversationTicketCreatedEvent wrongBusiness = new ConversationTicketCreatedEvent(
+            original.eventId(), original.eventKind(), original.platform(), original.channelId(),
+            original.ticketId(), original.userId(), original.userIdentity(), original.username(),
+            original.clientName(), original.business(), original.locationType(), original.city(),
+            original.locationName(), original.problem(), original.occurredAt(),
+            original.attributes(), original.historyEntries(), 52L);
+        ConversationTicketCreatedEvent wrongChannel = new ConversationTicketCreatedEvent(
+            original.eventId(), original.eventKind(), original.platform(), 11L,
+            original.ticketId(), original.userId(), original.userIdentity(), original.username(),
+            original.clientName(), original.business(), original.locationType(), original.city(),
+            original.locationName(), original.problem(), original.occurredAt(),
+            original.attributes(), original.historyEntries(), 51L);
+
+        assertThatThrownBy(() -> service.enqueueConversationTicketCreated(wrongBusiness, properties))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("identity or business mismatch");
+        assertThatThrownBy(() -> service.enqueueConversationTicketCreated(wrongChannel, properties))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("identity or business mismatch");
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT payload_json::jsonb ->> 'businessId' FROM integration_transport_outbox WHERE event_id = ?",
+            String.class, original.eventId())).isEqualTo("51");
     }
 
     @Test

@@ -220,6 +220,27 @@ class TicketServiceInboundTransportTest {
     }
 
     @Test
+    void directStorageRejectsExplicitCanonicalOwnerItCannotPersist() {
+        TicketMessageRepository messages = mock(TicketMessageRepository.class);
+        TicketService service = createService(messages, mock(TicketActiveRepository.class),
+            mock(ChatHistoryService.class), mock(InboundClientMessagePublisher.class),
+            mock(ConversationTicketCreatedPublisher.class), mock(PanelTicketReadClient.class),
+            mock(PanelTicketWriteClient.class),
+            new MockEnvironment().withProperty("app.integration.transport.mode", "jdbc"));
+        Channel channel = new Channel();
+        channel.setId(25L);
+        ConversationTicketCreationCommand command = new ConversationTicketCreationCommand(
+            901L, "tg-901", "client", "Client", java.util.Map.of("problem", "Help"),
+            java.util.List.of(), java.util.List.of(), channel,
+            OffsetDateTime.parse("2026-10-15T10:00:00Z"), "message:901:1", 51L);
+
+        assertThatThrownBy(() -> service.createConversationTicket(command))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("cannot persist a canonical business owner");
+        verify(messages, never()).save(any());
+    }
+
+    @Test
     void awaitClientTicketNumberWaitsForCanonicalPanelNumberInRabbitMode() {
         PanelTicketReadClient panelTicketReadClient = mock(PanelTicketReadClient.class);
         when(panelTicketReadClient.isEnabled()).thenReturn(true);
