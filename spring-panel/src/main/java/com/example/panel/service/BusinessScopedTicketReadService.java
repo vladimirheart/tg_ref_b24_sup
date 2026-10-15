@@ -129,22 +129,34 @@ public class BusinessScopedTicketReadService {
     public List<TicketRow> listTickets(Long userId,
                                        BusinessAccessService.RequestedBusinessContext context,
                                        int limit, int offset, String status, String ticketId) {
-        validateTicketPage(limit, offset, status, ticketId);
+        return listTickets(userId, context, limit, offset, status, ticketId, null);
+    }
+
+    public List<TicketRow> listTickets(Long userId,
+                                       BusinessAccessService.RequestedBusinessContext context,
+                                       int limit, int offset, String status, String ticketId, String query) {
+        validateTicketPage(limit, offset, status, ticketId, query);
         Set<Long> ids = accessService.requireSelectedBusiness(userId, context).businessIds();
-        return queryTickets(userId, ids, limit, offset, status, ticketId);
+        return queryTickets(userId, ids, limit, offset, status, ticketId, query);
     }
 
     public TicketPage pageTickets(Long userId,
                                   BusinessAccessService.RequestedBusinessContext context,
                                   int limit, int offset, String status, String ticketId) {
-        validateTicketPage(limit, offset, status, ticketId);
+        return pageTickets(userId, context, limit, offset, status, ticketId, null);
+    }
+
+    public TicketPage pageTickets(Long userId,
+                                  BusinessAccessService.RequestedBusinessContext context,
+                                  int limit, int offset, String status, String ticketId, String query) {
+        validateTicketPage(limit, offset, status, ticketId, query);
         Set<Long> ids = accessService.requireSelectedBusiness(userId, context).businessIds();
-        List<TicketRow> rows = queryTickets(userId, ids, limit + 1, offset, status, ticketId);
+        List<TicketRow> rows = queryTickets(userId, ids, limit + 1, offset, status, ticketId, query);
         boolean hasMore = rows.size() > limit;
         return new TicketPage(hasMore ? List.copyOf(rows.subList(0, limit)) : rows, hasMore);
     }
 
-    private void validateTicketPage(int limit, int offset, String status, String ticketId) {
+    private void validateTicketPage(int limit, int offset, String status, String ticketId, String query) {
         if (limit < 1 || limit > 100 || offset < 0) {
             throw new IllegalArgumentException("Invalid page bounds");
         }
@@ -155,10 +167,14 @@ public class BusinessScopedTicketReadService {
                 || ticketId.chars().anyMatch(Character::isISOControl))) {
             throw new IllegalArgumentException("Invalid ticket ID");
         }
+        if (query != null && (query.isBlank() || query.length() > 100
+                || query.chars().anyMatch(Character::isISOControl))) {
+            throw new IllegalArgumentException("Invalid ticket search");
+        }
     }
 
     private List<TicketRow> queryTickets(Long userId, Set<Long> ids,
-                                         int limit, int offset, String status, String ticketId) {
+                                         int limit, int offset, String status, String ticketId, String query) {
         if (ids.isEmpty()) {
             return List.of();
         }
@@ -183,6 +199,16 @@ public class BusinessScopedTicketReadService {
                 """
                 + (status == null ? "" : " AND ticket.status = :status\n")
                 + (ticketId == null ? "" : " AND (ticket.ticket_id = :ticketId OR ticket.ticket_public_id = :ticketId)\n")
+                + (query == null ? "" : """
+                   AND EXISTS (
+                       SELECT 1 FROM messages root
+                        WHERE root.group_msg_id = ticket.group_msg_id
+                          AND root.user_id = ticket.user_id
+                          AND root.ticket_id = ticket.ticket_id
+                          AND (strpos(lower(coalesce(root.client_name, '')), lower(:query)) > 0
+                               OR strpos(lower(coalesce(root.problem, '')), lower(:query)) > 0)
+                   )
+                   """)
                 + """
                  ORDER BY ticket.business_id, ticket.user_id, ticket.ticket_id
                  LIMIT :limit OFFSET :offset
@@ -192,6 +218,7 @@ public class BusinessScopedTicketReadService {
                         .addValue("userId", userId)
                         .addValue("status", status)
                         .addValue("ticketId", ticketId)
+                        .addValue("query", query == null ? null : query.strip())
                         .addValue("limit", limit)
                         .addValue("offset", offset),
                 (rs, rowNum) -> new TicketRow(

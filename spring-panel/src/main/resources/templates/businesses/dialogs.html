@@ -45,6 +45,9 @@
         <div><label class="form-label" for="businessTicketIdFilter">Точный ID обращения</label>
             <input class="form-control" id="businessTicketIdFilter" maxlength="255" autocomplete="off"
                    placeholder="Внутренний или публичный ID"></div>
+        <div><label class="form-label" for="businessTicketTextFilter">Клиент или проблема</label>
+            <input class="form-control" id="businessTicketTextFilter" maxlength="100" autocomplete="off"
+                   placeholder="По корневому сообщению"></div>
         <button class="btn btn-outline-primary" type="submit">Найти</button>
     </div></form>
     <div class="alert alert-info" role="status" aria-live="polite" data-business-dialogs-status>Загрузка…</div>
@@ -77,6 +80,6 @@
     </section>
 </main>
 <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js"></script>
-<script th:src="@{/js/business-dialogs.js(v='20261015-r95')}"></script>
+<script th:src="@{/js/business-dialogs.js(v='20261015-r99')}"></script>
 </body>
 </html>

@@ -163,7 +163,7 @@ class BusinessScopeReadControllerWebMvcTest {
         var ticket = new BusinessScopedTicketReadService.TicketRow(
                 8L, "raw-ticket", PUBLIC_ID, 2L, "sushi", "Суши", "open");
         when(service.listTickets(1L, new BusinessAccessService.OneBusiness(2L),
-                50, 0, "open", PUBLIC_ID)).thenReturn(List.of(ticket));
+                50, 0, "open", PUBLIC_ID, null)).thenReturn(List.of(ticket));
         String path = "/api/business-scope/tickets";
         mvc.perform(get(path).param("business_id", "2").param("status", "open")
                 .param("ticket", PUBLIC_ID).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
@@ -176,6 +176,9 @@ class BusinessScopeReadControllerWebMvcTest {
         mvc.perform(get(path).param("business_id", "2").param("ticket", "bad\n")
                 .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isBadRequest());
+        mvc.perform(get(path).param("business_id", "2").param("q", "  ")
+                .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isBadRequest());
         mvc.perform(get(path).param("business_id", "2").param("limit", "abc")
                 .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isBadRequest());
@@ -185,13 +188,26 @@ class BusinessScopeReadControllerWebMvcTest {
 
         String pagePath = path + "/page";
         when(service.pageTickets(1L, new BusinessAccessService.OneBusiness(2L),
-                50, 0, "open", PUBLIC_ID)).thenReturn(
+                50, 0, "open", PUBLIC_ID, null)).thenReturn(
                 new BusinessScopedTicketReadService.TicketPage(List.of(ticket), false));
         mvc.perform(get(pagePath).param("business_id", "2").param("status", "open")
                 .param("ticket", PUBLIC_ID).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tickets[0].ticketId").value("raw-ticket"))
                 .andExpect(jsonPath("$.hasMore").value(false));
+        when(service.pageTickets(1L, new BusinessAccessService.OneBusiness(2L),
+                50, 0, "open", null, "проблема")).thenReturn(
+                new BusinessScopedTicketReadService.TicketPage(List.of(ticket), false));
+        mvc.perform(get(pagePath).param("business_id", "2").param("status", "open")
+                .param("q", "проблема").with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tickets[0].ticketId").value("raw-ticket"));
+        mvc.perform(get(pagePath).param("business_id", "2").param("q", "bad\n")
+                .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get(pagePath).param("business_id", "2").param("q", "x".repeat(101))
+                .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isBadRequest());
         mvc.perform(get(pagePath).param("business_id", "2").param("limit", "101")
                 .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isBadRequest());

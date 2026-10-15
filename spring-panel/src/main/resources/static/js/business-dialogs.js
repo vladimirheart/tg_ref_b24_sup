@@ -7,6 +7,7 @@
   const select = page.querySelector('#businessScopeSelect');
   const statusFilter = page.querySelector('#businessTicketStatusFilter');
   const ticketFilter = page.querySelector('#businessTicketIdFilter');
+  const textFilter = page.querySelector('#businessTicketTextFilter');
   const status = page.querySelector('[data-business-dialogs-status]');
   const summaryStatus = page.querySelector('[data-business-summary-status]');
   const summaryRows = page.querySelector('#businessTicketSummaryRows');
@@ -184,6 +185,7 @@
       const params = new URLSearchParams({ business_id: businessId, limit: String(limit), offset: String(offset) });
       if (statusFilter.value) params.set('status', statusFilter.value);
       if (ticketFilter.value) params.set('ticket', ticketFilter.value);
+      if (textFilter.value.trim()) params.set('q', textFilter.value.trim());
       const snapshot = await getJson(`/api/business-scope/tickets/page?${params}`);
       if (current !== generation) return;
       const tickets = snapshot.tickets;

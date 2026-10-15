@@ -302,6 +302,73 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
     }
 
     @Test
+    void textSearchUsesOnlyExactRootTupleInsideCurrentBusinessScope() throws Exception {
+        JdbcTemplate jdbc = freshSchema("business_scoped_root_search");
+        jdbc.update("INSERT INTO users(id, username) VALUES (1, 'direct'), (2, 'all-reader')");
+        migrate(jdbc);
+        jdbc.execute("""
+                CREATE TABLE messages (
+                    group_msg_id BIGINT PRIMARY KEY, user_id BIGINT, ticket_id TEXT,
+                    client_name TEXT, problem TEXT
+                )
+                """);
+        long sushi = businessId(jdbc, "sushi");
+        long bliny = businessId(jdbc, "bliny");
+        jdbc.update("INSERT INTO business_memberships(user_id, business_id, role_code) VALUES (1, ?, 'VIEWER')", sushi);
+        jdbc.update("INSERT INTO business_access_grants(user_id, grant_scope, role_code) VALUES (2, 'ALL_BUSINESSES', 'VIEWER')");
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id, group_msg_id, business_id, status) VALUES "
+                + "(11, 'same', 101, ?, 'open'), (22, 'same', 202, ?, 'open'), "
+                + "(33, 'other', 303, ?, 'resolved')", sushi, bliny, sushi);
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id, group_msg_id, status) VALUES (44, 'unresolved', 404, 'open')");
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id, group_msg_id, business_id) VALUES "
+                + "(55, 'wrong-user', 606, ?), (77, 'wrong-ticket', 707, ?)", sushi, sushi);
+        jdbc.update("INSERT INTO messages(group_msg_id, user_id, ticket_id, client_name, problem) VALUES "
+                + "(101, 11, 'same', 'Иван', 'Нет света'), "
+                + "(202, 22, 'same', 'Иван', 'Нет интернета'), "
+                + "(303, 33, 'other', 'Мария', 'Скидка 100%_'), "
+                + "(404, 44, 'unresolved', 'Иван', 'Нет света'), "
+                + "(505, 11, 'same', 'Посторонний', 'секрет'), "
+                + "(606, 66, 'wrong-user', 'Посторонний', 'секрет-user'), "
+                + "(707, 77, 'other-ticket', 'Посторонний', 'секрет-ticket')");
+        BusinessScopedTicketReadService service = new BusinessScopedTicketReadService(
+                jdbc, new BusinessAccessService(jdbc));
+        var all = BusinessAccessService.AllAccessibleBusinesses.INSTANCE;
+
+        assertThat(service.listTickets(1L, all, 50, 0, null, null, " иВан "))
+                .extracting(BusinessScopedTicketReadService.TicketRow::userId).containsExactly(11L);
+        assertThat(service.listTickets(1L, all, 50, 0, null, null, "интернета")).isEmpty();
+        assertThat(service.listTickets(2L, all, 50, 0, null, null, "секрет")).isEmpty();
+        assertThat(service.listTickets(2L, all, 50, 0, null, null, "%_"))
+                .extracting(BusinessScopedTicketReadService.TicketRow::userId).containsExactly(33L);
+        var first = service.pageTickets(2L, all, 1, 0, "open", null, "Иван");
+        assertThat(first.tickets()).extracting(BusinessScopedTicketReadService.TicketRow::userId)
+                .containsExactly(11L);
+        assertThat(first.hasMore()).isTrue();
+        var second = service.pageTickets(2L, all, 1, 1, "open", null, "Иван");
+        assertThat(second.tickets()).extracting(BusinessScopedTicketReadService.TicketRow::userId)
+                .containsExactly(22L);
+        assertThat(second.hasMore()).isFalse();
+        assertThat(service.pageTickets(2L, all, 1, 0, "resolved", "other", "Скидка").tickets())
+                .extracting(BusinessScopedTicketReadService.TicketRow::userId).containsExactly(33L);
+        assertThatThrownBy(() -> service.pageTickets(2L, all, 1, 0, null, null, "  "))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.pageTickets(2L, all, 1, 0, null, null, "bad\n"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.pageTickets(2L, all, 1, 0, null, null, "x".repeat(101)))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        jdbc.update("UPDATE business_memberships SET is_active = FALSE WHERE user_id = 1");
+        BusinessAccessService staleAccess = mock(BusinessAccessService.class);
+        when(staleAccess.requireSelectedBusiness(eq(1L), any()))
+                .thenReturn(new BusinessAccessService.SelectedBusinessScope(Set.of(sushi), sushi));
+        assertThat(new BusinessScopedTicketReadService(jdbc, staleAccess)
+                .listTickets(1L, all, 50, 0, null, null, "Иван")).isEmpty();
+        jdbc.update("UPDATE businesses SET status = 'archived' WHERE id = ?", bliny);
+        assertThat(service.listTickets(2L, all, 50, 0, null, null, "Иван"))
+                .extracting(BusinessScopedTicketReadService.TicketRow::userId).containsExactly(11L);
+    }
+
+    @Test
     void summaryCountsOnlyCurrentScopeAndIncludesEmptyBusinesses() throws Exception {
         JdbcTemplate jdbc = freshSchema("business_scoped_summary");
         jdbc.update("INSERT INTO users(id, username) VALUES (1, 'direct'), (2, 'all-reader')");
@@ -396,7 +463,8 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         JdbcTemplate jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType(prefix);
         jdbc.execute("CREATE TABLE users (id BIGINT PRIMARY KEY, username TEXT NOT NULL UNIQUE)");
         jdbc.execute("CREATE TABLE channels (id BIGINT PRIMARY KEY)");
-        jdbc.execute("CREATE TABLE tickets (user_id BIGINT NOT NULL, ticket_id TEXT NOT NULL, status TEXT DEFAULT 'pending', PRIMARY KEY (user_id, ticket_id))");
+        jdbc.execute("CREATE TABLE tickets (user_id BIGINT NOT NULL, ticket_id TEXT NOT NULL, "
+                + "group_msg_id BIGINT, status TEXT DEFAULT 'pending', PRIMARY KEY (user_id, ticket_id))");
         return jdbc;
     }
 

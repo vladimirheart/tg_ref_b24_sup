@@ -64,13 +64,14 @@ public class BusinessScopeReadController {
             @RequestParam(defaultValue = "50") String limit,
             @RequestParam(defaultValue = "0") String offset,
             @RequestParam(required = false) String status,
-            @RequestParam(name = "ticket", required = false) String ticketId) {
+            @RequestParam(name = "ticket", required = false) String ticketId,
+            @RequestParam(name = "q", required = false) String queryText) {
         requireFoundation();
-        TicketQuery query = ticketQuery(limit, offset, status, ticketId);
+        TicketQuery query = ticketQuery(limit, offset, status, ticketId, queryText);
         Long userId = readService.requireAuthenticatedUserId(username(authentication));
         try {
             return readService.listTickets(userId, requestedContext(businessId),
-                    query.limit(), query.offset(), query.status(), query.ticketId());
+                    query.limit(), query.offset(), query.status(), query.ticketId(), query.queryText());
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
         }
@@ -83,19 +84,20 @@ public class BusinessScopeReadController {
             @RequestParam(defaultValue = "50") String limit,
             @RequestParam(defaultValue = "0") String offset,
             @RequestParam(required = false) String status,
-            @RequestParam(name = "ticket", required = false) String ticketId) {
+            @RequestParam(name = "ticket", required = false) String ticketId,
+            @RequestParam(name = "q", required = false) String queryText) {
         requireFoundation();
-        TicketQuery query = ticketQuery(limit, offset, status, ticketId);
+        TicketQuery query = ticketQuery(limit, offset, status, ticketId, queryText);
         Long userId = readService.requireAuthenticatedUserId(username(authentication));
         try {
             return readService.pageTickets(userId, requestedContext(businessId),
-                    query.limit(), query.offset(), query.status(), query.ticketId());
+                    query.limit(), query.offset(), query.status(), query.ticketId(), query.queryText());
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
         }
     }
 
-    private TicketQuery ticketQuery(String limit, String offset, String status, String ticketId) {
+    private TicketQuery ticketQuery(String limit, String offset, String status, String ticketId, String queryText) {
         if (!limit.matches("[1-9][0-9]*") || !offset.matches("0|[1-9][0-9]*")) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid page bounds");
         }
@@ -112,13 +114,15 @@ public class BusinessScopeReadController {
         }
         if ((status != null && !Set.of("pending", "open", "resolved", "closed").contains(status))
                 || (ticketId != null && (ticketId.isBlank() || ticketId.length() > 255
-                || ticketId.chars().anyMatch(Character::isISOControl)))) {
+                || ticketId.chars().anyMatch(Character::isISOControl)))
+                || (queryText != null && (queryText.isBlank() || queryText.length() > 100
+                || queryText.chars().anyMatch(Character::isISOControl)))) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid ticket filter");
         }
-        return new TicketQuery(pageLimit, pageOffset, status, ticketId);
+        return new TicketQuery(pageLimit, pageOffset, status, ticketId, queryText);
     }
 
-    private record TicketQuery(int limit, int offset, String status, String ticketId) {
+    private record TicketQuery(int limit, int offset, String status, String ticketId, String queryText) {
     }
 
     @GetMapping("/tickets/{publicId}")
