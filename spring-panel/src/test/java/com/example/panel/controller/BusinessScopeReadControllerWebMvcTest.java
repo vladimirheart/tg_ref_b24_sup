@@ -206,4 +206,37 @@ class BusinessScopeReadControllerWebMvcTest {
                 .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    void summaryRequiresCurrentBusinessScopeAndFoundation() throws Exception {
+        when(flags.isFoundationEnabled()).thenReturn(true);
+        when(service.requireAuthenticatedUserId("operator")).thenReturn(1L);
+        String path = "/api/business-scope/tickets/summary";
+        var counts = new BusinessScopedTicketReadService.BusinessTicketCounts(
+                2L, "sushi", "Суши", 2, 0, 1, 1, 0, 0);
+        when(service.summarizeTickets(1L, new BusinessAccessService.OneBusiness(2L)))
+                .thenReturn(new BusinessScopedTicketReadService.TicketSummary(
+                        2, 0, 1, 1, 0, 0, List.of(counts)));
+        mvc.perform(get(path).param("business_id", "2")
+                .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(2))
+                .andExpect(jsonPath("$.businesses[0].businessCode").value("sushi"))
+                .andExpect(jsonPath("$.businesses[0].open").value(1));
+        mvc.perform(get(path).param("business_id", "invalid")
+                .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isForbidden());
+        when(service.summarizeTickets(1L, new BusinessAccessService.OneBusiness(9L)))
+                .thenThrow(new org.springframework.security.access.AccessDeniedException("Forbidden"));
+        mvc.perform(get(path).param("business_id", "9")
+                .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isForbidden());
+        mvc.perform(get(path).param("business_id", "2")
+                .with(user("operator").authorities(() -> "PAGE_SETTINGS")))
+                .andExpect(status().isForbidden());
+        when(flags.isFoundationEnabled()).thenReturn(false);
+        mvc.perform(get(path).param("business_id", "2")
+                .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isNotFound());
+    }
 }

@@ -8,6 +8,8 @@
   const statusFilter = page.querySelector('#businessTicketStatusFilter');
   const ticketFilter = page.querySelector('#businessTicketIdFilter');
   const status = page.querySelector('[data-business-dialogs-status]');
+  const summaryStatus = page.querySelector('[data-business-summary-status]');
+  const summaryRows = page.querySelector('#businessTicketSummaryRows');
   const rows = page.querySelector('#businessTicketRows');
   const card = page.querySelector('#businessTicketCard');
   const history = card.querySelector('[data-ticket-history]');
@@ -47,6 +49,26 @@
   function statusLabel(value) {
     return ({ pending: 'Ожидает', open: 'Открыто', resolved: 'Решено', closed: 'Закрыто' })[value]
       || value || 'Не задан';
+  }
+
+  function renderSummary(snapshot) {
+    summaryRows.replaceChildren();
+    summaryStatus.textContent = `Всего обращений в выбранном контексте: ${snapshot.total}. Сводка не зависит от фильтров списка.`;
+    if (!snapshot.businesses.length) {
+      const row = document.createElement('tr');
+      const empty = cell(row, 'Нет доступных бизнесов.');
+      empty.colSpan = 7;
+      summaryRows.appendChild(row);
+      return;
+    }
+    for (const business of snapshot.businesses) {
+      const row = document.createElement('tr');
+      cell(row, business.businessName);
+      for (const key of ['total', 'pending', 'open', 'resolved', 'closed', 'other']) {
+        cell(row, business[key]);
+      }
+      summaryRows.appendChild(row);
+    }
   }
 
   async function openCard(ticket, expectedGeneration) {
@@ -149,7 +171,15 @@
     previous.disabled = true;
     next.disabled = true;
     rows.replaceChildren();
+    summaryRows.replaceChildren();
+    summaryStatus.textContent = 'Загрузка сводки…';
     announce('Загрузка обращений…');
+    getJson(`/api/business-scope/tickets/summary?business_id=${encodeURIComponent(businessId)}`)
+      .then((snapshot) => {
+        if (current === generation) renderSummary(snapshot);
+      }).catch(() => {
+        if (current === generation) summaryStatus.textContent = 'Сводка недоступна.';
+      });
     try {
       const params = new URLSearchParams({ business_id: businessId, limit: String(limit), offset: String(offset) });
       if (statusFilter.value) params.set('status', statusFilter.value);

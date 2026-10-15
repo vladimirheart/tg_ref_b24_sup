@@ -67,6 +67,58 @@ public class BusinessScopedTicketReadService {
                         rs.getLong("id"), rs.getString("code"), rs.getString("display_name")));
     }
 
+    /** Counts only canonical tickets in currently authorized active businesses, including empty businesses. */
+    public TicketSummary summarizeTickets(Long userId,
+                                          BusinessAccessService.RequestedBusinessContext context) {
+        Set<Long> ids = accessService.requireSelectedBusiness(userId, context).businessIds();
+        if (ids.isEmpty()) {
+            return new TicketSummary(0, 0, 0, 0, 0, 0, List.of());
+        }
+        List<BusinessTicketCounts> businesses = namedJdbcTemplate.query("""
+                SELECT business.id, business.code, business.display_name,
+                       COUNT(ticket.user_id) AS total,
+                       COUNT(ticket.user_id) FILTER (WHERE ticket.status = 'pending') AS pending,
+                       COUNT(ticket.user_id) FILTER (WHERE ticket.status = 'open') AS open,
+                       COUNT(ticket.user_id) FILTER (WHERE ticket.status = 'resolved') AS resolved,
+                       COUNT(ticket.user_id) FILTER (WHERE ticket.status = 'closed') AS closed
+                  FROM businesses business
+                  LEFT JOIN tickets ticket ON ticket.business_id = business.id
+                 WHERE business.id IN (:businessIds) AND business.status = 'active'
+                   AND (EXISTS (
+                       SELECT 1 FROM business_memberships membership
+                        WHERE membership.business_id = business.id
+                          AND membership.user_id = :userId AND membership.is_active = TRUE
+                   ) OR EXISTS (
+                       SELECT 1 FROM business_access_grants access_grant
+                        WHERE access_grant.user_id = :userId
+                          AND access_grant.grant_scope = 'ALL_BUSINESSES'
+                          AND access_grant.is_active = TRUE
+                   ))
+                 GROUP BY business.id, business.code, business.display_name
+                 ORDER BY business.id
+                """, new MapSqlParameterSource().addValue("businessIds", ids).addValue("userId", userId),
+                (rs, rowNum) -> {
+                    long total = rs.getLong("total");
+                    long pending = rs.getLong("pending");
+                    long open = rs.getLong("open");
+                    long resolved = rs.getLong("resolved");
+                    long closed = rs.getLong("closed");
+                    return new BusinessTicketCounts(rs.getLong("id"), rs.getString("code"),
+                            rs.getString("display_name"), total, pending, open, resolved, closed,
+                            total - pending - open - resolved - closed);
+                });
+        long total = 0, pending = 0, open = 0, resolved = 0, closed = 0, other = 0;
+        for (BusinessTicketCounts business : businesses) {
+            total += business.total();
+            pending += business.pending();
+            open += business.open();
+            resolved += business.resolved();
+            closed += business.closed();
+            other += business.other();
+        }
+        return new TicketSummary(total, pending, open, resolved, closed, other, businesses);
+    }
+
     public List<TicketRow> listTickets(Long userId,
                                        BusinessAccessService.RequestedBusinessContext context,
                                        int limit,
@@ -358,6 +410,15 @@ public class BusinessScopedTicketReadService {
     }
 
     public record BusinessOption(long id, String code, String displayName) {
+    }
+
+    public record BusinessTicketCounts(long businessId, String businessCode, String businessName,
+                                       long total, long pending, long open, long resolved,
+                                       long closed, long other) {
+    }
+
+    public record TicketSummary(long total, long pending, long open, long resolved,
+                                long closed, long other, List<BusinessTicketCounts> businesses) {
     }
 
     public record TicketRow(long userId, String ticketId, String ticketPublicId,

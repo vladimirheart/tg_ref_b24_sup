@@ -302,6 +302,57 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
     }
 
     @Test
+    void summaryCountsOnlyCurrentScopeAndIncludesEmptyBusinesses() throws Exception {
+        JdbcTemplate jdbc = freshSchema("business_scoped_summary");
+        jdbc.update("INSERT INTO users(id, username) VALUES (1, 'direct'), (2, 'all-reader')");
+        migrate(jdbc);
+        long sushi = businessId(jdbc, "sushi");
+        long bliny = businessId(jdbc, "bliny");
+        jdbc.update("INSERT INTO businesses(code, display_name) VALUES ('flowers', 'Цветы')");
+        long flowers = businessId(jdbc, "flowers");
+        jdbc.update("INSERT INTO business_memberships(user_id, business_id, role_code) VALUES (1, ?, 'VIEWER')", sushi);
+        jdbc.update("INSERT INTO business_access_grants(user_id, grant_scope, role_code) VALUES (2, 'ALL_BUSINESSES', 'VIEWER')");
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id, status) VALUES (1, 'same', ?, 'open')", sushi);
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id, status) VALUES (2, 'same', ?, 'unexpected')", bliny);
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id, status) VALUES (1, 'unresolved', 'closed')");
+        BusinessAccessService access = new BusinessAccessService(jdbc);
+        BusinessScopedTicketReadService service = new BusinessScopedTicketReadService(jdbc, access);
+
+        var direct = service.summarizeTickets(1L, new BusinessAccessService.OneBusiness(sushi));
+        assertThat(direct.total()).isEqualTo(1);
+        assertThat(direct.open()).isEqualTo(1);
+        assertThat(direct.businesses()).extracting(BusinessScopedTicketReadService.BusinessTicketCounts::businessId)
+                .containsExactly(sushi);
+        assertThatThrownBy(() -> service.summarizeTickets(1L, new BusinessAccessService.OneBusiness(bliny)))
+                .isInstanceOf(AccessDeniedException.class);
+
+        var all = service.summarizeTickets(2L, BusinessAccessService.AllAccessibleBusinesses.INSTANCE);
+        assertThat(all.total()).isEqualTo(2);
+        assertThat(all.open()).isEqualTo(1);
+        assertThat(all.other()).isEqualTo(1);
+        assertThat(all.pending()).isZero();
+        assertThat(all.businesses()).extracting(BusinessScopedTicketReadService.BusinessTicketCounts::businessId)
+                .containsExactly(sushi, bliny, flowers);
+        assertThat(all.businesses().get(2).total()).isZero();
+        assertThat(all.businesses().get(1).other()).isEqualTo(1);
+
+        BusinessAdministrationService admin = new BusinessAdministrationService(jdbc);
+        assertThat(admin.setBusinessStatus(bliny, "archived")).isTrue();
+        var archived = service.summarizeTickets(2L, BusinessAccessService.AllAccessibleBusinesses.INSTANCE);
+        assertThat(archived.total()).isEqualTo(1);
+        assertThat(archived.businesses()).extracting(BusinessScopedTicketReadService.BusinessTicketCounts::businessId)
+                .containsExactly(sushi, flowers);
+        jdbc.update("UPDATE business_memberships SET is_active = FALSE WHERE user_id = 1");
+        assertThat(service.summarizeTickets(1L, BusinessAccessService.AllAccessibleBusinesses.INSTANCE))
+                .isEqualTo(new BusinessScopedTicketReadService.TicketSummary(0, 0, 0, 0, 0, 0, List.of()));
+        BusinessAccessService staleAccess = mock(BusinessAccessService.class);
+        when(staleAccess.requireSelectedBusiness(eq(1L), any()))
+                .thenReturn(new BusinessAccessService.SelectedBusinessScope(Set.of(sushi), sushi));
+        assertThat(new BusinessScopedTicketReadService(jdbc, staleAccess).summarizeTickets(
+                1L, new BusinessAccessService.OneBusiness(sushi)).total()).isZero();
+    }
+
+    @Test
     void revocationAndAmbiguousUsernameFailClosed() throws Exception {
         JdbcTemplate jdbc = freshSchema("business_scoped_read_revoke");
         jdbc.update("INSERT INTO users(id, username) VALUES (1, 'member'), (2, 'MEMBER')");

@@ -49,6 +49,14 @@ public class BusinessScopeReadController {
         return readService.availableBusinesses(readService.requireAuthenticatedUserId(username(authentication)));
     }
 
+    @GetMapping("/tickets/summary")
+    public BusinessScopedTicketReadService.TicketSummary ticketSummary(
+            Authentication authentication, @RequestParam("business_id") String businessId) {
+        requireFoundation();
+        Long userId = readService.requireAuthenticatedUserId(username(authentication));
+        return readService.summarizeTickets(userId, requestedContext(businessId));
+    }
+
     @GetMapping("/tickets")
     public List<BusinessScopedTicketReadService.TicketRow> tickets(
             Authentication authentication,
