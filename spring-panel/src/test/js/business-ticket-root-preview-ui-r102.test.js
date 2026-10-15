@@ -55,7 +55,8 @@ async function main() {
       : { tickets: [ticket, { ...ticket, ticketId: 'empty', ticketPublicId: null,
         clientName: null, problemPreview: null }], hasMore: false },
     renderSummary() {}, announce() {}, statusLabel: value => value,
-    document: { createElement: () => new Element() }, cell, ticketTime, openCard() {}
+    document: { createElement: () => new Element() }, cell, ticketTime, openCard() {},
+    clearCard() { listContext.card.hidden = true; }
   };
   const loadTickets = vm.runInNewContext(`${source.slice(listStart, listEnd)}\nloadTickets`, listContext);
   await loadTickets();
@@ -74,11 +75,13 @@ async function main() {
   };
   let snapshot = { ticket, entries: [], hasMore: false, nextBeforeId: null };
   let answersLoaded = 0;
+  const cardMessages = [];
   const cardContext = {
     generation: 4, cardRequest: 0, card, older: new Element(), history: new Element(),
     answers: new Element(), answersStatus: new Element(), select: { value: '2' },
+    currentTicket: null, clearCard() { card.hidden = true; },
     getJson: async () => snapshot, loadAnswers: () => { answersLoaded++; },
-    statusLabel: value => value, ticketTime, announce() {},
+    statusLabel: value => value, ticketTime, announce: message => cardMessages.push(message),
     document: { createElement: () => new Element() }, encodeURIComponent
   };
   const openCard = vm.runInNewContext(`${source.slice(cardStart, cardEnd)}\nopenCard`, cardContext);
@@ -93,6 +96,7 @@ async function main() {
   await openCard(ticket, 4);
   assert.equal(card.hidden, true);
   assert.equal(answersLoaded, 1);
+  assert.match(cardMessages.at(-1), /Карточка недоступна/);
   console.log('BUSINESS_TICKET_ROOT_PREVIEW_UI_TEST_RESULT=GREEN');
 }
 

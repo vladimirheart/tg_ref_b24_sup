@@ -27,8 +27,25 @@
   let cardRequest = 0;
   let historyBefore = null;
   let currentTicketPublicId = null;
+  let currentTicket = null;
   let olderLoading = false;
   let exporting = false;
+
+  function clearCard() {
+    card.hidden = true;
+    older.hidden = true;
+    older.disabled = false;
+    history.replaceChildren();
+    answers.replaceChildren();
+    answersStatus.textContent = '';
+    for (const field of ['business', 'id', 'user', 'client', 'problem', 'public', 'status', 'created']) {
+      card.querySelector(`[data-ticket-${field}]`).textContent = '';
+    }
+    historyBefore = null;
+    currentTicketPublicId = null;
+    currentTicket = null;
+    olderLoading = false;
+  }
 
   function announce(message, error = false) {
     status.textContent = message;
@@ -36,7 +53,7 @@
   }
 
   async function getJson(path) {
-    const response = await fetch(path, { credentials: 'same-origin' });
+    const response = await fetch(path, { credentials: 'same-origin', cache: 'no-store' });
     if (!response.ok) {
       throw new Error(response.status === 403
         ? 'Нет доступа к выбранному бизнесу.' : 'Не удалось загрузить обращения.');
@@ -80,7 +97,7 @@
     announce('Подготовка JSON-выгрузки…');
     try {
       const response = await fetch(`/api/business-scope/tickets/export?${params}`, {
-        credentials: 'same-origin', headers: { Accept: 'application/json' }
+        credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' }
       });
       if (!response.ok) {
         throw new Error(response.status === 413
@@ -143,7 +160,10 @@
       if (snapshot.ticket.ticketPublicId !== ticket.ticketPublicId ||
           snapshot.ticket.businessId !== ticket.businessId ||
           snapshot.ticket.userId !== ticket.userId ||
-          snapshot.ticket.ticketId !== ticket.ticketId) return;
+          snapshot.ticket.ticketId !== ticket.ticketId) {
+        answersStatus.textContent = 'Ответы недоступны: обращение изменилось. Обновите карточку.';
+        return;
+      }
       if (!snapshot.relationVerified) {
         answersStatus.textContent = 'Ответы недоступны: legacy ID обращения не имеет однозначной связи с ними.';
         return;
@@ -174,22 +194,17 @@
 
   async function openCard(ticket, expectedGeneration) {
     const request = ++cardRequest;
-    card.hidden = true;
-    older.hidden = true;
-    older.disabled = false;
-    historyBefore = null;
-    currentTicketPublicId = null;
-    olderLoading = false;
-    answers.replaceChildren();
-    answersStatus.textContent = '';
+    clearCard();
     try {
       const snapshot = await getJson(`/api/business-scope/tickets/${encodeURIComponent(ticket.ticketPublicId)}/history?limit=50`);
       if (expectedGeneration !== generation || request !== cardRequest) return;
       const detail = snapshot.ticket;
       if (detail.ticketPublicId !== ticket.ticketPublicId ||
           detail.businessId !== ticket.businessId || detail.userId !== ticket.userId ||
-          detail.ticketId !== ticket.ticketId) return;
-      if (select.value !== 'all' && select.value !== String(detail.businessId)) return;
+          detail.ticketId !== ticket.ticketId ||
+          (select.value !== 'all' && select.value !== String(detail.businessId))) {
+        throw new Error('Ticket identity changed');
+      }
       card.querySelector('[data-ticket-business]').textContent = detail.businessName;
       card.querySelector('[data-ticket-id]').textContent = detail.ticketId;
       card.querySelector('[data-ticket-user]').textContent = String(detail.userId);
@@ -207,13 +222,14 @@
       }
       history.append(...snapshot.entries.map((entry) => historyItem(entry, detail.ticketPublicId)));
       currentTicketPublicId = detail.ticketPublicId;
+      currentTicket = detail;
       historyBefore = snapshot.nextBeforeId;
       older.hidden = !snapshot.hasMore;
       card.hidden = false;
       loadAnswers(detail, expectedGeneration, request);
     } catch (error) {
       if (expectedGeneration !== generation || request !== cardRequest) return;
-      card.hidden = true;
+      clearCard();
       announce('Карточка недоступна. Проверьте доступ и обновите список.', true);
     }
   }
@@ -236,28 +252,30 @@
   }
 
   async function loadOlderHistory() {
-    if (olderLoading || !currentTicketPublicId || historyBefore === null) return;
+    if (olderLoading || !currentTicket || historyBefore === null) return;
     const expectedGeneration = generation;
     const request = cardRequest;
-    const publicId = currentTicketPublicId;
+    const ticket = currentTicket;
+    const publicId = ticket.ticketPublicId;
     const before = historyBefore;
     olderLoading = true;
     older.disabled = true;
     try {
       const snapshot = await getJson(`/api/business-scope/tickets/${encodeURIComponent(publicId)}/history?limit=50&before=${before}`);
-      if (expectedGeneration !== generation || request !== cardRequest || publicId !== currentTicketPublicId) return;
-      if (snapshot.ticket.ticketPublicId !== publicId ||
-          (select.value !== 'all' && select.value !== String(snapshot.ticket.businessId))) return;
+      if (expectedGeneration !== generation || request !== cardRequest || ticket !== currentTicket) return;
+      if (!snapshot.ticket || snapshot.ticket.ticketPublicId !== publicId ||
+          snapshot.ticket.businessId !== ticket.businessId ||
+          snapshot.ticket.userId !== ticket.userId ||
+          snapshot.ticket.ticketId !== ticket.ticketId ||
+          (select.value !== 'all' && select.value !== String(ticket.businessId))) {
+        throw new Error('Ticket identity changed');
+      }
       history.prepend(...snapshot.entries.map((entry) => historyItem(entry, publicId)));
       historyBefore = snapshot.nextBeforeId;
       older.hidden = !snapshot.hasMore;
     } catch (error) {
       if (expectedGeneration !== generation || request !== cardRequest) return;
-      card.hidden = true;
-      history.replaceChildren();
-      currentTicketPublicId = null;
-      historyBefore = null;
-      older.hidden = true;
+      clearCard();
       announce('История недоступна. Проверьте доступ и откройте карточку заново.', true);
     } finally {
       if (request === cardRequest) {
@@ -271,12 +289,7 @@
     const current = ++generation;
     ++cardRequest;
     const businessId = select.value;
-    card.hidden = true;
-    older.hidden = true;
-    currentTicketPublicId = null;
-    historyBefore = null;
-    olderLoading = false;
-    older.disabled = false;
+    clearCard();
     previous.disabled = true;
     next.disabled = true;
     rows.replaceChildren();

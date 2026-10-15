@@ -60,6 +60,13 @@ async function main() {
   assert.equal(answers.children.length, 0);
   assert.match(answersStatus.textContent, /не имеет однозначной связи/);
 
+  const mismatched = loadAnswers(ticket, 2, 7);
+  pending.shift().resolve({ ticket: { ...ticket, userId: 99 }, relationVerified: true,
+    answers: [{ questionId: 'foreign', valueText: 'Не показывать' }] });
+  await mismatched;
+  assert.equal(answers.children.length, 0);
+  assert.match(answersStatus.textContent, /обращение изменилось/);
+
   const failed = loadAnswers(ticket, 2, 7);
   pending.shift().reject(new Error('forbidden'));
   await failed;

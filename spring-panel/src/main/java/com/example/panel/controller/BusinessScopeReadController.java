@@ -44,21 +44,22 @@ public class BusinessScopeReadController {
     }
 
     @GetMapping("/businesses")
-    public List<BusinessScopedTicketReadService.BusinessOption> businesses(Authentication authentication) {
+    public ResponseEntity<List<BusinessScopedTicketReadService.BusinessOption>> businesses(Authentication authentication) {
         requireFoundation();
-        return readService.availableBusinesses(readService.requireAuthenticatedUserId(username(authentication)));
+        return privateRead(readService.availableBusinesses(
+                readService.requireAuthenticatedUserId(username(authentication))));
     }
 
     @GetMapping("/tickets/summary")
-    public BusinessScopedTicketReadService.TicketSummary ticketSummary(
+    public ResponseEntity<BusinessScopedTicketReadService.TicketSummary> ticketSummary(
             Authentication authentication, @RequestParam("business_id") String businessId) {
         requireFoundation();
         Long userId = readService.requireAuthenticatedUserId(username(authentication));
-        return readService.summarizeTickets(userId, requestedContext(businessId));
+        return privateRead(readService.summarizeTickets(userId, requestedContext(businessId)));
     }
 
     @GetMapping("/tickets")
-    public List<BusinessScopedTicketReadService.TicketRow> tickets(
+    public ResponseEntity<List<BusinessScopedTicketReadService.TicketRow>> tickets(
             Authentication authentication,
             @RequestParam("business_id") String businessId,
             @RequestParam(defaultValue = "50") String limit,
@@ -70,15 +71,15 @@ public class BusinessScopeReadController {
         TicketQuery query = ticketQuery(limit, offset, status, ticketId, queryText);
         Long userId = readService.requireAuthenticatedUserId(username(authentication));
         try {
-            return readService.listTickets(userId, requestedContext(businessId),
-                    query.limit(), query.offset(), query.status(), query.ticketId(), query.queryText());
+            return privateRead(readService.listTickets(userId, requestedContext(businessId),
+                    query.limit(), query.offset(), query.status(), query.ticketId(), query.queryText()));
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
         }
     }
 
     @GetMapping("/tickets/page")
-    public BusinessScopedTicketReadService.TicketPage ticketPage(
+    public ResponseEntity<BusinessScopedTicketReadService.TicketPage> ticketPage(
             Authentication authentication,
             @RequestParam("business_id") String businessId,
             @RequestParam(defaultValue = "50") String limit,
@@ -90,8 +91,8 @@ public class BusinessScopeReadController {
         TicketQuery query = ticketQuery(limit, offset, status, ticketId, queryText);
         Long userId = readService.requireAuthenticatedUserId(username(authentication));
         try {
-            return readService.pageTickets(userId, requestedContext(businessId),
-                    query.limit(), query.offset(), query.status(), query.ticketId(), query.queryText());
+            return privateRead(readService.pageTickets(userId, requestedContext(businessId),
+                    query.limit(), query.offset(), query.status(), query.ticketId(), query.queryText()));
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
         }
@@ -157,19 +158,19 @@ public class BusinessScopeReadController {
     }
 
     @GetMapping("/tickets/{publicId}")
-    public BusinessScopedTicketReadService.TicketRow ticket(@PathVariable String publicId,
-                                                            Authentication authentication) {
+    public ResponseEntity<BusinessScopedTicketReadService.TicketRow> ticket(
+            @PathVariable String publicId, Authentication authentication) {
         requireFoundation();
         Long userId = readService.requireAuthenticatedUserId(username(authentication));
-        return readService.findByPublicId(userId, publicId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        return privateRead(readService.findByPublicId(userId, publicId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND)));
     }
 
     @GetMapping("/tickets/{publicId}/history")
-    public BusinessScopedTicketReadService.TicketHistory history(@PathVariable String publicId,
-                                                                 Authentication authentication,
-                                                                 @RequestParam(required = false) String before,
-                                                                 @RequestParam(defaultValue = "50") String limit) {
+    public ResponseEntity<BusinessScopedTicketReadService.TicketHistory> history(
+            @PathVariable String publicId, Authentication authentication,
+            @RequestParam(required = false) String before,
+            @RequestParam(defaultValue = "50") String limit) {
         requireFoundation();
         if (!limit.matches("[1-9][0-9]*") ||
                 (before != null && !before.matches("[1-9][0-9]*"))) {
@@ -187,8 +188,8 @@ public class BusinessScopeReadController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid history page bounds");
         }
         Long userId = readService.requireAuthenticatedUserId(username(authentication));
-        return readService.findHistoryByPublicId(userId, publicId, beforeId, pageLimit)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        return privateRead(readService.findHistoryByPublicId(userId, publicId, beforeId, pageLimit)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND)));
     }
 
     @GetMapping("/tickets/{publicId}/answers")
@@ -256,6 +257,13 @@ public class BusinessScopeReadController {
         if (!flags.isFoundationEnabled()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
+    }
+
+    private <T> ResponseEntity<T> privateRead(T body) {
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .header("X-Content-Type-Options", "nosniff")
+                .body(body);
     }
 
     private String username(Authentication authentication) {

@@ -51,6 +51,25 @@ class BusinessScopeReadControllerWebMvcTest {
     private AttachmentObjectStorageService objectStorageService;
 
     @Test
+    void availableBusinessesArePrivateAndStillRequireCurrentPageAndFoundation() throws Exception {
+        when(flags.isFoundationEnabled()).thenReturn(true);
+        when(service.requireAuthenticatedUserId("operator")).thenReturn(1L);
+        when(service.availableBusinesses(1L)).thenReturn(List.of(
+                new BusinessScopedTicketReadService.BusinessOption(2L, "sushi", "Суши")));
+        String path = "/api/business-scope/businesses";
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                .andExpect(jsonPath("$[0].code").value("sushi"));
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_SETTINGS")))
+                .andExpect(status().isForbidden());
+        when(flags.isFoundationEnabled()).thenReturn(false);
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void requiresDialogsPageAndEnabledFoundation() throws Exception {
         when(flags.isFoundationEnabled()).thenReturn(true);
         mvc.perform(get("/api/business-scope/tickets/" + PUBLIC_ID)
@@ -78,6 +97,8 @@ class BusinessScopeReadControllerWebMvcTest {
         mvc.perform(get("/api/business-scope/tickets/" + PUBLIC_ID)
                 .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
                 .andExpect(jsonPath("$.businessCode").value("sushi"))
                 .andExpect(jsonPath("$.ticketId").value("raw-ticket"))
                 .andExpect(jsonPath("$.clientName").value("Иван"))
@@ -103,6 +124,8 @@ class BusinessScopeReadControllerWebMvcTest {
                                 3L, "client", "Здравствуйте", null, "text", false)), true, 3L)));
         mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
                 .andExpect(jsonPath("$.ticket.businessCode").value("sushi"))
                 .andExpect(jsonPath("$.ticket.clientName").value("Иван"))
                 .andExpect(jsonPath("$.ticket.createdAt").value("2026-10-15T10:15:30Z"))
@@ -218,6 +241,8 @@ class BusinessScopeReadControllerWebMvcTest {
         mvc.perform(get(path).param("business_id", "2").param("status", "open")
                 .param("ticket", PUBLIC_ID).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
                 .andExpect(jsonPath("$[0].ticketId").value("raw-ticket"))
                 .andExpect(jsonPath("$[0].clientName").value("Иван"))
                 .andExpect(jsonPath("$[0].createdAt").value("2026-10-15T10:15:30Z"))
@@ -246,6 +271,8 @@ class BusinessScopeReadControllerWebMvcTest {
         mvc.perform(get(pagePath).param("business_id", "2").param("status", "open")
                 .param("ticket", PUBLIC_ID).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
                 .andExpect(jsonPath("$.tickets[0].ticketId").value("raw-ticket"))
                 .andExpect(jsonPath("$.tickets[0].clientName").value("Иван"))
                 .andExpect(jsonPath("$.hasMore").value(false));
@@ -336,6 +363,8 @@ class BusinessScopeReadControllerWebMvcTest {
         mvc.perform(get(path).param("business_id", "2")
                 .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
                 .andExpect(jsonPath("$.total").value(2))
                 .andExpect(jsonPath("$.businesses[0].businessCode").value("sushi"))
                 .andExpect(jsonPath("$.businesses[0].open").value(1));

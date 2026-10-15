@@ -49,6 +49,7 @@ async function main() {
   assert.equal(params.get('q'), 'Иван');
   assert.equal(params.has('limit'), false);
   assert.equal(request.options.credentials, 'same-origin');
+  assert.equal(request.options.cache, 'no-store');
   request.resolve({ ok: true, blob: async () => 'json-blob' });
   await first;
   assert.deepEqual(downloads, [{ href: 'blob:test', filename: 'business-tickets.json' }]);
