@@ -40,6 +40,17 @@ public class BusinessAdministrationApiController {
         return service.overview();
     }
 
+    @GetMapping("/channels/{channelId}/binding-preview")
+    public BusinessAdministrationService.ChannelBindingPreview previewChannelBinding(@PathVariable long channelId) {
+        requireFoundation();
+        try {
+            return service.previewChannelBinding(channelId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Channel not found"));
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        }
+    }
+
     @PostMapping("/businesses")
     public ResponseEntity<BusinessAdministrationService.Business> createBusiness(
             @RequestBody(required = false) CreateBusinessRequest request, Authentication authentication) {

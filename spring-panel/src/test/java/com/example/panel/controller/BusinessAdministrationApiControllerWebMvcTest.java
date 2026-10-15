@@ -199,4 +199,34 @@ class BusinessAdministrationApiControllerWebMvcTest {
                 .content("{\"displayName\":\"Новое\"}"))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    void channelBindingPreviewRequiresAdminAndFoundation() throws Exception {
+        String path = "/api/business-admin/channels/10/binding-preview";
+        mvc.perform(get(path)
+                .with(user("viewer").authorities(() -> "PAGE_SETTINGS")))
+                .andExpect(status().isForbidden());
+        mvc.perform(get(path)
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")))
+                .andExpect(status().isNotFound());
+        verify(service, never()).previewChannelBinding(10L);
+
+        when(flags.isFoundationEnabled()).thenReturn(true);
+        when(service.previewChannelBinding(10L)).thenReturn(Optional.of(
+                new BusinessAdministrationService.ChannelBindingPreview(10L, true, "SINGLE_BUSINESS",
+                        List.of(new BusinessAdministrationService.ChannelBinding(
+                                7L, "sushi", "active", "SINGLE_BUSINESS", true)))));
+        mvc.perform(get(path)
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.classification").value("SINGLE_BUSINESS"))
+                .andExpect(jsonPath("$.bindings[0].businessId").value(7));
+        mvc.perform(get("/api/business-admin/channels/11/binding-preview")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")))
+                .andExpect(status().isNotFound());
+        when(service.previewChannelBinding(0L)).thenThrow(new IllegalArgumentException("Invalid identifier"));
+        mvc.perform(get("/api/business-admin/channels/0/binding-preview")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")))
+                .andExpect(status().isBadRequest());
+    }
 }

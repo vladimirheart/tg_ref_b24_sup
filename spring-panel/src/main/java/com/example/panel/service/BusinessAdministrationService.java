@@ -45,6 +45,48 @@ public class BusinessAdministrationService {
         return new Overview(businesses, users, memberships, allGrants, locations);
     }
 
+    /** Read-only channel-binding inventory; classification is not permission to assign a ticket owner. */
+    public Optional<ChannelBindingPreview> previewChannelBinding(long channelId) {
+        requirePositiveIds(channelId);
+        List<ChannelBindingRow> rows = jdbc.query("""
+                SELECT channel.is_active AS channel_active,
+                       binding.business_id, binding.resolution_mode,
+                       binding.is_active AS binding_active,
+                       business.code AS business_code, business.status AS business_status
+                  FROM channels channel
+                  LEFT JOIN business_channel_bindings binding ON binding.channel_id = channel.id
+                  LEFT JOIN businesses business ON business.id = binding.business_id
+                 WHERE channel.id = ?
+                 ORDER BY binding.business_id
+                """, (rs, row) -> new ChannelBindingRow(
+                rs.getBoolean("channel_active"),
+                rs.getObject("business_id", Long.class), rs.getString("business_code"),
+                rs.getString("business_status"), rs.getString("resolution_mode"),
+                rs.getBoolean("binding_active")), channelId);
+        if (rows.isEmpty()) {
+            return Optional.empty();
+        }
+        List<ChannelBinding> bindings = rows.stream()
+                .filter(row -> row.businessId() != null)
+                .map(row -> new ChannelBinding(row.businessId(), row.businessCode(),
+                        row.businessStatus(), row.resolutionMode(), row.bindingActive()))
+                .toList();
+        List<ChannelBinding> active = bindings.stream().filter(ChannelBinding::active).toList();
+        String classification;
+        if (!rows.get(0).channelActive()) {
+            classification = "CHANNEL_INACTIVE";
+        } else if (active.isEmpty()) {
+            classification = "NO_ACTIVE_BINDING";
+        } else if (active.size() == 1 && "active".equals(active.get(0).businessStatus())
+                && "SINGLE_BUSINESS".equals(active.get(0).resolutionMode())) {
+            classification = "SINGLE_BUSINESS";
+        } else {
+            classification = "NEEDS_EXPLICIT_DECISION";
+        }
+        return Optional.of(new ChannelBindingPreview(channelId, rows.get(0).channelActive(),
+                classification, bindings));
+    }
+
     public Business createBusiness(String code, String displayName) {
         if (code == null || code.length() > 100 || !CODE.matcher(code).matches()) {
             throw new IllegalArgumentException("Invalid business code");
@@ -212,6 +254,19 @@ public class BusinessAdministrationService {
 
     public record Location(long id, long businessId, String locationName,
                            String locationType, String city, String status) {
+    }
+
+    private record ChannelBindingRow(boolean channelActive, Long businessId,
+                                     String businessCode, String businessStatus,
+                                     String resolutionMode, boolean bindingActive) {
+    }
+
+    public record ChannelBinding(long businessId, String businessCode, String businessStatus,
+                                 String resolutionMode, boolean active) {
+    }
+
+    public record ChannelBindingPreview(long channelId, boolean channelActive,
+                                        String classification, List<ChannelBinding> bindings) {
     }
 
     public record Overview(List<Business> businesses, List<PanelUser> users,

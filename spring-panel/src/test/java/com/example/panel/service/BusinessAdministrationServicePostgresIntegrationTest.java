@@ -162,10 +162,55 @@ class BusinessAdministrationServicePostgresIntegrationTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    @Test
+    void channelBindingPreviewClassifiesWithoutAssigningOrChangingBindings() throws Exception {
+        JdbcTemplate jdbc = freshSchema("business_admin_channel_preview");
+        migrate(jdbc);
+        BusinessAdministrationService service = new BusinessAdministrationService(jdbc);
+        long sushi = businessId(jdbc, "sushi");
+        long bliny = businessId(jdbc, "bliny");
+        jdbc.update("INSERT INTO channels(id, is_active) VALUES (10, TRUE)");
+
+        assertThat(service.previewChannelBinding(999L)).isEmpty();
+        assertThatThrownBy(() -> service.previewChannelBinding(0L))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(service.previewChannelBinding(10L).orElseThrow().classification())
+                .isEqualTo("NO_ACTIVE_BINDING");
+        jdbc.update("INSERT INTO business_channel_bindings(channel_id, business_id, resolution_mode) "
+                + "VALUES (10, ?, 'SINGLE_BUSINESS')", sushi);
+        var single = service.previewChannelBinding(10L).orElseThrow();
+        assertThat(single.classification()).isEqualTo("SINGLE_BUSINESS");
+        assertThat(single.bindings()).containsExactly(new BusinessAdministrationService.ChannelBinding(
+                sushi, "sushi", "active", "SINGLE_BUSINESS", true));
+
+        jdbc.update("INSERT INTO business_channel_bindings(channel_id, business_id, resolution_mode, is_active) "
+                + "VALUES (10, ?, 'EXPLICIT_SELECTION', FALSE)", bliny);
+        assertThat(service.previewChannelBinding(10L).orElseThrow().classification())
+                .isEqualTo("SINGLE_BUSINESS");
+        jdbc.update("UPDATE business_channel_bindings SET is_active = TRUE WHERE channel_id = 10 AND business_id = ?", bliny);
+        assertThat(service.previewChannelBinding(10L).orElseThrow().classification())
+                .isEqualTo("NEEDS_EXPLICIT_DECISION");
+        jdbc.update("UPDATE business_channel_bindings SET is_active = FALSE WHERE channel_id = 10 AND business_id = ?", sushi);
+        assertThat(service.previewChannelBinding(10L).orElseThrow().classification())
+                .isEqualTo("NEEDS_EXPLICIT_DECISION");
+        jdbc.update("UPDATE business_channel_bindings SET resolution_mode = 'SINGLE_BUSINESS' "
+                + "WHERE channel_id = 10 AND business_id = ?", bliny);
+        assertThat(service.previewChannelBinding(10L).orElseThrow().classification())
+                .isEqualTo("SINGLE_BUSINESS");
+        jdbc.update("UPDATE businesses SET status = 'archived' WHERE id = ?", bliny);
+        assertThat(service.previewChannelBinding(10L).orElseThrow().classification())
+                .isEqualTo("NEEDS_EXPLICIT_DECISION");
+        jdbc.update("UPDATE channels SET is_active = FALSE WHERE id = 10");
+        assertThat(service.previewChannelBinding(10L).orElseThrow().classification())
+                .isEqualTo("CHANNEL_INACTIVE");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM business_channel_bindings WHERE channel_id = 10", Integer.class))
+                .isEqualTo(2);
+    }
+
     private JdbcTemplate freshSchema(String prefix) {
         JdbcTemplate jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType(prefix);
         jdbc.execute("CREATE TABLE users (id BIGINT PRIMARY KEY, username TEXT NOT NULL UNIQUE)");
-        jdbc.execute("CREATE TABLE channels (id BIGINT PRIMARY KEY)");
+        jdbc.execute("CREATE TABLE channels (id BIGINT PRIMARY KEY, is_active BOOLEAN NOT NULL DEFAULT TRUE)");
         jdbc.execute("CREATE TABLE tickets (user_id BIGINT NOT NULL, ticket_id TEXT NOT NULL, PRIMARY KEY (user_id, ticket_id))");
         return jdbc;
     }
