@@ -47,7 +47,14 @@ class BusinessPagesWebMvcTest {
                 .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
                 .andExpect(view().name("businesses/dialogs"))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"businessScopeSelect\"")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"businessScopeSelect\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("id=\"manualBusinessTicketForm\""))));
+        when(flags.isManualTicketCreation()).thenReturn(true);
+        mvc.perform(get("/business-dialogs")
+                .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"manualBusinessTicketForm\"")));
         mvc.perform(get("/business-dialogs")
                 .with(user("wrong-page").authorities(() -> "PAGE_SETTINGS")))
                 .andExpect(status().isForbidden());

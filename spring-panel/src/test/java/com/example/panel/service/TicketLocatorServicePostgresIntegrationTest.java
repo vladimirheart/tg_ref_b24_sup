@@ -79,6 +79,20 @@ class TicketLocatorServicePostgresIntegrationTest {
             .contains(new TicketLocatorService.TicketReference(1L, "T-EXACT", null, sushi));
     }
 
+    @Test
+    void resolvesExplicitNegativeLocalClientIdWithoutAcceptingZero() throws Exception {
+        JdbcTemplate jdbc = freshSchema("ticket_locator_manual_client");
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id) VALUES (-9007199254740991, 'manual-ticket')");
+        applyFoundationMigration(jdbc);
+        applyLocatorMigration(jdbc);
+        TicketLocatorService service = new TicketLocatorService(jdbc);
+
+        assertThat(service.findByCompositeKey(-9007199254740991L, "manual-ticket"))
+                .contains(new TicketLocatorService.TicketReference(
+                        -9007199254740991L, "manual-ticket", null, null));
+        assertThat(service.findByCompositeKey(0L, "manual-ticket")).isEmpty();
+    }
+
     private JdbcTemplate freshSchema(String prefix) {
         JdbcTemplate jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplate(prefix);
         jdbc.execute("CREATE TABLE users (id BIGINT PRIMARY KEY, username TEXT NOT NULL UNIQUE)");

@@ -10,8 +10,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class TicketLocatorFlywayMigrationTest {
 
     @Test
-    void canonicalPostgresqlMigrationChainAppliesV52WithImmutablePublicLocator() {
-        JdbcTemplate jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplate("ticket_locator_flyway_v52");
+    void canonicalPostgresqlMigrationChainAppliesPublicLocatorAndManualClients() {
+        JdbcTemplate jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplate("ticket_locator_flyway_v54");
         Flyway flyway = Flyway.configure()
                 .dataSource(jdbc.getDataSource())
                 .locations("filesystem:src/main/resources/db/migration/postgresql")
@@ -21,6 +21,15 @@ class TicketLocatorFlywayMigrationTest {
 
         assertThat(jdbc.queryForObject(
                 "SELECT COUNT(*) FROM flyway_schema_history WHERE version = '52' AND success = TRUE",
+                Integer.class
+        )).isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM flyway_schema_history WHERE version = '54' AND success = TRUE",
+                Integer.class
+        )).isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() "
+                        + "AND table_name = 'manual_business_clients'",
                 Integer.class
         )).isEqualTo(1);
         assertThat(jdbc.queryForObject("""

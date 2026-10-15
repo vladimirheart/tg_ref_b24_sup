@@ -34,7 +34,7 @@ public class TicketLocatorService {
     }
 
     public Optional<TicketReference> findByCompositeKey(Long userId, String ticketId) {
-        if (userId == null || userId <= 0L || !StringUtils.hasText(ticketId)) {
+        if (userId == null || userId == 0L || !StringUtils.hasText(ticketId)) {
             return Optional.empty();
         }
         return findSingle("""

@@ -30,6 +30,7 @@ public class BusinessScopePageController {
         }
         navigationService.enrich(model, authentication);
         model.addAttribute("activePage", "dialogs");
+        model.addAttribute("manualTicketCreationEnabled", flags.isManualTicketCreation());
         return "businesses/dialogs";
     }
 }

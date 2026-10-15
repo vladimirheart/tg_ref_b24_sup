@@ -26,6 +26,16 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
   выбранный browser-local context либо название бизнеса не являются authority.
 - PostgreSQL остаётся единственным relational source of truth, а Flyway и
   canonical business schema принадлежат `spring-panel`.
+- Для ручного обращения без бота/интеграции создаётся локальный клиент с новым
+  ID, принадлежащий ровно одному выбранному бизнесу. Это не аккаунт `users.id`
+  и не клиент внешнего канала. Ручной путь использует отрицательный `user_id`,
+  выделенный отдельной последовательностью; ноль недопустим. Новый `ticket`
+  получает явный `business_id` до записи корня, без вывода из legacy текста.
+- В общем канале человек явно выбирает бизнес **до первого вопроса**.
+  `business_id` не выводится из названия локации, текста, последнего выбора
+  оператора или факта привязки канала. Пока выбора нет, вопросник не начинается;
+  ответ должен сверяться с активными привязками канала, а выбранный ID
+  сохраняется с сессией/обращением и переносится через transport/replay.
 
 ## Свежий baseline и проверенные факты
 
@@ -183,7 +193,7 @@ requireSelectedBusiness(requested context, authenticated user)
 | Три непустых legacy aliases | Хранить исходный text; не normalise/assign автоматически | **PENDING:** approved alias → `business.code` map и ответственный за него |
 | Три пустых `messages.business` | `UNRESOLVED`, исключены из произвольного business list | **PENDING:** ручное назначение или permanent unresolved policy |
 | 3 history channel mismatch | owner берётся из ticket; исторический channel не переписывается | **PENDING:** классификация forwarding/error и правила отображения |
-| Mixed channels | Только explicit/verified resolver | **PENDING:** source priority и UX ручного выбора |
+| Mixed channels | Явный выбор бизнеса до первого вопроса; без выбора flow не запускается | **РЕШЕНО 2026-10-15:** explicit selection. **PENDING:** UX-представление и precedence для иных verified sources |
 | 2 tasks без ticket link | `UNRESOLVED` либо `GLOBAL_SYSTEM`, не произвольный business | **PENDING:** policy и право на global Kanban |
 | 105 incidents / system notifications | Не получают business ID массово | **PENDING:** business/shared/global classification и отдельные permissions |
 | Existing ticket route | Legacy route доступен только в подтверждённом unique window | **РЕШЕНО S2A:** opaque immutable `ticket_public_id`; internal fallback — обязательный composite locator |
@@ -248,11 +258,17 @@ multibusiness.ticket-write-requires-business=false
 multibusiness.strict-read-scope=false
 multibusiness.shared-channel-resolution=false
 multibusiness.ui-selector=false
+multibusiness.manual-ticket-creation=false
 ```
 
 `MultibusinessFeatureFlags` binds these exact keys and defaults all of them to
 `false`. At the S2A source checkpoint no runtime path reads this bean: adding
 the configuration does not enable filtering, assignment or a UI switch.
+
+Ручное создание дополнительно требует `foundation.enabled=true`,
+`ui-selector=true` для страницы и отдельный `manual-ticket-creation=true` для
+POST. Исходное значение флага — `false`; наличие source/migration не включает
+операторскую запись в рабочей среде.
 
 Строгий read scope нельзя включать, пока вся показываемая legacy выборка не
 получила approved business или не изолирована как `UNRESOLVED`. Каждый flag

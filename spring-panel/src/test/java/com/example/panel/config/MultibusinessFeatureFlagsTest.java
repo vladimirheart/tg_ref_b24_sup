@@ -22,6 +22,7 @@ class MultibusinessFeatureFlagsTest {
             assertThat(flags.isStrictReadScope()).isFalse();
             assertThat(flags.isSharedChannelResolution()).isFalse();
             assertThat(flags.isUiSelector()).isFalse();
+            assertThat(flags.isManualTicketCreation()).isFalse();
         });
     }
 
@@ -33,7 +34,8 @@ class MultibusinessFeatureFlagsTest {
                         "multibusiness.ticket-write-requires-business=true",
                         "multibusiness.strict-read-scope=true",
                         "multibusiness.shared-channel-resolution=true",
-                        "multibusiness.ui-selector=true"
+                        "multibusiness.ui-selector=true",
+                        "multibusiness.manual-ticket-creation=true"
                 )
                 .run(context -> {
                     MultibusinessFeatureFlags flags = context.getBean(MultibusinessFeatureFlags.class);
@@ -43,6 +45,7 @@ class MultibusinessFeatureFlagsTest {
                     assertThat(flags.isStrictReadScope()).isTrue();
                     assertThat(flags.isSharedChannelResolution()).isTrue();
                     assertThat(flags.isUiSelector()).isTrue();
+                    assertThat(flags.isManualTicketCreation()).isTrue();
                 });
     }
 

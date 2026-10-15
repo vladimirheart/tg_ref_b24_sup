@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="_csrf" th:content="${_csrf != null ? _csrf.token : ''}">
     <title>Обращения по бизнесам — iguana</title>
     <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
     <link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css">
@@ -24,6 +25,22 @@
             <select class="form-select" id="businessScopeSelect" aria-label="Выбранный бизнес"></select></div>
         <button class="btn btn-outline-primary" id="businessScopeReload" type="button">Обновить</button>
     </div></div>
+    <form id="manualBusinessTicketForm" class="card mb-4" th:if="${manualTicketCreationEnabled}">
+        <div class="card-body">
+            <h2 class="h5">Новое обращение без бота</h2>
+            <p class="small text-muted">Клиент будет создан локально с новым ID. Сообщение во внешний канал не отправляется.</p>
+            <div class="row g-3">
+                <div class="col-md-4"><label class="form-label" for="manualTicketBusiness">Бизнес</label>
+                    <select class="form-select" id="manualTicketBusiness" required></select></div>
+                <div class="col-md-8"><label class="form-label" for="manualTicketClient">Имя клиента</label>
+                    <input class="form-control" id="manualTicketClient" maxlength="200" required></div>
+                <div class="col-12"><label class="form-label" for="manualTicketProblem">Проблема</label>
+                    <textarea class="form-control" id="manualTicketProblem" maxlength="10000" rows="3" required></textarea></div>
+            </div>
+            <button class="btn btn-primary mt-3" type="submit">Создать обращение</button>
+            <p class="small mt-2 mb-0" data-manual-ticket-status role="status" aria-live="polite"></p>
+        </div>
+    </form>
     <section class="card mb-4" aria-labelledby="businessTicketSummaryTitle"><div class="card-body">
         <h2 class="h5" id="businessTicketSummaryTitle">Сводка обращений</h2>
         <p class="small text-muted" aria-live="polite" data-business-summary-status>Загрузка сводки…</p>
@@ -96,6 +113,6 @@
     </section>
 </main>
 <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js"></script>
-<script th:src="@{/js/business-dialogs.js(v='20261015-r107')}"></script>
+<script th:src="@{/js/business-dialogs.js(v='20261015-r110')}"></script>
 </body>
 </html>

@@ -25,6 +25,10 @@
   const next = page.querySelector('#businessTicketsNext');
   const pageNumber = page.querySelector('#businessTicketsPage');
   const exportButton = page.querySelector('#businessTicketsExport');
+  const manualForm = page.querySelector('#manualBusinessTicketForm');
+  const manualBusiness = manualForm?.querySelector('#manualTicketBusiness');
+  const manualStatus = manualForm?.querySelector('[data-manual-ticket-status]');
+  const csrf = document.querySelector('meta[name="_csrf"]')?.content || '';
   const limit = 50;
   let offset = 0;
   let generation = 0;
@@ -458,8 +462,51 @@
   older.addEventListener('click', loadOlderHistory);
   exportButton.addEventListener('click', exportTickets);
 
+  if (manualForm) {
+    manualForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!manualBusiness.value || !manualForm.reportValidity()) return;
+      const submit = manualForm.querySelector('button[type="submit"]');
+      submit.disabled = true;
+      manualStatus.textContent = 'Создание обращения…';
+      try {
+        const response = await fetch('/api/business-scope/tickets/manual', {
+          method: 'POST', credentials: 'same-origin', cache: 'no-store',
+          headers: { 'Content-Type': 'application/json', 'X-XSRF-TOKEN': csrf },
+          body: JSON.stringify({
+            businessId: Number(manualBusiness.value),
+            clientName: manualForm.querySelector('#manualTicketClient').value,
+            problem: manualForm.querySelector('#manualTicketProblem').value
+          })
+        });
+        if (!response.ok) {
+          throw new Error(response.status === 403 ? 'Нет права создавать обращения в этом бизнесе.'
+            : 'Не удалось создать обращение. Проверьте данные и доступ.');
+        }
+        const created = await response.json();
+        manualForm.querySelector('#manualTicketClient').value = '';
+        manualForm.querySelector('#manualTicketProblem').value = '';
+        manualStatus.textContent = `Обращение ${created.ticketId} создано. Локальный ID клиента: ${created.clientUserId}.`;
+        select.value = String(created.businessId);
+        offset = 0;
+        await loadTickets();
+      } catch (error) {
+        manualStatus.textContent = error.message || 'Не удалось создать обращение.';
+      } finally {
+        submit.disabled = false;
+      }
+    });
+  }
+
   getJson('/api/business-scope/businesses').then((businesses) => {
     select.replaceChildren();
+    if (manualBusiness) {
+      manualBusiness.replaceChildren();
+      const prompt = document.createElement('option');
+      prompt.value = '';
+      prompt.textContent = 'Выберите бизнес';
+      manualBusiness.appendChild(prompt);
+    }
     const all = document.createElement('option');
     all.value = 'all';
     all.textContent = 'Все доступные бизнесы';
@@ -469,7 +516,11 @@
       option.value = String(business.id);
       option.textContent = business.displayName;
       select.appendChild(option);
+      if (manualBusiness) {
+        manualBusiness.appendChild(option.cloneNode(true));
+      }
     }
+    if (manualBusiness) manualBusiness.value = '';
     loadTickets();
   }).catch((error) => announce(error.message || 'Не удалось загрузить бизнесы.', true));
 })();

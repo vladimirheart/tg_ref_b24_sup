@@ -17,6 +17,7 @@ public class MultibusinessFeatureFlags {
     private boolean strictReadScope;
     private boolean sharedChannelResolution;
     private boolean uiSelector;
+    private boolean manualTicketCreation;
 
     public Foundation getFoundation() {
         return foundation;
@@ -60,6 +61,14 @@ public class MultibusinessFeatureFlags {
 
     public void setUiSelector(boolean uiSelector) {
         this.uiSelector = uiSelector;
+    }
+
+    public boolean isManualTicketCreation() {
+        return manualTicketCreation;
+    }
+
+    public void setManualTicketCreation(boolean manualTicketCreation) {
+        this.manualTicketCreation = manualTicketCreation;
     }
 
     public static class Foundation {
