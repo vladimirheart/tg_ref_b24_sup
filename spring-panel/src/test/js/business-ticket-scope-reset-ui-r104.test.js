@@ -48,11 +48,13 @@ async function main() {
   };
   const history = new Element();
   const answers = new Element();
+  const workspace = new Element();
   const older = new Element();
   const messages = [];
   const pending = [];
   const context = {
-    card, history, answers, older, answersStatus: new Element(),
+    card, history, answers, workspace, older, answersStatus: new Element(),
+    workspaceStatus: new Element(),
     currentTicket: ticket, currentTicketPublicId: publicId,
     historyBefore: 9, olderLoading: false, generation: 3, cardRequest: 4,
     select: { value: 'all' }, encodeURIComponent,
@@ -72,6 +74,8 @@ async function main() {
   assert.equal(older.hidden, false);
 
   answers.children.push({ textContent: 'старый ответ' });
+  workspace.children.push({ textContent: 'старые рабочие данные' });
+  context.workspaceStatus.textContent = 'старый статус';
   card.querySelector('[data-ticket-client]').textContent = 'старый клиент';
   const mismatch = loadOlderHistory();
   pending.shift()({ ticket: { ...ticket, userId: 22 }, entries: [{ id: 4 }],
@@ -80,6 +84,8 @@ async function main() {
   assert.equal(card.hidden, true);
   assert.equal(history.children.length, 0);
   assert.equal(answers.children.length, 0);
+  assert.equal(workspace.children.length, 0);
+  assert.equal(context.workspaceStatus.textContent, '');
   assert.equal(fields.get('[data-ticket-client]').textContent, '');
   assert.equal(context.currentTicket, null);
   assert.equal(context.currentTicketPublicId, null);

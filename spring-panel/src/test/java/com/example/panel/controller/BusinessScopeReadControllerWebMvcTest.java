@@ -197,6 +197,47 @@ class BusinessScopeReadControllerWebMvcTest {
     }
 
     @Test
+    void workspaceReturnsOnlyUnambiguousScopedData() throws Exception {
+        when(flags.isFoundationEnabled()).thenReturn(true);
+        when(service.requireAuthenticatedUserId("operator")).thenReturn(1L);
+        String path = "/api/business-scope/tickets/" + PUBLIC_ID + "/workspace";
+        var ticket = new BusinessScopedTicketReadService.TicketRow(
+                8L, "raw-ticket", PUBLIC_ID, 2L, "sushi", "Суши", "open");
+        when(service.findWorkspaceByPublicId(1L, PUBLIC_ID)).thenReturn(Optional.empty());
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isNotFound());
+        when(service.findWorkspaceByPublicId(1L, PUBLIC_ID)).thenReturn(Optional.of(
+                new BusinessScopedTicketReadService.TicketWorkspace(ticket, true, "operator-a",
+                        List.of("Доставка"), List.of("alice"))));
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                .andExpect(jsonPath("$.ticket.businessCode").value("sushi"))
+                .andExpect(jsonPath("$.relationVerified").value(true))
+                .andExpect(jsonPath("$.responsible").value("operator-a"))
+                .andExpect(jsonPath("$.categories[0]").value("Доставка"))
+                .andExpect(jsonPath("$.participants[0]").value("alice"));
+        when(service.findWorkspaceByPublicId(1L, PUBLIC_ID)).thenReturn(Optional.of(
+                new BusinessScopedTicketReadService.TicketWorkspace(ticket, false, null,
+                        List.of(), List.of())));
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.relationVerified").value(false))
+                .andExpect(jsonPath("$.categories").isEmpty())
+                .andExpect(jsonPath("$.participants").isEmpty());
+        when(service.findWorkspaceByPublicId(1L, PUBLIC_ID))
+                .thenThrow(new BusinessScopedTicketReadService.WorkspaceLimitExceededException());
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isPayloadTooLarge());
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_SETTINGS")))
+                .andExpect(status().isForbidden());
+        when(flags.isFoundationEnabled()).thenReturn(false);
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void attachmentRequiresCurrentScopeAndReturnsOnlyVerifiedBinary() throws Exception {
         when(flags.isFoundationEnabled()).thenReturn(true);
         when(service.requireAuthenticatedUserId("operator")).thenReturn(1L);

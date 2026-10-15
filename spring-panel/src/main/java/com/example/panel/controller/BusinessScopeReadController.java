@@ -209,6 +209,20 @@ public class BusinessScopeReadController {
         }
     }
 
+    @GetMapping("/tickets/{publicId}/workspace")
+    public ResponseEntity<BusinessScopedTicketReadService.TicketWorkspace> workspace(
+            @PathVariable String publicId, Authentication authentication) {
+        requireFoundation();
+        Long userId = readService.requireAuthenticatedUserId(username(authentication));
+        try {
+            var snapshot = readService.findWorkspaceByPublicId(userId, publicId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+            return privateRead(snapshot);
+        } catch (BusinessScopedTicketReadService.WorkspaceLimitExceededException ex) {
+            throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, ex.getMessage(), ex);
+        }
+    }
+
     @GetMapping("/tickets/{publicId}/history/{historyId}/attachment")
     public ResponseEntity<Resource> attachment(@PathVariable String publicId,
                                                @PathVariable String historyId,

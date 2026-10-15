@@ -16,6 +16,8 @@
   const history = card.querySelector('[data-ticket-history]');
   const answers = card.querySelector('[data-ticket-answers]');
   const answersStatus = card.querySelector('[data-ticket-answers-status]');
+  const workspace = card.querySelector('[data-ticket-workspace]');
+  const workspaceStatus = card.querySelector('[data-ticket-workspace-status]');
   const older = card.querySelector('#businessHistoryOlder');
   const previous = page.querySelector('#businessTicketsPrevious');
   const next = page.querySelector('#businessTicketsNext');
@@ -38,6 +40,8 @@
     history.replaceChildren();
     answers.replaceChildren();
     answersStatus.textContent = '';
+    workspace.replaceChildren();
+    workspaceStatus.textContent = '';
     for (const field of ['business', 'id', 'user', 'client', 'problem', 'public', 'status', 'created']) {
       card.querySelector(`[data-ticket-${field}]`).textContent = '';
     }
@@ -192,6 +196,45 @@
     }
   }
 
+  async function loadWorkspace(ticket, expectedGeneration, request) {
+    workspace.replaceChildren();
+    workspaceStatus.textContent = 'Загрузка рабочих данных…';
+    try {
+      const snapshot = await getJson(`/api/business-scope/tickets/${encodeURIComponent(ticket.ticketPublicId)}/workspace`);
+      if (expectedGeneration !== generation || request !== cardRequest ||
+          currentTicketPublicId !== ticket.ticketPublicId ||
+          (select.value !== 'all' && select.value !== String(ticket.businessId))) return;
+      if (!snapshot.ticket || snapshot.ticket.ticketPublicId !== ticket.ticketPublicId ||
+          snapshot.ticket.businessId !== ticket.businessId ||
+          snapshot.ticket.userId !== ticket.userId ||
+          snapshot.ticket.ticketId !== ticket.ticketId) {
+        workspaceStatus.textContent = 'Рабочие данные недоступны: обращение изменилось. Обновите карточку.';
+        return;
+      }
+      if (!snapshot.relationVerified) {
+        workspaceStatus.textContent = 'Рабочие данные недоступны: legacy ID обращения не имеет однозначной связи с ними.';
+        return;
+      }
+      workspaceStatus.textContent = 'Подтверждённые рабочие данные обращения.';
+      for (const [label, value] of [
+        ['Ответственный', snapshot.responsible || 'Не назначен'],
+        ['Категории', snapshot.categories.length ? snapshot.categories.join(', ') : 'Нет'],
+        ['Участники', snapshot.participants.length ? snapshot.participants.join(', ') : 'Нет']
+      ]) {
+        const item = document.createElement('li');
+        item.className = 'list-group-item';
+        item.textContent = `${label}: ${value}`;
+        workspace.appendChild(item);
+      }
+    } catch (error) {
+      if (expectedGeneration === generation && request === cardRequest &&
+          currentTicketPublicId === ticket.ticketPublicId) {
+        workspace.replaceChildren();
+        workspaceStatus.textContent = 'Рабочие данные недоступны. Проверьте доступ и обновите карточку.';
+      }
+    }
+  }
+
   async function openCard(ticket, expectedGeneration) {
     const request = ++cardRequest;
     clearCard();
@@ -227,6 +270,7 @@
       older.hidden = !snapshot.hasMore;
       card.hidden = false;
       loadAnswers(detail, expectedGeneration, request);
+      loadWorkspace(detail, expectedGeneration, request);
     } catch (error) {
       if (expectedGeneration !== generation || request !== cardRequest) return;
       clearCard();

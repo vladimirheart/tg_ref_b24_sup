@@ -300,6 +300,67 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
     }
 
     @Test
+    void workspaceRequiresUniqueRawOwnerAndCurrentBusinessGrant() throws Exception {
+        JdbcTemplate jdbc = freshSchema("business_scoped_ticket_workspace");
+        jdbc.update("INSERT INTO users(id, username) VALUES (1, 'direct'), (2, 'all-reader')");
+        migrate(jdbc);
+        jdbc.execute("CREATE TABLE ticket_responsibles (ticket_id TEXT PRIMARY KEY, responsible TEXT NOT NULL)");
+        jdbc.execute("CREATE TABLE ticket_categories (ticket_id TEXT, category TEXT, "
+                + "PRIMARY KEY (ticket_id, category))");
+        jdbc.execute("CREATE TABLE ticket_participants (ticket_id TEXT, username TEXT, "
+                + "PRIMARY KEY (ticket_id, username))");
+        long sushi = businessId(jdbc, "sushi");
+        long bliny = businessId(jdbc, "bliny");
+        String publicId = "0123456789abcdef0123456789abcdef";
+        String otherPublicId = "fedcba9876543210fedcba9876543210";
+        jdbc.update("INSERT INTO business_memberships(user_id, business_id, role_code) "
+                + "VALUES (1, ?, 'VIEWER')", sushi);
+        jdbc.update("INSERT INTO business_access_grants(user_id, grant_scope, role_code) "
+                + "VALUES (2, 'ALL_BUSINESSES', 'VIEWER')");
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id, ticket_public_id) "
+                + "VALUES (11, 'sushi-raw', ?, ?), (22, 'bliny-raw', ?, ?)",
+                sushi, publicId, bliny, otherPublicId);
+        jdbc.update("INSERT INTO ticket_responsibles(ticket_id, responsible) "
+                + "VALUES ('sushi-raw', 'operator-a'), ('bliny-raw', 'operator-b')");
+        jdbc.update("INSERT INTO ticket_categories(ticket_id, category) "
+                + "VALUES ('sushi-raw', 'Доставка'), ('sushi-raw', 'Качество'), "
+                + "('bliny-raw', 'Чужая категория')");
+        jdbc.update("INSERT INTO ticket_participants(ticket_id, username) "
+                + "VALUES ('sushi-raw', 'alice'), ('sushi-raw', 'bob'), ('bliny-raw', 'outsider')");
+
+        BusinessScopedTicketReadService service = new BusinessScopedTicketReadService(
+                jdbc, new BusinessAccessService(jdbc));
+        var workspace = service.findWorkspaceByPublicId(1L, publicId).orElseThrow();
+        assertThat(workspace.relationVerified()).isTrue();
+        assertThat(workspace.responsible()).isEqualTo("operator-a");
+        assertThat(workspace.categories()).containsExactly("Доставка", "Качество");
+        assertThat(workspace.participants()).containsExactly("alice", "bob");
+        assertThat(service.findWorkspaceByPublicId(1L, otherPublicId)).isEmpty();
+        assertThat(service.findWorkspaceByPublicId(2L, otherPublicId).orElseThrow().responsible())
+                .isEqualTo("operator-b");
+
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id) VALUES (33, 'sushi-raw', ?)", bliny);
+        var ambiguous = service.findWorkspaceByPublicId(1L, publicId).orElseThrow();
+        assertThat(ambiguous.relationVerified()).isFalse();
+        assertThat(ambiguous.responsible()).isNull();
+        assertThat(ambiguous.categories()).isEmpty();
+        assertThat(ambiguous.participants()).isEmpty();
+        jdbc.update("DELETE FROM tickets WHERE user_id = 33 AND ticket_id = 'sushi-raw'");
+        for (int i = 0; i <= BusinessScopedTicketReadService.MAX_WORKSPACE_ITEMS; i++) {
+            jdbc.update("INSERT INTO ticket_participants(ticket_id, username) VALUES ('sushi-raw', ?)",
+                    "extra-" + i);
+        }
+        assertThatThrownBy(() -> service.findWorkspaceByPublicId(1L, publicId))
+                .isInstanceOf(BusinessScopedTicketReadService.WorkspaceLimitExceededException.class);
+        BusinessAccessService staleAccess = mock(BusinessAccessService.class);
+        when(staleAccess.resolveAccessibleBusinessIds(1L)).thenReturn(Set.of(sushi));
+        BusinessScopedTicketReadService staleService = new BusinessScopedTicketReadService(jdbc, staleAccess);
+        jdbc.update("UPDATE business_memberships SET is_active = FALSE WHERE user_id = 1");
+        assertThat(service.findWorkspaceByPublicId(1L, publicId)).isEmpty();
+        assertThat(staleService.findWorkspaceByPublicId(1L, publicId)).isEmpty();
+    }
+
+    @Test
     void listsOnlyCanonicalOwnersWithinDirectOrAllGrantedScope() throws Exception {
         JdbcTemplate jdbc = freshSchema("business_scoped_ticket_read");
         jdbc.update("INSERT INTO users(id, username) VALUES (1, 'sushi-reader'), (2, 'all-reader'), (3, 'no-grant')");

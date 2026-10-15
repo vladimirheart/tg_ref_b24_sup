@@ -21,6 +21,7 @@ public class BusinessScopedTicketReadService {
 
     public static final int MAX_EXPORT_TICKETS = 1000;
     public static final int MAX_TICKET_ANSWERS = 100;
+    public static final int MAX_WORKSPACE_ITEMS = 100;
     private static final Pattern PUBLIC_ID = Pattern.compile("[0-9a-f]{32}");
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedJdbcTemplate;
@@ -453,6 +454,101 @@ public class BusinessScopedTicketReadService {
                 });
     }
 
+    /** Legacy workspace rows have only a raw ticket ID and require its globally unique owner. */
+    public Optional<TicketWorkspace> findWorkspaceByPublicId(Long userId, String publicId) {
+        if (publicId == null || !PUBLIC_ID.matcher(publicId).matches()) {
+            return Optional.empty();
+        }
+        Set<Long> ids = accessService.resolveAccessibleBusinessIds(userId);
+        if (ids.isEmpty()) {
+            return Optional.empty();
+        }
+        return namedJdbcTemplate.query("""
+                WITH authorized_ticket AS (
+                    SELECT ticket.user_id, ticket.ticket_id, ticket.ticket_public_id, ticket.status,
+                           ticket.created_at,
+                           business.id AS business_id, business.code AS business_code,
+                           business.display_name AS business_name,
+                           left(root.client_name, 200) AS client_name,
+                           left(root.problem, 500) AS problem_preview,
+                           (SELECT COUNT(*) FROM tickets same_id
+                             WHERE same_id.ticket_id = ticket.ticket_id) = 1 AS relation_verified
+                      FROM tickets ticket
+                      JOIN businesses business ON business.id = ticket.business_id
+                      LEFT JOIN messages root ON root.group_msg_id = ticket.group_msg_id
+                           AND root.user_id = ticket.user_id AND root.ticket_id = ticket.ticket_id
+                     WHERE ticket.ticket_public_id = :publicId
+                       AND ticket.business_id IN (:businessIds)
+                       AND business.status = 'active'
+                       AND (EXISTS (
+                           SELECT 1 FROM business_memberships membership
+                            WHERE membership.business_id = business.id
+                              AND membership.user_id = :userId AND membership.is_active = TRUE
+                       ) OR EXISTS (
+                           SELECT 1 FROM business_access_grants access_grant
+                            WHERE access_grant.user_id = :userId
+                              AND access_grant.grant_scope = 'ALL_BUSINESSES'
+                              AND access_grant.is_active = TRUE
+                       ))
+                )
+                SELECT ticket.*, item.entry_kind, item.entry_value
+                  FROM authorized_ticket ticket
+                  LEFT JOIN LATERAL (
+                      SELECT 'responsible' AS entry_kind, left(r.responsible, 200) AS entry_value
+                        FROM ticket_responsibles r
+                       WHERE r.ticket_id = ticket.ticket_id AND ticket.relation_verified
+                      UNION ALL
+                      SELECT 'category', left(c.category, 200)
+                        FROM (
+                            SELECT category FROM ticket_categories
+                             WHERE ticket_id = ticket.ticket_id AND ticket.relation_verified
+                             ORDER BY category LIMIT :workspaceLimit
+                        ) c
+                      UNION ALL
+                      SELECT 'participant', p.username
+                        FROM (
+                            SELECT username FROM ticket_participants
+                             WHERE ticket_id = ticket.ticket_id AND ticket.relation_verified
+                             ORDER BY username LIMIT :workspaceLimit
+                        ) p
+                  ) item ON TRUE
+                 ORDER BY item.entry_kind, item.entry_value
+                """, new MapSqlParameterSource()
+                        .addValue("publicId", publicId)
+                        .addValue("businessIds", ids)
+                        .addValue("userId", userId)
+                        .addValue("workspaceLimit", MAX_WORKSPACE_ITEMS + 1),
+                rs -> {
+                    TicketRow ticket = null;
+                    boolean relationVerified = false;
+                    String responsible = null;
+                    List<String> categories = new ArrayList<>();
+                    List<String> participants = new ArrayList<>();
+                    while (rs.next()) {
+                        if (ticket == null) {
+                            ticket = ticketRow(rs);
+                            relationVerified = rs.getBoolean("relation_verified");
+                        }
+                        String kind = rs.getString("entry_kind");
+                        if ("responsible".equals(kind)) {
+                            responsible = rs.getString("entry_value");
+                        } else if ("category".equals(kind)) {
+                            categories.add(rs.getString("entry_value"));
+                        } else if ("participant".equals(kind)) {
+                            participants.add(rs.getString("entry_value"));
+                        }
+                    }
+                    if (ticket == null) {
+                        return Optional.<TicketWorkspace>empty();
+                    }
+                    if (categories.size() > MAX_WORKSPACE_ITEMS || participants.size() > MAX_WORKSPACE_ITEMS) {
+                        throw new WorkspaceLimitExceededException();
+                    }
+                    return Optional.of(new TicketWorkspace(ticket, relationVerified, responsible,
+                            List.copyOf(categories), List.copyOf(participants)));
+                });
+    }
+
     /** A binary locator is issued only for one explicit history owner and unambiguous storage key. */
     public Optional<AttachmentReference> findAttachmentByPublicId(Long userId, String publicId, long historyId) {
         if (historyId < 1 || publicId == null || !PUBLIC_ID.matcher(publicId).matches()) {
@@ -589,11 +685,21 @@ public class BusinessScopedTicketReadService {
         }
     }
 
+    public static class WorkspaceLimitExceededException extends RuntimeException {
+        public WorkspaceLimitExceededException() {
+            super("Ticket workspace exceeds " + MAX_WORKSPACE_ITEMS + " items per collection");
+        }
+    }
+
     public record AnswerEntry(String questionId, String questionText, String inputType,
                               String valueLabel, String valueText) {
     }
 
     public record TicketAnswers(TicketRow ticket, boolean relationVerified, List<AnswerEntry> answers) {
+    }
+
+    public record TicketWorkspace(TicketRow ticket, boolean relationVerified,
+                                  String responsible, List<String> categories, List<String> participants) {
     }
 
     public record HistoryEntry(long id, String sender, String message,
