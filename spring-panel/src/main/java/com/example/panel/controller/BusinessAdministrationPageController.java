@@ -30,6 +30,7 @@ public class BusinessAdministrationPageController {
         }
         navigationService.enrich(model, authentication);
         model.addAttribute("activePage", "settings");
+        model.addAttribute("generalTicketQueueEnabled", flags.isGeneralTicketQueue());
         return "businesses/manage";
     }
 }

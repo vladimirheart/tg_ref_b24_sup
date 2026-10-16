@@ -161,6 +161,23 @@ business-scoped шаблон из canonical `bot_settings.question_templates`:
 Персоналу такие обращения нужны в отдельной явно разрешённой очереди; grant
 `ALL_BUSINESSES` сам по себе не разрешает их читать или изменять.
 
+Read-only очередь GENERAL использует отдельный явный grant
+`general_ticket_read_grants` на канонический `users.id`, без автоматических
+назначений. Доступ требует одновременно `PAGE_DIALOGS`, включённую учётную
+запись и активный READ grant. `ROLE_ADMIN`, business membership и
+`ALL_BUSINESSES` не заменяют этот grant. Установка/отзыв доступны только
+системному администратору с `PAGE_SETTINGS` и CSRF. READ не разрешает отвечать,
+менять статус либо выполнять другие write operations.
+
+`/api/general-tickets` и `/general-dialogs` закрыты foundation и отдельным
+default-off `multibusiness.general-ticket-queue`. Каждый SQL read повторно
+проверяет grant и выбирает только `is_general=TRUE`, `business_id IS NULL` и
+канонический public ID. Legacy/unresolved NULL и бизнес-обращения не входят
+в эту очередь. История использует composite owner; attributes и attachment
+namespace дополнительно требуют однозначности legacy ticket ID. Grant этого
+read-only контура не доказывает готовность legacy API, write paths, SSE,
+поиска/уведомлений и фоновых заданий; их изоляция остаётся gate до rollout.
+
 Для канала только с общими обращениями `GENERAL_CHANNEL` включается отдельной
 записью `general_channel_question_template_bindings`: активный канал должен
 явно выбрать тот же ID вопросника, не иметь активных business bindings, а

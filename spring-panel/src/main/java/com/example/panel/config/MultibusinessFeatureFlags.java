@@ -17,6 +17,7 @@ public class MultibusinessFeatureFlags {
     private boolean strictReadScope;
     private boolean sharedChannelResolution;
     private boolean generalChannelResolution;
+    private boolean generalTicketQueue;
     private boolean uiSelector;
     private boolean manualTicketCreation;
 
@@ -66,6 +67,14 @@ public class MultibusinessFeatureFlags {
 
     public boolean isUiSelector() {
         return uiSelector;
+    }
+
+    public boolean isGeneralTicketQueue() {
+        return generalTicketQueue;
+    }
+
+    public void setGeneralTicketQueue(boolean generalTicketQueue) {
+        this.generalTicketQueue = generalTicketQueue;
     }
 
     public void setUiSelector(boolean uiSelector) {

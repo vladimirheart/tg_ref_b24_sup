@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Обращения без бизнеса — iguana</title>
+    <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
+    <link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css">
+    <link rel="stylesheet" href="/vendor/bootstrap-icons/1.10.5/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/css/style.css}"><link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="stylesheet" th:href="@{/css/sidebar.css}">
+</head>
+<body class="with-sidebar sidebar-pinned" data-ui-page="dialogs">
+<div th:replace="~{fragments/navbar :: navbar('dialogs')}"></div>
+<main class="main-content container-fluid py-4 page-shell" data-general-dialogs>
+    <div class="page-header-card page-hero mb-4">
+        <span class="page-kicker">Диалоги</span><h1 class="page-title">Обращения без бизнеса</h1>
+        <p class="page-subtitle mb-0">Просмотр обращений, созданных без привязки к бизнесу.</p>
+    </div>
+    <form id="generalTicketFilters" class="card mb-4"><div class="card-body d-flex flex-wrap align-items-end gap-3">
+        <div><label class="form-label" for="generalTicketStatus">Статус</label>
+            <select class="form-select" id="generalTicketStatus"><option value="">Все статусы</option>
+                <option value="pending">Ожидает</option><option value="open">Открыто</option>
+                <option value="resolved">Решено</option><option value="closed">Закрыто</option></select></div>
+        <div><label class="form-label" for="generalTicketSearch">Клиент, проблема или ID</label>
+            <input class="form-control" id="generalTicketSearch" maxlength="100" autocomplete="off"></div>
+        <button type="submit" class="btn btn-primary">Показать</button>
+    </div></form>
+    <div class="alert alert-info" role="status" aria-live="polite" data-general-status>Загрузка…</div>
+    <section class="card mb-4"><div class="card-body">
+        <div class="table-responsive"><table class="table align-middle">
+            <thead><tr><th scope="col">Обращение</th><th scope="col">Клиент</th><th scope="col">Статус</th>
+                <th scope="col">Создано</th><th scope="col">Просмотр</th></tr></thead>
+            <tbody id="generalTicketRows"></tbody>
+        </table></div>
+        <div class="d-flex align-items-center gap-3">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="generalPrevious">Назад</button>
+            <span id="generalPageNumber" class="small text-muted"></span>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="generalNext">Далее</button>
+        </div>
+    </div></section>
+    <section class="card" id="generalTicketCard" hidden aria-labelledby="generalCardTitle"><div class="card-body">
+        <h2 class="h5" id="generalCardTitle">Карточка обращения</h2>
+        <dl class="row"><dt class="col-sm-3">Обращение</dt><dd class="col-sm-9" data-general-id></dd>
+            <dt class="col-sm-3">Клиент</dt><dd class="col-sm-9" data-general-client></dd>
+            <dt class="col-sm-3">Статус</dt><dd class="col-sm-9" data-general-ticket-status></dd></dl>
+        <pre class="text-break" data-general-problem></pre>
+        <h3 class="h6">Ответы на вопросы</h3><div data-general-answers></div>
+        <h3 class="h6 mt-4">История</h3>
+        <button type="button" class="btn btn-outline-secondary btn-sm mb-3" id="generalHistoryOlder" hidden>
+            Загрузить более ранние сообщения</button>
+        <div data-general-history></div>
+    </div></section>
+</main>
+<script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js"></script>
+<script th:src="@{/js/general-dialogs.js(v='20261016-r117')}"></script>
+</body></html>

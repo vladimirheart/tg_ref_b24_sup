@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="_csrf" th:content="${_csrf != null ? _csrf.token : ''}">
+    <title>Доступ к обращениям без бизнеса — iguana</title>
+    <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
+    <link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css">
+    <link rel="stylesheet" href="/vendor/bootstrap-icons/1.10.5/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/css/style.css}"><link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="stylesheet" th:href="@{/css/sidebar.css}">
+</head>
+<body class="with-sidebar sidebar-pinned" data-ui-page="settings">
+<div th:replace="~{fragments/navbar :: navbar('settings')}"></div>
+<main class="main-content container-fluid py-4 page-shell" data-general-access>
+    <div class="page-header-card page-hero mb-4">
+        <span class="page-kicker">Настройки</span><h1 class="page-title">Доступ к обращениям без бизнеса</h1>
+        <p class="page-subtitle">Право на просмотр назначается отдельно от доступа к бизнесам.
+            Для открытия очереди сотруднику также нужен доступ к разделу «Диалоги».</p>
+        <a class="btn btn-outline-secondary" href="/businesses/manage">Бизнесы и доступы</a>
+    </div>
+    <div class="alert alert-info" role="status" aria-live="polite" data-general-access-status>Загрузка…</div>
+    <section class="card"><div class="card-body table-responsive"><table class="table align-middle">
+        <thead><tr><th scope="col">Сотрудник</th><th scope="col">Просмотр обращений</th><th scope="col">Действие</th></tr></thead>
+        <tbody id="generalAccessRows"></tbody>
+    </table></div></section>
+</main>
+<script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js"></script>
+<script th:src="@{/js/general-ticket-access.js(v='20261016-r117')}"></script>
+</body></html>

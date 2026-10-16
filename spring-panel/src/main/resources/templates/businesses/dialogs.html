@@ -19,6 +19,8 @@
         <span class="page-kicker">Центр обращений</span>
         <h1 class="page-title">Обращения по бизнесам</h1>
         <p class="page-subtitle mb-0">Один бизнес или общий обзор разрешённых направлений.</p>
+        <a class="btn btn-outline-primary mt-3" href="/general-dialogs"
+           th:if="${generalTicketQueueEnabled}">Обращения без бизнеса</a>
     </div>
     <div class="card mb-4"><div class="card-body d-flex flex-wrap align-items-end gap-3">
         <div><label class="form-label" for="businessScopeSelect">Бизнес</label>

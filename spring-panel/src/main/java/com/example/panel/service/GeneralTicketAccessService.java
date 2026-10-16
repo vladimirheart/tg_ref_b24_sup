@@ -1,0 +1,72 @@
+package com.example.panel.service;
+
+import java.util.List;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.stereotype.Service;
+
+/** Read-only GENERAL grant; neither a business membership nor a system administrator bypass. */
+@Service
+public class GeneralTicketAccessService {
+    private final JdbcTemplate jdbc;
+
+    public GeneralTicketAccessService(JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
+    }
+
+    public long requireAuthenticatedUserId(String username) {
+        if (username == null || username.isBlank()) {
+            throw new AccessDeniedException("Authenticated user is required");
+        }
+        List<Long> ids = jdbc.query("SELECT id FROM users WHERE lower(username) = lower(?) AND enabled = TRUE LIMIT 2",
+            (rs, row) -> rs.getLong("id"), username);
+        if (ids.size() != 1) {
+            throw new AccessDeniedException("Authenticated user is not available");
+        }
+        return ids.get(0);
+    }
+
+    public boolean canRead(Long userId) {
+        return userId != null && userId > 0 && Boolean.TRUE.equals(jdbc.queryForObject(
+            "SELECT EXISTS (SELECT 1 FROM general_ticket_read_grants access JOIN users account ON account.id = access.user_id "
+                + "WHERE access.user_id = ? AND access.is_active = TRUE AND account.enabled = TRUE)",
+            Boolean.class, userId));
+    }
+
+    public void requireRead(Long userId) {
+        if (!canRead(userId)) {
+            throw new AccessDeniedException("Нет доступа к обращениям без бизнеса");
+        }
+    }
+
+    public List<AccountAccess> accounts() {
+        return jdbc.query("""
+            SELECT account.id, account.username, COALESCE(access.is_active, FALSE) AS can_read
+              FROM users account LEFT JOIN general_ticket_read_grants access ON access.user_id = account.id
+             ORDER BY account.username, account.id
+            """, (rs, row) -> new AccountAccess(rs.getLong("id"), rs.getString("username"), rs.getBoolean("can_read")));
+    }
+
+    public boolean grantRead(long userId) {
+        requirePositive(userId);
+        return jdbc.update("""
+            INSERT INTO general_ticket_read_grants(user_id, is_active)
+            SELECT id, TRUE FROM users WHERE id = ?
+            ON CONFLICT (user_id) DO UPDATE SET is_active = TRUE, updated_at = CURRENT_TIMESTAMP
+            """, userId) == 1;
+    }
+
+    public boolean revokeRead(long userId) {
+        requirePositive(userId);
+        return jdbc.update("""
+            UPDATE general_ticket_read_grants SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP
+             WHERE user_id = ?
+            """, userId) == 1;
+    }
+
+    private void requirePositive(long userId) {
+        if (userId <= 0) throw new IllegalArgumentException("Invalid account ID");
+    }
+
+    public record AccountAccess(long userId, String username, boolean canRead) {}
+}

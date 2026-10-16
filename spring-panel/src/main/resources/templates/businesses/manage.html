@@ -19,6 +19,8 @@
         <span class="page-kicker">Настройки</span>
         <h1 class="page-title">Бизнесы и доступы</h1>
         <p class="page-subtitle mb-0">Новый бизнес создаётся независимо от канала и внешних интеграций.</p>
+        <a class="btn btn-outline-primary mt-3" href="/general-dialogs/access"
+           th:if="${generalTicketQueueEnabled}">Доступ к обращениям без бизнеса</a>
     </div>
     <div class="alert alert-info" role="status" aria-live="polite" data-business-status>Загрузка…</div>
     <div class="row g-4">

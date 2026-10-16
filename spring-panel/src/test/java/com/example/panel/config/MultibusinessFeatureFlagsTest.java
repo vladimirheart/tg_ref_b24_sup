@@ -22,6 +22,7 @@ class MultibusinessFeatureFlagsTest {
             assertThat(flags.isStrictReadScope()).isFalse();
             assertThat(flags.isSharedChannelResolution()).isFalse();
             assertThat(flags.isGeneralChannelResolution()).isFalse();
+            assertThat(flags.isGeneralTicketQueue()).isFalse();
             assertThat(flags.isUiSelector()).isFalse();
             assertThat(flags.isManualTicketCreation()).isFalse();
         });
@@ -36,6 +37,7 @@ class MultibusinessFeatureFlagsTest {
                         "multibusiness.strict-read-scope=true",
                         "multibusiness.shared-channel-resolution=true",
                         "multibusiness.general-channel-resolution=true",
+                        "multibusiness.general-ticket-queue=true",
                         "multibusiness.ui-selector=true",
                         "multibusiness.manual-ticket-creation=true"
                 )
@@ -47,6 +49,7 @@ class MultibusinessFeatureFlagsTest {
                     assertThat(flags.isStrictReadScope()).isTrue();
                     assertThat(flags.isSharedChannelResolution()).isTrue();
                     assertThat(flags.isGeneralChannelResolution()).isTrue();
+                    assertThat(flags.isGeneralTicketQueue()).isTrue();
                     assertThat(flags.isUiSelector()).isTrue();
                     assertThat(flags.isManualTicketCreation()).isTrue();
                 });
