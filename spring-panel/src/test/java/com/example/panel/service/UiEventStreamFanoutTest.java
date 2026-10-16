@@ -61,7 +61,7 @@ class UiEventStreamFanoutTest {
 
         service.publishDialogsChanged("ticket_updated", "T-DUPLICATE");
 
-        verify(legacyTicketIdJdbcGuard).hasUniqueTicket("T-DUPLICATE");
+        verify(legacyTicketIdJdbcGuard).hasUniqueNonGeneralTicket("T-DUPLICATE");
         verify(publisher, org.mockito.Mockito.never()).publish(any(), any(), any());
     }
 
@@ -70,7 +70,7 @@ class UiEventStreamFanoutTest {
         UiEventFanoutPublisher publisher = mock(UiEventFanoutPublisher.class);
         when(publisher.publish(any(), any(), any())).thenReturn(true);
         LegacyTicketIdJdbcGuard guard = mock(LegacyTicketIdJdbcGuard.class);
-        when(guard.hasUniqueTicket(" T-EXACT ")).thenReturn(true);
+        when(guard.hasUniqueNonGeneralTicket(" T-EXACT ")).thenReturn(true);
         UiEventStreamService service = new UiEventStreamService(publisher, guard);
 
         service.publishDialogsChanged("edited", " T-EXACT ");
@@ -86,7 +86,7 @@ class UiEventStreamFanoutTest {
 
     private LegacyTicketIdJdbcGuard uniqueTicketGuard() {
         LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
-        when(legacyTicketIdJdbcGuard.hasUniqueTicket(any())).thenReturn(true);
+        when(legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(any())).thenReturn(true);
         return legacyTicketIdJdbcGuard;
     }
 }

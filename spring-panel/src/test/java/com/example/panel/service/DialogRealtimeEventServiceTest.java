@@ -98,7 +98,7 @@ class DialogRealtimeEventServiceTest {
 
         service.handleIncomingClientMessage("T-DUPLICATE", 7L, "message", "text", null);
 
-        verify(legacyTicketIdJdbcGuard).hasUniqueTicket("T-DUPLICATE");
+        verify(legacyTicketIdJdbcGuard).hasUniqueNonGeneralTicket("T-DUPLICATE");
         verifyNoInteractions(notificationService, aiService, alertQueueService, channelRepository, uiEventStreamService);
     }
 
@@ -106,7 +106,7 @@ class DialogRealtimeEventServiceTest {
     void clientEditEventPreservesExactIdAtGuardAndDispatchBoundaries() {
         UiEventStreamService stream = mock(UiEventStreamService.class);
         LegacyTicketIdJdbcGuard guard = mock(LegacyTicketIdJdbcGuard.class);
-        when(guard.hasUniqueTicket(" T-EXACT ")).thenReturn(true);
+        when(guard.hasUniqueNonGeneralTicket(" T-EXACT ")).thenReturn(true);
         DialogRealtimeEventService service = new DialogRealtimeEventService(
             mock(NotificationService.class), mock(DialogAiAssistantService.class), mock(AlertQueueService.class),
             mock(ChannelAssignmentRoutingService.class), mock(ChannelRepository.class),
@@ -114,7 +114,7 @@ class DialogRealtimeEventServiceTest {
 
         service.handleClientMessageEdited(" T-EXACT ", 9L);
 
-        verify(guard).hasUniqueTicket(" T-EXACT ");
+        verify(guard).hasUniqueNonGeneralTicket(" T-EXACT ");
         verify(stream).publishDialogsChanged("client_message_edited", " T-EXACT ");
         verify(stream).publishDialogHistoryChanged(" T-EXACT ", 9L, "client_message_edited");
     }
@@ -123,7 +123,7 @@ class DialogRealtimeEventServiceTest {
     void unresolvedPaddedIdCannotDispatchEventForPlainNeighbour() {
         UiEventStreamService stream = mock(UiEventStreamService.class);
         LegacyTicketIdJdbcGuard guard = mock(LegacyTicketIdJdbcGuard.class);
-        when(guard.hasUniqueTicket("T-PLAIN")).thenReturn(true);
+        when(guard.hasUniqueNonGeneralTicket("T-PLAIN")).thenReturn(true);
         DialogRealtimeEventService service = new DialogRealtimeEventService(
             mock(NotificationService.class), mock(DialogAiAssistantService.class), mock(AlertQueueService.class),
             mock(ChannelAssignmentRoutingService.class), mock(ChannelRepository.class),
@@ -131,7 +131,7 @@ class DialogRealtimeEventServiceTest {
 
         service.handleClientMessageEdited(" T-PLAIN ", 9L);
 
-        verify(guard).hasUniqueTicket(" T-PLAIN ");
+        verify(guard).hasUniqueNonGeneralTicket(" T-PLAIN ");
         verifyNoInteractions(stream);
     }
 
@@ -141,7 +141,7 @@ class DialogRealtimeEventServiceTest {
                                                ChannelRepository channelRepository,
                                                DialogNotificationService dialogNotificationService) {
         LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
-        when(legacyTicketIdJdbcGuard.hasUniqueTicket(anyString())).thenReturn(true);
+        when(legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(anyString())).thenReturn(true);
         return new DialogRealtimeEventService(
                 notificationService,
                 aiService,

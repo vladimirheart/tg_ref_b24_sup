@@ -189,6 +189,17 @@ read-only контура не доказывает готовность legacy A
 Внутренний `hasUniqueTicket` сохраняет проверку identity для ботов/background.
 READ grant GENERAL не открывает старые маршруты и write actions.
 
+Legacy ticket-bound realtime использует тот же non-GENERAL guard: проверка
+выполняется до dispatch из UI outbox, до уведомлений/назначений/AI в
+`DialogRealtimeEventService`, до публикации и повторно перед доставкой SSE.
+Адресный Redis fanout не обходит проверку; `dialogs_changed` и
+`dialog_history_changed` требуют точного строкового ticket ID, а любой иной
+envelope с `ticketId` тоже проверяется по canonical ticket. Неизвестный marker,
+отсутствующая схема, GENERAL и коллизия закрывают legacy delivery. Курсор
+outbox продвигается и по отклонённым событиям. Это не business-recipient
+authorization и не отдельный realtime GENERAL: им ещё нужен свой контракт
+с действующим READ grant. Системные SSE без ticket ID сохраняют поведение.
+
 Для канала только с общими обращениями `GENERAL_CHANNEL` включается отдельной
 записью `general_channel_question_template_bindings`: активный канал должен
 явно выбрать тот же ID вопросника, не иметь активных business bindings, а

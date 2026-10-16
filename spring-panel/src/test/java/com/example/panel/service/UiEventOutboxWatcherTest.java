@@ -37,7 +37,7 @@ class UiEventOutboxWatcherTest {
         ReflectionTestUtils.invokeMethod(watcher, "handleEvent",
             10L, "client_message_created", ticketId, 9L, "message", "text", null, null);
 
-        verify(guard).hasUniqueTicket(ticketId);
+        verify(guard).hasUniqueNonGeneralTicket(ticketId);
         verifyNoInteractions(jdbc, events);
     }
 
@@ -56,6 +56,24 @@ class UiEventOutboxWatcherTest {
         assertThat(fixture.checkpoint.readLongCursor("ui-event-outbox-watch")).isEqualTo(Optional.of(12L));
         fixture.watcher.watch();
         verifyNoMoreInteractions(fixture.events);
+    }
+
+    @Test
+    void generalEventsDoNotReachLegacyDispatchOrBlockLaterEvents() {
+        WatcherFixture fixture = new WatcherFixture();
+        fixture.jdbc.update("INSERT INTO tickets VALUES (1, 'T-GENERAL', TRUE), (2, 'T-VALID', FALSE)");
+        String[] types = {"ticket_created", "client_message_created", "client_message_edited",
+            "operator_message_edited", "feedback_created", "ticket_closed_auto", "ticket_closed", "ticket_reopened"};
+        for (int i = 0; i < types.length; i++) {
+            fixture.event(i + 1L, types[i], "T-GENERAL");
+        }
+        fixture.event(20L, "feedback_created", "T-VALID");
+
+        fixture.watcher.watch();
+
+        verify(fixture.events).handleFeedbackCreated("T-VALID", 5);
+        verifyNoMoreInteractions(fixture.events);
+        assertThat(fixture.checkpoint.readLongCursor("ui-event-outbox-watch")).isEqualTo(Optional.of(20L));
     }
 
     @ParameterizedTest
@@ -111,7 +129,7 @@ class UiEventOutboxWatcherTest {
         private final UiEventOutboxWatcher watcher;
 
         private WatcherFixture() {
-            jdbc.execute("CREATE TABLE tickets(user_id BIGINT, ticket_id TEXT, PRIMARY KEY(user_id, ticket_id))");
+            jdbc.execute("CREATE TABLE tickets(user_id BIGINT, ticket_id TEXT, is_general BOOLEAN NOT NULL DEFAULT FALSE, PRIMARY KEY(user_id, ticket_id))");
             jdbc.execute("""
                 CREATE TABLE ui_event_outbox(id BIGINT PRIMARY KEY, event_type TEXT, ticket_id TEXT,
                     channel_id BIGINT, message_text TEXT, message_type TEXT, attachment TEXT, rating INTEGER,

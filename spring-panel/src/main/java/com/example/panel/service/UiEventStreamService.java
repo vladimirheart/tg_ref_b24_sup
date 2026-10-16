@@ -43,14 +43,14 @@ public class UiEventStreamService {
     }
 
     public void publishDialogsChanged(String reason, String ticketId) {
-        if (!hasUniqueTicket(ticketId)) {
+        if (!hasUniqueNonGeneralTicket(ticketId)) {
             return;
         }
         publishToAll("dialogs_changed", basePayload(reason, ticketId, null));
     }
 
     public void publishDialogHistoryChanged(String ticketId, Long channelId, String reason) {
-        if (!hasUniqueTicket(ticketId)) {
+        if (!hasUniqueNonGeneralTicket(ticketId)) {
             return;
         }
         publishToAll("dialog_history_changed", basePayload(reason, ticketId, channelId));
@@ -117,6 +117,9 @@ public class UiEventStreamService {
     }
 
     private void deliverToAll(String eventName, Map<String, Object> payload) {
+        if (!canDeliverLegacyEvent(eventName, payload)) {
+            return;
+        }
         emittersByUser.forEach((identity, emitters) -> {
             if (emitters == null || emitters.isEmpty()) {
                 return;
@@ -128,6 +131,9 @@ public class UiEventStreamService {
     }
 
     private void deliverToUser(String identity, String eventName, Map<String, Object> payload) {
+        if (!canDeliverLegacyEvent(eventName, payload)) {
+            return;
+        }
         Set<SseEmitter> emitters = emittersByUser.get(identity);
         if (emitters == null || emitters.isEmpty()) {
             return;
@@ -188,8 +194,19 @@ public class UiEventStreamService {
             : "anonymous";
     }
 
-    private boolean hasUniqueTicket(String ticketId) {
-        return StringUtils.hasText(ticketId) && legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId);
+    /** Recheck at delivery too: queued Redis envelopes and local fallback can outlive the producer check. */
+    private boolean canDeliverLegacyEvent(String eventName, Map<String, Object> payload) {
+        boolean ticketBound = "dialogs_changed".equals(eventName) || "dialog_history_changed".equals(eventName)
+            || (payload != null && payload.containsKey("ticketId"));
+        if (!ticketBound) {
+            return true;
+        }
+        Object ticketId = payload != null ? payload.get("ticketId") : null;
+        return ticketId instanceof String rawId && hasUniqueNonGeneralTicket(rawId);
+    }
+
+    private boolean hasUniqueNonGeneralTicket(String ticketId) {
+        return StringUtils.hasText(ticketId) && legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId);
     }
 
     private String nowUtc() {

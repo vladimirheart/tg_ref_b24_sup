@@ -118,7 +118,7 @@ public class UiEventOutboxWatcher {
                              String messageType,
                              String attachment,
                              Integer rating) {
-        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)) {
             return;
         }
         String normalizedEventType = StringUtils.hasText(eventType) ? eventType.trim().toLowerCase() : "";

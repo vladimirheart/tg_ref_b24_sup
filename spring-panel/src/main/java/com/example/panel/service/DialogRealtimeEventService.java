@@ -191,7 +191,7 @@ public class DialogRealtimeEventService {
     }
 
     private String resolveUniqueTicketId(String ticketId) {
-        return StringUtils.hasText(ticketId) && legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)
+        return StringUtils.hasText(ticketId) && legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)
                 ? ticketId
                 : null;
     }
