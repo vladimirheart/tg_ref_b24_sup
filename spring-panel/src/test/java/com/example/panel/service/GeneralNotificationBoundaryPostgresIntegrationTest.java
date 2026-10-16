@@ -166,8 +166,11 @@ class GeneralNotificationBoundaryPostgresIntegrationTest {
             jdbc.execute("CREATE TABLE ticket_responsibles(ticket_id TEXT, responsible TEXT)");
             jdbc.execute("CREATE TABLE ticket_active(ticket_id TEXT, user_identity TEXT)");
             jdbc.execute("CREATE TABLE ticket_participants(ticket_id TEXT, username TEXT)");
-            jdbc.execute("CREATE TABLE users(username TEXT, enabled BOOLEAN, is_blocked BOOLEAN)");
-            jdbc.update("INSERT INTO users VALUES ('global_operator', TRUE, FALSE)");
+            jdbc.execute("CREATE TABLE users(id BIGINT GENERATED ALWAYS AS IDENTITY, username TEXT, enabled BOOLEAN, is_blocked BOOLEAN)");
+            jdbc.execute("CREATE TABLE businesses(id BIGINT, status TEXT)");
+            jdbc.execute("CREATE TABLE business_memberships(user_id BIGINT, business_id BIGINT, role_code TEXT, is_active BOOLEAN)");
+            jdbc.execute("CREATE TABLE business_access_grants(user_id BIGINT, grant_scope TEXT, role_code TEXT, is_active BOOLEAN)");
+            jdbc.update("INSERT INTO users(username, enabled, is_blocked) VALUES ('global_operator', TRUE, FALSE)");
             doAnswer(call -> {
                 insertAttempts++;
                 Runnable mutation = beforeInsert;

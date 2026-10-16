@@ -233,10 +233,26 @@ dialog URL при этом по-прежнему закрывает свой amb
 При default-off `strict-read-scope` сохраняется совместимость unclassified
 NULL и подтверждённого non-GENERAL UNRESOLVED. В strict-режиме оба варианта
 скрыты, включая generic/system/task rows, пока для них не введена отдельная
-явная global/system policy. Этот этап не проверяет действующие business
-membership/capability получателя и не даёт разрешения включать strict flag.
-Business-recipient filtering, отзыв доступа и классификация прочих producers
-остаются обязательными gates до rollout.
+явная global/system policy. Для типизированных BUSINESS-уведомлений действующий
+business READ проверяется одним SQL predicate при INSERT, list/page/count и
+условных read/read-all. Он требует единственного case-insensitive canonical
+аккаунта получателя, `enabled=TRUE`, `is_blocked=FALSE`, активного бизнеса и
+активной membership либо `ALL_BUSINESSES` с одной из текущих READ-ролей
+`VIEWER/OPERATOR/MANAGER/ADMIN`. Системный `ROLE_ADMIN` и отдельный GENERAL READ
+не подменяют business grant. Архивация бизнеса, блокировка аккаунта и отзыв
+всех независимых grants закрывают следующую SQL-операцию, включая старую сессию.
+Фильтр действует до pagination/aggregation; read updates не меняют скрытые rows.
+Новый future business сразу доступен по действующему `ALL_BUSINESSES`.
+
+Предикат business READ разделяется JDBC writer и JPA native repository;
+проверка ticket identity/owner остаётся обязательной. Наличие read capability
+у всех четырёх текущих ролей соответствует `BusinessAccessService`; разрешения
+не выводятся из текста/URL, чужой users DB либо browser-selected business.
+UNRESOLVED/unclassified сохраняют описанную выше совместимость; этот фильтр
+не классифицирует исторические строки. Глобальная page authority, явная
+global/system/task policy, business-recipient SSE и прочие producers ещё
+требуют отдельного контракта/аудита. Это не разрешение включать strict flag
+или выполнять rollout.
 
 Для канала только с общими обращениями `GENERAL_CHANNEL` включается отдельной
 записью `general_channel_question_template_bindings`: активный канал должен

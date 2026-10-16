@@ -19,7 +19,9 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
               WHERE owner.user_id = n.ticket_user_id AND owner.ticket_id = n.ticket_id
                 AND owner.ticket_public_id IS NOT DISTINCT FROM n.ticket_public_id
                 AND owner.is_general = FALSE
-                AND ((n.ticket_scope_kind = 'BUSINESS' AND owner.business_id = n.ticket_business_id)
+                AND ((n.ticket_scope_kind = 'BUSINESS' AND owner.business_id = n.ticket_business_id AND
+        """ + NotificationBusinessAccessSql.CAN_READ_OWNER_BUSINESS + """
+                     )
                   OR (:allowLegacy = TRUE AND n.ticket_scope_kind = 'UNRESOLVED' AND owner.business_id IS NULL)))))
         """;
 

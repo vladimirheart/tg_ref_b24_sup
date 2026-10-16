@@ -48,6 +48,14 @@ class NotificationScopePostgresIntegrationTest extends PostgresqlIntegrationTest
         jdbc.update("DELETE FROM notifications");
         sushi = jdbc.queryForObject("SELECT id FROM businesses WHERE code = 'sushi'", Long.class);
         bliny = jdbc.queryForObject("SELECT id FROM businesses WHERE code = 'bliny'", Long.class);
+        long reader = jdbc.queryForObject("""
+            INSERT INTO users(username, password, enabled) VALUES (?, 'not-used', TRUE)
+            ON CONFLICT (username) DO UPDATE SET enabled = TRUE, is_blocked = FALSE RETURNING id
+            """, Long.class, READER);
+        jdbc.update("""
+            INSERT INTO business_memberships(user_id, business_id, role_code) VALUES (?, ?, 'VIEWER')
+            ON CONFLICT (user_id, business_id) DO UPDATE SET is_active = TRUE, role_code = 'VIEWER'
+            """, reader, sushi);
         clearInvocations(stream);
     }
 

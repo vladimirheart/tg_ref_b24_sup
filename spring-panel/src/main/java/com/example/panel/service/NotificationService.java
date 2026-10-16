@@ -6,6 +6,7 @@ import com.example.panel.model.notification.NotificationDto;
 import com.example.panel.model.notification.NotificationPage;
 import com.example.panel.model.notification.NotificationSummary;
 import com.example.panel.repository.NotificationRepository;
+import com.example.panel.repository.NotificationBusinessAccessSql;
 import com.example.panel.support.JdbcSchemaInspector;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -364,13 +365,17 @@ public class NotificationService {
             int inserted = jdbcTemplate.update("""
                 INSERT INTO notifications(user_identity, text, url, is_read, created_at,
                     ticket_user_id, ticket_id, ticket_public_id, ticket_scope_kind, ticket_business_id)
-                SELECT CAST(? AS TEXT), CAST(? AS TEXT), CAST(? AS TEXT), FALSE,
-                       CAST(? AS TIMESTAMP WITH TIME ZONE), owner.user_id, owner.ticket_id, owner.ticket_public_id,
+                SELECT n.user_identity, n.text, n.url, FALSE,
+                       n.created_at, owner.user_id, owner.ticket_id, owner.ticket_public_id,
                        CASE WHEN owner.business_id IS NULL THEN 'UNRESOLVED' ELSE 'BUSINESS' END, owner.business_id
-                  FROM tickets owner
-                 WHERE owner.ticket_id = ? AND owner.is_general = FALSE
+                  FROM (VALUES (CAST(? AS TEXT), CAST(? AS TEXT), CAST(? AS TEXT), CAST(? AS TIMESTAMP WITH TIME ZONE)))
+                    AS n(user_identity, text, url, created_at)
+                  JOIN tickets owner ON owner.ticket_id = ?
+                 WHERE owner.is_general = FALSE
                    AND (SELECT COUNT(*) FROM tickets candidate WHERE candidate.ticket_id = ?) = 1
-                """, identity, safeText, safeUrl, OffsetDateTime.now(ZoneOffset.UTC), ticketId, ticketId);
+                   AND (owner.business_id IS NULL OR
+                """ + NotificationBusinessAccessSql.CAN_READ_OWNER_BUSINESS + ")",
+                identity, safeText, safeUrl, OffsetDateTime.now(ZoneOffset.UTC), ticketId, ticketId);
             if (inserted == 1) {
                 delivered.add(identity);
                 uiEventStreamService.publishNotificationsChanged(identity, "notification_created");
