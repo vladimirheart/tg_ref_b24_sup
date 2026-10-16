@@ -18,6 +18,34 @@ import static org.mockito.Mockito.when;
 class ConversationTicketCreatedPublisherTest {
 
     @Test
+    void transportsTheQuestionnaireVersionSelectedByTheSession() {
+        IntegrationTransportOutboxService outbox = mock(IntegrationTransportOutboxService.class);
+        when(outbox.enqueueConversationTicketCreated(any(), any())).thenReturn(true);
+        ConversationTicketCreatedPublisher publisher = new ConversationTicketCreatedPublisher(
+            outbox, new IntegrationRabbitProperties());
+        Channel channel = new Channel();
+        channel.setId(25L);
+        for (String platform : List.of("telegram", "vk", "max")) {
+            channel.setPlatform(platform);
+            ConversationTicketCreationCommand command = new ConversationTicketCreationCommand(
+                901L, "client", "client", "Client", Map.of(), List.of(), List.of(), channel,
+                OffsetDateTime.parse("2026-10-16T10:00:00Z"), "message:" + platform, null,
+                "GENERAL", "GENERAL_CHANNEL", "q-general", "a".repeat(64));
+            assertThat(publisher.publish(command, "T-" + platform, "", "", "", "", "Help")).isTrue();
+        }
+        ArgumentCaptor<ConversationTicketCreatedEvent> events =
+            ArgumentCaptor.forClass(ConversationTicketCreatedEvent.class);
+        verify(outbox, times(3)).enqueueConversationTicketCreated(events.capture(), any());
+        assertThat(events.getAllValues()).extracting(ConversationTicketCreatedEvent::platform)
+            .containsExactly("telegram", "vk", "max");
+        for (ConversationTicketCreatedEvent event : events.getAllValues()) {
+            assertThat(event.questionTemplateId()).isEqualTo("q-general");
+            assertThat(event.templateSha256()).isEqualTo("a".repeat(64));
+            assertThat(event.scopeSelectionSource()).isEqualTo("GENERAL_CHANNEL");
+        }
+    }
+
+    @Test
     void preservesExplicitOwnerInEventAndLeavesLegacyCommandUnassigned() {
         IntegrationTransportOutboxService outbox = mock(IntegrationTransportOutboxService.class);
         IntegrationRabbitProperties properties = new IntegrationRabbitProperties();

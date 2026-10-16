@@ -56,7 +56,9 @@ public class ConversationTicketCreatedPublisher {
             command.historyEntries(),
             command.businessId(),
             command.scopeKind(),
-            command.scopeSelectionSource()
+            command.scopeSelectionSource(),
+            command.questionTemplateId(),
+            command.templateSha256()
         );
         boolean queued = integrationTransportOutboxService.enqueueConversationTicketCreated(event, rabbitProperties);
         if (queued) {

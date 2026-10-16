@@ -175,8 +175,16 @@ general-only runtime отклоняет preset-вопросы, пока для �
 `scopeSelectionSource=GENERAL_CHANNEL`, ID/SHA-256 шаблона. Устаревшая привязка
 или выключенный флаг дают конфликт, а не legacy fallback. Bot session обязана
 сохранять выбранный scope до создания обращения; старые ответы другого scope
-не подставляются в general-only опрос. Пока ID/SHA-256 не проходят весь
-transport и не фиксируются в ticket, rollout этого пути запрещён.
+не подставляются в general-only опрос. ID/SHA-256 передаются из сессии через
+command/event, outbox и inbox в nullable immutable поля ticket. Новое обращение
+`GENERAL_CHANNEL` принимается только при точном совпадении версии с проверенной
+текущей привязкой; устаревший или неполный snapshot отклоняется до записи корня.
+После создания replay сверяет сохранённую версию ticket, не текущую привязку.
+Смена/удаление ID либо SHA-256 при повторном event запрещена. Старые обращения
+не получают версию из сегодняшней конфигурации. Завершение старых незаконченных
+сессий после rebind пока требует отдельного version registry/UX; без него
+устаревший опрос нужно начать заново. Очередь и права GENERAL, shared-channel
+selection и сквозная provider-приёмка всё ещё обязательны до rollout.
 
 На S4 вводится business-scoped registry template bindings. Existing
 `question_template_id`, `rating_template_id`, `auto_action_template_id` и

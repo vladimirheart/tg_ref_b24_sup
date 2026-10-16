@@ -116,6 +116,11 @@ public class ConversationTicketCreationIngestionService {
         if (strictBusinessWrite && !multibusinessFeatureFlags.isFoundationEnabled()) {
             throw new IllegalStateException("Business ticket writes require the multibusiness foundation");
         }
+        boolean generalChannel = isGeneralScope(event)
+            && "GENERAL_CHANNEL".equals(event.scopeSelectionSource());
+        if (!generalChannel && (event.questionTemplateId() != null || event.templateSha256() != null)) {
+            throw new IllegalStateException("Questionnaire provenance requires a general channel scope");
+        }
         if (ticketRepository.existsById(canonicalLocator)) {
             if (strictBusinessWrite) {
                 // A retry keeps the ticket's frozen owner even if channel bindings changed later.
@@ -133,6 +138,10 @@ public class ConversationTicketCreationIngestionService {
                         event.scopeSelectionSource()))
                     || !Objects.equals(existingChannelId, event.channelId())) {
                     throw new IllegalStateException("Ticket creation replay business or channel mismatch");
+                }
+                if (!Objects.equals(existing.getQuestionTemplateId(), event.questionTemplateId())
+                    || !Objects.equals(existing.getQuestionTemplateSha256(), event.templateSha256())) {
+                    throw new IllegalStateException("Ticket creation replay questionnaire mismatch");
                 }
             }
             return;
@@ -157,10 +166,8 @@ public class ConversationTicketCreationIngestionService {
                 if (!isGeneralScope(event) || !Boolean.TRUE.equals(channel.getActive())) {
                     throw new IllegalStateException("General ticket requires verified scope and active channel");
                 }
-                if ("GENERAL_CHANNEL".equals(event.scopeSelectionSource())
-                        && (!multibusinessFeatureFlags.isGeneralChannelResolution()
-                            || generalChannelQuestionTemplateService.resolve(event.channelId()).isEmpty())) {
-                    throw new IllegalStateException("General channel questionnaire is not verified");
+                if (generalChannel) {
+                    requireMatchingGeneralQuestionnaire(event);
                 }
                 general = true;
             } else {
@@ -240,11 +247,26 @@ public class ConversationTicketCreationIngestionService {
         ticket.setBusinessId(businessId);
         ticket.setGeneral(general);
         ticket.setGeneralSelectionSource(general ? event.scopeSelectionSource() : null);
+        ticket.setQuestionTemplateId(event.questionTemplateId());
+        ticket.setQuestionTemplateSha256(event.templateSha256());
         ticket.setReopenCount(0);
         ticket.setClosedCount(0);
         ticket.setWorkTimeTotalSec(0L);
         ticket.setLastReopenAt(occurredAt);
         return ticket;
+    }
+
+    private void requireMatchingGeneralQuestionnaire(ConversationTicketCreatedEvent event) {
+        if (!multibusinessFeatureFlags.isGeneralChannelResolution()) {
+            throw new IllegalStateException("General channel questionnaire is not verified");
+        }
+        GeneralChannelQuestionTemplateService.RuntimeConfig runtime = generalChannelQuestionTemplateService
+            .resolve(event.channelId())
+            .orElseThrow(() -> new IllegalStateException("General channel questionnaire is not verified"));
+        if (!Objects.equals(runtime.questionTemplateId(), event.questionTemplateId())
+            || !Objects.equals(runtime.templateSha256(), event.templateSha256())) {
+            throw new IllegalStateException("General channel questionnaire version mismatch; restart questionnaire");
+        }
     }
 
     private boolean isGeneralScope(ConversationTicketCreatedEvent event) {

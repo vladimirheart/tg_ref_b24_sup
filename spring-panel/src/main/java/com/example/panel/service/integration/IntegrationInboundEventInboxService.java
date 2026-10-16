@@ -177,6 +177,8 @@ public class IntegrationInboundEventInboxService {
             || !Objects.equals(record.ticketId(), incoming.ticketId())
             || !Objects.equals(original.userId(), incoming.userId())
             || !Objects.equals(original.businessId(), incoming.businessId())
+            || !Objects.equals(original.questionTemplateId(), incoming.questionTemplateId())
+            || !Objects.equals(original.templateSha256(), incoming.templateSha256())
             || !Objects.equals(original.scopeKind(), incoming.scopeKind())
             || !Objects.equals(original.scopeSelectionSource(), incoming.scopeSelectionSource())) {
             throw new IllegalStateException("Duplicate ticket creation inbox event identity or business mismatch");

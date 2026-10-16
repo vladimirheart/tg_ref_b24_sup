@@ -18,7 +18,19 @@ public record ConversationTicketCreationCommand(Long userId,
                                                 String providerEventKey,
                                                 Long businessId,
                                                 String scopeKind,
-                                                String scopeSelectionSource) {
+                                                String scopeSelectionSource,
+                                                String questionTemplateId,
+                                                String templateSha256) {
+
+    public ConversationTicketCreationCommand(Long userId, String userIdentity, String username,
+                                             String clientName, Map<String, String> answers,
+                                             List<TicketService.TicketAttributeInput> attributes,
+                                             List<ConversationHistoryEntry> historyEntries, Channel channel,
+                                             OffsetDateTime startedAt, String providerEventKey, Long businessId,
+                                             String scopeKind, String scopeSelectionSource) {
+        this(userId, userIdentity, username, clientName, answers, attributes, historyEntries,
+            channel, startedAt, providerEventKey, businessId, scopeKind, scopeSelectionSource, null, null);
+    }
 
     public ConversationTicketCreationCommand(Long userId, String userIdentity, String username,
                                              String clientName, Map<String, String> answers,

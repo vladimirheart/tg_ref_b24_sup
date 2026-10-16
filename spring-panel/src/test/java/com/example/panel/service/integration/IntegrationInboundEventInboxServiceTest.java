@@ -13,6 +13,47 @@ import org.springframework.jdbc.core.JdbcTemplate;
 class IntegrationInboundEventInboxServiceTest {
 
     @Test
+    void processedAndFailedInboxEventsKeepTheOriginalQuestionnaireVersion() {
+        for (boolean processed : new boolean[] {false, true}) {
+            JdbcTemplate jdbc = jdbcTemplate();
+            createSchema(jdbc);
+            IntegrationInboundEventInboxService service = new IntegrationInboundEventInboxService(
+                jdbc, new ObjectMapper().findAndRegisterModules());
+            ConversationTicketCreatedEvent original = questionnaireEvent("q-general", "a".repeat(64));
+            assertThat(service.beginProcessing(original.eventId(), original.eventKind(), original.platform(),
+                original.channelId(), original.ticketId(), "routing", original, null)).isTrue();
+            if (processed) {
+                service.markProcessed(original.eventId());
+            } else {
+                service.markFailed(original.eventId(), new IllegalStateException("first attempt"));
+            }
+            String stored = jdbc.queryForObject("SELECT payload_json FROM integration_inbound_event_inbox "
+                + "WHERE event_id = ?", String.class, original.eventId());
+            for (String[] pair : new String[][] {
+                {"other", "a".repeat(64)}, {"q-general", "b".repeat(64)},
+                {null, null}, {"q-general", null}
+            }) {
+                ConversationTicketCreatedEvent changed = questionnaireEvent(pair[0], pair[1]);
+                assertThatThrownBy(() -> service.beginProcessing(changed.eventId(), changed.eventKind(),
+                    changed.platform(), changed.channelId(), changed.ticketId(), "routing", changed, null))
+                    .hasMessageContaining("identity or business mismatch");
+            }
+            assertThat(jdbc.queryForObject("SELECT payload_json FROM integration_inbound_event_inbox "
+                + "WHERE event_id = ?", String.class, original.eventId())).isEqualTo(stored);
+            assertThat(jdbc.queryForObject("SELECT attempt_count FROM integration_inbound_event_inbox "
+                + "WHERE event_id = ?", Integer.class, original.eventId())).isEqualTo(1);
+            assertThat(service.beginProcessing(original.eventId(), original.eventKind(), original.platform(),
+                original.channelId(), original.ticketId(), "routing", original, null)).isEqualTo(!processed);
+        }
+    }
+
+    private ConversationTicketCreatedEvent questionnaireEvent(String templateId, String sha256) {
+        return new ConversationTicketCreatedEvent("questionnaire-version", "ticket.created.initial_contact",
+            "telegram", 25L, "T-GENERAL", 901L, "client", "client", "Client", null, null, null, null,
+            "Help", null, List.of(), List.of(), null, "GENERAL", "GENERAL_CHANNEL", templateId, sha256);
+    }
+
+    @Test
     void beginProcessingReclaimsFailedEventAndIncrementsAttempts() throws Exception {
         JdbcTemplate jdbcTemplate = jdbcTemplate();
         createSchema(jdbcTemplate);
@@ -176,7 +217,7 @@ class IntegrationInboundEventInboxServiceTest {
         service.markProcessed(old.eventId());
         jdbc.update("UPDATE integration_inbound_event_inbox "
             + "SET payload_json = (payload_json::jsonb - 'businessId' - 'scopeKind' "
-            + "- 'scopeSelectionSource')::text WHERE event_id = ?", old.eventId());
+            + "- 'scopeSelectionSource' - 'questionTemplateId' - 'templateSha256')::text WHERE event_id = ?", old.eventId());
 
         assertThat(service.beginProcessing(old.eventId(), old.eventKind(), old.platform(),
             old.channelId(), old.ticketId(), "routing", old, null)).isFalse();

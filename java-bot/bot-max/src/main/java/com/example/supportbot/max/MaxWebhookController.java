@@ -565,7 +565,9 @@ public class MaxWebhookController {
                         providerEventKey,
                         null,
                         session.scope() != null ? session.scope().scopeKind() : null,
-                        session.scope() != null ? session.scope().scopeSelectionSource() : null
+                        session.scope() != null ? session.scope().scopeSelectionSource() : null,
+                        session.scope() != null ? session.scope().questionTemplateId() : null,
+                        session.scope() != null ? session.scope().templateSha256() : null
                 )
         );
         if ("duplicate".equals(created.status())) {

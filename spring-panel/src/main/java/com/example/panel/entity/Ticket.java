@@ -38,6 +38,13 @@ public class Ticket {
     @Column(name = "general_selection_source", length = 32)
     private String generalSelectionSource;
 
+    /** Frozen questionnaire provenance; no FK to mutable JSON template definitions. */
+    @Column(name = "question_template_id", updatable = false)
+    private String questionTemplateId;
+
+    @Column(name = "question_template_sha256", length = 64, updatable = false)
+    private String questionTemplateSha256;
+
     private String status;
 
     private OffsetDateTime resolvedAt;
@@ -102,6 +109,22 @@ public class Ticket {
 
     public void setGeneralSelectionSource(String generalSelectionSource) {
         this.generalSelectionSource = generalSelectionSource;
+    }
+
+    public String getQuestionTemplateId() {
+        return questionTemplateId;
+    }
+
+    public void setQuestionTemplateId(String questionTemplateId) {
+        this.questionTemplateId = questionTemplateId;
+    }
+
+    public String getQuestionTemplateSha256() {
+        return questionTemplateSha256;
+    }
+
+    public void setQuestionTemplateSha256(String questionTemplateSha256) {
+        this.questionTemplateSha256 = questionTemplateSha256;
     }
 
     @PrePersist

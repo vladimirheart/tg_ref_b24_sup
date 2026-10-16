@@ -220,7 +220,7 @@ class TicketServiceInboundTransportTest {
     }
 
     @Test
-    void directStorageRejectsExplicitCanonicalOwnerItCannotPersist() {
+    void directStorageRejectsCanonicalScopeAndQuestionnaireItCannotPersist() {
         TicketMessageRepository messages = mock(TicketMessageRepository.class);
         TicketService service = createService(messages, mock(TicketActiveRepository.class),
             mock(ChatHistoryService.class), mock(InboundClientMessagePublisher.class),
@@ -229,14 +229,26 @@ class TicketServiceInboundTransportTest {
             new MockEnvironment().withProperty("app.integration.transport.mode", "jdbc"));
         Channel channel = new Channel();
         channel.setId(25L);
-        ConversationTicketCreationCommand command = new ConversationTicketCreationCommand(
-            901L, "tg-901", "client", "Client", java.util.Map.of("problem", "Help"),
-            java.util.List.of(), java.util.List.of(), channel,
-            OffsetDateTime.parse("2026-10-15T10:00:00Z"), "message:901:1", 51L);
-
-        assertThatThrownBy(() -> service.createConversationTicket(command))
-            .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("cannot persist a canonical business owner");
+        for (ConversationTicketCreationCommand command : java.util.List.of(
+            new ConversationTicketCreationCommand(
+                901L, "tg-901", "client", "Client", java.util.Map.of("problem", "Help"),
+                java.util.List.of(), java.util.List.of(), channel,
+                OffsetDateTime.parse("2026-10-15T10:00:00Z"), "message:901:1", 51L),
+            new ConversationTicketCreationCommand(
+                901L, "tg-901", "client", "Client", java.util.Map.of("problem", "Help"),
+                java.util.List.of(), java.util.List.of(), channel,
+                OffsetDateTime.parse("2026-10-15T10:00:00Z"), "message:901:2", null,
+                "GENERAL", "GENERAL_CHANNEL", "q-general", "a".repeat(64)),
+            new ConversationTicketCreationCommand(
+                901L, "tg-901", "client", "Client", java.util.Map.of("problem", "Help"),
+                java.util.List.of(), java.util.List.of(), channel,
+                OffsetDateTime.parse("2026-10-15T10:00:00Z"), "message:901:3", null,
+                null, null, "q-general", "a".repeat(64))
+        )) {
+            assertThatThrownBy(() -> service.createConversationTicket(command))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("cannot persist a canonical ticket scope");
+        }
         verify(messages, never()).save(any());
     }
 

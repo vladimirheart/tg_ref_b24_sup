@@ -471,6 +471,8 @@ class ConversationTicketCreationIngestionServiceTest {
         verify(tickets).save(captured.capture());
         assertThat(captured.getValue().isGeneral()).isTrue();
         assertThat(captured.getValue().getGeneralSelectionSource()).isEqualTo("GENERAL_CHANNEL");
+        assertThat(captured.getValue().getQuestionTemplateId()).isEqualTo("q-general");
+        assertThat(captured.getValue().getQuestionTemplateSha256()).isEqualTo("a".repeat(64));
         verify(generalTemplates).resolve(25L);
         verify(inbox).markProcessed(event.eventId());
     }
@@ -697,14 +699,138 @@ class ConversationTicketCreationIngestionServiceTest {
         oldPayload.remove("businessId");
         oldPayload.remove("scopeKind");
         oldPayload.remove("scopeSelectionSource");
+        oldPayload.remove("questionTemplateId");
+        oldPayload.remove("templateSha256");
 
         ConversationTicketCreatedEvent restored = mapper.treeToValue(oldPayload, ConversationTicketCreatedEvent.class);
 
         assertThat(restored.businessId()).isNull();
         assertThat(restored.scopeKind()).isNull();
+        assertThat(restored.questionTemplateId()).isNull();
+        assertThat(restored.templateSha256()).isNull();
         assertThat(restored.ticketId()).isEqualTo("T-OLD");
         assertThat(mapper.treeToValue(mapper.valueToTree(eventWithBusinessId(51L)),
             ConversationTicketCreatedEvent.class).businessId()).isEqualTo(51L);
+    }
+
+    @Test
+    void newGeneralTicketRejectsMissingOrStaleQuestionnaireBeforeAnyRootWrite() {
+        for (String[] version : new String[][] {
+            {null, null}, {"q-general", null}, {null, "a".repeat(64)},
+            {"other", "a".repeat(64)}, {"q-general", "b".repeat(64)}
+        }) {
+            IntegrationInboundEventInboxService inbox = mock(IntegrationInboundEventInboxService.class);
+            ChannelRepository channels = mock(ChannelRepository.class);
+            MessageRepository messages = mock(MessageRepository.class);
+            TicketRepository tickets = mock(TicketRepository.class);
+            GeneralChannelQuestionTemplateService templates = mock(GeneralChannelQuestionTemplateService.class);
+            MultibusinessFeatureFlags flags = strictFlags();
+            flags.setGeneralChannelResolution(true);
+            ConversationTicketCreatedEvent event = withQuestionnaire(
+                generalEvent("GENERAL_CHANNEL", null), version[0], version[1]);
+            Channel channel = new Channel();
+            channel.setId(25L);
+            channel.setActive(true);
+            when(channels.findById(25L)).thenReturn(Optional.of(channel));
+            when(inbox.beginProcessing(eq(event.eventId()), eq(event.eventKind()), eq(event.platform()),
+                eq(25L), eq(event.ticketId()), eq("routing"), eq(event), eq(event.occurredAt()))).thenReturn(true);
+            when(templates.resolve(25L)).thenReturn(Optional.of(
+                new GeneralChannelQuestionTemplateService.RuntimeConfig(25L, "GENERAL", "GENERAL_CHANNEL",
+                    "q-general", "a".repeat(64), java.util.Map.of(), java.util.Map.of(), java.util.Map.of())));
+            ConversationTicketCreationIngestionService service = service(inbox, channels, messages, tickets,
+                flags, mock(BusinessTicketWriteScopeResolver.class), templates);
+
+            assertThatThrownBy(() -> service.ingest(event, "routing"))
+                .hasMessageContaining("questionnaire version mismatch");
+            verify(messages, never()).save(any());
+            verify(tickets, never()).save(any());
+            verify(inbox).markFailed(eq(event.eventId()), any());
+        }
+    }
+
+    @Test
+    void existingGeneralReplayUsesFrozenQuestionnaireEvenAfterBindingChanges() {
+        for (String[] version : new String[][] {
+            {"q-general", "a".repeat(64)}, {"other", "a".repeat(64)},
+            {"q-general", "b".repeat(64)}, {null, null}
+        }) {
+            IntegrationInboundEventInboxService inbox = mock(IntegrationInboundEventInboxService.class);
+            ChannelRepository channels = mock(ChannelRepository.class);
+            MessageRepository messages = mock(MessageRepository.class);
+            TicketRepository tickets = mock(TicketRepository.class);
+            GeneralChannelQuestionTemplateService templates = mock(GeneralChannelQuestionTemplateService.class);
+            ConversationTicketCreatedEvent event = withQuestionnaire(
+                generalEvent("GENERAL_CHANNEL", null), version[0], version[1]);
+            Channel channel = new Channel();
+            channel.setId(25L);
+            channel.setActive(false);
+            Ticket existing = new Ticket();
+            TicketId locator = new TicketId();
+            locator.setUserId(event.userId());
+            locator.setTicketId(event.ticketId());
+            existing.setId(locator);
+            existing.setChannel(channel);
+            existing.setGeneral(true);
+            existing.setGeneralSelectionSource("GENERAL_CHANNEL");
+            existing.setQuestionTemplateId("q-general");
+            existing.setQuestionTemplateSha256("a".repeat(64));
+            when(channels.findById(25L)).thenReturn(Optional.of(channel));
+            when(tickets.existsById(locator)).thenReturn(true);
+            when(tickets.findById(locator)).thenReturn(Optional.of(existing));
+            when(inbox.beginProcessing(eq(event.eventId()), eq(event.eventKind()), eq(event.platform()),
+                eq(25L), eq(event.ticketId()), eq("routing"), eq(event), eq(event.occurredAt()))).thenReturn(true);
+            ConversationTicketCreationIngestionService service = service(inbox, channels, messages, tickets,
+                strictFlags(), mock(BusinessTicketWriteScopeResolver.class), templates);
+
+            if ("q-general".equals(version[0]) && "a".repeat(64).equals(version[1])) {
+                service.ingest(event, "routing");
+                verify(inbox).markProcessed(event.eventId());
+            } else {
+                assertThatThrownBy(() -> service.ingest(event, "routing"))
+                    .hasMessageContaining("replay questionnaire mismatch");
+                verify(inbox).markFailed(eq(event.eventId()), any());
+            }
+            verify(templates, never()).resolve(any(Long.class));
+            verify(messages, never()).save(any());
+            verify(tickets, never()).save(any());
+        }
+    }
+
+    @Test
+    void provenanceCannotBeSilentlyDiscardedInLegacyBusinessOrSharedSelectionWrites() {
+        for (ConversationTicketCreatedEvent base : List.of(
+            minimalEvent("legacy-version", 901L, "T-LEGACY"),
+            eventWithBusinessId(51L), generalEvent("USER_SELECTION", null)
+        )) {
+            IntegrationInboundEventInboxService inbox = mock(IntegrationInboundEventInboxService.class);
+            ChannelRepository channels = mock(ChannelRepository.class);
+            MessageRepository messages = mock(MessageRepository.class);
+            TicketRepository tickets = mock(TicketRepository.class);
+            ConversationTicketCreatedEvent event = withQuestionnaire(base, "q-general", "a".repeat(64));
+            Channel channel = new Channel();
+            channel.setId(25L);
+            when(channels.findById(25L)).thenReturn(Optional.of(channel));
+            when(inbox.beginProcessing(eq(event.eventId()), eq(event.eventKind()), eq(event.platform()),
+                eq(25L), eq(event.ticketId()), eq("routing"), eq(event), eq(event.occurredAt()))).thenReturn(true);
+            MultibusinessFeatureFlags flags = base.scopeKind() == null && base.businessId() == null
+                ? disabledFlags() : strictFlags();
+            ConversationTicketCreationIngestionService service = service(inbox, channels, messages, tickets,
+                flags, mock(BusinessTicketWriteScopeResolver.class));
+
+            assertThatThrownBy(() -> service.ingest(event, "routing"))
+                .hasMessageContaining("provenance requires a general channel scope");
+            verify(messages, never()).save(any());
+            verify(tickets, never()).save(any());
+        }
+    }
+
+    private ConversationTicketCreatedEvent withQuestionnaire(ConversationTicketCreatedEvent event,
+                                                              String templateId, String sha256) {
+        return new ConversationTicketCreatedEvent(event.eventId(), event.eventKind(), event.platform(),
+            event.channelId(), event.ticketId(), event.userId(), event.userIdentity(), event.username(),
+            event.clientName(), event.business(), event.locationType(), event.city(), event.locationName(),
+            event.problem(), event.occurredAt(), event.attributes(), event.historyEntries(), event.businessId(),
+            event.scopeKind(), event.scopeSelectionSource(), templateId, sha256);
     }
 
     private ConversationTicketCreationIngestionService service(IntegrationInboundEventInboxService inbox,
@@ -744,7 +870,8 @@ class ConversationTicketCreationIngestionServiceTest {
             event.channelId(), event.ticketId(), event.userId(), event.userIdentity(), event.username(),
             event.clientName(), event.business(), event.locationType(), event.city(), event.locationName(),
             event.problem(), event.occurredAt(), event.attributes(), event.historyEntries(), businessId,
-            "GENERAL", source);
+            "GENERAL", source, "GENERAL_CHANNEL".equals(source) ? "q-general" : null,
+            "GENERAL_CHANNEL".equals(source) ? "a".repeat(64) : null);
     }
 
     private MultibusinessFeatureFlags strictFlags() {

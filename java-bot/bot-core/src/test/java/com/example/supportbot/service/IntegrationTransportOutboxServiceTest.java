@@ -23,6 +23,38 @@ import org.testcontainers.utility.DockerImageName;
 
 class IntegrationTransportOutboxServiceTest {
 
+    @Test
+    void questionnaireVersionSurvivesOutboxAndCannotChangeOnDuplicate() {
+        ConversationTicketCreatedEvent original = questionnaireEvent("q-general", "a".repeat(64));
+        assertThat(service.enqueueConversationTicketCreated(original, properties)).isTrue();
+        String stored = jdbcTemplate.queryForObject(
+            "SELECT payload_json FROM integration_transport_outbox WHERE event_id = ?",
+            String.class, original.eventId());
+        assertThat(stored).contains("\"questionTemplateId\":\"q-general\"", "\"templateSha256\":\"" + "a".repeat(64));
+        assertThat(service.enqueueConversationTicketCreated(original, properties)).isFalse();
+        for (String[] pair : new String[][] {
+            {"other", "a".repeat(64)}, {"q-general", "b".repeat(64)},
+            {null, null}, {"q-general", null}
+        }) {
+            assertThatThrownBy(() -> service.enqueueConversationTicketCreated(
+                questionnaireEvent(pair[0], pair[1]), properties))
+                .hasMessageContaining("identity or business mismatch");
+        }
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT payload_json FROM integration_transport_outbox WHERE event_id = ?",
+            String.class, original.eventId())).isEqualTo(stored);
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM integration_transport_outbox WHERE event_id = ?",
+            Integer.class, original.eventId())).isEqualTo(1);
+    }
+
+    private ConversationTicketCreatedEvent questionnaireEvent(String templateId, String sha256) {
+        return new ConversationTicketCreatedEvent("questionnaire-version", "ticket.created.initial_contact",
+            "telegram", 10L, "T-GENERAL", 20L, "client", "client", "Client", null, null, null, null,
+            "Help", OffsetDateTime.parse("2026-10-16T10:00:00Z"), List.of(), List.of(), null,
+            "GENERAL", "GENERAL_CHANNEL", templateId, sha256);
+    }
+
     private static final DockerImageName POSTGRES_IMAGE = DockerImageName.parse("postgres:16-alpine");
     private static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>(POSTGRES_IMAGE)
         .withDatabaseName("iguana_test")
@@ -200,7 +232,7 @@ class IntegrationTransportOutboxServiceTest {
         assertThat(service.enqueueConversationTicketCreated(event, properties)).isTrue();
         jdbcTemplate.update("UPDATE integration_transport_outbox "
             + "SET payload_json = (payload_json::jsonb - 'businessId' - 'scopeKind' "
-            + "- 'scopeSelectionSource')::text WHERE event_id = ?", event.eventId());
+            + "- 'scopeSelectionSource' - 'questionTemplateId' - 'templateSha256')::text WHERE event_id = ?", event.eventId());
         assertThat(service.enqueueConversationTicketCreated(event, properties)).isFalse();
         assertThat(jdbcTemplate.queryForObject(
             "SELECT COUNT(*) FROM integration_transport_outbox WHERE event_id = ?",
