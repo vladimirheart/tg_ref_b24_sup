@@ -210,11 +210,31 @@ canonical account, active business, membership или ALL_BUSINESSES с READ.
 Доверять полям scope/business из envelope нельзя; ROLE_ADMIN не даёт grant.
 Отзыв прав не требует переподключения; отказ пропускает ticket event, сохраняя
 соединение для остальных разрешённых событий. Ошибка/отсутствие access schema
-закрывает ticket delivery. UNRESOLVED совместим при default-off strict-read;
-при strict-read-scope=true скрывается. Новых flags или runtime changes нет.
-Это проверка текущего canonical owner, а не frozen owner/scope queued event:
-явный event/outbox scope snapshot и global page/system policy ещё являются
-отдельными gates; полный strict scope этим не подтверждается.
+закрывает ticket delivery. UNRESOLVED с доказуемым public locator совместим
+при default-off strict-read; при strict-read-scope=true скрывается.
+
+Перед ticket-bound fanout фиксируется внутренний UiEventTicketScope: точный
+canonical tuple, non-null immutable public ID, BUSINESS/UNRESOLVED и business ID.
+Snapshot читается одним SQL statement с unique raw-ID/non-GENERAL proof и
+передаётся отдельно от browser payload в Redis envelope либо local fallback.
+Перед каждым emitter один SQL snapshot сверяет tuple/public ID/scope/business
+и текущий READ получателя. Смена owner, пересоздание tuple с другим public ID,
+смена business/scope, удаление или raw-ID collision запрещают старую delivery
+даже получателю с ALL_BUSINESSES. Consumer не перезахватывает текущий owner
+для старого payload. Необязательное поле ticketScope сохраняет чтение старых
+system envelopes; ticket events без snapshot, с некорректным snapshot либо
+другим payload.ticketId отклоняются. Наличие ticketScope само делает событие
+ticket-bound и не позволяет переименованием события обойти guard.
+
+Ticket с NULL/invalid public ID либо отсутствующая locator schema не позволяют
+публиковать ticket SSE, включая legacy/UNRESOLVED при strict-read=false:
+одного composite tuple недостаточно, чтобы отличить его пересоздание.
+Автоматического присвоения public ID/backfill нет. Browser event names/payload
+сохраняются; внутренний owner в них не добавляется. Новых migrations/flags нет.
+Это snapshot перед transport fanout; persistent DB outbox и цепочка его
+dispatch ещё требуют scope, зафиксированного при исходном INSERT. Global
+page/system policy также PENDING. Mixed-version consumers без нового guard
+не доказывают эту изоляцию; отдельный rollout/preflight остаётся обязательным.
 
 Ticket-bound bell delivery сохраняет точный `ticketId` через
 `NotificationService.notifyDialogUsers` до условного SQL INSERT: snapshot
@@ -266,7 +286,7 @@ business READ проверяется одним SQL predicate при INSERT, lis
 не выводятся из текста/URL, чужой users DB либо browser-selected business.
 UNRESOLVED/unclassified сохраняют описанную выше совместимость; этот фильтр
 не классифицирует исторические строки. Глобальная page authority, явная
-global/system/task policy, frozen event/outbox scope и прочие producers ещё
+global/system/task policy, frozen persistent outbox scope и прочие producers ещё
 требуют отдельного контракта/аудита. Это не разрешение включать strict flag
 или выполнять rollout.
 

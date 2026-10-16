@@ -42,7 +42,7 @@ public class UiEventStreamService {
         sendToEmitter(identity, emitter, "connected", Map.of(
             "connected", true,
             "emittedAt", nowUtc()
-        ));
+        ), null);
         return emitter;
     }
 
@@ -50,14 +50,14 @@ public class UiEventStreamService {
         if (!hasUniqueNonGeneralTicket(ticketId)) {
             return;
         }
-        publishToAll("dialogs_changed", basePayload(reason, ticketId, null));
+        publishTicketEvent("dialogs_changed", basePayload(reason, ticketId, null), ticketId);
     }
 
     public void publishDialogHistoryChanged(String ticketId, Long channelId, String reason) {
         if (!hasUniqueNonGeneralTicket(ticketId)) {
             return;
         }
-        publishToAll("dialog_history_changed", basePayload(reason, ticketId, channelId));
+        publishTicketEvent("dialog_history_changed", basePayload(reason, ticketId, channelId), ticketId);
     }
 
     public void publishNotificationsChanged(String userIdentity, String reason) {
@@ -87,7 +87,7 @@ public class UiEventStreamService {
 
     void sendHeartbeat() {
         Map<String, Object> payload = Map.of("emittedAt", nowUtc());
-        deliverToAll("ping", payload);
+        deliverToAll("ping", payload, null);
     }
 
     void deliverFanoutEvent(UiEventFanoutEnvelope envelope) {
@@ -99,29 +99,38 @@ public class UiEventStreamService {
             deliverToUser(
                 normalizeIdentity(envelope.targetUser()),
                 envelope.eventName().trim(),
-                envelope.payload()
+                envelope.payload(),
+                envelope.ticketScope()
             );
             return;
         }
 
-        deliverToAll(envelope.eventName().trim(), envelope.payload());
+        deliverToAll(envelope.eventName().trim(), envelope.payload(), envelope.ticketScope());
+    }
+
+    private void publishTicketEvent(String eventName, Map<String, Object> payload, String ticketId) {
+        ticketAccess.captureScope(ticketId).ifPresent(scope -> {
+            if (!fanoutPublisher.publish(null, eventName, payload, scope)) {
+                deliverToAll(eventName, payload, scope);
+            }
+        });
     }
 
     private void publishToAll(String eventName, Map<String, Object> payload) {
         if (!fanoutPublisher.publish(null, eventName, payload)) {
-            deliverToAll(eventName, payload);
+            deliverToAll(eventName, payload, null);
         }
     }
 
     private void publishToUser(String userIdentity, String eventName, Map<String, Object> payload) {
         String identity = normalizeIdentity(userIdentity);
         if (!fanoutPublisher.publish(identity, eventName, payload)) {
-            deliverToUser(identity, eventName, payload);
+            deliverToUser(identity, eventName, payload, null);
         }
     }
 
-    private void deliverToAll(String eventName, Map<String, Object> payload) {
-        if (!canDeliverLegacyEvent(eventName, payload)) {
+    private void deliverToAll(String eventName, Map<String, Object> payload, UiEventTicketScope scope) {
+        if (!canDeliverLegacyEvent(eventName, payload, scope)) {
             return;
         }
         emittersByUser.forEach((identity, emitters) -> {
@@ -129,13 +138,13 @@ public class UiEventStreamService {
                 return;
             }
             for (SseEmitter emitter : emitters) {
-                sendToEmitter(identity, emitter, eventName, payload);
+                sendToEmitter(identity, emitter, eventName, payload, scope);
             }
         });
     }
 
-    private void deliverToUser(String identity, String eventName, Map<String, Object> payload) {
-        if (!canDeliverLegacyEvent(eventName, payload)) {
+    private void deliverToUser(String identity, String eventName, Map<String, Object> payload, UiEventTicketScope scope) {
+        if (!canDeliverLegacyEvent(eventName, payload, scope)) {
             return;
         }
         Set<SseEmitter> emitters = emittersByUser.get(identity);
@@ -143,17 +152,19 @@ public class UiEventStreamService {
             return;
         }
         for (SseEmitter emitter : emitters) {
-            sendToEmitter(identity, emitter, eventName, payload);
+            sendToEmitter(identity, emitter, eventName, payload, scope);
         }
     }
 
     private void sendToEmitter(String identity,
                                SseEmitter emitter,
                                String eventName,
-                               Map<String, Object> payload) {
-        if (isTicketBound(eventName, payload)) {
+                               Map<String, Object> payload,
+                               UiEventTicketScope scope) {
+        if (isTicketBound(eventName, payload, scope)) {
             Object ticketId = payload != null ? payload.get("ticketId") : null;
-            if (!(ticketId instanceof String rawId) || !ticketAccess.canReadTicket(identity, rawId)) {
+            if (!(ticketId instanceof String rawId) || scope == null || !rawId.equals(scope.ticketId())
+                    || !ticketAccess.canReadTicket(identity, scope)) {
                 return;
             }
         }
@@ -205,16 +216,17 @@ public class UiEventStreamService {
     }
 
     /** Recheck at delivery too: queued Redis envelopes and local fallback can outlive the producer check. */
-    private boolean canDeliverLegacyEvent(String eventName, Map<String, Object> payload) {
-        if (!isTicketBound(eventName, payload)) {
+    private boolean canDeliverLegacyEvent(String eventName, Map<String, Object> payload, UiEventTicketScope scope) {
+        if (!isTicketBound(eventName, payload, scope)) {
             return true;
         }
         Object ticketId = payload != null ? payload.get("ticketId") : null;
-        return ticketId instanceof String rawId && hasUniqueNonGeneralTicket(rawId);
+        return scope != null && scope.isValid() && ticketId instanceof String rawId
+            && rawId.equals(scope.ticketId()) && hasUniqueNonGeneralTicket(rawId);
     }
 
-    private boolean isTicketBound(String eventName, Map<String, Object> payload) {
-        return "dialogs_changed".equals(eventName) || "dialog_history_changed".equals(eventName)
+    private boolean isTicketBound(String eventName, Map<String, Object> payload, UiEventTicketScope scope) {
+        return scope != null || "dialogs_changed".equals(eventName) || "dialog_history_changed".equals(eventName)
             || (payload != null && payload.containsKey("ticketId"));
     }
 

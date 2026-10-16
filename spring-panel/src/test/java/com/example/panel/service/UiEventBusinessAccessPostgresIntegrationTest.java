@@ -43,13 +43,13 @@ class UiEventBusinessAccessPostgresIntegrationTest {
         jdbc.execute("CREATE TABLE business_access_grants(user_id BIGINT, grant_scope TEXT, role_code TEXT, is_active BOOLEAN)");
         jdbc.execute("CREATE TABLE user_roles(user_id BIGINT, role TEXT)");
         jdbc.execute("CREATE TABLE general_ticket_read_grants(user_id BIGINT, is_active BOOLEAN)");
-        jdbc.execute("CREATE TABLE tickets(user_id BIGINT, ticket_id TEXT, is_general BOOLEAN, business_id BIGINT, PRIMARY KEY(user_id, ticket_id))");
+        jdbc.execute("CREATE TABLE tickets(user_id BIGINT, ticket_id TEXT, is_general BOOLEAN, business_id BIGINT, ticket_public_id TEXT DEFAULT md5(random()::text), PRIMARY KEY(user_id, ticket_id))");
         jdbc.update("INSERT INTO businesses VALUES (1, 'active'), (2, 'active')");
         jdbc.update("INSERT INTO users VALUES (1, 'Reader@Example.COM', TRUE, FALSE), (2, 'other', TRUE, FALSE), (3, 'admin', TRUE, FALSE)");
         jdbc.update("INSERT INTO business_memberships VALUES (1, 1, 'VIEWER', TRUE), (2, 2, 'OPERATOR', TRUE)");
         jdbc.update("INSERT INTO user_roles VALUES (3, 'ROLE_ADMIN')");
         jdbc.update("INSERT INTO general_ticket_read_grants VALUES (1, TRUE)");
-        jdbc.update("INSERT INTO tickets VALUES (10, 'T-A', FALSE, 1), (20, 'T-B', FALSE, 2), (30, 'T-GENERAL', TRUE, NULL), (40, 'T-UNRESOLVED', FALSE, NULL)");
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id, is_general, business_id) VALUES (10, 'T-A', FALSE, 1), (20, 'T-B', FALSE, 2), (30, 'T-GENERAL', TRUE, NULL), (40, 'T-UNRESOLVED', FALSE, NULL)");
         flags = new MultibusinessFeatureFlags();
         access = new UiEventTicketAccessService(jdbc, flags);
         publisher = mock(UiEventFanoutPublisher.class);
@@ -89,7 +89,7 @@ class UiEventBusinessAccessPostgresIntegrationTest {
         stream.publishDialogHistoryChanged("T-A", 9L, "edited");
 
         verify(reader, times(2)).send(any(SseEmitter.SseEventBuilder.class));
-        assertThat(access.canReadTicket(" READER@EXAMPLE.COM ", "T-A")).isTrue();
+        assertThat(canRead(" READER@EXAMPLE.COM ", "T-A")).isTrue();
     }
 
     @ParameterizedTest
@@ -126,7 +126,7 @@ class UiEventBusinessAccessPostgresIntegrationTest {
     void allBusinessesGrantIncludesFutureBusinessButNeverGeneral() throws IOException {
         jdbc.update("INSERT INTO business_access_grants VALUES (1, 'ALL_BUSINESSES', 'VIEWER', TRUE)");
         jdbc.update("INSERT INTO businesses VALUES (3, 'active')");
-        jdbc.update("INSERT INTO tickets VALUES (50, 'T-FUTURE', FALSE, 3)");
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id, is_general, business_id) VALUES (50, 'T-FUTURE', FALSE, 3)");
         SseEmitter reader = register("reader@example.com");
 
         deliver(null, "dialogs_changed", "T-B");
@@ -163,7 +163,7 @@ class UiEventBusinessAccessPostgresIntegrationTest {
     @ValueSource(strings = {"dialogs_changed", "dialog_history_changed"})
     void lateRevokeBetweenPublicationAndLocalDeliveryDeniesSend(String name) {
         SseEmitter reader = register("reader@example.com");
-        when(publisher.publish(any(), anyString(), any())).thenAnswer(call -> {
+        when(publisher.publish(any(), anyString(), any(), any())).thenAnswer(call -> {
             jdbc.update("DELETE FROM business_memberships WHERE user_id = 1");
             return false;
         });
@@ -173,7 +173,7 @@ class UiEventBusinessAccessPostgresIntegrationTest {
         } else {
             stream.publishDialogHistoryChanged("T-A", 9L, "updated");
         }
-        verify(publisher).publish(any(), anyString(), any());
+        verify(publisher).publish(any(), anyString(), any(), any());
         verifyNoInteractions(reader);
     }
 
@@ -209,13 +209,13 @@ class UiEventBusinessAccessPostgresIntegrationTest {
 
     @Test
     void recipientSqlIndependentlyRejectsMissingGeneralUnknownAndAmbiguousOwners() {
-        jdbc.update("INSERT INTO tickets VALUES (60, 'T-A', TRUE, NULL), (70, 'T-UNKNOWN', NULL, 1), (80, ' T-EXACT ', FALSE, 1), (90, 'T-EXACT', TRUE, NULL)");
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id, is_general, business_id) VALUES (60, 'T-A', TRUE, NULL), (70, 'T-UNKNOWN', NULL, 1), (80, ' T-EXACT ', FALSE, 1), (90, 'T-EXACT', TRUE, NULL)");
         for (String id : List.of("T-A", "T-GENERAL", "T-UNKNOWN", "T-MISSING", "T-EXACT", " ")) {
-            assertThat(access.canReadTicket("reader@example.com", id)).as(id).isFalse();
+            assertThat(canRead("reader@example.com", id)).as(id).isFalse();
         }
-        assertThat(access.canReadTicket("reader@example.com", " T-EXACT ")).isTrue();
-        assertThat(access.canReadTicket("missing-account", " T-EXACT ")).isFalse();
-        assertThat(access.canReadTicket(null, " T-EXACT ")).isFalse();
+        assertThat(canRead("reader@example.com", " T-EXACT ")).isTrue();
+        assertThat(canRead("missing-account", " T-EXACT ")).isFalse();
+        assertThat(canRead(null, " T-EXACT ")).isFalse();
     }
 
     @Test
@@ -235,7 +235,12 @@ class UiEventBusinessAccessPostgresIntegrationTest {
     private void deliver(String target, String name, String ticketId) {
         // Claimed scope in a queued envelope never grants access.
         stream.deliverFanoutEvent(new UiEventFanoutEnvelope("queued", "other-worker", target, name,
-            Map.of("ticketId", ticketId, "scopeKind", "BUSINESS", "businessId", 1L)));
+            Map.of("ticketId", ticketId, "scopeKind", "BUSINESS", "businessId", 1L),
+            access.captureScope(ticketId).orElse(null)));
+    }
+
+    private boolean canRead(String identity, String ticketId) {
+        return access.canReadTicket(identity, access.captureScope(ticketId).orElse(null));
     }
 
     @SuppressWarnings("unchecked")

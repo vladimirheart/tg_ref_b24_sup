@@ -34,6 +34,11 @@ public class UiEventFanoutPublisher {
      * should deliver it process-locally (LOCAL mode or AUTO fallback).
      */
     public boolean publish(String targetUser, String eventName, Map<String, Object> payload) {
+        return publish(targetUser, eventName, payload, null);
+    }
+
+    public boolean publish(String targetUser, String eventName, Map<String, Object> payload,
+                           UiEventTicketScope ticketScope) {
         if (!StringUtils.hasText(eventName)) {
             return true;
         }
@@ -48,7 +53,8 @@ public class UiEventFanoutPublisher {
             runtimeProperties.resolvedInstanceId(),
             StringUtils.hasText(targetUser) ? targetUser.trim().toLowerCase() : null,
             eventName.trim(),
-            payload
+            payload,
+            ticketScope
         );
 
         try {

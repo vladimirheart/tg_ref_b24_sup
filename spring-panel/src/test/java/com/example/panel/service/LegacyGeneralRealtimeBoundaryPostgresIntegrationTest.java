@@ -14,6 +14,7 @@ import com.example.panel.support.PostgresqlJdbcTestSupport;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArraySet;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -32,7 +33,7 @@ class LegacyGeneralRealtimeBoundaryPostgresIntegrationTest {
         seed(jdbc);
         LegacyTicketIdJdbcGuard guard = new LegacyTicketIdJdbcGuard(jdbc);
         UiEventFanoutPublisher publisher = mock(UiEventFanoutPublisher.class);
-        when(publisher.publish(any(), anyString(), any())).thenReturn(true);
+        when(publisher.publish(any(), anyString(), any(), any())).thenReturn(true);
         UiEventStreamService stream = new UiEventStreamService(publisher, guard, readableRecipient());
 
         assertThat(guard.hasUniqueTicket("T-GENERAL")).isTrue();
@@ -44,7 +45,7 @@ class LegacyGeneralRealtimeBoundaryPostgresIntegrationTest {
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Map<String, Object>> payloads = ArgumentCaptor.forClass(Map.class);
-        verify(publisher, times(4)).publish(any(), anyString(), payloads.capture());
+        verify(publisher, times(4)).publish(any(), anyString(), payloads.capture(), any());
         assertThat(payloads.getAllValues()).extracting(payload -> payload.get("ticketId"))
             .containsExactly(" T-EXACT ", " T-EXACT ", "T-UNRESOLVED", "T-UNRESOLVED");
     }
@@ -77,7 +78,7 @@ class LegacyGeneralRealtimeBoundaryPostgresIntegrationTest {
         JdbcTemplate jdbc = tickets();
         jdbc.update("INSERT INTO tickets VALUES (1, 'T-LATE', FALSE, 7)");
         UiEventFanoutPublisher publisher = mock(UiEventFanoutPublisher.class);
-        when(publisher.publish(any(), anyString(), any())).thenAnswer(call -> {
+        when(publisher.publish(any(), anyString(), any(), any())).thenAnswer(call -> {
             switch (mutation) {
                 case "general" -> jdbc.update("UPDATE tickets SET is_general = TRUE WHERE ticket_id = 'T-LATE'");
                 case "duplicate" -> jdbc.update("INSERT INTO tickets VALUES (2, 'T-LATE', TRUE, NULL)");
@@ -92,7 +93,7 @@ class LegacyGeneralRealtimeBoundaryPostgresIntegrationTest {
 
         stream.publishDialogsChanged("updated", "T-LATE");
 
-        verify(publisher).publish(any(), anyString(), any());
+        verify(publisher).publish(any(), anyString(), any(), any());
         verifyNoInteractions(emitter);
     }
 
@@ -164,7 +165,8 @@ class LegacyGeneralRealtimeBoundaryPostgresIntegrationTest {
     // These cases isolate the existing marker/identity boundary; business READ has its own real SQL matrix.
     private UiEventTicketAccessService readableRecipient() {
         UiEventTicketAccessService access = mock(UiEventTicketAccessService.class);
-        when(access.canReadTicket(anyString(), anyString())).thenReturn(true);
+        when(access.canReadTicket(anyString(), any(UiEventTicketScope.class))).thenReturn(true);
+        when(access.captureScope(anyString())).thenAnswer(call -> Optional.of(scope(call.getArgument(0))));
         return access;
     }
 
@@ -183,7 +185,13 @@ class LegacyGeneralRealtimeBoundaryPostgresIntegrationTest {
     }
 
     private UiEventFanoutEnvelope envelope(String target, String name, Map<String, Object> payload) {
-        return new UiEventFanoutEnvelope("queued-event", "another-worker", target, name, payload);
+        Object id = payload.get("ticketId");
+        return new UiEventFanoutEnvelope("queued-event", "another-worker", target, name, payload,
+            id instanceof String rawId ? scope(rawId) : null);
+    }
+
+    private UiEventTicketScope scope(String id) {
+        return new UiEventTicketScope(1L, id, "a".repeat(32), "BUSINESS", 7L);
     }
 
     @SuppressWarnings("unchecked")
