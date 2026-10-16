@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -19,13 +20,16 @@ public class UiEventStreamService {
 
     private final UiEventFanoutPublisher fanoutPublisher;
     private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
+    private final UiEventTicketAccessService ticketAccess;
     private final ConcurrentHashMap<String, CopyOnWriteArraySet<SseEmitter>> emittersByUser =
         new ConcurrentHashMap<>();
 
     public UiEventStreamService(UiEventFanoutPublisher fanoutPublisher,
-                                LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
+                                LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard,
+                                UiEventTicketAccessService ticketAccess) {
         this.fanoutPublisher = fanoutPublisher;
         this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
+        this.ticketAccess = ticketAccess;
     }
 
     public SseEmitter connect(String userIdentity) {
@@ -147,6 +151,12 @@ public class UiEventStreamService {
                                SseEmitter emitter,
                                String eventName,
                                Map<String, Object> payload) {
+        if (isTicketBound(eventName, payload)) {
+            Object ticketId = payload != null ? payload.get("ticketId") : null;
+            if (!(ticketId instanceof String rawId) || !ticketAccess.canReadTicket(identity, rawId)) {
+                return;
+            }
+        }
         try {
             emitter.send(SseEmitter.event()
                 .name(eventName)
@@ -190,19 +200,22 @@ public class UiEventStreamService {
 
     private String normalizeIdentity(String userIdentity) {
         return StringUtils.hasText(userIdentity)
-            ? userIdentity.trim().toLowerCase()
+            ? userIdentity.trim().toLowerCase(Locale.ROOT)
             : "anonymous";
     }
 
     /** Recheck at delivery too: queued Redis envelopes and local fallback can outlive the producer check. */
     private boolean canDeliverLegacyEvent(String eventName, Map<String, Object> payload) {
-        boolean ticketBound = "dialogs_changed".equals(eventName) || "dialog_history_changed".equals(eventName)
-            || (payload != null && payload.containsKey("ticketId"));
-        if (!ticketBound) {
+        if (!isTicketBound(eventName, payload)) {
             return true;
         }
         Object ticketId = payload != null ? payload.get("ticketId") : null;
         return ticketId instanceof String rawId && hasUniqueNonGeneralTicket(rawId);
+    }
+
+    private boolean isTicketBound(String eventName, Map<String, Object> payload) {
+        return "dialogs_changed".equals(eventName) || "dialog_history_changed".equals(eventName)
+            || (payload != null && payload.containsKey("ticketId"));
     }
 
     private boolean hasUniqueNonGeneralTicket(String ticketId) {

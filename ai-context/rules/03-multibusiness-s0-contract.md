@@ -196,9 +196,25 @@ Legacy ticket-bound realtime использует тот же non-GENERAL guard:
 `dialog_history_changed` требуют точного строкового ticket ID, а любой иной
 envelope с `ticketId` тоже проверяется по canonical ticket. Неизвестный marker,
 отсутствующая схема, GENERAL и коллизия закрывают legacy delivery. Курсор
-outbox продвигается и по отклонённым событиям. Это не business-recipient
-authorization и не отдельный realtime GENERAL: им ещё нужен свой контракт
-с действующим READ grant. Системные SSE без ticket ID сохраняют поведение.
+outbox продвигается и по отклонённым событиям. Отдельный realtime GENERAL ещё
+требует собственного контракта с действующим READ grant. Системные SSE без
+ticket ID сохраняют поведение.
+
+Legacy ticket-bound SSE дополнительно проверяет business READ каждого
+получателя непосредственно перед каждой отправкой в emitter, включая
+несколько соединений одного пользователя. Локальная доставка и адресный/
+broadcast Redis fanout применяют один и тот же guard. Один SQL snapshot
+требует точного unique raw-ID, явного non-GENERAL owner и текущего business
+READ по общему с notifications predicate: единственный enabled/unblocked
+canonical account, active business, membership или ALL_BUSINESSES с READ.
+Доверять полям scope/business из envelope нельзя; ROLE_ADMIN не даёт grant.
+Отзыв прав не требует переподключения; отказ пропускает ticket event, сохраняя
+соединение для остальных разрешённых событий. Ошибка/отсутствие access schema
+закрывает ticket delivery. UNRESOLVED совместим при default-off strict-read;
+при strict-read-scope=true скрывается. Новых flags или runtime changes нет.
+Это проверка текущего canonical owner, а не frozen owner/scope queued event:
+явный event/outbox scope snapshot и global page/system policy ещё являются
+отдельными gates; полный strict scope этим не подтверждается.
 
 Ticket-bound bell delivery сохраняет точный `ticketId` через
 `NotificationService.notifyDialogUsers` до условного SQL INSERT: snapshot
@@ -244,13 +260,13 @@ business READ проверяется одним SQL predicate при INSERT, lis
 Фильтр действует до pagination/aggregation; read updates не меняют скрытые rows.
 Новый future business сразу доступен по действующему `ALL_BUSINESSES`.
 
-Предикат business READ разделяется JDBC writer и JPA native repository;
+Предикат business READ разделяется JDBC writer, JPA native repository и SSE;
 проверка ticket identity/owner остаётся обязательной. Наличие read capability
 у всех четырёх текущих ролей соответствует `BusinessAccessService`; разрешения
 не выводятся из текста/URL, чужой users DB либо browser-selected business.
 UNRESOLVED/unclassified сохраняют описанную выше совместимость; этот фильтр
 не классифицирует исторические строки. Глобальная page authority, явная
-global/system/task policy, business-recipient SSE и прочие producers ещё
+global/system/task policy, frozen event/outbox scope и прочие producers ещё
 требуют отдельного контракта/аудита. Это не разрешение включать strict flag
 или выполнять rollout.
 

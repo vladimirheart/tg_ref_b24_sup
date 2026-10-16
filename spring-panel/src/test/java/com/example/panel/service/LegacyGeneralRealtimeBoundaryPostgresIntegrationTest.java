@@ -33,7 +33,7 @@ class LegacyGeneralRealtimeBoundaryPostgresIntegrationTest {
         LegacyTicketIdJdbcGuard guard = new LegacyTicketIdJdbcGuard(jdbc);
         UiEventFanoutPublisher publisher = mock(UiEventFanoutPublisher.class);
         when(publisher.publish(any(), anyString(), any())).thenReturn(true);
-        UiEventStreamService stream = new UiEventStreamService(publisher, guard);
+        UiEventStreamService stream = new UiEventStreamService(publisher, guard, readableRecipient());
 
         assertThat(guard.hasUniqueTicket("T-GENERAL")).isTrue();
         for (String id : List.of("T-GENERAL", "T-MIXED", "T-UNKNOWN", "T-MISSING", "T-EXACT",
@@ -57,7 +57,7 @@ class LegacyGeneralRealtimeBoundaryPostgresIntegrationTest {
         JdbcTemplate jdbc = tickets();
         seed(jdbc);
         UiEventStreamService stream = new UiEventStreamService(mock(UiEventFanoutPublisher.class),
-            new LegacyTicketIdJdbcGuard(jdbc));
+            new LegacyTicketIdJdbcGuard(jdbc), readableRecipient());
         SseEmitter emitter = register(stream);
         String target = "targeted".equals(delivery) ? " GENERAL-READER " : null;
 
@@ -86,7 +86,8 @@ class LegacyGeneralRealtimeBoundaryPostgresIntegrationTest {
             }
             return false;
         });
-        UiEventStreamService stream = new UiEventStreamService(publisher, new LegacyTicketIdJdbcGuard(jdbc));
+        UiEventStreamService stream = new UiEventStreamService(publisher, new LegacyTicketIdJdbcGuard(jdbc),
+            readableRecipient());
         SseEmitter emitter = register(stream);
 
         stream.publishDialogsChanged("updated", "T-LATE");
@@ -98,7 +99,8 @@ class LegacyGeneralRealtimeBoundaryPostgresIntegrationTest {
     @Test
     void malformedDialogEnvelopesCannotBecomeGlobalBroadcasts() {
         LegacyTicketIdJdbcGuard guard = mock(LegacyTicketIdJdbcGuard.class);
-        UiEventStreamService stream = new UiEventStreamService(mock(UiEventFanoutPublisher.class), guard);
+        UiEventStreamService stream = new UiEventStreamService(mock(UiEventFanoutPublisher.class), guard,
+            readableRecipient());
         SseEmitter emitter = register(stream);
         for (String name : List.of("dialogs_changed", "dialog_history_changed")) {
             for (Map<String, Object> payload : List.of(Map.<String, Object>of(),
@@ -116,7 +118,8 @@ class LegacyGeneralRealtimeBoundaryPostgresIntegrationTest {
         jdbc.execute("ALTER TABLE tickets DROP COLUMN is_general");
         jdbc.update("INSERT INTO tickets VALUES (1, 'T-LEGACY-SCHEMA', NULL)");
         UiEventFanoutPublisher publisher = mock(UiEventFanoutPublisher.class);
-        UiEventStreamService stream = new UiEventStreamService(publisher, new LegacyTicketIdJdbcGuard(jdbc));
+        UiEventStreamService stream = new UiEventStreamService(publisher, new LegacyTicketIdJdbcGuard(jdbc),
+            readableRecipient());
         SseEmitter emitter = register(stream);
 
         stream.publishDialogsChanged("updated", "T-LEGACY-SCHEMA");
@@ -156,6 +159,13 @@ class LegacyGeneralRealtimeBoundaryPostgresIntegrationTest {
         events.handleTicketReopened("T-GENERAL", 9L);
 
         verifyNoInteractions(notifications, ai, queue, routing, channels, responsibility, supportChat, stream);
+    }
+
+    // These cases isolate the existing marker/identity boundary; business READ has its own real SQL matrix.
+    private UiEventTicketAccessService readableRecipient() {
+        UiEventTicketAccessService access = mock(UiEventTicketAccessService.class);
+        when(access.canReadTicket(anyString(), anyString())).thenReturn(true);
+        return access;
     }
 
     private JdbcTemplate tickets() {

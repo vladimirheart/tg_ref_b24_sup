@@ -20,7 +20,8 @@ class UiEventStreamFanoutTest {
         when(publisher.publish(any(), any(), any())).thenReturn(true);
 
         LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = uniqueTicketGuard();
-        UiEventStreamService service = new UiEventStreamService(publisher, legacyTicketIdJdbcGuard);
+        UiEventStreamService service = new UiEventStreamService(publisher, legacyTicketIdJdbcGuard,
+            mock(UiEventTicketAccessService.class));
         service.publishDialogsChanged("ticket_updated", "T-42");
 
         @SuppressWarnings("unchecked")
@@ -43,7 +44,8 @@ class UiEventStreamFanoutTest {
         UiEventFanoutPublisher publisher = mock(UiEventFanoutPublisher.class);
         when(publisher.publish(any(), any(), any())).thenReturn(true);
 
-        UiEventStreamService service = new UiEventStreamService(publisher, uniqueTicketGuard());
+        UiEventStreamService service = new UiEventStreamService(publisher, uniqueTicketGuard(),
+            mock(UiEventTicketAccessService.class));
         service.publishNotificationsChanged(" Operator@Example.COM ", "notification_created");
 
         verify(publisher).publish(
@@ -57,7 +59,8 @@ class UiEventStreamFanoutTest {
     void dialogsChangedSkipsAmbiguousLegacyTicketId() {
         UiEventFanoutPublisher publisher = mock(UiEventFanoutPublisher.class);
         LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
-        UiEventStreamService service = new UiEventStreamService(publisher, legacyTicketIdJdbcGuard);
+        UiEventStreamService service = new UiEventStreamService(publisher, legacyTicketIdJdbcGuard,
+            mock(UiEventTicketAccessService.class));
 
         service.publishDialogsChanged("ticket_updated", "T-DUPLICATE");
 
@@ -71,7 +74,8 @@ class UiEventStreamFanoutTest {
         when(publisher.publish(any(), any(), any())).thenReturn(true);
         LegacyTicketIdJdbcGuard guard = mock(LegacyTicketIdJdbcGuard.class);
         when(guard.hasUniqueNonGeneralTicket(" T-EXACT ")).thenReturn(true);
-        UiEventStreamService service = new UiEventStreamService(publisher, guard);
+        UiEventStreamService service = new UiEventStreamService(publisher, guard,
+            mock(UiEventTicketAccessService.class));
 
         service.publishDialogsChanged("edited", " T-EXACT ");
         service.publishDialogHistoryChanged(" T-EXACT ", 9L, "edited");
