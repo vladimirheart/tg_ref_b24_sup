@@ -34,7 +34,7 @@ class NotificationPagingServiceTest {
         Notification newest = notification(103L, "2026-09-28T14:03:00Z");
         Notification boundary = notification(102L, "2026-09-28T14:02:00Z");
         Notification probe = notification(101L, "2026-09-28T14:01:00Z");
-        when(repository.findByUserIdentityOrderByCreatedAtDescIdDesc(eq("operator"), any(Pageable.class)))
+        when(repository.findVisiblePage(eq("operator"), eq(true), any(Pageable.class)))
                 .thenReturn(List.of(newest, boundary, probe));
 
         NotificationPage first = service.findPageForUser("Operator", null, 2);
@@ -43,13 +43,14 @@ class NotificationPagingServiceTest {
         assertThat(first.hasMore()).isTrue();
         assertThat(first.nextCursor()).isNotBlank();
         ArgumentCaptor<Pageable> firstPageable = ArgumentCaptor.forClass(Pageable.class);
-        verify(repository).findByUserIdentityOrderByCreatedAtDescIdDesc(eq("operator"), firstPageable.capture());
+        verify(repository).findVisiblePage(eq("operator"), eq(true), firstPageable.capture());
         assertThat(firstPageable.getValue().getPageSize()).isEqualTo(3);
 
         OffsetDateTime boundaryCreatedAt = boundary.getCreatedAt();
         Long boundaryId = boundary.getId();
         when(repository.findPageBefore(
                 eq("operator"),
+                eq(true),
                 eq(boundaryCreatedAt),
                 eq(boundaryId),
                 any(Pageable.class)
@@ -62,6 +63,7 @@ class NotificationPagingServiceTest {
         assertThat(second.nextCursor()).isNull();
         verify(repository).findPageBefore(
                 eq("operator"),
+                eq(true),
                 eq(boundaryCreatedAt),
                 eq(boundaryId),
                 any(Pageable.class)
@@ -78,13 +80,13 @@ class NotificationPagingServiceTest {
                 mock(UiEventStreamService.class),
                 mock(LegacyTicketIdJdbcGuard.class)
         );
-        when(repository.findByUserIdentityOrderByCreatedAtDescIdDesc(eq("operator"), any(Pageable.class)))
+        when(repository.findVisiblePage(eq("operator"), eq(true), any(Pageable.class)))
                 .thenReturn(List.of());
 
         service.findPageForUser("operator", null, 100);
 
         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
-        verify(repository).findByUserIdentityOrderByCreatedAtDescIdDesc(eq("operator"), pageable.capture());
+        verify(repository).findVisiblePage(eq("operator"), eq(true), pageable.capture());
         assertThat(pageable.getValue().getPageSize()).isEqualTo(21);
         assertThatThrownBy(() -> service.findPageForUser("operator", "not-a-valid-cursor", 20))
                 .isInstanceOf(IllegalArgumentException.class)

@@ -1,6 +1,7 @@
 package com.example.panel.service;
 
 import com.example.panel.entity.Notification;
+import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.model.notification.NotificationDto;
 import com.example.panel.model.notification.NotificationPage;
 import com.example.panel.model.notification.NotificationSummary;
@@ -65,6 +66,13 @@ public class NotificationService {
     @Autowired
     private DialogTaskDisplayService dialogTaskDisplayService;
 
+    @Autowired
+    private MultibusinessFeatureFlags multibusinessFeatureFlags;
+
+    private boolean allowLegacyNotifications() {
+        return multibusinessFeatureFlags == null || !multibusinessFeatureFlags.isStrictReadScope();
+    }
+
     public NotificationService(NotificationRepository notificationRepository,
                                JdbcTemplate jdbcTemplate,
                                @Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate,
@@ -80,7 +88,7 @@ public class NotificationService {
     @Transactional(readOnly = true)
     public List<NotificationDto> findForUser(String userIdentity) {
         String identity = normalizeIdentity(userIdentity);
-        return notificationRepository.findByUserIdentityOrderByCreatedAtDesc(identity).stream()
+        return notificationRepository.findVisibleForUser(identity, allowLegacyNotifications()).stream()
                 .map(this::toDto)
                 .toList();
     }
@@ -92,9 +100,10 @@ public class NotificationService {
         NotificationCursor decodedCursor = decodeNotificationCursor(cursor);
         org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, limit + 1);
         List<Notification> rows = decodedCursor == null
-                ? notificationRepository.findByUserIdentityOrderByCreatedAtDescIdDesc(identity, pageable)
+                ? notificationRepository.findVisiblePage(identity, allowLegacyNotifications(), pageable)
                 : notificationRepository.findPageBefore(
                         identity,
+                        allowLegacyNotifications(),
                         decodedCursor.createdAt(),
                         decodedCursor.id(),
                         pageable
@@ -150,29 +159,25 @@ public class NotificationService {
     @Transactional(readOnly = true)
     public NotificationSummary summary(String userIdentity) {
         String identity = normalizeIdentity(userIdentity);
-        long unread = notificationRepository.countByUserIdentityAndIsReadFalse(identity);
+        long unread = notificationRepository.countVisibleUnread(identity, allowLegacyNotifications());
         return new NotificationSummary(unread);
     }
 
     public void markAsRead(String userIdentity, Long id) {
         String identity = normalizeIdentity(userIdentity);
-        notificationRepository.findByIdAndUserIdentity(id, identity).ifPresent(notification -> {
-            notification.setIsRead(Boolean.TRUE);
-            notificationRepository.save(notification);
+        if (notificationRepository.markVisibleAsRead(id, identity, allowLegacyNotifications()) > 0) {
             uiEventStreamService.publishNotificationsChanged(identity, "notification_marked_read");
-        });
+        }
     }
 
     public long markAllAsRead(String userIdentity) {
         String identity = normalizeIdentity(userIdentity);
-        List<Notification> unread = notificationRepository.findByUserIdentityAndIsReadFalseOrderByCreatedAtDesc(identity);
-        if (unread.isEmpty()) {
+        int updated = notificationRepository.markAllVisibleAsRead(identity, allowLegacyNotifications());
+        if (updated == 0) {
             return 0;
         }
-        unread.forEach(notification -> notification.setIsRead(Boolean.TRUE));
-        notificationRepository.saveAll(unread);
         uiEventStreamService.publishNotificationsChanged(identity, "notifications_marked_read");
-        return unread.size();
+        return updated;
     }
 
     public void notifyUser(String userIdentity, String text, String url) {
@@ -357,12 +362,14 @@ public class NotificationService {
                 continue;
             }
             int inserted = jdbcTemplate.update("""
-                INSERT INTO notifications(user_identity, text, url, is_read, created_at)
+                INSERT INTO notifications(user_identity, text, url, is_read, created_at,
+                    ticket_user_id, ticket_id, ticket_public_id, ticket_scope_kind, ticket_business_id)
                 SELECT CAST(? AS TEXT), CAST(? AS TEXT), CAST(? AS TEXT), FALSE,
-                       CAST(? AS TIMESTAMP WITH TIME ZONE)
-                 WHERE (SELECT COUNT(*) FROM tickets owner WHERE owner.ticket_id = ?) = 1
-                   AND EXISTS (SELECT 1 FROM tickets owner
-                                WHERE owner.ticket_id = ? AND owner.is_general = FALSE)
+                       CAST(? AS TIMESTAMP WITH TIME ZONE), owner.user_id, owner.ticket_id, owner.ticket_public_id,
+                       CASE WHEN owner.business_id IS NULL THEN 'UNRESOLVED' ELSE 'BUSINESS' END, owner.business_id
+                  FROM tickets owner
+                 WHERE owner.ticket_id = ? AND owner.is_general = FALSE
+                   AND (SELECT COUNT(*) FROM tickets candidate WHERE candidate.ticket_id = ?) = 1
                 """, identity, safeText, safeUrl, OffsetDateTime.now(ZoneOffset.UTC), ticketId, ticketId);
             if (inserted == 1) {
                 delivered.add(identity);

@@ -161,8 +161,8 @@ class GeneralNotificationBoundaryPostgresIntegrationTest {
         private int childRowsRead;
 
         private Fixture() {
-            jdbc.execute("CREATE TABLE tickets(user_id BIGINT, ticket_id TEXT, is_general BOOLEAN, PRIMARY KEY(user_id, ticket_id))");
-            jdbc.execute("CREATE TABLE notifications(id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, user_identity TEXT NOT NULL, text TEXT NOT NULL, url TEXT, is_read BOOLEAN, created_at TIMESTAMPTZ)");
+            jdbc.execute("CREATE TABLE tickets(user_id BIGINT, ticket_id TEXT, is_general BOOLEAN, business_id BIGINT, ticket_public_id TEXT, PRIMARY KEY(user_id, ticket_id))");
+            jdbc.execute("CREATE TABLE notifications(id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, user_identity TEXT NOT NULL, text TEXT NOT NULL, url TEXT, is_read BOOLEAN, created_at TIMESTAMPTZ, ticket_user_id BIGINT, ticket_id TEXT, ticket_public_id TEXT, ticket_scope_kind TEXT, ticket_business_id BIGINT)");
             jdbc.execute("CREATE TABLE ticket_responsibles(ticket_id TEXT, responsible TEXT)");
             jdbc.execute("CREATE TABLE ticket_active(ticket_id TEXT, user_identity TEXT)");
             jdbc.execute("CREATE TABLE ticket_participants(ticket_id TEXT, username TEXT)");

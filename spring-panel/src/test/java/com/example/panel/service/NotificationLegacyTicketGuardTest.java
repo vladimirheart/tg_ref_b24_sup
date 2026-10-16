@@ -29,8 +29,8 @@ class NotificationLegacyTicketGuardTest {
     @BeforeEach
     void setUp() {
         jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplate("notification_ticket_guard");
-        jdbc.execute("CREATE TABLE tickets(user_id BIGINT, ticket_id TEXT, is_general BOOLEAN NOT NULL DEFAULT FALSE, PRIMARY KEY(user_id, ticket_id))");
-        jdbc.execute("CREATE TABLE notifications(id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, user_identity TEXT, text TEXT, url TEXT, is_read BOOLEAN, created_at TIMESTAMPTZ)");
+        jdbc.execute("CREATE TABLE tickets(user_id BIGINT, ticket_id TEXT, is_general BOOLEAN NOT NULL DEFAULT FALSE, business_id BIGINT, ticket_public_id TEXT, PRIMARY KEY(user_id, ticket_id))");
+        jdbc.execute("CREATE TABLE notifications(id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, user_identity TEXT, text TEXT, url TEXT, is_read BOOLEAN, created_at TIMESTAMPTZ, ticket_user_id BIGINT, ticket_id TEXT, ticket_public_id TEXT, ticket_scope_kind TEXT, ticket_business_id BIGINT)");
         jdbc.execute("CREATE TABLE ticket_responsibles(ticket_id TEXT, responsible TEXT)");
         jdbc.execute("CREATE TABLE ticket_active(ticket_id TEXT, user_identity TEXT)");
         jdbc.execute("CREATE TABLE ticket_participants(ticket_id TEXT, username TEXT)");

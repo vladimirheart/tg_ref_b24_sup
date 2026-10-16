@@ -208,9 +208,35 @@ Recipient child reads повторяют тот же predicate, а поздни�
 fallback на всех операторов. Legacy queue, realtime, AI escalation и
 `OperatorNotificationWatcher` используют этот путь. GENERAL history/SLA rows
 не обрабатываются этим watcher. Общие system notification methods сохраняют
-свой контракт; их URL не является authority для ticket scope. Хранимый scope
-уведомлений, исторические rows/read APIs и business-recipient filtering ещё
-требуют отдельного этапа до rollout.
+свой контракт; их URL не является authority для ticket scope.
+
+Additive V60 сохраняет у новых ticket-bound уведомлений immutable snapshot:
+точный `(ticket_user_id, ticket_id)`, nullable `ticket_public_id`,
+`ticket_scope_kind` и `ticket_business_id`. Snapshot получается из owner
+в том же условном INSERT, а не из URL/текста. BUSINESS требует business ID,
+UNRESOLVED и GENERAL — его отсутствия; частичный tuple запрещён CHECK.
+Trigger запрещает изменение всех пяти полей, включая назначение owner старой
+строке с NULL. Исторические и generic/system/task уведомления сохраняют NULL
+без автоматической классификации и backfill. FK на изменяемое/удаляемое
+обращение намеренно отсутствует: snapshot остаётся историческим фактом.
+
+Legacy bell list/page/count/read/read-all применяют один SQL predicate:
+получатель совпадает, canonical tuple/public ID и business соответствуют
+snapshot, текущий owner имеет `is_general=FALSE`. Исчезновение owner, смена
+scope/business или другого non-null public ID закрывают чтение и read update.
+GENERAL исключён даже при отдельном READ grant; его bell/realtime ещё не
+реализованы. Фильтрация предшествует cursor pagination/aggregation, read
+updates условны в том же SQL и сигнализируют только фактическое изменение.
+Коллизия bare ID после сохранения не подменяет owner с полным tuple; legacy
+dialog URL при этом по-прежнему закрывает свой ambiguous route.
+
+При default-off `strict-read-scope` сохраняется совместимость unclassified
+NULL и подтверждённого non-GENERAL UNRESOLVED. В strict-режиме оба варианта
+скрыты, включая generic/system/task rows, пока для них не введена отдельная
+явная global/system policy. Этот этап не проверяет действующие business
+membership/capability получателя и не даёт разрешения включать strict flag.
+Business-recipient filtering, отзыв доступа и классификация прочих producers
+остаются обязательными gates до rollout.
 
 Для канала только с общими обращениями `GENERAL_CHANNEL` включается отдельной
 записью `general_channel_question_template_bindings`: активный канал должен

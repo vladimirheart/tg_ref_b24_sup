@@ -31,6 +31,27 @@ public class Notification {
     @Column(name = "created_at")
     private OffsetDateTime createdAt;
 
+    @Column(name = "ticket_user_id", insertable = false, updatable = false)
+    private Long ticketUserId;
+
+    @Column(name = "ticket_id", insertable = false, updatable = false)
+    private String ticketId;
+
+    @Column(name = "ticket_public_id", insertable = false, updatable = false)
+    private String ticketPublicId;
+
+    @Column(name = "ticket_scope_kind", insertable = false, updatable = false)
+    private String ticketScopeKind;
+
+    @Column(name = "ticket_business_id", insertable = false, updatable = false)
+    private Long ticketBusinessId;
+
+    public Long getTicketUserId() { return ticketUserId; }
+    public String getTicketId() { return ticketId; }
+    public String getTicketPublicId() { return ticketPublicId; }
+    public String getTicketScopeKind() { return ticketScopeKind; }
+    public Long getTicketBusinessId() { return ticketBusinessId; }
+
     public Long getId() {
         return id;
     }

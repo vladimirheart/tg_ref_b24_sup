@@ -95,7 +95,7 @@ class NotificationServiceTest {
         taskStored.setUrl("/tasks");
         taskStored.setIsRead(Boolean.FALSE);
         taskStored.setCreatedAt(OffsetDateTime.parse("2026-09-28T12:01:00Z"));
-        when(repository.findByUserIdentityOrderByCreatedAtDesc("operator")).thenReturn(List.of(stored, taskStored));
+        when(repository.findVisibleForUser("operator", true)).thenReturn(List.of(stored, taskStored));
 
         NotificationService service = new NotificationService(repository, jdbcTemplate, usersJdbcTemplate, streamService,
             mock(LegacyTicketIdJdbcGuard.class));
@@ -125,7 +125,7 @@ class NotificationServiceTest {
         stored.setUrl("/tasks");
         stored.setIsRead(Boolean.FALSE);
         stored.setCreatedAt(OffsetDateTime.parse("2026-10-12T12:00:00Z"));
-        when(repository.findByUserIdentityOrderByCreatedAtDesc("operator")).thenReturn(List.of(stored));
+        when(repository.findVisibleForUser("operator", true)).thenReturn(List.of(stored));
         NotificationService service = new NotificationService(repository, mock(JdbcTemplate.class),
                 mock(JdbcTemplate.class), mock(UiEventStreamService.class),
                 mock(LegacyTicketIdJdbcGuard.class));
