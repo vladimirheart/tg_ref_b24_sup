@@ -2,6 +2,7 @@ package com.example.supportbot.max;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.example.supportbot.service.QuestionnaireScope;
 import com.example.supportbot.settings.dto.QuestionFlowItemDto;
 import com.example.supportbot.settings.dto.QuestionOptionDto;
 import com.example.supportbot.settings.dto.QuestionRouteDto;
@@ -11,6 +12,15 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class MaxConversationSessionTest {
+
+    @Test
+    void snapshotKeepsGeneralScopeChosenBeforeFirstQuestion() {
+        QuestionnaireScope scope = new QuestionnaireScope("GENERAL", "GENERAL_CHANNEL", "q-general", "hash");
+        MaxConversationSession session = new MaxConversationSession(1001L, 2002L, null, null,
+            List.of(question("problem", "text", "Problem")), null, scope);
+
+        assertThat(new MaxConversationSession(session.snapshot()).scope()).isEqualTo(scope);
+    }
 
     @Test
     void routesByChoiceValueIdAndStepBackRestoresPreviousQuestion() {

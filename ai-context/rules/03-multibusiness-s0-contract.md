@@ -170,6 +170,14 @@ general-only runtime отклоняет preset-вопросы, пока для �
 безопасный, не связанный с бизнесами каталог. Отсутствие бизнес-привязки само
 по себе никогда не включает `GENERAL`.
 
+Основной internal channel runtime endpoint при активной general-only привязке
+выдаёт тот же проверенный вопросник и явные `scopeKind=GENERAL`,
+`scopeSelectionSource=GENERAL_CHANNEL`, ID/SHA-256 шаблона. Устаревшая привязка
+или выключенный флаг дают конфликт, а не legacy fallback. Bot session обязана
+сохранять выбранный scope до создания обращения; старые ответы другого scope
+не подставляются в general-only опрос. Пока ID/SHA-256 не проходят весь
+transport и не фиксируются в ticket, rollout этого пути запрещён.
+
 На S4 вводится business-scoped registry template bindings. Existing
 `question_template_id`, `rating_template_id`, `auto_action_template_id` и
 `questions_cfg` сохраняются как legacy transport/config fields. Новый template

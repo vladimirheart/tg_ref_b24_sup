@@ -94,8 +94,13 @@ public class BotSettingsService {
      * Falls back to defaults if the config is missing or invalid.
      */
     public BotSettingsDto loadFromChannel(Channel channel) {
+        return loadFromChannel(channel, runtimeConfigService.findChannelConfig(channel));
+    }
+
+    /** Uses the exact runtime snapshot from questionnaire start, including its scope marker. */
+    public BotSettingsDto loadFromChannel(Channel channel,
+            Optional<PanelRuntimeConfigClient.RuntimeConfigSnapshot> remoteConfig) {
         Map<String, Object> sharedSettings = sharedConfigService.loadSettings();
-        Optional<PanelRuntimeConfigClient.RuntimeConfigSnapshot> remoteConfig = runtimeConfigService.findChannelConfig(channel);
         Map<String, Object> raw = remoteConfig.isPresent()
                 ? new LinkedHashMap<>(remoteConfig.get().botSettings())
                 : canonicalBotSettingsFromSharedSettings(sharedSettings);
@@ -103,7 +108,8 @@ public class BotSettingsService {
             logger.warn("Ignoring deprecated channel.questions_cfg bot settings payload because runtime requires shared canonical bot_settings");
         }
         Map<String, Object> sanitized = sanitizeBotSettingsInternal(raw,
-                runtimeConfigService.basePresetDefinitions(channel), 10);
+                remoteConfig.map(PanelRuntimeConfigClient.RuntimeConfigSnapshot::presetDefinitions)
+                    .orElseGet(sharedConfigService::presetDefinitions), 10);
         if (channel != null) {
             sanitized = mergeChannelTemplateSelection(sanitized, channel);
         }

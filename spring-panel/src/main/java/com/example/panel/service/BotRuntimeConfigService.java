@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.entity.Channel;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -19,25 +20,39 @@ public class BotRuntimeConfigService {
     private final SharedConfigService sharedConfigService;
     private final BotSettingsPayloadNormalizer botSettingsPayloadNormalizer;
     private final ObjectMapper objectMapper;
+    private final GeneralChannelQuestionTemplateService generalTemplates;
+    private final MultibusinessFeatureFlags featureFlags;
 
     public BotRuntimeConfigService(BotRuntimeChannelService channelService,
                                    SharedConfigService sharedConfigService,
                                    BotSettingsPayloadNormalizer botSettingsPayloadNormalizer,
-                                   ObjectMapper objectMapper) {
+                                   ObjectMapper objectMapper,
+                                   GeneralChannelQuestionTemplateService generalTemplates,
+                                   MultibusinessFeatureFlags featureFlags) {
         this.channelService = channelService;
         this.sharedConfigService = sharedConfigService;
         this.botSettingsPayloadNormalizer = botSettingsPayloadNormalizer;
         this.objectMapper = objectMapper;
+        this.generalTemplates = generalTemplates;
+        this.featureFlags = featureFlags;
     }
 
     public Optional<RuntimeConfigLookup> findRuntimeConfig(Long channelId) {
         return channelService.findChannel(channelId)
-            .map(channel -> new RuntimeConfigLookup(
-                channel.getId(),
-                resolveBotSettings(channel),
-                resolveLocationTree(),
-                sharedConfigService.presetDefinitions()
-            ));
+            .map(channel -> {
+                if (generalTemplates.findBinding(channel.getId()).filter(GeneralChannelQuestionTemplateService.Binding::active).isPresent()) {
+                    if (!featureFlags.isFoundationEnabled() || !featureFlags.isGeneralChannelResolution()) {
+                        throw new ScopedRuntimeConfigUnavailableException("General channel resolution is disabled");
+                    }
+                    GeneralChannelQuestionTemplateService.RuntimeConfig scoped = generalTemplates.resolve(channel.getId())
+                        .orElseThrow(() -> new ScopedRuntimeConfigUnavailableException("General channel binding is stale"));
+                    return new RuntimeConfigLookup(scoped.channelId(), scoped.botSettings(), scoped.locationTree(),
+                        scoped.presetDefinitions(), scoped.scopeKind(), scoped.scopeSelectionSource(),
+                        scoped.questionTemplateId(), scoped.templateSha256());
+                }
+                return new RuntimeConfigLookup(channel.getId(), resolveBotSettings(channel),
+                    resolveLocationTree(), sharedConfigService.presetDefinitions(), null, null, null, null);
+            });
     }
 
     private Map<String, Object> resolveBotSettings(Channel channel) {
@@ -116,6 +131,16 @@ public class BotRuntimeConfigService {
     public record RuntimeConfigLookup(Long channelId,
                                       Map<String, Object> botSettings,
                                       Map<String, Object> locationTree,
-                                      Map<String, Object> presetDefinitions) {
+                                      Map<String, Object> presetDefinitions,
+                                      String scopeKind,
+                                      String scopeSelectionSource,
+                                      String questionTemplateId,
+                                      String templateSha256) {
+    }
+
+    public static class ScopedRuntimeConfigUnavailableException extends RuntimeException {
+        public ScopedRuntimeConfigUnavailableException(String message) {
+            super(message);
+        }
     }
 }

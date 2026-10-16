@@ -130,8 +130,12 @@ public class BotRuntimeReadApiController {
         @PathVariable Long channelId
     ) {
         requireAuthorized(request, token);
-        return runtimeConfigService.findRuntimeConfig(channelId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Runtime config not found"));
+        try {
+            return runtimeConfigService.findRuntimeConfig(channelId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Runtime config not found"));
+        } catch (BotRuntimeConfigService.ScopedRuntimeConfigUnavailableException ex) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage(), ex);
+        }
     }
 
     @GetMapping("/blacklist/status")

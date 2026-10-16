@@ -143,6 +143,13 @@ public class ConversationTicketCreationIngestionService {
             throw new IllegalStateException("Legacy ticket ID collision across users");
         }
 
+        if (generalChannelQuestionTemplateService.findBinding(event.channelId())
+                .filter(GeneralChannelQuestionTemplateService.Binding::active).isPresent()
+                && (!strictBusinessWrite || !"GENERAL".equals(event.scopeKind())
+                    || !"GENERAL_CHANNEL".equals(event.scopeSelectionSource()))) {
+            throw new IllegalStateException("General-only channel requires a verified general questionnaire scope");
+        }
+
         Long businessId = null;
         boolean general = false;
         if (strictBusinessWrite) {

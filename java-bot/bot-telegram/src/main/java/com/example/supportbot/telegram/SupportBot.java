@@ -15,6 +15,8 @@ import com.example.supportbot.service.ConversationProblemTextSupport;
 import com.example.supportbot.service.ConversationTicketCreationCommand;
 import com.example.supportbot.service.BotIngressCoordinationService;
 import com.example.supportbot.service.FeedbackService;
+import com.example.supportbot.service.GeneralQuestionnaireFlow;
+import com.example.supportbot.service.QuestionnaireScope;
 import com.example.supportbot.service.RuntimeConfigService;
 import com.example.supportbot.service.TicketService;
 import com.example.supportbot.service.UnblockRequestService;
@@ -1560,12 +1562,18 @@ public class SupportBot extends TelegramLongPollingBot {
             return;
         }
 
-        BotSettingsDto settings = loadSettings();
-        List<QuestionFlowItemDto> flow = new ArrayList<>(botSettingsService.questionFlow(settings));
-        flow.sort(Comparator.comparingInt(QuestionFlowItemDto::getOrder));
-        flow.add(new QuestionFlowItemDto("problem", "text", "Опишите проблему", flow.size() + 1, null, List.of()));
+        var runtime = runtimeConfigService.findChannelConfig(channel);
+        QuestionnaireScope scope = QuestionnaireScope.from(runtime.orElse(null));
+        BotSettingsDto settings = botSettingsService.loadFromChannel(channel, runtime);
+        List<QuestionFlowItemDto> flow = scope != null
+                ? GeneralQuestionnaireFlow.from(botSettingsService.questionFlow(settings))
+                : new ArrayList<>(botSettingsService.questionFlow(settings));
+        if (scope == null) {
+            flow.sort(Comparator.comparingInt(QuestionFlowItemDto::getOrder));
+            flow.add(new QuestionFlowItemDto("problem", "text", "Опишите проблему", flow.size() + 1, null, List.of()));
+        }
 
-        ConversationSession session = new ConversationSession(flow, message.getChatId(), message.getFrom(), settings);
+        ConversationSession session = new ConversationSession(flow, message.getChatId(), message.getFrom(), settings, scope);
         if (shouldCaptureBootstrapProblemText(message.getText())) {
             session.captureBootstrapClientMessage(message);
         }
@@ -1573,13 +1581,15 @@ public class SupportBot extends TelegramLongPollingBot {
                 session.userId(),
                 session.chatId(),
                 flow.size());
-        ticketService.findLastMessage(message.getFrom().getId())
-                .ifPresent(last -> session.enableReusePrompt(Map.of(
-                        "business", Optional.ofNullable(last.getBusiness()).orElse(""),
-                        "location_type", Optional.ofNullable(last.getLocationType()).orElse(""),
-                        "city", Optional.ofNullable(last.getCity()).orElse(""),
-                        "location_name", Optional.ofNullable(last.getLocationName()).orElse("")
-                )));
+        if (scope == null) {
+            ticketService.findLastMessage(message.getFrom().getId())
+                    .ifPresent(last -> session.enableReusePrompt(Map.of(
+                            "business", Optional.ofNullable(last.getBusiness()).orElse(""),
+                            "location_type", Optional.ofNullable(last.getLocationType()).orElse(""),
+                            "city", Optional.ofNullable(last.getCity()).orElse(""),
+                            "location_name", Optional.ofNullable(last.getLocationName()).orElse("")
+                    )));
+        }
         conversations.put(message.getFrom().getId(), session);
         log.info("Conversation initialized for user {} - sending first prompt", session.userId());
         String startAutoReply = botSettingsService.startAutoReply(
@@ -2042,7 +2052,10 @@ public class SupportBot extends TelegramLongPollingBot {
                                 .toList(),
                         channel,
                         session.startedAt(),
-                        session.providerEventKey()
+                        session.providerEventKey(),
+                        null,
+                        session.scope() != null ? session.scope().scopeKind() : null,
+                        session.scope() != null ? session.scope().scopeSelectionSource() : null
                 )
         );
         if ("duplicate".equals(ticket.status())) {
@@ -2119,6 +2132,7 @@ public class SupportBot extends TelegramLongPollingBot {
         private final long chatId;
         private final User user;
         private final BotSettingsDto settings;
+        private final QuestionnaireScope scope;
         private final Map<String, String> answers;
         private final List<String> attachments;
         private final List<HistoryEvent> historyEvents;
@@ -2132,11 +2146,13 @@ public class SupportBot extends TelegramLongPollingBot {
         private boolean reuseDecisionPending;
         private int currentIndex;
 
-        ConversationSession(List<QuestionFlowItemDto> flow, long chatId, User user, BotSettingsDto settings) {
+        ConversationSession(List<QuestionFlowItemDto> flow, long chatId, User user, BotSettingsDto settings,
+                            QuestionnaireScope scope) {
             this.flow = flow;
             this.chatId = chatId;
             this.user = user;
             this.settings = settings;
+            this.scope = scope;
             this.answers = new LinkedHashMap<>();
             this.attachments = new ArrayList<>();
             this.historyEvents = new ArrayList<>();
@@ -2149,6 +2165,10 @@ public class SupportBot extends TelegramLongPollingBot {
             this.firstClientResponseReceived = false;
             this.reuseDecisionPending = false;
             this.currentIndex = 0;
+        }
+
+        QuestionnaireScope scope() {
+            return scope;
         }
 
         void captureBootstrapClientMessage(Message message) {

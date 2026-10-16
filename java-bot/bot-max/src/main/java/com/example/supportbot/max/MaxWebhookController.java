@@ -16,7 +16,9 @@ import com.example.supportbot.service.ConversationTicketCreationCommand;
 import com.example.supportbot.service.BotIngressCoordinationService;
 import com.example.supportbot.service.BotSessionStoreService;
 import com.example.supportbot.service.FeedbackService;
+import com.example.supportbot.service.GeneralQuestionnaireFlow;
 import com.example.supportbot.service.MessagingService;
+import com.example.supportbot.service.QuestionnaireScope;
 import com.example.supportbot.service.RuntimeConfigService;
 import com.example.supportbot.service.SessionStateConflictException;
 import com.example.supportbot.service.TicketService;
@@ -497,17 +499,23 @@ public class MaxWebhookController {
     }
 
     private MaxConversationSession startSession(Long userId, Long chatId, String username, String clientName, Channel channel) {
-        BotSettingsDto settings = botSettingsService.loadFromChannel(channel);
-        List<QuestionFlowItemDto> flow = MaxIncidentFlowSupport.normalize(botSettingsService.questionFlow(settings));
+        var runtime = runtimeConfigService.findChannelConfig(channel);
+        QuestionnaireScope scope = QuestionnaireScope.from(runtime.orElse(null));
+        BotSettingsDto settings = botSettingsService.loadFromChannel(channel, runtime);
+        List<QuestionFlowItemDto> flow = scope != null
+                ? GeneralQuestionnaireFlow.from(botSettingsService.questionFlow(settings))
+                : MaxIncidentFlowSupport.normalize(botSettingsService.questionFlow(settings));
 
-        MaxConversationSession session = new MaxConversationSession(userId, chatId, username, clientName, flow, settings);
-        ticketService.findLastMessage(userId)
-                .ifPresent(last -> session.enableReusePrompt(Map.of(
-                        "business", Optional.ofNullable(last.getBusiness()).orElse(""),
-                        "location_type", Optional.ofNullable(last.getLocationType()).orElse(""),
-                        "city", Optional.ofNullable(last.getCity()).orElse(""),
-                        "location_name", Optional.ofNullable(last.getLocationName()).orElse("")
-                )));
+        MaxConversationSession session = new MaxConversationSession(userId, chatId, username, clientName, flow, settings, scope);
+        if (scope == null) {
+            ticketService.findLastMessage(userId)
+                    .ifPresent(last -> session.enableReusePrompt(Map.of(
+                            "business", Optional.ofNullable(last.getBusiness()).orElse(""),
+                            "location_type", Optional.ofNullable(last.getLocationType()).orElse(""),
+                            "city", Optional.ofNullable(last.getCity()).orElse(""),
+                            "location_name", Optional.ofNullable(last.getLocationName()).orElse("")
+                    )));
+        }
         return session;
     }
 
@@ -554,7 +562,10 @@ public class MaxWebhookController {
                                 .toList(),
                         channel,
                         session.startedAt(),
-                        providerEventKey
+                        providerEventKey,
+                        null,
+                        session.scope() != null ? session.scope().scopeKind() : null,
+                        session.scope() != null ? session.scope().scopeSelectionSource() : null
                 )
         );
         if ("duplicate".equals(created.status())) {

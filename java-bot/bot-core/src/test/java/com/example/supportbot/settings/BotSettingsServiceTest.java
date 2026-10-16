@@ -6,6 +6,7 @@ import com.example.supportbot.settings.dto.QuestionFlowItemDto;
 import com.example.supportbot.settings.dto.RatingResponseDto;
 import com.example.supportbot.settings.dto.RatingTemplateDto;
 import com.example.supportbot.service.RuntimeConfigService;
+import com.example.supportbot.service.PanelRuntimeConfigClient;
 import com.example.supportbot.service.SharedConfigService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,6 +14,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,6 +25,23 @@ import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.Mockito.mock;
 
 class BotSettingsServiceTest {
+
+    @Test
+    void loadFromChannelUsesProvidedScopedSnapshotWithoutLookingUpAnotherTemplate() {
+        Channel channel = new Channel();
+        channel.setId(77L);
+        channel.setQuestionTemplateId("q-general");
+        var snapshot = new PanelRuntimeConfigClient.RuntimeConfigSnapshot(77L, Map.of(
+            "question_templates", List.of(Map.of("id", "q-general", "name", "General",
+                "question_flow", List.of(Map.of("id", "contact", "type", "text", "text", "Контакт", "order", 1)))),
+            "active_template_id", "q-general"), Map.of(), Map.of(),
+            "GENERAL", "GENERAL_CHANNEL", "q-general", "hash");
+
+        BotSettingsDto settings = service.loadFromChannel(channel, Optional.of(snapshot));
+
+        assertThat(settings.getActiveTemplateId()).isEqualTo("q-general");
+        assertThat(settings.getQuestionFlow()).extracting(QuestionFlowItemDto::getText).containsExactly("Контакт");
+    }
 
     @TempDir
     java.nio.file.Path tempDir;

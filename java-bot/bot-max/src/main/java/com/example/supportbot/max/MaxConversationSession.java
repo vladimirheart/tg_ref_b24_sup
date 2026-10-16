@@ -1,6 +1,7 @@
 package com.example.supportbot.max;
 
 import com.example.supportbot.service.ConversationProblemTextSupport;
+import com.example.supportbot.service.QuestionnaireScope;
 import com.example.supportbot.service.TicketService;
 import com.example.supportbot.settings.dto.BotSettingsDto;
 import com.example.supportbot.settings.dto.QuestionFlowItemDto;
@@ -24,6 +25,7 @@ final class MaxConversationSession {
                  String clientName,
                  List<QuestionFlowItemDto> flow,
                  BotSettingsDto settings,
+                 QuestionnaireScope scope,
                  Map<String, String> answers,
                  List<HistoryEvent> history,
                  List<Integer> visitedQuestionIndexes,
@@ -41,6 +43,7 @@ final class MaxConversationSession {
     private final String clientName;
     private final List<QuestionFlowItemDto> flow;
     private final BotSettingsDto settings;
+    private final QuestionnaireScope scope;
     private final Map<String, String> answers = new LinkedHashMap<>();
     private final List<HistoryEvent> history = new ArrayList<>();
     private final List<Integer> visitedQuestionIndexes = new ArrayList<>();
@@ -59,12 +62,18 @@ final class MaxConversationSession {
                            String clientName,
                            List<QuestionFlowItemDto> flow,
                            BotSettingsDto settings) {
+        this(userId, chatId, username, clientName, flow, settings, null);
+    }
+
+    MaxConversationSession(Long userId, Long chatId, String username, String clientName,
+                           List<QuestionFlowItemDto> flow, BotSettingsDto settings, QuestionnaireScope scope) {
         this.userId = userId;
         this.chatId = chatId;
         this.username = username;
         this.clientName = clientName;
         this.flow = flow;
         this.settings = settings;
+        this.scope = scope;
         this.questionIndexes = indexQuestions(flow);
         this.startedAt = OffsetDateTime.now();
         this.bootstrapProblemText = null;
@@ -78,6 +87,7 @@ final class MaxConversationSession {
         this.clientName = state.clientName();
         this.flow = state.flow() != null ? new ArrayList<>(state.flow()) : List.of();
         this.settings = state.settings();
+        this.scope = state.scope();
         this.questionIndexes = indexQuestions(this.flow);
         this.startedAt = state.startedAt() != null ? state.startedAt() : OffsetDateTime.now();
         if (state.answers() != null) {
@@ -95,6 +105,10 @@ final class MaxConversationSession {
         this.firstClientResponseReceived = state.firstClientResponseReceived();
         this.reuseDecisionPending = state.reuseDecisionPending();
         this.currentIndex = Math.max(0, state.currentIndex());
+    }
+
+    QuestionnaireScope scope() {
+        return scope;
     }
 
     void captureBootstrapClientText(String text) {
@@ -314,6 +328,7 @@ final class MaxConversationSession {
                 clientName,
                 new ArrayList<>(flow),
                 settings,
+                scope,
                 new LinkedHashMap<>(answers),
                 new ArrayList<>(history),
                 new ArrayList<>(visitedQuestionIndexes),

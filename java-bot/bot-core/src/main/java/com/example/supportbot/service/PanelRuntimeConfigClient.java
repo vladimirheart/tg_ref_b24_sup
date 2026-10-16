@@ -70,6 +70,9 @@ public class PanelRuntimeConfigClient {
         HttpRequest request = builder.build();
         try {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() == 409) {
+                throw new ScopedRuntimeConfigUnavailableException("Scoped runtime config is unavailable for channel " + channelId);
+            }
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 log.warn("Internal panel runtime config request {} failed with status {}", path, response.statusCode());
                 return Optional.empty();
@@ -95,7 +98,22 @@ public class PanelRuntimeConfigClient {
     public record RuntimeConfigSnapshot(Long channelId,
                                         Map<String, Object> botSettings,
                                         Map<String, Object> locationTree,
-                                        Map<String, Object> presetDefinitions) {
+                                        Map<String, Object> presetDefinitions,
+                                        String scopeKind,
+                                        String scopeSelectionSource,
+                                        String questionTemplateId,
+                                        String templateSha256) {
+        public boolean isGeneralChannel() {
+            return "GENERAL".equals(scopeKind) && "GENERAL_CHANNEL".equals(scopeSelectionSource)
+                && questionTemplateId != null && !questionTemplateId.isBlank()
+                && templateSha256 != null && !templateSha256.isBlank();
+        }
+    }
+
+    public static class ScopedRuntimeConfigUnavailableException extends RuntimeException {
+        public ScopedRuntimeConfigUnavailableException(String message) {
+            super(message);
+        }
     }
 
     private record CachedRuntimeConfig(RuntimeConfigSnapshot snapshot, Instant loadedAt) {
@@ -107,13 +125,21 @@ public class PanelRuntimeConfigClient {
     private record RuntimeConfigResponse(Long channelId,
                                          Map<String, Object> botSettings,
                                          Map<String, Object> locationTree,
-                                         Map<String, Object> presetDefinitions) {
+                                         Map<String, Object> presetDefinitions,
+                                         String scopeKind,
+                                         String scopeSelectionSource,
+                                         String questionTemplateId,
+                                         String templateSha256) {
         private RuntimeConfigSnapshot toSnapshot() {
             return new RuntimeConfigSnapshot(
                 channelId,
                 copyMap(botSettings),
                 copyMap(locationTree),
-                copyMap(presetDefinitions)
+                copyMap(presetDefinitions),
+                scopeKind,
+                scopeSelectionSource,
+                questionTemplateId,
+                templateSha256
             );
         }
 

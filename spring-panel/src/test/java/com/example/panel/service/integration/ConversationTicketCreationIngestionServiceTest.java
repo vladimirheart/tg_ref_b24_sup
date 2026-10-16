@@ -504,6 +504,31 @@ class ConversationTicketCreationIngestionServiceTest {
     }
 
     @Test
+    void activeGeneralBindingRejectsStaleLegacyEventEvenBeforeStrictWriteRollout() {
+        IntegrationInboundEventInboxService inbox = mock(IntegrationInboundEventInboxService.class);
+        ChannelRepository channels = mock(ChannelRepository.class);
+        MessageRepository messages = mock(MessageRepository.class);
+        TicketRepository tickets = mock(TicketRepository.class);
+        GeneralChannelQuestionTemplateService generalTemplates = mock(GeneralChannelQuestionTemplateService.class);
+        ConversationTicketCreatedEvent event = minimalEvent("evt-stale-legacy", 901L, "T-STALE-LEGACY");
+        ConversationTicketCreationIngestionService service = service(inbox, channels, messages, tickets,
+            disabledFlags(), mock(BusinessTicketWriteScopeResolver.class), generalTemplates);
+        Channel channel = new Channel();
+        channel.setId(25L);
+        when(inbox.beginProcessing(eq(event.eventId()), eq(event.eventKind()), eq(event.platform()),
+            eq(event.channelId()), eq(event.ticketId()), eq("integration.ticket.telegram"),
+            eq(event), eq(event.occurredAt()))).thenReturn(true);
+        when(channels.findById(25L)).thenReturn(Optional.of(channel));
+        when(generalTemplates.findBinding(25L)).thenReturn(Optional.of(
+            new GeneralChannelQuestionTemplateService.Binding(25L, "q-general", "a".repeat(64), true)));
+
+        assertThatThrownBy(() -> service.ingest(event, "integration.ticket.telegram"))
+            .isInstanceOf(IllegalStateException.class).hasMessageContaining("General-only channel");
+        verify(messages, never()).save(any());
+        verify(tickets, never()).save(any());
+    }
+
+    @Test
     void strictReplayRejectsGeneralEventAgainstLegacyUnresolvedTicket() {
         IntegrationInboundEventInboxService inbox = mock(IntegrationInboundEventInboxService.class);
         ChannelRepository channels = mock(ChannelRepository.class);

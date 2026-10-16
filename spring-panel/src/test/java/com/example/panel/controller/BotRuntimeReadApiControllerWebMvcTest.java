@@ -168,7 +168,8 @@ class BotRuntimeReadApiControllerWebMvcTest {
                 52L,
                 java.util.Map.of("active_template_id", "q-52"),
                 java.util.Map.of("Retail", java.util.Map.of()),
-                java.util.Map.of("locations", java.util.Map.of("label", "Структура локаций"))
+                java.util.Map.of("locations", java.util.Map.of("label", "Структура локаций")),
+                null, null, null, null
             )
         ));
 
@@ -178,6 +179,32 @@ class BotRuntimeReadApiControllerWebMvcTest {
             .andExpect(jsonPath("$.channelId").value(52L))
             .andExpect(jsonPath("$.botSettings.active_template_id").value("q-52"))
             .andExpect(jsonPath("$.presetDefinitions.locations.label").value("Структура локаций"));
+    }
+
+    @Test
+    void runtimeConfigRejectsInvalidScopedBindingWithoutLegacyFallback() throws Exception {
+        when(runtimeConfigService.findRuntimeConfig(52L)).thenThrow(
+            new BotRuntimeConfigService.ScopedRuntimeConfigUnavailableException("General channel binding is stale"));
+
+        mockMvc.perform(get("/internal/api/bot/channels/52/runtime-config")
+                .header("X-Iguana-Bot-Api-Token", "test-internal-token"))
+            .andExpect(status().isConflict());
+    }
+
+    @Test
+    void runtimeConfigSerializesGeneralScopeAndTemplateIdentity() throws Exception {
+        when(runtimeConfigService.findRuntimeConfig(52L)).thenReturn(Optional.of(
+            new BotRuntimeConfigService.RuntimeConfigLookup(52L,
+                java.util.Map.of("active_template_id", "q-general"), java.util.Map.of(), java.util.Map.of(),
+                "GENERAL", "GENERAL_CHANNEL", "q-general", "hash")));
+
+        mockMvc.perform(get("/internal/api/bot/channels/52/runtime-config")
+                .header("X-Iguana-Bot-Api-Token", "test-internal-token"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.scopeKind").value("GENERAL"))
+            .andExpect(jsonPath("$.scopeSelectionSource").value("GENERAL_CHANNEL"))
+            .andExpect(jsonPath("$.questionTemplateId").value("q-general"))
+            .andExpect(jsonPath("$.templateSha256").value("hash"));
     }
 
     @Test

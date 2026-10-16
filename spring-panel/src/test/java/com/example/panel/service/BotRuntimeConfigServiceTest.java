@@ -1,16 +1,67 @@
 package com.example.panel.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.example.panel.entity.Channel;
+import com.example.panel.config.MultibusinessFeatureFlags;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class BotRuntimeConfigServiceTest {
+
+    @Test
+    void activeGeneralBindingUsesOnlyVerifiedScopedTemplate() {
+        BotRuntimeChannelService channels = mock(BotRuntimeChannelService.class);
+        GeneralChannelQuestionTemplateService general = mock(GeneralChannelQuestionTemplateService.class);
+        MultibusinessFeatureFlags flags = mock(MultibusinessFeatureFlags.class);
+        Channel channel = new Channel();
+        channel.setId(44L);
+        when(channels.findChannel(44L)).thenReturn(Optional.of(channel));
+        when(general.findBinding(44L)).thenReturn(Optional.of(
+            new GeneralChannelQuestionTemplateService.Binding(44L, "q-general", "hash", true)));
+        when(flags.isFoundationEnabled()).thenReturn(true);
+        when(flags.isGeneralChannelResolution()).thenReturn(true);
+        when(general.resolve(44L)).thenReturn(Optional.of(new GeneralChannelQuestionTemplateService.RuntimeConfig(
+            44L, "GENERAL", "GENERAL_CHANNEL", "q-general", "hash",
+            Map.of("question_templates", java.util.List.of(Map.of("id", "q-general"))), Map.of(), Map.of())));
+
+        BotRuntimeConfigService service = new BotRuntimeConfigService(channels, mock(SharedConfigService.class),
+            new BotSettingsPayloadNormalizer(), new ObjectMapper(), general, flags);
+        BotRuntimeConfigService.RuntimeConfigLookup config = service.findRuntimeConfig(44L).orElseThrow();
+
+        assertThat(config.scopeKind()).isEqualTo("GENERAL");
+        assertThat(config.scopeSelectionSource()).isEqualTo("GENERAL_CHANNEL");
+        assertThat(config.questionTemplateId()).isEqualTo("q-general");
+        assertThat(config.templateSha256()).isEqualTo("hash");
+        assertThat(config.locationTree()).isEmpty();
+        assertThat(config.presetDefinitions()).isEmpty();
+    }
+
+    @Test
+    void staleGeneralBindingCannotFallBackToLegacyTemplate() {
+        BotRuntimeChannelService channels = mock(BotRuntimeChannelService.class);
+        GeneralChannelQuestionTemplateService general = mock(GeneralChannelQuestionTemplateService.class);
+        MultibusinessFeatureFlags flags = mock(MultibusinessFeatureFlags.class);
+        Channel channel = new Channel();
+        channel.setId(44L);
+        when(channels.findChannel(44L)).thenReturn(Optional.of(channel));
+        when(general.findBinding(44L)).thenReturn(Optional.of(
+            new GeneralChannelQuestionTemplateService.Binding(44L, "q-general", "old-hash", true)));
+        when(flags.isFoundationEnabled()).thenReturn(true);
+        when(flags.isGeneralChannelResolution()).thenReturn(true);
+        when(general.resolve(44L)).thenReturn(Optional.empty());
+
+        BotRuntimeConfigService service = new BotRuntimeConfigService(channels, mock(SharedConfigService.class),
+            new BotSettingsPayloadNormalizer(), new ObjectMapper(), general, flags);
+
+        assertThatThrownBy(() -> service.findRuntimeConfig(44L))
+            .isInstanceOf(BotRuntimeConfigService.ScopedRuntimeConfigUnavailableException.class);
+    }
 
     @Test
     void findRuntimeConfigBuildsChannelScopedSnapshot() {
@@ -49,7 +100,9 @@ class BotRuntimeConfigServiceTest {
             channelService,
             sharedConfigService,
             normalizer,
-            objectMapper
+            objectMapper,
+            mock(GeneralChannelQuestionTemplateService.class),
+            mock(MultibusinessFeatureFlags.class)
         );
 
         BotRuntimeConfigService.RuntimeConfigLookup lookup = service.findRuntimeConfig(44L).orElseThrow();
