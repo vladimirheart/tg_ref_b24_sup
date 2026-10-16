@@ -200,6 +200,18 @@ outbox продвигается и по отклонённым событиям.
 authorization и не отдельный realtime GENERAL: им ещё нужен свой контракт
 с действующим READ grant. Системные SSE без ticket ID сохраняют поведение.
 
+Ticket-bound bell delivery сохраняет точный `ticketId` через
+`NotificationService.notifyDialogUsers` до условного SQL INSERT: snapshot
+требует единственного owner и явного `is_general=FALSE`. Возвращаются только
+реально записанные получатели; отказ не считается успешной рассылкой.
+Recipient child reads повторяют тот же predicate, а поздний отказ не запускает
+fallback на всех операторов. Legacy queue, realtime, AI escalation и
+`OperatorNotificationWatcher` используют этот путь. GENERAL history/SLA rows
+не обрабатываются этим watcher. Общие system notification methods сохраняют
+свой контракт; их URL не является authority для ticket scope. Хранимый scope
+уведомлений, исторические rows/read APIs и business-recipient filtering ещё
+требуют отдельного этапа до rollout.
+
 Для канала только с общими обращениями `GENERAL_CHANNEL` включается отдельной
 записью `general_channel_question_template_bindings`: активный канал должен
 явно выбрать тот же ID вопросника, не иметь активных business bindings, а

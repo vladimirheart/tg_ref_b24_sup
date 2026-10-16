@@ -91,12 +91,13 @@ class DialogAiExactTicketIdFlowTest {
         NotificationService notifications = mock(NotificationService.class);
         when(notifications.buildDialogUrl(anyString())).thenAnswer(invocation -> "/dialogs/" + invocation.getArgument(0));
         DialogAiAssistantEscalationService escalation = new DialogAiAssistantEscalationService(notifications);
+        when(notifications.findAllOperatorRecipients()).thenReturn(java.util.Set.of("operator"));
 
         escalation.notifyOperatorsEscalation(id, " question ", "reason");
 
         verify(notifications).buildDialogUrl(id);
-        verify(notifications).notifyAllOperators(
-            "AI-агент эскалировал обращение " + id + ". reason Вопрос клиента: question", "/dialogs/" + id, null);
+        verify(notifications).notifyDialogUsers(id, java.util.Set.of("operator"),
+            "AI-агент эскалировал обращение " + id + ". reason Вопрос клиента: question", "/dialogs/" + id);
     }
 
     @ParameterizedTest

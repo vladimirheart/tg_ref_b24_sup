@@ -14,14 +14,15 @@ class DialogAiAssistantEscalationServiceTest {
     void notifyOperatorsEscalationIncludesTicketLinkAndPreview() {
         NotificationService notificationService = mock(NotificationService.class);
         when(notificationService.buildDialogUrl("T-77")).thenReturn("/dialogs/T-77");
+        when(notificationService.findAllOperatorRecipients()).thenReturn(java.util.Set.of("operator"));
         DialogAiAssistantEscalationService service = new DialogAiAssistantEscalationService(notificationService);
 
         service.notifyOperatorsEscalation("T-77", "  Клиент просит срочно проверить недоступность VPN после смены пароля  ", "Нужен оператор");
 
-        verify(notificationService).notifyAllOperators(
+        verify(notificationService).notifyDialogUsers(
+                eq("T-77"), eq(java.util.Set.of("operator")),
                 eq("AI-агент эскалировал обращение T-77. Нужен оператор Вопрос клиента: Клиент просит срочно проверить недоступность VPN после смены пароля"),
-                eq("/dialogs/T-77"),
-                isNull()
+                eq("/dialogs/T-77")
         );
     }
 }

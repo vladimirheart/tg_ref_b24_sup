@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.example.panel.entity.Channel;
 import com.example.panel.support.PostgresqlJdbcTestSupport;
 import com.example.panel.repository.ChannelRepository;
@@ -43,6 +45,8 @@ class OperatorNotificationWatcherTest {
         createSchema();
 
         notificationService = mock(NotificationService.class);
+        when(notificationService.notifyDialogUsers(anyString(), org.mockito.ArgumentMatchers.anySet(), anyString(), anyString()))
+                .thenAnswer(invocation -> invocation.getArgument(1));
         when(notificationService.buildDialogUrl(anyString())).thenAnswer(invocation ->
                 "/dialogs/" + URLEncoder.encode(invocation.getArgument(0, String.class), StandardCharsets.UTF_8));
         dialogAiAssistantService = mock(DialogAiAssistantService.class);
@@ -162,7 +166,8 @@ class OperatorNotificationWatcherTest {
 
         verify(alertQueueService).notifyFirstResponseOverdue(eq(channel), eq("T-OVERDUE-1"), org.mockito.ArgumentMatchers.anyLong());
         verify(notificationService).findAllOperatorRecipients();
-        verify(notificationService).notifyUsers(
+        verify(notificationService).notifyDialogUsers(
+                eq("T-OVERDUE-1"),
                 eq(Set.of("alice", "bob")),
                 eq("Первая реакция просрочена (Escalation Queue) в обращении T-OVERDUE-1. Просрочка: 120 мин."),
                 eq("/dialogs/T-OVERDUE-1")
@@ -242,7 +247,8 @@ class OperatorNotificationWatcherTest {
         verify(alertQueueService, never()).notifyFirstResponseOverdue(
                 eq(channel), eq("null"), org.mockito.ArgumentMatchers.anyLong());
         verify(notificationService).buildDialogUrl(padded);
-        verify(notificationService).notifyUsers(
+        verify(notificationService).notifyDialogUsers(
+                eq(padded),
                 eq(Set.of("alice")),
                 org.mockito.ArgumentMatchers.contains("в обращении  null ."),
                 eq("/dialogs/+null+")
@@ -259,6 +265,65 @@ class OperatorNotificationWatcherTest {
                 """,
                 ticketId, channelId, "open", OffsetDateTime.now(ZoneOffset.UTC).toString(), userId
         );
+    }
+
+    @Test
+    void generalHistoryAndOverdueRowsAreSkippedWhileLaterLegacyEventAdvancesCursor() {
+        insertTicket("T-GENERAL", 701L, 7L);
+        insertTicket("T-LATER", 702L, 7L);
+        jdbcTemplate.update("UPDATE tickets SET is_general = TRUE WHERE ticket_id = 'T-GENERAL'");
+        jdbcTemplate.update("UPDATE tickets SET status = 'closed' WHERE ticket_id = 'T-LATER'");
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of("dialog_config", Map.of("sla_target_minutes", 1)));
+        when(channelRepository.findById(7L)).thenReturn(Optional.of(channel(7L, "Support")));
+        jdbcTemplate.update("""
+            INSERT INTO chat_history(id, ticket_id, sender, message, message_type, channel_id, timestamp)
+            VALUES (1, 'T-GENERAL', 'user', 'private general text', 'text', 7, ?),
+                   (2, 'T-LATER', 'user', 'legacy text', 'text', 7, ?)
+            """, OffsetDateTime.now(ZoneOffset.UTC).minusHours(2), OffsetDateTime.now(ZoneOffset.UTC));
+
+        watcher.watch();
+
+        verify(dialogAiAssistantService).processIncomingClientMessage("T-LATER", "legacy text", "text", null);
+        org.mockito.Mockito.verifyNoMoreInteractions(dialogAiAssistantService);
+        verifyNoInteractions(notificationService, alertQueueService, dialogAuditService);
+        assertThat(checkpointService.readLongCursor("operator-notification-watch.chat-history")).contains(2L);
+    }
+
+    @Test
+    void lateGeneralMarkerAfterChannelLookupStopsLegacyAiProcessing() {
+        insertTicket("T-LATE", 703L, 7L);
+        when(channelRepository.findById(7L)).thenAnswer(call -> {
+            jdbcTemplate.update("UPDATE tickets SET is_general = TRUE WHERE ticket_id = 'T-LATE'");
+            return Optional.of(channel(7L, "Support"));
+        });
+        jdbcTemplate.update("""
+            INSERT INTO chat_history(id, ticket_id, sender, message, message_type, channel_id, timestamp)
+            VALUES (1, 'T-LATE', 'user', 'private general text', 'text', 7, ?)
+            """, OffsetDateTime.now(ZoneOffset.UTC));
+
+        watcher.watch();
+
+        verifyNoInteractions(notificationService, dialogAiAssistantService, alertQueueService, dialogAuditService);
+        assertThat(checkpointService.readLongCursor("operator-notification-watch.chat-history")).contains(1L);
+    }
+
+    @Test
+    void declinedNotificationInsertDoesNotWriteSuccessfulOverdueAudit() {
+        insertTicket("T-NO-DELIVERY", 704L, 7L);
+        when(channelRepository.findById(7L)).thenReturn(Optional.of(channel(7L, "Support")));
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of("dialog_config", Map.of("sla_target_minutes", 1)));
+        when(notificationService.findAllOperatorRecipients()).thenReturn(Set.of("alice"));
+        when(notificationService.notifyDialogUsers(eq("T-NO-DELIVERY"), org.mockito.ArgumentMatchers.anySet(), anyString(), anyString()))
+            .thenReturn(Set.of());
+        jdbcTemplate.update("""
+            INSERT INTO chat_history(id, ticket_id, sender, message, message_type, channel_id, timestamp)
+            VALUES (1, 'T-NO-DELIVERY', 'user', 'waiting', 'text', 7, ?)
+            """, OffsetDateTime.now(ZoneOffset.UTC).minusHours(2));
+
+        watcher.watch();
+
+        verify(notificationService).notifyDialogUsers(eq("T-NO-DELIVERY"), eq(Set.of("alice")), anyString(), anyString());
+        verify(dialogAuditService, never()).logDialogActionAudit(anyString(), anyString(), anyString(), anyString(), anyString());
     }
 
     private Channel channel(Long id, String channelName) {
@@ -298,6 +363,7 @@ class OperatorNotificationWatcherTest {
                     status TEXT,
                     created_at TIMESTAMPTZ,
                     user_id INTEGER,
+                    is_general BOOLEAN NOT NULL DEFAULT FALSE,
                     PRIMARY KEY (user_id, ticket_id)
                 )
                 """);

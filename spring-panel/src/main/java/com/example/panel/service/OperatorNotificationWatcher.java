@@ -150,10 +150,13 @@ public class OperatorNotificationWatcher {
                         String attachment = trimToNull(rs.getString("attachment"));
                         Long channelId = rs.getObject("channel_id") != null ? rs.getLong("channel_id") : null;
                         String timestampRaw = trimToNull(rs.getString("timestamp"));
-                        if (!StringUtils.hasText(ticketId) || !legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+                        if (!StringUtils.hasText(ticketId) || !legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)) {
                             continue;
                         }
                         Channel channel = channelId != null ? channelRepository.findById(channelId).orElse(null) : null;
+                        if (!legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)) {
+                            continue;
+                        }
                         if (isInactivityAutoCloseEvent(sender, messageType, message)) {
                             // Canonical auto-close bell/support-chat ownership lives in UiEventOutboxWatcher -> DialogRealtimeEventService.
                             publishDialogsChanged("dialog_auto_closed", ticketId);
@@ -181,7 +184,7 @@ public class OperatorNotificationWatcher {
     }
 
     private void notifyIncomingClientMessage(String ticketId, Channel channel, String message) {
-        if (!StringUtils.hasText(ticketId) || !legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+        if (!StringUtils.hasText(ticketId) || !legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)) {
             return;
         }
         boolean handledByQueue = channel != null
@@ -195,10 +198,11 @@ public class OperatorNotificationWatcher {
         if (StringUtils.hasText(message)) {
             text += ": " + truncate(message, 100);
         }
-        notificationService.notifyAllOperators(
+        notificationService.notifyDialogUsers(
+                ticketId,
+                notificationService.findAllOperatorRecipients(),
                 text,
-                notificationService.buildDialogUrl(ticketId),
-                null
+                notificationService.buildDialogUrl(ticketId)
         );
         publishDialogsChanged("incoming_client_message", ticketId);
         publishDialogHistoryChanged(ticketId, channel == null ? null : channel.getId(), "incoming_client_message");
@@ -221,6 +225,8 @@ public class OperatorNotificationWatcher {
                        ) AS first_client_at
                   FROM tickets t
                  WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+                   AND t.is_general = FALSE
+                   AND (SELECT COUNT(*) FROM tickets owner WHERE owner.ticket_id = t.ticket_id) = 1
                    AND EXISTS (
                        SELECT 1
                          FROM chat_history ch
@@ -241,7 +247,7 @@ public class OperatorNotificationWatcher {
                         Long channelId = rs.getObject("channel_id") != null ? rs.getLong("channel_id") : null;
                         String firstClientAtRaw = trimToNull(rs.getString("first_client_at"));
                         if (!StringUtils.hasText(ticketId)
-                                || !legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)
+                                || !legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)
                                 || channelId == null
                                 || !StringUtils.hasText(firstClientAtRaw)) {
                             continue;
@@ -258,11 +264,11 @@ public class OperatorNotificationWatcher {
                             continue;
                         }
                         Channel channel = channelRepository.findById(channelId).orElse(null);
-                        if (channel == null) {
+                        if (channel == null || !legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)) {
                             continue;
                         }
                         String notificationText = buildFirstResponseOverdueText(channel, ticketId, overdueMinutes);
-                        boolean notified = notifySupportChat(channel, notificationText);
+                        boolean notified = notifySupportChat(ticketId, channel, notificationText);
                         if (alertQueueService.notifyFirstResponseOverdue(channel, ticketId, overdueMinutes)) {
                             notified = true;
                         }
@@ -270,12 +276,13 @@ public class OperatorNotificationWatcher {
                         if (!notified) {
                             Set<String> fallbackRecipients = notificationService.findAllOperatorRecipients();
                             if (!fallbackRecipients.isEmpty()) {
-                                notificationService.notifyUsers(
+                                Set<String> delivered = notificationService.notifyDialogUsers(
+                                        ticketId,
                                         fallbackRecipients,
                                         notificationText,
                                         notificationService.buildDialogUrl(ticketId)
                                 );
-                                notified = true;
+                                notified = !delivered.isEmpty();
                                 auditDetail += ", route=fallback_all_operators";
                             }
                         }
@@ -459,10 +466,11 @@ public class OperatorNotificationWatcher {
         return value.substring(0, limit) + "...";
     }
 
-    private boolean notifySupportChat(Channel channel, String text) {
+    private boolean notifySupportChat(String ticketId, Channel channel, String text) {
         return dialogNotificationService != null
                 && channel != null
                 && StringUtils.hasText(text)
+                && legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)
                 && dialogNotificationService.notifySupportChat(channel, text);
     }
 

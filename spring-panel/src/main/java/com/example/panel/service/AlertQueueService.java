@@ -53,7 +53,7 @@ public class AlertQueueService {
     }
 
     public Set<String> notifyQueueForNewPublicAppealRecipients(Channel channel, String ticketId, String previewText) {
-        if (channel == null || !legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+        if (channel == null || !legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)) {
             return Set.of();
         }
         String channelLabel = StringUtils.hasText(channel.getChannelName()) ? channel.getChannelName() : "Канал";
@@ -63,7 +63,7 @@ public class AlertQueueService {
     }
 
     public boolean notifyFirstResponseOverdue(Channel channel, String ticketId, long overdueMinutes) {
-        if (channel == null || !legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+        if (channel == null || !legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)) {
             return false;
         }
         String channelLabel = StringUtils.hasText(channel.getChannelName()) ? channel.getChannelName() : "Канал";
@@ -75,7 +75,7 @@ public class AlertQueueService {
     }
 
     public boolean notifyIncomingClientMessage(Channel channel, String ticketId, String previewText) {
-        if (channel == null || !legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+        if (channel == null || !legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)) {
             return false;
         }
         String text = "Новое сообщение в обращении " + ticketId;
@@ -99,12 +99,12 @@ public class AlertQueueService {
         if (assignmentRouting.enabled() && !assignmentRouting.recipients().isEmpty()) {
             Set<String> recipients = normalizeRecipientSet(assignmentRouting.recipients());
             if (!recipients.isEmpty()) {
-                notificationService.notifyUsers(recipients, text, url);
+                Set<String> delivered = notificationService.notifyDialogUsers(ticketId, recipients, text, url);
                 log.info("Queued {} '{}' notifications for channel {} via assignmentRouting",
-                        recipients.size(),
+                        delivered.size(),
                         event.key(),
                         channel.getId());
-                return recipients;
+                return delivered;
             }
         }
         ResolvedAlertConfig config = parseConfig(channel, event);
@@ -115,12 +115,12 @@ public class AlertQueueService {
         if (recipients.isEmpty()) {
             return Set.of();
         }
-        notificationService.notifyUsers(recipients, text, url);
+        Set<String> delivered = notificationService.notifyDialogUsers(ticketId, recipients, text, url);
         log.info("Queued {} '{}' notifications for channel {}",
-                recipients.size(),
+                delivered.size(),
                 event.key(),
                 channel.getId());
-        return recipients;
+        return delivered;
     }
 
     private ChannelAssignmentRoutingService.RoutingEvent mapRoutingEvent(AlertEvent event) {

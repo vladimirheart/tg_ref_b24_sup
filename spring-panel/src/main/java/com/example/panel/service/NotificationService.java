@@ -297,7 +297,7 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public Set<String> findDialogRecipients(String ticketId) {
-        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)) {
             return Set.of();
         }
         Set<String> recipients = new LinkedHashSet<>();
@@ -320,19 +320,56 @@ public class NotificationService {
                 normalizedTicketId,
                 recipients
         );
-        return recipients;
+        return legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId) ? recipients : Set.of();
     }
 
     public void notifyDialogParticipants(String ticketId, String text, String url, String excludedIdentity) {
-        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)) {
             return;
         }
         Set<String> recipients = findDialogRecipients(ticketId);
-        if (recipients.isEmpty()) {
-            notifyAllOperators(text, url, excludedIdentity);
+        if (!legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)) {
             return;
         }
-        notifyUsersExcluding(recipients, excludedIdentity, text, url);
+        if (recipients.isEmpty()) {
+            recipients = findAllOperatorRecipients();
+        }
+        notifyDialogUsersExcluding(ticketId, recipients, excludedIdentity, text, url);
+    }
+
+    /** Explicit ticket context stays attached until the notification INSERT snapshot. */
+    public Set<String> notifyDialogUsers(String ticketId, Set<String> userIdentities, String text, String url) {
+        return notifyDialogUsersExcluding(ticketId, userIdentities, null, text, url);
+    }
+
+    private Set<String> notifyDialogUsersExcluding(String ticketId, Set<String> userIdentities,
+                                                  String excludedIdentity, String text, String url) {
+        if (!StringUtils.hasText(text) || userIdentities == null || userIdentities.isEmpty()
+                || !legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)) {
+            return Set.of();
+        }
+        String excluded = normalizeRecipient(excludedIdentity);
+        String safeUrl = normalizeUrl(url);
+        String safeText = normalizeNotificationText(text.trim(), safeUrl);
+        Set<String> delivered = new LinkedHashSet<>();
+        for (String identity : normalizeRecipients(userIdentities)) {
+            if (identity.equals(excluded)) {
+                continue;
+            }
+            int inserted = jdbcTemplate.update("""
+                INSERT INTO notifications(user_identity, text, url, is_read, created_at)
+                SELECT CAST(? AS TEXT), CAST(? AS TEXT), CAST(? AS TEXT), FALSE,
+                       CAST(? AS TIMESTAMP WITH TIME ZONE)
+                 WHERE (SELECT COUNT(*) FROM tickets owner WHERE owner.ticket_id = ?) = 1
+                   AND EXISTS (SELECT 1 FROM tickets owner
+                                WHERE owner.ticket_id = ? AND owner.is_general = FALSE)
+                """, identity, safeText, safeUrl, OffsetDateTime.now(ZoneOffset.UTC), ticketId, ticketId);
+            if (inserted == 1) {
+                delivered.add(identity);
+                uiEventStreamService.publishNotificationsChanged(identity, "notification_created");
+            }
+        }
+        return delivered;
     }
 
     public void notifyAllOperators(String text, String url, String excludedIdentity) {
@@ -486,10 +523,11 @@ public class NotificationService {
                                          Set<String> recipients) {
         try {
             jdbcTemplate.query(
-                    sql,
+                    sql + " AND (SELECT COUNT(*) FROM tickets owner WHERE owner.ticket_id = ?) = 1"
+                        + " AND EXISTS (SELECT 1 FROM tickets owner WHERE owner.ticket_id = ? AND owner.is_general = FALSE)",
                     (org.springframework.jdbc.core.RowCallbackHandler) rs ->
                             recipients.addAll(splitIdentities(rs.getString(column))),
-                    ticketId
+                    ticketId, ticketId, ticketId
             );
         } catch (Exception ex) {
             // ignore missing optional tables for legacy databases

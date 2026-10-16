@@ -70,7 +70,7 @@ public class DialogRealtimeEventService {
         Set<String> remainingOperators = new LinkedHashSet<>(notificationService.findAllOperatorRecipients());
         remainingOperators.removeAll(routedRecipients);
         if (!remainingOperators.isEmpty()) {
-            notificationService.notifyUsers(remainingOperators, text, url);
+            notificationService.notifyDialogUsers(normalizedTicketId, remainingOperators, text, url);
         }
         uiEventStreamService.publishDialogsChanged("ticket_created", normalizedTicketId);
     }
@@ -98,10 +98,11 @@ public class DialogRealtimeEventService {
             boolean handledByQueue = channel != null
                     && alertQueueService.notifyIncomingClientMessage(channel, normalizedTicketId, message);
             if (!handledByQueue) {
-                notificationService.notifyAllOperators(
+                notificationService.notifyDialogUsers(
+                        normalizedTicketId,
+                        notificationService.findAllOperatorRecipients(),
                         notificationService.formatIncomingClientMessageText(normalizedTicketId),
-                        notificationService.buildDialogUrl(normalizedTicketId),
-                        null
+                        notificationService.buildDialogUrl(normalizedTicketId)
                 );
             }
         }
@@ -151,11 +152,11 @@ public class DialogRealtimeEventService {
         String message = notificationService.formatAutoCloseText(normalizedTicketId);
         Set<String> recipients = notificationService.findDialogRecipients(normalizedTicketId);
         if (recipients.isEmpty()) {
-            notificationService.notifyAllOperators(message, notificationService.buildDialogUrl(normalizedTicketId), null);
-        } else {
-            notificationService.notifyUsers(recipients, message, notificationService.buildDialogUrl(normalizedTicketId));
+            recipients = notificationService.findAllOperatorRecipients();
         }
-        if (channel != null) {
+        notificationService.notifyDialogUsers(normalizedTicketId, recipients, message,
+                notificationService.buildDialogUrl(normalizedTicketId));
+        if (channel != null && legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(normalizedTicketId)) {
             dialogNotificationService.notifySupportChat(channel, message);
         }
         uiEventStreamService.publishDialogsChanged("dialog_auto_closed", normalizedTicketId);

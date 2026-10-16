@@ -36,7 +36,7 @@ class DialogRealtimeEventServiceTest {
         service.handleIncomingClientMessage("T-100", 7L, "Первое сообщение", "text", null, false);
 
         verify(alertQueueService, never()).notifyIncomingClientMessage(channel, "T-100", "Первое сообщение");
-        verify(notificationService, never()).notifyAllOperators(anyString(), anyString(), isNull());
+        verify(notificationService, never()).notifyDialogUsers(anyString(), org.mockito.ArgumentMatchers.anySet(), anyString(), anyString());
         verify(aiService).processIncomingClientMessage("T-100", "Первое сообщение", "text", null);
     }
 
@@ -65,7 +65,8 @@ class DialogRealtimeEventServiceTest {
 
         service.handleTicketAutoClosed("T-200", 8L, "legacy text with uuid T-200");
 
-        verify(notificationService).notifyUsers(
+        verify(notificationService).notifyDialogUsers(
+                "T-200",
                 Set.of("owner"),
                 "Обращение №20260928-8 автоматически закрыто из-за отсутствия активности.",
                 "/dialogs/T-200"

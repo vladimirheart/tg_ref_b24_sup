@@ -29,7 +29,8 @@ class NotificationLegacyTicketGuardTest {
     @BeforeEach
     void setUp() {
         jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplate("notification_ticket_guard");
-        jdbc.execute("CREATE TABLE tickets(user_id BIGINT, ticket_id TEXT, PRIMARY KEY(user_id, ticket_id))");
+        jdbc.execute("CREATE TABLE tickets(user_id BIGINT, ticket_id TEXT, is_general BOOLEAN NOT NULL DEFAULT FALSE, PRIMARY KEY(user_id, ticket_id))");
+        jdbc.execute("CREATE TABLE notifications(id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, user_identity TEXT, text TEXT, url TEXT, is_read BOOLEAN, created_at TIMESTAMPTZ)");
         jdbc.execute("CREATE TABLE ticket_responsibles(ticket_id TEXT, responsible TEXT)");
         jdbc.execute("CREATE TABLE ticket_active(ticket_id TEXT, user_identity TEXT)");
         jdbc.execute("CREATE TABLE ticket_participants(ticket_id TEXT, username TEXT)");
@@ -68,10 +69,10 @@ class NotificationLegacyTicketGuardTest {
         assertThat(service.buildDialogUrl(" T-PLAIN ")).isEqualTo("/dialogs?ticketId=%20T-PLAIN%20");
         service.notifyDialogParticipants(" T-PLAIN ", "rating 5/5", service.buildDialogUrl(" T-PLAIN "), "Lead");
 
-        ArgumentCaptor<Notification> saved = ArgumentCaptor.forClass(Notification.class);
-        verify(repository).save(saved.capture());
-        assertThat(saved.getValue().getUserIdentity()).isEqualTo("backup");
-        assertThat(saved.getValue().getUrl()).isEqualTo("/dialogs?ticketId=%20T-PLAIN%20");
+        var saved = jdbc.queryForMap("SELECT user_identity, url, text FROM notifications");
+        assertThat(saved.get("user_identity")).isEqualTo("backup");
+        assertThat(saved.get("url")).isEqualTo("/dialogs?ticketId=%20T-PLAIN%20");
+        assertThat(saved.get("text")).isEqualTo("rating 5/5");
         verify(stream).publishNotificationsChanged("backup", "notification_created");
     }
 
@@ -81,9 +82,7 @@ class NotificationLegacyTicketGuardTest {
 
         service.notifyDialogParticipants("T-EMPTY", "rating 5/5", "/dialogs/T-EMPTY", null);
 
-        ArgumentCaptor<Notification> saved = ArgumentCaptor.forClass(Notification.class);
-        verify(repository).save(saved.capture());
-        assertThat(saved.getValue().getUserIdentity()).isEqualTo("global_operator");
+        assertThat(jdbc.queryForObject("SELECT user_identity FROM notifications", String.class)).isEqualTo("global_operator");
     }
 
     @Test

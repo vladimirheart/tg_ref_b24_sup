@@ -35,6 +35,8 @@ class AlertQueueServiceTest {
     void setUp() {
         usersJdbcTemplate = PostgresqlJdbcTestSupport.freshJdbcTemplate("alert_queue_users");
         notificationService = mock(NotificationService.class);
+        when(notificationService.notifyDialogUsers(any(), any(), any(), any()))
+                .thenAnswer(invocation -> invocation.getArgument(1));
         when(notificationService.buildDialogUrl(any())).thenAnswer(invocation -> {
             Object raw = invocation.getArgument(0);
             return raw == null ? "/dialogs" : "/dialogs/" + String.valueOf(raw).trim();
@@ -43,7 +45,7 @@ class AlertQueueServiceTest {
         when(channelAssignmentRoutingService.resolve(any(), any(), any()))
                 .thenReturn(ChannelAssignmentRoutingService.ResolvedAssignmentRouting.disabled());
         legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
-        when(legacyTicketIdJdbcGuard.hasUniqueTicket(any())).thenReturn(true);
+        when(legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(any())).thenReturn(true);
         service = new AlertQueueService(
                 usersJdbcTemplate,
                 notificationService,
@@ -96,7 +98,7 @@ class AlertQueueServiceTest {
         ArgumentCaptor<String> urlCaptor = ArgumentCaptor.forClass(String.class);
 
         assertThat(notified).isTrue();
-        verify(notificationService).notifyUsers(recipientsCaptor.capture(), textCaptor.capture(), urlCaptor.capture());
+        verify(notificationService).notifyDialogUsers(org.mockito.ArgumentMatchers.eq("T-88"), recipientsCaptor.capture(), textCaptor.capture(), urlCaptor.capture());
         assertThat(recipientsCaptor.getValue()).containsExactly("alice");
         assertThat(textCaptor.getValue()).isEqualTo("Новое сообщение в обращении T-88: Клиент прислал лог ошибки");
         assertThat(urlCaptor.getValue()).isEqualTo("/dialogs/T-88");
@@ -133,7 +135,7 @@ class AlertQueueServiceTest {
         ArgumentCaptor<String> textCaptor = ArgumentCaptor.forClass(String.class);
 
         assertThat(notified).isTrue();
-        verify(notificationService).notifyUsers(recipientsCaptor.capture(), textCaptor.capture(), org.mockito.ArgumentMatchers.eq("/dialogs/T-99"));
+        verify(notificationService).notifyDialogUsers(org.mockito.ArgumentMatchers.eq("T-99"), recipientsCaptor.capture(), textCaptor.capture(), org.mockito.ArgumentMatchers.eq("/dialogs/T-99"));
         assertThat(recipientsCaptor.getValue()).containsExactlyInAnyOrder("alice", "bob");
         assertThat(textCaptor.getValue()).isEqualTo("Первая реакция просрочена (Support Desk) в обращении T-99. Просрочка: 42 мин.");
     }
@@ -165,7 +167,7 @@ class AlertQueueServiceTest {
         ArgumentCaptor<Set<String>> recipientsCaptor = ArgumentCaptor.forClass(Set.class);
         ArgumentCaptor<String> textCaptor = ArgumentCaptor.forClass(String.class);
 
-        verify(notificationService).notifyUsers(recipientsCaptor.capture(), textCaptor.capture(), org.mockito.ArgumentMatchers.eq("/dialogs/T-11"));
+        verify(notificationService).notifyDialogUsers(org.mockito.ArgumentMatchers.eq("T-11"), recipientsCaptor.capture(), textCaptor.capture(), org.mockito.ArgumentMatchers.eq("/dialogs/T-11"));
         assertThat(recipientsCaptor.getValue()).containsExactlyInAnyOrder("mila", "sasha");
         assertThat(textCaptor.getValue())
                 .startsWith("Новое обращение (Веб-форма): ")
@@ -201,18 +203,18 @@ class AlertQueueServiceTest {
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Set<String>> recipientsCaptor = ArgumentCaptor.forClass(Set.class);
         assertThat(notified).isTrue();
-        verify(notificationService).notifyUsers(recipientsCaptor.capture(), any(), org.mockito.ArgumentMatchers.eq("/dialogs/T-77"));
+        verify(notificationService).notifyDialogUsers(org.mockito.ArgumentMatchers.eq("T-77"), recipientsCaptor.capture(), any(), org.mockito.ArgumentMatchers.eq("/dialogs/T-77"));
         assertThat(recipientsCaptor.getValue()).containsExactlyInAnyOrder("alice", "bob");
     }
 
     @Test
     void ticketNotificationsSkipAmbiguousLegacyTicketIdBeforeRouting() {
-        when(legacyTicketIdJdbcGuard.hasUniqueTicket("T-DUPLICATE")).thenReturn(false);
+        when(legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket("T-DUPLICATE")).thenReturn(false);
 
         boolean notified = service.notifyIncomingClientMessage(channel("Support Desk", "{}"), "T-DUPLICATE", "message");
 
         assertThat(notified).isFalse();
-        verify(notificationService, never()).notifyUsers(any(), any(), any());
+        verify(notificationService, never()).notifyDialogUsers(any(), any(), any(), any());
         verify(channelAssignmentRoutingService, never()).resolve(any(), any(), any());
     }
 
