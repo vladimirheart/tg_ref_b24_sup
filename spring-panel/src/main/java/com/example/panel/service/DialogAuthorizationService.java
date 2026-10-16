@@ -46,7 +46,7 @@ public class DialogAuthorizationService {
         Map<String, Object> permissions = resolveWorkspacePermissions(authentication);
         boolean allowed = Boolean.TRUE.equals(permissions.get(permission));
         if (allowed) {
-            if (ticketId == null || legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+            if (ticketId == null || legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)) {
                 return null;
             }
             return ResponseEntity.status(HttpStatus.NOT_FOUND)

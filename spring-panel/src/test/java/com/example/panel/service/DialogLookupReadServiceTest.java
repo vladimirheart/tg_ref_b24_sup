@@ -20,6 +20,31 @@ import static org.mockito.Mockito.when;
 
 class DialogLookupReadServiceTest {
 
+    @Test
+    void generalIsExcludedFromListsCountsChannelsDirectReadAndRequestNumberSequence() {
+        jdbcTemplate.update("INSERT INTO channels(id,channel_name) VALUES (90,'GENERAL ONLY')");
+        jdbcTemplate.update("""
+                INSERT INTO tickets(ticket_id,user_id,status,created_at,is_general,channel_id) VALUES
+                  ('G',55,'resolved','2026-04-21T08:00:00Z',TRUE,90),
+                  ('LEGACY',56,'pending','2026-04-21T09:00:00Z',FALSE,NULL),
+                  ('BUSINESS',57,'resolved','2026-04-21T17:00:00Z',FALSE,NULL)
+                """);
+        assertThat(service.loadDialogs("operator")).extracting(DialogListItem::ticketId)
+                .containsExactly("BUSINESS", "LEGACY");
+        DialogSummary summary = service.loadSummary();
+        assertThat(summary.totalTickets()).isEqualTo(2);
+        assertThat(summary.resolvedTickets()).isEqualTo(1);
+        assertThat(summary.pendingTickets()).isEqualTo(1);
+        assertThat(summary.channelStats()).singleElement().satisfies(stat -> {
+            assertThat(stat.name()).isEqualTo("Без канала");
+            assertThat(stat.total()).isEqualTo(2);
+        });
+        assertThat(service.findDialog("G", "operator")).isEmpty();
+        assertThat(service.resolveRequestNumber("G")).isNull();
+        assertThat(service.resolveRequestNumber("LEGACY")).isEqualTo("20260421-001");
+        assertThat(service.resolveRequestNumber("BUSINESS")).isEqualTo("20260421-002");
+    }
+
     private JdbcTemplate jdbcTemplate;
     private JdbcTemplate usersJdbcTemplate;
     private DialogLookupReadService service;
@@ -31,7 +56,7 @@ class DialogLookupReadServiceTest {
         AttachmentObjectStorageService attachmentObjectStorageService = mock(AttachmentObjectStorageService.class);
         when(attachmentObjectStorageService.avatarExists("ivan.png")).thenReturn(false);
         LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
-        when(legacyTicketIdJdbcGuard.hasUniqueTicket(anyString())).thenReturn(true);
+        when(legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(anyString())).thenReturn(true);
         service = new DialogLookupReadService(
                 jdbcTemplate,
                 usersJdbcTemplate,
@@ -301,6 +326,7 @@ class DialogLookupReadServiceTest {
     private void createPanelSchema() {
         jdbcTemplate.execute("""
                 CREATE TABLE tickets (
+                    is_general BOOLEAN NOT NULL DEFAULT FALSE,
                     ticket_id TEXT PRIMARY KEY,
                     status TEXT,
                     resolved_by TEXT,

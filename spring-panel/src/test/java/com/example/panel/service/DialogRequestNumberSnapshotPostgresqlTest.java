@@ -52,7 +52,7 @@ class DialogRequestNumberSnapshotPostgresqlTest {
     void setUp() {
         jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType("dialog_number_snapshot");
         jdbc.execute("""
-                CREATE TABLE tickets (
+                CREATE TABLE tickets(is_general BOOLEAN NOT NULL DEFAULT FALSE,
                     user_id BIGINT NOT NULL, ticket_id VARCHAR(255) NOT NULL,
                     channel_id BIGINT, status TEXT DEFAULT 'pending',
                     resolved_by TEXT, resolved_at TIMESTAMPTZ,

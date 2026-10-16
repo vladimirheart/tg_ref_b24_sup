@@ -124,6 +124,7 @@ class DialogResponsibilityServiceTest {
     private void createSchema() {
         jdbcTemplate.execute("""
                 CREATE TABLE tickets (
+                    is_general BOOLEAN NOT NULL DEFAULT FALSE,
                     user_id BIGINT,
                     ticket_id TEXT,
                     PRIMARY KEY (user_id, ticket_id)

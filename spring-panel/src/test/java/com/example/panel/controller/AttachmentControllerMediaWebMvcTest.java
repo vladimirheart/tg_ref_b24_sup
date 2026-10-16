@@ -63,6 +63,7 @@ class AttachmentControllerMediaWebMvcTest {
         Authentication authentication = mock(Authentication.class);
         when(permissionService.hasAuthority(authentication, "PAGE_DIALOGS")).thenReturn(true);
         when(legacyTicketIdJdbcGuard.hasUniqueTicket("3d543ab982d2f414aa9dc8b135805291")).thenReturn(true);
+        when(legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket("3d543ab982d2f414aa9dc8b135805291")).thenReturn(true);
         for (String filename : new String[] {"photo.jpg", "voice.ogg", "video-note.mp4"}) {
             when(ownerGuard.resolveUniqueOwner("3d543ab982d2f414aa9dc8b135805291/2026/08/24/" + filename))
                     .thenReturn("3d543ab982d2f414aa9dc8b135805291");
@@ -134,7 +135,7 @@ class AttachmentControllerMediaWebMvcTest {
                 attachmentsRoot.toString(), knowledgeRoot.toString(),
                 tempDir.resolve("owned-passport").toString(), tempDir.resolve("owned-avatars").toString()));
         JdbcTemplate jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplate("attachment_owner_mvc");
-        jdbc.execute("CREATE TABLE tickets(user_id BIGINT, ticket_id TEXT, PRIMARY KEY(user_id,ticket_id))");
+        jdbc.execute("CREATE TABLE tickets(is_general BOOLEAN NOT NULL DEFAULT FALSE,user_id BIGINT, ticket_id TEXT, PRIMARY KEY(user_id,ticket_id))");
         jdbc.execute("CREATE TABLE chat_history(id BIGINT PRIMARY KEY, ticket_id TEXT)");
         jdbc.execute("""
                 CREATE TABLE chat_attachment_metadata(
@@ -142,7 +143,7 @@ class AttachmentControllerMediaWebMvcTest {
                     storage_provider TEXT DEFAULT 'local_fs', storage_class TEXT DEFAULT 'dialog_attachment',
                     normalization_status TEXT DEFAULT 'normalized', deleted_at TIMESTAMPTZ)
                 """);
-        jdbc.update("INSERT INTO tickets VALUES (1,?), (2,?), (3,'channel')", ticketId, ticketId.trim());
+        jdbc.update("INSERT INTO tickets(user_id,ticket_id) VALUES (1,?), (2,?), (3,'channel')", ticketId, ticketId.trim());
         jdbc.update("INSERT INTO chat_history VALUES (11,?)", ticketId);
         jdbc.update("INSERT INTO chat_attachment_metadata(chat_history_id,ticket_id,storage_key) VALUES (11,?,?)", ticketId, key);
         LegacyTicketIdJdbcGuard tickets = new LegacyTicketIdJdbcGuard(jdbc);

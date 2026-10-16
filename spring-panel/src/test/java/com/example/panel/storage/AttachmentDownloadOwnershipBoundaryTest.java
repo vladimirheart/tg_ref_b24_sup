@@ -29,6 +29,7 @@ class AttachmentDownloadOwnershipBoundaryTest {
         var authentication = mock(Authentication.class);
         when(permissions.hasAuthority(authentication, "PAGE_DIALOGS")).thenReturn(true);
         when(tickets.hasUniqueTicket("T")).thenReturn(true);
+        when(tickets.hasUniqueNonGeneralTicket("T")).thenReturn(true);
         when(storage.openDialogAttachmentByStorageKey(key)).thenReturn(binary(key));
         var jdbc = mock(JdbcTemplate.class);
         var service = new AttachmentService(permissions, storage, tickets, new TicketAttachmentOwnerJdbcGuard(jdbc, tickets),
@@ -48,6 +49,7 @@ class AttachmentDownloadOwnershipBoundaryTest {
         var authentication = mock(Authentication.class);
         when(permissions.hasAuthority(authentication, "PAGE_DIALOGS")).thenReturn(true);
         when(tickets.hasUniqueTicket("T")).thenReturn(true);
+        when(tickets.hasUniqueNonGeneralTicket("T")).thenReturn(true);
         when(storage.openDialogAttachment("T", filename)).thenReturn(binary(filename));
         var jdbc = mock(JdbcTemplate.class);
         var service = new AttachmentService(permissions, storage, tickets, new TicketAttachmentOwnerJdbcGuard(jdbc, tickets),

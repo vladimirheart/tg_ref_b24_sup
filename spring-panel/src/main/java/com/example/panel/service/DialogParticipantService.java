@@ -50,7 +50,7 @@ public class DialogParticipantService {
 
     public List<DialogParticipantDto> loadParticipants(String ticketId) {
         String normalizedTicketId = StringUtils.hasText(ticketId) ? ticketId : null;
-        if (normalizedTicketId == null || !legacyTicketIdJdbcGuard.hasUniqueTicket(normalizedTicketId)) {
+        if (normalizedTicketId == null || !legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(normalizedTicketId)) {
             return List.of();
         }
         try {
@@ -59,6 +59,9 @@ public class DialogParticipantService {
                     SELECT username, added_at, added_by
                       FROM ticket_participants
                      WHERE ticket_id = ?
+                       AND EXISTS (SELECT 1 FROM tickets panel_ticket
+                                    WHERE panel_ticket.ticket_id = ticket_participants.ticket_id
+                                      AND panel_ticket.is_general = FALSE)
                        AND 1 = (SELECT COUNT(*)
                                   FROM tickets unique_ticket
                                  WHERE unique_ticket.ticket_id = ticket_participants.ticket_id)

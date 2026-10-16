@@ -40,13 +40,14 @@ class DialogParticipantSnapshotPostgresqlTest {
                     role TEXT,enabled BOOLEAN,is_blocked BOOLEAN)
                 """);
         jdbc.execute("CREATE TABLE roles(id BIGINT PRIMARY KEY,name TEXT)");
-        jdbc.update("INSERT INTO tickets VALUES (42,?)", owner);
+        jdbc.update("INSERT INTO tickets(user_id,ticket_id) VALUES (42,?)", owner);
         if (existing) participant(jdbc, owner, "operator", OLD_TIME, " Initial Lead ");
         if (!owner.equals(owner.trim())) {
-            jdbc.update("INSERT INTO tickets VALUES (88,?)", owner.trim());
+            jdbc.update("INSERT INTO tickets(user_id,ticket_id) VALUES (88,?)", owner.trim());
             participant(jdbc, owner.trim(), "operator", OLD_TIME, "sibling");
         }
         JdbcTemplate users = spy(new JdbcTemplate(jdbc.getDataSource()));
+        jdbc.execute("ALTER TABLE tickets ADD COLUMN is_general BOOLEAN NOT NULL DEFAULT FALSE");
         var guard = spy(new LegacyTicketIdJdbcGuard(jdbc));
         return new Fixture(jdbc, users, guard, new DialogParticipantService(jdbc, users, guard));
     }
@@ -56,14 +57,14 @@ class DialogParticipantSnapshotPostgresqlTest {
                 owner, username, time, actor);
     }
 
-    private AtomicInteger invalidateAfterProof(Fixture fixture, String owner, String condition) {
+    private AtomicInteger invalidateAfterProof(Fixture fixture, String owner, String condition, String action) {
         var proofs = new AtomicInteger();
-        doAnswer(call -> {
+        var invalidation = doAnswer(call -> {
             boolean unique = (boolean) call.callRealMethod();
             if (unique && proofs.incrementAndGet() == 1) {
                 // Изменение родителя фиксируется до следующего SQL участников.
                 if ("duplicate".equals(condition)) {
-                    fixture.jdbc().update("INSERT INTO tickets VALUES (99,?)", owner);
+                    fixture.jdbc().update("INSERT INTO tickets(user_id,ticket_id) VALUES (99,?)", owner);
                 } else if ("missing".equals(condition)) {
                     fixture.jdbc().update("DELETE FROM tickets WHERE ticket_id=?", owner);
                 } else {
@@ -71,7 +72,9 @@ class DialogParticipantSnapshotPostgresqlTest {
                 }
             }
             return unique;
-        }).when(fixture.guard()).hasUniqueTicket(owner);
+        });
+        if ("read".equals(action)) invalidation.when(fixture.guard()).hasUniqueNonGeneralTicket(owner);
+        else invalidation.when(fixture.guard()).hasUniqueTicket(owner);
         return proofs;
     }
 
@@ -86,7 +89,7 @@ class DialogParticipantSnapshotPostgresqlTest {
     void staleProofCannotReadOrMutateParticipantsForInvalidParent(String owner, String condition, String action) {
         Fixture fixture = fixture(owner, !"add".equals(action));
         var before = fixture.jdbc().queryForList("SELECT * FROM ticket_participants ORDER BY ticket_id,username");
-        AtomicInteger proofs = invalidateAfterProof(fixture, owner, condition);
+        AtomicInteger proofs = invalidateAfterProof(fixture, owner, condition, action);
 
         switch (action) {
             case "add" -> assertThat(fixture.service().addParticipant(owner, " OPERATOR ", " LEAD ")).isFalse();

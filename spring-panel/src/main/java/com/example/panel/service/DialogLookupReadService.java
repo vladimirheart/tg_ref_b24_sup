@@ -83,14 +83,14 @@ public class DialogLookupReadService {
 
     public DialogSummary loadSummary() {
         try {
-            long total = Objects.requireNonNullElse(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM tickets", Long.class), 0L);
+            long total = Objects.requireNonNullElse(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM tickets WHERE is_general = FALSE", Long.class), 0L);
             long resolved = Objects.requireNonNullElse(jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM tickets WHERE status = 'resolved'", Long.class), 0L);
+                    "SELECT COUNT(*) FROM tickets WHERE is_general = FALSE AND status = 'resolved'", Long.class), 0L);
             long pending = Math.max(0, total - resolved);
             List<DialogChannelStat> channelStats = jdbcTemplate.query(
                     "SELECT COALESCE(c.channel_name, 'Без канала') AS name, COUNT(*) AS total " +
                             "FROM tickets t LEFT JOIN channels c ON c.id = t.channel_id " +
-                            "GROUP BY COALESCE(c.channel_name, 'Без канала') ORDER BY total DESC",
+                            "WHERE t.is_general = FALSE GROUP BY COALESCE(c.channel_name, 'Без канала') ORDER BY total DESC",
                     (rs, rowNum) -> new DialogChannelStat(rs.getString("name"), rs.getLong("total"))
             );
             return new DialogSummary(total, resolved, pending, channelStats);
@@ -228,7 +228,8 @@ public class DialogLookupReadService {
                                    )
                                )
                            )
-                     WHERE (SELECT COUNT(*) FROM tickets legacy_ticket
+                     WHERE t.is_general = FALSE
+                       AND (SELECT COUNT(*) FROM tickets legacy_ticket
                             WHERE legacy_ticket.ticket_id = t.ticket_id) = 1
                       ORDER BY %s,
                                t.ticket_id DESC
@@ -330,7 +331,7 @@ public class DialogLookupReadService {
     }
 
     public Optional<DialogListItem> findDialog(String ticketId, String operator) {
-        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)) {
             return Optional.empty();
         }
         try {
@@ -448,7 +449,7 @@ public class DialogLookupReadService {
                                    )
                                )
                            )
-                     WHERE t.ticket_id = ?
+                     WHERE t.ticket_id = ? AND t.is_general = FALSE
                        AND (SELECT COUNT(*) FROM tickets legacy_ticket
                              WHERE legacy_ticket.ticket_id = t.ticket_id) = 1
                     """.formatted(
@@ -592,7 +593,7 @@ public class DialogLookupReadService {
         String sql = """
                 SELECT COUNT(*)
                   FROM tickets t
-                 WHERE %2$s = ?
+                 WHERE %2$s = ? AND t.is_general = FALSE
                    AND (SELECT COUNT(*) FROM tickets legacy_ticket
                          WHERE legacy_ticket.ticket_id = t.ticket_id) = 1
                    AND (

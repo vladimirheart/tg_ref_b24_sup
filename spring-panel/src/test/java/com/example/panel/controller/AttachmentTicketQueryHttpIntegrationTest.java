@@ -100,10 +100,20 @@ class AttachmentTicketQueryHttpIntegrationTest {
     private AttachmentObjectStorageService storage;
     private DialogConversationReadService reader;
 
+    @Test
+    void legacyQueryDownloadDoesNotExposeGeneralEvenWithValidOwnerMetadataAndRange() throws Exception {
+        jdbc.update("UPDATE tickets SET is_general=TRUE WHERE ticket_id=?", OWNER);
+        clearInvocations(storage);
+        var response = get(query(OWNER, FILE), "operator", "bytes=0-1");
+        assertThat(response.statusCode()).isEqualTo(404);
+        assertThat(response.body()).isEmpty();
+        verifyNoInteractions(storage);
+    }
+
     @BeforeEach
     void setupOwnedLocalFileAndRealServiceDelegate() throws Exception {
         jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplate("attachment_ticket_query_http");
-        jdbc.execute("CREATE TABLE tickets(user_id BIGINT,ticket_id TEXT,PRIMARY KEY(user_id,ticket_id))");
+        jdbc.execute("CREATE TABLE tickets(is_general BOOLEAN NOT NULL DEFAULT FALSE,user_id BIGINT,ticket_id TEXT,PRIMARY KEY(user_id,ticket_id))");
         jdbc.execute("""
                 CREATE TABLE chat_history(
                     id BIGINT PRIMARY KEY,ticket_id TEXT,sender TEXT DEFAULT 'client',
@@ -118,7 +128,7 @@ class AttachmentTicketQueryHttpIntegrationTest {
                     normalization_status TEXT DEFAULT 'normalized',deleted_at TIMESTAMPTZ,
                     original_name TEXT,size BIGINT,availability_status TEXT DEFAULT 'available',legacy_attachment_ref TEXT)
                 """);
-        jdbc.update("INSERT INTO tickets VALUES (1,?),(2,?)", OWNER, OWNER.trim());
+        jdbc.update("INSERT INTO tickets(user_id,ticket_id) VALUES (1,?),(2,?)", OWNER, OWNER.trim());
         jdbc.update("INSERT INTO chat_history(id,ticket_id,channel_id) VALUES (11,?,1)", OWNER);
         jdbc.update("INSERT INTO chat_history(id,ticket_id,attachment,channel_id) VALUES (12,?,?,2)", OWNER, FILE);
         String key = OWNER.trim() + "/" + FILE;
@@ -152,7 +162,7 @@ class AttachmentTicketQueryHttpIntegrationTest {
     @ParameterizedTest
     @ValueSource(strings = {"T-PLAIN", OWNER})
     void immediateQuickMediaUrlDownloadsRetainedUploadAndRejectsLaterForeignClaim(String owner) throws Exception {
-        if ("T-PLAIN".equals(owner)) jdbc.update("INSERT INTO tickets VALUES (3,?)", owner);
+        if ("T-PLAIN".equals(owner)) jdbc.update("INSERT INTO tickets(user_id,ticket_id) VALUES (3,?)", owner);
         byte[] payload = {7, 6, 5, 4};
         var reply = mock(DialogReplyService.class);
         var ai = mock(DialogAiAssistantService.class);
@@ -273,7 +283,7 @@ class AttachmentTicketQueryHttpIntegrationTest {
         switch (condition) {
             case "trimmed-sibling" -> requested = OWNER.trim();
             case "conflicting-metadata" -> jdbc.update("UPDATE chat_attachment_metadata SET ticket_id=?", OWNER.trim());
-            case "duplicate-ticket" -> jdbc.update("INSERT INTO tickets VALUES (3,?)", OWNER);
+            case "duplicate-ticket" -> jdbc.update("INSERT INTO tickets(user_id,ticket_id) VALUES (3,?)", OWNER);
             case "missing-schema" -> jdbc.execute("DROP TABLE chat_attachment_metadata");
             case "unsafe-filename" -> filename = "../" + FILE;
             default -> throw new AssertionError(condition);
@@ -359,7 +369,7 @@ class AttachmentTicketQueryHttpIntegrationTest {
 
     @Test
     void legacyPathRouteStillServesAnOrdinaryUniqueTicket() throws Exception {
-        jdbc.update("INSERT INTO tickets VALUES (3,'T')");
+        jdbc.update("INSERT INTO tickets(user_id,ticket_id) VALUES (3,'T')");
         String filename = "legacy.bin";
         Path path = tempDir.resolve("attachments/T/" + filename);
         Files.createDirectories(path.getParent());

@@ -24,7 +24,7 @@ class DialogClientContextReadServiceTest {
     void setUp() {
         jdbcTemplate = PostgresqlJdbcTestSupport.freshJdbcTemplate("dialog_client_context");
         LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
-        when(legacyTicketIdJdbcGuard.hasUniqueTicket(anyString())).thenReturn(true);
+        when(legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(anyString())).thenReturn(true);
         service = new DialogClientContextReadService(
                 jdbcTemplate,
                 new PanelTimestampSqlSupport(),
@@ -49,6 +49,14 @@ class DialogClientContextReadServiceTest {
 
     @Test
     void loadsClientHistoryAndProfileEnrichmentFromMessagesAndTickets() {
+        jdbcTemplate.update("""
+                INSERT INTO tickets(ticket_id,status,created_at,resolved_at,is_general)
+                VALUES ('GENERAL','resolved','1900-01-01T00:00:00Z','2199-01-01T00:00:00Z',TRUE)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO messages(ticket_id,user_id,created_at,problem)
+                VALUES ('GENERAL',55,'1900-01-01T00:00:00Z','GENERAL SECRET')
+                """);
         jdbcTemplate.update(
                 "INSERT INTO tickets(ticket_id, status, created_at, resolved_at) VALUES (?, ?, ?, ?)",
                 "T-1", "pending", "2026-04-20T10:00:00Z", null
@@ -152,6 +160,7 @@ class DialogClientContextReadServiceTest {
     private void createSchema() {
         jdbcTemplate.execute("""
                 CREATE TABLE tickets (
+                    is_general BOOLEAN NOT NULL DEFAULT FALSE,
                     ticket_id VARCHAR(120) PRIMARY KEY,
                     status VARCHAR(32),
                     created_at TIMESTAMPTZ,

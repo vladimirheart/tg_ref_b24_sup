@@ -59,7 +59,7 @@ public class DialogResponsibilityService {
     }
 
     public void markDialogAsRead(String ticketId, String operator) {
-        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId) || !StringUtils.hasText(operator)) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId) || !StringUtils.hasText(operator)) {
             return;
         }
         try {
@@ -70,6 +70,9 @@ public class DialogResponsibilityService {
                             + "    CURRENT_TIMESTAMP"
                             + ") "
                             + "WHERE ticket_id = ? AND responsible = ? "
+                            + "AND EXISTS (SELECT 1 FROM tickets panel_ticket "
+                            + "WHERE panel_ticket.ticket_id = ticket_responsibles.ticket_id "
+                            + "AND panel_ticket.is_general = FALSE) "
                             + "AND 1 = (SELECT COUNT(*) FROM tickets unique_ticket "
                             + "WHERE unique_ticket.ticket_id = ticket_responsibles.ticket_id)",
                     ticketId,

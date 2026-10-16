@@ -33,14 +33,15 @@ class DialogResponsibilitySnapshotPostgresqlTest {
                     assigned_by TEXT,assigned_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,last_read_at TIMESTAMPTZ)
                 """);
         jdbc.execute("CREATE TABLE chat_history(user_id BIGINT,ticket_id TEXT,channel_id BIGINT,timestamp TIMESTAMPTZ)");
-        jdbc.update("INSERT INTO tickets VALUES (42,?,77)", owner);
+        jdbc.update("INSERT INTO tickets(user_id,ticket_id,channel_id) VALUES (42,?,77)", owner);
         jdbc.update("INSERT INTO chat_history VALUES (42,?,77,?)", owner, HISTORY_TIME);
         if (existing) responsible(jdbc, owner, "operator", " Initial Lead ");
         if (!owner.equals(owner.trim())) {
-            jdbc.update("INSERT INTO tickets VALUES (88,?,88)", owner.trim());
+            jdbc.update("INSERT INTO tickets(user_id,ticket_id,channel_id) VALUES (88,?,88)", owner.trim());
             jdbc.update("INSERT INTO chat_history VALUES (88,?,88,?)", owner.trim(), HISTORY_TIME.plusDays(1));
             responsible(jdbc, owner.trim(), "Sibling", "sibling lead");
         }
+        jdbc.execute("ALTER TABLE tickets ADD COLUMN is_general BOOLEAN NOT NULL DEFAULT FALSE");
         var guard = spy(new LegacyTicketIdJdbcGuard(jdbc));
         return new Fixture(jdbc, guard, new DialogResponsibilityService(jdbc, guard));
     }
@@ -54,7 +55,7 @@ class DialogResponsibilitySnapshotPostgresqlTest {
 
     private void invalidate(Fixture fixture, String owner, String condition) {
         if ("duplicate".equals(condition)) {
-            fixture.jdbc().update("INSERT INTO tickets VALUES (99,?,99)", owner);
+            fixture.jdbc().update("INSERT INTO tickets(user_id,ticket_id,channel_id) VALUES (99,?,99)", owner);
         } else if ("missing".equals(condition)) {
             fixture.jdbc().update("DELETE FROM tickets WHERE ticket_id=?", owner);
         } else {
@@ -62,16 +63,18 @@ class DialogResponsibilitySnapshotPostgresqlTest {
         }
     }
 
-    private AtomicInteger invalidateAfterProof(Fixture fixture, String owner, String condition) {
+    private AtomicInteger invalidateAfterProof(Fixture fixture, String owner, String condition, String action) {
         var proofs = new AtomicInteger();
-        doAnswer(call -> {
+        var invalidation = doAnswer(call -> {
             boolean unique = (boolean) call.callRealMethod();
             if (unique && proofs.incrementAndGet() == 1) {
                 // Commit parent invalidation before the next responsible SQL statement.
                 invalidate(fixture, owner, condition);
             }
             return unique;
-        }).when(fixture.guard()).hasUniqueTicket(owner);
+        });
+        if ("read".equals(action)) invalidation.when(fixture.guard()).hasUniqueNonGeneralTicket(owner);
+        else invalidation.when(fixture.guard()).hasUniqueTicket(owner);
         return proofs;
     }
 
@@ -88,7 +91,7 @@ class DialogResponsibilitySnapshotPostgresqlTest {
             String owner, String condition, String action, boolean existing) {
         Fixture fixture = fixture(owner, existing);
         var before = fixture.jdbc().queryForList("SELECT * FROM ticket_responsibles ORDER BY ticket_id");
-        AtomicInteger proofs = invalidateAfterProof(fixture, owner, condition);
+        AtomicInteger proofs = invalidateAfterProof(fixture, owner, condition, action);
 
         switch (action) {
             case "assign" -> assertThat(fixture.service().assignResponsibleIfMissing(owner, "new", "lead")).isNull();
@@ -110,7 +113,7 @@ class DialogResponsibilitySnapshotPostgresqlTest {
     @MethodSource("lateReads")
     void staleProofCannotExposeResponsibleFromAmbiguousOrOrphanRow(String owner, String condition) {
         Fixture fixture = fixture(owner, true);
-        AtomicInteger proofs = invalidateAfterProof(fixture, owner, condition);
+        AtomicInteger proofs = invalidateAfterProof(fixture, owner, condition, "responsible");
 
         assertThat(fixture.service().loadResponsible(owner)).isNull();
 

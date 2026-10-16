@@ -32,7 +32,7 @@ class DialogAttachmentMetadataProjectionPostgresqlTest {
 
     private Fixture fixture(boolean failedOwnerLookup) throws Exception {
         JdbcTemplate jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplate("history_metadata_projection");
-        jdbc.execute("CREATE TABLE tickets(user_id BIGINT, ticket_id TEXT, PRIMARY KEY(user_id,ticket_id))");
+        jdbc.execute("CREATE TABLE tickets(is_general BOOLEAN NOT NULL DEFAULT FALSE,user_id BIGINT, ticket_id TEXT, PRIMARY KEY(user_id,ticket_id))");
         jdbc.execute("""
                 CREATE TABLE chat_history(
                     id BIGINT PRIMARY KEY, ticket_id TEXT, sender TEXT DEFAULT 'client',
@@ -68,7 +68,7 @@ class DialogAttachmentMetadataProjectionPostgresqlTest {
     }
 
     private void ticket(Fixture fixture, long user, String ticket) {
-        fixture.jdbc().update("INSERT INTO tickets VALUES (?,?)", user, ticket);
+        fixture.jdbc().update("INSERT INTO tickets(user_id,ticket_id) VALUES (?,?)", user, ticket);
     }
 
     private void history(Fixture fixture, long id, String ticket, String attachment, String name) {

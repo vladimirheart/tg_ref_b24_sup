@@ -140,8 +140,8 @@ class DialogMacroServiceTest {
     @ValueSource(strings = {"T-MISSING", "T-DUP", " T-PLAIN "})
     void realPostgresGuardStopsMacroBeforeChildReadsForUnresolvedExactId(String ticketId) {
         JdbcTemplate rootJdbc = PostgresqlJdbcTestSupport.freshJdbcTemplate("macro_ticket_guard");
-        rootJdbc.execute("CREATE TABLE tickets(user_id BIGINT, ticket_id TEXT, PRIMARY KEY(user_id, ticket_id))");
-        rootJdbc.update("INSERT INTO tickets VALUES (1, 'T-PLAIN'), (2, 'T-DUP'), (3, 'T-DUP')");
+        rootJdbc.execute("CREATE TABLE tickets(is_general BOOLEAN NOT NULL DEFAULT FALSE,user_id BIGINT, ticket_id TEXT, PRIMARY KEY(user_id, ticket_id))");
+        rootJdbc.update("INSERT INTO tickets(user_id,ticket_id) VALUES (1, 'T-PLAIN'), (2, 'T-DUP'), (3, 'T-DUP')");
         LegacyTicketIdJdbcGuard guard = spy(new LegacyTicketIdJdbcGuard(rootJdbc));
         JdbcTemplate panelJdbc = mock(JdbcTemplate.class);
         JdbcTemplate usersJdbc = mock(JdbcTemplate.class);
@@ -157,7 +157,7 @@ class DialogMacroServiceTest {
 
         assertThat(rendered.renderedText()).isEqualTo("ID=[" + ticketId + "]; none");
         assertThat(catalog).noneMatch(item -> "ticket_context".equals(item.get("source")));
-        verify(guard, times(2)).hasUniqueTicket(ticketId);
+        verify(guard, times(2)).hasUniqueNonGeneralTicket(ticketId);
         verifyNoInteractions(panelJdbc, usersJdbc, conversation, profile);
     }
 

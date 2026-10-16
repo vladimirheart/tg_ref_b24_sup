@@ -42,7 +42,8 @@ class DialogParticipantLegacyTicketGuardTest {
         assertThat(service.loadParticipants(" T-PLAIN ")).isEmpty();
         assertThat(service.addParticipant(" T-PLAIN ", "operator", "lead")).isFalse();
         assertThat(service.removeParticipant(" T-PLAIN ", "operator")).isFalse();
-        verify(guard, org.mockito.Mockito.times(4)).hasUniqueTicket(" T-PLAIN ");
+        verify(guard, org.mockito.Mockito.times(3)).hasUniqueTicket(" T-PLAIN ");
+        verify(guard).hasUniqueNonGeneralTicket(" T-PLAIN ");
         verifyNoInteractions(jdbcTemplate, usersJdbcTemplate);
     }
 

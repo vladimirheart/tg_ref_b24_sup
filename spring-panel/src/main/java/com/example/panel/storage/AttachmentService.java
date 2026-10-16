@@ -60,7 +60,7 @@ public class AttachmentService {
                                                              String filename,
                                                              String rangeHeader) throws IOException {
         requireAuthority(authentication, "PAGE_DIALOGS");
-        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId) || !attachmentOwnerGuard.hasDirectOwner(ticketId, filename)) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId) || !attachmentOwnerGuard.hasDirectOwner(ticketId, filename)) {
             return ResponseEntity.notFound().build();
         }
         AttachmentObjectStorageService.StoredBinary binary = objectStorageService.openDialogAttachment(ticketId, filename);
@@ -76,7 +76,7 @@ public class AttachmentService {
                                                                    String rangeHeader) throws IOException {
         requireAuthority(authentication, "PAGE_DIALOGS");
         String storageKey = AttachmentStorageKeyResolver.extractAttachmentsSuffix(path);
-        if (!hasUniqueTicketForStorageKey(StringUtils.hasText(storageKey) ? storageKey : path)) {
+        if (!hasNonGeneralTicketForStorageKey(StringUtils.hasText(storageKey) ? storageKey : path)) {
             return ResponseEntity.notFound().build();
         }
         AttachmentObjectStorageService.StoredBinary binary = openByStoredPath(path);
@@ -93,7 +93,7 @@ public class AttachmentService {
                                                                          String storageKey,
                                                                          String rangeHeader) throws IOException {
         requireAuthority(authentication, "PAGE_DIALOGS");
-        if (!hasUniqueTicketForStorageKey(storageKey)) {
+        if (!hasNonGeneralTicketForStorageKey(storageKey)) {
             return ResponseEntity.notFound().build();
         }
         AttachmentObjectStorageService.StoredBinary binary = objectStorageService.openDialogAttachmentByStorageKey(storageKey);
@@ -544,6 +544,11 @@ public class AttachmentService {
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new SecurityException("Forbidden");
         }
+    }
+
+    private boolean hasNonGeneralTicketForStorageKey(String rawStorageKey) {
+        String owner = attachmentOwnerGuard.resolveUniqueOwner(rawStorageKey);
+        return owner != null && legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(owner);
     }
 
     private boolean hasUniqueTicketForStorageKey(String rawStorageKey) {

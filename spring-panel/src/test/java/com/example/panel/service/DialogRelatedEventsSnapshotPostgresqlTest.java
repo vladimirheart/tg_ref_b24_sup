@@ -35,7 +35,7 @@ class DialogRelatedEventsSnapshotPostgresqlTest {
     private Fixture fixture(String id, boolean audit, String source) {
         JdbcTemplate jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType("related_events_snapshot");
         jdbc.execute("""
-                CREATE TABLE tickets(user_id BIGINT NOT NULL,ticket_id VARCHAR(255) NOT NULL,
+                CREATE TABLE tickets(is_general BOOLEAN NOT NULL DEFAULT FALSE,user_id BIGINT NOT NULL,ticket_id VARCHAR(255) NOT NULL,
                     channel_id BIGINT,PRIMARY KEY(user_id,ticket_id),UNIQUE(ticket_id,channel_id))
                 """);
         jdbc.execute("""
@@ -72,7 +72,7 @@ class DialogRelatedEventsSnapshotPostgresqlTest {
     }
 
     private void ticket(JdbcTemplate jdbc, long user, String id, long channel) {
-        jdbc.update("INSERT INTO tickets VALUES (?,?,?)", user, id, channel);
+        jdbc.update("INSERT INTO tickets(user_id,ticket_id,channel_id) VALUES (?,?,?)", user, id, channel);
     }
 
     private void seed(JdbcTemplate jdbc, String id, String source, boolean audit, long offset) {
@@ -141,7 +141,7 @@ class DialogRelatedEventsSnapshotPostgresqlTest {
             invalidate(f, id, condition);
             boundary.set(snapshot(f));
             return unique;
-        }).when(f.guard()).hasUniqueTicket(id);
+        }).when(f.guard()).hasUniqueNonGeneralTicket(id);
         JdbcTemplate intercepted = spy(f.jdbc());
         AtomicInteger reads = new AtomicInteger();
         doAnswer(call -> {
@@ -430,7 +430,7 @@ class DialogRelatedEventsSnapshotPostgresqlTest {
             f.jdbc().update("UPDATE tickets SET user_id=99,channel_id=99 WHERE ticket_id=?", id);
             boundary.set(snapshot(f));
             return unique;
-        }).when(f.guard()).hasUniqueTicket(id);
+        }).when(f.guard()).hasUniqueNonGeneralTicket(id);
 
         var rows = service(f, f.jdbc()).loadRelatedEvents(id, 99);
 

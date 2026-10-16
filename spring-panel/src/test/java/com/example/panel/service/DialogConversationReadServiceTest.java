@@ -305,6 +305,11 @@ class DialogConversationReadServiceTest {
 
     @Test
     void previousHistoryFiltersUnsafeRowsBeforePaginationAndPreservesExactChildId() {
+        seedTicket("GENERAL-1", 77L, "2026-04-29T12:00:00Z");
+        seedMessage("GENERAL-1", 77L, "2026-04-29T12:00:00Z");
+        seedTicket("GENERAL-2", 77L, "2026-04-29T11:00:00Z");
+        seedMessage("GENERAL-2", 77L, "2026-04-29T11:00:00Z");
+        jdbcTemplate.update("UPDATE tickets SET is_general=TRUE WHERE ticket_id LIKE 'GENERAL-%'");
         seedTicket(" T-CURRENT ", 77L, "2026-04-30T10:00:00Z");
         seedMessage(" T-CURRENT ", 77L, "2026-04-30T10:00:00Z");
         seedTicket("T-CURRENT", 88L, "2026-04-30T10:00:00Z");
@@ -408,7 +413,7 @@ class DialogConversationReadServiceTest {
 
     private LegacyTicketIdJdbcGuard alwaysUniqueTicketGuard() {
         LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
-        when(legacyTicketIdJdbcGuard.hasUniqueTicket(anyString())).thenReturn(true);
+        when(legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(anyString())).thenReturn(true);
         return legacyTicketIdJdbcGuard;
     }
 
@@ -444,6 +449,7 @@ class DialogConversationReadServiceTest {
                 """);
         jdbcTemplate.execute("""
                 CREATE TABLE tickets (
+                    is_general BOOLEAN NOT NULL DEFAULT FALSE,
                     ticket_id TEXT,
                     user_id BIGINT NOT NULL DEFAULT 77,
                     status TEXT,

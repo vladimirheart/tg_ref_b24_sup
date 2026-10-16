@@ -9,6 +9,43 @@ import org.springframework.jdbc.core.JdbcTemplate;
 class LegacyTicketIdJdbcGuardTest {
 
     @Test
+    void legacyPanelExcludesGeneralWithoutReclassifyingUnresolvedOrHidingCollisions() {
+        JdbcTemplate jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplate("legacy_panel_scope_r118");
+        jdbc.execute("""
+                CREATE TABLE tickets(user_id BIGINT, ticket_id TEXT, business_id BIGINT,
+                    is_general BOOLEAN, PRIMARY KEY(user_id,ticket_id))
+                """);
+        jdbc.update("""
+                INSERT INTO tickets VALUES
+                  (1,'GENERAL',NULL,TRUE),(2,'BUSINESS',7,FALSE),(3,'UNRESOLVED',NULL,FALSE),
+                  (4,'COLLISION',7,FALSE),(5,'COLLISION',NULL,TRUE),
+                  (6,' T/Ю?&%+ ',NULL,FALSE),(7,'UNKNOWN',NULL,NULL)
+                """);
+        LegacyTicketIdJdbcGuard guard = new LegacyTicketIdJdbcGuard(jdbc);
+        assertThat(guard.hasUniqueTicket("GENERAL")).isTrue();
+        assertThat(guard.hasUniqueNonGeneralTicket("GENERAL")).isFalse();
+        assertThat(guard.hasUniqueNonGeneralTicket("BUSINESS")).isTrue();
+        assertThat(guard.hasUniqueNonGeneralTicket("UNRESOLVED")).isTrue();
+        assertThat(guard.hasUniqueNonGeneralTicket("COLLISION")).isFalse();
+        assertThat(guard.hasUniqueNonGeneralTicket(" T/Ю?&%+ ")).isTrue();
+        for (String id : new String[]{"T/Ю?&%+", "UNKNOWN", "ABSENT", " ", null}) {
+            assertThat(guard.hasUniqueNonGeneralTicket(id)).as("id=%s", id).isFalse();
+        }
+    }
+
+    @Test
+    void missingMarkerOrUnavailableDatabaseCannotAuthorizeLegacyPanel() {
+        JdbcTemplate jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplate("legacy_panel_missing_marker_r118");
+        jdbc.execute("CREATE TABLE tickets(ticket_id TEXT)");
+        jdbc.update("INSERT INTO tickets VALUES ('T')");
+        LegacyTicketIdJdbcGuard guard = new LegacyTicketIdJdbcGuard(jdbc);
+        assertThat(guard.hasUniqueNonGeneralTicket("T")).isFalse();
+        assertThat(guard.hasUniqueTicket("T")).isTrue();
+        jdbc.execute("DROP TABLE tickets");
+        assertThat(guard.hasUniqueNonGeneralTicket("T")).isFalse();
+    }
+
+    @Test
     void acceptsOnlyExactlyOneCandidate() {
         JdbcTemplate jdbcTemplate = PostgresqlJdbcTestSupport.freshJdbcTemplate("legacy_ticket_id_jdbc_guard");
         jdbcTemplate.execute("""

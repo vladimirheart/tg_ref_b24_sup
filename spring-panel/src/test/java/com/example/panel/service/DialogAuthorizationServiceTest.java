@@ -38,7 +38,7 @@ class DialogAuthorizationServiceTest {
 
     @Test
     void deniesAmbiguousTicketBeforeActionAudit() {
-        when(legacyTicketIdJdbcGuard.hasUniqueTicket("T-AMB")).thenReturn(false);
+        when(legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket("T-AMB")).thenReturn(false);
 
         ResponseEntity<Map<String, Object>> response = service.requirePermission(
                 authentication,
@@ -51,17 +51,17 @@ class DialogAuthorizationServiceTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(response.getBody()).containsEntry("success", false)
                 .containsEntry("error", "Диалог не найден");
-        verify(legacyTicketIdJdbcGuard).hasUniqueTicket("T-AMB");
+        verify(legacyTicketIdJdbcGuard).hasUniqueNonGeneralTicket("T-AMB");
         verifyNoInteractions(dialogAuditService);
     }
 
     @Test
     void permitsUniqueTicket() {
-        when(legacyTicketIdJdbcGuard.hasUniqueTicket("T-UNIQUE")).thenReturn(true);
+        when(legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket("T-UNIQUE")).thenReturn(true);
 
         assertThat(service.requirePermission(authentication, "can_reply", "reply", "T-UNIQUE")).isNull();
 
-        verify(legacyTicketIdJdbcGuard).hasUniqueTicket("T-UNIQUE");
+        verify(legacyTicketIdJdbcGuard).hasUniqueNonGeneralTicket("T-UNIQUE");
         verifyNoInteractions(dialogAuditService);
     }
 

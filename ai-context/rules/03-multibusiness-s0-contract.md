@@ -178,6 +178,17 @@ namespace дополнительно требуют однозначности l
 read-only контура не доказывает готовность legacy API, write paths, SSE,
 поиска/уведомлений и фоновых заданий; их изоляция остаётся gate до rollout.
 
+Основные legacy dialog reads (список/summary, карточка, история, предыдущие
+диалоги, участники и client context), ticket-bound `DialogAuthorizationService`
+и HTTP downloads `AttachmentService` исключают GENERAL независимо от flags
+очереди. `hasUniqueNonGeneralTicket` требует единственного raw-ID кандидата
+во всей таблице и явного `is_general=FALSE`. Сначала отфильтровать GENERAL,
+а затем считать уникальность нельзя: mixed-scope collision остаётся отказом.
+`business_id=NULL,is_general=FALSE` сохраняет legacy/unresolved поведение;
+этот guard не проверяет business membership и не заменяет strict scope.
+Внутренний `hasUniqueTicket` сохраняет проверку identity для ботов/background.
+READ grant GENERAL не открывает старые маршруты и write actions.
+
 Для канала только с общими обращениями `GENERAL_CHANNEL` включается отдельной
 записью `general_channel_question_template_bindings`: активный канал должен
 явно выбрать тот же ID вопросника, не иметь активных business bindings, а

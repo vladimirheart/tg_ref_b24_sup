@@ -44,6 +44,7 @@ public class DialogClientContextReadService {
                       FROM messages m
                       LEFT JOIN tickets t ON t.ticket_id = m.ticket_id
                      WHERE m.user_id = ?
+                       AND t.is_general = FALSE
                        AND 1 = (SELECT COUNT(*)
                                   FROM tickets unique_ticket
                                  WHERE unique_ticket.ticket_id = m.ticket_id)
@@ -87,6 +88,7 @@ public class DialogClientContextReadService {
                       FROM messages m
                       LEFT JOIN tickets t ON t.ticket_id = m.ticket_id
                      WHERE m.user_id = ?
+                       AND t.is_general = FALSE
                        AND 1 = (SELECT COUNT(*)
                                   FROM tickets unique_ticket
                                  WHERE unique_ticket.ticket_id = m.ticket_id)
@@ -168,7 +170,7 @@ public class DialogClientContextReadService {
     }
 
     public List<Map<String, Object>> loadRelatedEvents(String ticketId, int limit) {
-        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId) || limit <= 0) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId) || limit <= 0) {
             return List.of();
         }
         String eventOrderBy = timestampSqlSupport.orderByTimestampDesc("event_at") + ", COALESCE(sort_id, 0) DESC";

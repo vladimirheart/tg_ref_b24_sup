@@ -37,7 +37,7 @@ class DialogClientHistorySnapshotPostgresqlTest {
     private Fixture fixture(String id, long user) {
         JdbcTemplate jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType("client_history_snapshot");
         jdbc.execute("""
-                CREATE TABLE tickets(user_id BIGINT NOT NULL,ticket_id VARCHAR(255) NOT NULL,channel_id BIGINT,
+                CREATE TABLE tickets(is_general BOOLEAN NOT NULL DEFAULT FALSE,user_id BIGINT NOT NULL,ticket_id VARCHAR(255) NOT NULL,channel_id BIGINT,
                     status TEXT DEFAULT 'pending',created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     resolved_at TIMESTAMPTZ,PRIMARY KEY(user_id,ticket_id),UNIQUE(ticket_id,channel_id))
                 """);
@@ -51,7 +51,7 @@ class DialogClientHistorySnapshotPostgresqlTest {
     }
 
     private void ticket(JdbcTemplate jdbc, long user, String id, String status, OffsetDateTime created, OffsetDateTime resolved, long channel) {
-        jdbc.update("INSERT INTO tickets VALUES (?,?,?,?,?,?)", user,id,channel,status,created,resolved);
+        jdbc.update("INSERT INTO tickets(user_id,ticket_id,channel_id,status,created_at,resolved_at) VALUES (?,?,?,?,?,?)", user,id,channel,status,created,resolved);
     }
 
     private void message(JdbcTemplate jdbc, long group, Long user, String id, OffsetDateTime created, String problem) {

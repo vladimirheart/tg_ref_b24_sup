@@ -46,7 +46,7 @@ public class DialogConversationReadService {
     }
 
     public List<ChatMessageDto> loadHistory(String ticketId, Long channelId) {
-        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)) {
             return Collections.emptyList();
         }
         try {
@@ -181,7 +181,7 @@ public class DialogConversationReadService {
     }
 
     public Optional<DialogPreviousHistoryPage> loadPreviousDialogHistory(String ticketId, int offset) {
-        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId) || offset < 0) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId) || offset < 0) {
             return Optional.empty();
         }
         try {
@@ -210,9 +210,10 @@ public class DialogConversationReadService {
                      WHERE m.user_id = (
                             SELECT current_ticket.user_id
                               FROM tickets current_ticket
-                             WHERE current_ticket.ticket_id = ?
+                             WHERE current_ticket.ticket_id = ? AND current_ticket.is_general = FALSE
                         )
                        AND m.ticket_id <> ?
+                       AND t.is_general = FALSE
                        AND (SELECT COUNT(*) FROM tickets candidates
                              WHERE candidates.ticket_id = m.ticket_id) = 1
                      GROUP BY m.ticket_id, COALESCE(t.status, 'pending')
@@ -249,7 +250,7 @@ public class DialogConversationReadService {
     }
 
     public List<String> loadTicketCategories(String ticketId) {
-        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)) {
             return List.of();
         }
         try {

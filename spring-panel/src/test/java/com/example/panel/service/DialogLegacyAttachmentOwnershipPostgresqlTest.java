@@ -42,7 +42,7 @@ class DialogLegacyAttachmentOwnershipPostgresqlTest {
 
     private Fixture fixture(boolean failedOwnerLookup) throws Exception {
         JdbcTemplate jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplate("history_legacy_reference");
-        jdbc.execute("CREATE TABLE tickets(user_id BIGINT, ticket_id TEXT, PRIMARY KEY(user_id,ticket_id))");
+        jdbc.execute("CREATE TABLE tickets(is_general BOOLEAN NOT NULL DEFAULT FALSE,user_id BIGINT, ticket_id TEXT, PRIMARY KEY(user_id,ticket_id))");
         jdbc.execute("""
                 CREATE TABLE chat_history(
                     id BIGINT PRIMARY KEY, ticket_id TEXT, sender TEXT DEFAULT 'client',
@@ -79,7 +79,7 @@ class DialogLegacyAttachmentOwnershipPostgresqlTest {
     }
 
     private void ticket(Fixture fixture, long user, String owner) {
-        fixture.jdbc().update("INSERT INTO tickets VALUES (?,?)", user, owner);
+        fixture.jdbc().update("INSERT INTO tickets(user_id,ticket_id) VALUES (?,?)", user, owner);
     }
 
     private void history(Fixture fixture, long id, String owner, String reference, long channel) {

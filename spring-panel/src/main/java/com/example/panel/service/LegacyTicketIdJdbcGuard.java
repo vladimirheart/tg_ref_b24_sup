@@ -20,6 +20,27 @@ public class LegacyTicketIdJdbcGuard {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    /**
+     * Legacy panel routes do not authorize GENERAL. Count every raw-ID candidate
+     * before checking the explicit marker; a mixed-scope collision stays ambiguous.
+     * This is a compatibility boundary, not business membership authorization.
+     */
+    public boolean hasUniqueNonGeneralTicket(String ticketId) {
+        if (!StringUtils.hasText(ticketId)) {
+            return false;
+        }
+        try {
+            List<Boolean> candidates = jdbcTemplate.query(
+                "SELECT is_general FROM tickets WHERE ticket_id = ? LIMIT 2",
+                (rs, rowNum) -> rs.getObject("is_general", Boolean.class),
+                ticketId
+            );
+            return candidates.size() == 1 && Boolean.FALSE.equals(candidates.get(0));
+        } catch (DataAccessException ex) {
+            return false;
+        }
+    }
+
     public boolean hasUniqueTicket(String ticketId) {
         if (!StringUtils.hasText(ticketId)) {
             return false;
