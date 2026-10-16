@@ -31,10 +31,10 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
   и не клиент внешнего канала. Ручной путь использует отрицательный `user_id`,
   выделенный отдельной последовательностью; ноль недопустим. Новый `ticket`
   получает явный `business_id` до записи корня, без вывода из legacy текста.
-- В общем канале человек явно выбирает бизнес **до первого вопроса**.
+- В общем канале человек явно выбирает бизнес **или вариант «Без бизнеса» до первого вопроса**.
   `business_id` не выводится из названия локации, текста, последнего выбора
   оператора или факта привязки канала. Пока выбора нет, вопросник не начинается;
-  ответ должен сверяться с активными привязками канала, а выбранный ID
+  бизнес-ответ сверяется с активными привязками канала, а выбранный scope
   сохраняется с сессией/обращением и переносится через transport/replay.
 
 ## Свежий baseline и проверенные факты
@@ -108,10 +108,13 @@ business-role, но не system-admin capability.
 
 ### Tickets и дочерние записи
 
-- Canonical owner нового обращения — `tickets.business_id`; на этапе S1 поле
-  может быть nullable только ради legacy rows до контролируемого S2 assignment.
-  Для нового ticket отсутствие resolved business — отказ/ручная очередь, а не
-  запись с guessed default.
+- Бизнес-обращение имеет canonical owner `tickets.business_id`. `NULL` в этом
+  поле сам по себе означает только legacy/unresolved, но не подтверждённый
+  отказ от бизнес-привязки. Намеренно общее обращение имеет отдельный признак
+  `tickets.is_general=TRUE`, `business_id=NULL` и сохранённый источник
+  `USER_SELECTION` (общий канал) либо `GENERAL_CHANNEL` (явно настроенный
+  канал без бизнесов). Неопределённый scope нового ticket — отказ/ручная очередь,
+  а не запись с guessed default.
 - `messages.business` остаётся legacy display/compatibility metadata и не
   участвует в авторизации. Нельзя удалять или переписывать это поле в S1.
 - S2A фиксирует новый public route key как отдельный immutable
@@ -146,6 +149,17 @@ business-role, но не system-admin capability.
 создать управляемое `UNRESOLVED` состояние/ручное назначение и не начинать
 question flow. Business, template version и selection source сохраняются с
 ticket до конца retries, edits, feedback и replay.
+
+Вариант `GENERAL` — самостоятельный сценарий без бизнеса, а не разновидность
+`UNRESOLVED` или `GLOBAL_SYSTEM`. В общем канале он выбирается явно; в
+предварительно настроенном канале только для общих обращений выбор не нужен.
+Для него используется отдельный от
+business-scoped шаблон из canonical `bot_settings.question_templates`:
+произвольный набор вопросов, типов и порядок редактируются в редакторе
+вопросников; бизнес-локации и бизнес-presets не подмешиваются. В общем канале
+вариант «Без бизнеса» должен выбирать этот шаблон до первого вопроса.
+Персоналу такие обращения нужны в отдельной явно разрешённой очереди; grant
+`ALL_BUSINESSES` сам по себе не разрешает их читать или изменять.
 
 На S4 вводится business-scoped registry template bindings. Existing
 `question_template_id`, `rating_template_id`, `auto_action_template_id` и
@@ -182,9 +196,9 @@ requireSelectedBusiness(requested context, authenticated user)
   resolved business context, который сверяется с ticket/channel binding и
   сохраняется до outbox. Unknown context останавливает обработку.
 - У event/outbox/notification есть явный `scope_kind`:
-  `BUSINESS`, `GLOBAL_SYSTEM` или `UNRESOLVED`. `GLOBAL_SYSTEM` доставляется
-  только с отдельной system permission; `ALL_BUSINESSES` сам по себе её не
-  предоставляет.
+  `BUSINESS`, `GENERAL`, `GLOBAL_SYSTEM` или `UNRESOLVED`. `GENERAL` — намеренно
+  выбранное обращение без бизнеса, `GLOBAL_SYSTEM` — системные данные. Оба
+  требуют отдельного права; `ALL_BUSINESSES` сам по себе его не предоставляет.
 
 ## Legacy compatibility и decision table
 
@@ -193,7 +207,7 @@ requireSelectedBusiness(requested context, authenticated user)
 | Три непустых legacy aliases | Хранить исходный text; не normalise/assign автоматически | **PENDING:** approved alias → `business.code` map и ответственный за него |
 | Три пустых `messages.business` | `UNRESOLVED`, исключены из произвольного business list | **PENDING:** ручное назначение или permanent unresolved policy |
 | 3 history channel mismatch | owner берётся из ticket; исторический channel не переписывается | **PENDING:** классификация forwarding/error и правила отображения |
-| Mixed channels | Явный выбор бизнеса до первого вопроса; без выбора flow не запускается | **РЕШЕНО 2026-10-15:** explicit selection. **PENDING:** UX-представление и precedence для иных verified sources |
+| Mixed channels | Явный выбор бизнеса или «Без бизнеса» до первого вопроса; без выбора flow не запускается | **УТОЧНЕНО 2026-10-16:** general — отдельный scope, не unresolved. **PENDING:** UX-представление и precedence для иных verified sources |
 | 2 tasks без ticket link | `UNRESOLVED` либо `GLOBAL_SYSTEM`, не произвольный business | **PENDING:** policy и право на global Kanban |
 | 105 incidents / system notifications | Не получают business ID массово | **PENDING:** business/shared/global classification и отдельные permissions |
 | Existing ticket route | Legacy route доступен только в подтверждённом unique window | **РЕШЕНО S2A:** opaque immutable `ticket_public_id`; internal fallback — обязательный composite locator |

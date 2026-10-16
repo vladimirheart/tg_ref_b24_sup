@@ -381,6 +381,92 @@ class ConversationTicketCreationIngestionServiceTest {
     }
 
     @Test
+    void strictWritePersistsExplicitGeneralScopeWithoutBusiness() {
+        IntegrationInboundEventInboxService inbox = mock(IntegrationInboundEventInboxService.class);
+        ChannelRepository channels = mock(ChannelRepository.class);
+        MessageRepository messages = mock(MessageRepository.class);
+        TicketRepository tickets = mock(TicketRepository.class);
+        BusinessTicketWriteScopeResolver resolver = mock(BusinessTicketWriteScopeResolver.class);
+        ConversationTicketCreatedEvent event = generalEvent("USER_SELECTION", null);
+        ConversationTicketCreationIngestionService service = service(inbox, channels, messages, tickets,
+            strictFlags(), resolver);
+        Channel channel = new Channel();
+        channel.setId(25L);
+        channel.setActive(true);
+        when(inbox.beginProcessing(eq(event.eventId()), eq(event.eventKind()), eq(event.platform()),
+            eq(event.channelId()), eq(event.ticketId()), eq("integration.ticket.telegram"),
+            eq(event), eq(event.occurredAt()))).thenReturn(true);
+        when(channels.findById(25L)).thenReturn(Optional.of(channel));
+
+        service.ingest(event, "integration.ticket.telegram");
+
+        ArgumentCaptor<Ticket> captured = ArgumentCaptor.forClass(Ticket.class);
+        verify(tickets).save(captured.capture());
+        assertThat(captured.getValue().getBusinessId()).isNull();
+        assertThat(captured.getValue().isGeneral()).isTrue();
+        assertThat(captured.getValue().getGeneralSelectionSource()).isEqualTo("USER_SELECTION");
+        ArgumentCaptor<Message> root = ArgumentCaptor.forClass(Message.class);
+        verify(messages).save(root.capture());
+        assertThat(root.getValue().getBusiness()).isNull();
+        verify(resolver, never()).requireSingleBusinessBinding(any(), any());
+        verify(inbox).markProcessed(event.eventId());
+    }
+
+    @Test
+    void strictWriteRejectsGeneralWithoutExplicitSelectionOrWithBusinessId() {
+        for (ConversationTicketCreatedEvent event : List.of(
+            generalEvent(null, null), generalEvent("USER_SELECTION", 51L))) {
+            IntegrationInboundEventInboxService inbox = mock(IntegrationInboundEventInboxService.class);
+            ChannelRepository channels = mock(ChannelRepository.class);
+            MessageRepository messages = mock(MessageRepository.class);
+            TicketRepository tickets = mock(TicketRepository.class);
+            ConversationTicketCreationIngestionService service = service(inbox, channels, messages, tickets,
+                strictFlags(), mock(BusinessTicketWriteScopeResolver.class));
+            Channel channel = new Channel();
+            channel.setId(25L);
+            channel.setActive(true);
+            when(inbox.beginProcessing(eq(event.eventId()), eq(event.eventKind()), eq(event.platform()),
+                eq(event.channelId()), eq(event.ticketId()), eq("integration.ticket.telegram"),
+                eq(event), eq(event.occurredAt()))).thenReturn(true);
+            when(channels.findById(25L)).thenReturn(Optional.of(channel));
+
+            assertThatThrownBy(() -> service.ingest(event, "integration.ticket.telegram"))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("explicit user selection");
+            verify(messages, never()).save(any());
+            verify(tickets, never()).save(any());
+        }
+    }
+
+    @Test
+    void strictReplayRejectsGeneralEventAgainstLegacyUnresolvedTicket() {
+        IntegrationInboundEventInboxService inbox = mock(IntegrationInboundEventInboxService.class);
+        ChannelRepository channels = mock(ChannelRepository.class);
+        MessageRepository messages = mock(MessageRepository.class);
+        TicketRepository tickets = mock(TicketRepository.class);
+        ConversationTicketCreatedEvent event = generalEvent("USER_SELECTION", null);
+        ConversationTicketCreationIngestionService service = service(inbox, channels, messages, tickets,
+            strictFlags(), mock(BusinessTicketWriteScopeResolver.class));
+        Channel channel = new Channel();
+        channel.setId(25L);
+        Ticket existing = new Ticket();
+        existing.setChannel(channel);
+        TicketId locator = new TicketId();
+        locator.setUserId(event.userId());
+        locator.setTicketId(event.ticketId());
+        when(inbox.beginProcessing(eq(event.eventId()), eq(event.eventKind()), eq(event.platform()),
+            eq(event.channelId()), eq(event.ticketId()), eq("integration.ticket.telegram"),
+            eq(event), eq(event.occurredAt()))).thenReturn(true);
+        when(channels.findById(25L)).thenReturn(Optional.of(channel));
+        when(tickets.existsById(locator)).thenReturn(true);
+        when(tickets.findById(locator)).thenReturn(Optional.of(existing));
+
+        assertThatThrownBy(() -> service.ingest(event, "integration.ticket.telegram"))
+            .isInstanceOf(IllegalStateException.class).hasMessageContaining("replay business or channel mismatch");
+        verify(messages, never()).save(any());
+        verify(tickets, never()).save(any());
+    }
+
+    @Test
     void strictWriteCannotRunWithoutFoundation() {
         IntegrationInboundEventInboxService inbox = mock(IntegrationInboundEventInboxService.class);
         ChannelRepository channels = mock(ChannelRepository.class);
@@ -518,10 +604,13 @@ class ConversationTicketCreationIngestionServiceTest {
         ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
         ObjectNode oldPayload = (ObjectNode) mapper.valueToTree(minimalEvent("evt-old", 901L, "T-OLD"));
         oldPayload.remove("businessId");
+        oldPayload.remove("scopeKind");
+        oldPayload.remove("scopeSelectionSource");
 
         ConversationTicketCreatedEvent restored = mapper.treeToValue(oldPayload, ConversationTicketCreatedEvent.class);
 
         assertThat(restored.businessId()).isNull();
+        assertThat(restored.scopeKind()).isNull();
         assertThat(restored.ticketId()).isEqualTo("T-OLD");
         assertThat(mapper.treeToValue(mapper.valueToTree(eventWithBusinessId(51L)),
             ConversationTicketCreatedEvent.class).businessId()).isEqualTo(51L);
@@ -545,6 +634,15 @@ class ConversationTicketCreationIngestionServiceTest {
             event.channelId(), event.ticketId(), event.userId(), event.userIdentity(), event.username(),
             event.clientName(), event.business(), event.locationType(), event.city(), event.locationName(),
             event.problem(), event.occurredAt(), event.attributes(), event.historyEntries(), businessId);
+    }
+
+    private ConversationTicketCreatedEvent generalEvent(String source, Long businessId) {
+        ConversationTicketCreatedEvent event = minimalEvent("evt-general", 901L, "T-GENERAL");
+        return new ConversationTicketCreatedEvent(event.eventId(), event.eventKind(), event.platform(),
+            event.channelId(), event.ticketId(), event.userId(), event.userIdentity(), event.username(),
+            event.clientName(), event.business(), event.locationType(), event.city(), event.locationName(),
+            event.problem(), event.occurredAt(), event.attributes(), event.historyEntries(), businessId,
+            "GENERAL", source);
     }
 
     private MultibusinessFeatureFlags strictFlags() {

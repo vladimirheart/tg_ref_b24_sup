@@ -106,6 +106,9 @@ public class ConversationTicketCreationIngestionService {
         canonicalLocator.setUserId(event.userId());
         canonicalLocator.setTicketId(event.ticketId());
         boolean strictBusinessWrite = multibusinessFeatureFlags.isTicketWriteRequiresBusiness();
+        if (!strictBusinessWrite && "GENERAL".equals(event.scopeKind())) {
+            throw new IllegalStateException("General ticket scope requires strict ticket writes");
+        }
         if (strictBusinessWrite && !multibusinessFeatureFlags.isFoundationEnabled()) {
             throw new IllegalStateException("Business ticket writes require the multibusiness foundation");
         }
@@ -115,8 +118,15 @@ public class ConversationTicketCreationIngestionService {
                 Ticket existing = ticketRepository.findById(canonicalLocator)
                     .orElseThrow(() -> new IllegalStateException("Ticket creation replay lost its existing ticket"));
                 Long existingChannelId = existing.getChannel() != null ? existing.getChannel().getId() : null;
-                if (event.businessId() == null || event.businessId() <= 0
+                boolean generalReplay = isExplicitGeneral(event);
+                boolean businessReplay = (event.scopeKind() == null || "BUSINESS".equals(event.scopeKind()))
+                    && event.scopeSelectionSource() == null
+                    && event.businessId() != null && event.businessId() > 0;
+                if ((!generalReplay && !businessReplay)
+                    || existing.isGeneral() != generalReplay
                     || !Objects.equals(existing.getBusinessId(), event.businessId())
+                    || (generalReplay && !Objects.equals(existing.getGeneralSelectionSource(),
+                        event.scopeSelectionSource()))
                     || !Objects.equals(existingChannelId, event.channelId())) {
                     throw new IllegalStateException("Ticket creation replay business or channel mismatch");
                 }
@@ -130,18 +140,32 @@ public class ConversationTicketCreationIngestionService {
         }
 
         Long businessId = null;
+        boolean general = false;
         if (strictBusinessWrite) {
-            businessId = businessTicketWriteScopeResolver.requireSingleBusinessBinding(
-                event.channelId(), event.businessId());
+            if ("GENERAL".equals(event.scopeKind())) {
+                if (!isExplicitGeneral(event) || !Boolean.TRUE.equals(channel.getActive())) {
+                    throw new IllegalStateException("General ticket requires explicit user selection and active channel");
+                }
+                general = true;
+            } else {
+                if (event.scopeKind() != null && !"BUSINESS".equals(event.scopeKind())) {
+                    throw new IllegalStateException("Unsupported ticket scope kind");
+                }
+                if (event.scopeSelectionSource() != null) {
+                    throw new IllegalStateException("Unexpected business scope selection source");
+                }
+                businessId = businessTicketWriteScopeResolver.requireSingleBusinessBinding(
+                    event.channelId(), event.businessId());
+            }
         }
 
         OffsetDateTime occurredAt = event.occurredAt() != null ? event.occurredAt() : OffsetDateTime.now();
         long groupMessageId = nextGroupMessageId();
 
-        Message message = buildRootMessage(event, channel, occurredAt, groupMessageId);
+        Message message = buildRootMessage(event, channel, occurredAt, groupMessageId, general);
         messageRepository.save(message);
 
-        Ticket ticket = buildTicket(event, channel, groupMessageId, occurredAt, businessId);
+        Ticket ticket = buildTicket(event, channel, groupMessageId, occurredAt, businessId, general);
         ticketRepository.save(ticket);
 
         TicketSpan span = new TicketSpan();
@@ -163,11 +187,12 @@ public class ConversationTicketCreationIngestionService {
     private Message buildRootMessage(ConversationTicketCreatedEvent event,
                                      Channel channel,
                                      OffsetDateTime occurredAt,
-                                     long groupMessageId) {
+                                     long groupMessageId,
+                                     boolean general) {
         Message message = new Message();
         message.setId(groupMessageId);
         message.setUserId(event.userId());
-        message.setBusiness(event.business());
+        message.setBusiness(general ? null : event.business());
         message.setLocationType(event.locationType());
         message.setCity(event.city());
         message.setLocationName(event.locationName());
@@ -186,7 +211,8 @@ public class ConversationTicketCreationIngestionService {
                                Channel channel,
                                long groupMessageId,
                                OffsetDateTime occurredAt,
-                               Long businessId) {
+                               Long businessId,
+                               boolean general) {
         Ticket ticket = new Ticket();
         TicketId id = new TicketId();
         id.setUserId(event.userId());
@@ -196,11 +222,19 @@ public class ConversationTicketCreationIngestionService {
         ticket.setStatus("open");
         ticket.setChannel(channel);
         ticket.setBusinessId(businessId);
+        ticket.setGeneral(general);
+        ticket.setGeneralSelectionSource(general ? event.scopeSelectionSource() : null);
         ticket.setReopenCount(0);
         ticket.setClosedCount(0);
         ticket.setWorkTimeTotalSec(0L);
         ticket.setLastReopenAt(occurredAt);
         return ticket;
+    }
+
+    private boolean isExplicitGeneral(ConversationTicketCreatedEvent event) {
+        return "GENERAL".equals(event.scopeKind())
+            && event.businessId() == null
+            && "USER_SELECTION".equals(event.scopeSelectionSource());
     }
 
     private void replaceTicketAttributes(String ticketId,

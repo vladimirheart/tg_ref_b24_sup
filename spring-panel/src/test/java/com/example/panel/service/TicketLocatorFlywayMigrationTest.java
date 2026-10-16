@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TicketLocatorFlywayMigrationTest {
 
@@ -27,6 +28,18 @@ class TicketLocatorFlywayMigrationTest {
                 "SELECT COUNT(*) FROM flyway_schema_history WHERE version = '54' AND success = TRUE",
                 Integer.class
         )).isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM flyway_schema_history WHERE version = '56' AND success = TRUE",
+                Integer.class
+        )).isEqualTo(1);
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id) VALUES (901, 'legacy-unresolved')");
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id, is_general, general_selection_source) "
+                + "VALUES (902, 'general-selected', TRUE, 'USER_SELECTION')");
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id, is_general, general_selection_source) "
+                + "VALUES (903, 'general-channel', TRUE, 'GENERAL_CHANNEL')");
+        assertThatThrownBy(() -> jdbc.update("INSERT INTO tickets(user_id, ticket_id, is_general) "
+                + "VALUES (904, 'not-selected', TRUE)"))
+                .hasMessageContaining("chk_tickets_general_scope");
         assertThat(jdbc.queryForObject(
                 "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() "
                         + "AND table_name = 'manual_business_clients'",

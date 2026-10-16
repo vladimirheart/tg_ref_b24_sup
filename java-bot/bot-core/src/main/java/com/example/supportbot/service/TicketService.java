@@ -180,8 +180,9 @@ public class TicketService {
             );
             return new TicketCreationResult(ticketId, null, queued ? "queued" : "duplicate");
         }
-        if (command.businessId() != null) {
-            throw new IllegalStateException("Direct ticket storage cannot persist a canonical business owner");
+        if (command.businessId() != null || command.scopeKind() != null
+            || command.scopeSelectionSource() != null) {
+            throw new IllegalStateException("Direct ticket storage cannot persist a canonical ticket scope");
         }
         TicketCreationResult created = createTicketDirect(
             command.userId(),

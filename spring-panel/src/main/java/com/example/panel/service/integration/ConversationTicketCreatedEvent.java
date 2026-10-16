@@ -20,7 +20,21 @@ public record ConversationTicketCreatedEvent(String eventId,
                                              OffsetDateTime occurredAt,
                                              List<TicketAttributePayload> attributes,
                                              List<ConversationHistoryEntryPayload> historyEntries,
-                                             Long businessId) {
+                                             Long businessId,
+                                             String scopeKind,
+                                             String scopeSelectionSource) {
+
+    public ConversationTicketCreatedEvent(String eventId, String eventKind, String platform,
+                                          Long channelId, String ticketId, Long userId,
+                                          String userIdentity, String username, String clientName,
+                                          String business, String locationType, String city,
+                                          String locationName, String problem, OffsetDateTime occurredAt,
+                                          List<TicketAttributePayload> attributes,
+                                          List<ConversationHistoryEntryPayload> historyEntries, Long businessId) {
+        this(eventId, eventKind, platform, channelId, ticketId, userId, userIdentity,
+            username, clientName, business, locationType, city, locationName, problem,
+            occurredAt, attributes, historyEntries, businessId, null, null);
+    }
 
     /** Existing producers omit the canonical owner until they can supply a verified ID. */
     public ConversationTicketCreatedEvent(String eventId, String eventKind, String platform,
@@ -32,7 +46,7 @@ public record ConversationTicketCreatedEvent(String eventId,
                                           List<ConversationHistoryEntryPayload> historyEntries) {
         this(eventId, eventKind, platform, channelId, ticketId, userId, userIdentity,
             username, clientName, business, locationType, city, locationName, problem,
-            occurredAt, attributes, historyEntries, null);
+            occurredAt, attributes, historyEntries, null, null, null);
     }
 
     public record TicketAttributePayload(String questionId,

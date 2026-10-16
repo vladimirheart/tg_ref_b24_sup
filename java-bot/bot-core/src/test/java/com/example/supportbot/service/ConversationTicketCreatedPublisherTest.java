@@ -33,16 +33,24 @@ class ConversationTicketCreatedPublisherTest {
         ConversationTicketCreationCommand legacy = new ConversationTicketCreationCommand(
             901L, "tg-901", "client", "Client", Map.of("problem", "Help"), List.of(), List.of(),
             channel, startedAt, "message:901:2");
+        ConversationTicketCreationCommand general = new ConversationTicketCreationCommand(
+            901L, "tg-901", "client", "Client", Map.of("problem", "Help"), List.of(), List.of(),
+            channel, startedAt, "message:901:3", null, "GENERAL", "USER_SELECTION");
 
         assertThat(publisher.publish(scoped, "T-1", "Legacy", "", "", "", "Help")).isTrue();
         assertThat(publisher.publish(legacy, "T-2", "Legacy", "", "", "", "Help")).isTrue();
+        assertThat(publisher.publish(general, "T-3", "", "", "", "", "Help")).isTrue();
 
         ArgumentCaptor<ConversationTicketCreatedEvent> events =
             ArgumentCaptor.forClass(ConversationTicketCreatedEvent.class);
-        verify(outbox, times(2)).enqueueConversationTicketCreated(events.capture(), any());
+        verify(outbox, times(3)).enqueueConversationTicketCreated(events.capture(), any());
         assertThat(events.getAllValues()).extracting(ConversationTicketCreatedEvent::businessId)
-            .containsExactly(51L, null);
+            .containsExactly(51L, null, null);
         assertThat(events.getAllValues()).extracting(ConversationTicketCreatedEvent::business)
-            .containsExactly("Legacy", "Legacy");
+            .containsExactly("Legacy", "Legacy", "");
+        assertThat(events.getAllValues()).extracting(ConversationTicketCreatedEvent::scopeKind)
+            .containsExactly(null, null, "GENERAL");
+        assertThat(events.getAllValues()).extracting(ConversationTicketCreatedEvent::scopeSelectionSource)
+            .containsExactly(null, null, "USER_SELECTION");
     }
 }

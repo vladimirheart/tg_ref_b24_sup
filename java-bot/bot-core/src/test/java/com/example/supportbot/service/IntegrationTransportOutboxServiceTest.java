@@ -199,7 +199,8 @@ class IntegrationTransportOutboxServiceTest {
 
         assertThat(service.enqueueConversationTicketCreated(event, properties)).isTrue();
         jdbcTemplate.update("UPDATE integration_transport_outbox "
-            + "SET payload_json = (payload_json::jsonb - 'businessId')::text WHERE event_id = ?", event.eventId());
+            + "SET payload_json = (payload_json::jsonb - 'businessId' - 'scopeKind' "
+            + "- 'scopeSelectionSource')::text WHERE event_id = ?", event.eventId());
         assertThat(service.enqueueConversationTicketCreated(event, properties)).isFalse();
         assertThat(jdbcTemplate.queryForObject(
             "SELECT COUNT(*) FROM integration_transport_outbox WHERE event_id = ?",
@@ -238,6 +239,33 @@ class IntegrationTransportOutboxServiceTest {
         assertThat(jdbcTemplate.queryForObject(
             "SELECT payload_json::jsonb ->> 'businessId' FROM integration_transport_outbox WHERE event_id = ?",
             String.class, original.eventId())).isEqualTo("51");
+    }
+
+    @Test
+    void duplicateGeneralTicketCannotBecomeUnresolvedOrChangeSelectionSource() {
+        ConversationTicketCreatedEvent original = new ConversationTicketCreatedEvent(
+            "frozen-general-event", "ticket.created.initial_contact", "telegram", 10L,
+            "T-GENERAL", 20L, "u20", "tester", "Test User", "", "", "", "",
+            "problem", OffsetDateTime.parse("2026-10-16T10:00:00Z"), List.of(), List.of(),
+            null, "GENERAL", "USER_SELECTION");
+        assertThat(service.enqueueConversationTicketCreated(original, properties)).isTrue();
+        ConversationTicketCreatedEvent unresolved = new ConversationTicketCreatedEvent(
+            original.eventId(), original.eventKind(), original.platform(), original.channelId(),
+            original.ticketId(), original.userId(), original.userIdentity(), original.username(),
+            original.clientName(), original.business(), original.locationType(), original.city(),
+            original.locationName(), original.problem(), original.occurredAt(),
+            original.attributes(), original.historyEntries());
+        ConversationTicketCreatedEvent wrongSource = new ConversationTicketCreatedEvent(
+            original.eventId(), original.eventKind(), original.platform(), original.channelId(),
+            original.ticketId(), original.userId(), original.userIdentity(), original.username(),
+            original.clientName(), original.business(), original.locationType(), original.city(),
+            original.locationName(), original.problem(), original.occurredAt(),
+            original.attributes(), original.historyEntries(), null, "GENERAL", "CHANNEL_DEFAULT");
+
+        assertThatThrownBy(() -> service.enqueueConversationTicketCreated(unresolved, properties))
+            .isInstanceOf(IllegalStateException.class).hasMessageContaining("identity or business mismatch");
+        assertThatThrownBy(() -> service.enqueueConversationTicketCreated(wrongSource, properties))
+            .isInstanceOf(IllegalStateException.class).hasMessageContaining("identity or business mismatch");
     }
 
     @Test

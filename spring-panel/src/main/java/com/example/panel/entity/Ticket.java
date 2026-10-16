@@ -31,6 +31,13 @@ public class Ticket {
     @Column(name = "business_id")
     private Long businessId;
 
+    /** Explicit business-free choice; false with NULL businessId is legacy/unresolved. */
+    @Column(name = "is_general", nullable = false)
+    private boolean general;
+
+    @Column(name = "general_selection_source", length = 32)
+    private String generalSelectionSource;
+
     private String status;
 
     private OffsetDateTime resolvedAt;
@@ -79,6 +86,22 @@ public class Ticket {
 
     public void setBusinessId(Long businessId) {
         this.businessId = businessId;
+    }
+
+    public boolean isGeneral() {
+        return general;
+    }
+
+    public void setGeneral(boolean general) {
+        this.general = general;
+    }
+
+    public String getGeneralSelectionSource() {
+        return generalSelectionSource;
+    }
+
+    public void setGeneralSelectionSource(String generalSelectionSource) {
+        this.generalSelectionSource = generalSelectionSource;
     }
 
     @PrePersist

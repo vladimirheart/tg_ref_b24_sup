@@ -141,6 +141,30 @@ class IntegrationInboundEventInboxServiceTest {
     }
 
     @Test
+    void processedGeneralTicketCannotLoseItsExplicitScopeOnReplay() {
+        JdbcTemplate jdbc = jdbcTemplate();
+        createSchema(jdbc);
+        IntegrationInboundEventInboxService service = new IntegrationInboundEventInboxService(
+            jdbc, new ObjectMapper().findAndRegisterModules());
+        ConversationTicketCreatedEvent base = ticketEvent("evt-general-frozen", null);
+        ConversationTicketCreatedEvent general = new ConversationTicketCreatedEvent(
+            base.eventId(), base.eventKind(), base.platform(), base.channelId(), base.ticketId(),
+            base.userId(), base.userIdentity(), base.username(), base.clientName(), base.business(),
+            base.locationType(), base.city(), base.locationName(), base.problem(), base.occurredAt(),
+            base.attributes(), base.historyEntries(), null, "GENERAL", "USER_SELECTION");
+        assertThat(service.beginProcessing(general.eventId(), general.eventKind(), general.platform(),
+            general.channelId(), general.ticketId(), "routing", general, null)).isTrue();
+        service.markProcessed(general.eventId());
+
+        assertThatThrownBy(() -> service.beginProcessing(base.eventId(), base.eventKind(),
+            base.platform(), base.channelId(), base.ticketId(), "routing", base, null))
+            .isInstanceOf(IllegalStateException.class).hasMessageContaining("identity or business mismatch");
+        assertThat(jdbc.queryForObject(
+            "SELECT payload_json::jsonb ->> 'scopeKind' FROM integration_inbound_event_inbox WHERE event_id = ?",
+            String.class, general.eventId())).isEqualTo("GENERAL");
+    }
+
+    @Test
     void oldTicketCreationPayloadWithoutBusinessIdRemainsIdempotent() {
         JdbcTemplate jdbc = jdbcTemplate();
         createSchema(jdbc);
@@ -151,7 +175,8 @@ class IntegrationInboundEventInboxServiceTest {
             old.channelId(), old.ticketId(), "routing", old, null)).isTrue();
         service.markProcessed(old.eventId());
         jdbc.update("UPDATE integration_inbound_event_inbox "
-            + "SET payload_json = (payload_json::jsonb - 'businessId')::text WHERE event_id = ?", old.eventId());
+            + "SET payload_json = (payload_json::jsonb - 'businessId' - 'scopeKind' "
+            + "- 'scopeSelectionSource')::text WHERE event_id = ?", old.eventId());
 
         assertThat(service.beginProcessing(old.eventId(), old.eventKind(), old.platform(),
             old.channelId(), old.ticketId(), "routing", old, null)).isFalse();

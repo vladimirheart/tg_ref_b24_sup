@@ -5,7 +5,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 
-/** Canonical businessId is supplied only by an explicit, verified upstream resolver. */
+/** A general scope is explicit; a missing businessId alone remains unresolved. */
 public record ConversationTicketCreationCommand(Long userId,
                                                 String userIdentity,
                                                 String username,
@@ -16,7 +16,18 @@ public record ConversationTicketCreationCommand(Long userId,
                                                 Channel channel,
                                                 OffsetDateTime startedAt,
                                                 String providerEventKey,
-                                                Long businessId) {
+                                                Long businessId,
+                                                String scopeKind,
+                                                String scopeSelectionSource) {
+
+    public ConversationTicketCreationCommand(Long userId, String userIdentity, String username,
+                                             String clientName, Map<String, String> answers,
+                                             List<TicketService.TicketAttributeInput> attributes,
+                                             List<ConversationHistoryEntry> historyEntries, Channel channel,
+                                             OffsetDateTime startedAt, String providerEventKey, Long businessId) {
+        this(userId, userIdentity, username, clientName, answers, attributes, historyEntries,
+            channel, startedAt, providerEventKey, businessId, null, null);
+    }
 
     public ConversationTicketCreationCommand(Long userId, String userIdentity, String username,
                                              String clientName, Map<String, String> answers,
@@ -24,7 +35,7 @@ public record ConversationTicketCreationCommand(Long userId,
                                              List<ConversationHistoryEntry> historyEntries, Channel channel,
                                              OffsetDateTime startedAt, String providerEventKey) {
         this(userId, userIdentity, username, clientName, answers, attributes, historyEntries,
-            channel, startedAt, providerEventKey, null);
+            channel, startedAt, providerEventKey, null, null, null);
     }
 
     public ConversationTicketCreationCommand(Long userId,
@@ -37,6 +48,6 @@ public record ConversationTicketCreationCommand(Long userId,
                                              Channel channel,
                                              OffsetDateTime startedAt) {
         this(userId, userIdentity, username, clientName, answers, attributes, historyEntries,
-            channel, startedAt, null, null);
+            channel, startedAt, null, null, null, null);
     }
 }
