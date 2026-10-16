@@ -25,6 +25,7 @@ import com.example.panel.repository.TicketActiveRepository;
 import com.example.panel.repository.TicketRepository;
 import com.example.panel.repository.TicketSpanRepository;
 import com.example.panel.service.ChatAttachmentMetadataService;
+import com.example.panel.service.GeneralChannelQuestionTemplateService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.time.OffsetDateTime;
@@ -61,7 +62,8 @@ class ConversationTicketCreationIngestionServiceTest {
             attachmentMetadataService,
             jdbcTemplate,
             disabledFlags(),
-            mock(BusinessTicketWriteScopeResolver.class)
+            mock(BusinessTicketWriteScopeResolver.class),
+            mock(GeneralChannelQuestionTemplateService.class)
         );
 
         OffsetDateTime occurredAt = OffsetDateTime.parse("2026-08-14T11:00:00Z");
@@ -208,7 +210,8 @@ class ConversationTicketCreationIngestionServiceTest {
             inboxService, mock(LegacyTicketIdConcurrencyGuard.class), channelRepository, messageRepository, ticketRepository,
             mock(TicketSpanRepository.class), mock(TicketActiveRepository.class),
             mock(ChatHistoryRepository.class), mock(ChatAttachmentMetadataService.class),
-            mock(JdbcTemplate.class), disabledFlags(), mock(BusinessTicketWriteScopeResolver.class)
+            mock(JdbcTemplate.class), disabledFlags(), mock(BusinessTicketWriteScopeResolver.class),
+            mock(GeneralChannelQuestionTemplateService.class)
         );
         ConversationTicketCreatedEvent event = minimalEvent("evt-same-owner", 901L, "T-RABBIT-SAME");
         Channel channel = new Channel();
@@ -243,7 +246,8 @@ class ConversationTicketCreationIngestionServiceTest {
             inboxService, mock(LegacyTicketIdConcurrencyGuard.class), channelRepository, messageRepository, ticketRepository,
             mock(TicketSpanRepository.class), mock(TicketActiveRepository.class),
             mock(ChatHistoryRepository.class), mock(ChatAttachmentMetadataService.class),
-            mock(JdbcTemplate.class), disabledFlags(), mock(BusinessTicketWriteScopeResolver.class)
+            mock(JdbcTemplate.class), disabledFlags(), mock(BusinessTicketWriteScopeResolver.class),
+            mock(GeneralChannelQuestionTemplateService.class)
         );
         ConversationTicketCreatedEvent event = minimalEvent("evt-other-owner", 902L, "T-RABBIT-COLLISION");
         Channel channel = new Channel();
@@ -286,7 +290,8 @@ class ConversationTicketCreationIngestionServiceTest {
             mock(ChatAttachmentMetadataService.class),
             mock(JdbcTemplate.class),
             disabledFlags(),
-            mock(BusinessTicketWriteScopeResolver.class)
+            mock(BusinessTicketWriteScopeResolver.class),
+            mock(GeneralChannelQuestionTemplateService.class)
         );
         ConversationTicketCreatedEvent event = new ConversationTicketCreatedEvent(
             "evt-ticket-dup",
@@ -431,7 +436,68 @@ class ConversationTicketCreationIngestionServiceTest {
             when(channels.findById(25L)).thenReturn(Optional.of(channel));
 
             assertThatThrownBy(() -> service.ingest(event, "integration.ticket.telegram"))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("explicit user selection");
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("verified scope");
+            verify(messages, never()).save(any());
+            verify(tickets, never()).save(any());
+        }
+    }
+
+    @Test
+    void strictWriteAcceptsConfiguredGeneralOnlyChannel() {
+        IntegrationInboundEventInboxService inbox = mock(IntegrationInboundEventInboxService.class);
+        ChannelRepository channels = mock(ChannelRepository.class);
+        MessageRepository messages = mock(MessageRepository.class);
+        TicketRepository tickets = mock(TicketRepository.class);
+        GeneralChannelQuestionTemplateService generalTemplates = mock(GeneralChannelQuestionTemplateService.class);
+        MultibusinessFeatureFlags flags = strictFlags();
+        flags.setGeneralChannelResolution(true);
+        ConversationTicketCreatedEvent event = generalEvent("GENERAL_CHANNEL", null);
+        ConversationTicketCreationIngestionService service = service(inbox, channels, messages, tickets,
+            flags, mock(BusinessTicketWriteScopeResolver.class), generalTemplates);
+        Channel channel = new Channel();
+        channel.setId(25L);
+        channel.setActive(true);
+        when(inbox.beginProcessing(eq(event.eventId()), eq(event.eventKind()), eq(event.platform()),
+            eq(event.channelId()), eq(event.ticketId()), eq("integration.ticket.telegram"),
+            eq(event), eq(event.occurredAt()))).thenReturn(true);
+        when(channels.findById(25L)).thenReturn(Optional.of(channel));
+        when(generalTemplates.resolve(25L)).thenReturn(Optional.of(
+            new GeneralChannelQuestionTemplateService.RuntimeConfig(25L, "GENERAL", "GENERAL_CHANNEL",
+                "q-general", "a".repeat(64), java.util.Map.of(), java.util.Map.of(), java.util.Map.of())));
+
+        service.ingest(event, "integration.ticket.telegram");
+
+        ArgumentCaptor<Ticket> captured = ArgumentCaptor.forClass(Ticket.class);
+        verify(tickets).save(captured.capture());
+        assertThat(captured.getValue().isGeneral()).isTrue();
+        assertThat(captured.getValue().getGeneralSelectionSource()).isEqualTo("GENERAL_CHANNEL");
+        verify(generalTemplates).resolve(25L);
+        verify(inbox).markProcessed(event.eventId());
+    }
+
+    @Test
+    void strictWriteRejectsGeneralChannelWithoutFlagOrVerifiedBinding() {
+        for (boolean enabled : new boolean[] {false, true}) {
+            IntegrationInboundEventInboxService inbox = mock(IntegrationInboundEventInboxService.class);
+            ChannelRepository channels = mock(ChannelRepository.class);
+            MessageRepository messages = mock(MessageRepository.class);
+            TicketRepository tickets = mock(TicketRepository.class);
+            GeneralChannelQuestionTemplateService generalTemplates = mock(GeneralChannelQuestionTemplateService.class);
+            MultibusinessFeatureFlags flags = strictFlags();
+            flags.setGeneralChannelResolution(enabled);
+            ConversationTicketCreatedEvent event = generalEvent("GENERAL_CHANNEL", null);
+            ConversationTicketCreationIngestionService service = service(inbox, channels, messages, tickets,
+                flags, mock(BusinessTicketWriteScopeResolver.class), generalTemplates);
+            Channel channel = new Channel();
+            channel.setId(25L);
+            channel.setActive(true);
+            when(inbox.beginProcessing(eq(event.eventId()), eq(event.eventKind()), eq(event.platform()),
+                eq(event.channelId()), eq(event.ticketId()), eq("integration.ticket.telegram"),
+                eq(event), eq(event.occurredAt()))).thenReturn(true);
+            when(channels.findById(25L)).thenReturn(Optional.of(channel));
+
+            assertThatThrownBy(() -> service.ingest(event, "integration.ticket.telegram"))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("not verified");
             verify(messages, never()).save(any());
             verify(tickets, never()).save(any());
         }
@@ -622,10 +688,21 @@ class ConversationTicketCreationIngestionServiceTest {
                                                                TicketRepository tickets,
                                                                MultibusinessFeatureFlags flags,
                                                                BusinessTicketWriteScopeResolver resolver) {
+        return service(inbox, channels, messages, tickets, flags, resolver,
+            mock(GeneralChannelQuestionTemplateService.class));
+    }
+
+    private ConversationTicketCreationIngestionService service(IntegrationInboundEventInboxService inbox,
+                                                               ChannelRepository channels,
+                                                               MessageRepository messages,
+                                                               TicketRepository tickets,
+                                                               MultibusinessFeatureFlags flags,
+                                                               BusinessTicketWriteScopeResolver resolver,
+                                                               GeneralChannelQuestionTemplateService generalTemplates) {
         return new ConversationTicketCreationIngestionService(inbox, mock(LegacyTicketIdConcurrencyGuard.class),
             channels, messages, tickets, mock(TicketSpanRepository.class), mock(TicketActiveRepository.class),
             mock(ChatHistoryRepository.class), mock(ChatAttachmentMetadataService.class),
-            mock(JdbcTemplate.class), flags, resolver);
+            mock(JdbcTemplate.class), flags, resolver, generalTemplates);
     }
 
     private ConversationTicketCreatedEvent eventWithBusinessId(Long businessId) {

@@ -92,6 +92,12 @@ public class BusinessQuestionTemplateRegistryService {
     public Optional<ScopedRuntimeConfig> resolveExplicitChannel(long channelId, long businessId) {
         requirePositive(channelId);
         requirePositive(businessId);
+        if (Boolean.TRUE.equals(jdbc.queryForObject("""
+                SELECT EXISTS (SELECT 1 FROM general_channel_question_template_bindings
+                                WHERE channel_id = ? AND is_active = TRUE)
+                """, Boolean.class, channelId))) {
+            return Optional.empty();
+        }
         List<ChannelBinding> bindings = jdbc.query("""
                 SELECT binding.business_id, binding.resolution_mode, business.status,
                        template.template_id, template.template_sha256, template.is_active AS template_active
@@ -174,6 +180,12 @@ public class BusinessQuestionTemplateRegistryService {
         Map<String, Object> botSettings = normalizer.normalize(
                 sharedConfigService.loadSettings().get("bot_settings"));
         if (templateId.equals(text(botSettings.get("active_template_id")))) {
+            return true;
+        }
+        if (Boolean.TRUE.equals(jdbc.queryForObject("""
+                SELECT EXISTS (SELECT 1 FROM general_channel_question_template_bindings
+                                WHERE template_id = ? AND is_active = TRUE)
+                """, Boolean.class, templateId))) {
             return true;
         }
         return Boolean.TRUE.equals(jdbc.queryForObject("""

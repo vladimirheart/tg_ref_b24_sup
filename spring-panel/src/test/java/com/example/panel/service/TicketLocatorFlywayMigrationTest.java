@@ -32,6 +32,10 @@ class TicketLocatorFlywayMigrationTest {
                 "SELECT COUNT(*) FROM flyway_schema_history WHERE version = '56' AND success = TRUE",
                 Integer.class
         )).isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM flyway_schema_history WHERE version = '57' AND success = TRUE",
+                Integer.class
+        )).isEqualTo(1);
         jdbc.update("INSERT INTO tickets(user_id, ticket_id) VALUES (901, 'legacy-unresolved')");
         jdbc.update("INSERT INTO tickets(user_id, ticket_id, is_general, general_selection_source) "
                 + "VALUES (902, 'general-selected', TRUE, 'USER_SELECTION')");

@@ -16,6 +16,7 @@ public class MultibusinessFeatureFlags {
     private boolean ticketWriteRequiresBusiness;
     private boolean strictReadScope;
     private boolean sharedChannelResolution;
+    private boolean generalChannelResolution;
     private boolean uiSelector;
     private boolean manualTicketCreation;
 
@@ -53,6 +54,14 @@ public class MultibusinessFeatureFlags {
 
     public void setSharedChannelResolution(boolean sharedChannelResolution) {
         this.sharedChannelResolution = sharedChannelResolution;
+    }
+
+    public boolean isGeneralChannelResolution() {
+        return generalChannelResolution;
+    }
+
+    public void setGeneralChannelResolution(boolean generalChannelResolution) {
+        this.generalChannelResolution = generalChannelResolution;
     }
 
     public boolean isUiSelector() {

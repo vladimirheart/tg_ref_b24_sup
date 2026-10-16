@@ -54,6 +54,12 @@ class BusinessQuestionTemplateRegistryPostgresIntegrationTest {
         assertThat(a.locationTree()).isEmpty();
         assertThat(a.presetDefinitions()).isEmpty();
         assertThat(registry.resolveExplicitChannel(10, 999)).isEmpty();
+        jdbc.update("INSERT INTO general_channel_question_template_bindings "
+                + "(channel_id, template_id, template_sha256) VALUES (10, 'q-legacy', ?)",
+                "a".repeat(64));
+        assertThat(registry.resolveExplicitChannel(10, sushi)).isEmpty();
+        jdbc.update("UPDATE general_channel_question_template_bindings SET is_active = FALSE WHERE channel_id = 10");
+        assertThat(registry.resolveExplicitChannel(10, sushi)).isPresent();
 
         config.saveSettings(settings("A", "изменённый B"));
         assertThat(registry.resolveExplicitChannel(10, sushi)).isPresent();
@@ -130,6 +136,7 @@ class BusinessQuestionTemplateRegistryPostgresIntegrationTest {
                 + "PRIMARY KEY (user_id, ticket_id))");
         migrate(jdbc, "V51__multibusiness_foundation.sql");
         migrate(jdbc, "V55__business_question_template_bindings.sql");
+        migrate(jdbc, "V57__general_channel_question_template_bindings.sql");
         return jdbc;
     }
 

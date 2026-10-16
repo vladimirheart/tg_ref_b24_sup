@@ -161,6 +161,15 @@ business-scoped шаблон из canonical `bot_settings.question_templates`:
 Персоналу такие обращения нужны в отдельной явно разрешённой очереди; grant
 `ALL_BUSINESSES` сам по себе не разрешает их читать или изменять.
 
+Для канала только с общими обращениями `GENERAL_CHANNEL` включается отдельной
+записью `general_channel_question_template_bindings`: активный канал должен
+явно выбрать тот же ID вопросника, не иметь активных business bindings, а
+сохранённый SHA-256 должен совпадать с текущим шаблоном. Изменение состава или
+порядка вопросов требует повторного подтверждения привязки. На текущем этапе
+general-only runtime отклоняет preset-вопросы, пока для них не определён
+безопасный, не связанный с бизнесами каталог. Отсутствие бизнес-привязки само
+по себе никогда не включает `GENERAL`.
+
 На S4 вводится business-scoped registry template bindings. Existing
 `question_template_id`, `rating_template_id`, `auto_action_template_id` и
 `questions_cfg` сохраняются как legacy transport/config fields. Новый template
@@ -271,6 +280,7 @@ multibusiness.foundation.enabled=false
 multibusiness.ticket-write-requires-business=false
 multibusiness.strict-read-scope=false
 multibusiness.shared-channel-resolution=false
+multibusiness.general-channel-resolution=false
 multibusiness.ui-selector=false
 multibusiness.manual-ticket-creation=false
 ```

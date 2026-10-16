@@ -15,6 +15,7 @@ import com.example.panel.repository.TicketActiveRepository;
 import com.example.panel.repository.TicketRepository;
 import com.example.panel.repository.TicketSpanRepository;
 import com.example.panel.service.ChatAttachmentMetadataService;
+import com.example.panel.service.GeneralChannelQuestionTemplateService;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
@@ -44,6 +45,7 @@ public class ConversationTicketCreationIngestionService {
     private final JdbcTemplate jdbcTemplate;
     private final MultibusinessFeatureFlags multibusinessFeatureFlags;
     private final BusinessTicketWriteScopeResolver businessTicketWriteScopeResolver;
+    private final GeneralChannelQuestionTemplateService generalChannelQuestionTemplateService;
 
     public ConversationTicketCreationIngestionService(IntegrationInboundEventInboxService inboxService,
                                                       LegacyTicketIdConcurrencyGuard legacyTicketIdConcurrencyGuard,
@@ -56,7 +58,8 @@ public class ConversationTicketCreationIngestionService {
                                                       ChatAttachmentMetadataService chatAttachmentMetadataService,
                                                       JdbcTemplate jdbcTemplate,
                                                       MultibusinessFeatureFlags multibusinessFeatureFlags,
-                                                      BusinessTicketWriteScopeResolver businessTicketWriteScopeResolver) {
+                                                      BusinessTicketWriteScopeResolver businessTicketWriteScopeResolver,
+                                                      GeneralChannelQuestionTemplateService generalChannelQuestionTemplateService) {
         this.inboxService = inboxService;
         this.legacyTicketIdConcurrencyGuard = legacyTicketIdConcurrencyGuard;
         this.channelRepository = channelRepository;
@@ -69,6 +72,7 @@ public class ConversationTicketCreationIngestionService {
         this.jdbcTemplate = jdbcTemplate;
         this.multibusinessFeatureFlags = multibusinessFeatureFlags;
         this.businessTicketWriteScopeResolver = businessTicketWriteScopeResolver;
+        this.generalChannelQuestionTemplateService = generalChannelQuestionTemplateService;
     }
 
     @Transactional
@@ -118,7 +122,7 @@ public class ConversationTicketCreationIngestionService {
                 Ticket existing = ticketRepository.findById(canonicalLocator)
                     .orElseThrow(() -> new IllegalStateException("Ticket creation replay lost its existing ticket"));
                 Long existingChannelId = existing.getChannel() != null ? existing.getChannel().getId() : null;
-                boolean generalReplay = isExplicitGeneral(event);
+                boolean generalReplay = isGeneralScope(event);
                 boolean businessReplay = (event.scopeKind() == null || "BUSINESS".equals(event.scopeKind()))
                     && event.scopeSelectionSource() == null
                     && event.businessId() != null && event.businessId() > 0;
@@ -143,8 +147,13 @@ public class ConversationTicketCreationIngestionService {
         boolean general = false;
         if (strictBusinessWrite) {
             if ("GENERAL".equals(event.scopeKind())) {
-                if (!isExplicitGeneral(event) || !Boolean.TRUE.equals(channel.getActive())) {
-                    throw new IllegalStateException("General ticket requires explicit user selection and active channel");
+                if (!isGeneralScope(event) || !Boolean.TRUE.equals(channel.getActive())) {
+                    throw new IllegalStateException("General ticket requires verified scope and active channel");
+                }
+                if ("GENERAL_CHANNEL".equals(event.scopeSelectionSource())
+                        && (!multibusinessFeatureFlags.isGeneralChannelResolution()
+                            || generalChannelQuestionTemplateService.resolve(event.channelId()).isEmpty())) {
+                    throw new IllegalStateException("General channel questionnaire is not verified");
                 }
                 general = true;
             } else {
@@ -231,10 +240,11 @@ public class ConversationTicketCreationIngestionService {
         return ticket;
     }
 
-    private boolean isExplicitGeneral(ConversationTicketCreatedEvent event) {
+    private boolean isGeneralScope(ConversationTicketCreatedEvent event) {
         return "GENERAL".equals(event.scopeKind())
             && event.businessId() == null
-            && "USER_SELECTION".equals(event.scopeSelectionSource());
+            && ("USER_SELECTION".equals(event.scopeSelectionSource())
+                || "GENERAL_CHANNEL".equals(event.scopeSelectionSource()));
     }
 
     private void replaceTicketAttributes(String ticketId,
