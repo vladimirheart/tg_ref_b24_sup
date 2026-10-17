@@ -68,11 +68,13 @@ public class DialogRealtimeEventService {
                 return;
             }
             if (StringUtils.hasText(routing.assignee())) {
-                dialogResponsibilityService.assignResponsibleIfMissing(
-                        normalizedTicketId,
-                        routing.assignee(),
-                        "channel_assignment_routing"
-                );
+                if (scope == null) {
+                    dialogResponsibilityService.assignResponsibleIfMissing(
+                            normalizedTicketId, routing.assignee(), "channel_assignment_routing");
+                } else {
+                    dialogResponsibilityService.assignScopedResponsibleIfMissing(
+                            scope, routing.assignee(), "channel_assignment_routing");
+                }
             }
         }
         String text = notificationService.formatNewAppealText(normalizedTicketId);

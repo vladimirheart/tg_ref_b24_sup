@@ -69,6 +69,8 @@ class UiEventOutboxFrozenDeliveryPostgresTest {
     private Runnable beforeInsert = () -> {};
     private Runnable afterInsert = () -> {};
     private Runnable beforeChild = () -> {};
+    private Runnable beforeAssignment = () -> {};
+    private Runnable afterAssignment = () -> {};
     private int childRowsRead;
 
     @BeforeEach
@@ -84,7 +86,7 @@ class UiEventOutboxFrozenDeliveryPostgresTest {
         jdbc.execute("CREATE TABLE notifications(id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, user_identity TEXT NOT NULL, "
             + "text TEXT NOT NULL, url TEXT, is_read BOOLEAN, created_at TIMESTAMPTZ, ticket_user_id BIGINT, ticket_id TEXT, "
             + "ticket_public_id TEXT, ticket_scope_kind TEXT, ticket_business_id BIGINT)");
-        jdbc.execute("CREATE TABLE ticket_responsibles(ticket_id TEXT, responsible TEXT)");
+        jdbc.execute("CREATE TABLE ticket_responsibles(ticket_id TEXT PRIMARY KEY, responsible TEXT, assigned_by TEXT)");
         jdbc.execute("CREATE TABLE ticket_active(ticket_id TEXT, user_identity TEXT)");
         jdbc.execute("CREATE TABLE ticket_participants(ticket_id TEXT, username TEXT)");
         jdbc.execute("CREATE TABLE ui_event_outbox(id BIGINT PRIMARY KEY, event_type TEXT, ticket_id TEXT, channel_id BIGINT, "
@@ -96,7 +98,7 @@ class UiEventOutboxFrozenDeliveryPostgresTest {
         jdbc.update("INSERT INTO business_memberships VALUES (2, 2, 'VIEWER', TRUE)");
         jdbc.update("INSERT INTO tickets VALUES (10, ?, ?, FALSE, 1), (20, ?, ?, FALSE, 2)",
             RAW, PUBLIC, RAW.trim(), "b".repeat(32));
-        jdbc.update("INSERT INTO ticket_responsibles VALUES (?, 'all-reader')", RAW);
+        jdbc.update("INSERT INTO ticket_responsibles(ticket_id,responsible) VALUES (?, 'all-reader')", RAW);
         flags = new MultibusinessFeatureFlags();
         LegacyTicketIdJdbcGuard guard = new LegacyTicketIdJdbcGuard(jdbc);
         access = spy(new UiEventTicketAccessService(jdbc, flags));
@@ -111,12 +113,22 @@ class UiEventOutboxFrozenDeliveryPostgresTest {
         observed = spy(jdbc);
         doAnswer(call -> {
             String sql = call.getArgument(0);
+            if (sql.contains("INSERT INTO ticket_responsibles")) {
+                Runnable mutation = beforeAssignment;
+                beforeAssignment = () -> {};
+                mutation.run();
+            }
             if (sql.contains("INSERT INTO notifications")) {
                 Runnable mutation = beforeInsert;
                 beforeInsert = () -> {};
                 mutation.run();
             }
             int changed = jdbc.update(sql, (Object[]) call.getRawArguments()[1]);
+            if (sql.contains("INSERT INTO ticket_responsibles")) {
+                Runnable mutation = afterAssignment;
+                afterAssignment = () -> {};
+                mutation.run();
+            }
             if (sql.contains("INSERT INTO notifications") && changed > 0) {
                 Runnable mutation = afterInsert;
                 afterInsert = () -> {};
@@ -147,7 +159,7 @@ class UiEventOutboxFrozenDeliveryPostgresTest {
         when(routing.resolve(any(), any(), anyString())).thenReturn(ChannelAssignmentRoutingService.ResolvedAssignmentRouting.disabled());
         queue = new AlertQueueService(jdbc, notices, new ObjectMapper(), routing, guard);
         ai = mock(DialogAiAssistantService.class);
-        responsibility = mock(DialogResponsibilityService.class);
+        responsibility = spy(new DialogResponsibilityService(observed, guard, flags));
         supportChat = mock(DialogNotificationService.class);
         realtime = new DialogRealtimeEventService(notices, ai, queue, routing, channels, responsibility, supportChat, stream, guard, access);
         writer = new UiEventOutboxAppendService(jdbc, guard);
@@ -332,6 +344,66 @@ class UiEventOutboxFrozenDeliveryPostgresTest {
     private void dispatch(String event) {
         writer.append(event, RAW, 9L, "old payload", "photo", "private/key", 5);
         watcher.watch();
+    }
+
+    private void enableAutoAssignment() {
+        jdbc.update("DELETE FROM ticket_responsibles WHERE ticket_id=?", RAW);
+        jdbc.update("UPDATE business_access_grants SET role_code='OPERATOR' WHERE user_id=1");
+        when(routing.resolve(any(), any(), anyString())).thenReturn(
+            new ChannelAssignmentRoutingService.ResolvedAssignmentRouting(true,
+                List.of("all-reader"), "all-reader", "single_operator", "round_robin"));
+    }
+
+    @Test
+    void outboxAutoAssignmentCarriesTheOriginalScopeToTheRealConditionalInsert() {
+        enableAutoAssignment();
+        dispatch("ticket_created");
+        verify(responsibility).assignScopedResponsibleIfMissing(scope, "all-reader", "channel_assignment_routing");
+        verify(responsibility, never()).assignResponsibleIfMissing(anyString(), anyString(), anyString());
+        assertThat(jdbc.queryForMap("SELECT responsible,assigned_by FROM ticket_responsibles WHERE ticket_id=?", RAW))
+            .containsEntry("responsible", "all-reader").containsEntry("assigned_by", "channel_assignment_routing");
+        assertThat(count()).isEqualTo(1);
+        verify(publisher).publish(isNull(), eq("dialogs_changed"), anyMap(), eq(scope));
+        verify(access, never()).captureScope(anyString());
+        assertCursorAdvanced();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"business", "recreated", "tuple", "general", "missing", "collision"})
+    void ownerChangeAtAssignmentSqlCannotAssignReplacementOrContinueOldDelivery(String mutation) {
+        enableAutoAssignment();
+        beforeAssignment = () -> mutate(mutation);
+        dispatch("ticket_created");
+        verify(responsibility).assignScopedResponsibleIfMissing(scope, "all-reader", "channel_assignment_routing");
+        verify(responsibility, never()).assignResponsibleIfMissing(anyString(), anyString(), anyString());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ticket_responsibles WHERE ticket_id=?", Long.class, RAW)).isZero();
+        assertNoDelivery();
+        verify(access, never()).captureScope(anyString());
+        assertCursorAdvanced();
+    }
+
+    @Test
+    void changeAfterSuccessfulAssignmentDoesNotRetagTheFollowingBellOrSse() {
+        enableAutoAssignment();
+        afterAssignment = () -> mutate("business");
+        dispatch("ticket_created");
+        // The first statement was valid; subsequent effects must independently reject the old owner.
+        assertThat(jdbc.queryForObject("SELECT responsible FROM ticket_responsibles WHERE ticket_id=?", String.class, RAW))
+            .isEqualTo("all-reader");
+        assertNoDelivery();
+        verify(access, never()).captureScope(anyString());
+        assertCursorAdvanced();
+    }
+
+    @Test
+    void readOnlyAssigneeDenialDoesNotDisableTheIndependentlyAuthorizedBell() {
+        enableAutoAssignment();
+        jdbc.update("UPDATE business_access_grants SET role_code='VIEWER' WHERE user_id=1");
+        dispatch("ticket_created");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ticket_responsibles WHERE ticket_id=?", Long.class, RAW)).isZero();
+        assertThat(count()).isEqualTo(1);
+        verify(responsibility, never()).assignResponsibleIfMissing(anyString(), anyString(), anyString());
+        assertCursorAdvanced();
     }
 
     private void mutate(String mutation) {

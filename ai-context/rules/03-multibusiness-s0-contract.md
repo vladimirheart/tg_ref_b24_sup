@@ -261,11 +261,29 @@ reads требуют совпадения tuple/public ID/kind/business, non-GEN
 невалидный expected scope закрывает scoped API, а не включает legacy fallback.
 Scoped UNRESOLVED разрешён только до strict-read. Поздний отказ queue может
 попробовать fallback recipients лишь с тем же frozen scope и тем же SQL guard.
-Перед assignment/support-chat/AI есть повторная проверка current scope, но
+Перед support-chat/AI есть повторная проверка current scope, но
 их внутренние SQL/сетевые effects ещё не получают expected owner и остаются
 PENDING, как и исходный producer context до INSERT. Legacy direct callers
 без expected scope пока сохраняют свой контракт. Global page/system policy
 также PENDING.
+
+Auto-assignment из scoped ticket_created callback передаёт исходный V61
+snapshot в DialogResponsibilityService.assignScopedResponsibleIfMissing.
+Условный INSERT и последующее чтение existing/new responsible каждый
+требуют полного expected tuple/public ID/kind/business, unique raw ID и
+non-GENERAL marker в своём SQL snapshot. NULL/invalid scope либо отсутствие
+flags/access schema закрывают scoped путь без raw fallback. BUSINESS INSERT
+также требует текущего OPERATE у предложенного ответственного: единственный
+enabled/unblocked canonical account, active business и active membership
+либо ALL_BUSINESSES с OPERATOR/MANAGER/ADMIN, согласно initial capability
+matrix BusinessAccessService. VIEWER, чужой business и ROLE_ADMIN этого не дают.
+Existing responsible не переназначается; прежние trim/actor fallback/ai_agent
+ограничения сохранены. Typed UNRESOLVED с locator совместим только до strict.
+Отказ назначения не подменяет независимый recipient READ для bell/SSE.
+Это statement-time proof, не блокировка owner на всё исполнение callback и
+не attribution/backfill старых child rows. Раннее business-scoped построение
+candidate pool/load balancing, остальные raw assignment writers и миграция
+child identity ещё PENDING; отказ не запускает выбор другого кандидата.
 Mixed-version consumers без нового guard
 не доказывают эту изоляцию; отдельный rollout/preflight остаётся обязательным.
 
@@ -319,7 +337,7 @@ business READ проверяется одним SQL predicate при INSERT, lis
 не выводятся из текста/URL, чужой users DB либо browser-selected business.
 UNRESOLVED/unclassified сохраняют описанную выше совместимость; этот фильтр
 не классифицирует исторические строки. Глобальная page authority, явная
-global/system/task policy, expected owner внутри assignment/support-chat/AI callbacks и прочие producers ещё
+global/system/task policy, expected owner внутри support-chat/AI callbacks, остальные assignment writers и прочие producers ещё
 требуют отдельного контракта/аудита. Это не разрешение включать strict flag
 или выполнять rollout.
 

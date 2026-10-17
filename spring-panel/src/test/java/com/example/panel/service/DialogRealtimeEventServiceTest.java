@@ -16,6 +16,32 @@ import org.junit.jupiter.api.Test;
 class DialogRealtimeEventServiceTest {
 
     @Test
+    void directLegacyTicketCreationKeepsItsOriginalAssignmentApiAndExactId() {
+        NotificationService notices = mock(NotificationService.class);
+        DialogResponsibilityService responsibility = mock(DialogResponsibilityService.class);
+        ChannelAssignmentRoutingService routing = mock(ChannelAssignmentRoutingService.class);
+        ChannelRepository channels = mock(ChannelRepository.class);
+        LegacyTicketIdJdbcGuard guard = mock(LegacyTicketIdJdbcGuard.class);
+        Channel channel = new Channel();
+        channel.setId(7L);
+        when(channels.findById(7L)).thenReturn(java.util.Optional.of(channel));
+        when(guard.hasUniqueNonGeneralTicket(" T-RAW ")).thenReturn(true);
+        when(routing.resolve(channel, ChannelAssignmentRoutingService.RoutingEvent.NEW_PUBLIC_APPEAL, " T-RAW "))
+            .thenReturn(new ChannelAssignmentRoutingService.ResolvedAssignmentRouting(
+                true, java.util.List.of("operator"), "operator", "single_operator", "round_robin"));
+        DialogRealtimeEventService service = new DialogRealtimeEventService(notices,
+            mock(DialogAiAssistantService.class), mock(AlertQueueService.class), routing, channels, responsibility,
+            mock(DialogNotificationService.class), mock(UiEventStreamService.class), guard,
+            mock(UiEventTicketAccessService.class));
+
+        service.handleTicketCreated(" T-RAW ", 7L, "preview");
+
+        verify(responsibility).assignResponsibleIfMissing(" T-RAW ", "operator", "channel_assignment_routing");
+        verify(responsibility, never()).assignScopedResponsibleIfMissing(
+            org.mockito.ArgumentMatchers.any(), anyString(), anyString());
+    }
+
+    @Test
     void initialClientMessageSkipsSecondBellButKeepsAiProcessing() {
         NotificationService notificationService = mock(NotificationService.class);
         DialogAiAssistantService aiService = mock(DialogAiAssistantService.class);
