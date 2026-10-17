@@ -55,7 +55,8 @@ class PostgresRuntimeReadinessVerifierTest {
         assertThatCode(() -> verifier.onApplicationEvent(null))
                 .doesNotThrowAnyException();
 
-        verify(jdbcTemplate).queryForList("SELECT id, event_type, ticket_id, channel_id, created_at FROM ui_event_outbox WHERE 1 = 0");
+        verify(jdbcTemplate).queryForList("SELECT id, event_type, ticket_id, channel_id, created_at, ticket_user_id, ticket_public_id, "
+            + "ticket_scope_kind, ticket_business_id FROM ui_event_outbox WHERE 1 = 0");
         verify(jdbcTemplate).queryForList(contains("FROM integration_inbound_event_inbox"));
         verify(jdbcTemplate).queryForList("SELECT worker_key, cursor_text, updated_at FROM runtime_worker_checkpoints WHERE 1 = 0");
         verify(jdbcTemplate).queryForList(contains("FROM integration_transport_outbox"));
@@ -97,6 +98,22 @@ class PostgresRuntimeReadinessVerifierTest {
         assertThatThrownBy(() -> verifier.onApplicationEvent(null))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("PostgreSQL runtime readiness verification failed");
+    }
+
+    @Test
+    void missingOutboxScopeSchemaFailsReadiness() {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.queryForList(anyString())).thenReturn(List.of());
+        when(jdbc.queryForList(contains("ticket_scope_kind"))).thenThrow(new IllegalStateException("V61 is missing"));
+        var verifier = new PostgresRuntimeReadinessVerifier(jdbc,
+            new MockEnvironment().withProperty("app.datasource.mode", "postgresql"),
+            mock(com.example.panel.service.RuntimeCoordinationService.class),
+            mock(com.example.panel.storage.AttachmentObjectStorageService.class));
+
+        assertThatThrownBy(() -> verifier.onApplicationEvent(null))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("PostgreSQL runtime readiness verification failed")
+            .hasRootCauseMessage("V61 is missing");
     }
 
     @Test

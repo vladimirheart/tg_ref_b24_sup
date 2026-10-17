@@ -58,6 +58,29 @@ public class UiEventTicketAccessService {
         }
     }
 
+    /** Pre-dispatch identity check only; does not grant recipient access or lock callbacks. */
+    public boolean isCurrentScope(UiEventTicketScope scope) {
+        if (scope == null || !scope.isValid()) {
+            return false;
+        }
+        try {
+            return Boolean.TRUE.equals(jdbcTemplate.queryForObject("""
+                SELECT EXISTS (
+                    SELECT 1 FROM tickets owner
+                     WHERE owner.user_id = ? AND owner.ticket_id = ? AND owner.ticket_public_id = ?
+                       AND owner.business_id IS NOT DISTINCT FROM CAST(? AS BIGINT)
+                       AND CASE WHEN owner.business_id IS NULL THEN 'UNRESOLVED' ELSE 'BUSINESS' END = ?
+                       AND owner.is_general = FALSE
+                       AND (SELECT COUNT(*) FROM tickets candidate WHERE candidate.ticket_id = ?) = 1
+                       AND (owner.business_id IS NOT NULL OR ? = FALSE)
+                )
+                """, Boolean.class, scope.ticketUserId(), scope.ticketId(), scope.ticketPublicId(),
+                scope.businessId(), scope.scopeKind(), scope.ticketId(), flags.isStrictReadScope()));
+        } catch (DataAccessException ex) {
+            return false;
+        }
+    }
+
     public boolean canReadTicket(String userIdentity, UiEventTicketScope scope) {
         if (!StringUtils.hasText(userIdentity) || scope == null || !scope.isValid()) {
             return false;

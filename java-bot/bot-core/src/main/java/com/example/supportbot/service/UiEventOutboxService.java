@@ -74,8 +74,18 @@ public class UiEventOutboxService {
         try {
             jdbcTemplate.update("""
                     INSERT INTO ui_event_outbox(
-                        id, event_type, ticket_id, channel_id, message_text, message_type, attachment, rating, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        id, event_type, ticket_id, channel_id, message_text, message_type, attachment, rating, created_at,
+                        ticket_user_id, ticket_public_id, ticket_scope_kind, ticket_business_id
+                    ) SELECT CAST(? AS BIGINT), CAST(? AS TEXT), CAST(? AS TEXT), CAST(? AS BIGINT),
+                             CAST(? AS TEXT), CAST(? AS TEXT), CAST(? AS TEXT), CAST(? AS INTEGER),
+                             CAST(? AS TIMESTAMP WITH TIME ZONE),
+                             owner.user_id, owner.ticket_public_id,
+                             CASE WHEN owner.is_general = TRUE THEN 'GENERAL'
+                                  WHEN owner.business_id IS NULL THEN 'UNRESOLVED' ELSE 'BUSINESS' END,
+                             owner.business_id
+                        FROM tickets owner
+                       WHERE owner.ticket_id = ? AND owner.is_general IS NOT NULL
+                         AND (SELECT COUNT(*) FROM tickets candidate WHERE candidate.ticket_id = owner.ticket_id) = 1
                     """,
                     nextEventId(),
                     eventType.trim(),
@@ -85,7 +95,8 @@ public class UiEventOutboxService {
                     StringUtils.hasText(messageType) ? messageType.trim() : null,
                     StringUtils.hasText(attachment) ? attachment.trim() : null,
                     rating,
-                    OffsetDateTime.now().toString()
+                    OffsetDateTime.now().toString(),
+                    ticketId
             );
         } catch (RuntimeException ignored) {
             // Outbox must not break the main flow.

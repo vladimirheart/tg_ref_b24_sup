@@ -209,7 +209,8 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
 
     private void verifyTransportSchema() {
         jdbcTemplate.queryForList(
-            "SELECT id, event_type, ticket_id, channel_id, created_at FROM ui_event_outbox WHERE 1 = 0"
+            "SELECT id, event_type, ticket_id, channel_id, created_at, ticket_user_id, ticket_public_id, "
+                + "ticket_scope_kind, ticket_business_id FROM ui_event_outbox WHERE 1 = 0"
         );
         jdbcTemplate.queryForList(
             """

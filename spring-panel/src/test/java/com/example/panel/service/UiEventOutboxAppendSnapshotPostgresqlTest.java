@@ -300,13 +300,15 @@ class UiEventOutboxAppendSnapshotPostgresqlTest {
             jdbc.execute("""
                 CREATE TABLE tickets(
                     user_id BIGINT NOT NULL, ticket_id VARCHAR(255) NOT NULL, channel_id BIGINT,
+                    is_general BOOLEAN NOT NULL DEFAULT FALSE, business_id BIGINT, ticket_public_id TEXT,
                     PRIMARY KEY(user_id, ticket_id), UNIQUE(ticket_id, channel_id))
                 """);
             jdbc.execute("""
                 CREATE TABLE ui_event_outbox(
                     id BIGINT PRIMARY KEY, event_type TEXT NOT NULL, ticket_id VARCHAR(255) NOT NULL,
                     channel_id BIGINT, message_text TEXT, message_type TEXT, attachment TEXT, rating INTEGER,
-                    created_at TIMESTAMP WITH TIME ZONE NOT NULL)
+                    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                    ticket_user_id BIGINT, ticket_public_id TEXT, ticket_scope_kind TEXT, ticket_business_id BIGINT)
                 """);
             doAnswer(call -> {
                 attempts++;

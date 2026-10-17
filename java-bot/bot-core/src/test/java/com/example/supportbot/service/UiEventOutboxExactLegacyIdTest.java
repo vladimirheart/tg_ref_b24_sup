@@ -52,11 +52,12 @@ class UiEventOutboxExactLegacyIdTest {
             "feedback_created", "ticket_closed", "ticket_closed_auto", "ticket_reopened"
         ), jdbc.rows.stream().map(row -> (String) row[1]).toList());
         for (Object[] row : jdbc.rows) {
-            assertEquals(9, row.length);
+            assertEquals(10, row.length);
             assertEquals(exactId, row[2]);
             assertEquals(41L, row[3]);
             assertTrue(row[0] instanceof Long);
             assertTrue(row[8] instanceof String);
+            assertEquals(exactId, row[9]);
         }
         assertEquals("message", jdbc.rows.get(1)[4]);
         assertEquals("text", jdbc.rows.get(1)[5]);

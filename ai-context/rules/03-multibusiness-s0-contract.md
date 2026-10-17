@@ -230,10 +230,30 @@ Ticket с NULL/invalid public ID либо отсутствующая locator sch
 публиковать ticket SSE, включая legacy/UNRESOLVED при strict-read=false:
 одного composite tuple недостаточно, чтобы отличить его пересоздание.
 Автоматического присвоения public ID/backfill нет. Browser event names/payload
-сохраняются; внутренний owner в них не добавляется. Новых migrations/flags нет.
-Это snapshot перед transport fanout; persistent DB outbox и цепочка его
-dispatch ещё требуют scope, зафиксированного при исходном INSERT. Global
-page/system policy также PENDING. Mixed-version consumers без нового guard
+сохраняются; внутренний owner в них не добавляется. Сам transport-only этап
+не добавляет migrations/flags.
+
+Persistent DB outbox получает additive V61 snapshot при исходном INSERT:
+точный существующий ticket_id, ticket_user_id, nullable ticket_public_id,
+ticket_scope_kind и ticket_business_id. Panel и bot writers копируют owner
+одним INSERT SELECT с проверкой уникальности raw ID; GENERAL сохраняется
+отдельным scope, не превращается в UNRESOLVED. Исторические/старые producer
+rows остаются без snapshot; автоматического backfill нет. CHECK запрещает
+частичный owner, trigger — изменение snapshot, включая raw ID и присвоение
+owner старой строке. FK намеренно отсутствует, snapshot переживает owner.
+Readiness требует четыре новые columns; отсутствие V61 не позволяет объявить
+runtime READY. Сам этот source-пакет не запускает migration.
+
+Watcher до initial-message lookup и legacy callback сверяет frozen tuple,
+public ID, kind/business и текущую unique non-GENERAL identity одним SQL.
+GENERAL, старые unclassified rows, NULL locator и устаревший owner закрыты;
+typed UNRESOLVED с locator совместим только до strict-read. Курсор проходит
+отклонённые события. Initial-message suppression сравнивает полный snapshot,
+поэтому события другой generation не подавляют bell нового обращения.
+Это boundary перед dispatch, не блокировка owner на время всего callback:
+сквозная передача expected owner до каждого notification/assignment/AI effect
+ещё PENDING. Global page/system policy также PENDING.
+Mixed-version consumers без нового guard
 не доказывают эту изоляцию; отдельный rollout/preflight остаётся обязательным.
 
 Ticket-bound bell delivery сохраняет точный `ticketId` через
@@ -286,7 +306,7 @@ business READ проверяется одним SQL predicate при INSERT, lis
 не выводятся из текста/URL, чужой users DB либо browser-selected business.
 UNRESOLVED/unclassified сохраняют описанную выше совместимость; этот фильтр
 не классифицирует исторические строки. Глобальная page authority, явная
-global/system/task policy, frozen persistent outbox scope и прочие producers ещё
+global/system/task policy, expected owner в цепочке DB outbox callbacks и прочие producers ещё
 требуют отдельного контракта/аудита. Это не разрешение включать strict flag
 или выполнять rollout.
 

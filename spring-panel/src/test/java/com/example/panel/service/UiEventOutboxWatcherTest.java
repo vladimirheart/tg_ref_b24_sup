@@ -32,10 +32,11 @@ class UiEventOutboxWatcherTest {
         DialogRealtimeEventService events = mock(DialogRealtimeEventService.class);
         LegacyTicketIdJdbcGuard guard = mock(LegacyTicketIdJdbcGuard.class);
         UiEventOutboxWatcher watcher = new UiEventOutboxWatcher(jdbc, events,
-            mock(RuntimeCoordinationService.class), mock(RuntimeWorkerCheckpointService.class), guard);
+            mock(RuntimeCoordinationService.class), mock(RuntimeWorkerCheckpointService.class), guard,
+            mock(UiEventTicketAccessService.class));
 
         ReflectionTestUtils.invokeMethod(watcher, "handleEvent",
-            10L, "client_message_created", ticketId, 9L, "message", "text", null, null);
+            10L, "client_message_created", ticketId, 9L, "message", "text", null, null, null);
 
         verify(guard).hasUniqueNonGeneralTicket(ticketId);
         verifyNoInteractions(jdbc, events);
@@ -129,11 +130,13 @@ class UiEventOutboxWatcherTest {
         private final UiEventOutboxWatcher watcher;
 
         private WatcherFixture() {
-            jdbc.execute("CREATE TABLE tickets(user_id BIGINT, ticket_id TEXT, is_general BOOLEAN NOT NULL DEFAULT FALSE, PRIMARY KEY(user_id, ticket_id))");
+            jdbc.execute("CREATE TABLE tickets(user_id BIGINT, ticket_id TEXT, is_general BOOLEAN NOT NULL DEFAULT FALSE, "
+                + "business_id BIGINT, ticket_public_id TEXT DEFAULT md5(random()::text), PRIMARY KEY(user_id, ticket_id))");
             jdbc.execute("""
                 CREATE TABLE ui_event_outbox(id BIGINT PRIMARY KEY, event_type TEXT, ticket_id TEXT,
                     channel_id BIGINT, message_text TEXT, message_type TEXT, attachment TEXT, rating INTEGER,
-                    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP)
+                    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, ticket_user_id BIGINT,
+                    ticket_public_id TEXT, ticket_scope_kind TEXT, ticket_business_id BIGINT)
                 """);
             checkpoint = new RuntimeWorkerCheckpointService(jdbc);
             RuntimeCoordinationService coordination = mock(RuntimeCoordinationService.class);
@@ -141,15 +144,23 @@ class UiEventOutboxWatcherTest {
                 invocation.getArgument(2, Runnable.class).run();
                 return null;
             }).when(coordination).runWithLease(anyString(), any(Duration.class), any(Runnable.class));
-            watcher = new UiEventOutboxWatcher(jdbc, events, coordination, checkpoint, new LegacyTicketIdJdbcGuard(jdbc));
+            watcher = new UiEventOutboxWatcher(jdbc, events, coordination, checkpoint, new LegacyTicketIdJdbcGuard(jdbc),
+                new UiEventTicketAccessService(jdbc, new com.example.panel.config.MultibusinessFeatureFlags()));
             watcher.initialize();
         }
 
         private void event(long id, String type, String ticketId) {
+            var owners = jdbc.queryForList("SELECT * FROM tickets WHERE ticket_id = ? ORDER BY user_id LIMIT 1", ticketId);
+            var owner = owners.isEmpty() ? null : owners.get(0);
+            String kind = owner == null ? null : Boolean.TRUE.equals(owner.get("is_general")) ? "GENERAL"
+                : owner.get("business_id") == null ? "UNRESOLVED" : "BUSINESS";
             jdbc.update("""
-                INSERT INTO ui_event_outbox(id, event_type, ticket_id, channel_id, message_text, message_type, rating)
-                VALUES (?, ?, ?, 9, 'message', 'text', 5)
-                """, id, type, ticketId);
+                INSERT INTO ui_event_outbox(id, event_type, ticket_id, channel_id, message_text, message_type, rating,
+                    ticket_user_id, ticket_public_id, ticket_scope_kind, ticket_business_id)
+                VALUES (?, ?, ?, 9, 'message', 'text', 5, ?, ?, ?, ?)
+                """, id, type, ticketId, owner == null ? null : owner.get("user_id"),
+                owner == null ? null : owner.get("ticket_public_id"), kind,
+                owner == null ? null : owner.get("business_id"));
         }
     }
 }

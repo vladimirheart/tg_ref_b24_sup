@@ -13,6 +13,7 @@ import org.springframework.util.StringUtils;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.Duration;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,18 +33,21 @@ public class UiEventOutboxWatcher {
     private final RuntimeCoordinationService runtimeCoordinationService;
     private final RuntimeWorkerCheckpointService checkpointService;
     private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
+    private final UiEventTicketAccessService ticketAccess;
     private final AtomicLong lastProcessedId = new AtomicLong(0L);
 
     public UiEventOutboxWatcher(JdbcTemplate jdbcTemplate,
                                 DialogRealtimeEventService dialogRealtimeEventService,
                                 RuntimeCoordinationService runtimeCoordinationService,
                                 RuntimeWorkerCheckpointService checkpointService,
-                                LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
+                                LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard,
+                                UiEventTicketAccessService ticketAccess) {
         this.jdbcTemplate = jdbcTemplate;
         this.dialogRealtimeEventService = dialogRealtimeEventService;
         this.runtimeCoordinationService = runtimeCoordinationService;
         this.checkpointService = checkpointService;
         this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
+        this.ticketAccess = ticketAccess;
     }
 
     @PostConstruct
@@ -57,7 +61,8 @@ public class UiEventOutboxWatcher {
             checkpointService.readLongCursor(CHECKPOINT_KEY).ifPresent(lastProcessedId::set);
             long afterId = lastProcessedId.get();
             jdbcTemplate.query("""
-                SELECT id, event_type, ticket_id, channel_id, message_text, message_type, attachment, rating
+                SELECT id, event_type, ticket_id, channel_id, message_text, message_type, attachment, rating,
+                       ticket_user_id, ticket_public_id, ticket_scope_kind, ticket_business_id
                   FROM ui_event_outbox
                  WHERE id > ?
                  ORDER BY id ASC
@@ -77,7 +82,10 @@ public class UiEventOutboxWatcher {
                                 rs.getString("message_text"),
                                 rs.getString("message_type"),
                                 rs.getString("attachment"),
-                                rs.getObject("rating") != null ? rs.getInt("rating") : null
+                                rs.getObject("rating") != null ? rs.getInt("rating") : null,
+                                new UiEventTicketScope(rs.getObject("ticket_user_id", Long.class),
+                                    rs.getString("ticket_id"), rs.getString("ticket_public_id"),
+                                    rs.getString("ticket_scope_kind"), rs.getObject("ticket_business_id", Long.class))
                         );
                     } catch (RuntimeException ex) {
                         // One best-effort UI notification must not hold the cursor and starve later messages/media.
@@ -117,15 +125,17 @@ public class UiEventOutboxWatcher {
                              String messageText,
                              String messageType,
                              String attachment,
-                             Integer rating) {
-        if (!legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)) {
+                             Integer rating,
+                             UiEventTicketScope scope) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)
+                || scope == null || !ticketId.equals(scope.ticketId()) || !ticketAccess.isCurrentScope(scope)) {
             return;
         }
-        String normalizedEventType = StringUtils.hasText(eventType) ? eventType.trim().toLowerCase() : "";
+        String normalizedEventType = StringUtils.hasText(eventType) ? eventType.trim().toLowerCase(Locale.ROOT) : "";
         switch (normalizedEventType) {
             case "ticket_created" -> dialogRealtimeEventService.handleTicketCreated(ticketId, channelId, messageText);
             case "client_message_created" -> {
-                boolean initialClientMessage = isInitialClientMessageEvent(eventId, ticketId);
+                boolean initialClientMessage = isInitialClientMessageEvent(eventId, ticketId, scope);
                 dialogRealtimeEventService.handleIncomingClientMessage(
                         ticketId,
                         channelId,
@@ -147,7 +157,7 @@ public class UiEventOutboxWatcher {
         }
     }
 
-    private boolean isInitialClientMessageEvent(long eventId, String ticketId) {
+    private boolean isInitialClientMessageEvent(long eventId, String ticketId, UiEventTicketScope scope) {
         if (eventId <= 0L || !StringUtils.hasText(ticketId)) {
             return false;
         }
@@ -157,16 +167,24 @@ public class UiEventOutboxWatcher {
                         SELECT 1
                           FROM ui_event_outbox created_event
                          WHERE created_event.ticket_id = ?
+                           AND created_event.ticket_user_id = ? AND created_event.ticket_public_id = ?
+                           AND created_event.ticket_scope_kind = ?
+                           AND created_event.ticket_business_id IS NOT DISTINCT FROM CAST(? AS BIGINT)
                            AND lower(COALESCE(created_event.event_type, '')) = 'ticket_created'
                            AND created_event.id < ?
                     ) AND NOT EXISTS (
                         SELECT 1
                           FROM ui_event_outbox previous_message
                          WHERE previous_message.ticket_id = ?
+                           AND previous_message.ticket_user_id = ? AND previous_message.ticket_public_id = ?
+                           AND previous_message.ticket_scope_kind = ?
+                           AND previous_message.ticket_business_id IS NOT DISTINCT FROM CAST(? AS BIGINT)
                            AND lower(COALESCE(previous_message.event_type, '')) = 'client_message_created'
                            AND previous_message.id < ?
                     ) THEN TRUE ELSE FALSE END
-                    """, Boolean.class, ticketId, eventId, ticketId, eventId);
+                    """, Boolean.class,
+                    ticketId, scope.ticketUserId(), scope.ticketPublicId(), scope.scopeKind(), scope.businessId(), eventId,
+                    ticketId, scope.ticketUserId(), scope.ticketPublicId(), scope.scopeKind(), scope.businessId(), eventId);
             return Boolean.TRUE.equals(initial);
         } catch (RuntimeException ex) {
             log.warn("Unable to resolve initial client-message ownership for ticket {} event {}: {}",
