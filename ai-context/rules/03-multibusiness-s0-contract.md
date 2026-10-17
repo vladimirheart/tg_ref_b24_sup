@@ -250,9 +250,22 @@ GENERAL, старые unclassified rows, NULL locator и устаревший ow
 typed UNRESOLVED с locator совместим только до strict-read. Курсор проходит
 отклонённые события. Initial-message suppression сравнивает полный snapshot,
 поэтому события другой generation не подавляют bell нового обращения.
-Это boundary перед dispatch, не блокировка owner на время всего callback:
-сквозная передача expected owner до каждого notification/assignment/AI effect
-ещё PENDING. Global page/system policy также PENDING.
+Проверка перед dispatch сама по себе не блокирует owner на время callback.
+
+Bell/SSE ветви callback принимают именно snapshot V61: scoped entrypoints
+DialogRealtimeEventService передают его через AlertQueueService до условного
+notification INSERT и через UiEventStreamService до fanout/local delivery.
+Scope не захватывается заново по raw ID. Notification SQL и recipient child
+reads требуют совпадения tuple/public ID/kind/business, non-GENERAL, unique ID;
+действующий business READ каждого получателя R122/R123 сохраняется. Пустой или
+невалидный expected scope закрывает scoped API, а не включает legacy fallback.
+Scoped UNRESOLVED разрешён только до strict-read. Поздний отказ queue может
+попробовать fallback recipients лишь с тем же frozen scope и тем же SQL guard.
+Перед assignment/support-chat/AI есть повторная проверка current scope, но
+их внутренние SQL/сетевые effects ещё не получают expected owner и остаются
+PENDING, как и исходный producer context до INSERT. Legacy direct callers
+без expected scope пока сохраняют свой контракт. Global page/system policy
+также PENDING.
 Mixed-version consumers без нового guard
 не доказывают эту изоляцию; отдельный rollout/preflight остаётся обязательным.
 
@@ -306,7 +319,7 @@ business READ проверяется одним SQL predicate при INSERT, lis
 не выводятся из текста/URL, чужой users DB либо browser-selected business.
 UNRESOLVED/unclassified сохраняют описанную выше совместимость; этот фильтр
 не классифицирует исторические строки. Глобальная page authority, явная
-global/system/task policy, expected owner в цепочке DB outbox callbacks и прочие producers ещё
+global/system/task policy, expected owner внутри assignment/support-chat/AI callbacks и прочие producers ещё
 требуют отдельного контракта/аудита. Это не разрешение включать strict flag
 или выполнять rollout.
 

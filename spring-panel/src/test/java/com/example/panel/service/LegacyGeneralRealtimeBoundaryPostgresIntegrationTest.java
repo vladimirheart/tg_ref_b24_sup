@@ -147,7 +147,8 @@ class LegacyGeneralRealtimeBoundaryPostgresIntegrationTest {
         DialogNotificationService supportChat = mock(DialogNotificationService.class);
         UiEventStreamService stream = mock(UiEventStreamService.class);
         DialogRealtimeEventService events = new DialogRealtimeEventService(notifications, ai, queue, routing,
-            channels, responsibility, supportChat, stream, new LegacyTicketIdJdbcGuard(jdbc));
+            channels, responsibility, supportChat, stream, new LegacyTicketIdJdbcGuard(jdbc),
+            mock(UiEventTicketAccessService.class));
 
         events.handleTicketCreated("T-GENERAL", 9L, "private preview");
         events.handleIncomingClientMessage("T-GENERAL", 9L, "private text", "photo", "private/key");

@@ -133,11 +133,11 @@ public class UiEventOutboxWatcher {
         }
         String normalizedEventType = StringUtils.hasText(eventType) ? eventType.trim().toLowerCase(Locale.ROOT) : "";
         switch (normalizedEventType) {
-            case "ticket_created" -> dialogRealtimeEventService.handleTicketCreated(ticketId, channelId, messageText);
+            case "ticket_created" -> dialogRealtimeEventService.handleScopedTicketCreated(scope, channelId, messageText);
             case "client_message_created" -> {
                 boolean initialClientMessage = isInitialClientMessageEvent(eventId, ticketId, scope);
-                dialogRealtimeEventService.handleIncomingClientMessage(
-                        ticketId,
+                dialogRealtimeEventService.handleScopedIncomingClientMessage(
+                        scope,
                         channelId,
                         messageText,
                         messageType,
@@ -145,12 +145,12 @@ public class UiEventOutboxWatcher {
                         !initialClientMessage
                 );
             }
-            case "client_message_edited" -> dialogRealtimeEventService.handleClientMessageEdited(ticketId, channelId);
-            case "operator_message_edited" -> dialogRealtimeEventService.handleOperatorMessageEdited(ticketId, channelId);
-            case "feedback_created" -> dialogRealtimeEventService.handleFeedbackCreated(ticketId, rating);
-            case "ticket_closed_auto" -> dialogRealtimeEventService.handleTicketAutoClosed(ticketId, channelId, messageText);
-            case "ticket_closed" -> dialogRealtimeEventService.handleTicketClosed(ticketId, channelId);
-            case "ticket_reopened" -> dialogRealtimeEventService.handleTicketReopened(ticketId, channelId);
+            case "client_message_edited" -> dialogRealtimeEventService.handleScopedClientMessageEdited(scope, channelId);
+            case "operator_message_edited" -> dialogRealtimeEventService.handleScopedOperatorMessageEdited(scope, channelId);
+            case "feedback_created" -> dialogRealtimeEventService.handleScopedFeedbackCreated(scope, rating);
+            case "ticket_closed_auto" -> dialogRealtimeEventService.handleScopedTicketAutoClosed(scope, channelId, messageText);
+            case "ticket_closed" -> dialogRealtimeEventService.handleScopedTicketClosed(scope, channelId);
+            case "ticket_reopened" -> dialogRealtimeEventService.handleScopedTicketReopened(scope, channelId);
             default -> {
                 // ignore unknown event types
             }

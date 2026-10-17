@@ -74,6 +74,30 @@ public class AlertQueueService {
         return notifyChannelEvent(channel, AlertEvent.FIRST_RESPONSE_OVERDUE, ticketId, text, notificationService.buildDialogUrl(ticketId));
     }
 
+    public Set<String> notifyScopedQueueForNewPublicAppealRecipients(Channel channel, UiEventTicketScope scope, String previewText) {
+        if (channel == null || scope == null || !scope.isValid()
+                || !legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(scope.ticketId())) {
+            return Set.of();
+        }
+        String channelLabel = StringUtils.hasText(channel.getChannelName()) ? channel.getChannelName() : "Канал";
+        String text = "Новое обращение (" + channelLabel + "): " + trimPreview(previewText);
+        return notifyChannelEventRecipients(channel, AlertEvent.NEW_PUBLIC_APPEAL, scope.ticketId(), text,
+            notificationService.buildDialogUrl(scope.ticketId()), scope);
+    }
+
+    public boolean notifyScopedIncomingClientMessage(Channel channel, UiEventTicketScope scope, String previewText) {
+        if (channel == null || scope == null || !scope.isValid()
+                || !legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(scope.ticketId())) {
+            return false;
+        }
+        String text = "Новое сообщение в обращении " + scope.ticketId();
+        if (StringUtils.hasText(previewText)) {
+            text += ": " + trimPreview(previewText);
+        }
+        return !notifyChannelEventRecipients(channel, AlertEvent.INCOMING_CLIENT_MESSAGE, scope.ticketId(), text,
+            notificationService.buildDialogUrl(scope.ticketId()), scope).isEmpty();
+    }
+
     public boolean notifyIncomingClientMessage(Channel channel, String ticketId, String previewText) {
         if (channel == null || !legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)) {
             return false;
@@ -94,12 +118,17 @@ public class AlertQueueService {
                                                      String ticketId,
                                                      String text,
                                                      String url) {
+        return notifyChannelEventRecipients(channel, event, ticketId, text, url, null);
+    }
+
+    private Set<String> notifyChannelEventRecipients(Channel channel, AlertEvent event, String ticketId,
+                                                     String text, String url, UiEventTicketScope expectedScope) {
         ChannelAssignmentRoutingService.ResolvedAssignmentRouting assignmentRouting =
                 channelAssignmentRoutingService.resolve(channel, mapRoutingEvent(event), ticketId);
         if (assignmentRouting.enabled() && !assignmentRouting.recipients().isEmpty()) {
             Set<String> recipients = normalizeRecipientSet(assignmentRouting.recipients());
             if (!recipients.isEmpty()) {
-                Set<String> delivered = notificationService.notifyDialogUsers(ticketId, recipients, text, url);
+                Set<String> delivered = deliver(ticketId, recipients, text, url, expectedScope);
                 log.info("Queued {} '{}' notifications for channel {} via assignmentRouting",
                         delivered.size(),
                         event.key(),
@@ -115,12 +144,17 @@ public class AlertQueueService {
         if (recipients.isEmpty()) {
             return Set.of();
         }
-        Set<String> delivered = notificationService.notifyDialogUsers(ticketId, recipients, text, url);
+        Set<String> delivered = deliver(ticketId, recipients, text, url, expectedScope);
         log.info("Queued {} '{}' notifications for channel {}",
                 delivered.size(),
                 event.key(),
                 channel.getId());
         return delivered;
+    }
+
+    private Set<String> deliver(String ticketId, Set<String> recipients, String text, String url, UiEventTicketScope expectedScope) {
+        return expectedScope == null ? notificationService.notifyDialogUsers(ticketId, recipients, text, url)
+            : notificationService.notifyScopedDialogUsers(expectedScope, recipients, text, url);
     }
 
     private ChannelAssignmentRoutingService.RoutingEvent mapRoutingEvent(AlertEvent event) {

@@ -67,6 +67,18 @@ public class UiEventStreamService {
         publishToUser(userIdentity, "notifications_changed", basePayload(reason, null, null));
     }
 
+    public void publishScopedDialogsChanged(String reason, UiEventTicketScope scope) {
+        if (scope != null && scope.isValid() && ticketAccess.isCurrentScope(scope)) {
+            publishCapturedTicketEvent("dialogs_changed", basePayload(reason, scope.ticketId(), null), scope);
+        }
+    }
+
+    public void publishScopedDialogHistoryChanged(UiEventTicketScope scope, Long channelId, String reason) {
+        if (scope != null && scope.isValid() && ticketAccess.isCurrentScope(scope)) {
+            publishCapturedTicketEvent("dialog_history_changed", basePayload(reason, scope.ticketId(), channelId), scope);
+        }
+    }
+
     public void publishNotificationsChanged(Set<String> userIdentities, String reason) {
         if (userIdentities == null || userIdentities.isEmpty()) {
             return;
@@ -109,11 +121,13 @@ public class UiEventStreamService {
     }
 
     private void publishTicketEvent(String eventName, Map<String, Object> payload, String ticketId) {
-        ticketAccess.captureScope(ticketId).ifPresent(scope -> {
-            if (!fanoutPublisher.publish(null, eventName, payload, scope)) {
-                deliverToAll(eventName, payload, scope);
-            }
-        });
+        ticketAccess.captureScope(ticketId).ifPresent(scope -> publishCapturedTicketEvent(eventName, payload, scope));
+    }
+
+    private void publishCapturedTicketEvent(String eventName, Map<String, Object> payload, UiEventTicketScope scope) {
+        if (!fanoutPublisher.publish(null, eventName, payload, scope)) {
+            deliverToAll(eventName, payload, scope);
+        }
     }
 
     private void publishToAll(String eventName, Map<String, Object> payload) {

@@ -94,7 +94,8 @@ class DialogRealtimeEventServiceTest {
                 mock(DialogResponsibilityService.class),
                 mock(DialogNotificationService.class),
                 uiEventStreamService,
-                legacyTicketIdJdbcGuard
+                legacyTicketIdJdbcGuard,
+                mock(UiEventTicketAccessService.class)
         );
 
         service.handleIncomingClientMessage("T-DUPLICATE", 7L, "message", "text", null);
@@ -111,7 +112,8 @@ class DialogRealtimeEventServiceTest {
         DialogRealtimeEventService service = new DialogRealtimeEventService(
             mock(NotificationService.class), mock(DialogAiAssistantService.class), mock(AlertQueueService.class),
             mock(ChannelAssignmentRoutingService.class), mock(ChannelRepository.class),
-            mock(DialogResponsibilityService.class), mock(DialogNotificationService.class), stream, guard);
+            mock(DialogResponsibilityService.class), mock(DialogNotificationService.class), stream, guard,
+            mock(UiEventTicketAccessService.class));
 
         service.handleClientMessageEdited(" T-EXACT ", 9L);
 
@@ -128,7 +130,8 @@ class DialogRealtimeEventServiceTest {
         DialogRealtimeEventService service = new DialogRealtimeEventService(
             mock(NotificationService.class), mock(DialogAiAssistantService.class), mock(AlertQueueService.class),
             mock(ChannelAssignmentRoutingService.class), mock(ChannelRepository.class),
-            mock(DialogResponsibilityService.class), mock(DialogNotificationService.class), stream, guard);
+            mock(DialogResponsibilityService.class), mock(DialogNotificationService.class), stream, guard,
+            mock(UiEventTicketAccessService.class));
 
         service.handleClientMessageEdited(" T-PLAIN ", 9L);
 
@@ -152,7 +155,8 @@ class DialogRealtimeEventServiceTest {
                 mock(DialogResponsibilityService.class),
                 dialogNotificationService,
                 mock(UiEventStreamService.class),
-                legacyTicketIdJdbcGuard
+                legacyTicketIdJdbcGuard,
+                mock(UiEventTicketAccessService.class)
         );
     }
 }

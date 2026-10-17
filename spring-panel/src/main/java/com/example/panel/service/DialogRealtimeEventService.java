@@ -20,6 +20,7 @@ public class DialogRealtimeEventService {
     private final DialogNotificationService dialogNotificationService;
     private final UiEventStreamService uiEventStreamService;
     private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
+    private final UiEventTicketAccessService ticketAccess;
 
     public DialogRealtimeEventService(NotificationService notificationService,
                                       DialogAiAssistantService dialogAiAssistantService,
@@ -29,7 +30,8 @@ public class DialogRealtimeEventService {
                                       DialogResponsibilityService dialogResponsibilityService,
                                       DialogNotificationService dialogNotificationService,
                                       UiEventStreamService uiEventStreamService,
-                                      LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
+                                      LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard,
+                                      UiEventTicketAccessService ticketAccess) {
         this.notificationService = notificationService;
         this.dialogAiAssistantService = dialogAiAssistantService;
         this.alertQueueService = alertQueueService;
@@ -39,14 +41,22 @@ public class DialogRealtimeEventService {
         this.dialogNotificationService = dialogNotificationService;
         this.uiEventStreamService = uiEventStreamService;
         this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
+        this.ticketAccess = ticketAccess;
     }
 
     public void handleTicketCreated(String ticketId, Long channelId, String previewText) {
-        String normalizedTicketId = resolveUniqueTicketId(ticketId);
+        handleTicketCreated(ticketId, channelId, previewText, null);
+    }
+
+    private void handleTicketCreated(String ticketId, Long channelId, String previewText, UiEventTicketScope scope) {
+        String normalizedTicketId = resolveUniqueTicketId(ticketId, scope);
         if (normalizedTicketId == null) {
             return;
         }
         Channel channel = resolveChannel(channelId);
+        if (!isCurrent(scope)) {
+            return;
+        }
         if (channel != null) {
             ChannelAssignmentRoutingService.ResolvedAssignmentRouting routing =
                     channelAssignmentRoutingService.resolve(
@@ -54,6 +64,9 @@ public class DialogRealtimeEventService {
                             ChannelAssignmentRoutingService.RoutingEvent.NEW_PUBLIC_APPEAL,
                             normalizedTicketId
                     );
+            if (!isCurrent(scope)) {
+                return;
+            }
             if (StringUtils.hasText(routing.assignee())) {
                 dialogResponsibilityService.assignResponsibleIfMissing(
                         normalizedTicketId,
@@ -64,15 +77,18 @@ public class DialogRealtimeEventService {
         }
         String text = notificationService.formatNewAppealText(normalizedTicketId);
         String url = notificationService.buildDialogUrl(normalizedTicketId);
-        Set<String> routedRecipients = channel != null
+        Set<String> routedRecipients = Set.of();
+        if (channel != null) {
+            routedRecipients = scope == null
                 ? alertQueueService.notifyQueueForNewPublicAppealRecipients(channel, normalizedTicketId, previewText)
-                : Set.of();
+                : alertQueueService.notifyScopedQueueForNewPublicAppealRecipients(channel, scope, previewText);
+        }
         Set<String> remainingOperators = new LinkedHashSet<>(notificationService.findAllOperatorRecipients());
         remainingOperators.removeAll(routedRecipients);
         if (!remainingOperators.isEmpty()) {
-            notificationService.notifyDialogUsers(normalizedTicketId, remainingOperators, text, url);
+            notifyUsers(normalizedTicketId, scope, remainingOperators, text, url);
         }
-        uiEventStreamService.publishDialogsChanged("ticket_created", normalizedTicketId);
+        publishDialogsChanged("ticket_created", normalizedTicketId, scope);
     }
 
     public void handleIncomingClientMessage(String ticketId,
@@ -89,26 +105,38 @@ public class DialogRealtimeEventService {
                                             String messageType,
                                             String attachment,
                                             boolean notifyBell) {
-        String normalizedTicketId = resolveUniqueTicketId(ticketId);
+        handleIncomingClientMessage(ticketId, channelId, message, messageType, attachment, notifyBell, null);
+    }
+
+    private void handleIncomingClientMessage(String ticketId, Long channelId, String message, String messageType,
+                                             String attachment, boolean notifyBell, UiEventTicketScope scope) {
+        String normalizedTicketId = resolveUniqueTicketId(ticketId, scope);
         if (normalizedTicketId == null) {
             return;
         }
         Channel channel = resolveChannel(channelId);
+        if (!isCurrent(scope)) {
+            return;
+        }
         if (notifyBell) {
             boolean handledByQueue = channel != null
-                    && alertQueueService.notifyIncomingClientMessage(channel, normalizedTicketId, message);
+                    && (scope == null ? alertQueueService.notifyIncomingClientMessage(channel, normalizedTicketId, message)
+                        : alertQueueService.notifyScopedIncomingClientMessage(channel, scope, message));
             if (!handledByQueue) {
-                notificationService.notifyDialogUsers(
+                notifyUsers(
                         normalizedTicketId,
+                        scope,
                         notificationService.findAllOperatorRecipients(),
                         notificationService.formatIncomingClientMessageText(normalizedTicketId),
                         notificationService.buildDialogUrl(normalizedTicketId)
                 );
             }
         }
-        uiEventStreamService.publishDialogsChanged("incoming_client_message", normalizedTicketId);
-        uiEventStreamService.publishDialogHistoryChanged(normalizedTicketId, channelId, "incoming_client_message");
-        dialogAiAssistantService.processIncomingClientMessage(normalizedTicketId, message, messageType, attachment);
+        publishDialogsChanged("incoming_client_message", normalizedTicketId, scope);
+        publishHistoryChanged(normalizedTicketId, channelId, "incoming_client_message", scope);
+        if (isCurrent(scope)) {
+            dialogAiAssistantService.processIncomingClientMessage(normalizedTicketId, message, messageType, attachment);
+        }
     }
 
     public void handleClientMessageEdited(String ticketId, Long channelId) {
@@ -130,53 +158,140 @@ public class DialogRealtimeEventService {
     }
 
     public void handleFeedbackCreated(String ticketId, Integer rating) {
-        String normalizedTicketId = resolveUniqueTicketId(ticketId);
+        handleFeedbackCreated(ticketId, rating, null);
+    }
+
+    private void handleFeedbackCreated(String ticketId, Integer rating, UiEventTicketScope scope) {
+        String normalizedTicketId = resolveUniqueTicketId(ticketId, scope);
         if (normalizedTicketId == null || rating == null) {
             return;
         }
-        notificationService.notifyDialogParticipants(
-                normalizedTicketId,
-                "Новая оценка по обращению " + normalizedTicketId + ": " + rating + "/5",
-                notificationService.buildDialogUrl(normalizedTicketId),
-                null
-        );
-        uiEventStreamService.publishDialogsChanged("dialog_feedback_created", normalizedTicketId);
+        String text = "Новая оценка по обращению " + normalizedTicketId + ": " + rating + "/5";
+        String url = notificationService.buildDialogUrl(normalizedTicketId);
+        if (scope == null) {
+            notificationService.notifyDialogParticipants(normalizedTicketId, text, url, null);
+        } else {
+            notificationService.notifyScopedDialogParticipants(scope, text, url, null);
+        }
+        publishDialogsChanged("dialog_feedback_created", normalizedTicketId, scope);
     }
 
     public void handleTicketAutoClosed(String ticketId, Long channelId, String text) {
-        String normalizedTicketId = resolveUniqueTicketId(ticketId);
+        handleTicketAutoClosed(ticketId, channelId, text, null);
+    }
+
+    private void handleTicketAutoClosed(String ticketId, Long channelId, String text, UiEventTicketScope scope) {
+        String normalizedTicketId = resolveUniqueTicketId(ticketId, scope);
         if (normalizedTicketId == null) {
             return;
         }
         Channel channel = resolveChannel(channelId);
         String message = notificationService.formatAutoCloseText(normalizedTicketId);
-        Set<String> recipients = notificationService.findDialogRecipients(normalizedTicketId);
+        Set<String> recipients = scope == null ? notificationService.findDialogRecipients(normalizedTicketId)
+            : notificationService.findScopedDialogRecipients(scope);
         if (recipients.isEmpty()) {
             recipients = notificationService.findAllOperatorRecipients();
         }
-        notificationService.notifyDialogUsers(normalizedTicketId, recipients, message,
+        notifyUsers(normalizedTicketId, scope, recipients, message,
                 notificationService.buildDialogUrl(normalizedTicketId));
-        if (channel != null && legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(normalizedTicketId)) {
+        if (channel != null && legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(normalizedTicketId) && isCurrent(scope)) {
             dialogNotificationService.notifySupportChat(channel, message);
         }
-        uiEventStreamService.publishDialogsChanged("dialog_auto_closed", normalizedTicketId);
+        publishDialogsChanged("dialog_auto_closed", normalizedTicketId, scope);
     }
 
     public void handleTicketClosed(String ticketId, Long channelId) {
-        publishTicketLifecycleChange(ticketId, channelId, "dialog_closed");
+        publishTicketLifecycleChange(ticketId, channelId, "dialog_closed", null);
     }
 
     public void handleTicketReopened(String ticketId, Long channelId) {
-        publishTicketLifecycleChange(ticketId, channelId, "dialog_reopened");
+        publishTicketLifecycleChange(ticketId, channelId, "dialog_reopened", null);
     }
 
-    private void publishTicketLifecycleChange(String ticketId, Long channelId, String reason) {
-        String normalizedTicketId = resolveUniqueTicketId(ticketId);
+    private void publishTicketLifecycleChange(String ticketId, Long channelId, String reason, UiEventTicketScope scope) {
+        String normalizedTicketId = resolveUniqueTicketId(ticketId, scope);
         if (normalizedTicketId == null) {
             return;
         }
-        uiEventStreamService.publishDialogsChanged(reason, normalizedTicketId);
-        uiEventStreamService.publishDialogHistoryChanged(normalizedTicketId, channelId, reason);
+        publishDialogsChanged(reason, normalizedTicketId, scope);
+        publishHistoryChanged(normalizedTicketId, channelId, reason, scope);
+    }
+
+    public void handleScopedTicketCreated(UiEventTicketScope scope, Long channelId, String previewText) {
+        if (scope != null && scope.isValid()) {
+            handleTicketCreated(scope.ticketId(), channelId, previewText, scope);
+        }
+    }
+
+    public void handleScopedIncomingClientMessage(UiEventTicketScope scope, Long channelId, String message,
+                                                  String messageType, String attachment, boolean notifyBell) {
+        if (scope != null && scope.isValid()) {
+            handleIncomingClientMessage(scope.ticketId(), channelId, message, messageType, attachment, notifyBell, scope);
+        }
+    }
+
+    public void handleScopedClientMessageEdited(UiEventTicketScope scope, Long channelId) {
+        if (scope != null && scope.isValid()) {
+            publishTicketLifecycleChange(scope.ticketId(), channelId, "client_message_edited", scope);
+        }
+    }
+
+    public void handleScopedOperatorMessageEdited(UiEventTicketScope scope, Long channelId) {
+        if (scope != null && scope.isValid()) {
+            publishTicketLifecycleChange(scope.ticketId(), channelId, "operator_message_edited", scope);
+        }
+    }
+
+    public void handleScopedFeedbackCreated(UiEventTicketScope scope, Integer rating) {
+        if (scope != null && scope.isValid()) {
+            handleFeedbackCreated(scope.ticketId(), rating, scope);
+        }
+    }
+
+    public void handleScopedTicketAutoClosed(UiEventTicketScope scope, Long channelId, String text) {
+        if (scope != null && scope.isValid()) {
+            handleTicketAutoClosed(scope.ticketId(), channelId, text, scope);
+        }
+    }
+
+    public void handleScopedTicketClosed(UiEventTicketScope scope, Long channelId) {
+        if (scope != null && scope.isValid()) {
+            publishTicketLifecycleChange(scope.ticketId(), channelId, "dialog_closed", scope);
+        }
+    }
+
+    public void handleScopedTicketReopened(UiEventTicketScope scope, Long channelId) {
+        if (scope != null && scope.isValid()) {
+            publishTicketLifecycleChange(scope.ticketId(), channelId, "dialog_reopened", scope);
+        }
+    }
+
+    private void notifyUsers(String ticketId, UiEventTicketScope scope, Set<String> recipients, String text, String url) {
+        if (scope == null) {
+            notificationService.notifyDialogUsers(ticketId, recipients, text, url);
+        } else {
+            notificationService.notifyScopedDialogUsers(scope, recipients, text, url);
+        }
+    }
+
+    private void publishDialogsChanged(String reason, String ticketId, UiEventTicketScope scope) {
+        if (scope == null) {
+            uiEventStreamService.publishDialogsChanged(reason, ticketId);
+        } else {
+            uiEventStreamService.publishScopedDialogsChanged(reason, scope);
+        }
+    }
+
+    private void publishHistoryChanged(String ticketId, Long channelId, String reason, UiEventTicketScope scope) {
+        if (scope == null) {
+            uiEventStreamService.publishDialogHistoryChanged(ticketId, channelId, reason);
+        } else {
+            uiEventStreamService.publishScopedDialogHistoryChanged(scope, channelId, reason);
+        }
+    }
+
+    private boolean isCurrent(UiEventTicketScope scope) {
+        return scope == null || ticketAccess.isCurrentScope(scope);
     }
 
     private Channel resolveChannel(Long channelId) {
@@ -192,7 +307,11 @@ public class DialogRealtimeEventService {
     }
 
     private String resolveUniqueTicketId(String ticketId) {
-        return StringUtils.hasText(ticketId) && legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)
+        return resolveUniqueTicketId(ticketId, null);
+    }
+
+    private String resolveUniqueTicketId(String ticketId, UiEventTicketScope scope) {
+        return StringUtils.hasText(ticketId) && legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId) && isCurrent(scope)
                 ? ticketId
                 : null;
     }

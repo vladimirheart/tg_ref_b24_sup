@@ -83,7 +83,7 @@ class UiEventOutboxScopePostgresIntegrationTest {
 
         watcher.watch();
         if ("GENERAL".equals(kind)) verifyNoInteractions(events);
-        else verify(events).handleFeedbackCreated(ticketId, 5);
+        else verify(events).handleScopedFeedbackCreated(scope(ticketId), 5);
         assertThat(checkpoint.readLongCursor("ui-event-outbox-watch")).isEqualTo(Optional.of((Long) row.get("id")));
     }
 
@@ -115,7 +115,7 @@ class UiEventOutboxScopePostgresIntegrationTest {
 
         watcher.watch();
 
-        verify(events).handleFeedbackCreated(validId, 5);
+        verify(events).handleScopedFeedbackCreated(scope(validId), 5);
         verifyNoMoreInteractions(events);
         assertThat(checkpoint.readLongCursor("ui-event-outbox-watch")).isEqualTo(Optional.of(
             jdbc.queryForObject("SELECT MAX(id) FROM ui_event_outbox", Long.class)));
@@ -157,7 +157,7 @@ class UiEventOutboxScopePostgresIntegrationTest {
         owner(IDS.incrementAndGet(), businessId, "BUSINESS", "b".repeat(32));
         writer.publishFeedbackCreated(businessId, 99L, 5);
         watcher.watch();
-        verify(events).handleFeedbackCreated(businessId, 5);
+        verify(events).handleScopedFeedbackCreated(scope(businessId), 5);
         verifyNoMoreInteractions(events);
     }
 
@@ -169,7 +169,7 @@ class UiEventOutboxScopePostgresIntegrationTest {
         owner(userId, ticketId, "BUSINESS", "d".repeat(32));
         publish("client_message_created");
         watcher.watch();
-        verify(events).handleIncomingClientMessage(ticketId, 99L, "payload", "text", "storage/key", true);
+        verify(events).handleScopedIncomingClientMessage(scope(ticketId), 99L, "payload", "text", "storage/key", true);
         verifyNoMoreInteractions(events);
     }
 
@@ -183,9 +183,9 @@ class UiEventOutboxScopePostgresIntegrationTest {
         publish("client_message_created");
         publish("client_message_created");
         watcher.watch();
-        verify(events).handleTicketCreated(ticketId, 99L, "payload");
-        verify(events).handleIncomingClientMessage(ticketId, 99L, "payload", "text", "storage/key", false);
-        verify(events).handleIncomingClientMessage(ticketId, 99L, "payload", "text", "storage/key", true);
+        verify(events).handleScopedTicketCreated(scope(ticketId), 99L, "payload");
+        verify(events).handleScopedIncomingClientMessage(scope(ticketId), 99L, "payload", "text", "storage/key", false);
+        verify(events).handleScopedIncomingClientMessage(scope(ticketId), 99L, "payload", "text", "storage/key", true);
         verifyNoMoreInteractions(events);
     }
 
@@ -196,6 +196,12 @@ class UiEventOutboxScopePostgresIntegrationTest {
         assertThat(unavailable.isCurrentScope(new UiEventTicketScope(1L, "ticket", PUBLIC_ID, "BUSINESS", sushi))).isFalse();
         assertThat(unavailable.isCurrentScope(null)).isFalse();
         assertThat(unavailable.isCurrentScope(new UiEventTicketScope(1L, "ticket", PUBLIC_ID, "GENERAL", null))).isFalse();
+    }
+
+    private UiEventTicketScope scope(String id) {
+        return jdbc.queryForObject("SELECT * FROM tickets WHERE ticket_id = ?", (rs, row) ->
+            new UiEventTicketScope(rs.getLong("user_id"), rs.getString("ticket_id"), rs.getString("ticket_public_id"),
+                rs.getObject("business_id") == null ? "UNRESOLVED" : "BUSINESS", rs.getObject("business_id", Long.class)), id);
     }
 
     private void publish(String type) {

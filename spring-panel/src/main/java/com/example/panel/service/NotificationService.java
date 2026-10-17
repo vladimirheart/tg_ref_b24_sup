@@ -22,6 +22,8 @@ import java.time.ZoneOffset;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -33,6 +35,15 @@ import java.util.regex.Pattern;
 @Service
 @Transactional
 public class NotificationService {
+
+    private static final String EXPECTED_OWNER_SQL = """
+        owner.user_id = ? AND owner.ticket_id = ? AND owner.ticket_public_id = ?
+        AND owner.business_id IS NOT DISTINCT FROM CAST(? AS BIGINT)
+        AND CASE WHEN owner.business_id IS NULL THEN 'UNRESOLVED' ELSE 'BUSINESS' END = ?
+        AND owner.is_general = FALSE
+        AND (SELECT COUNT(*) FROM tickets candidate WHERE candidate.ticket_id = owner.ticket_id) = 1
+        AND (owner.business_id IS NOT NULL OR ? = TRUE)
+        """;
 
     private static final Charset WINDOWS_1251 = Charset.forName("windows-1251");
     private static final Pattern CP1251_UTF8_MOJIBAKE = Pattern.compile("(?:Р.|С.){2,}");
@@ -343,6 +354,42 @@ public class NotificationService {
         notifyDialogUsersExcluding(ticketId, recipients, excludedIdentity, text, url);
     }
 
+    @Transactional(readOnly = true)
+    public Set<String> findScopedDialogRecipients(UiEventTicketScope scope) {
+        if (!isCurrentNotificationScope(scope)) {
+            return Set.of();
+        }
+        Set<String> recipients = new LinkedHashSet<>();
+        collectScopedDialogRecipients("SELECT responsible FROM ticket_responsibles WHERE ticket_id = ?",
+            "responsible", scope, recipients);
+        collectScopedDialogRecipients("SELECT user_identity FROM ticket_active WHERE ticket_id = ?",
+            "user_identity", scope, recipients);
+        collectScopedDialogRecipients("SELECT username FROM ticket_participants WHERE ticket_id = ?",
+            "username", scope, recipients);
+        return isCurrentNotificationScope(scope) ? recipients : Set.of();
+    }
+
+    public void notifyScopedDialogParticipants(UiEventTicketScope scope, String text, String url, String excludedIdentity) {
+        if (!isCurrentNotificationScope(scope)) {
+            return;
+        }
+        Set<String> recipients = findScopedDialogRecipients(scope);
+        if (!isCurrentNotificationScope(scope)) {
+            return;
+        }
+        if (recipients.isEmpty()) {
+            recipients = findAllOperatorRecipients();
+        }
+        notifyDialogUsersExcluding(scope.ticketId(), recipients, excludedIdentity, text, url, scope);
+    }
+
+    public Set<String> notifyScopedDialogUsers(UiEventTicketScope scope, Set<String> userIdentities, String text, String url) {
+        if (scope == null || !scope.isValid()) {
+            return Set.of();
+        }
+        return notifyDialogUsersExcluding(scope.ticketId(), userIdentities, null, text, url, scope);
+    }
+
     /** Explicit ticket context stays attached until the notification INSERT snapshot. */
     public Set<String> notifyDialogUsers(String ticketId, Set<String> userIdentities, String text, String url) {
         return notifyDialogUsersExcluding(ticketId, userIdentities, null, text, url);
@@ -350,6 +397,12 @@ public class NotificationService {
 
     private Set<String> notifyDialogUsersExcluding(String ticketId, Set<String> userIdentities,
                                                   String excludedIdentity, String text, String url) {
+        return notifyDialogUsersExcluding(ticketId, userIdentities, excludedIdentity, text, url, null);
+    }
+
+    private Set<String> notifyDialogUsersExcluding(String ticketId, Set<String> userIdentities,
+                                                  String excludedIdentity, String text, String url,
+                                                  UiEventTicketScope expectedScope) {
         if (!StringUtils.hasText(text) || userIdentities == null || userIdentities.isEmpty()
                 || !legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)) {
             return Set.of();
@@ -362,7 +415,7 @@ public class NotificationService {
             if (identity.equals(excluded)) {
                 continue;
             }
-            int inserted = jdbcTemplate.update("""
+            String sql = """
                 INSERT INTO notifications(user_identity, text, url, is_read, created_at,
                     ticket_user_id, ticket_id, ticket_public_id, ticket_scope_kind, ticket_business_id)
                 SELECT n.user_identity, n.text, n.url, FALSE,
@@ -374,8 +427,14 @@ public class NotificationService {
                  WHERE owner.is_general = FALSE
                    AND (SELECT COUNT(*) FROM tickets candidate WHERE candidate.ticket_id = ?) = 1
                    AND (owner.business_id IS NULL OR
-                """ + NotificationBusinessAccessSql.CAN_READ_OWNER_BUSINESS + ")",
-                identity, safeText, safeUrl, OffsetDateTime.now(ZoneOffset.UTC), ticketId, ticketId);
+                """ + NotificationBusinessAccessSql.CAN_READ_OWNER_BUSINESS + ")";
+            List<Object> arguments = new ArrayList<>(Arrays.asList(
+                identity, safeText, safeUrl, OffsetDateTime.now(ZoneOffset.UTC), ticketId, ticketId));
+            if (expectedScope != null) {
+                sql += " AND (" + EXPECTED_OWNER_SQL + ")";
+                arguments.addAll(scopeArguments(expectedScope));
+            }
+            int inserted = jdbcTemplate.update(sql, arguments.toArray());
             if (inserted == 1) {
                 delivered.add(identity);
                 uiEventStreamService.publishNotificationsChanged(identity, "notification_created");
@@ -543,6 +602,37 @@ public class NotificationService {
             );
         } catch (Exception ex) {
             // ignore missing optional tables for legacy databases
+        }
+    }
+
+    private List<Object> scopeArguments(UiEventTicketScope scope) {
+        return Arrays.asList(scope.ticketUserId(), scope.ticketId(), scope.ticketPublicId(),
+            scope.businessId(), scope.scopeKind(), allowLegacyNotifications());
+    }
+
+    private boolean isCurrentNotificationScope(UiEventTicketScope scope) {
+        if (scope == null || !scope.isValid()) {
+            return false;
+        }
+        try {
+            return Boolean.TRUE.equals(jdbcTemplate.queryForObject(
+                "SELECT EXISTS (SELECT 1 FROM tickets owner WHERE " + EXPECTED_OWNER_SQL + ")",
+                Boolean.class, scopeArguments(scope).toArray()));
+        } catch (org.springframework.dao.DataAccessException ex) {
+            return false;
+        }
+    }
+
+    private void collectScopedDialogRecipients(String sql, String column, UiEventTicketScope scope, Set<String> recipients) {
+        List<Object> arguments = new ArrayList<>();
+        arguments.add(scope.ticketId());
+        arguments.addAll(scopeArguments(scope));
+        try {
+            jdbcTemplate.query(sql + " AND EXISTS (SELECT 1 FROM tickets owner WHERE " + EXPECTED_OWNER_SQL + ")",
+                (org.springframework.jdbc.core.RowCallbackHandler) rs -> recipients.addAll(splitIdentities(rs.getString(column))),
+                arguments.toArray());
+        } catch (org.springframework.dao.DataAccessException ex) {
+            // Optional legacy recipient tables may be absent; owner proof is still required before fallback.
         }
     }
 

@@ -52,7 +52,7 @@ class UiEventOutboxWatcherTest {
 
         fixture.watcher.watch();
 
-        verify(fixture.events).handleFeedbackCreated("T-VALID", 5);
+        verify(fixture.events).handleScopedFeedbackCreated(fixture.scope("T-VALID"), 5);
         verifyNoMoreInteractions(fixture.events);
         assertThat(fixture.checkpoint.readLongCursor("ui-event-outbox-watch")).isEqualTo(Optional.of(12L));
         fixture.watcher.watch();
@@ -72,7 +72,7 @@ class UiEventOutboxWatcherTest {
 
         fixture.watcher.watch();
 
-        verify(fixture.events).handleFeedbackCreated("T-VALID", 5);
+        verify(fixture.events).handleScopedFeedbackCreated(fixture.scope("T-VALID"), 5);
         verifyNoMoreInteractions(fixture.events);
         assertThat(fixture.checkpoint.readLongCursor("ui-event-outbox-watch")).isEqualTo(Optional.of(20L));
     }
@@ -91,8 +91,8 @@ class UiEventOutboxWatcherTest {
 
         fixture.watcher.watch();
 
-        verify(fixture.events).handleIncomingClientMessage(
-            " T-EXACT ", 9L, "message", "text", null, !"own-created".equals(condition));
+        verify(fixture.events).handleScopedIncomingClientMessage(
+            fixture.scope(" T-EXACT "), 9L, "message", "text", null, !"own-created".equals(condition));
         assertThat(fixture.checkpoint.readLongCursor("ui-event-outbox-watch")).isEqualTo(Optional.of(4L));
     }
 
@@ -104,7 +104,7 @@ class UiEventOutboxWatcherTest {
 
         fixture.watcher.watch();
 
-        verify(fixture.events).handleFeedbackCreated("T-VALID", 5);
+        verify(fixture.events).handleScopedFeedbackCreated(fixture.scope("T-VALID"), 5);
         assertThat(fixture.checkpoint.readLongCursor("ui-event-outbox-watch")).isEqualTo(Optional.of(1L));
     }
 
@@ -114,12 +114,12 @@ class UiEventOutboxWatcherTest {
         fixture.jdbc.update("INSERT INTO tickets VALUES (1, 'T-FAIL'), (2, 'T-VALID')");
         fixture.event(10L, "feedback_created", "T-FAIL");
         fixture.event(11L, "feedback_created", "T-VALID");
-        doThrow(new IllegalStateException("test dispatch failure")).when(fixture.events).handleFeedbackCreated("T-FAIL", 5);
+        doThrow(new IllegalStateException("test dispatch failure")).when(fixture.events).handleScopedFeedbackCreated(fixture.scope("T-FAIL"), 5);
 
         fixture.watcher.watch();
 
-        verify(fixture.events).handleFeedbackCreated("T-FAIL", 5);
-        verify(fixture.events).handleFeedbackCreated("T-VALID", 5);
+        verify(fixture.events).handleScopedFeedbackCreated(fixture.scope("T-FAIL"), 5);
+        verify(fixture.events).handleScopedFeedbackCreated(fixture.scope("T-VALID"), 5);
         assertThat(fixture.checkpoint.readLongCursor("ui-event-outbox-watch")).isEqualTo(Optional.of(11L));
     }
 
@@ -147,6 +147,12 @@ class UiEventOutboxWatcherTest {
             watcher = new UiEventOutboxWatcher(jdbc, events, coordination, checkpoint, new LegacyTicketIdJdbcGuard(jdbc),
                 new UiEventTicketAccessService(jdbc, new com.example.panel.config.MultibusinessFeatureFlags()));
             watcher.initialize();
+        }
+
+        private UiEventTicketScope scope(String ticketId) {
+            return jdbc.queryForObject("SELECT * FROM tickets WHERE ticket_id = ?", (rs, row) ->
+                new UiEventTicketScope(rs.getLong("user_id"), rs.getString("ticket_id"), rs.getString("ticket_public_id"),
+                    rs.getObject("business_id") == null ? "UNRESOLVED" : "BUSINESS", rs.getObject("business_id", Long.class)), ticketId);
         }
 
         private void event(long id, String type, String ticketId) {
