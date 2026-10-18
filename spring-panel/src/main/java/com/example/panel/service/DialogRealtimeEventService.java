@@ -197,7 +197,11 @@ public class DialogRealtimeEventService {
         notifyUsers(normalizedTicketId, scope, recipients, message,
                 notificationService.buildDialogUrl(normalizedTicketId));
         if (channel != null && legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(normalizedTicketId) && isCurrent(scope)) {
-            dialogNotificationService.notifySupportChat(channel, message);
+            if (scope == null) {
+                dialogNotificationService.notifySupportChat(channel, message);
+            } else {
+                dialogNotificationService.notifyScopedSupportChat(scope, channelId, message);
+            }
         }
         publishDialogsChanged("dialog_auto_closed", normalizedTicketId, scope);
     }

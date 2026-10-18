@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -23,6 +24,9 @@ import com.example.panel.repository.NotificationRepository;
 import com.example.panel.support.PostgresqlJdbcTestSupport;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -59,6 +63,9 @@ class UiEventOutboxFrozenDeliveryPostgresTest {
     private ChannelAssignmentRoutingService routing;
     private DialogResponsibilityService responsibility;
     private DialogNotificationService supportChat;
+    private SupportChatDeliveryAccessService supportAccess;
+    private IntegrationNetworkService supportNetwork;
+    private HttpClient supportClient;
     private DialogAiAssistantService ai;
     private AlertQueueService queue;
     private DialogRealtimeEventService realtime;
@@ -71,18 +78,23 @@ class UiEventOutboxFrozenDeliveryPostgresTest {
     private Runnable beforeChild = () -> {};
     private Runnable beforeAssignment = () -> {};
     private Runnable afterAssignment = () -> {};
+    private Runnable supportSetupMutation = () -> {};
     private int childRowsRead;
 
     @BeforeEach
     @SuppressWarnings("unchecked")
-    void setUp() {
+    void setUp() throws Exception {
         jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType("ui_outbox_frozen_delivery");
         jdbc.execute("CREATE TABLE users(id BIGINT PRIMARY KEY, username TEXT, enabled BOOLEAN, is_blocked BOOLEAN, last_portal_activity_at TEXT)");
         jdbc.execute("CREATE TABLE businesses(id BIGINT PRIMARY KEY, status TEXT)");
         jdbc.execute("CREATE TABLE business_memberships(user_id BIGINT, business_id BIGINT, role_code TEXT, is_active BOOLEAN)");
         jdbc.execute("CREATE TABLE business_access_grants(user_id BIGINT, grant_scope TEXT, role_code TEXT, is_active BOOLEAN)");
         jdbc.execute("CREATE TABLE tickets(user_id BIGINT, ticket_id TEXT, ticket_public_id TEXT, is_general BOOLEAN, "
-            + "business_id BIGINT, PRIMARY KEY(user_id, ticket_id))");
+            + "business_id BIGINT, channel_id BIGINT DEFAULT 9, PRIMARY KEY(user_id, ticket_id))");
+        jdbc.execute("CREATE TABLE channels(id BIGINT PRIMARY KEY, token TEXT, support_chat_id TEXT, platform TEXT, "
+            + "platform_config TEXT, delivery_settings TEXT, credential_id BIGINT, is_active BOOLEAN)");
+        jdbc.update("INSERT INTO channels VALUES (9,'test-token','42','telegram',"
+            + "'{\"base_url\":\"https://support.invalid\"}',NULL,NULL,TRUE)");
         jdbc.execute("CREATE TABLE notifications(id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, user_identity TEXT NOT NULL, "
             + "text TEXT NOT NULL, url TEXT, is_read BOOLEAN, created_at TIMESTAMPTZ, ticket_user_id BIGINT, ticket_id TEXT, "
             + "ticket_public_id TEXT, ticket_scope_kind TEXT, ticket_business_id BIGINT)");
@@ -160,7 +172,19 @@ class UiEventOutboxFrozenDeliveryPostgresTest {
         queue = new AlertQueueService(jdbc, notices, new ObjectMapper(), routing, guard);
         ai = mock(DialogAiAssistantService.class);
         responsibility = spy(new DialogResponsibilityService(observed, guard, flags));
-        supportChat = mock(DialogNotificationService.class);
+        supportAccess = spy(new SupportChatDeliveryAccessService(jdbc, flags));
+        supportNetwork = mock(IntegrationNetworkService.class);
+        supportClient = mock(HttpClient.class);
+        HttpResponse<String> supportResponse = mock(HttpResponse.class);
+        when(supportResponse.statusCode()).thenReturn(200);
+        when(supportResponse.body()).thenReturn("{\"ok\":true,\"result\":{\"message_id\":42}}");
+        doReturn(supportResponse).when(supportClient).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+        when(supportNetwork.createChannelHttpClient(any(), any())).thenAnswer(call -> {
+            supportSetupMutation.run();
+            return supportClient;
+        });
+        supportChat = spy(new DialogNotificationService(jdbc, channels, supportNetwork,
+            mock(SharedConfigService.class), new BotSettingsPayloadNormalizer(), new ObjectMapper(), guard, supportAccess));
         realtime = new DialogRealtimeEventService(notices, ai, queue, routing, channels, responsibility, supportChat, stream, guard, access);
         writer = new UiEventOutboxAppendService(jdbc, guard);
         checkpoint = new RuntimeWorkerCheckpointService(jdbc);
@@ -352,6 +376,69 @@ class UiEventOutboxFrozenDeliveryPostgresTest {
         when(routing.resolve(any(), any(), anyString())).thenReturn(
             new ChannelAssignmentRoutingService.ResolvedAssignmentRouting(true,
                 List.of("all-reader"), "all-reader", "single_operator", "round_robin"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"telegram", "vk", "max"})
+    void outboxAutoClosePreservesScopeAndUsesCanonicalDestinationNotTheMutableJpaChannel(String platform) throws Exception {
+        jdbc.update("UPDATE channels SET platform=? WHERE id=9", platform);
+        channel.setToken("stale-jpa-token");
+        channel.setSupportChatId("999");
+        channel.setPlatform("unknown");
+        dispatch("ticket_closed_auto");
+        verify(supportChat).notifyScopedSupportChat(scope, 9L, notices.formatAutoCloseText(RAW));
+        verify(supportChat, never()).notifySupportChat(any(), anyString());
+        verify(supportAccess).captureTarget(scope, 9L);
+        verify(supportClient).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+        verify(access, never()).captureScope(anyString());
+        assertThat(count()).isEqualTo(1);
+        assertCursorAdvanced();
+    }
+
+    static Stream<Arguments> supportHandoffCases() {
+        return Stream.of("telegram", "vk", "max").flatMap(platform ->
+            Stream.of("business", "destination").map(mutation -> Arguments.of(platform, mutation)));
+    }
+
+    @ParameterizedTest
+    @MethodSource("supportHandoffCases")
+    void lateSupportChangeCannotRetargetOldAutoCloseOrRepeatTheValidBell(String platform, String mutation) {
+        jdbc.update("UPDATE channels SET platform=? WHERE id=9", platform);
+        supportSetupMutation = () -> {
+            if ("business".equals(mutation)) mutate("business");
+            else jdbc.update("UPDATE channels SET support_chat_id='999' WHERE id=9");
+        };
+        dispatch("ticket_closed_auto");
+        verifyNoInteractions(supportClient);
+        verify(supportChat, never()).notifySupportChat(any(), anyString());
+        verify(access, never()).captureScope(anyString());
+        assertThat(count()).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT ticket_business_id FROM notifications", Long.class)).isEqualTo(1L);
+        assertCursorAdvanced();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"business", "recreated", "tuple", "general", "missing", "collision"})
+    void supportTargetSqlRejectsOwnerChangeInsideTheCallback(String mutation) {
+        doAnswer(call -> {
+            mutate(mutation);
+            return call.callRealMethod();
+        }).when(supportAccess).captureTarget(scope, 9L);
+        dispatch("ticket_closed_auto");
+        verifyNoInteractions(supportNetwork, supportClient);
+        verify(supportChat, never()).notifySupportChat(any(), anyString());
+        assertThat(count()).isEqualTo(1);
+        assertCursorAdvanced();
+    }
+
+    @Test
+    void autoCloseCannotUseAnOutboxChannelDifferentFromTheCanonicalOwnerChannel() {
+        jdbc.update("UPDATE tickets SET channel_id=8 WHERE ticket_id=?", RAW);
+        dispatch("ticket_closed_auto");
+        verify(supportChat).notifyScopedSupportChat(scope, 9L, notices.formatAutoCloseText(RAW));
+        verifyNoInteractions(supportNetwork, supportClient);
+        assertThat(count()).isEqualTo(1);
+        assertCursorAdvanced();
     }
 
     @Test

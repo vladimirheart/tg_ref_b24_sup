@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -38,6 +39,7 @@ public class DialogNotificationService {
     private final BotSettingsPayloadNormalizer botSettingsPayloadNormalizer;
     private final ObjectMapper objectMapper;
     private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
+    private final SupportChatDeliveryAccessService supportChatAccess;
 
     public DialogNotificationService(JdbcTemplate jdbcTemplate,
                                      ChannelRepository channelRepository,
@@ -46,6 +48,19 @@ public class DialogNotificationService {
                                      BotSettingsPayloadNormalizer botSettingsPayloadNormalizer,
                                      ObjectMapper objectMapper,
                                      LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
+        this(jdbcTemplate, channelRepository, integrationNetworkService, sharedConfigService,
+            botSettingsPayloadNormalizer, objectMapper, legacyTicketIdJdbcGuard, null);
+    }
+
+    @Autowired
+    public DialogNotificationService(JdbcTemplate jdbcTemplate,
+                                     ChannelRepository channelRepository,
+                                     IntegrationNetworkService integrationNetworkService,
+                                     SharedConfigService sharedConfigService,
+                                     BotSettingsPayloadNormalizer botSettingsPayloadNormalizer,
+                                     ObjectMapper objectMapper,
+                                     LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard,
+                                     SupportChatDeliveryAccessService supportChatAccess) {
         this.jdbcTemplate = jdbcTemplate;
         this.channelRepository = channelRepository;
         this.integrationNetworkService = integrationNetworkService;
@@ -53,6 +68,7 @@ public class DialogNotificationService {
         this.botSettingsPayloadNormalizer = botSettingsPayloadNormalizer;
         this.objectMapper = objectMapper;
         this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
+        this.supportChatAccess = supportChatAccess;
     }
 
     public void notifyResolved(String ticketId) {
@@ -112,6 +128,28 @@ public class DialogNotificationService {
             return false;
         }
         return sendPlatformMessage(channel, chatId, message);
+    }
+
+    public boolean notifyScopedSupportChat(UiEventTicketScope scope, Long channelId, String message) {
+        if (scope == null || !scope.isValid() || channelId == null || !StringUtils.hasText(message)
+                || supportChatAccess == null) {
+            return false;
+        }
+        var target = supportChatAccess.captureTarget(scope, channelId).orElse(null);
+        if (target == null) {
+            return false;
+        }
+        Long chatId = parseTelegramLikeChatId(target.supportChatId());
+        if (chatId == null) {
+            return false;
+        }
+        try {
+            return sendPlatformMessage(target.toChannel(), chatId, message, new ScopedSupportDelivery(scope, target));
+        } catch (RuntimeException ex) {
+            // Invalid URI/configuration errors may contain the bot token. Never forward them to watcher logs.
+            log.warn("Scoped support-chat delivery failed for channel {}", channelId);
+            return false;
+        }
     }
 
     public int notifyAllSupportChats(String message) {
@@ -253,17 +291,25 @@ public class DialogNotificationService {
         ).stream().findFirst();
     }
 
-    private boolean sendTelegramMessage(Channel channel, Long userId, String text) {
+    private boolean sendTelegramMessage(Channel channel, Long userId, String text, ScopedSupportDelivery delivery) {
         String platform = channel.getPlatform() != null ? channel.getPlatform().trim().toLowerCase() : "telegram";
         return switch (platform) {
-            case "vk" -> sendVkMessage(channel, userId, text);
-            case "max" -> sendMaxMessage(channel, userId, text);
-            default -> sendTelegramText(channel, userId, text);
+            case "vk" -> sendVkMessage(channel, userId, text, delivery);
+            case "max" -> sendMaxMessage(channel, userId, text, delivery);
+            default -> sendTelegramText(channel, userId, text, delivery);
         };
     }
 
     private boolean sendPlatformMessage(Channel channel, Long userId, String text) {
-        return sendTelegramMessage(channel, userId, text);
+        return sendPlatformMessage(channel, userId, text, null);
+    }
+
+    private boolean sendPlatformMessage(Channel channel, Long userId, String text, ScopedSupportDelivery delivery) {
+        return sendTelegramMessage(channel, userId, text, delivery);
+    }
+
+    private boolean isDeliveryCurrent(ScopedSupportDelivery delivery) {
+        return delivery == null || supportChatAccess.isCurrentTarget(delivery.scope(), delivery.target());
     }
 
     private List<Map<String, Object>> castTemplateList(Object rawTemplates) {
@@ -335,7 +381,7 @@ public class DialogNotificationService {
         }
     }
 
-    private boolean sendTelegramText(Channel channel, Long userId, String text) {
+    private boolean sendTelegramText(Channel channel, Long userId, String text, ScopedSupportDelivery delivery) {
         if (userId == null || !StringUtils.hasText(text)) {
             return false;
         }
@@ -343,12 +389,17 @@ public class DialogNotificationService {
         payload.put("chat_id", userId);
         payload.put("text", text);
         try {
-            HttpClient client = integrationNetworkService.createChannelHttpClient(channel, Duration.ofSeconds(10));
+            HttpClient client = integrationNetworkService.createChannelHttpClient(
+                delivery == null ? channel : delivery.target().toChannel(), Duration.ofSeconds(10));
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(buildTelegramMethodUrl(channel, "sendMessage")))
+                    .uri(URI.create(delivery == null ? buildTelegramMethodUrl(channel, "sendMessage")
+                        : resolveTelegramBotApiPrefix(delivery.target().toChannel()) + delivery.target().token() + "/sendMessage"))
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
                     .build();
+            if (!isDeliveryCurrent(delivery)) {
+                return false;
+            }
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() / 100 != 2) {
                 log.warn("Telegram notification failed: status {}", response.statusCode());
@@ -360,12 +411,13 @@ public class DialogNotificationService {
             log.warn("Telegram notification interrupted");
             return false;
         } catch (IOException ex) {
-            log.warn("Telegram notification failed: {}", ex.getMessage());
+            if (delivery == null) log.warn("Telegram notification failed: {}", ex.getMessage());
+            else log.warn("Telegram scoped support-chat delivery failed");
             return false;
         }
     }
 
-    private boolean sendVkMessage(Channel channel, Long userId, String text) {
+    private boolean sendVkMessage(Channel channel, Long userId, String text, ScopedSupportDelivery delivery) {
         if (userId == null || userId <= 0 || userId > Integer.MAX_VALUE || !StringUtils.hasText(text)) {
             return false;
         }
@@ -380,15 +432,21 @@ public class DialogNotificationService {
                     .header("Content-Type", "application/x-www-form-urlencoded")
                     .POST(HttpRequest.BodyPublishers.ofString(query, java.nio.charset.StandardCharsets.UTF_8))
                     .build();
-            HttpResponse<String> response = TELEGRAM_HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(java.nio.charset.StandardCharsets.UTF_8));
+            HttpClient client = delivery == null ? TELEGRAM_HTTP_CLIENT
+                : integrationNetworkService.createChannelHttpClient(delivery.target().toChannel(), Duration.ofSeconds(10));
+            if (!isDeliveryCurrent(delivery)) {
+                return false;
+            }
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(java.nio.charset.StandardCharsets.UTF_8));
             return response.statusCode() / 100 == 2 && !response.body().contains("\"error\"");
         } catch (Exception ex) {
-            log.warn("VK notification failed: {}", ex.getMessage());
+            if (delivery == null) log.warn("VK notification failed: {}", ex.getMessage());
+            else log.warn("VK scoped support-chat delivery failed");
             return false;
         }
     }
 
-    private boolean sendMaxMessage(Channel channel, Long userId, String text) {
+    private boolean sendMaxMessage(Channel channel, Long userId, String text, ScopedSupportDelivery delivery) {
         if (userId == null || !StringUtils.hasText(text)) {
             return false;
         }
@@ -399,10 +457,16 @@ public class DialogNotificationService {
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(Map.of("text", text)), java.nio.charset.StandardCharsets.UTF_8))
                     .build();
-            HttpResponse<String> response = TELEGRAM_HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(java.nio.charset.StandardCharsets.UTF_8));
+            HttpClient client = delivery == null ? TELEGRAM_HTTP_CLIENT
+                : integrationNetworkService.createChannelHttpClient(delivery.target().toChannel(), Duration.ofSeconds(10));
+            if (!isDeliveryCurrent(delivery)) {
+                return false;
+            }
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(java.nio.charset.StandardCharsets.UTF_8));
             return response.statusCode() / 100 == 2;
         } catch (Exception ex) {
-            log.warn("MAX notification failed: {}", ex.getMessage());
+            if (delivery == null) log.warn("MAX notification failed: {}", ex.getMessage());
+            else log.warn("MAX scoped support-chat delivery failed");
             return false;
         }
     }
@@ -533,4 +597,5 @@ public class DialogNotificationService {
     }
 
     private record DialogTarget(Long userId, Long channelId) {}
+    private record ScopedSupportDelivery(UiEventTicketScope scope, SupportChatDeliveryAccessService.Target target) {}
 }

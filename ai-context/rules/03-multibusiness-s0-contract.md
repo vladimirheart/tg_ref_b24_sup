@@ -261,8 +261,8 @@ reads требуют совпадения tuple/public ID/kind/business, non-GEN
 невалидный expected scope закрывает scoped API, а не включает legacy fallback.
 Scoped UNRESOLVED разрешён только до strict-read. Поздний отказ queue может
 попробовать fallback recipients лишь с тем же frozen scope и тем же SQL guard.
-Перед support-chat/AI есть повторная проверка current scope, но
-их внутренние SQL/сетевые effects ещё не получают expected owner и остаются
+Перед AI есть повторная проверка current scope, но
+его внутренние SQL/сетевые effects ещё не получают expected owner и остаются
 PENDING, как и исходный producer context до INSERT. Legacy direct callers
 без expected scope пока сохраняют свой контракт. Global page/system policy
 также PENDING.
@@ -284,6 +284,29 @@ Existing responsible не переназначается; прежние trim/ac
 не attribution/backfill старых child rows. Раннее business-scoped построение
 candidate pool/load balancing, остальные raw assignment writers и миграция
 child identity ещё PENDING; отказ не запускает выбор другого кандидата.
+
+Scoped auto-close callback передаёт исходный V61 scope и channel ID события
+в DialogNotificationService.notifyScopedSupportChat. Один SQL capture требует
+полного expected owner, unique raw ID/non-GENERAL, совпадения canonical
+ticket.channel_id с событием, активного канала и, для BUSINESS, active business.
+Он читает immutable target из canonical channels, не из JPA-объекта callback:
+token, support_chat_id, platform, platform_config, delivery_settings,
+credential_id. После сборки HTTP request и client/network setup один повторный
+SQL непосредственно перед HttpClient.send сверяет тот же owner/channel и все
+поля target, включая NULL. Telegram/VK/MAX используют этот scoped guard;
+VK/MAX scoped client учитывает IntegrationNetworkService, прежние raw paths
+сохраняют свой transport contract. Detached channel copies не меняют frozen
+target; ошибки конфигурации/отправки не открывают raw fallback и в scoped
+логах не раскрывают токен через exception text. Target.toString не выводит секреты.
+UNRESOLVED с locator допускается только до strict-read; GENERAL, invalid scope,
+missing schema, неактивный либо неизвестный destination закрывают отправку.
+Это proof последнего SQL перед handoff, не транзакционная блокировка HTTP,
+не version registry настроек канала на момент исходного события и не проверка
+прав участников внешнего чата. Inherited/global network profiles и credential
+contents отдельно не версионированы. Действующие grants внешнему destination,
+остальные raw support-chat producers и callback effects AI ещё PENDING.
+Уже корректно записанный bell не откатывается при позднем отказе support-chat.
+
 Mixed-version consumers без нового guard
 не доказывают эту изоляцию; отдельный rollout/preflight остаётся обязательным.
 
@@ -337,7 +360,7 @@ business READ проверяется одним SQL predicate при INSERT, lis
 не выводятся из текста/URL, чужой users DB либо browser-selected business.
 UNRESOLVED/unclassified сохраняют описанную выше совместимость; этот фильтр
 не классифицирует исторические строки. Глобальная page authority, явная
-global/system/task policy, expected owner внутри support-chat/AI callbacks, остальные assignment writers и прочие producers ещё
+global/system/task policy, expected owner внутри AI callbacks, внешняя support-chat recipient policy, остальные assignment writers и прочие producers ещё
 требуют отдельного контракта/аудита. Это не разрешение включать strict flag
 или выполнять rollout.
 
