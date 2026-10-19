@@ -21,6 +21,7 @@ class GeneralTicketWorkPostgresTest {
     private JdbcTemplate jdbc;
     private GeneralTicketAccessService access;
     private GeneralTicketWorkService work;
+    private GeneralTicketWorkTimeService time;
     private MultibusinessFeatureFlags flags;
     private static final String RAW=" general/work Ю?% ";
     private static final String PUBLIC="a".repeat(32);
@@ -36,6 +37,7 @@ class GeneralTicketWorkPostgresTest {
         jdbc.execute(Files.readString(Path.of("src/main/resources/db/migration/postgresql/V62__scoped_ai_records.sql")));
         jdbc.execute(Files.readString(Path.of("src/main/resources/db/migration/postgresql/V65__general_ticket_operate.sql")));
         jdbc.execute(Files.readString(Path.of("src/main/resources/db/migration/postgresql/V67__general_ticket_manual_close.sql")));
+        jdbc.execute(Files.readString(Path.of("src/main/resources/db/migration/postgresql/V68__general_ticket_work_intervals.sql")));
         jdbc.update("INSERT INTO users VALUES(1,'worker',TRUE,FALSE),(2,'reader',TRUE,FALSE),(3,'other',TRUE,FALSE)");
         jdbc.update("INSERT INTO general_ticket_read_grants VALUES(1,TRUE,NULL),(2,TRUE,NULL)");
         jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,is_general,business_id,status,channel_id) VALUES(10,?,?,TRUE,NULL,'pending',9)",RAW,PUBLIC);
@@ -43,6 +45,7 @@ class GeneralTicketWorkPostgresTest {
         access=new GeneralTicketAccessService(jdbc);
         assertThat(access.grantOperate(1)).isTrue();
         work=new GeneralTicketWorkService(jdbc,new UiEventOutboxAppendService(jdbc,new LegacyTicketIdJdbcGuard(jdbc)),flags);
+        time=new GeneralTicketWorkTimeService(jdbc,flags);
         scope=new GeneralTicketEventScope(10L,RAW,PUBLIC);
     }
     private boolean change(long revision,String from,String to) { return work.transition(scope,"worker",revision,from,to); }
@@ -200,6 +203,178 @@ class GeneralTicketWorkPostgresTest {
         jdbc.update("UPDATE tickets SET is_general=FALSE,business_id=1");
         jdbc.update("UPDATE tickets SET is_general=TRUE,business_id=NULL");
         assertThat(work.find(PUBLIC,"worker").orElseThrow().revision()).isEqualTo(5);
+    }
+    @Test void observedIntervalsFollowOnlyNewManualOpenAndCloseCycles() {
+        jdbc.execute("ALTER TABLE tickets ADD work_time_total_sec BIGINT DEFAULT 90000");
+        jdbc.execute("CREATE TABLE ticket_spans(ticket_id TEXT,duration_seconds INT)");
+        jdbc.update("INSERT INTO ticket_spans VALUES(?,90000)",RAW);
+        assertThat(time.summary(scope,"reader").orElseThrow().observedSince()).isNull();
+        assertThat(change(0,"pending","open")).isTrue();
+        var active=time.summary(scope,"reader").orElseThrow();
+        assertThat(active.activeStartedAt()).isNotNull();
+        assertThat(active.completedSeconds()).isZero();
+        assertThat(active.completedIntervals()).isZero();
+        assertThat(change(1,"open","closed")).isTrue();
+        var completed=time.summary(scope,"reader").orElseThrow();
+        assertThat(completed.activeStartedAt()).isNull();
+        assertThat(completed.completedIntervals()).isEqualTo(1);
+        assertThat(completed.invalidIntervals()).isZero();
+        assertThat(time.recent(scope,"reader")).singleElement().satisfies(row->{
+            assertThat(row.outcome()).isEqualTo("COMPLETED");
+            assertThat(row.startedBy()).isEqualTo("worker");assertThat(row.endedBy()).isEqualTo("worker");
+            assertThat(row.endedAt()).isAfterOrEqualTo(row.startedAt());
+        });
+        assertThat(change(2,"closed","pending")).isTrue();
+        assertThat(change(3,"pending","closed")).isTrue();
+        assertThat(time.recent(scope,"worker")).hasSize(1);
+        assertThat(jdbc.queryForObject("SELECT work_time_total_sec FROM tickets",Long.class)).isEqualTo(90000);
+        assertThat(jdbc.queryForObject("SELECT duration_seconds FROM ticket_spans",Integer.class)).isEqualTo(90000);
+        assertThat(access.revokeOperate(1)).isTrue();
+        assertThat(time.summary(scope,"worker")).isPresent(); // READ suffices for observed time.
+    }
+    @Test void concurrentFormsCreateOneIntervalAndOneAuditForOneVersion() throws Exception {
+        var executor=Executors.newFixedThreadPool(2);var ready=new CyclicBarrier(2);
+        try {
+            Callable<Boolean> request=()->{ready.await(5,TimeUnit.SECONDS);return change(0,"pending","open");};
+            var first=executor.submit(request);var second=executor.submit(request);
+            assertThat(java.util.List.of(first.get(10,TimeUnit.SECONDS),second.get(10,TimeUnit.SECONDS)))
+                .containsExactlyInAnyOrder(true,false);
+            assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_work_intervals",Integer.class)).isEqualTo(1);
+            assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_work_events",Integer.class)).isEqualTo(1);
+            assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ui_event_outbox",Integer.class)).isEqualTo(1);
+        } finally {executor.shutdownNow();}
+    }
+    @Test void anExistingOpenTicketDoesNotAcquireInventedTimeWhenClosed() {
+        jdbc.update("UPDATE tickets SET status='open'");
+        assertThat(change(1,"open","closed")).isTrue();
+        assertThat(time.recent(scope,"worker")).isEmpty();
+        assertThat(time.summary(scope,"worker").orElseThrow().completedSeconds()).isZero();
+    }
+    @Test void externalStatusAbaInvalidatesAnOldIntervalBeforeAnotherOneStarts() {
+        assertThat(change(0,"pending","open")).isTrue();
+        jdbc.update("UPDATE tickets SET status='pending'");
+        jdbc.update("UPDATE tickets SET status='open'");
+        assertThat(time.summary(scope,"reader").orElseThrow().activeStartedAt()).isNull();
+        assertThat(time.recent(scope,"reader").get(0).outcome()).isEqualTo("UNCONFIRMED");
+        jdbc.update("UPDATE tickets SET status='pending'");
+        assertThat(change(4,"pending","open")).isTrue();
+        assertThat(time.recent(scope,"reader")).extracting(GeneralTicketWorkTimeService.Interval::outcome)
+            .containsExactly("OPEN","INVALIDATED");
+        assertThat(jdbc.queryForObject("SELECT invalid_reason FROM general_ticket_work_intervals WHERE outcome='INVALIDATED'",String.class))
+            .isEqualTo("STATE_CHANGED");
+        assertThat(change(5,"open","pending")).isTrue();
+        var summary=time.summary(scope,"reader").orElseThrow();
+        assertThat(summary.completedIntervals()).isEqualTo(1);assertThat(summary.invalidIntervals()).isEqualTo(1);
+    }
+    @ParameterizedTest @ValueSource(strings={"read","disabled","blocked","duplicate","missing-account","business","unresolved","tuple","generation","collision","missing-owner","flag","principal"})
+    void intervalReadsReproveCurrentExactOwnerAndReadGrant(String mutation) {
+        assertThat(change(0,"pending","open")).isTrue();
+        String identity="worker";
+        switch(mutation) {
+            case "read"->access.revokeRead(1);
+            case "disabled"->jdbc.update("UPDATE users SET enabled=FALSE WHERE id=1");
+            case "blocked"->jdbc.update("UPDATE users SET is_blocked=TRUE WHERE id=1");
+            case "duplicate"->jdbc.update("INSERT INTO users VALUES(4,'WORKER',FALSE,FALSE)");
+            case "missing-account"->jdbc.update("DELETE FROM users WHERE id=1");
+            case "business"->jdbc.update("UPDATE tickets SET is_general=FALSE,business_id=1");
+            case "unresolved"->jdbc.update("UPDATE tickets SET is_general=FALSE");
+            case "tuple"->jdbc.update("UPDATE tickets SET user_id=99");
+            case "generation"->jdbc.update("UPDATE tickets SET ticket_public_id=?","b".repeat(32));
+            case "collision"->jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,is_general,status) VALUES(20,?,?,FALSE,'pending')",RAW,"b".repeat(32));
+            case "missing-owner"->jdbc.update("DELETE FROM tickets");
+            case "flag"->flags.setGeneralTicketQueue(false);
+            case "principal"->identity=" worker ";
+        }
+        assertThat(time.summary(scope,identity)).isEmpty();assertThat(time.recent(scope,identity)).isEmpty();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_work_intervals",Integer.class)).isEqualTo(1);
+    }
+    @Test void summaryAndHistoryFilterBeforeAggregationAndLimitAndSumFractionalSeconds() {
+        for(int i=0;i<13;i++)seedCompleted(10,RAW,PUBLIC,i*2+1);
+        for(int i=0;i<14;i++) {
+            seedCompleted(99,RAW,PUBLIC,i*2+1);
+            seedCompleted(10,RAW,"b".repeat(32),i*2+1);
+            seedCompleted(10,RAW.trim(),PUBLIC,i*2+1);
+        }
+        var summary=time.summary(scope,"READER").orElseThrow();
+        assertThat(summary.completedIntervals()).isEqualTo(13);assertThat(summary.completedSeconds()).isEqualTo(7);
+        assertThat(time.recent(scope,"reader")).hasSize(10).allSatisfy(row->assertThat(row.completedSeconds()).isZero());
+        jdbc.update("UPDATE tickets SET user_id=99");
+        assertThat(time.summary(scope,"reader")).isEmpty();
+        assertThat(time.summary(new GeneralTicketEventScope(99L,RAW,PUBLIC),"reader").orElseThrow().completedIntervals()).isEqualTo(14);
+    }
+    private void seedCompleted(long owner,String raw,String publicId,int revision) {
+        jdbc.update("""
+            INSERT INTO general_ticket_work_intervals(ticket_user_id,ticket_id,ticket_public_id,opened_revision,started_at,started_by_user_id,started_by,
+                outcome,ended_revision,ended_at,ended_by_user_id,ended_by)
+            VALUES(?,?,?,?,'2026-01-01T00:00:00Z',1,'worker','COMPLETED',?,'2026-01-01T00:00:00.6Z',1,'worker')
+            """,owner,raw,publicId,revision,revision+1);
+    }
+    @Test void intervalIdentityAndTerminalResultCannotBeRewrittenOrDuplicated() {
+        assertThat(change(0,"pending","open")).isTrue();
+        assertThatThrownBy(()->jdbc.update("UPDATE general_ticket_work_intervals SET started_at=started_at-INTERVAL '1 hour'"))
+            .isInstanceOf(DataAccessException.class);
+        assertThatThrownBy(()->jdbc.update("UPDATE general_ticket_work_intervals SET ticket_user_id=99"))
+            .isInstanceOf(DataAccessException.class);
+        assertThatThrownBy(()->jdbc.update("INSERT INTO general_ticket_work_intervals(ticket_user_id,ticket_id,ticket_public_id,opened_revision,started_at,started_by_user_id,started_by) VALUES(10,?,?,3,CURRENT_TIMESTAMP,1,'worker')",RAW,PUBLIC))
+            .isInstanceOf(DataAccessException.class);
+        assertThat(change(1,"open","pending")).isTrue();
+        assertThatThrownBy(()->jdbc.update("UPDATE general_ticket_work_intervals SET ended_at=ended_at+INTERVAL '1 hour'"))
+            .isInstanceOf(DataAccessException.class);
+    }
+    @ParameterizedTest @ValueSource(strings={"start","end","audit-close","outbox-close"})
+    void intervalFailureAndDownstreamFailureRollBackTheWholeTransition(String failure) {
+        long revision=0;String from="pending",to="open";
+        if(!failure.equals("start")) {assertThat(change(0,"pending","open")).isTrue();revision=1;from="open";to="closed";}
+        var root=jdbc.queryForList("SELECT * FROM tickets");
+        var intervals=jdbc.queryForList("SELECT * FROM general_ticket_work_intervals");
+        var audit=jdbc.queryForList("SELECT * FROM general_ticket_work_events");
+        var outbox=jdbc.queryForList("SELECT * FROM ui_event_outbox");
+        switch(failure) {
+            case "start"->jdbc.execute("ALTER TABLE general_ticket_work_intervals ADD CONSTRAINT reject_start CHECK(opened_revision<0)");
+            case "end"->jdbc.execute("ALTER TABLE general_ticket_work_intervals ADD CONSTRAINT reject_end CHECK(outcome='OPEN')");
+            case "audit-close"->jdbc.execute("ALTER TABLE general_ticket_work_events ADD CONSTRAINT reject_close CHECK(to_status<>'closed')");
+            case "outbox-close"->jdbc.execute("CREATE FUNCTION reject_interval_outbox() RETURNS TRIGGER LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'synthetic rejection'; END; $$; CREATE TRIGGER reject_interval_event BEFORE INSERT ON ui_event_outbox FOR EACH ROW EXECUTE FUNCTION reject_interval_outbox()");
+        }
+        assertThat(change(revision,from,to)).isFalse();
+        assertThat(jdbc.queryForList("SELECT * FROM tickets")).isEqualTo(root);
+        assertThat(jdbc.queryForList("SELECT * FROM general_ticket_work_intervals")).isEqualTo(intervals);
+        assertThat(jdbc.queryForList("SELECT * FROM general_ticket_work_events")).isEqualTo(audit);
+        assertThat(jdbc.queryForList("SELECT * FROM ui_event_outbox")).isEqualTo(outbox);
+    }
+    @Test void aClockRegressionCannotCreateNegativeOrConfirmedDuration() {
+        jdbc.update("UPDATE tickets SET status='open'");
+        jdbc.update("INSERT INTO general_ticket_work_intervals(ticket_user_id,ticket_id,ticket_public_id,opened_revision,started_at,started_by_user_id,started_by) VALUES(10,?,?,1,CURRENT_TIMESTAMP+INTERVAL '1 day',1,'worker')",RAW,PUBLIC);
+        assertThat(time.summary(scope,"worker").orElseThrow().activeStartedAt()).isNull();
+        assertThat(change(1,"open","closed")).isTrue();
+        assertThat(jdbc.queryForMap("SELECT outcome,invalid_reason,ended_at>=started_at AS nonnegative FROM general_ticket_work_intervals"))
+            .containsEntry("outcome","INVALIDATED").containsEntry("invalid_reason","CLOCK_REGRESSION").containsEntry("nonnegative",true);
+        assertThat(time.summary(scope,"worker").orElseThrow().completedSeconds()).isZero();
+    }
+    @Test void upgradeFromV67KeepsLegacyTimeAndExistingRootsAndAuditUnchanged() {
+        var upgrade=PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType("general_interval_upgrade");
+        org.flywaydb.core.Flyway.configure().dataSource(upgrade.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").target("67").load().migrate();
+        upgrade.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,status,is_general,general_selection_source,work_time_total_sec) VALUES(901,'prior-time',?,'open',TRUE,'GENERAL_CHANNEL',123)",PUBLIC);
+        upgrade.update("INSERT INTO ticket_spans(ticket_id,span_no,started_at,ended_at,duration_seconds) VALUES('prior-time',1,CURRENT_TIMESTAMP-INTERVAL '123 seconds',CURRENT_TIMESTAMP,123)");
+        upgrade.update("INSERT INTO ticket_active(ticket_id,user_identity) VALUES('prior-time','prior')");
+        upgrade.update("INSERT INTO general_ticket_work_events(ticket_user_id,ticket_id,ticket_public_id,revision,from_status,to_status,actor_user_id,actor) VALUES(901,'prior-time',?,1,'pending','open',1,'prior')",PUBLIC);
+        var root=upgrade.queryForList("SELECT * FROM tickets");var spans=upgrade.queryForList("SELECT * FROM ticket_spans");
+        var active=upgrade.queryForList("SELECT * FROM ticket_active");var events=upgrade.queryForList("SELECT * FROM general_ticket_work_events");
+        org.flywaydb.core.Flyway.configure().dataSource(upgrade.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").load().migrate();
+        assertThat(upgrade.queryForList("SELECT * FROM tickets")).isEqualTo(root);
+        assertThat(upgrade.queryForList("SELECT * FROM ticket_spans")).isEqualTo(spans);
+        assertThat(upgrade.queryForList("SELECT * FROM ticket_active")).isEqualTo(active);
+        assertThat(upgrade.queryForList("SELECT * FROM general_ticket_work_events")).isEqualTo(events);
+        assertThat(upgrade.queryForObject("SELECT COUNT(*) FROM general_ticket_work_intervals",Integer.class)).isZero();
+        assertThat(upgrade.queryForObject("SELECT COUNT(*) FROM general_ticket_operate_grants",Integer.class)).isZero();
+    }
+    @Test void missingIntervalSchemaDeniesMutationAndReadWithoutLegacyFallback() {
+        jdbc.execute("DROP TABLE general_ticket_work_intervals");
+        var before=jdbc.queryForList("SELECT * FROM tickets");
+        assertThat(change(0,"pending","open")).isFalse();
+        assertThat(time.summary(scope,"reader")).isEmpty();assertThat(time.recent(scope,"reader")).isEmpty();
+        assertThat(jdbc.queryForList("SELECT * FROM tickets")).isEqualTo(before);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_work_events",Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ui_event_outbox",Integer.class)).isZero();
     }
     @Test void upgradeFromV64DoesNotGrantWriteOrReclassifyExistingTickets() {
         var upgrade=PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType("general_work_upgrade");

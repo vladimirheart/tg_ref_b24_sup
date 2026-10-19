@@ -35,6 +35,31 @@
         <input type="hidden" name="nextStatus" value="pending">
         <button type="submit" class="btn btn-primary">Открыть повторно</button>
     </form>
+    <section class="mt-4" data-general-work-time>
+        <h2 class="h4">Время в работе</h2>
+        <p>Учитываются новые интервалы от перевода в работу до ожидания или закрытия.
+            Старое время сюда не перенесено; это частичный учёт.</p>
+        <p th:if="${workTime == null}" class="alert alert-info">Учёт времени сейчас недоступен. Обновите страницу.</p>
+        <th:block th:if="${workTime != null}">
+            <p>Подтверждено в завершённых интервалах: <strong data-general-completed-seconds th:text="${workTime.completedSeconds}"></strong> с.</p>
+            <p th:if="${workTime.observedSince == null}">Интервалов пока нет.</p>
+            <p th:if="${workTime.observedSince != null}">Начало учёта: <time th:text="${workTime.observedSince}"></time>.</p>
+            <p th:if="${workTime.activeStartedAt != null}" data-general-active-interval>
+                Текущий интервал начат: <time th:text="${workTime.activeStartedAt}"></time>. В итог он войдёт после завершения.</p>
+            <p th:if="${workTime.invalidIntervals > 0}" class="alert alert-info">
+                Есть неподтверждённые интервалы: их время исключено из итога.</p>
+        </th:block>
+        <h3 class="h5">Последние 10 интервалов</h3>
+        <article th:each="interval : ${workIntervals}" class="card card-body mb-2" data-general-work-interval>
+            <p>Начало: <time th:text="${interval.startedAt}"></time>; сотрудник: <span th:text="${interval.startedBy}"></span>.</p>
+            <p th:if="${interval.endedAt != null}">Окончание: <time th:text="${interval.endedAt}"></time>; сотрудник: <span th:text="${interval.endedBy}"></span>.</p>
+            <p th:switch="${interval.outcome}">
+                <span th:case="'COMPLETED'">Завершён: <span th:text="${interval.completedSeconds}"></span> с.</span>
+                <span th:case="'OPEN'">В работе; время ещё не включено в итог.</span>
+                <span th:case="*">Не подтверждён: время исключено из итога.</span>
+            </p>
+        </article>
+    </section>
     <section class="mt-4" data-general-reply>
         <h2 class="h4">Ответ клиенту</h2>
         <p>Только текст, до 4000 символов. Доступность канала и права повторно проверяются перед отправкой.</p>

@@ -2,6 +2,7 @@ package com.example.panel.controller;
 
 import com.example.panel.service.GeneralTicketWorkService;
 import com.example.panel.service.GeneralTicketReplyService;
+import com.example.panel.service.GeneralTicketWorkTimeService;
 import com.example.panel.service.NavigationService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
@@ -20,8 +21,10 @@ public class GeneralTicketWorkController {
     private final GeneralTicketWorkService work;
     private final NavigationService navigation;
     private final GeneralTicketReplyService replies;
-    public GeneralTicketWorkController(GeneralTicketWorkService work,NavigationService navigation,GeneralTicketReplyService replies) {
-        this.work=work;this.navigation=navigation;this.replies=replies;
+    private final GeneralTicketWorkTimeService time;
+    public GeneralTicketWorkController(GeneralTicketWorkService work,NavigationService navigation,GeneralTicketReplyService replies,
+            GeneralTicketWorkTimeService time) {
+        this.work=work;this.navigation=navigation;this.replies=replies;this.time=time;
     }
     @GetMapping
     public String view(@PathVariable String publicId,Authentication auth,Model model,HttpServletResponse response) {
@@ -32,6 +35,8 @@ public class GeneralTicketWorkController {
         model.addAttribute("replyDestination",state.canOperate()
             ?replies.destinationFingerprint(state.scope(),auth.getName(),state.revision()).orElse(null):null);
         model.addAttribute("replies",replies.recent(state.scope(),auth.getName()));
+        model.addAttribute("workTime",time.summary(state.scope(),auth.getName()).orElse(null));
+        model.addAttribute("workIntervals",time.recent(state.scope(),auth.getName()));
         navigation.enrich(model,auth);return "general/work";
     }
     @PostMapping("/status")

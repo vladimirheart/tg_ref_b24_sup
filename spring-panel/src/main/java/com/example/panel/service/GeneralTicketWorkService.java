@@ -52,10 +52,12 @@ public class GeneralTicketWorkService {
                   AND lower(account.username)=lower(:identity) AND
             """+OWNER+" AND "+GeneralTicketAccessService.OPERATE_ACCOUNT+"""
                 RETURNING ticket.user_id,ticket.ticket_id,ticket.ticket_public_id,ticket.channel_id,
-                    ticket.general_work_revision,account.id AS actor_id,account.username AS actor
+                    ticket.general_work_revision,account.id AS actor_id,account.username AS actor,clock_timestamp() AS changed_at
             ), audit AS (
                 INSERT INTO general_ticket_work_events(ticket_user_id,ticket_id,ticket_public_id,revision,from_status,to_status,actor_user_id,actor)
                 SELECT user_id,ticket_id,ticket_public_id,general_work_revision,:expectedStatus,:nextStatus,actor_id,actor FROM changed
+                WHERE record_general_work_interval(user_id,ticket_id,ticket_public_id,:expectedStatus,:nextStatus,
+                    :revision,general_work_revision,actor_id,actor,changed_at)
                 RETURNING ticket_public_id,revision
             )
             INSERT INTO ui_event_outbox(id,event_type,ticket_id,channel_id,created_at,

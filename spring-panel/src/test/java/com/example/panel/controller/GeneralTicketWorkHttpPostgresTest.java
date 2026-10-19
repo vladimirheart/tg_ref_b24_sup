@@ -180,6 +180,33 @@ class GeneralTicketWorkHttpPostgresTest {
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_work_events WHERE ticket_public_id=?",Integer.class,publicId)).isZero();
         verifyNoInteractions(replyTransport);
     }
+    @Test void renderedCsrfCycleShowsOnlyObservedIntervalsToCurrentReaders() throws Exception {
+        jdbc.update("UPDATE tickets SET work_time_total_sec=87654 WHERE ticket_public_id=?",publicId);
+        var jar=new LinkedHashMap<String,Cookie>();
+        var initial=mvc.perform(actor(get(root),worker,"PAGE_DIALOGS")).andExpect(status().isOk()).andReturn();
+        String html=initial.getResponse().getContentAsString();
+        assertThat(html).contains("data-general-work-time","Интервалов пока нет.","частичный учёт").doesNotContain("87654");
+        var opened=mvc.perform(actor(change(hidden(html,"revision"),hidden(html,"expectedStatus"),hidden(html,"nextStatus"))
+            .param("_csrf",hidden(html,"_csrf")).cookie(captureCookies(jar,initial)),worker,"PAGE_DIALOGS"))
+            .andExpect(redirectedUrl(root)).andReturn();
+        var current=mvc.perform(actor(get(root).cookie(captureCookies(jar,opened)),worker,"PAGE_DIALOGS"))
+            .andExpect(status().isOk()).andReturn();
+        String openHtml=current.getResponse().getContentAsString();
+        assertThat(openHtml).contains("data-general-active-interval","В итог он войдёт после завершения.").doesNotContain(raw,"87654");
+        mvc.perform(actor(get(root),reader,"PAGE_DIALOGS")).andExpect(status().isOk())
+            .andExpect(content().string(containsString("data-general-active-interval")));
+        var waited=mvc.perform(actor(change(hidden(openHtml,"revision"),hidden(openHtml,"expectedStatus"),hidden(openHtml,"nextStatus"))
+            .param("_csrf",hidden(openHtml,"_csrf")).cookie(captureCookies(jar,current)),worker,"PAGE_DIALOGS"))
+            .andExpect(redirectedUrl(root)).andReturn();
+        mvc.perform(actor(get(root).cookie(captureCookies(jar,waited)),worker,"PAGE_DIALOGS"))
+            .andExpect(status().isOk()).andExpect(content().string(containsString("Завершён:")))
+            .andExpect(content().string(not(containsString("data-general-active-interval"))))
+            .andExpect(content().string(not(containsString("87654"))));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_work_intervals WHERE ticket_public_id=? AND outcome='COMPLETED'",Integer.class,publicId)).isEqualTo(1);
+        access.revokeRead(readerId);
+        mvc.perform(actor(get(root),reader,"PAGE_DIALOGS")).andExpect(status().isNotFound());
+        verifyNoInteractions(replyTransport);
+    }
     private String form(String html,String marker) {
         int start=html.indexOf(marker);assertThat(start).isGreaterThan(0);
         int end=html.indexOf("</form>",start);assertThat(end).isGreaterThan(start);

@@ -118,6 +118,10 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
         jdbcTemplate.queryForList("SELECT user_id, is_active FROM general_ticket_operate_grants WHERE 1 = 0");
         jdbcTemplate.queryForList("SELECT ticket_public_id, revision, actor_user_id FROM general_ticket_work_events WHERE 1 = 0");
         jdbcTemplate.queryForList("SELECT general_ticket_transition_allowed('open','closed') WHERE 1 = 0");
+        jdbcTemplate.queryForList("SELECT ticket_user_id, ticket_id, ticket_public_id, opened_revision, started_at, started_by_user_id, started_by, "
+            + "outcome, ended_revision, ended_at, ended_by_user_id, ended_by, invalid_reason FROM general_ticket_work_intervals WHERE 1 = 0");
+        jdbcTemplate.queryForList("SELECT record_general_work_interval(1::bigint,'probe'::text,repeat('a',32)::text,'pending'::text,'open'::text,"
+            + "0::bigint,1::bigint,1::bigint,'probe'::text,CURRENT_TIMESTAMP) WHERE 1 = 0");
         jdbcTemplate.queryForList("SELECT request_key, ticket_public_id, destination_sha256, state, chat_history_id FROM general_ticket_text_replies WHERE 1 = 0");
         jdbcTemplate.queryForList("SELECT request_key, state, actor_user_id FROM general_ticket_reply_events WHERE 1 = 0");
         jdbcTemplate.queryForList("SELECT ticket_public_id FROM chat_history WHERE 1 = 0");

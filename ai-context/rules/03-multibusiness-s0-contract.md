@@ -239,6 +239,28 @@ reopen не включает retry. Close сериализуется с уже g
 через существующие reply row locks. Legacy lifecycle/feedback/assignment,
 GENERAL activity/span attribution и reconciliation остаются отдельными scope.
 
+R138 добавляет наблюдаемые интервалы работы GENERAL, без attribution старых
+ticket_spans/ticket_active/work_time_total_sec. Только новый manual pending→open
+создаёт typed interval полного user/raw/public owner с revision/actor/time
+snapshot. При open→pending/closed учитывается время только при совпадении
+opened revision с прежним root revision и неубывающих часах. Внешний status/
+owner/scope ABA и clock regression исключают интервал из итога (UNCONFIRMED
+при чтении, INVALIDATED при следующем переходе того же полного owner).
+Разные owner/public generation не наследуют интервалы. Старый open root без
+observed start не получает выдуманный duration. Это частичный учёт.
+
+V68 additive: unique OPEN для full tuple, immutable start/identity/terminal
+snapshot, sequential close-before-insert helper внутри authorized root CAS.
+Root status/metadata/counters/revision, interval, audit и GENERAL outbox атомарны;
+failure любого шага откатывает всё. Новых grants/backfill/flags нет; readiness
+компилирует table и helper probe WHERE 1=0 без выполнения writer.
+Чтение summary/последних 10 повторно требует current READ/account/flags и exact
+explicit GENERAL/NULL business unique owner до aggregate/order/limit. Только
+COMPLETED входят в FLOOR суммы точных seconds; незавершённый интервал показан
+отдельно. UI явно сообщает partial tracking, raw IDs не выдаёт.
+Legacy attribution, session/activity heartbeat, assignment, reconciliation/
+retention и runtime acceptance на другой машине/в другой сессии остаются gates.
+
 `/api/general-tickets` и `/general-dialogs` закрыты foundation и отдельным
 default-off `multibusiness.general-ticket-queue`. Каждый SQL read повторно
 проверяет grant и выбирает только `is_general=TRUE`, `business_id IS NULL` и
@@ -274,7 +296,7 @@ Heartbeat повторно проверяет grant/account/flags; при отк
 general_access_revoked без ticket data, emitter закрывается. UI очищает данные
 при отзыве/ошибке stream, отменяет pending refresh и не применяет старые HTTP
 ответы. Pagehide закрывает подписку. Сам этап R134 не добавлял migrations/flags.
-GENERAL triage/OPERATE, text reply и manual close/reopen описаны в R135–R137 выше;
+GENERAL triage/OPERATE, text reply, manual close/reopen и observed intervals описаны в R135–R138 выше;
 остальные GENERAL write, отдельные bell/внешняя доставка и live Redis/proxy/provider acceptance PENDING.
 
 Основные legacy dialog reads (список/summary, карточка, история, предыдущие
