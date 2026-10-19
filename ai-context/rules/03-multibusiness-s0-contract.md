@@ -304,10 +304,42 @@ UNRESOLVED сохраняет compatibility handoff/notification только д
 GENERAL, NULL/invalid scope закрыты. Legacy direct callers без expected scope
 пока сохраняют свой контракт и требуют отдельного аудита.
 
-Полноценный scoped AI требует ownership knowledge/memory, отдельной global-source
-policy, scope до media/LLM handoff и client delivery. Они PENDING вместе с producer
-context до INSERT и global page/system policy. V62 — source migration, проверяемая
-в Testcontainers; рабочая DB/backfill не выполняются. Новых flags/rollout нет.
+V63 вводит отдельные ai_scoped_sources/events для явно созданных business-owned
+KNOWLEDGE и MEMORY. Business обязателен и immutable; identity источника —
+business/kind/exact key, origin MEMORY — immutable полный BUSINESS ticket snapshot.
+KNOWLEDGE не зависит от наличия обращения. Legacy memory/knowledge/link rows,
+aliases и global/unclassified sources не копируются и не используются scoped API.
+Global-source policy этого этапа — DENY: даже ALL_BUSINESSES не расширяет retrieval
+одного обращения до других бизнесов или общих источников. Разрешение sharing/
+global sources требует отдельного контракта, а не пустого business или text alias.
+
+ScopedAiSourceService создаёт только DRAFT; явный revise с expected revision
+выполняет review/approval/archive и атомарно пишет metadata audit без title/body.
+Любая mutation требует текущего CONFIGURE (business ADMIN через membership либо
+ALL_BUSINESSES), unique enabled/unblocked account и active business внутри SQL.
+MANAGER не имеет CONFIGURE по текущей матрице. READ библиотеки/history использует
+тот же live business guard. MEMORY при создании, изменении и чтении требует
+действующего origin tuple/public ID/business, unique raw ID/non-GENERAL; смена
+origin скрывает запись, не переопределяя её владельца. Новый origin не наследует
+source identity; для нового MEMORY в той же business scope нужен отдельный key.
+
+AiRetrievalService.retrieveScoped — отдельный actor READ API без legacy intent/
+context/scoring. Только APPROVED текущего BUSINESS попадают в SQL до ORDER/LIMIT;
+GENERAL/UNRESOLVED/invalid scope закрыты независимо от strict compatibility
+human handoff R130. Проверяется текущий request owner и scoped ai_disabled.
+Источник возвращается отдельным immutable Source snapshot с revision/origin;
+isCurrentCandidate повторно проверяет полный payload, version, request/origin,
+READ/control перед будущим handoff. Это statement-time proof, не network lock.
+Scoped result всегда autoReplyAllowed=false; raw Candidate/policy не используются.
+R130 incoming по-прежнему только записывает handoff и уведомляет оператора,
+новый retrieval не подключён к нему. Автоматического learning/legacy sync нет.
+Новых HTTP endpoints/UI editor нет; page authority/CSRF, source privacy/retention,
+более точный ranking/evidence policy и worker retrieval ещё требуют отдельного scope.
+
+Полноценный scoped AI требует scope до media/LLM handoff и client delivery,
+review UI/worker integration и policy источников для автоответа. Они PENDING вместе
+с producer context до INSERT и global page/system policy. V62/V63 — source migrations,
+проверяемые в Testcontainers; рабочая DB/backfill не выполняются. Новых flags/rollout нет.
 
 Auto-assignment из scoped ticket_created callback передаёт исходный V61
 snapshot в DialogResponsibilityService.assignScopedResponsibleIfMissing.

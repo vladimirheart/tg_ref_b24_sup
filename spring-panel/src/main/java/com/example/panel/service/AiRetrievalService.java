@@ -3,6 +3,7 @@ package com.example.panel.service;
 import static com.example.panel.support.LegacyTicketIdSupport.exactTicketIdOrNull;
 
 import com.example.panel.support.PanelTimestampSqlSupport;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -34,13 +35,32 @@ public class AiRetrievalService {
     private final JdbcTemplate jdbcTemplate;
     private final AiIntentService aiIntentService;
     private final PanelTimestampSqlSupport timestampSqlSupport;
+    private final ScopedAiSourceService scopedSources;
 
     public AiRetrievalService(JdbcTemplate jdbcTemplate,
                               AiIntentService aiIntentService,
                               PanelTimestampSqlSupport timestampSqlSupport) {
+        this(jdbcTemplate,aiIntentService,timestampSqlSupport,null);
+    }
+
+    @Autowired
+    public AiRetrievalService(JdbcTemplate jdbcTemplate,
+                              AiIntentService aiIntentService,
+                              PanelTimestampSqlSupport timestampSqlSupport,
+                              ScopedAiSourceService scopedSources) {
         this.jdbcTemplate = jdbcTemplate;
         this.aiIntentService = aiIntentService;
         this.timestampSqlSupport = timestampSqlSupport;
+        this.scopedSources = scopedSources;
+    }
+
+    /** Actor-authorized curated evidence only; no legacy context, intent policy, scoring or auto-reply authorization. */
+    public ScopedRetrievalResult retrieveScoped(UiEventTicketScope scope,String identity,String query,int limit) {
+        return new ScopedRetrievalResult(scope,scopedSources==null ? List.of() : scopedSources.retrieve(scope,identity,query,limit),false);
+    }
+
+    public record ScopedRetrievalResult(UiEventTicketScope scope,List<ScopedAiSourceService.Source> candidates,boolean autoReplyAllowed) {
+        public ScopedRetrievalResult { candidates=List.copyOf(candidates); }
     }
 
     public RetrievalResult retrieve(String ticketId, String query, int limit) {
