@@ -10,9 +10,9 @@
 <main class="main-content container-fluid py-4" data-general-work>
     <a href="/general-dialogs">← Обращения без бизнеса</a>
     <h1 class="h3 mt-3">Статус общего обращения</h1>
-    <p>Текущий статус: <span th:text="${status}"></span>.</p>
-    <p>Смена статуса не закрывает обращение и не назначает ответственного.
-        Для текстового ответа клиенту используйте отдельную форму ниже.</p>
+    <p>Текущий статус: <span th:text="${status == 'pending' ? 'Ожидает' : (status == 'open' ? 'В работе' : (status == 'closed' ? 'Закрыто' : status))}"></span>.</p>
+    <p>Закрытое обращение можно открыть повторно — оно вернётся в ожидание.
+        Ответ клиенту отправляется отдельно через форму ниже.</p>
     <p th:if="${!canOperate}" class="alert alert-info">Только просмотр. Для изменения требуется отдельное GENERAL OPERATE.</p>
     <form th:if="${canOperate and (status == 'pending' or status == 'open')}" method="post"
           th:action="@{/general-dialog-work/{id}/status(id=${publicId})}" class="card card-body">
@@ -20,6 +20,20 @@
         <input type="hidden" name="expectedStatus" th:value="${status}">
         <input type="hidden" name="nextStatus" th:value="${status == 'pending' ? 'open' : 'pending'}">
         <button type="submit" class="btn btn-primary" th:text="${status == 'pending' ? 'Перевести в работу' : 'Вернуть в ожидание'}"></button>
+    </form>
+    <form th:if="${canOperate and (status == 'pending' or status == 'open')}" method="post"
+          th:action="@{/general-dialog-work/{id}/status(id=${publicId})}" class="card card-body mt-3" data-general-close>
+        <input type="hidden" name="revision" th:value="${revision}">
+        <input type="hidden" name="expectedStatus" th:value="${status}">
+        <input type="hidden" name="nextStatus" value="closed">
+        <button type="submit" class="btn btn-outline-danger">Закрыть обращение</button>
+    </form>
+    <form th:if="${canOperate and status == 'closed'}" method="post"
+          th:action="@{/general-dialog-work/{id}/status(id=${publicId})}" class="card card-body" data-general-reopen>
+        <input type="hidden" name="revision" th:value="${revision}">
+        <input type="hidden" name="expectedStatus" value="closed">
+        <input type="hidden" name="nextStatus" value="pending">
+        <button type="submit" class="btn btn-primary">Открыть повторно</button>
     </form>
     <section class="mt-4" data-general-reply>
         <h2 class="h4">Ответ клиенту</h2>

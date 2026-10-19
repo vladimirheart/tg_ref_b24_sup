@@ -188,6 +188,42 @@ class GeneralTicketReplyPostgresTest {
             verify(transport,times(1)).sendTextGuarded(any(),anyLong(),anyString(),isNull(),any());assertThat(history()).isEqualTo(1);
         } finally {release.countDown();executor.shutdownNow();}
     }
+    private GeneralTicketWorkService work() {
+        return new GeneralTicketWorkService(jdbc,new UiEventOutboxAppendService(jdbc,new LegacyTicketIdJdbcGuard(jdbc)),flags);
+    }
+    @Test void closingCancelsQueuedReplyAndReopeningDoesNotReviveItsOldRevision() {
+        assertThat(replies.prepare(scope,actor,0,key,"Old queued reply",fingerprint())).isTrue();
+        assertThat(work().transition(scope,actor,0,"pending","closed")).isTrue();
+        assertThat(replies.destinationFingerprint(scope,actor,1)).isEmpty();
+        replies.dispatch(key);
+        assertThat(state()).isEqualTo("CANCELLED");
+        assertThat(work().transition(scope,actor,1,"closed","pending")).isTrue();
+        replies.dispatch(key);
+        verifyNoInteractions(transport);assertThat(history()).isZero();
+        assertThat(replies.prepare(scope,actor,2,key,"Old queued reply",replies.destinationFingerprint(scope,actor,2).orElseThrow())).isFalse();
+        assertThat(replies.submit(scope,actor,2,key(),"Fresh reviewed reply",replies.destinationFingerprint(scope,actor,2).orElseThrow())).isTrue();
+        verify(transport,times(1)).sendTextGuarded(any(),eq(owner),eq("Fresh reviewed reply"),isNull(),any());
+        assertThat(history()).isEqualTo(1);
+    }
+    @Test void manualCloseWaitsForAnAlreadyGuardedProviderAttemptAndDoesNotResend() throws Exception {
+        var entered=new CountDownLatch(1);var release=new CountDownLatch(1);var closing=new CountDownLatch(1);
+        var executor=Executors.newFixedThreadPool(2);
+        doAnswer(call->{
+            assertThat(((BooleanSupplier)call.getArgument(4)).getAsBoolean()).isTrue();
+            entered.countDown();assertThat(release.await(20,TimeUnit.SECONDS)).isTrue();
+            return DialogReplyTransportService.DialogReplyTransportResult.success(91L,1L);
+        }).when(transport).sendTextGuarded(any(),anyLong(),anyString(),isNull(),any());
+        try {
+            var sent=executor.submit(()->submit("In progress reply"));assertThat(entered.await(10,TimeUnit.SECONDS)).isTrue();
+            var closed=executor.submit(()->{closing.countDown();return work().transition(scope,actor,0,"pending","closed");});
+            assertThat(closing.await(10,TimeUnit.SECONDS)).isTrue();
+            assertThatThrownBy(()->closed.get(150,TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
+            release.countDown();assertThat(sent.get(15,TimeUnit.SECONDS)).isTrue();assertThat(closed.get(15,TimeUnit.SECONDS)).isTrue();
+            assertThat(state()).isEqualTo("SENT");assertThat(history()).isEqualTo(1);
+            assertThat(work().find(scope.ticketPublicId(),actor).orElseThrow().status()).isEqualTo("closed");
+            replies.dispatch(key);verify(transport,times(1)).sendTextGuarded(any(),anyLong(),anyString(),isNull(),any());
+        } finally {release.countDown();executor.shutdownNow();}
+    }
     @Test void snapshotsAndTerminalResultsCannotBeRewrittenAndReadsRequireCurrentOwner() {
         assertThat(submit("Ответ")).isTrue();
         assertThatThrownBy(()->jdbc.update("UPDATE general_ticket_text_replies SET message='forged' WHERE request_key=?",key)).isInstanceOf(DataAccessException.class);

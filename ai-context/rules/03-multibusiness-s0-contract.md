@@ -12,6 +12,16 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 код не должен подставлять бизнес по текстовому имени, каналу, последнему выбору
 оператора или иной эвристике.
 
+## Среда выполнения и сессии
+
+Уточнение R137 (2026-10-19): по уточнению пользователя рабочий Docker
+и весь запущенный проект находятся на другой локальной машине, в другой сессии
+агента относительно source/test-сессии R137. Docker/image observations R135/R136
+относятся к той runtime-сессии; слова «на этой машине» из неё не переносятся в
+текущую. Runtime revision/DB/flags/rollback отсюда не проверены. Местный Docker
+допустим для изолированных Testcontainers и не доказывает состояние рабочего
+экземпляра. Одинаковый путь checkout не идентифицирует машину или сессию.
+
 ## Зафиксированные продуктовые решения
 
 - Бизнес — самостоятельная доменная сущность, а не iiko-объект, юридическое
@@ -213,7 +223,21 @@ crash/ошибка сохранения оставляют SENDING/UNKNOWN дл�
 Очередь/состояния видны только через текущий GENERAL READ и exact public owner.
 V66 additive, без backfill/grants. Новая история несёт ticket_public_id;
 NULL старых rows не классифицируется автоматически. Reply media/edit/delete,
-полный lifecycle, reconciliation/retention policy и provider E2E остаются gates.
+resolve/feedback, activity/span attribution, reconciliation/retention policy и provider E2E остаются gates.
+
+R137 открывает ручные GENERAL pending/open→closed и closed→pending. Прежний
+pending↔open сохранён. Во final SQL действуют те же owner/account/READ/OPERATE,
+expected status/revision и новый V67 general_ticket_transition_allowed gate.
+Close фиксирует resolved_at/resolved_by/closed_count; reopen очищает resolution,
+повышает reopen_count/last_reopen_at и возвращает в pending. V65 увеличивает
+revision; старую форму нельзя применить после close/reopen цикла. Status,
+metadata/counters, immutable audit и GENERAL outbox атомарны; partial failure
+откатывает всё. V67 меняет только allowed transition CHECK, сохраняет старые
+records/grants и immutable trigger; readiness требует новую function schema.
+Закрытый ticket не принимает новый reply, старый queued reply теряет revision;
+reopen не включает retry. Close сериализуется с уже guarded network attempt
+через существующие reply row locks. Legacy lifecycle/feedback/assignment,
+GENERAL activity/span attribution и reconciliation остаются отдельными scope.
 
 `/api/general-tickets` и `/general-dialogs` закрыты foundation и отдельным
 default-off `multibusiness.general-ticket-queue`. Каждый SQL read повторно
@@ -250,8 +274,8 @@ Heartbeat повторно проверяет grant/account/flags; при отк
 general_access_revoked без ticket data, emitter закрывается. UI очищает данные
 при отзыве/ошибке stream, отменяет pending refresh и не применяет старые HTTP
 ответы. Pagehide закрывает подписку. Сам этап R134 не добавлял migrations/flags.
-Ограниченный status triage и OPERATE описаны в R135 выше; остальные GENERAL
-write, отдельные bell/внешняя доставка и live Redis/proxy/provider acceptance PENDING.
+GENERAL triage/OPERATE, text reply и manual close/reopen описаны в R135–R137 выше;
+остальные GENERAL write, отдельные bell/внешняя доставка и live Redis/proxy/provider acceptance PENDING.
 
 Основные legacy dialog reads (список/summary, карточка, история, предыдущие
 диалоги, участники и client context), ticket-bound `DialogAuthorizationService`

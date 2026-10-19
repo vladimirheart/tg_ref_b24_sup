@@ -61,6 +61,7 @@ class PostgresRuntimeReadinessVerifierTest {
         verify(jdbcTemplate).queryForList("SELECT ticket_id, created_at, general_work_revision FROM tickets WHERE 1 = 0");
         verify(jdbcTemplate).queryForList("SELECT user_id, is_active FROM general_ticket_operate_grants WHERE 1 = 0");
         verify(jdbcTemplate).queryForList("SELECT ticket_public_id, revision, actor_user_id FROM general_ticket_work_events WHERE 1 = 0");
+        verify(jdbcTemplate).queryForList("SELECT general_ticket_transition_allowed('open','closed') WHERE 1 = 0");
         verify(jdbcTemplate).queryForList("SELECT request_key, ticket_public_id, destination_sha256, state, chat_history_id FROM general_ticket_text_replies WHERE 1 = 0");
         verify(jdbcTemplate).queryForList("SELECT request_key, state, actor_user_id FROM general_ticket_reply_events WHERE 1 = 0");
         verify(jdbcTemplate).queryForList("SELECT ticket_public_id FROM chat_history WHERE 1 = 0");
@@ -145,6 +146,18 @@ class PostgresRuntimeReadinessVerifierTest {
             mock(com.example.panel.service.RuntimeCoordinationService.class),
             mock(com.example.panel.storage.AttachmentObjectStorageService.class));
         assertThatThrownBy(()->verifier.onApplicationEvent(null)).isInstanceOf(IllegalStateException.class).hasRootCauseMessage("V66 is missing");
+    }
+
+    @Test
+    void missingGeneralLifecycleSchemaFailsReadiness() {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.queryForList(anyString())).thenReturn(List.of());
+        when(jdbc.queryForList(contains("general_ticket_transition_allowed"))).thenThrow(new IllegalStateException("V67 is missing"));
+        var verifier = new PostgresRuntimeReadinessVerifier(jdbc,
+            new MockEnvironment().withProperty("app.datasource.mode", "postgresql"),
+            mock(com.example.panel.service.RuntimeCoordinationService.class),
+            mock(com.example.panel.storage.AttachmentObjectStorageService.class));
+        assertThatThrownBy(() -> verifier.onApplicationEvent(null)).isInstanceOf(IllegalStateException.class).hasRootCauseMessage("V67 is missing");
     }
 
     @Test

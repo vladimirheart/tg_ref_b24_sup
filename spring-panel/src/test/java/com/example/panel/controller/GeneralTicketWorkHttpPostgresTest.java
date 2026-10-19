@@ -13,11 +13,16 @@ import com.example.panel.support.PostgresqlJdbcTestSupport;
 import jakarta.servlet.http.Cookie;
 import java.nio.file.Files;
 import java.util.UUID;
+import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -92,8 +97,15 @@ class GeneralTicketWorkHttpPostgresTest {
         mvc.perform(actor(get(root),worker,"PAGE_DIALOGS")).andExpect(status().isNotFound());
         mvc.perform(actor(change("0","pending","open"),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isNotFound());
     }
-    @ParameterizedTest @ValueSource(strings={"operate","read","owner","revision"})
-    void lateChangesAfterControllerPrecheckAreReprovedInsideWrite(String mutation) throws Exception {
+    static java.util.stream.Stream<Arguments> lateChanges() {
+        return java.util.stream.Stream.of("operate","read","owner","revision")
+            .flatMap(mutation->java.util.stream.Stream.of("pending,open","pending,closed","closed,pending")
+                .map(edge->Arguments.of(mutation,edge.split(",")[0],edge.split(",")[1])));
+    }
+    @ParameterizedTest @MethodSource("lateChanges")
+    void lateChangesAfterControllerPrecheckAreReprovedInsideWrite(String mutation,String from,String to) throws Exception {
+        jdbc.update("UPDATE tickets SET status=? WHERE ticket_public_id=?",from,publicId);
+        long version=work.find(publicId,worker).orElseThrow().revision();
         var scope=new GeneralTicketEventScope(owner,raw,publicId);
         doAnswer(call->{
             switch(mutation) {
@@ -103,7 +115,7 @@ class GeneralTicketWorkHttpPostgresTest {
                 case "revision"->{jdbc.update("UPDATE tickets SET status='open' WHERE ticket_public_id=?",publicId);jdbc.update("UPDATE tickets SET status='pending' WHERE ticket_public_id=?",publicId);}
             } return call.callRealMethod();
         }).when(work).transition(eq(scope),eq(worker),anyLong(),anyString(),anyString());
-        mvc.perform(actor(change("0","pending","open"),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
+        mvc.perform(actor(change(Long.toString(version),from,to),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_work_events WHERE ticket_public_id=?",Integer.class,publicId)).isZero();
     }
     @Test void administratorManagesSeparateOperateAndReadRestoreDoesNotRestoreIt() throws Exception {
@@ -120,9 +132,64 @@ class GeneralTicketWorkHttpPostgresTest {
         mvc.perform(actor(put("/api/general-ticket-admin/access/"+account("no-read-"+IDS.incrementAndGet())+"/operate"),admin,"PAGE_SETTINGS","ROLE_ADMIN").with(csrf()))
             .andExpect(status().isConflict());
     }
-    @Test void malformedVersionAndUnsupportedCloseAreClosed() throws Exception {
+    @Test void malformedVersionAndUnsupportedResolveAreClosed() throws Exception {
         mvc.perform(actor(change("bad","pending","open"),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isBadRequest());
         mvc.perform(actor(change("0","pending","resolved"),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
+    }
+    @Test void renderedCsrfFormsCloseAndReopenWithNewVersionsAndBlockAnOldReply() throws Exception {
+        replyDestination();
+        var jar=new LinkedHashMap<String,Cookie>();
+        var opened=mvc.perform(actor(get(root),worker,"PAGE_DIALOGS")).andExpect(status().isOk()).andReturn();
+        String html=opened.getResponse().getContentAsString();
+        String close=form(html,"data-general-close");
+        Cookie[] cookies=captureCookies(jar,opened);
+        var closed=mvc.perform(actor(change(hidden(close,"revision"),hidden(close,"expectedStatus"),hidden(close,"nextStatus"))
+            .param("_csrf",hidden(close,"_csrf")).cookie(cookies),worker,"PAGE_DIALOGS")).andExpect(redirectedUrl(root)).andReturn();
+        cookies=captureCookies(jar,closed);
+        var viewed=mvc.perform(actor(get(root).cookie(cookies),worker,"PAGE_DIALOGS")).andExpect(status().isOk()).andReturn();
+        String closedHtml=viewed.getResponse().getContentAsString();
+        assertThat(closedHtml).contains("data-general-reopen").doesNotContain("data-general-close","id=\"generalReplyMessage\"");
+        assertThat(work.find(publicId,worker).orElseThrow().status()).isEqualTo("closed");
+        mvc.perform(actor(post(root+"/reply").param("revision","0").param("requestKey",hidden(html,"requestKey"))
+            .param("destination",hidden(html,"destination")).param("message","Stale reply"),worker,"PAGE_DIALOGS").with(csrf()))
+            .andExpect(status().isConflict());
+        String reopen=form(closedHtml,"data-general-reopen");
+        cookies=captureCookies(jar,viewed);
+        var reopened=mvc.perform(actor(change(hidden(reopen,"revision"),hidden(reopen,"expectedStatus"),hidden(reopen,"nextStatus"))
+            .param("_csrf",hidden(reopen,"_csrf")).cookie(cookies),worker,"PAGE_DIALOGS")).andExpect(redirectedUrl(root)).andReturn();
+        cookies=captureCookies(jar,reopened);
+        var reloaded=mvc.perform(actor(get(root).cookie(cookies),worker,"PAGE_DIALOGS")).andExpect(status().isOk()).andReturn();
+        assertThat(reloaded.getResponse().getContentAsString()).contains("data-general-close","id=\"generalReplyMessage\"");
+        assertThat(work.find(publicId,worker).orElseThrow().status()).isEqualTo("pending");
+        assertThat(work.find(publicId,worker).orElseThrow().revision()).isEqualTo(2);
+        mvc.perform(actor(change("0","pending","closed"),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_work_events WHERE ticket_public_id=?",Integer.class,publicId)).isEqualTo(2);
+        verifyNoInteractions(replyTransport);
+    }
+    @ParameterizedTest @CsvSource({"pending,closed","closed,pending"})
+    void closeAndReopenRequireTheirOwnPageCsrfAndOperate(String from,String to) throws Exception {
+        jdbc.update("UPDATE tickets SET status=? WHERE ticket_public_id=?",from,publicId);
+        String version=Long.toString(work.find(publicId,worker).orElseThrow().revision());
+        mvc.perform(actor(change(version,from,to),worker,"PAGE_DIALOGS")).andExpect(redirectedUrl("/error/403"));
+        mvc.perform(actor(change(version,from,to),reader,"PAGE_DIALOGS").with(csrf())).andExpect(status().isForbidden());
+        mvc.perform(actor(change(version,from,to),worker,"ROLE_ADMIN").with(csrf())).andExpect(status().isForbidden());
+        mvc.perform(actor(get(root),reader,"PAGE_DIALOGS")).andExpect(status().isOk())
+            .andExpect(content().string(not(containsString("data-general-close"))))
+            .andExpect(content().string(not(containsString("data-general-reopen"))));
+        assertThat(work.find(publicId,worker).orElseThrow().status()).isEqualTo(from);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_work_events WHERE ticket_public_id=?",Integer.class,publicId)).isZero();
+        verifyNoInteractions(replyTransport);
+    }
+    private String form(String html,String marker) {
+        int start=html.indexOf(marker);assertThat(start).isGreaterThan(0);
+        int end=html.indexOf("</form>",start);assertThat(end).isGreaterThan(start);
+        return html.substring(start,end);
+    }
+    private Cookie[] captureCookies(Map<String,Cookie> jar,org.springframework.test.web.servlet.MvcResult result) {
+        for(Cookie cookie:result.getResponse().getCookies()) {
+            if(cookie.getMaxAge()==0)jar.remove(cookie.getName());else jar.put(cookie.getName(),cookie);
+        }
+        return jar.values().toArray(Cookie[]::new);
     }
     @Test void renderedReplyFormUsesActualCsrfAndDuplicatePostDoesNotSendTwice() throws Exception {
         replyDestination();

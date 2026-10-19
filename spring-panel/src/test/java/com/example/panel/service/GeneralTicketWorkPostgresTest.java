@@ -11,6 +11,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.Arguments;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -26,11 +29,13 @@ class GeneralTicketWorkPostgresTest {
         jdbc=PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType("general_work");
         jdbc.execute("CREATE TABLE users(id BIGINT PRIMARY KEY,username TEXT,enabled BOOLEAN,is_blocked BOOLEAN)");
         jdbc.execute("CREATE TABLE general_ticket_read_grants(user_id BIGINT PRIMARY KEY,is_active BOOLEAN,updated_at TIMESTAMPTZ)");
-        jdbc.execute("CREATE TABLE tickets(user_id BIGINT,ticket_id TEXT,ticket_public_id TEXT,is_general BOOLEAN,business_id BIGINT,status TEXT,channel_id BIGINT,PRIMARY KEY(user_id,ticket_id))");
+        jdbc.execute("CREATE TABLE tickets(user_id BIGINT,ticket_id TEXT,ticket_public_id TEXT,is_general BOOLEAN,business_id BIGINT,status TEXT,channel_id BIGINT,"
+            +"resolved_at TIMESTAMPTZ,resolved_by TEXT,closed_count INT DEFAULT 0,reopen_count INT DEFAULT 0,last_reopen_at TIMESTAMPTZ,PRIMARY KEY(user_id,ticket_id))");
         jdbc.execute("CREATE TABLE ui_event_outbox(id BIGINT PRIMARY KEY,event_type TEXT,ticket_id TEXT,channel_id BIGINT,message_text TEXT,message_type TEXT,attachment TEXT,rating INT,created_at TIMESTAMPTZ)");
         jdbc.execute(Files.readString(Path.of("src/main/resources/db/migration/postgresql/V61__ui_event_outbox_ticket_scope.sql")));
         jdbc.execute(Files.readString(Path.of("src/main/resources/db/migration/postgresql/V62__scoped_ai_records.sql")));
         jdbc.execute(Files.readString(Path.of("src/main/resources/db/migration/postgresql/V65__general_ticket_operate.sql")));
+        jdbc.execute(Files.readString(Path.of("src/main/resources/db/migration/postgresql/V67__general_ticket_manual_close.sql")));
         jdbc.update("INSERT INTO users VALUES(1,'worker',TRUE,FALSE),(2,'reader',TRUE,FALSE),(3,'other',TRUE,FALSE)");
         jdbc.update("INSERT INTO general_ticket_read_grants VALUES(1,TRUE,NULL),(2,TRUE,NULL)");
         jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,is_general,business_id,status,channel_id) VALUES(10,?,?,TRUE,NULL,'pending',9)",RAW,PUBLIC);
@@ -54,8 +59,15 @@ class GeneralTicketWorkPostgresTest {
                 .containsEntry("ticket_id",RAW).containsEntry("ticket_public_id",PUBLIC).containsEntry("ticket_scope_kind","GENERAL")
                 .containsEntry("ticket_business_id",null).containsEntry("message_text",null).containsEntry("attachment",null));
     }
-    @ParameterizedTest @ValueSource(strings={"read","operate","disabled","blocked","duplicate","missing-account","business","unresolved","tuple","generation","collision","missing-owner","flag"})
-    void currentOwnerAndBothRightsAreRequiredAtMutation(String mutation) {
+    static java.util.stream.Stream<Arguments> mutations() {
+        return java.util.stream.Stream.of("read","operate","disabled","blocked","duplicate","missing-account","business","unresolved","tuple","generation","collision","missing-owner","flag")
+            .flatMap(mutation->java.util.stream.Stream.of("pending,open","pending,closed","closed,pending")
+                .map(edge->Arguments.of(mutation,edge.split(",")[0],edge.split(",")[1])));
+    }
+    @ParameterizedTest @MethodSource("mutations")
+    void currentOwnerAndBothRightsAreRequiredAtMutation(String mutation,String from,String to) {
+        jdbc.update("UPDATE tickets SET status=?",from);
+        long revision=work.find(PUBLIC,"worker").orElseThrow().revision();
         switch(mutation) {
             case "read"->jdbc.update("UPDATE general_ticket_read_grants SET is_active=FALSE WHERE user_id=1");
             case "operate"->jdbc.update("UPDATE general_ticket_operate_grants SET is_active=FALSE WHERE user_id=1");
@@ -71,15 +83,16 @@ class GeneralTicketWorkPostgresTest {
             case "missing-owner"->jdbc.update("DELETE FROM tickets");
             case "flag"->flags.setGeneralTicketQueue(false);
         }
-        assertThat(change(0,"pending","open")).isFalse();
+        assertThat(change(revision,from,to)).isFalse();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_work_events",Integer.class)).isZero();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ui_event_outbox",Integer.class)).isZero();
     }
-    @ParameterizedTest @ValueSource(strings={"closed","resolved","unknown","same","negative"})
+    @ParameterizedTest @ValueSource(strings={"closed-to-open","resolved","unknown","same","negative"})
     void unsupportedLifecycleAndMalformedRevisionDoNotInvokeLegacyWork(String state) {
         String from="pending",to=state;long revision=0;
         if(state.equals("same"))to="pending";
         if(state.equals("negative")) {to="open";revision=-1;}
+        if(state.equals("closed-to-open")) {from="closed";to="open";}
         assertThat(change(revision,from,to)).isFalse();
         assertThat(work.find(PUBLIC,"worker").orElseThrow().revision()).isZero();
     }
@@ -114,15 +127,67 @@ class GeneralTicketWorkPostgresTest {
             assertThat(grant.get(5,TimeUnit.SECONDS)).isFalse();
         } finally {executor.shutdownNow();}
     }
-    @ParameterizedTest @ValueSource(strings={"audit","outbox"})
-    void anyDownstreamFailureRollsBackStatusRevisionAuditAndOutbox(String failure) {
+    @ParameterizedTest @CsvSource({"audit,pending,open","outbox,pending,open","audit,pending,closed","outbox,pending,closed","audit,closed,pending","outbox,closed,pending"})
+    void anyDownstreamFailureRollsBackStatusRevisionAuditAndOutbox(String failure,String from,String to) {
+        jdbc.update("UPDATE tickets SET status=?",from);
+        long revision=work.find(PUBLIC,"worker").orElseThrow().revision();
+        var before=jdbc.queryForList("SELECT * FROM tickets");
         if(failure.equals("audit"))jdbc.execute("ALTER TABLE general_ticket_work_events ADD CONSTRAINT reject_audit CHECK(revision<0)");
         else jdbc.execute("ALTER TABLE ui_event_outbox ADD CONSTRAINT reject_event CHECK(id<0)");
-        assertThat(change(0,"pending","open")).isFalse();
-        var state=work.find(PUBLIC,"worker").orElseThrow();
-        assertThat(state.status()).isEqualTo("pending");assertThat(state.revision()).isZero();
+        assertThat(change(revision,from,to)).isFalse();
+        assertThat(jdbc.queryForList("SELECT * FROM tickets")).isEqualTo(before);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_work_events",Integer.class)).isZero();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ui_event_outbox",Integer.class)).isZero();
+    }
+    @Test void manualCloseAndReopenMaintainCountersAndRejectOldFormsAfterAFullCycle() {
+        assertThat(change(0,"pending","closed")).isTrue();
+        var closed=jdbc.queryForMap("SELECT resolved_at,resolved_by,closed_count,reopen_count FROM tickets");
+        assertThat(closed).containsEntry("resolved_by","worker").containsEntry("closed_count",1).containsEntry("reopen_count",0);
+        assertThat(closed.get("resolved_at")).isNotNull();
+        assertThat(change(1,"closed","pending")).isTrue();
+        assertThat(jdbc.queryForMap("SELECT resolved_at,resolved_by,closed_count,reopen_count FROM tickets"))
+            .containsEntry("resolved_at",null).containsEntry("resolved_by",null).containsEntry("closed_count",1).containsEntry("reopen_count",1);
+        assertThat(jdbc.queryForObject("SELECT last_reopen_at IS NOT NULL FROM tickets",Boolean.class)).isTrue();
+        assertThat(change(0,"pending","closed")).isFalse();
+        assertThat(change(2,"pending","open")).isTrue();
+        assertThat(change(3,"open","closed")).isTrue();
+        assertThat(change(4,"closed","pending")).isTrue();
+        assertThat(jdbc.queryForMap("SELECT closed_count,reopen_count,general_work_revision FROM tickets"))
+            .containsEntry("closed_count",2).containsEntry("reopen_count",2).containsEntry("general_work_revision",5L);
+        assertThat(jdbc.queryForList("SELECT from_status||'>'||to_status FROM general_ticket_work_events ORDER BY revision",String.class))
+            .containsExactly("pending>closed","closed>pending","pending>open","open>closed","closed>pending");
+        assertThat(jdbc.queryForList("SELECT ticket_scope_kind FROM ui_event_outbox",String.class)).hasSize(5).containsOnly("GENERAL");
+    }
+    @Test void missingLifecycleSchemaFailsClosedWithoutChangingExistingRows() {
+        jdbc.execute("DROP FUNCTION general_ticket_transition_allowed(TEXT,TEXT) CASCADE");
+        var before=jdbc.queryForList("SELECT * FROM tickets");
+        assertThat(change(0,"pending","closed")).isFalse();
+        assertThat(jdbc.queryForList("SELECT * FROM tickets")).isEqualTo(before);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_work_events",Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ui_event_outbox",Integer.class)).isZero();
+    }
+    @Test void upgradeFromV66PreservesOldTicketsAndAuditAndAddsOnlyTheAllowedManualTransitions() {
+        var upgrade=PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType("general_lifecycle_upgrade");
+        var config=org.flywaydb.core.Flyway.configure().dataSource(upgrade.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql");
+        config.target("66").load().migrate();
+        upgrade.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,status,is_general,general_selection_source) VALUES(901,'general-prior',?,'open',TRUE,'GENERAL_CHANNEL')",PUBLIC);
+        upgrade.update("INSERT INTO general_ticket_work_events(ticket_user_id,ticket_id,ticket_public_id,revision,from_status,to_status,actor_user_id,actor) VALUES(901,'general-prior',?,1,'pending','open',1,'prior')",PUBLIC);
+        var tickets=upgrade.queryForList("SELECT * FROM tickets");
+        var events=upgrade.queryForList("SELECT * FROM general_ticket_work_events");
+        org.flywaydb.core.Flyway.configure().dataSource(upgrade.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").load().migrate();
+        assertThat(upgrade.queryForList("SELECT * FROM tickets")).isEqualTo(tickets);
+        assertThat(upgrade.queryForList("SELECT * FROM general_ticket_work_events")).isEqualTo(events);
+        assertThat(upgrade.queryForObject("SELECT COUNT(*) FROM general_ticket_operate_grants",Integer.class)).isZero();
+        for (String from:java.util.List.of("pending","open","closed","resolved","unknown")) {
+            for (String to:java.util.List.of("pending","open","closed","resolved","unknown")) {
+                boolean allowed=java.util.Set.of("pending>open","open>pending","pending>closed","open>closed","closed>pending").contains(from+">"+to);
+                assertThat(upgrade.queryForObject("SELECT general_ticket_transition_allowed(?,?)",Boolean.class,from,to)).isEqualTo(allowed);
+                if (!allowed) assertThatThrownBy(()->upgrade.update("INSERT INTO general_ticket_work_events(ticket_user_id,ticket_id,ticket_public_id,revision,from_status,to_status,actor_user_id,actor) VALUES(901,'general-prior',?,2,?,?,1,'prior')",PUBLIC,from,to))
+                    .isInstanceOf(DataAccessException.class);
+            }
+        }
+        assertThatThrownBy(()->upgrade.update("UPDATE general_ticket_work_events SET actor='changed'"))
+            .isInstanceOf(DataAccessException.class);
     }
     @Test void revisionIsDatabaseMaintainedForLegacyWritersAndAuditCannotChange() {
         jdbc.update("UPDATE tickets SET status='open'");
