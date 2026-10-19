@@ -261,6 +261,27 @@ COMPLETED входят в FLOOR суммы точных seconds; незавер�
 Legacy attribution, session/activity heartbeat, assignment, reconciliation/
 retention и runtime acceptance на другой машине/в другой сессии остаются gates.
 
+R139 добавляет отдельное ручное GENERAL assignment pending/open: назначение,
+смена и снятие ответственного через PAGE_DIALOGS + current READ/OPERATE + CSRF.
+Target обязан быть canonical unique enabled/unblocked account с GENERAL
+READ+OPERATE. Candidate pool закрыт для READ-only; page authority target по-прежнему
+нужна для его входа в «Диалоги», назначение само не выдаёт доступ/grants.
+V69 — append-only scoped assignment events с exact user/raw/public tuple,
+actor/assignee snapshot и отдельной assignment revision. Новых grants/backfill
+и переноса ticket_responsibles нет. Current/history требуют READ и exact owner
+до latest/limit; owner/generation не наследуют старое назначение. Утративший
+права target показан недоступным, автоматического переназначения нет.
+
+Root FOR UPDATE сериализует assignment CAS с status/owner и другим assignment;
+account/grants actor и target удерживаются FOR SHARE до commit. Проверяются
+expected work revision, assignment revision, explicit GENERAL и unique raw ID.
+Event и GENERAL assignment_changed outbox атомарны; stale/ABA/no-op отказ не
+создаёт event. Root status/work revision не меняются, interval/reply не прерываются.
+Closed assignment — read-only. Readiness требует V69; missing schema не открывает
+legacy fallback. Metadata-only invalidation идёт через отдельный GENERAL
+SSE/Redis/current READ path без legacy callbacks. Автоназначение/балансировка,
+историческая attribution, bell/служебная доставка и retention остаются gates.
+
 `/api/general-tickets` и `/general-dialogs` закрыты foundation и отдельным
 default-off `multibusiness.general-ticket-queue`. Каждый SQL read повторно
 проверяет grant и выбирает только `is_general=TRUE`, `business_id IS NULL` и
@@ -296,7 +317,7 @@ Heartbeat повторно проверяет grant/account/flags; при отк
 general_access_revoked без ticket data, emitter закрывается. UI очищает данные
 при отзыве/ошибке stream, отменяет pending refresh и не применяет старые HTTP
 ответы. Pagehide закрывает подписку. Сам этап R134 не добавлял migrations/flags.
-GENERAL triage/OPERATE, text reply, manual close/reopen и observed intervals описаны в R135–R138 выше;
+GENERAL triage/OPERATE, text reply, manual close/reopen, observed intervals и manual assignment описаны в R135–R139 выше;
 остальные GENERAL write, отдельные bell/внешняя доставка и live Redis/proxy/provider acceptance PENDING.
 
 Основные legacy dialog reads (список/summary, карточка, история, предыдущие

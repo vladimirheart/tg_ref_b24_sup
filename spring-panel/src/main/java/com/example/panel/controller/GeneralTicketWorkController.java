@@ -3,6 +3,7 @@ package com.example.panel.controller;
 import com.example.panel.service.GeneralTicketWorkService;
 import com.example.panel.service.GeneralTicketReplyService;
 import com.example.panel.service.GeneralTicketWorkTimeService;
+import com.example.panel.service.GeneralTicketAssignmentService;
 import com.example.panel.service.NavigationService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
@@ -22,9 +23,10 @@ public class GeneralTicketWorkController {
     private final NavigationService navigation;
     private final GeneralTicketReplyService replies;
     private final GeneralTicketWorkTimeService time;
+    private final GeneralTicketAssignmentService assignments;
     public GeneralTicketWorkController(GeneralTicketWorkService work,NavigationService navigation,GeneralTicketReplyService replies,
-            GeneralTicketWorkTimeService time) {
-        this.work=work;this.navigation=navigation;this.replies=replies;this.time=time;
+            GeneralTicketWorkTimeService time,GeneralTicketAssignmentService assignments) {
+        this.work=work;this.navigation=navigation;this.replies=replies;this.time=time;this.assignments=assignments;
     }
     @GetMapping
     public String view(@PathVariable String publicId,Authentication auth,Model model,HttpServletResponse response) {
@@ -37,6 +39,9 @@ public class GeneralTicketWorkController {
         model.addAttribute("replies",replies.recent(state.scope(),auth.getName()));
         model.addAttribute("workTime",time.summary(state.scope(),auth.getName()).orElse(null));
         model.addAttribute("workIntervals",time.recent(state.scope(),auth.getName()));
+        model.addAttribute("assignment",assignments.current(state.scope(),auth.getName()).orElse(null));
+        model.addAttribute("assignmentCandidates",assignments.candidates(state.scope(),auth.getName()));
+        model.addAttribute("assignmentEvents",assignments.recent(state.scope(),auth.getName()));
         navigation.enrich(model,auth);return "general/work";
     }
     @PostMapping("/status")
@@ -57,6 +62,16 @@ public class GeneralTicketWorkController {
         if (!GeneralTicketReplyService.validInput(requestKey,message)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         if (!replies.submit(state.scope(),auth.getName(),version(revision),requestKey,message,destination))
             throw new ResponseStatusException(HttpStatus.CONFLICT,"Данные, канал или права изменились. Обновите страницу.");
+        var redirect=new RedirectView("/general-dialog-work/"+publicId,true);redirect.setExposeModelAttributes(false);return redirect;
+    }
+    @PostMapping("/assignment")
+    public RedirectView assignment(@PathVariable String publicId,Authentication auth,HttpServletResponse response,
+            @RequestParam String revision,@RequestParam String assignmentRevision,@RequestParam String assigneeId) {
+        var state=find(publicId,auth,response);
+        if(!state.canOperate()) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        long target=version(assigneeId);
+        if(!assignments.assign(state.scope(),auth.getName(),version(revision),version(assignmentRevision),target==0?null:target))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Назначение, данные или права изменились. Обновите страницу.");
         var redirect=new RedirectView("/general-dialog-work/"+publicId,true);redirect.setExposeModelAttributes(false);return redirect;
     }
     private long version(String revision) {

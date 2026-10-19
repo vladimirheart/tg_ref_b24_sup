@@ -61,7 +61,7 @@ class GeneralTicketRealtimePostgresTest {
         var emitter=mock(SseEmitter.class);
         map.computeIfAbsent(actor,k->new CopyOnWriteArraySet<>()).add(emitter);return emitter;
     }
-    @ParameterizedTest @ValueSource(strings={"ticket_created","client_message_created","client_message_edited","operator_message_edited","feedback_created","ticket_closed_auto","ticket_closed","ticket_reopened","ticket_status_changed","operator_reply_changed"})
+    @ParameterizedTest @ValueSource(strings={"ticket_created","client_message_created","client_message_edited","operator_message_edited","feedback_created","ticket_closed_auto","ticket_closed","ticket_reopened","ticket_status_changed","operator_reply_changed","assignment_changed"})
     void onlyExplicitGeneralReaderReceivesEachWhitelistedEvent(String event) throws Exception {
         var reader=register("reader");var all=register("other");
         service.publish(captured(),event);
@@ -139,9 +139,10 @@ class GeneralTicketRealtimePostgresTest {
         service.publish(captured(),"feedback_created");
         verify(reader).send(any(SseEmitter.SseEventBuilder.class));
     }
-    @Test void separateRedisTopicPreservesFrozenScopeAndConsumerReprovesAccess() throws Exception {
+    @ParameterizedTest @ValueSource(strings={"ticket_created","assignment_changed"})
+    void separateRedisTopicPreservesFrozenScopeAndConsumerReprovesAccess(String eventType) throws Exception {
         fanout.setMode("redis");var reader=register("reader");
-        service.publish(captured(),"ticket_created");
+        service.publish(captured(),eventType);
         var payload=org.mockito.ArgumentCaptor.forClass(String.class);
         verify(redis).convertAndSend(eq("iguana:ui-events:v1:general:v1"),payload.capture());verifyNoInteractions(reader);
         assertThat(payload.getValue()).doesNotContain("\"valid\"");
@@ -187,9 +188,10 @@ class GeneralTicketRealtimePostgresTest {
         var reader=register("reader");
         writer.append("ticket_created",RAW,9L,"private client text","photo","private/key",null);
         writer.append("client_message_created",RAW,9L,"private second message","text",null,null);
+        writer.append("assignment_changed",RAW,9L,null,null,null,null);
         jdbc.update("INSERT INTO ui_event_outbox(id,event_type,ticket_id) VALUES(1,'ticket_created','unclassified')");
         watcher.watch();
-        verify(reader,times(2)).send(any(SseEmitter.SseEventBuilder.class));verifyNoInteractions(callbacks);
+        verify(reader,times(3)).send(any(SseEmitter.SseEventBuilder.class));verifyNoInteractions(callbacks);
         long maximum=jdbc.queryForObject("SELECT MAX(id) FROM ui_event_outbox",Long.class);
         verify(checkpoint).saveLongCursor("ui-event-outbox-watch",maximum);
     }

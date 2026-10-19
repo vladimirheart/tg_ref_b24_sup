@@ -59,6 +59,7 @@ class GeneralTicketWorkHttpPostgresTest {
     @Autowired MockMvc mvc;@Autowired JdbcTemplate jdbc;@Autowired MultibusinessFeatureFlags flags;
     @Autowired GeneralTicketAccessService access;@SpyBean GeneralTicketWorkService work;
     @SpyBean GeneralTicketReplyService replies;
+    @SpyBean GeneralTicketAssignmentService assignments;
     private String worker,reader,admin,publicId,root,raw;
     private long workerId,readerId,owner;
     @BeforeEach void setup() {
@@ -206,6 +207,70 @@ class GeneralTicketWorkHttpPostgresTest {
         access.revokeRead(readerId);
         mvc.perform(actor(get(root),reader,"PAGE_DIALOGS")).andExpect(status().isNotFound());
         verifyNoInteractions(replyTransport);
+    }
+    @Test void renderedAssignmentFormUsesActualCsrfAndReadOnlyHistory() throws Exception {
+        String targetName="<staff-"+IDS.incrementAndGet()+">";long target=account(targetName);
+        access.grantRead(target);access.grantOperate(target);
+        var jar=new LinkedHashMap<String,Cookie>();
+        var initial=mvc.perform(actor(get(root),worker,"PAGE_DIALOGS")).andExpect(status().isOk()).andReturn();
+        String html=initial.getResponse().getContentAsString();String assignmentForm=form(html,"data-general-assignment-form");
+        assertThat(html).contains("&lt;staff-").doesNotContain(targetName);
+        var saved=mvc.perform(actor(assignPost(hidden(assignmentForm,"revision"),hidden(assignmentForm,"assignmentRevision"),Long.toString(target))
+            .param("_csrf",hidden(assignmentForm,"_csrf")).cookie(captureCookies(jar,initial)),worker,"PAGE_DIALOGS"))
+            .andExpect(redirectedUrl(root)).andReturn();
+        mvc.perform(actor(assignPost("0","0",Long.toString(workerId)),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
+        mvc.perform(actor(get(root),reader,"PAGE_DIALOGS")).andExpect(status().isOk())
+            .andExpect(content().string(containsString("&lt;staff-")))
+            .andExpect(content().string(not(containsString("data-general-assignment-form"))));
+        access.revokeRead(target);
+        var current=mvc.perform(actor(get(root).cookie(captureCookies(jar,saved)),worker,"PAGE_DIALOGS")).andExpect(status().isOk()).andReturn();
+        String currentForm=form(current.getResponse().getContentAsString(),"data-general-assignment-form");
+        assertThat(current.getResponse().getContentAsString()).contains("больше нет действующих прав GENERAL");
+        mvc.perform(actor(assignPost(hidden(currentForm,"revision"),hidden(currentForm,"assignmentRevision"),"0")
+            .param("_csrf",hidden(currentForm,"_csrf")).cookie(captureCookies(jar,current)),worker,"PAGE_DIALOGS"))
+            .andExpect(redirectedUrl(root));
+        assertThat(assignments.current(new GeneralTicketEventScope(owner,raw,publicId),reader).orElseThrow().assignee()).isNull();
+        assertThat(work.find(publicId,worker).orElseThrow().revision()).isZero();
+        verifyNoInteractions(replyTransport);
+    }
+    @Test void assignmentRequiresPageCsrfOperateAndCurrentTargetRights() throws Exception {
+        mvc.perform(actor(assignPost("0","0",Long.toString(workerId)),worker,"PAGE_DIALOGS")).andExpect(redirectedUrl("/error/403"));
+        mvc.perform(actor(assignPost("0","0",Long.toString(workerId)),reader,"PAGE_DIALOGS").with(csrf())).andExpect(status().isForbidden());
+        mvc.perform(actor(assignPost("0","0",Long.toString(workerId)),worker,"ROLE_ADMIN").with(csrf())).andExpect(status().isForbidden());
+        mvc.perform(actor(assignPost("0","0",Long.toString(readerId)),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
+        mvc.perform(actor(assignPost("bad","0",Long.toString(workerId)),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isBadRequest());
+        mvc.perform(actor(assignPost("0","-1",Long.toString(workerId)),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isBadRequest());
+        mvc.perform(actor(assignPost("0","0","bad"),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isBadRequest());
+        jdbc.update("UPDATE tickets SET status='closed' WHERE ticket_public_id=?",publicId);
+        mvc.perform(actor(get(root),worker,"PAGE_DIALOGS")).andExpect(status().isOk())
+            .andExpect(content().string(not(containsString("data-general-assignment-form"))));
+        mvc.perform(actor(assignPost("1","0",Long.toString(workerId)),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_assignment_events WHERE ticket_public_id=?",Integer.class,publicId)).isZero();
+    }
+    @ParameterizedTest @ValueSource(strings={"actor-read","actor-operate","target-read","target-operate","owner","revision","assignment","flag"})
+    void assignmentReprovesChangesAfterControllerPrecheck(String mutation) throws Exception {
+        long target=account("assign-target-"+IDS.incrementAndGet());access.grantRead(target);access.grantOperate(target);
+        var scope=new GeneralTicketEventScope(owner,raw,publicId);
+        doAnswer(call->{
+            switch(mutation) {
+                case "actor-read"->access.revokeRead(workerId);
+                case "actor-operate"->access.revokeOperate(workerId);
+                case "target-read"->access.revokeRead(target);
+                case "target-operate"->access.revokeOperate(target);
+                case "owner"->jdbc.update("UPDATE tickets SET is_general=FALSE,general_selection_source=NULL WHERE ticket_public_id=?",publicId);
+                case "revision"->jdbc.update("UPDATE tickets SET status='open' WHERE ticket_public_id=?",publicId);
+                case "assignment"->assertThat(assignments.assign(scope,worker,0,0,workerId)).isTrue();
+                case "flag"->flags.setGeneralTicketQueue(false);
+            }
+            return call.callRealMethod();
+        }).when(assignments).assign(eq(scope),eq(worker),eq(0L),eq(0L),eq(Long.valueOf(target)));
+        mvc.perform(actor(assignPost("0","0",Long.toString(target)),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_assignment_events WHERE ticket_public_id=?",Integer.class,publicId))
+            .isEqualTo(mutation.equals("assignment")?1:0);
+        verifyNoInteractions(replyTransport);
+    }
+    private MockHttpServletRequestBuilder assignPost(String version,String assignmentVersion,String target) {
+        return post(root+"/assignment").param("revision",version).param("assignmentRevision",assignmentVersion).param("assigneeId",target);
     }
     private String form(String html,String marker) {
         int start=html.indexOf(marker);assertThat(start).isGreaterThan(0);

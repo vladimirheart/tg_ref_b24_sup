@@ -35,6 +35,35 @@
         <input type="hidden" name="nextStatus" value="pending">
         <button type="submit" class="btn btn-primary">Открыть повторно</button>
     </form>
+    <section class="mt-4" data-general-assignment>
+        <h2 class="h4">Ответственный</h2>
+        <p th:if="${assignment == null}" class="alert alert-info">Назначение сейчас недоступно. Обновите страницу.</p>
+        <th:block th:if="${assignment != null}">
+            <p th:if="${assignment.assignee == null}">Ответственный не назначен.</p>
+            <p th:if="${assignment.assignee != null}">Назначен: <strong th:text="${assignment.assignee}"></strong>.</p>
+            <p th:if="${assignment.assignee != null and !assignment.eligible}" class="alert alert-info">
+                У назначенного сотрудника больше нет действующих прав GENERAL. Выберите другого или снимите назначение.</p>
+            <form th:if="${canOperate and (status == 'pending' or status == 'open')}" method="post"
+                  th:action="@{/general-dialog-work/{id}/assignment(id=${publicId})}" class="card card-body" data-general-assignment-form>
+                <input type="hidden" name="revision" th:value="${revision}">
+                <input type="hidden" name="assignmentRevision" th:value="${assignment.revision}">
+                <label for="generalAssignee">Сотрудник</label>
+                <select id="generalAssignee" name="assigneeId" class="form-select">
+                    <option value="0">Снять назначение</option>
+                    <option th:each="candidate : ${assignmentCandidates}" th:value="${candidate.userId}" th:text="${candidate.username}"
+                            th:selected="${candidate.userId == assignment.assigneeUserId}"></option>
+                </select>
+                <p class="form-text">Показаны первые 200 сотрудников с действующими GENERAL READ и OPERATE.
+                    Назначение само по себе не выдаёт доступ. Для открытия обращения сотруднику нужна страница «Диалоги».</p>
+                <button type="submit" class="btn btn-primary">Сохранить ответственного</button>
+            </form>
+        </th:block>
+        <h3 class="h5 mt-3">Последние 10 назначений</h3>
+        <article th:each="event : ${assignmentEvents}" class="card card-body mb-2">
+            <p><time th:text="${event.createdAt}"></time>; изменил: <span th:text="${event.actor}"></span>.</p>
+            <p th:text="${event.assignee == null ? 'Назначение снято' : 'Назначен: ' + event.assignee}"></p>
+        </article>
+    </section>
     <section class="mt-4" data-general-work-time>
         <h2 class="h4">Время в работе</h2>
         <p>Учитываются новые интервалы от перевода в работу до ожидания или закрытия.

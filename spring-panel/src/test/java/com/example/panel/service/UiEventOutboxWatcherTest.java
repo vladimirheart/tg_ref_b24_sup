@@ -64,7 +64,7 @@ class UiEventOutboxWatcherTest {
         WatcherFixture fixture = new WatcherFixture();
         fixture.jdbc.update("INSERT INTO tickets VALUES (1, 'T-GENERAL', TRUE), (2, 'T-VALID', FALSE)");
         String[] types = {"ticket_created", "client_message_created", "client_message_edited",
-            "operator_message_edited", "feedback_created", "ticket_closed_auto", "ticket_closed", "ticket_reopened"};
+            "operator_message_edited", "feedback_created", "ticket_closed_auto", "ticket_closed", "ticket_reopened", "assignment_changed"};
         for (int i = 0; i < types.length; i++) {
             fixture.event(i + 1L, types[i], "T-GENERAL");
         }
