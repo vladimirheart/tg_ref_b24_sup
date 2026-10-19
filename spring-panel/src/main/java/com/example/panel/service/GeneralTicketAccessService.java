@@ -8,6 +8,14 @@ import org.springframework.stereotype.Service;
 /** Read-only GENERAL grant; neither a business membership nor a system administrator bypass. */
 @Service
 public class GeneralTicketAccessService {
+    static final String CURRENT_ACCOUNT = """
+        account.enabled = TRUE AND COALESCE(account.is_blocked, FALSE) = FALSE
+        AND 1 = (SELECT COUNT(*) FROM users duplicate WHERE lower(duplicate.username) = lower(account.username))
+        """;
+    static final String READ_ACCOUNT = CURRENT_ACCOUNT + """
+        AND EXISTS (SELECT 1 FROM general_ticket_read_grants access
+                    WHERE access.user_id = account.id AND access.is_active = TRUE)
+        """;
     private final JdbcTemplate jdbc;
 
     public GeneralTicketAccessService(JdbcTemplate jdbc) {
@@ -18,7 +26,8 @@ public class GeneralTicketAccessService {
         if (username == null || username.isBlank()) {
             throw new AccessDeniedException("Authenticated user is required");
         }
-        List<Long> ids = jdbc.query("SELECT id FROM users WHERE lower(username) = lower(?) AND enabled = TRUE LIMIT 2",
+        List<Long> ids = jdbc.query("SELECT account.id FROM users account WHERE lower(account.username) = lower(?) AND "
+                + CURRENT_ACCOUNT + " LIMIT 2",
             (rs, row) -> rs.getLong("id"), username);
         if (ids.size() != 1) {
             throw new AccessDeniedException("Authenticated user is not available");
@@ -28,8 +37,7 @@ public class GeneralTicketAccessService {
 
     public boolean canRead(Long userId) {
         return userId != null && userId > 0 && Boolean.TRUE.equals(jdbc.queryForObject(
-            "SELECT EXISTS (SELECT 1 FROM general_ticket_read_grants access JOIN users account ON account.id = access.user_id "
-                + "WHERE access.user_id = ? AND access.is_active = TRUE AND account.enabled = TRUE)",
+            "SELECT EXISTS (SELECT 1 FROM users account WHERE account.id = ? AND " + READ_ACCOUNT + ")",
             Boolean.class, userId));
     }
 

@@ -3,6 +3,7 @@ package com.example.panel.controller;
 import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.service.GeneralTicketAccessService;
 import com.example.panel.service.GeneralTicketReadService;
+import com.example.panel.service.GeneralTicketRealtimeService;
 import com.example.panel.service.NavigationService;
 import com.example.panel.storage.AttachmentObjectStorageService;
 import java.io.ByteArrayInputStream;
@@ -32,12 +33,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest({GeneralTicketReadController.class, GeneralTicketAccessController.class, GeneralTicketPageController.class})
+@WebMvcTest({GeneralTicketReadController.class, GeneralTicketAccessController.class, GeneralTicketPageController.class, GeneralTicketStreamController.class})
 @Import(GeneralTicketControllersWebMvcTest.MethodSecurity.class)
 class GeneralTicketControllersWebMvcTest {
     @TestConfiguration @EnableMethodSecurity static class MethodSecurity {}
     @Autowired MockMvc mvc;
     @MockBean GeneralTicketReadService service;
+    @MockBean GeneralTicketRealtimeService realtime;
     @MockBean GeneralTicketAccessService access;
     @MockBean MultibusinessFeatureFlags flags;
     @MockBean NavigationService navigation;
@@ -47,6 +49,32 @@ class GeneralTicketControllersWebMvcTest {
     @BeforeEach
     void actor() {
         when(access.requireAuthenticatedUserId("reader")).thenReturn(1L);
+    }
+
+    @Test
+    void generalStreamRequiresFlagsPageAuthorityAndExplicitRead() throws Exception {
+        String path = "/api/general-tickets/events/stream";
+        mvc.perform(get(path).with(user("reader").authorities(() -> "PAGE_DIALOGS"))).andExpect(status().isNotFound());
+        enable();
+        mvc.perform(get(path).with(user("admin").authorities(() -> "ROLE_ADMIN"))).andExpect(status().isForbidden());
+        when(realtime.connect("reader")).thenThrow(new AccessDeniedException("No GENERAL grant"));
+        mvc.perform(get(path).with(user("reader").authorities(() -> "PAGE_DIALOGS"))).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void generalStreamHandshakeIsPrivateAndDoesNotTrustRequestedIdentity() throws Exception {
+        enable();
+        var emitter = new org.springframework.web.servlet.mvc.method.annotation.SseEmitter(0L);
+        emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event().name("connected").data(java.util.Map.of("connected", true)));
+        when(realtime.connect("reader")).thenReturn(emitter);
+        mvc.perform(get("/api/general-tickets/events/stream?user=other").with(user("reader").authorities(() -> "PAGE_DIALOGS")))
+            .andExpect(status().isOk()).andExpect(request().asyncStarted())
+            .andExpect(header().string("Cache-Control", "no-store"))
+            .andExpect(header().string("X-Accel-Buffering", "no"))
+            .andExpect(content().contentTypeCompatibleWith("text/event-stream"));
+        verify(realtime).connect("reader");
+        verify(realtime, never()).connect("other");
+        emitter.complete();
     }
 
     private void enable() {

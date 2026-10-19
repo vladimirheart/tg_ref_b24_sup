@@ -163,8 +163,10 @@ business-scoped шаблон из canonical `bot_settings.question_templates`:
 
 Read-only очередь GENERAL использует отдельный явный grant
 `general_ticket_read_grants` на канонический `users.id`, без автоматических
-назначений. Доступ требует одновременно `PAGE_DIALOGS`, включённую учётную
-запись и активный READ grant. `ROLE_ADMIN`, business membership и
+назначений. Доступ требует одновременно `PAGE_DIALOGS`, единственную canonical
+учётную запись с enabled=TRUE/is_blocked=FALSE и активный READ grant. R134
+проверяет уникальность case-insensitive username также при чтении, не выбирая
+произвольную enabled запись из нескольких. `ROLE_ADMIN`, business membership и
 `ALL_BUSINESSES` не заменяют этот grant. Установка/отзыв доступны только
 системному администратору с `PAGE_SETTINGS` и CSRF. READ не разрешает отвечать,
 менять статус либо выполнять другие write operations.
@@ -175,8 +177,36 @@ default-off `multibusiness.general-ticket-queue`. Каждый SQL read повт
 канонический public ID. Legacy/unresolved NULL и бизнес-обращения не входят
 в эту очередь. История использует composite owner; attributes и attachment
 namespace дополнительно требуют однозначности legacy ticket ID. Grant этого
-read-only контура не доказывает готовность legacy API, write paths, SSE,
-поиска/уведомлений и фоновых заданий; их изоляция остаётся gate до rollout.
+read-only контура не доказывает готовность legacy API, write paths,
+глобального поиска/уведомлений и фоновых заданий; их изоляция остаётся gate до rollout.
+
+R134 добавляет отдельный GET /api/general-tickets/events/stream: PAGE_DIALOGS
+проверяется на handshake, foundation/general-ticket-queue и live GENERAL READ
+проверяются сервисом. Каждый emitter перед отправкой получает отдельный SQL
+proof текущего account/grant и frozen tuple/public generation с is_general=TRUE,
+business_id=NULL и unique raw ID. Регистр username сопоставляется canonical
+case-insensitive, пробелы principal не отбрасываются и не дают чужой grant.
+GENERAL не становится допустимым UiEventTicketScope.isValid для legacy callbacks:
+отдельный GeneralTicketEventScope создаётся только из полного GENERAL V61 snapshot.
+
+Watcher направляет известные GENERAL event types только в этот realtime, до
+initial-message lookup и legacy AI/bell/assignment/support-chat. Cursor проходит
+отклонённые/старые rows. Consumer не захватывает owner повторно; смена tuple,
+business/kind/generation, удаление, collision либо missing schema закрывают delivery.
+Redis использует отдельный topic <existing-ui-topic>:general:v1 и version=1
+envelope без текста/media. Старый subscriber не получает этот topic; local mode
+применяет те же per-emitter guards. Redis error не открывает local/legacy fallback.
+Сами invalidations best-effort, не журнал доставки и не durable event replay.
+
+Браузер получает только ticketPublicId, известный reason и emittedAt в событии
+general_tickets_changed; raw tuple/IDs и содержимое диалога не выдаются. Отдельная
+GENERAL очередь coalesce-ит обновления, перечитывает список/открытую карточку через
+текущие READ API, а reconnect исправляет пропущенные invalidations новым чтением.
+Heartbeat повторно проверяет grant/account/flags; при отказе посылается только
+general_access_revoked без ticket data, emitter закрывается. UI очищает данные
+при отзыве/ошибке stream, отменяет pending refresh и не применяет старые HTTP
+ответы. Pagehide закрывает подписку. Новых migrations/flags нет; GENERAL write,
+отдельные bell/внешняя доставка и live Redis/proxy/provider acceptance PENDING.
 
 Основные legacy dialog reads (список/summary, карточка, история, предыдущие
 диалоги, участники и client context), ticket-bound `DialogAuthorizationService`
@@ -196,8 +226,8 @@ Legacy ticket-bound realtime использует тот же non-GENERAL guard:
 `dialog_history_changed` требуют точного строкового ticket ID, а любой иной
 envelope с `ticketId` тоже проверяется по canonical ticket. Неизвестный marker,
 отсутствующая схема, GENERAL и коллизия закрывают legacy delivery. Курсор
-outbox продвигается и по отклонённым событиям. Отдельный realtime GENERAL ещё
-требует собственного контракта с действующим READ grant. Системные SSE без
+outbox продвигается и по отклонённым событиям. Отдельный realtime GENERAL R134
+использует описанный выше собственный контракт с действующим READ grant. Системные SSE без
 ticket ID сохраняют поведение.
 
 Legacy ticket-bound SSE дополнительно проверяет business READ каждого
@@ -465,8 +495,8 @@ Legacy bell list/page/count/read/read-all применяют один SQL predic
 получатель совпадает, canonical tuple/public ID и business соответствуют
 snapshot, текущий owner имеет `is_general=FALSE`. Исчезновение owner, смена
 scope/business или другого non-null public ID закрывают чтение и read update.
-GENERAL исключён даже при отдельном READ grant; его bell/realtime ещё не
-реализованы. Фильтрация предшествует cursor pagination/aggregation, read
+GENERAL исключён даже при отдельном READ grant; его bell ещё не реализован,
+а realtime R134 изолирован отдельными endpoint/topic. Фильтрация предшествует cursor pagination/aggregation, read
 updates условны в том же SQL и сигнализируют только фактическое изменение.
 Коллизия bare ID после сохранения не подменяет owner с полным tuple; legacy
 dialog URL при этом по-прежнему закрывает свой ambiguous route.
@@ -567,7 +597,7 @@ requireSelectedBusiness(requested context, authenticated user)
 | Три пустых `messages.business` | `UNRESOLVED`, исключены из произвольного business list | **PENDING:** ручное назначение или permanent unresolved policy |
 | 3 history channel mismatch | owner берётся из ticket; исторический channel не переписывается | **PENDING:** классификация forwarding/error и правила отображения |
 | Mixed channels | Явный выбор бизнеса или «Без бизнеса» до первого вопроса; без выбора flow не запускается | **УТОЧНЕНО 2026-10-16:** general — отдельный scope, не unresolved. **PENDING:** UX-представление и precedence для иных verified sources |
-| 2 tasks без ticket link | `UNRESOLVED` либо `GLOBAL_SYSTEM`, не произвольный business | **PENDING:** policy и право на global Kanban |
+| 2 tasks без ticket link | Сохранять ручные задачи без автоматической классификации/назначения | **PENDING:** R12 manual-task scope policy и право на global Kanban |
 | 105 incidents / system notifications | Не получают business ID массово | **PENDING:** business/shared/global classification и отдельные permissions |
 | Existing ticket route | Legacy route доступен только в подтверждённом unique window | **РЕШЕНО S2A:** opaque immutable `ticket_public_id`; internal fallback — обязательный composite locator |
 | Roles | Global page permissions не меняются автоматически | **PENDING:** business role matrix и administrator boundary |

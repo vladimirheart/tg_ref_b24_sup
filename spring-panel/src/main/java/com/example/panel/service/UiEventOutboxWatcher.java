@@ -34,6 +34,7 @@ public class UiEventOutboxWatcher {
     private final RuntimeWorkerCheckpointService checkpointService;
     private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
     private final UiEventTicketAccessService ticketAccess;
+    private final GeneralTicketRealtimeService generalRealtime;
     private final AtomicLong lastProcessedId = new AtomicLong(0L);
 
     public UiEventOutboxWatcher(JdbcTemplate jdbcTemplate,
@@ -42,12 +43,22 @@ public class UiEventOutboxWatcher {
                                 RuntimeWorkerCheckpointService checkpointService,
                                 LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard,
                                 UiEventTicketAccessService ticketAccess) {
+        this(jdbcTemplate, dialogRealtimeEventService, runtimeCoordinationService, checkpointService,
+            legacyTicketIdJdbcGuard, ticketAccess, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public UiEventOutboxWatcher(JdbcTemplate jdbcTemplate, DialogRealtimeEventService dialogRealtimeEventService,
+                                RuntimeCoordinationService runtimeCoordinationService, RuntimeWorkerCheckpointService checkpointService,
+                                LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard, UiEventTicketAccessService ticketAccess,
+                                GeneralTicketRealtimeService generalRealtime) {
         this.jdbcTemplate = jdbcTemplate;
         this.dialogRealtimeEventService = dialogRealtimeEventService;
         this.runtimeCoordinationService = runtimeCoordinationService;
         this.checkpointService = checkpointService;
         this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
         this.ticketAccess = ticketAccess;
+        this.generalRealtime = generalRealtime;
     }
 
     @PostConstruct
@@ -127,6 +138,10 @@ public class UiEventOutboxWatcher {
                              String attachment,
                              Integer rating,
                              UiEventTicketScope scope) {
+        if (scope != null && "GENERAL".equals(scope.scopeKind())) {
+            if (generalRealtime != null && ticketId != null && ticketId.equals(scope.ticketId())) generalRealtime.publish(scope, eventType);
+            return; // GENERAL must never enter legacy bell/AI/assignment/support-chat callbacks.
+        }
         if (!legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)
                 || scope == null || !ticketId.equals(scope.ticketId()) || !ticketAccess.isCurrentScope(scope)) {
             return;

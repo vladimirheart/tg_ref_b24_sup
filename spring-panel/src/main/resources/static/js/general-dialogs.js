@@ -122,7 +122,7 @@
     }
   }
 
-  async function load() {
+  async function load(reopen = null) {
     const current = ++generation;
     clearCard();
     rows.replaceChildren();
@@ -158,6 +158,7 @@
       next.disabled = !response.hasMore;
       page.querySelector('#generalPageNumber').textContent = `Страница ${Math.floor(offset / limit) + 1}`;
       announce(response.tickets.length ? `Показано обращений: ${response.tickets.length}` : 'Обращений нет.');
+      if (validId(reopen)) await openTicket(reopen);
     } catch (error) {
       if (current === generation) fail(error);
     }
@@ -185,5 +186,42 @@
   page.querySelector('#generalTicketFilters').addEventListener('submit', event => { event.preventDefault(); offset = 0; load(); });
   previous.addEventListener('click', () => { if (!previous.disabled) { offset = Math.max(0, offset - limit); load(); } });
   next.addEventListener('click', () => { if (!next.disabled) { offset += limit; load(); } });
+  // Dedicated GENERAL stream; payloads are invalidations, never authority or rendered dialogue.
+  if (typeof EventSource === 'function') {
+    const source = new EventSource('/api/general-tickets/events/stream');
+    const live = page.querySelector('[data-general-realtime]');
+    let refreshTimer = null;
+    let stopped = false;
+    const cancelRefresh = () => { if (refreshTimer !== null) clearTimeout(refreshTimer); refreshTimer = null; };
+    const refresh = () => {
+      if (stopped) return;
+      cancelRefresh();
+      refreshTimer = setTimeout(() => { refreshTimer = null; load(selected); }, 200);
+    };
+    source.addEventListener('connected', () => {
+      if (stopped) return;
+      live.textContent = 'Автообновление подключено.';
+      refresh(); // Reconnect repairs missed invalidations without replaying dialogue.
+    });
+    source.addEventListener('general_tickets_changed', event => {
+      if (stopped) return;
+      try { if (validId(JSON.parse(event.data).ticketPublicId)) refresh(); } catch (_) { /* Ignore invalid data. */ }
+    });
+    source.addEventListener('general_access_revoked', () => {
+      if (stopped) return;
+      stopped = true; cancelRefresh(); source.close(); generation += 1;
+      live.textContent = 'Автообновление отключено: доступ отозван.';
+      fail(new QueueError('Нет доступа к обращениям без бизнеса.'));
+    });
+    source.addEventListener('error', () => {
+      if (stopped) return;
+      cancelRefresh(); generation += 1;
+      live.textContent = 'Соединение прервано; выполняется переподключение.';
+      fail(new QueueError('Автообновление недоступно. Данные будут перечитаны после подключения.'));
+    });
+    globalThis.addEventListener?.('pagehide', () => {
+      stopped = true; cancelRefresh(); source.close(); generation += 1; clearCard();
+    });
+  }
   load();
 })();

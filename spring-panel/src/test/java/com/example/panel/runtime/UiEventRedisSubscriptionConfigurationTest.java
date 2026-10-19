@@ -11,6 +11,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 class UiEventRedisSubscriptionConfigurationTest {
+    @Test
+    void generalSubscriberUsesSeparateTopicWithoutChangingLegacySubscription() {
+        var general = mock(com.example.panel.service.GeneralTicketRealtimeService.class);
+        org.mockito.Mockito.when(general.redisChannel()).thenReturn("iguana:ui-events:v1:general:v1");
+        var legacy = mock(UiEventRedisSubscriber.class);
+        var factory = mock(RedisConnectionFactory.class);
+        var container = new UiEventRedisSubscriptionConfiguration().uiEventRedisMessageListenerContainer(
+            factory, legacy, new UiEventFanoutProperties(), general);
+        var subscriptions = (java.util.Map<?, ?>) org.springframework.test.util.ReflectionTestUtils.getField(container, "listenerTopics");
+        assertThat(subscriptions).hasSize(2);
+        assertThat(subscriptions.get(legacy)).isEqualTo(java.util.Set.of(new org.springframework.data.redis.listener.ChannelTopic("iguana:ui-events:v1")));
+        assertThat(subscriptions.get(general)).isEqualTo(java.util.Set.of(new org.springframework.data.redis.listener.ChannelTopic("iguana:ui-events:v1:general:v1")));
+    }
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
         .withUserConfiguration(FixtureConfiguration.class, UiEventRedisSubscriptionConfiguration.class);

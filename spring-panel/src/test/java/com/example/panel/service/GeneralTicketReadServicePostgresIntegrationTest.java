@@ -182,6 +182,26 @@ class GeneralTicketReadServicePostgresIntegrationTest {
         assertThat(service.attachment(reader, id, historyId)).isEmpty();
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"blocked", "duplicate"})
+    void blockedOrAmbiguousAccountCannotReadAnyGeneralSurface(String mutation) {
+        long reader = account();
+        access.grantRead(reader);
+        String raw = token();
+        String id = ticket(raw, reader, true, null, "open", "Client", "Help");
+        assertThat(service.find(reader, id)).isPresent();
+        if (mutation.equals("blocked")) jdbc.update("UPDATE users SET is_blocked=TRUE WHERE id=?", reader);
+        else jdbc.update("INSERT INTO users(username,password,enabled) VALUES(?,'unused',FALSE)", "USER-" + reader);
+        assertThat(access.canRead(reader)).isFalse();
+        assertThatThrownBy(() -> access.requireAuthenticatedUserId("user-" + reader)).isInstanceOf(AccessDeniedException.class);
+        assertThat(service.find(reader, id)).isEmpty();
+        assertThat(service.history(reader, id, null, 50)).isEmpty();
+        assertThat(service.answers(reader, id)).isEmpty();
+        assertThat(service.attachment(reader, id, 1)).isEmpty();
+        GeneralTicketReadService late = new GeneralTicketReadService(jdbc, mock(GeneralTicketAccessService.class));
+        assertThat(late.page(reader, 50, 0, null, raw).tickets()).isEmpty();
+    }
+
     private long account() {
         long id = IDS.incrementAndGet();
         jdbc.update("INSERT INTO users(id, username, password) OVERRIDING SYSTEM VALUE VALUES (?, ?, 'unused')", id, "user-" + id);

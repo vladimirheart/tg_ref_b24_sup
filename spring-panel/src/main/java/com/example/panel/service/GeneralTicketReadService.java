@@ -28,8 +28,8 @@ public class GeneralTicketReadService {
            AND ticket.ticket_public_id IS NOT NULL
            AND EXISTS (SELECT 1 FROM general_ticket_read_grants access
                          JOIN users account ON account.id = access.user_id
-                        WHERE access.user_id = :userId AND access.is_active = TRUE AND account.enabled = TRUE)
-        """;
+                        WHERE access.user_id = :userId AND access.is_active = TRUE AND
+        """ + GeneralTicketAccessService.CURRENT_ACCOUNT + ") ";
     private static final String ONE_TICKET = "WITH authorized_ticket AS (" + TICKETS
         + " AND ticket.ticket_public_id = :publicId) ";
 

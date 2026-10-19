@@ -1,6 +1,7 @@
 package com.example.panel.runtime;
 
 import com.example.panel.service.UiEventRedisSubscriber;
+import com.example.panel.service.GeneralTicketRealtimeService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,11 +22,13 @@ public class UiEventRedisSubscriptionConfiguration {
     RedisMessageListenerContainer uiEventRedisMessageListenerContainer(
         RedisConnectionFactory connectionFactory,
         UiEventRedisSubscriber subscriber,
-        UiEventFanoutProperties properties
+        UiEventFanoutProperties properties,
+        GeneralTicketRealtimeService generalRealtime
     ) {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
         container.addMessageListener(subscriber, new ChannelTopic(properties.resolvedChannel()));
+        container.addMessageListener(generalRealtime, new ChannelTopic(generalRealtime.redisChannel()));
         return container;
     }
 }
