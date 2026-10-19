@@ -28,7 +28,9 @@ public class GeneralTicketPageController {
     @PreAuthorize("hasAuthority('PAGE_DIALOGS')")
     public String queue(Authentication authentication, Model model) {
         requireEnabled();
-        access.requireRead(access.requireAuthenticatedUserId(authentication.getName()));
+        long userId=access.requireAuthenticatedUserId(authentication.getName());
+        access.requireRead(userId);
+        model.addAttribute("canCreateGeneral",flags.isManualTicketCreation()&&access.canOperate(userId));
         navigation.enrich(model, authentication);
         model.addAttribute("activePage", "dialogs");
         return "general/dialogs";

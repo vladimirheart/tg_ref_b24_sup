@@ -60,9 +60,11 @@ class GeneralTicketWorkHttpPostgresTest {
     @Autowired GeneralTicketAccessService access;@SpyBean GeneralTicketWorkService work;
     @SpyBean GeneralTicketReplyService replies;
     @SpyBean GeneralTicketAssignmentService assignments;
+    @SpyBean GeneralManualTicketCreationService manual;
     private String worker,reader,admin,publicId,root,raw;
     private long workerId,readerId,owner;
     @BeforeEach void setup() {
+        flags.setManualTicketCreation(false);
         flags.getFoundation().setEnabled(true);flags.setGeneralTicketQueue(true);
         String prefix="r135-"+IDS.incrementAndGet();worker=prefix+"-worker";reader=prefix+"-reader";admin=prefix+"-admin";
         workerId=account(worker);readerId=account(reader);account(admin);
@@ -71,7 +73,7 @@ class GeneralTicketWorkHttpPostgresTest {
         jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,is_general,general_selection_source,status) VALUES(?,?,?,TRUE,'GENERAL_CHANNEL','pending')",owner,raw,publicId);
         root="/general-dialog-work/"+publicId;
     }
-    @AfterEach void resetFlags() {flags.getFoundation().setEnabled(false);flags.setGeneralTicketQueue(false);}
+    @AfterEach void resetFlags() {flags.getFoundation().setEnabled(false);flags.setGeneralTicketQueue(false);flags.setManualTicketCreation(false);}
     @Test void actualRenderedCsrfFormChangesStatusAndStaleFormCannotOverwrite() throws Exception {
         var opened=mvc.perform(actor(get(root),worker,"PAGE_DIALOGS")).andExpect(status().isOk())
             .andExpect(header().string("Cache-Control","no-store")).andExpect(content().string(containsString("data-general-work")))
@@ -271,6 +273,70 @@ class GeneralTicketWorkHttpPostgresTest {
     }
     private MockHttpServletRequestBuilder assignPost(String version,String assignmentVersion,String target) {
         return post(root+"/assignment").param("revision",version).param("assignmentRevision",assignmentVersion).param("assigneeId",target);
+    }
+    @Test void renderedGeneralCreationFormIsIdempotentAndCreatesOnlyALocalPendingTicket() throws Exception {
+        flags.setManualTicketCreation(true);
+        mvc.perform(actor(get("/general-dialogs"),worker,"PAGE_DIALOGS")).andExpect(status().isOk())
+            .andExpect(content().string(containsString("data-general-create-link")));
+        mvc.perform(actor(get("/general-dialogs"),reader,"PAGE_DIALOGS")).andExpect(status().isOk())
+            .andExpect(content().string(not(containsString("data-general-create-link"))));
+        var opened=mvc.perform(actor(get("/general-dialogs/new"),worker,"PAGE_DIALOGS")).andExpect(status().isOk())
+            .andExpect(header().string("Cache-Control","no-store")).andReturn();
+        String html=opened.getResponse().getContentAsString(),key=hidden(html,"requestKey");
+        assertThat(html).contains("data-general-create-form","новый локальный клиент").doesNotContain("name=\"businessId\"","name=\"clientId\"");
+        String location=null;
+        for(int i=0;i<2;i++) {
+            var saved=mvc.perform(actor(manualPost(key,"<local client>","Локальная <script>заметка</script>")
+                .param("_csrf",hidden(html,"_csrf")).cookie(opened.getResponse().getCookies()),worker,"PAGE_DIALOGS"))
+                .andExpect(status().is3xxRedirection()).andReturn();
+            String next=saved.getResponse().getRedirectedUrl();
+            assertThat(next).matches("/general-dialog-work/[a-f0-9]{32}");if(location!=null)assertThat(next).isEqualTo(location);location=next;
+        }
+        String id=location.substring(location.lastIndexOf('/')+1);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_manual_ticket_requests WHERE request_key=?",Integer.class,key)).isEqualTo(1);
+        mvc.perform(actor(get(location),worker,"PAGE_DIALOGS")).andExpect(status().isOk())
+            .andExpect(content().string(not(containsString("id=\"generalReplyMessage\""))));
+        mvc.perform(actor(get("/api/general-tickets/"+id),reader,"PAGE_DIALOGS")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("pending")).andExpect(jsonPath("$.clientName").value("<local client>"));
+        mvc.perform(actor(get("/api/general-tickets/"+id+"/history"),reader,"PAGE_DIALOGS")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.entries[0].messageType").value("operator_note"));
+        assertThat(jdbc.queryForMap("SELECT channel_id,business_id,general_selection_source FROM tickets WHERE ticket_public_id=?",id))
+            .containsEntry("channel_id",null).containsEntry("business_id",null).containsEntry("general_selection_source","MANUAL");
+        verifyNoInteractions(replyTransport);
+    }
+    @Test void manualCreationRequiresItsFlagPageCsrfAndGeneralOperate() throws Exception {
+        mvc.perform(actor(get("/general-dialogs/new"),worker,"PAGE_DIALOGS")).andExpect(status().isNotFound());
+        flags.setManualTicketCreation(true);String key=UUID.randomUUID().toString().replace("-","");
+        mvc.perform(actor(get("/general-dialogs/new"),reader,"PAGE_DIALOGS")).andExpect(status().isForbidden());
+        mvc.perform(actor(get("/general-dialogs/new"),admin,"PAGE_DIALOGS","ROLE_ADMIN")).andExpect(status().isForbidden());
+        mvc.perform(actor(get("/general-dialogs/new"),worker,"ROLE_ADMIN")).andExpect(status().isForbidden());
+        mvc.perform(actor(manualPost(key,"Клиент","Вопрос"),worker,"PAGE_DIALOGS")).andExpect(redirectedUrl("/error/403"));
+        mvc.perform(actor(manualPost(key,"Клиент","Вопрос"),reader,"PAGE_DIALOGS").with(csrf())).andExpect(status().isForbidden());
+        mvc.perform(actor(manualPost("bad","Клиент","Вопрос"),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isBadRequest());
+        mvc.perform(actor(manualPost(key," ","Вопрос"),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isBadRequest());
+        mvc.perform(actor(manualPost(key,"Клиент","x".repeat(10001)),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isBadRequest());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_manual_ticket_requests WHERE actor_user_id=?",Integer.class,workerId)).isZero();
+    }
+    @ParameterizedTest @ValueSource(strings={"read","operate","disabled","duplicate","manual","foundation","queue"})
+    void manualCreationReprovesRightsAndFlagsAfterControllerPrecheck(String mutation) throws Exception {
+        flags.setManualTicketCreation(true);String key=UUID.randomUUID().toString().replace("-","");
+        doAnswer(call->{
+            switch(mutation) {
+                case "read"->access.revokeRead(workerId);case "operate"->access.revokeOperate(workerId);
+                case "disabled"->jdbc.update("UPDATE users SET enabled=FALSE WHERE id=?",workerId);
+                case "duplicate"->account(worker.toUpperCase(java.util.Locale.ROOT));
+                case "manual"->flags.setManualTicketCreation(false);
+                case "foundation"->flags.getFoundation().setEnabled(false);
+                case "queue"->flags.setGeneralTicketQueue(false);
+            }
+            return call.callRealMethod();
+        }).when(manual).create(eq(worker),eq(key),anyString(),anyString());
+        mvc.perform(actor(manualPost(key,"Клиент","Вопрос"),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_manual_ticket_requests WHERE request_key=?",Integer.class,key)).isZero();
+        verifyNoInteractions(replyTransport);
+    }
+    private MockHttpServletRequestBuilder manualPost(String key,String name,String problem) {
+        return post("/general-dialogs/new").param("requestKey",key).param("clientName",name).param("problem",problem);
     }
     private String form(String html,String marker) {
         int start=html.indexOf(marker);assertThat(start).isGreaterThan(0);

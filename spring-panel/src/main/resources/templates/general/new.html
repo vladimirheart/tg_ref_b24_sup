@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Новое обращение без бизнеса — iguana</title>
+    <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
+    <link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css">
+    <link rel="stylesheet" href="/css/app.css"><link rel="stylesheet" href="/css/sidebar.css">
+</head><body class="with-sidebar sidebar-pinned" data-ui-page="dialogs">
+<div th:replace="~{fragments/navbar :: navbar('dialogs')}"></div>
+<main class="main-content container-fluid py-4">
+    <a href="/general-dialogs">← Обращения без бизнеса</a>
+    <h1 class="h3 mt-3">Новое обращение без бизнеса</h1>
+    <p>Будет создан новый локальный клиент. Привязки к бизнесу и канала отправки нет;
+        отправлять ответы через бота из этого обращения нельзя.</p>
+    <form method="post" th:action="@{/general-dialogs/new}" class="card card-body" data-general-create-form>
+        <input type="hidden" name="requestKey" th:value="${requestKey}">
+        <label for="generalClientName">Имя клиента</label>
+        <input id="generalClientName" name="clientName" maxlength="200" required class="form-control mb-3" autocomplete="off">
+        <label for="generalProblem">Описание обращения</label>
+        <textarea id="generalProblem" name="problem" maxlength="10000" required rows="6" class="form-control mb-3"></textarea>
+        <button type="submit" class="btn btn-primary">Создать обращение</button>
+    </form>
+</main></body></html>

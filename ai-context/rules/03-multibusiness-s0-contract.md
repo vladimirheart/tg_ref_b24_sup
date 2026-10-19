@@ -36,7 +36,7 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
   выбранный browser-local context либо название бизнеса не являются authority.
 - PostgreSQL остаётся единственным relational source of truth, а Flyway и
   canonical business schema принадлежат `spring-panel`.
-- Для ручного обращения без бота/интеграции создаётся локальный клиент с новым
+- Для ручного бизнес-обращения без бота/интеграции создаётся локальный клиент с новым
   ID, принадлежащий ровно одному выбранному бизнесу. Это не аккаунт `users.id`
   и не клиент внешнего канала. Ручной путь использует отрицательный `user_id`,
   выделенный отдельной последовательностью; ноль недопустим. Новый `ticket`
@@ -282,6 +282,30 @@ legacy fallback. Metadata-only invalidation идёт через отдельны
 SSE/Redis/current READ path без legacy callbacks. Автоназначение/балансировка,
 историческая attribution, bell/служебная доставка и retention остаются gates.
 
+R140 открывает отдельное ручное GENERAL creation без бизнес-привязки и канала.
+Нужны PAGE_DIALOGS, current GENERAL READ+OPERATE/account и одновременно default-off
+foundation/general-ticket-queue/manual-ticket-creation. Форма не принимает
+business/client ID: новый local client из manual_general_clients получает
+отрицательный ID общей non-cycling V54 sequence с проверкой занятых namespaces.
+Business-local registry остаётся отдельным. Ticket создаётся pending с revision 0,
+explicit GENERAL/NULL business и MANUAL source, без legacy spans/active records.
+V70 source allowlist сохраняет USER_SELECTION/GENERAL_CHANNEL, допускает MANUAL
+только в GENERAL и сохраняет non-general source=NULL. Старые rows не меняются,
+новых grants/backfill нет; bot transport allowlist не расширен.
+
+Request key привязан к actor ID/input SHA-256 и immutable exact tuple/public ID.
+Same-key запросы сериализуются advisory lock; account/grants удерживаются FOR SHARE
+до commit и проверяются в client INSERT. Повтор возвращает прежний public ID
+только при current exact GENERAL MANUAL owner/root/registry и том же actor/input;
+при owner/generation/source changes, revocation, missing root или collision
+нет дубля/нового owner capture. Client/root message/ticket/operator_note history/
+request audit/GENERAL ticket_created outbox атомарны. Строковые SQL inputs digest
+явно CAST text и проверены в default/unspecified JDBC mode. No provider/AI/legacy
+callbacks; interval возникает только при последующем manual переводе в работу.
+UI предупреждает о локальном клиенте и отсутствии канала отправки; redirect
+содержит только public ID. Readiness требует V70 tables/function. Retention/
+reconciliation keys, media/feedback, auto-assignment и live acceptance остаются gates.
+
 `/api/general-tickets` и `/general-dialogs` закрыты foundation и отдельным
 default-off `multibusiness.general-ticket-queue`. Каждый SQL read повторно
 проверяет grant и выбирает только `is_general=TRUE`, `business_id IS NULL` и
@@ -317,7 +341,7 @@ Heartbeat повторно проверяет grant/account/flags; при отк
 general_access_revoked без ticket data, emitter закрывается. UI очищает данные
 при отзыве/ошибке stream, отменяет pending refresh и не применяет старые HTTP
 ответы. Pagehide закрывает подписку. Сам этап R134 не добавлял migrations/flags.
-GENERAL triage/OPERATE, text reply, manual close/reopen, observed intervals и manual assignment описаны в R135–R139 выше;
+GENERAL triage/OPERATE, text reply, close/reopen, observed intervals, assignment и manual creation описаны в R135–R140 выше;
 остальные GENERAL write, отдельные bell/внешняя доставка и live Redis/proxy/provider acceptance PENDING.
 
 Основные legacy dialog reads (список/summary, карточка, история, предыдущие

@@ -45,6 +45,10 @@ public class GeneralTicketAccessService {
             Boolean.class, userId));
     }
 
+    public boolean canOperate(Long userId) {
+        return userId!=null&&userId>0&&Boolean.TRUE.equals(jdbc.queryForObject(
+            "SELECT EXISTS(SELECT 1 FROM users account WHERE account.id=? AND "+OPERATE_ACCOUNT+")",Boolean.class,userId));
+    }
     public void requireRead(Long userId) {
         if (!canRead(userId)) {
             throw new AccessDeniedException("Нет доступа к обращениям без бизнеса");

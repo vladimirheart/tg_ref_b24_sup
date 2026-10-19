@@ -15,6 +15,7 @@
     <div class="page-header-card page-hero mb-4">
         <span class="page-kicker">Диалоги</span><h1 class="page-title">Обращения без бизнеса</h1>
         <p class="page-subtitle mb-0">Просмотр обращений, созданных без привязки к бизнесу.</p>
+        <a th:if="${canCreateGeneral}" href="/general-dialogs/new" class="btn btn-primary mt-3" data-general-create-link>Создать обращение без бизнеса</a>
     </div>
     <form id="generalTicketFilters" class="card mb-4"><div class="card-body d-flex flex-wrap align-items-end gap-3">
         <div><label class="form-label" for="generalTicketStatus">Статус</label>
