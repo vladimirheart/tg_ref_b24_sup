@@ -261,11 +261,30 @@ reads требуют совпадения tuple/public ID/kind/business, non-GEN
 невалидный expected scope закрывает scoped API, а не включает legacy fallback.
 Scoped UNRESOLVED разрешён только до strict-read. Поздний отказ queue может
 попробовать fallback recipients лишь с тем же frozen scope и тем же SQL guard.
-Перед AI есть повторная проверка current scope, но
-его внутренние SQL/сетевые effects ещё не получают expected owner и остаются
-PENDING, как и исходный producer context до INSERT. Legacy direct callers
-без expected scope пока сохраняют свой контракт. Global page/system policy
-также PENDING.
+Scoped incoming callback передаёт исходный V61 owner через отдельные
+processScopedIncomingClientMessage facade/flow и notifyScopedOperatorsEscalation
+до NotificationService.notifyScopedDialogUsers. Условный INSERT проверяет
+frozen owner и текущий READ каждого получателя R122/R126 в том же SQL snapshot;
+поздняя смена owner/grants не открывает raw fallback, recapture или повторный send.
+
+Это безопасная эскалация оператору, а не включение business-scoped AI.
+Legacy state/control rows не имеют canonical owner; raw retrieval использует
+MAX(messages.business) и общие knowledge/memory rows. Поэтому scoped incoming
+при глобальном ai_agent_enabled=true может только уведомить оператора с
+bounded preview исходного текста. Он не вызывает raw media normalization,
+state/control/event writes, retrieval, LLM, memory learning или auto-reply;
+attachment не загружается и его storage key не включается в уведомление.
+Глобальное ai_agent_enabled=false оставляет эту AI-ветвь без эффектов.
+auto_reply/assist_only/escalate_only не дают scoped пути доступ к raw pipeline.
+Per-dialog legacy AI control также не читается/не изменяется этим путём.
+UNRESOLVED сохраняет только существующую notification compatibility до strict;
+GENERAL, NULL/invalid scope закрыты. Legacy direct callers без expected scope
+пока сохраняют свой контракт и требуют отдельного аудита.
+
+Полноценный scoped AI требует canonical state/control/event identity,
+knowledge/memory ownership и отдельной global-source policy, scope до media/LLM
+handoff и client delivery. Они PENDING вместе с producer context до INSERT и
+global page/system policy. Новых flags/migrations и rollout этим guard нет.
 
 Auto-assignment из scoped ticket_created callback передаёт исходный V61
 snapshot в DialogResponsibilityService.assignScopedResponsibleIfMissing.
@@ -304,7 +323,7 @@ missing schema, неактивный либо неизвестный destination
 не version registry настроек канала на момент исходного события и не проверка
 прав участников внешнего чата. Inherited/global network profiles и credential
 contents отдельно не версионированы. Действующие grants внешнему destination,
-остальные raw support-chat producers и callback effects AI ещё PENDING.
+остальные raw support-chat producers и полноценные scoped AI effects ещё PENDING.
 Уже корректно записанный bell не откатывается при позднем отказе support-chat.
 
 Mixed-version consumers без нового guard
@@ -360,7 +379,7 @@ business READ проверяется одним SQL predicate при INSERT, lis
 не выводятся из текста/URL, чужой users DB либо browser-selected business.
 UNRESOLVED/unclassified сохраняют описанную выше совместимость; этот фильтр
 не классифицирует исторические строки. Глобальная page authority, явная
-global/system/task policy, expected owner внутри AI callbacks, внешняя support-chat recipient policy, остальные assignment writers и прочие producers ещё
+global/system/task policy, полноценный scoped AI pipeline, внешняя support-chat recipient policy, остальные assignment writers и прочие producers ещё
 требуют отдельного контракта/аудита. Это не разрешение включать strict flag
 или выполнять rollout.
 

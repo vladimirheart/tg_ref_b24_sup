@@ -137,7 +137,11 @@ public class DialogRealtimeEventService {
         publishDialogsChanged("incoming_client_message", normalizedTicketId, scope);
         publishHistoryChanged(normalizedTicketId, channelId, "incoming_client_message", scope);
         if (isCurrent(scope)) {
-            dialogAiAssistantService.processIncomingClientMessage(normalizedTicketId, message, messageType, attachment);
+            if (scope == null) {
+                dialogAiAssistantService.processIncomingClientMessage(normalizedTicketId, message, messageType, attachment);
+            } else {
+                dialogAiAssistantService.processScopedIncomingClientMessage(scope, message, messageType, attachment);
+            }
         }
     }
 

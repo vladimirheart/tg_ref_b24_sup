@@ -234,7 +234,10 @@ class UiEventOutboxFrozenDeliveryPostgresTest {
         verify(publisher, atLeastOnce()).publish(isNull(), eq("dialogs_changed"), anyMap(), eq(scope));
         verify(reader, atLeastOnce()).send(any(SseEmitter.SseEventBuilder.class));
         verify(access, never()).captureScope(anyString());
-        if ("client_message_created".equals(event)) verify(ai).processIncomingClientMessage(RAW, "old payload", "photo", "private/key");
+        if ("client_message_created".equals(event)) {
+            verify(ai).processScopedIncomingClientMessage(scope, "old payload", "photo", "private/key");
+            verify(ai, never()).processIncomingClientMessage(anyString(), any(), any(), any());
+        }
         else verifyNoInteractions(ai);
         verifyNoInteractions(repository);
         assertCursorAdvanced();

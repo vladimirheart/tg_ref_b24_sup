@@ -59,6 +59,13 @@ public class DialogAiAssistantService {
         }
     }
 
+    public void processScopedIncomingClientMessage(UiEventTicketScope scope, String message,
+                                                   String messageType, String attachment) {
+        if (scope != null && scope.isValid()) {
+            dialogAiAssistantMessageFlowService.processScopedIncomingClientMessage(scope, message, messageType, attachment);
+        }
+    }
+
     public void registerOperatorReply(String ticketId, String operatorReply, String operator) {
         String uniqueTicketId = uniqueTicketId(ticketId);
         if (uniqueTicketId != null) {

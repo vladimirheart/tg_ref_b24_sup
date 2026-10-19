@@ -54,6 +54,20 @@ public class DialogAiAssistantMessageFlowService {
         this.dialogAiAssistantMessageOutcomeService = dialogAiAssistantMessageOutcomeService;
     }
 
+    /**
+     * Legacy AI state/knowledge has no canonical business owner. Until those contracts exist,
+     * a scoped event can only escalate through a statement-time checked notification INSERT.
+     * Do not normalize media, read legacy state, retrieve evidence or send a raw auto-reply here.
+     */
+    public void processScopedIncomingClientMessage(UiEventTicketScope scope, String message,
+                                                   String messageType, String attachment) {
+        if (scope == null || !scope.isValid() || !dialogAiAssistantConfigService.isAgentEnabled()) {
+            return;
+        }
+        dialogAiAssistantEscalationService.notifyScopedOperatorsEscalation(
+            scope, message, "Требуется ответ оператора.");
+    }
+
     public void processIncomingClientMessage(String ticketId, String message, String messageType, String attachment) {
         String normalizedTicketId = exactTicketIdOrNull(ticketId);
         if (normalizedTicketId == null) {

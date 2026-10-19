@@ -27,6 +27,18 @@ public class DialogAiAssistantEscalationService {
                 text, notificationService.buildDialogUrl(normalizedTicketId));
     }
 
+    public void notifyScopedOperatorsEscalation(UiEventTicketScope scope, String message, String reason) {
+        if (scope == null || !scope.isValid()) {
+            return;
+        }
+        String text = "AI-агент эскалировал обращение " + scope.ticketId() + ". " + reason;
+        if (StringUtils.hasText(message)) {
+            text += " Вопрос клиента: " + cut(message, 140);
+        }
+        notificationService.notifyScopedDialogUsers(scope, notificationService.findAllOperatorRecipients(),
+            text, notificationService.buildDialogUrl(scope.ticketId()));
+    }
+
     private String cut(String text, int len) {
         String normalized = trim(text);
         if (normalized == null) {
