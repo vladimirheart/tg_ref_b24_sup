@@ -171,6 +171,26 @@ Read-only очередь GENERAL использует отдельный явн�
 системному администратору с `PAGE_SETTINGS` и CSRF. READ не разрешает отвечать,
 менять статус либо выполнять другие write operations.
 
+R135 вводит отдельный opt-in general_ticket_operate_grants: OPERATE действует
+только вместе с current READ, не наследуется из ROLE_ADMIN/ALL_BUSINESSES и
+никому не назначается миграцией. Системный admin с PAGE_SETTINGS/CSRF может
+выдать его текущему READ account; отзыв READ атомарно отзывает OPERATE, возврат
+READ сам по себе работу не восстанавливает. Новый write scope этого этапа —
+только GENERAL triage pending↔open. Это не resolve/reopen/close, не назначение
+ответственного и не отправка клиенту; legacy lifecycle/feedback не вызываются.
+
+Страница /general-dialog-work/{publicId} требует PAGE_DIALOGS и current READ;
+POST также OPERATE и настоящий CSRF. Public locator сервером разрешается в
+expected GENERAL tuple/generation; raw owner не экспортируется в model.
+V65 добавляет general_work_revision, автоматически увеличиваемую PostgreSQL
+при смене GENERAL status/owner/scope даже другим writer, и запрещает её ручную
+правку. CAS проверяет revision/status, exact owner, unique raw ID, current
+account/READ/OPERATE в финальном UPDATE. В одном SQL атомарны status, immutable
+metadata audit и V61 GENERAL outbox ticket_status_changed; ошибка любого INSERT
+откатывает всё. Новых grants, классификации/backfill старых owner или runtime
+flags миграция не создаёт. Readiness требует V65 schema до объявления READY.
+Полные GENERAL reply/edit/delete/resolve/reopen/assignment остаются PENDING.
+
 `/api/general-tickets` и `/general-dialogs` закрыты foundation и отдельным
 default-off `multibusiness.general-ticket-queue`. Каждый SQL read повторно
 проверяет grant и выбирает только `is_general=TRUE`, `business_id IS NULL` и
@@ -205,8 +225,9 @@ GENERAL очередь coalesce-ит обновления, перечитыва�
 Heartbeat повторно проверяет grant/account/flags; при отказе посылается только
 general_access_revoked без ticket data, emitter закрывается. UI очищает данные
 при отзыве/ошибке stream, отменяет pending refresh и не применяет старые HTTP
-ответы. Pagehide закрывает подписку. Новых migrations/flags нет; GENERAL write,
-отдельные bell/внешняя доставка и live Redis/proxy/provider acceptance PENDING.
+ответы. Pagehide закрывает подписку. Сам этап R134 не добавлял migrations/flags.
+Ограниченный status triage и OPERATE описаны в R135 выше; остальные GENERAL
+write, отдельные bell/внешняя доставка и live Redis/proxy/provider acceptance PENDING.
 
 Основные legacy dialog reads (список/summary, карточка, история, предыдущие
 диалоги, участники и client context), ticket-bound `DialogAuthorizationService`

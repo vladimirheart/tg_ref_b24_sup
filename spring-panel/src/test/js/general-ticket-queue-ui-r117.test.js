@@ -64,6 +64,8 @@ async function queue() {
   await respond(h.pending.shift(), { ticket, relationVerified: true, answers: [{ questionId: 'q', valueText: '<svg onload=evil>' }] });
   await opening;
   assert.equal(h.field('#generalTicketCard').hidden, false);
+  assert.equal(h.field('[data-general-work-link]').href, `/general-dialog-work/${id}`);
+  assert.equal(h.field('[data-general-work-link]').hidden, false);
   assert.equal(h.field('[data-general-answers]').children[1].textContent, '<svg onload=evil>');
   const message = h.field('[data-general-history]').children[0];
   assert.equal(message.children[1].textContent, '<script>message</script>');
@@ -74,6 +76,8 @@ async function queue() {
   await revoked;
   assert.equal(h.field('#generalTicketCard').hidden, true);
   assert.equal(h.field('[data-general-client]').textContent, '');
+  assert.equal(h.field('[data-general-work-link]').hidden, true);
+  assert.equal(h.field('[data-general-work-link]').href, '');
   assert.equal(h.field('[data-general-history]').children.length, 0);
   assert.equal(h.field('[data-general-answers]').children.length, 0);
   assert.equal(h.field('#generalTicketRows').children.length, 0);
@@ -114,6 +118,7 @@ async function grants() {
   const account = { userId: 5, username: '<script>account</script>', canRead: false };
   await respond(h.pending.shift(), [account]);
   assert.equal(h.field('#generalAccessRows').children[0].children[0].textContent, account.username);
+  assert.equal(h.field('#generalAccessRows').children[0].children[4].children[0].disabled, true);
   const saving = h.field('#generalAccessRows').children[0].children[2].children[0].fire('click');
   assert.equal(h.pending[0].options.method, 'PUT');
   assert.equal(h.pending[0].options.headers['X-CSRF-TOKEN'], 'test-csrf');
@@ -121,6 +126,19 @@ async function grants() {
   await respond(h.pending.shift(), [{ ...account, canRead: true }]);
   await saving;
   assert.equal(h.field('#generalAccessRows').children[0].children[1].textContent, 'Разрешён');
+  const operating = h.field('#generalAccessRows').children[0].children[4].children[0].fire('click');
+  assert.equal(h.pending[0].url, '/api/general-ticket-admin/access/5/operate');
+  assert.equal(h.pending[0].options.method, 'PUT');
+  assert.equal(h.pending[0].options.headers['X-CSRF-TOKEN'], 'test-csrf');
+  await respond(h.pending.shift(), null, 204);
+  await respond(h.pending.shift(), [{ ...account, canRead: true, canOperate: true }]);
+  await operating;
+  assert.equal(h.field('#generalAccessRows').children[0].children[3].textContent, 'Разрешена');
+  const noOperation = h.field('#generalAccessRows').children[0].children[4].children[0].fire('click');
+  assert.equal(h.pending[0].options.method, 'DELETE');
+  await respond(h.pending.shift(), null, 204);
+  await respond(h.pending.shift(), [{ ...account, canRead: true, canOperate: false }]);
+  await noOperation;
   const revoking = h.field('#generalAccessRows').children[0].children[2].children[0].fire('click');
   assert.equal(h.pending[0].options.method, 'DELETE');
   await respond(h.pending.shift(), null, 403);

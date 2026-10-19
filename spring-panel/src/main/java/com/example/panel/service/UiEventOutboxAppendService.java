@@ -84,7 +84,7 @@ public class UiEventOutboxAppendService {
         );
     }
 
-    private synchronized long nextEventId() {
+    synchronized long nextEventId() {
         long nowMillis = System.currentTimeMillis();
         int nextCounter = counter.updateAndGet(current -> current >= MAX_COUNTER_VALUE ? 0 : current + 1);
         return (nowMillis * 1_000_000L) + (nodeId * 1_000L) + nextCounter;

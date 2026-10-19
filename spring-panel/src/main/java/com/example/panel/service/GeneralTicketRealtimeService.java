@@ -27,7 +27,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @Service
 public class GeneralTicketRealtimeService implements MessageListener {
     private static final Set<String> EVENTS = Set.of("ticket_created", "client_message_created", "client_message_edited",
-        "operator_message_edited", "feedback_created", "ticket_closed_auto", "ticket_closed", "ticket_reopened");
+        "operator_message_edited", "feedback_created", "ticket_closed_auto", "ticket_closed", "ticket_reopened", "ticket_status_changed");
     private static final String OWNER = """
         ticket.user_id = :ownerId AND ticket.ticket_id = :ticketId AND ticket.ticket_public_id = :publicId
         AND ticket.is_general = TRUE AND ticket.business_id IS NULL

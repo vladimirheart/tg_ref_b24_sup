@@ -54,6 +54,25 @@ public class GeneralTicketAccessController {
         return ResponseEntity.noContent().build();
     }
 
+    @PutMapping("/{userId}/operate")
+    public ResponseEntity<Void> grantOperate(@PathVariable long userId, Authentication actor) {
+        requireEnabled();
+        access.requireAuthenticatedUserId(actor.getName());
+        if (userId <= 0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        if (!access.grantOperate(userId)) throw new ResponseStatusException(HttpStatus.CONFLICT,"Требуется действующий GENERAL READ");
+        log.info("GENERAL ticket OPERATE granted: actor={}, userId={}",actor.getName(),userId);
+        return ResponseEntity.noContent().build();
+    }
+    @DeleteMapping("/{userId}/operate")
+    public ResponseEntity<Void> revokeOperate(@PathVariable long userId, Authentication actor) {
+        requireEnabled();
+        access.requireAuthenticatedUserId(actor.getName());
+        if (userId <= 0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        if (!access.revokeOperate(userId)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        log.info("GENERAL ticket OPERATE revoked: actor={}, userId={}",actor.getName(),userId);
+        return ResponseEntity.noContent().build();
+    }
+
     private void requireEnabled() {
         if (!flags.isFoundationEnabled() || !flags.isGeneralTicketQueue()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);

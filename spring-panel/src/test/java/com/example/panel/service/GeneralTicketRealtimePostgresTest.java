@@ -61,7 +61,7 @@ class GeneralTicketRealtimePostgresTest {
         var emitter=mock(SseEmitter.class);
         map.computeIfAbsent(actor,k->new CopyOnWriteArraySet<>()).add(emitter);return emitter;
     }
-    @ParameterizedTest @ValueSource(strings={"ticket_created","client_message_created","client_message_edited","operator_message_edited","feedback_created","ticket_closed_auto","ticket_closed","ticket_reopened"})
+    @ParameterizedTest @ValueSource(strings={"ticket_created","client_message_created","client_message_edited","operator_message_edited","feedback_created","ticket_closed_auto","ticket_closed","ticket_reopened","ticket_status_changed"})
     void onlyExplicitGeneralReaderReceivesEachWhitelistedEvent(String event) throws Exception {
         var reader=register("reader");var all=register("other");
         service.publish(captured(),event);

@@ -17,14 +17,17 @@
         <span class="page-kicker">Настройки</span><h1 class="page-title">Доступ к обращениям без бизнеса</h1>
         <p class="page-subtitle">Право на просмотр назначается отдельно от доступа к бизнесам.
             Для открытия очереди сотруднику также нужен доступ к разделу «Диалоги».</p>
+        <p>Работа (OPERATE) назначается отдельно и требует READ. Сейчас она разрешает только перевод
+            между ожиданием и работой. Отзыв просмотра отзывает и работу; повторная выдача READ её не восстановит.</p>
         <a class="btn btn-outline-secondary" href="/businesses/manage">Бизнесы и доступы</a>
     </div>
     <div class="alert alert-info" role="status" aria-live="polite" data-general-access-status>Загрузка…</div>
     <section class="card"><div class="card-body table-responsive"><table class="table align-middle">
-        <thead><tr><th scope="col">Сотрудник</th><th scope="col">Просмотр обращений</th><th scope="col">Действие</th></tr></thead>
+        <thead><tr><th scope="col">Сотрудник</th><th scope="col">Просмотр обращений</th><th scope="col">Просмотр: действие</th>
+            <th scope="col">Работа с обращениями</th><th scope="col">Работа: действие</th></tr></thead>
         <tbody id="generalAccessRows"></tbody>
     </table></div></section>
 </main>
 <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js"></script>
-<script th:src="@{/js/general-ticket-access.js(v='20261016-r117')}"></script>
+<script th:src="@{/js/general-ticket-access.js(v='20261019-r135')}"></script>
 </body></html>

@@ -26,19 +26,31 @@
       button.addEventListener('click', () => save(account));
       cell.appendChild(button);
       row.appendChild(cell);
+      const operationState = document.createElement('td');
+      operationState.textContent = account.canOperate ? 'Разрешена' : 'Не разрешена';
+      row.appendChild(operationState);
+      const operationCell = document.createElement('td');
+      const operationButton = document.createElement('button');
+      operationButton.type = 'button';
+      operationButton.className = 'btn btn-outline-primary btn-sm';
+      operationButton.textContent = account.canOperate ? 'Отозвать работу' : 'Разрешить работу';
+      operationButton.disabled = !account.canRead && !account.canOperate;
+      operationButton.addEventListener('click', () => save(account, true));
+      operationCell.appendChild(operationButton);
+      row.appendChild(operationCell);
       rows.appendChild(row);
     }
     status.textContent = 'Права доступа загружены.';
     status.className = 'alert alert-info';
   }
 
-  async function save(account) {
+  async function save(account, operate = false) {
     if (busy || !csrf || !Number.isSafeInteger(account.userId) || account.userId <= 0) return;
     busy = true;
     for (const button of rows.querySelectorAll('button')) button.disabled = true;
     try {
-      const response = await fetch(`/api/general-ticket-admin/access/${account.userId}`, {
-        method: account.canRead ? 'DELETE' : 'PUT', credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': csrf }
+      const response = await fetch(`/api/general-ticket-admin/access/${account.userId}${operate ? '/operate' : ''}`, {
+        method: (operate ? account.canOperate : account.canRead) ? 'DELETE' : 'PUT', credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': csrf }
       });
       if (!response.ok) throw new Error('Не удалось изменить право доступа.');
       await load();

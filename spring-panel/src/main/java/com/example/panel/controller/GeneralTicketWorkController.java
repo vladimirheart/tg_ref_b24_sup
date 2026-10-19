@@ -1,0 +1,45 @@
+package com.example.panel.controller;
+
+import com.example.panel.service.GeneralTicketWorkService;
+import com.example.panel.service.NavigationService;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.view.RedirectView;
+
+@Controller
+@RequestMapping("/general-dialog-work/{publicId}")
+@PreAuthorize("hasAuthority('PAGE_DIALOGS')")
+public class GeneralTicketWorkController {
+    private final GeneralTicketWorkService work;
+    private final NavigationService navigation;
+    public GeneralTicketWorkController(GeneralTicketWorkService work,NavigationService navigation) { this.work=work;this.navigation=navigation; }
+    @GetMapping
+    public String view(@PathVariable String publicId,Authentication auth,Model model,HttpServletResponse response) {
+        var state=find(publicId,auth,response);
+        model.addAttribute("publicId",publicId);model.addAttribute("status",state.status());
+        model.addAttribute("revision",state.revision());model.addAttribute("canOperate",state.canOperate());
+        navigation.enrich(model,auth);return "general/work";
+    }
+    @PostMapping("/status")
+    public RedirectView status(@PathVariable String publicId,Authentication auth,HttpServletResponse response,
+            @RequestParam String revision,@RequestParam String expectedStatus,@RequestParam String nextStatus) {
+        var state=find(publicId,auth,response);
+        if (!state.canOperate()) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        long version;
+        try { if (!revision.matches("0|[1-9][0-9]{0,18}")) throw new NumberFormatException(); version=Long.parseLong(revision); }
+        catch (NumberFormatException ex) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST); }
+        if (!work.transition(state.scope(),auth.getName(),version,expectedStatus,nextStatus))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Данные или права изменились. Обновите страницу.");
+        var redirect=new RedirectView("/general-dialog-work/"+publicId,true);redirect.setExposeModelAttributes(false);return redirect;
+    }
+    private GeneralTicketWorkService.View find(String id,Authentication auth,HttpServletResponse response) {
+        response.setHeader("Cache-Control","no-store");
+        return work.find(id,auth==null?null:auth.getName()).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND));
+    }
+}

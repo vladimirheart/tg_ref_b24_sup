@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Работа с общим обращением — iguana</title>
+    <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
+    <link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css">
+    <link rel="stylesheet" href="/css/app.css"><link rel="stylesheet" href="/css/sidebar.css">
+</head><body class="with-sidebar sidebar-pinned" data-ui-page="dialogs">
+<div th:replace="~{fragments/navbar :: navbar('dialogs')}"></div>
+<main class="main-content container-fluid py-4" data-general-work>
+    <a href="/general-dialogs">← Обращения без бизнеса</a>
+    <h1 class="h3 mt-3">Статус общего обращения</h1>
+    <p>Текущий статус: <span th:text="${status}"></span>.</p>
+    <p>На этом этапе можно переводить обращение между ожиданием и работой. Это не закрытие обращения,
+        не назначение ответственного и не отправка сообщения клиенту.</p>
+    <p th:if="${!canOperate}" class="alert alert-info">Только просмотр. Для изменения требуется отдельное GENERAL OPERATE.</p>
+    <form th:if="${canOperate and (status == 'pending' or status == 'open')}" method="post"
+          th:action="@{/general-dialog-work/{id}/status(id=${publicId})}" class="card card-body">
+        <input type="hidden" name="revision" th:value="${revision}">
+        <input type="hidden" name="expectedStatus" th:value="${status}">
+        <input type="hidden" name="nextStatus" th:value="${status == 'pending' ? 'open' : 'pending'}">
+        <button type="submit" class="btn btn-primary" th:text="${status == 'pending' ? 'Перевести в работу' : 'Вернуть в ожидание'}"></button>
+    </form>
+</main></body></html>

@@ -113,8 +113,10 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
 
     private void verifyCoreDialogSchema() {
         jdbcTemplate.queryForList(
-            "SELECT ticket_id, created_at FROM tickets WHERE 1 = 0"
+            "SELECT ticket_id, created_at, general_work_revision FROM tickets WHERE 1 = 0"
         );
+        jdbcTemplate.queryForList("SELECT user_id, is_active FROM general_ticket_operate_grants WHERE 1 = 0");
+        jdbcTemplate.queryForList("SELECT ticket_public_id, revision, actor_user_id FROM general_ticket_work_events WHERE 1 = 0");
         jdbcTemplate.queryForList(
             "SELECT ticket_id, user_id, username, client_name, channel_id, created_at FROM messages WHERE 1 = 0"
         );

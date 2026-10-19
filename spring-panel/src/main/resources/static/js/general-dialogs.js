@@ -29,6 +29,8 @@
 
   function clearCard() {
     card.hidden = true;
+    const workLink = page.querySelector('[data-general-work-link]');
+    if (workLink) { workLink.hidden = true; workLink.href = ''; }
     cardRequest += 1;
     selected = null;
     before = null;
@@ -116,6 +118,8 @@
       before = response.nextBeforeId;
       older.hidden = !response.hasMore || before == null;
       selected = publicId;
+      const workLink = page.querySelector('[data-general-work-link]');
+      if (workLink) { workLink.href = `/general-dialog-work/${encodeURIComponent(publicId)}`; workLink.hidden = false; }
       card.hidden = false;
     } catch (error) {
       if (request === cardRequest && current === generation) fail(error);
