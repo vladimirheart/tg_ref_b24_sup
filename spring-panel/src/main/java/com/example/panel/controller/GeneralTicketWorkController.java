@@ -1,6 +1,7 @@
 package com.example.panel.controller;
 
 import com.example.panel.service.GeneralTicketWorkService;
+import com.example.panel.service.GeneralTicketReplyService;
 import com.example.panel.service.NavigationService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
@@ -18,12 +19,19 @@ import org.springframework.web.servlet.view.RedirectView;
 public class GeneralTicketWorkController {
     private final GeneralTicketWorkService work;
     private final NavigationService navigation;
-    public GeneralTicketWorkController(GeneralTicketWorkService work,NavigationService navigation) { this.work=work;this.navigation=navigation; }
+    private final GeneralTicketReplyService replies;
+    public GeneralTicketWorkController(GeneralTicketWorkService work,NavigationService navigation,GeneralTicketReplyService replies) {
+        this.work=work;this.navigation=navigation;this.replies=replies;
+    }
     @GetMapping
     public String view(@PathVariable String publicId,Authentication auth,Model model,HttpServletResponse response) {
         var state=find(publicId,auth,response);
         model.addAttribute("publicId",publicId);model.addAttribute("status",state.status());
         model.addAttribute("revision",state.revision());model.addAttribute("canOperate",state.canOperate());
+        model.addAttribute("replyRequestKey",java.util.UUID.randomUUID().toString().replace("-",""));
+        model.addAttribute("replyDestination",state.canOperate()
+            ?replies.destinationFingerprint(state.scope(),auth.getName(),state.revision()).orElse(null):null);
+        model.addAttribute("replies",replies.recent(state.scope(),auth.getName()));
         navigation.enrich(model,auth);return "general/work";
     }
     @PostMapping("/status")
@@ -31,12 +39,26 @@ public class GeneralTicketWorkController {
             @RequestParam String revision,@RequestParam String expectedStatus,@RequestParam String nextStatus) {
         var state=find(publicId,auth,response);
         if (!state.canOperate()) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-        long version;
-        try { if (!revision.matches("0|[1-9][0-9]{0,18}")) throw new NumberFormatException(); version=Long.parseLong(revision); }
-        catch (NumberFormatException ex) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST); }
+        long version=version(revision);
         if (!work.transition(state.scope(),auth.getName(),version,expectedStatus,nextStatus))
             throw new ResponseStatusException(HttpStatus.CONFLICT,"Данные или права изменились. Обновите страницу.");
         var redirect=new RedirectView("/general-dialog-work/"+publicId,true);redirect.setExposeModelAttributes(false);return redirect;
+    }
+    @PostMapping("/reply")
+    public RedirectView reply(@PathVariable String publicId,Authentication auth,HttpServletResponse response,
+            @RequestParam String revision,@RequestParam String requestKey,@RequestParam String message,@RequestParam String destination) {
+        var state=find(publicId,auth,response);
+        if (!state.canOperate()) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        if (!GeneralTicketReplyService.validInput(requestKey,message)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        if (!replies.submit(state.scope(),auth.getName(),version(revision),requestKey,message,destination))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Данные, канал или права изменились. Обновите страницу.");
+        var redirect=new RedirectView("/general-dialog-work/"+publicId,true);redirect.setExposeModelAttributes(false);return redirect;
+    }
+    private long version(String revision) {
+        try {
+            if (!revision.matches("0|[1-9][0-9]{0,18}")) throw new NumberFormatException();
+            return Long.parseLong(revision);
+        } catch (NumberFormatException ex) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST); }
     }
     private GeneralTicketWorkService.View find(String id,Authentication auth,HttpServletResponse response) {
         response.setHeader("Cache-Control","no-store");

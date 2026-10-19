@@ -81,6 +81,7 @@ public class GeneralTicketReadService {
                   SELECT h.id, h.sender, h.message, h.timestamp, h.message_type, h.attachment
                     FROM chat_history h WHERE h.ticket_owner_user_id = ticket.user_id
                      AND h.ticket_id = ticket.ticket_id AND h.deleted_at IS NULL AND h.id < :beforeId
+                     AND (h.ticket_public_id IS NULL OR h.ticket_public_id=ticket.ticket_public_id)
                    ORDER BY h.id DESC LIMIT :limit
               ) history ON TRUE ORDER BY history.id ASC NULLS LAST
             """, params(userId, publicId).addValue("beforeId", beforeId == null ? Long.MAX_VALUE : beforeId)
@@ -134,6 +135,7 @@ public class GeneralTicketReadService {
               JOIN chat_history history ON history.id = :historyId
                    AND history.ticket_owner_user_id = ticket.user_id AND history.ticket_id = ticket.ticket_id
                    AND history.deleted_at IS NULL
+                   AND (history.ticket_public_id IS NULL OR history.ticket_public_id=ticket.ticket_public_id)
               JOIN chat_attachment_metadata metadata ON metadata.chat_history_id = history.id
                    AND metadata.ticket_id = ticket.ticket_id
                    AND metadata.deleted_at IS NULL AND metadata.archived_at IS NULL

@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 
 @Service
 public class DialogReplyTransportService {
@@ -75,12 +76,39 @@ public class DialogReplyTransportService {
                                                Long userId,
                                                String message,
                                                Long replyToTelegramId) {
+        return sendTextInternal(channel,userId,message,replyToTelegramId,()->true);
+    }
+
+    public DialogReplyTransportResult sendTextGuarded(Channel channel,Long userId,String message,
+                                                     Long replyToTelegramId,BooleanSupplier sendGuard) {
+        if (channel==null || sendGuard==null || !java.util.Set.of("telegram","vk","max").contains(channel.getPlatform()==null?"":channel.getPlatform()))
+            return scopeDenied();
+        return sendTextInternal(channel,userId,message,replyToTelegramId,sendGuard);
+    }
+
+    private DialogReplyTransportResult sendTextInternal(Channel channel,Long userId,String message,
+                                                       Long replyToTelegramId,BooleanSupplier sendGuard) {
         String platform = normalizePlatform(channel != null ? channel.getPlatform() : null);
         return switch (platform) {
-            case "vk" -> sendVkText(channel, userId, message);
-            case "max" -> sendMaxText(channel, userId, message, replyToTelegramId);
-            default -> sendTelegramText(channel, userId, message, replyToTelegramId);
+            case "vk" -> sendVkText(channel, userId, message, sendGuard);
+            case "max" -> sendMaxText(channel, userId, message, replyToTelegramId, sendGuard);
+            default -> sendTelegramText(channel, userId, message, replyToTelegramId, sendGuard);
         };
+    }
+
+    private DialogReplyTransportResult scopeDenied() {
+        return DialogReplyTransportResult.failure("Отправка отменена: данные или права изменились.",
+            "scope_denied","warning","terminal",null,null,null,null,null);
+    }
+
+    private Channel textNetworkCopy(Channel source) {
+        Channel copy=new Channel();
+        if (source!=null) {
+            copy.setId(source.getId());copy.setToken(source.getToken());copy.setPlatform(source.getPlatform());
+            copy.setPlatformConfig(source.getPlatformConfig());copy.setDeliverySettings(source.getDeliverySettings());
+            copy.setCredentialId(source.getCredentialId());copy.setActive(source.getActive());
+        }
+        return copy;
     }
 
     public DialogReplyTransportResult editTelegramMessage(Channel channel,
@@ -252,7 +280,7 @@ public class DialogReplyTransportService {
     private DialogReplyTransportResult sendTelegramText(Channel channel,
                                                         Long userId,
                                                         String message,
-                                                        Long replyToTelegramId) {
+                                                        Long replyToTelegramId,BooleanSupplier sendGuard) {
         long startedAtNs = System.nanoTime();
         try {
             Map<String, Object> payload = new LinkedHashMap<>();
@@ -261,13 +289,14 @@ public class DialogReplyTransportService {
             if (replyToTelegramId != null) {
                 payload.put("reply_to_message_id", replyToTelegramId);
             }
-            HttpClient client = integrationNetworkService.createChannelHttpClient(channel, TELEGRAM_REQUEST_TIMEOUT);
+            HttpClient client = integrationNetworkService.createChannelHttpClient(textNetworkCopy(channel), TELEGRAM_REQUEST_TIMEOUT);
             HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(buildTelegramMethodUrl(channel, "sendMessage")))
                 .timeout(TELEGRAM_REQUEST_TIMEOUT)
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
                 .build();
+            if (sendGuard==null || !sendGuard.getAsBoolean()) return scopeDenied();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             return resolveTelegramTransportResult(
                 response,
@@ -305,7 +334,7 @@ public class DialogReplyTransportService {
         }
     }
 
-    private DialogReplyTransportResult sendVkText(Channel channel, Long userId, String text) {
+    private DialogReplyTransportResult sendVkText(Channel channel, Long userId, String text,BooleanSupplier sendGuard) {
         if (userId == null || userId <= 0 || userId > Integer.MAX_VALUE || !StringUtils.hasText(text)) {
             return DialogReplyTransportResult.failure(
                 "Некорректные параметры отправки в VK.",
@@ -326,13 +355,14 @@ public class DialogReplyTransportService {
                 + "&message=" + URLEncoder.encode(text, StandardCharsets.UTF_8)
                 + "&access_token=" + URLEncoder.encode(channel.getToken(), StandardCharsets.UTF_8)
                 + "&v=5.199";
-            HttpClient client = integrationNetworkService.createChannelHttpClient(channel, GENERIC_PROVIDER_REQUEST_TIMEOUT);
+            HttpClient client = integrationNetworkService.createChannelHttpClient(textNetworkCopy(channel), GENERIC_PROVIDER_REQUEST_TIMEOUT);
             HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("https://api.vk.com/method/messages.send"))
                 .timeout(GENERIC_PROVIDER_REQUEST_TIMEOUT)
                 .header("Content-Type", "application/x-www-form-urlencoded")
                 .POST(HttpRequest.BodyPublishers.ofString(query, StandardCharsets.UTF_8))
                 .build();
+            if (sendGuard==null || !sendGuard.getAsBoolean()) return scopeDenied();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             return resolveVkTransportResult(response, elapsedMillis(startedAtNs));
         } catch (HttpTimeoutException ex) {
@@ -369,7 +399,7 @@ public class DialogReplyTransportService {
     private DialogReplyTransportResult sendMaxText(Channel channel,
                                                     Long userId,
                                                     String text,
-                                                    Long replyToTelegramId) {
+                                                    Long replyToTelegramId,BooleanSupplier sendGuard) {
         if (userId == null || !StringUtils.hasText(text)) {
             return DialogReplyTransportResult.failure(
                 "Некорректные параметры отправки в MAX.",
@@ -388,7 +418,7 @@ public class DialogReplyTransportService {
             Map<String, Object> requestBody = new LinkedHashMap<>();
             requestBody.put("text", text);
             appendMaxReplyLink(requestBody, replyToTelegramId);
-            HttpClient client = integrationNetworkService.createChannelHttpClient(channel, GENERIC_PROVIDER_REQUEST_TIMEOUT);
+            HttpClient client = integrationNetworkService.createChannelHttpClient(textNetworkCopy(channel), GENERIC_PROVIDER_REQUEST_TIMEOUT);
             HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(DEFAULT_MAX_API_ROOT_URLS.get(0) + "/messages?user_id=" + userId))
                 .timeout(GENERIC_PROVIDER_REQUEST_TIMEOUT)
@@ -396,6 +426,7 @@ public class DialogReplyTransportService {
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(requestBody), StandardCharsets.UTF_8))
                 .build();
+            if (sendGuard==null || !sendGuard.getAsBoolean()) return scopeDenied();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             return resolveMaxTransportResult(
                 response,

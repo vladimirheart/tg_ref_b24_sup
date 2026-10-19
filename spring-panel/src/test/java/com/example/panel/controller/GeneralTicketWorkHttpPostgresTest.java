@@ -37,6 +37,7 @@ class GeneralTicketWorkHttpPostgresTest {
     private static final AtomicLong IDS=new AtomicLong(9550000);
     @MockBean BotProcessService botProcessService;
     @MockBean(name="taskScheduler") TaskScheduler scheduler;
+    @MockBean DialogReplyTransportService replyTransport;
     @DynamicPropertySource static void isolatedDatabase(DynamicPropertyRegistry registry) throws Exception {
         var source=(DriverManagerDataSource)PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType("general_work_http").getDataSource();
         var config=Files.createTempDirectory("general-work-config-");var storage=Files.createTempDirectory("general-work-storage-");
@@ -52,6 +53,7 @@ class GeneralTicketWorkHttpPostgresTest {
     }
     @Autowired MockMvc mvc;@Autowired JdbcTemplate jdbc;@Autowired MultibusinessFeatureFlags flags;
     @Autowired GeneralTicketAccessService access;@SpyBean GeneralTicketWorkService work;
+    @SpyBean GeneralTicketReplyService replies;
     private String worker,reader,admin,publicId,root,raw;
     private long workerId,readerId,owner;
     @BeforeEach void setup() {
@@ -121,6 +123,86 @@ class GeneralTicketWorkHttpPostgresTest {
     @Test void malformedVersionAndUnsupportedCloseAreClosed() throws Exception {
         mvc.perform(actor(change("bad","pending","open"),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isBadRequest());
         mvc.perform(actor(change("0","pending","resolved"),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
+    }
+    @Test void renderedReplyFormUsesActualCsrfAndDuplicatePostDoesNotSendTwice() throws Exception {
+        replyDestination();
+        var opened=mvc.perform(actor(get(root),worker,"PAGE_DIALOGS")).andExpect(status().isOk()).andReturn();
+        String html=opened.getResponse().getContentAsString();String requestKey=hidden(html,"requestKey");String text="<script>private reply</script>";
+        for (int i=0;i<2;i++) {
+            mvc.perform(actor(post(root+"/reply").param("revision","0").param("requestKey",requestKey).param("message",text)
+                .param("destination",hidden(html,"destination"))
+                .param("_csrf",hidden(html,"_csrf")).cookie(opened.getResponse().getCookies()),worker,"PAGE_DIALOGS")).andExpect(redirectedUrl(root));
+        }
+        verify(replyTransport,times(1)).sendTextGuarded(any(),eq(owner),eq(text),isNull(),any());
+        mvc.perform(actor(get(root),reader,"PAGE_DIALOGS")).andExpect(status().isOk())
+            .andExpect(content().string(containsString("&lt;script&gt;private reply&lt;/script&gt;")))
+            .andExpect(content().string(not(containsString("<script>private reply</script>"))))
+            .andExpect(content().string(containsString("Провайдер подтвердил отправку")));
+        mvc.perform(actor(get("/api/general-tickets/"+publicId+"/history"),worker,"PAGE_DIALOGS"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.entries[0].message").value(text));
+    }
+    @Test void replyRequiresSeparateOperateCsrfPageAndValidBody() throws Exception {
+        replyDestination();
+        mvc.perform(actor(replyPost(),worker,"PAGE_DIALOGS")).andExpect(redirectedUrl("/error/403"));
+        mvc.perform(actor(replyPost(),reader,"PAGE_DIALOGS").with(csrf())).andExpect(status().isForbidden());
+        mvc.perform(actor(replyPost(),worker,"ROLE_ADMIN").with(csrf())).andExpect(status().isForbidden());
+        mvc.perform(actor(replyPost(UUID.randomUUID().toString().replace("-",""),""),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isBadRequest());
+        mvc.perform(actor(replyPost("bad","Ответ"),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isBadRequest());
+        verifyNoInteractions(replyTransport);
+    }
+    @ParameterizedTest @ValueSource(strings={"read","operate","owner","channel","revision","flag"})
+    void replyReprovesLateChangesAfterControllerRead(String mutation) throws Exception {
+        replyDestination();var scope=new GeneralTicketEventScope(owner,raw,publicId);
+        doAnswer(call->{
+            switch(mutation) {
+                case "read"->access.revokeRead(workerId);
+                case "operate"->access.revokeOperate(workerId);
+                case "owner"->jdbc.update("UPDATE tickets SET is_general=FALSE,general_selection_source=NULL WHERE ticket_public_id=?",publicId);
+                case "channel"->jdbc.update("UPDATE channels SET is_active=FALSE WHERE id=(SELECT channel_id FROM tickets WHERE ticket_public_id=?)",publicId);
+                case "revision"->jdbc.update("UPDATE tickets SET status='open' WHERE ticket_public_id=?",publicId);
+                case "flag"->flags.setGeneralTicketQueue(false);
+            }
+            return call.callRealMethod();
+        }).when(replies).submit(eq(scope),eq(worker),anyLong(),anyString(),anyString(),anyString());
+        mvc.perform(actor(replyPost(),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
+        verifyNoInteractions(replyTransport);
+    }
+    @Test void unknownReplyIsVisibleButNeverReportedAsSentOrRetried() throws Exception {
+        replyDestination();
+        doReturn(new DialogReplyTransportService.DialogReplyTransportResult("synthetic timeout",null))
+            .when(replyTransport).sendTextGuarded(any(),anyLong(),anyString(),isNull(),any());
+        String key=UUID.randomUUID().toString().replace("-","");
+        for(int i=0;i<2;i++) mvc.perform(actor(replyPost(key,"Ответ"),worker,"PAGE_DIALOGS").with(csrf())).andExpect(redirectedUrl(root));
+        mvc.perform(actor(get(root),worker,"PAGE_DIALOGS")).andExpect(status().isOk())
+            .andExpect(content().string(containsString("Результат требует проверки")))
+            .andExpect(content().string(not(containsString("Провайдер подтвердил отправку"))));
+        verify(replyTransport,times(1)).sendTextGuarded(any(),anyLong(),anyString(),isNull(),any());
+    }
+    private MockHttpServletRequestBuilder replyPost() {
+        return replyPost(UUID.randomUUID().toString().replace("-",""),"Ответ");
+    }
+    private MockHttpServletRequestBuilder replyPost(String key,String message) {
+        return post(root+"/reply").param("revision","0").param("requestKey",key).param("message",message)
+            .param("destination",replies.destinationFingerprint(new GeneralTicketEventScope(owner,raw,publicId),worker,0).orElse("0".repeat(64)));
+    }
+    @Test void staleDestinationFormCannotSilentlyUseReconfiguredChannel() throws Exception {
+        replyDestination();
+        var opened=mvc.perform(actor(get(root),worker,"PAGE_DIALOGS")).andExpect(status().isOk()).andReturn();
+        String html=opened.getResponse().getContentAsString();
+        jdbc.update("UPDATE channels SET platform='max' WHERE id=(SELECT channel_id FROM tickets WHERE ticket_public_id=?)",publicId);
+        mvc.perform(actor(post(root+"/reply").param("revision","0").param("requestKey",hidden(html,"requestKey"))
+            .param("message","Ответ").param("destination",hidden(html,"destination")).with(csrf()),worker,"PAGE_DIALOGS"))
+            .andExpect(status().isConflict());
+        verifyNoInteractions(replyTransport);
+    }
+    private void replyDestination() {
+        long channel=jdbc.queryForObject("INSERT INTO channels(token,channel_name,is_active,platform) VALUES(?,'reply test',TRUE,'telegram') RETURNING id",Long.class,"fake-reply-"+publicId);
+        jdbc.update("INSERT INTO messages(group_msg_id,user_id,ticket_id,channel_id) VALUES(?,?,?,?)",owner,owner,raw,channel);
+        jdbc.update("UPDATE tickets SET group_msg_id=?,channel_id=? WHERE ticket_public_id=?",owner,channel,publicId);
+        when(replyTransport.sendTextGuarded(any(),anyLong(),anyString(),isNull(),any())).thenAnswer(call->{
+            assertThat(((java.util.function.BooleanSupplier)call.getArgument(4)).getAsBoolean()).isTrue();
+            return DialogReplyTransportService.DialogReplyTransportResult.success(201L,1L);
+        });
     }
     private long account(String name) {return jdbc.queryForObject("INSERT INTO users(username,password,enabled) VALUES(?,'unused',TRUE) RETURNING id",Long.class,name);}
     private MockHttpServletRequestBuilder actor(MockHttpServletRequestBuilder request,String name,String...authorities) {

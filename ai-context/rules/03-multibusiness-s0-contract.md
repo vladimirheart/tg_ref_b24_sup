@@ -189,7 +189,31 @@ account/READ/OPERATE в финальном UPDATE. В одном SQL атома�
 metadata audit и V61 GENERAL outbox ticket_status_changed; ошибка любого INSERT
 откатывает всё. Новых grants, классификации/backfill старых owner или runtime
 flags миграция не создаёт. Readiness требует V65 schema до объявления READY.
-Полные GENERAL reply/edit/delete/resolve/reopen/assignment остаются PENDING.
+На этапе R135 GENERAL reply/edit/delete/resolve/reopen/assignment оставались
+PENDING; добавленный в R136 текстовый reply path описан ниже.
+
+R136 добавляет отдельный текстовый reply path для GENERAL pending/open.
+PAGE_DIALOGS, current READ + OPERATE и CSRF обязательны. Уникальный request key
+привязан к frozen tuple/public ID, actor, revision, тексту и SHA-256 destination
+snapshot; его повтор не создаёт вторую отправку.
+Форма несёт fingerprint исходного destination; перенастройка канала до
+POST требует перечитать форму, а не принять новый destination молча.
+QUEUED→SENDING фиксируется до сети. Отправку инициирует только этот POST;
+фонового sender/автоматического replay очереди в R136 нет.
+После claim повторно проверяются root message/channel, account/grants,
+revision и destination; блокировки этих rows удерживаются до результата.
+Непосредственно перед HTTP send транспорт снова вызывает guard. Неизвестная
+платформа не превращается в Telegram; credentials в outbox не сохраняются.
+
+SENT и canonical history/public generation, metadata audit и GENERAL outbox
+фиксируются одной транзакцией. При timeout/неясном результате — UNKNOWN;
+crash/ошибка сохранения оставляют SENDING/UNKNOWN для ручной сверки, без
+автоматического retry и без обещания exactly-once у внешнего провайдера.
+Повторный POST того же request key не отправляет SENDING/SENT/UNKNOWN заново.
+Очередь/состояния видны только через текущий GENERAL READ и exact public owner.
+V66 additive, без backfill/grants. Новая история несёт ticket_public_id;
+NULL старых rows не классифицируется автоматически. Reply media/edit/delete,
+полный lifecycle, reconciliation/retention policy и provider E2E остаются gates.
 
 `/api/general-tickets` и `/general-dialogs` закрыты foundation и отдельным
 default-off `multibusiness.general-ticket-queue`. Каждый SQL read повторно

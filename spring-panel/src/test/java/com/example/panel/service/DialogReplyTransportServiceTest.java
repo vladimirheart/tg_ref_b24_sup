@@ -3,6 +3,8 @@ package com.example.panel.service;
 import com.example.panel.entity.Channel;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -33,6 +35,55 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class DialogReplyTransportServiceTest {
+
+    @ParameterizedTest @ValueSource(strings={"telegram","vk","max"})
+    void guardedTextUsesFrozenRequestChannelDespiteMutableNetworkSetup(String platform) throws Exception {
+        HttpClient http=mock(HttpClient.class);
+        IntegrationNetworkService network=mock(IntegrationNetworkService.class);
+        Channel channel=new Channel();channel.setPlatform(platform);channel.setToken("frozen-test-token");
+        when(network.createChannelHttpClient(any(),any(Duration.class))).thenAnswer(call->{
+            Channel copy=call.getArgument(0);assertThat(copy).isNotSameAs(channel);
+            copy.setToken("tampered");copy.setPlatformConfig("{\"telegram_bot_api_base_url\":\"https://example.invalid\"}");
+            return http;
+        });
+        List<HttpRequest> requests=new ArrayList<>();
+        String response=switch(platform) {
+            case "vk"->"{\"response\":77}";
+            case "max"->"{\"message\":{\"body\":{\"mid\":\"77\"}}}";
+            default->"{\"ok\":true,\"result\":{\"message_id\":77}}";
+        };
+        when(http.send(any(HttpRequest.class),any(HttpResponse.BodyHandler.class))).thenAnswer(call->{
+            HttpRequest request=call.getArgument(0);requests.add(request);
+            return responseFor(request,new ArrayList<>(),response,200);
+        });
+        var service=new DialogReplyTransportService(mock(com.example.panel.repository.ChannelRepository.class),network,new ObjectMapper());
+        assertThat(service.sendTextGuarded(channel,42L,"Ответ",null,()->true).success()).isTrue();
+        assertThat(requests).hasSize(1);HttpRequest request=requests.get(0);
+        assertThat(request.uri().toString()).doesNotContain("tampered","example.invalid");
+        assertThat(requestBody(request)).doesNotContain("tampered");
+        if ("telegram".equals(platform)) assertThat(request.uri().toString()).contains("botfrozen-test-token");
+        if ("vk".equals(platform)) assertThat(requestBody(request)).contains("access_token=frozen-test-token");
+        if ("max".equals(platform)) assertThat(request.headers().firstValue("Authorization")).contains("frozen-test-token");
+    }
+
+    @ParameterizedTest @ValueSource(strings={"telegram","vk","max"})
+    void absentSendGuardNeverCallsProvider(String platform) throws Exception {
+        HttpClient http=mock(HttpClient.class);IntegrationNetworkService network=mock(IntegrationNetworkService.class);
+        when(network.createChannelHttpClient(any(),any(Duration.class))).thenReturn(http);
+        Channel channel=new Channel();channel.setPlatform(platform);channel.setToken("test-token");
+        var service=new DialogReplyTransportService(mock(com.example.panel.repository.ChannelRepository.class),network,new ObjectMapper());
+        assertThat(service.sendTextGuarded(channel,42L,"Ответ",null,null).classification()).isEqualTo("scope_denied");
+        verify(http,never()).send(any(),any(HttpResponse.BodyHandler.class));
+    }
+
+    @ParameterizedTest @ValueSource(strings={"unknown","","TELEGRAM"})
+    void guardedTextDoesNotTurnUnknownPlatformIntoTelegram(String platform) {
+        IntegrationNetworkService network=mock(IntegrationNetworkService.class);
+        Channel channel=new Channel();channel.setPlatform(platform);channel.setToken("test-token");
+        var service=new DialogReplyTransportService(mock(com.example.panel.repository.ChannelRepository.class),network,new ObjectMapper());
+        assertThat(service.sendTextGuarded(channel,42L,"Ответ",null,()->true).classification()).isEqualTo("scope_denied");
+        verify(network,never()).createChannelHttpClient(any(),any(Duration.class));
+    }
 
     @Test
     void sendMaxTextIncludesReplyLink() throws Exception {

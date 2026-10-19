@@ -11,8 +11,8 @@
     <a href="/general-dialogs">← Обращения без бизнеса</a>
     <h1 class="h3 mt-3">Статус общего обращения</h1>
     <p>Текущий статус: <span th:text="${status}"></span>.</p>
-    <p>На этом этапе можно переводить обращение между ожиданием и работой. Это не закрытие обращения,
-        не назначение ответственного и не отправка сообщения клиенту.</p>
+    <p>Смена статуса не закрывает обращение и не назначает ответственного.
+        Для текстового ответа клиенту используйте отдельную форму ниже.</p>
     <p th:if="${!canOperate}" class="alert alert-info">Только просмотр. Для изменения требуется отдельное GENERAL OPERATE.</p>
     <form th:if="${canOperate and (status == 'pending' or status == 'open')}" method="post"
           th:action="@{/general-dialog-work/{id}/status(id=${publicId})}" class="card card-body">
@@ -21,4 +21,33 @@
         <input type="hidden" name="nextStatus" th:value="${status == 'pending' ? 'open' : 'pending'}">
         <button type="submit" class="btn btn-primary" th:text="${status == 'pending' ? 'Перевести в работу' : 'Вернуть в ожидание'}"></button>
     </form>
+    <section class="mt-4" data-general-reply>
+        <h2 class="h4">Ответ клиенту</h2>
+        <p>Только текст, до 4000 символов. Доступность канала и права повторно проверяются перед отправкой.</p>
+        <p class="alert alert-warning">При неопределённом результате не отправляйте текст повторно:
+            сначала проверьте доставку у провайдера. Автоматического повтора нет.</p>
+        <p th:if="${canOperate and replyDestination == null}" class="alert alert-info">
+            Отправка недоступна: проверьте актуальность обращения, канала и прав.</p>
+        <form th:if="${canOperate and replyDestination != null and (status == 'pending' or status == 'open')}" method="post"
+              th:action="@{/general-dialog-work/{id}/reply(id=${publicId})}" class="card card-body">
+            <input type="hidden" name="revision" th:value="${revision}">
+            <input type="hidden" name="requestKey" th:value="${replyRequestKey}">
+            <input type="hidden" name="destination" th:value="${replyDestination}">
+            <label for="generalReplyMessage">Сообщение</label>
+            <textarea id="generalReplyMessage" name="message" maxlength="4000" required rows="5" class="form-control"></textarea>
+            <button type="submit" class="btn btn-primary mt-2">Отправить ответ</button>
+        </form>
+        <h3 class="h5 mt-3">Последние отправки</h3>
+        <p th:if="${#lists.isEmpty(replies)}">Отправок пока нет.</p>
+        <article th:each="reply : ${replies}" class="card card-body mb-2">
+            <p th:switch="${reply.state}">
+                <span th:case="'SENT'">Провайдер подтвердил отправку</span>
+                <span th:case="'QUEUED'">Подготовлено; отправка ещё не началась</span>
+                <span th:case="'CANCELLED'">Отменено: канал, данные или права изменились</span>
+                <span th:case="*">Результат требует проверки — не повторяйте отправку</span>
+            </p>
+            <time th:text="${reply.createdAt}"></time>
+            <p class="text-break" style="white-space:pre-wrap" th:text="${reply.message}"></p>
+        </article>
+    </section>
 </main></body></html>
