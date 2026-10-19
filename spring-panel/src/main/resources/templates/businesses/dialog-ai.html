@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AI обращения — iguana</title>
+    <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
+    <link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css">
+    <link rel="stylesheet" href="/css/app.css"><link rel="stylesheet" href="/css/sidebar.css">
+</head>
+<body class="with-sidebar sidebar-pinned" data-ui-page="dialogs">
+<div th:replace="~{fragments/navbar :: navbar('dialogs')}"></div>
+<main class="main-content container-fluid py-4" data-scoped-dialog-ai>
+    <a href="/business-dialogs">← Обращения</a>
+    <h1 class="h3 mt-3">AI обращения</h1>
+    <p>Бизнес: <span th:text="${businessId}"></span>. Полноценные автоответы не включены: обработчик только передаёт обращение человеку.</p>
+    <p th:if="${!canOperate}" class="alert alert-info">AI: только чтение.
+        Отключён: <span th:text="${control.aiDisabled}"></span>;
+        автоответы заблокированы: <span th:text="${control.autoReplyBlocked}"></span>.</p>
+    <form th:if="${canOperate}" method="post" th:action="@{/business-dialog-ai/{id}/control(id=${publicId})}" class="card card-body mb-3">
+        <h2 class="h5">Управление AI</h2>
+        <p>Изменять настройки могут OPERATOR / MANAGER / ADMIN текущего бизнеса. READ позволяет только просмотр.</p>
+        <input type="hidden" name="businessId" th:value="${businessId}">
+        <input type="hidden" name="expectedUpdatedAt" th:value="${control.updatedAt}">
+        <label><input type="checkbox" name="aiDisabled" value="true" th:checked="${control.aiDisabled}"> Отключить AI для обращения</label>
+        <label><input type="checkbox" name="autoReplyBlocked" value="true" th:checked="${control.autoReplyBlocked}"> Заблокировать автоответы</label>
+        <label class="form-label mt-2" for="aiReason">Причина</label>
+        <input id="aiReason" name="reason" maxlength="500" class="form-control" th:value="${control.reason}">
+        <button class="btn btn-primary mt-2" type="submit">Сохранить (требуется OPERATE)</button>
+    </form>
+    <section class="card card-body mb-3">
+        <h2 class="h5">Последние действия</h2>
+        <p th:if="${state != null}" th:text="${state['last_action']}"></p>
+        <ul><li th:each="event : ${events}" th:text="${event['event_type'] + ' · ' + event['decision_reason']}"></li></ul>
+    </section>
+    <section class="card card-body mb-3" th:if="${library}">
+        <h2 class="h5">Одобренные материалы последнего handoff</h2>
+        <p>Ссылки скрываются после изменения версии, архивации, отзыва прав или смены владельца. Они не разрешают автоответ.</p>
+        <ul><li th:each="candidate : ${candidates}">
+            <a th:href="@{/business-ai-sources/edit(businessId=${businessId},kind=${candidate.kind},key=${candidate.key})}" th:text="${candidate.title}"></a>
+        </li></ul>
+    </section>
+    <section class="card card-body" th:if="${canCurate}" data-memory-curation>
+        <h2 class="h5">Подготовить MEMORY из диалога</h2>
+        <p>Выберите клиентский вопрос и ответ оператора по ID из списка ниже. Доступны последние 50 подтверждённых текстовых сообщений, без вложений и удалённых записей.</p>
+        <ul><li th:each="message : ${messages}">
+            <span th:text="${message.id + ' · ' + message.sender + ' · ' + message.preview}"></span>
+        </li></ul>
+        <form method="post" th:action="@{/business-dialog-ai/{id}/memory(id=${publicId})}">
+            <input type="hidden" name="businessId" th:value="${businessId}">
+            <input type="hidden" name="key" th:value="${sourceKey}">
+            <label for="memoryQuestion">Вопрос клиента</label>
+            <select id="memoryQuestion" name="question" class="form-select" required>
+                <option th:each="message : ${messages}" th:if="${message.sender == 'client'}" th:value="${message.id + ':' + message.fingerprint}" th:text="${message.id + ' · ' + message.preview}"></option>
+            </select>
+            <label for="memoryAnswer">Ответ оператора</label>
+            <select id="memoryAnswer" name="answer" class="form-select" required>
+                <option th:each="message : ${messages}" th:if="${message.sender == 'operator'}" th:value="${message.id + ':' + message.fingerprint}" th:text="${message.id + ' · ' + message.preview}"></option>
+            </select>
+            <label for="memoryTitle">Название</label><input id="memoryTitle" name="title" class="form-control" maxlength="300" required>
+            <label for="memoryBody">Проверенный текст без персональных данных</label>
+            <textarea id="memoryBody" name="body" class="form-control" rows="6" maxlength="16000" required></textarea>
+            <label class="mt-2"><input type="checkbox" name="reviewed" value="true" required> Я проверил пару сообщений, удалил персональные данные и секреты из подготовленного текста.</label>
+            <p>Будет создан только DRAFT. Для использования в поиске материал нужно отдельно проверить и одобрить в каталоге.</p>
+            <button class="btn btn-outline-primary" type="submit">Создать MEMORY-черновик</button>
+        </form>
+    </section>
+</main>
+</body></html>

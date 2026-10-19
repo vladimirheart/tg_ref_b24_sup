@@ -33,7 +33,7 @@ public class ScopedAiSourceService {
               AND access_grant.is_active=TRUE AND access_grant.role_code='ADMIN'))
         """;
     private static final String ORIGIN_COLUMNS = "origin_ticket_user_id,origin_ticket_id,origin_ticket_public_id,origin_ticket_scope_kind,origin_ticket_business_id";
-    private static final String CURRENT_ORIGIN = """
+    static final String CURRENT_ORIGIN = """
         (source.source_kind='KNOWLEDGE' OR EXISTS (SELECT 1 FROM tickets provenance
             WHERE provenance.user_id=source.origin_ticket_user_id AND provenance.ticket_id=source.origin_ticket_id
               AND provenance.ticket_public_id=source.origin_ticket_public_id AND provenance.business_id=source.business_id

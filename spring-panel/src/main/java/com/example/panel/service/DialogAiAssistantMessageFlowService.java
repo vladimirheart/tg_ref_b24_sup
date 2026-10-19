@@ -29,6 +29,7 @@ public class DialogAiAssistantMessageFlowService {
     private final DialogAiAssistantEscalationService dialogAiAssistantEscalationService;
     private final DialogAiAssistantMessageOutcomeService dialogAiAssistantMessageOutcomeService;
     private final ScopedDialogAiPersistenceService scopedPersistence;
+    private final ScopedAiHandoffKnowledgeService scopedKnowledge;
 
     public DialogAiAssistantMessageFlowService(AiPolicyService aiPolicyService,
                                                AiRetrievalService aiRetrievalService,
@@ -48,7 +49,6 @@ public class DialogAiAssistantMessageFlowService {
             dialogAiAssistantMessageOutcomeService, null);
     }
 
-    @Autowired
     public DialogAiAssistantMessageFlowService(AiPolicyService aiPolicyService,
                                                AiRetrievalService aiRetrievalService,
                                                AiDecisionService aiDecisionService,
@@ -62,6 +62,20 @@ public class DialogAiAssistantMessageFlowService {
                                                DialogAiAssistantEscalationService dialogAiAssistantEscalationService,
                                                DialogAiAssistantMessageOutcomeService dialogAiAssistantMessageOutcomeService,
                                                ScopedDialogAiPersistenceService scopedPersistence) {
+        this(aiPolicyService,aiRetrievalService,aiDecisionService,aiInputNormalizerService,aiControlledLlmService,
+            dialogAiAssistantStateService,dialogAiAssistantConfigService,dialogAiAssistantPolicyService,
+            dialogAiAssistantSuggestionService,dialogAiAssistantEventService,dialogAiAssistantEscalationService,
+            dialogAiAssistantMessageOutcomeService,scopedPersistence,null);
+    }
+
+    @Autowired
+    public DialogAiAssistantMessageFlowService(AiPolicyService aiPolicyService,
+            AiRetrievalService aiRetrievalService,AiDecisionService aiDecisionService,AiInputNormalizerService aiInputNormalizerService,
+            AiControlledLlmService aiControlledLlmService,DialogAiAssistantStateService dialogAiAssistantStateService,
+            DialogAiAssistantConfigService dialogAiAssistantConfigService,DialogAiAssistantPolicyService dialogAiAssistantPolicyService,
+            DialogAiAssistantSuggestionService dialogAiAssistantSuggestionService,DialogAiAssistantEventService dialogAiAssistantEventService,
+            DialogAiAssistantEscalationService dialogAiAssistantEscalationService,DialogAiAssistantMessageOutcomeService dialogAiAssistantMessageOutcomeService,
+            ScopedDialogAiPersistenceService scopedPersistence,ScopedAiHandoffKnowledgeService scopedKnowledge) {
         this.aiPolicyService = aiPolicyService;
         this.aiRetrievalService = aiRetrievalService;
         this.aiDecisionService = aiDecisionService;
@@ -75,17 +89,20 @@ public class DialogAiAssistantMessageFlowService {
         this.dialogAiAssistantEscalationService = dialogAiAssistantEscalationService;
         this.dialogAiAssistantMessageOutcomeService = dialogAiAssistantMessageOutcomeService;
         this.scopedPersistence = scopedPersistence;
+        this.scopedKnowledge = scopedKnowledge;
     }
 
     /**
      * Scoped state/control/audit retain the captured owner. Legacy knowledge still has no canonical owner,
      * so this branch only records a handoff request and uses a statement-time checked notification INSERT.
-     * Do not normalize media, read legacy state, retrieve evidence or send a raw auto-reply here.
+     * Only bounded, approved scoped references may be retrieved for operator handoff.
+     * Do not normalize media, read legacy state, call an LLM or send a raw auto-reply here.
      */
     public void processScopedIncomingClientMessage(UiEventTicketScope scope, String message,
                                                    String messageType, String attachment) {
         if (scope == null || !scope.isValid() || scopedPersistence == null
-                || !dialogAiAssistantConfigService.isAgentEnabled() || !scopedPersistence.recordHandoff(scope)) {
+                || !dialogAiAssistantConfigService.isAgentEnabled()
+                || !(scopedKnowledge==null ? scopedPersistence.recordHandoff(scope) : scopedKnowledge.record(scope,message))) {
             return;
         }
         dialogAiAssistantEscalationService.notifyScopedOperatorsEscalation(

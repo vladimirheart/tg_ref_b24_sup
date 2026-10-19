@@ -289,8 +289,8 @@ mutation требует live OPERATE (OPERATOR/MANAGER/ADMIN через membersh
 ALL_BUSINESSES) в том же SQL. VIEWER только читает, ROLE_ADMIN без business grant
 не даёт доступа. Account enabled/unblocked, unique canonical identity и active
 business обязательны; отзыв grants действует на следующую SQL-операцию.
-Это внутренние service primitives без нового HTTP endpoint; page authority,
-CSRF и интеграция UI controls ещё PENDING, raw controllers не используют их.
+R133 открывает эти primitives через отдельную BUSINESS-страницу обращения;
+raw controllers и legacy controls по-прежнему не используют scoped records.
 
 Legacy state/control rows не имеют canonical owner; raw retrieval использует
 MAX(messages.business) и общие knowledge/memory rows. Scoped путь не вызывает
@@ -331,8 +331,9 @@ human handoff R130. Проверяется текущий request owner и scope
 isCurrentCandidate повторно проверяет полный payload, version, request/origin,
 READ/control перед будущим handoff. Это statement-time proof, не network lock.
 Scoped result всегда autoReplyAllowed=false; raw Candidate/policy не используются.
-R130 incoming по-прежнему только записывает handoff и уведомляет оператора,
-новый retrieval не подключён к нему. Автоматического learning/legacy sync нет.
+R133 подключает к incoming отдельный trusted-worker поиск approved references
+для human handoff, описанный ниже. Actor API retrieveScoped сохраняет отдельный
+контракт. Автоматического learning/legacy sync нет.
 R132 добавляет server-rendered каталог /business-ai-sources и editor/review:
 foundation+ui-selector gates, явный один business без aggregate/default-all,
 PAGE_KNOWLEDGE_BASE на каждом GET/POST и текущий READ внутри data SQL. Список
@@ -353,15 +354,49 @@ revision, даже при ALL_BUSINESSES. Отзыв account/grants после c
 Draft save — первая/default кнопка; approval/archive требуют отдельного действия.
 Конфликт identity/version/доступа либо ошибка atomic audit дают 409 без overwrite.
 
-UI читает/reviews существующие MEMORY с current origin; создание MEMORY из
-диалога ещё PENDING и этим HTTP API не открывается. R130 state/control APIs пока
-внутренние. Source privacy/retention, более точный ranking/evidence policy и
-worker retrieval ещё требуют отдельного scope; auto-reply не включён.
+R133 добавляет /business-dialog-ai/{publicId}, доступную из карточки BUSINESS
+обращения. Foundation/uiSelector, PAGE_DIALOGS и current business READ обязательны;
+GENERAL/UNRESOLVED/коллизии не открывают страницу. Public locator разрешается
+сервером, raw ticket/user IDs не передаются в model. Private HTML no-store,
+Thymeleaf экранирует текст. Управление требует live OPERATE и стандартного CSRF.
+Старая форма доказывает business и expected updated_at в final mutation;
+отсутствующая запись создаётся только ON CONFLICT DO NOTHING. Existing control
+меняется только CAS с полным current owner и monotonic updated_at; audit atomic.
+Конфликт владельца, прав, версии либо ошибка audit дают 409 без overwrite.
+
+Создание MEMORY требует дополнительно PAGE_KNOWLEDGE_BASE и live CONFIGURE.
+Оператор выбирает текстовый вопрос клиента и последующий ответ человека из
+existing composite-owned history; NULL-owner/unlinked, AI, deleted и attachment
+rows исключены. Показаны последние 50 сообщений, preview до 1000 символов.
+Пара ID и SHA-256 полного текста, current root tuple/public generation/business,
+аккаунт и grants повторно доказываются в одном INSERT snapshot. Подготовленный
+вручную текст и явное подтверждение удаления PII/secrets обязательны; автоматической
+PII-проверки нет. Создаётся только MEMORY DRAFT, затем требуется отдельный review
+в каталоге R132. Новые metadata evidence хранят ID пары и fingerprints, не raw
+диалог. Source, metadata audit и evidence атомарны; повтор key не создаёт дубль.
+Это не backfill и не доказательство исторической business/generation принадлежности
+всех chat_history rows: используется существующая привязка user_id/ticket_id,
+а полная child attribution и перенос старых данных остаются отдельным gate.
+Правка history после создания не переписывает curated source или его provenance.
+
+При BUSINESS incoming глобальный ai_agent_enabled и scoped ai_disabled сохраняются.
+Trusted worker использует frozen V61 scope и current owner/control в едином SQL:
+literal case-insensitive substring до 500 символов, только APPROVED того же business
+с current MEMORY origin, LIMIT 3 после фильтров. Query/body/title не копируются
+в event/evidence. State escalate_only, event и ссылки source ID/revision записываются
+атомарно; отсутствие совпадений не отменяет handoff. UI показывает summaries
+последнего handoff только при PAGE_KNOWLEDGE_BASE и live READ; повторно проверяются
+request owner/control, точная source revision/approval/origin. Отзыв прав, archive,
+новая revision или смена owner скрывают ссылку без raw/global fallback. Evidence
+не означает доставку оператору и не разрешает автоответ. Для UNRESOLVED остаётся
+прежний compatibility handoff до strict, без поиска источников.
 
 Полноценный scoped AI требует scope до media/LLM handoff и client delivery,
-dialogue-origin curation/worker integration и policy источников для автоответа. Они PENDING вместе
-с producer context до INSERT и global page/system policy. V62/V63 — source migrations,
-проверяемые в Testcontainers; рабочая DB/backfill не выполняются. Новых flags/rollout нет.
+privacy/retention, более точного ranking и policy источников для автоответа. Они
+PENDING вместе с producer context до INSERT и global page/system policy. V62–V64 —
+source migrations, проверяемые в Testcontainers; V64 добавляет только отдельные
+immutable-update evidence tables, без классификации старых rows. Рабочая DB/backfill
+не выполняются; новых flags/rollout нет.
 
 Auto-assignment из scoped ticket_created callback передаёт исходный V61
 snapshot в DialogResponsibilityService.assignScopedResponsibleIfMissing.

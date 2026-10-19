@@ -113,6 +113,43 @@ public class ScopedDialogAiPersistenceService {
         }
     }
 
+    public boolean canOperate(UiEventTicketScope scope,String identity) {
+        if (!valid(scope) || !"BUSINESS".equals(scope.scopeKind()) || identity==null || identity.isBlank()) return false;
+        String sql="SELECT EXISTS(SELECT 1 FROM tickets owner"+ACTOR
+            +" JOIN users actor ON lower(actor.username)=n.user_identity WHERE "+ScopedAiSql.CURRENT_OWNER+READ+OPERATE+")";
+        try { return Boolean.TRUE.equals(jdbc.queryForObject(sql,parameters(scope,identity),Boolean.class)); }
+        catch (DataAccessException ex) { return false; }
+    }
+
+    /** UI compare-and-set: absent and present controls are separate operations; stale forms never upsert. */
+    public boolean setControlExpected(UiEventTicketScope scope,String identity,String expectedUpdatedAt,
+                                      boolean disabled,boolean blocked,String reason) {
+        if (!valid(scope) || !"BUSINESS".equals(scope.scopeKind()) || !StringUtils.hasText(identity)) return false;
+        var args=parameters(scope,identity).addValue("disabled",disabled,Types.BOOLEAN)
+            .addValue("blocked",blocked,Types.BOOLEAN).addValue("reason",cut(reason),Types.VARCHAR)
+            .addValue("stamp",expectedUpdatedAt,Types.VARCHAR);
+        String changed;
+        if (!StringUtils.hasText(expectedUpdatedAt)) {
+            changed="INSERT INTO ticket_ai_scoped_control ("+OWNER_COLUMNS
+                +",ai_disabled,auto_reply_blocked,reason,updated_by_user_id,updated_by) SELECT "+OWNER_VALUES
+                +",:disabled,:blocked,:reason,actor.id,n.user_identity FROM tickets owner"+ACTOR
+                +" JOIN users actor ON lower(actor.username)=n.user_identity WHERE "+ScopedAiSql.CURRENT_OWNER
+                +READ+OPERATE+" ON CONFLICT (ticket_public_id,scope_business_key) DO NOTHING RETURNING "+OWNER_COLUMNS;
+        } else {
+            changed="UPDATE ticket_ai_scoped_control target SET ai_disabled=:disabled,auto_reply_blocked=:blocked,"
+                +"reason=:reason,updated_by_user_id=actor.id,updated_by=n.user_identity,"
+                +"updated_at=GREATEST(clock_timestamp(),target.updated_at+INTERVAL '1 microsecond')"
+                +" FROM tickets owner"+ACTOR+" JOIN users actor ON lower(actor.username)=n.user_identity WHERE "
+                +ScopedAiSql.CURRENT_OWNER+READ+OPERATE
+                +" AND ROW(target.ticket_user_id,target.ticket_id,target.ticket_public_id,target.ticket_scope_kind,target.ticket_business_id)"
+                +" IS NOT DISTINCT FROM ROW(owner.user_id,owner.ticket_id,owner.ticket_public_id,'BUSINESS',owner.business_id)"
+                +" AND target.updated_at=CAST(:stamp AS TIMESTAMPTZ) RETURNING target."+OWNER_COLUMNS.replace(",",",target.");
+        }
+        String sql="WITH changed AS ("+changed+") INSERT INTO ticket_ai_scoped_events("+OWNER_COLUMNS
+            +",event_type,decision_reason) SELECT "+OWNER_COLUMNS+",'control_updated','operator_control_changed' FROM changed";
+        try { return jdbc.update(sql,args)==1; } catch (DataAccessException ex) { return false; }
+    }
+
     public Optional<Map<String, Object>> findState(UiEventTicketScope scope, String identity) {
         var rows = readOwned("ticket_ai_scoped_state", "record.is_processing,record.mode,record.last_action,record.updated_at",
             scope, identity, "", 1);

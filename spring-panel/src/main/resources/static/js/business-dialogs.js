@@ -41,6 +41,8 @@
 
   function clearCard() {
     card.hidden = true;
+    const ai = card.querySelector('[data-ticket-ai]');
+    if (ai) { ai.hidden = true; ai.removeAttribute('href'); }
     older.hidden = true;
     older.disabled = false;
     history.replaceChildren();
@@ -302,6 +304,11 @@
       card.querySelector('[data-ticket-client]').textContent = detail.clientName || 'Не указано';
       card.querySelector('[data-ticket-problem]').textContent = detail.problemPreview || 'Не указана';
       card.querySelector('[data-ticket-public]').textContent = detail.ticketPublicId;
+      const ai = card.querySelector('[data-ticket-ai]');
+      if (ai) {
+        ai.href = '/business-dialog-ai/' + encodeURIComponent(detail.ticketPublicId);
+        ai.hidden = false;
+      }
       card.querySelector('[data-ticket-status]').textContent = statusLabel(detail.status);
       card.querySelector('[data-ticket-created]').textContent = ticketTime(detail.createdAt);
       card.querySelector('[data-ticket-resolved-at]').textContent = ticketTime(detail.resolvedAt);
