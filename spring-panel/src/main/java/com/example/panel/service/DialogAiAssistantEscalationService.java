@@ -35,7 +35,7 @@ public class DialogAiAssistantEscalationService {
         if (StringUtils.hasText(message)) {
             text += " Вопрос клиента: " + cut(message, 140);
         }
-        notificationService.notifyScopedDialogUsers(scope, notificationService.findAllOperatorRecipients(),
+        notificationService.notifyScopedAiDialogUsers(scope, notificationService.findAllOperatorRecipients(),
             text, notificationService.buildDialogUrl(scope.ticketId()));
     }
 

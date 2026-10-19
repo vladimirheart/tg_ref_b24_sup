@@ -263,28 +263,51 @@ Scoped UNRESOLVED разрешён только до strict-read. Поздний
 попробовать fallback recipients лишь с тем же frozen scope и тем же SQL guard.
 Scoped incoming callback передаёт исходный V61 owner через отдельные
 processScopedIncomingClientMessage facade/flow и notifyScopedOperatorsEscalation
-до NotificationService.notifyScopedDialogUsers. Условный INSERT проверяет
+до NotificationService.notifyScopedAiDialogUsers. Условный INSERT проверяет
 frozen owner и текущий READ каждого получателя R122/R126 в том же SQL snapshot;
 поздняя смена owner/grants не открывает raw fallback, recapture или повторный send.
 
-Это безопасная эскалация оператору, а не включение business-scoped AI.
+Это безопасная эскалация оператору; полноценный business-scoped AI ещё PENDING.
+V62 добавляет отдельные ticket_ai_scoped_control/state/events с обязательным
+immutable tuple/public ID/kind/business. Ключ control/state — public generation
+и business (NULL имеет отдельный generated key); новая generation или другой
+business не наследует прежние записи. Events immutable, legacy AI tables не
+изменяются и не переносятся. Снимок создаётся только условным SQL из current
+unique non-GENERAL owner, active business и исходного V61 expected scope.
+UNRESOLVED automation совместим только до strict, actor business access из
+него не возникает. Отсутствие schema/flags и конфликт snapshot закрывают путь.
+
+Scoped incoming при глобальном ai_agent_enabled=true атомарно записывает
+non-processing state escalate_only и event operator_handoff_requested без
+текста клиента/media; это запрос handoff, не доказательство доставки. Затем
+может уведомить оператора bounded preview исходного текста. ai_disabled из
+scoped control проверяется и в state/event statement, и в финальном AI bell
+INSERT. auto_reply_blocked сохраняется, не препятствуя human handoff. Отказ
+после записи handoff не переименовывает event в доставленный и не повторяет send.
+Actor reads state/control/events требуют live READ до ORDER/LIMIT; control
+mutation требует live OPERATE (OPERATOR/MANAGER/ADMIN через membership либо
+ALL_BUSINESSES) в том же SQL. VIEWER только читает, ROLE_ADMIN без business grant
+не даёт доступа. Account enabled/unblocked, unique canonical identity и active
+business обязательны; отзыв grants действует на следующую SQL-операцию.
+Это внутренние service primitives без нового HTTP endpoint; page authority,
+CSRF и интеграция UI controls ещё PENDING, raw controllers не используют их.
+
 Legacy state/control rows не имеют canonical owner; raw retrieval использует
-MAX(messages.business) и общие knowledge/memory rows. Поэтому scoped incoming
-при глобальном ai_agent_enabled=true может только уведомить оператора с
-bounded preview исходного текста. Он не вызывает raw media normalization,
-state/control/event writes, retrieval, LLM, memory learning или auto-reply;
-attachment не загружается и его storage key не включается в уведомление.
+MAX(messages.business) и общие knowledge/memory rows. Scoped путь не вызывает
+raw media normalization, state/control/event writes, retrieval, LLM, memory
+learning или auto-reply; attachment не загружается и его storage key не включается
+в уведомление.
 Глобальное ai_agent_enabled=false оставляет эту AI-ветвь без эффектов.
 auto_reply/assist_only/escalate_only не дают scoped пути доступ к raw pipeline.
 Per-dialog legacy AI control также не читается/не изменяется этим путём.
-UNRESOLVED сохраняет только существующую notification compatibility до strict;
+UNRESOLVED сохраняет compatibility handoff/notification только до strict;
 GENERAL, NULL/invalid scope закрыты. Legacy direct callers без expected scope
 пока сохраняют свой контракт и требуют отдельного аудита.
 
-Полноценный scoped AI требует canonical state/control/event identity,
-knowledge/memory ownership и отдельной global-source policy, scope до media/LLM
-handoff и client delivery. Они PENDING вместе с producer context до INSERT и
-global page/system policy. Новых flags/migrations и rollout этим guard нет.
+Полноценный scoped AI требует ownership knowledge/memory, отдельной global-source
+policy, scope до media/LLM handoff и client delivery. Они PENDING вместе с producer
+context до INSERT и global page/system policy. V62 — source migration, проверяемая
+в Testcontainers; рабочая DB/backfill не выполняются. Новых flags/rollout нет.
 
 Auto-assignment из scoped ticket_created callback передаёт исходный V61
 snapshot в DialogResponsibilityService.assignScopedResponsibleIfMissing.

@@ -7,6 +7,7 @@ import com.example.panel.model.notification.NotificationPage;
 import com.example.panel.model.notification.NotificationSummary;
 import com.example.panel.repository.NotificationRepository;
 import com.example.panel.repository.NotificationBusinessAccessSql;
+import com.example.panel.repository.ScopedAiSql;
 import com.example.panel.support.JdbcSchemaInspector;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -390,6 +391,13 @@ public class NotificationService {
         return notifyDialogUsersExcluding(scope.ticketId(), userIdentities, null, text, url, scope);
     }
 
+    public Set<String> notifyScopedAiDialogUsers(UiEventTicketScope scope, Set<String> userIdentities, String text, String url) {
+        if (scope == null || !scope.isValid()) {
+            return Set.of();
+        }
+        return notifyDialogUsersExcluding(scope.ticketId(), userIdentities, null, text, url, scope, true);
+    }
+
     /** Explicit ticket context stays attached until the notification INSERT snapshot. */
     public Set<String> notifyDialogUsers(String ticketId, Set<String> userIdentities, String text, String url) {
         return notifyDialogUsersExcluding(ticketId, userIdentities, null, text, url);
@@ -403,6 +411,12 @@ public class NotificationService {
     private Set<String> notifyDialogUsersExcluding(String ticketId, Set<String> userIdentities,
                                                   String excludedIdentity, String text, String url,
                                                   UiEventTicketScope expectedScope) {
+        return notifyDialogUsersExcluding(ticketId, userIdentities, excludedIdentity, text, url, expectedScope, false);
+    }
+
+    private Set<String> notifyDialogUsersExcluding(String ticketId, Set<String> userIdentities,
+                                                  String excludedIdentity, String text, String url,
+                                                  UiEventTicketScope expectedScope, boolean scopedAi) {
         if (!StringUtils.hasText(text) || userIdentities == null || userIdentities.isEmpty()
                 || !legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)) {
             return Set.of();
@@ -433,6 +447,9 @@ public class NotificationService {
             if (expectedScope != null) {
                 sql += " AND (" + EXPECTED_OWNER_SQL + ")";
                 arguments.addAll(scopeArguments(expectedScope));
+            }
+            if (scopedAi) {
+                sql += " AND (" + ScopedAiSql.CAN_ESCALATE + ")";
             }
             int inserted = jdbcTemplate.update(sql, arguments.toArray());
             if (inserted == 1) {

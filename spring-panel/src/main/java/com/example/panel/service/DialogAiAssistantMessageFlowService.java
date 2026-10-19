@@ -2,6 +2,7 @@ package com.example.panel.service;
 
 import static com.example.panel.support.LegacyTicketIdSupport.exactTicketIdOrNull;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -27,6 +28,7 @@ public class DialogAiAssistantMessageFlowService {
     private final DialogAiAssistantEventService dialogAiAssistantEventService;
     private final DialogAiAssistantEscalationService dialogAiAssistantEscalationService;
     private final DialogAiAssistantMessageOutcomeService dialogAiAssistantMessageOutcomeService;
+    private final ScopedDialogAiPersistenceService scopedPersistence;
 
     public DialogAiAssistantMessageFlowService(AiPolicyService aiPolicyService,
                                                AiRetrievalService aiRetrievalService,
@@ -40,6 +42,26 @@ public class DialogAiAssistantMessageFlowService {
                                                DialogAiAssistantEventService dialogAiAssistantEventService,
                                                DialogAiAssistantEscalationService dialogAiAssistantEscalationService,
                                                DialogAiAssistantMessageOutcomeService dialogAiAssistantMessageOutcomeService) {
+        this(aiPolicyService, aiRetrievalService, aiDecisionService, aiInputNormalizerService, aiControlledLlmService,
+            dialogAiAssistantStateService, dialogAiAssistantConfigService, dialogAiAssistantPolicyService,
+            dialogAiAssistantSuggestionService, dialogAiAssistantEventService, dialogAiAssistantEscalationService,
+            dialogAiAssistantMessageOutcomeService, null);
+    }
+
+    @Autowired
+    public DialogAiAssistantMessageFlowService(AiPolicyService aiPolicyService,
+                                               AiRetrievalService aiRetrievalService,
+                                               AiDecisionService aiDecisionService,
+                                               AiInputNormalizerService aiInputNormalizerService,
+                                               AiControlledLlmService aiControlledLlmService,
+                                               DialogAiAssistantStateService dialogAiAssistantStateService,
+                                               DialogAiAssistantConfigService dialogAiAssistantConfigService,
+                                               DialogAiAssistantPolicyService dialogAiAssistantPolicyService,
+                                               DialogAiAssistantSuggestionService dialogAiAssistantSuggestionService,
+                                               DialogAiAssistantEventService dialogAiAssistantEventService,
+                                               DialogAiAssistantEscalationService dialogAiAssistantEscalationService,
+                                               DialogAiAssistantMessageOutcomeService dialogAiAssistantMessageOutcomeService,
+                                               ScopedDialogAiPersistenceService scopedPersistence) {
         this.aiPolicyService = aiPolicyService;
         this.aiRetrievalService = aiRetrievalService;
         this.aiDecisionService = aiDecisionService;
@@ -52,16 +74,18 @@ public class DialogAiAssistantMessageFlowService {
         this.dialogAiAssistantEventService = dialogAiAssistantEventService;
         this.dialogAiAssistantEscalationService = dialogAiAssistantEscalationService;
         this.dialogAiAssistantMessageOutcomeService = dialogAiAssistantMessageOutcomeService;
+        this.scopedPersistence = scopedPersistence;
     }
 
     /**
-     * Legacy AI state/knowledge has no canonical business owner. Until those contracts exist,
-     * a scoped event can only escalate through a statement-time checked notification INSERT.
+     * Scoped state/control/audit retain the captured owner. Legacy knowledge still has no canonical owner,
+     * so this branch only records a handoff request and uses a statement-time checked notification INSERT.
      * Do not normalize media, read legacy state, retrieve evidence or send a raw auto-reply here.
      */
     public void processScopedIncomingClientMessage(UiEventTicketScope scope, String message,
                                                    String messageType, String attachment) {
-        if (scope == null || !scope.isValid() || !dialogAiAssistantConfigService.isAgentEnabled()) {
+        if (scope == null || !scope.isValid() || scopedPersistence == null
+                || !dialogAiAssistantConfigService.isAgentEnabled() || !scopedPersistence.recordHandoff(scope)) {
             return;
         }
         dialogAiAssistantEscalationService.notifyScopedOperatorsEscalation(

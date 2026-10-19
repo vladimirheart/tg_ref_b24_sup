@@ -16,6 +16,8 @@ import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.repository.ChannelRepository;
 import com.example.panel.repository.NotificationRepository;
 import com.example.panel.support.PostgresqlJdbcTestSupport;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -54,7 +56,7 @@ class ScopedIncomingAiPostgresTest {
     private Runnable afterInsert = () -> {};
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
         jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType("scoped_incoming_ai");
         jdbc.execute("CREATE TABLE tickets(user_id BIGINT, ticket_id TEXT, ticket_public_id TEXT, is_general BOOLEAN, business_id BIGINT, PRIMARY KEY(user_id,ticket_id))");
         jdbc.execute("CREATE TABLE users(id BIGINT PRIMARY KEY, username TEXT, enabled BOOLEAN, is_blocked BOOLEAN)");
@@ -62,6 +64,7 @@ class ScopedIncomingAiPostgresTest {
         jdbc.execute("CREATE TABLE business_memberships(user_id BIGINT, business_id BIGINT, role_code TEXT, is_active BOOLEAN)");
         jdbc.execute("CREATE TABLE business_access_grants(user_id BIGINT, grant_scope TEXT, role_code TEXT, is_active BOOLEAN)");
         jdbc.execute("CREATE TABLE notifications(id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, user_identity TEXT, text TEXT, url TEXT, is_read BOOLEAN, created_at TIMESTAMPTZ, ticket_user_id BIGINT, ticket_id TEXT, ticket_public_id TEXT, ticket_scope_kind TEXT, ticket_business_id BIGINT)");
+        jdbc.execute(Files.readString(Path.of("src/main/resources/db/migration/postgresql/V62__scoped_ai_records.sql")));
         jdbc.update("INSERT INTO users VALUES (1,'reader',TRUE,FALSE), (2,'foreign',TRUE,FALSE), (3,'admin',TRUE,FALSE), (4,'all-reader',TRUE,FALSE)");
         jdbc.update("INSERT INTO businesses VALUES (1,'active'), (2,'active')");
         jdbc.update("INSERT INTO business_memberships VALUES (1,1,'VIEWER',TRUE), (2,2,'OPERATOR',TRUE)");
@@ -102,7 +105,7 @@ class ScopedIncomingAiPostgresTest {
         flow = spy(new DialogAiAssistantMessageFlowService(raw(AiPolicyService.class), retrieval,
             raw(AiDecisionService.class), normalizer, raw(AiControlledLlmService.class), state, config,
             raw(DialogAiAssistantPolicyService.class), suggestions, raw(DialogAiAssistantEventService.class),
-            escalation, raw(DialogAiAssistantMessageOutcomeService.class)));
+            escalation, raw(DialogAiAssistantMessageOutcomeService.class), new ScopedDialogAiPersistenceService(jdbc, flags)));
         facade = spy(new DialogAiAssistantService(raw(AiMonitoringService.class), normalizer, retrieval,
             raw(DialogAiAssistantReviewService.class), memory, state, config,
             raw(DialogAiAssistantOperatorFeedbackService.class), suggestions, flow, guard));
@@ -123,6 +126,11 @@ class ScopedIncomingAiPostgresTest {
         facade.processScopedIncomingClientMessage(scope, "  Вопрос   клиента  ", "photo", "private/media-key");
 
         assertThat(recipients()).isEqualTo(Set.of("reader", "all-reader"));
+        assertThat(jdbc.queryForMap("SELECT ticket_id,ticket_public_id,ticket_business_id,is_processing FROM ticket_ai_scoped_state"))
+            .containsEntry("ticket_id",id).containsEntry("ticket_public_id",PUBLIC)
+            .containsEntry("ticket_business_id",1L).containsEntry("is_processing",false);
+        assertThat(jdbc.queryForMap("SELECT event_type,decision_reason FROM ticket_ai_scoped_events"))
+            .containsEntry("event_type","operator_handoff_requested").containsEntry("decision_reason","scoped_ai_pipeline_pending");
         jdbc.queryForList("SELECT * FROM notifications").forEach(row -> {
             assertThat(row.get("ticket_user_id")).isEqualTo(10L);
             assertThat(row.get("ticket_id")).isEqualTo(id);
@@ -195,7 +203,55 @@ class ScopedIncomingAiPostgresTest {
         when(config.isAgentEnabled()).thenReturn(false);
         invoke(entry);
         assertThat(recipients()).isEmpty();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM ticket_ai_scoped_events",Integer.class)).isZero();
         verifyNoInteractions(notices);
+        assertNoRawEffects();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings={"before_handoff","before_notification","conflicting_control"})
+    void finalAiControlGuardClosesEscalationEvenAfterHandoffWasRecorded(String stage) {
+        Runnable disable = () -> jdbc.update("INSERT INTO ticket_ai_scoped_control(ticket_user_id,ticket_id,ticket_public_id,"
+            + "ticket_scope_kind,ticket_business_id,ai_disabled,auto_reply_blocked,updated_by_user_id,updated_by)"
+            + " VALUES(?,?,?,'BUSINESS',1,?,FALSE,1,'operator')",
+            stage.equals("conflicting_control") ? 99L : 10L,RAW,PUBLIC,!stage.equals("conflicting_control"));
+        if (stage.equals("before_handoff")) disable.run();
+        else beforeInsert=disable;
+        invoke("facade");
+        assertThat(recipients()).isEmpty();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM ticket_ai_scoped_events",Integer.class))
+            .isEqualTo(stage.equals("before_handoff") ? 0 : 1);
+        verifyNoInteractions(stream);
+        assertNoRawEffects();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings={"control","state","events"})
+    void missingScopedAiPersistenceStopsEscalationWithoutRawFallback(String table) {
+        jdbc.execute("DROP TABLE ticket_ai_scoped_"+table);
+        invoke("facade");
+        assertThat(recipients()).isEmpty();
+        verifyNoInteractions(notices,stream);
+        assertNoRawEffects();
+    }
+
+    @Test
+    void unattributedLegacyControlIsNeitherInheritedNorModified() {
+        jdbc.execute("CREATE TABLE ticket_ai_agent_dialog_control(ticket_id TEXT,ai_disabled INTEGER,auto_reply_blocked INTEGER)");
+        jdbc.update("INSERT INTO ticket_ai_agent_dialog_control VALUES(?,1,1)",RAW);
+        invoke("facade");
+        assertThat(recipients()).isEqualTo(Set.of("reader","all-reader"));
+        assertThat(jdbc.queryForMap("SELECT * FROM ticket_ai_agent_dialog_control"))
+            .containsEntry("ticket_id",RAW).containsEntry("ai_disabled",1).containsEntry("auto_reply_blocked",1);
+        assertNoRawEffects();
+    }
+
+    @Test
+    void legacyConstructorWithoutScopedPersistenceCannotOpenTheScopedPipeline() {
+        var legacy = new DialogAiAssistantMessageFlowService(null,null,null,null,null,null,
+            config,null,null,null,escalation,null);
+        legacy.processScopedIncomingClientMessage(scope,"private","text",null);
+        verifyNoInteractions(config,notices,stream);
         assertNoRawEffects();
     }
 
