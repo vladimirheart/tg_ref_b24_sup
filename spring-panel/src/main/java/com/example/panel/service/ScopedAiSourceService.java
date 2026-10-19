@@ -89,18 +89,72 @@ public class ScopedAiSourceService {
     /** Explicit review/update uses compare-and-set; approval never follows an unreviewed new revision. */
     public boolean revise(Long businessId,String identity,Kind kind,String key,long expectedRevision,
                            String title,String body,Status status) {
+        return reviseInternal(businessId,identity,kind,key,null,expectedRevision,title,body,status);
+    }
+
+    /** HTTP forms also freeze the immutable source ID, since a key/revision can recur in another business. */
+    public boolean reviseExpected(Long businessId,String identity,Kind kind,String key,long expectedSourceId,
+                                   long expectedRevision,String title,String body,Status status) {
+        if (expectedSourceId<1) return false;
+        return reviseInternal(businessId,identity,kind,key,expectedSourceId,expectedRevision,title,body,status);
+    }
+
+    private boolean reviseInternal(Long businessId,String identity,Kind kind,String key,Long expectedSourceId,
+                                    long expectedRevision,String title,String body,Status status) {
         if (!validActor(businessId,identity) || kind==null || status==null || expectedRevision<1
                 || !validContent(key,title,body)) return false;
         var args=parameters(businessId,identity,kind,key).addValue("revision",expectedRevision,Types.BIGINT)
             .addValue("title",title.trim(),Types.VARCHAR).addValue("body",body.trim(),Types.VARCHAR)
-            .addValue("status",status.name(),Types.VARCHAR);
+            .addValue("status",status.name(),Types.VARCHAR).addValue("expectedSourceId",expectedSourceId,Types.BIGINT);
         String sql="""
             WITH changed AS (UPDATE ai_scoped_sources source SET title=:title,body=:body,status=:status,
                 revision=source.revision+1,updated_by_user_id=actor.id,updated_by=n.user_identity,updated_at=CURRENT_TIMESTAMP
               FROM (SELECT CAST(:businessId AS BIGINT) AS business_id) owner
             """+ACTOR+" JOIN users actor ON lower(actor.username)=n.user_identity WHERE "+SOURCE_KEY
-            +" AND source.revision=:revision AND "+CURRENT_ORIGIN+READ+CONFIGURE+" RETURNING source.*)"+auditInsert("revise");
+            +" AND source.revision=:revision"+(expectedSourceId==null ? "" : " AND source.id=:expectedSourceId")
+            +" AND "+CURRENT_ORIGIN+READ+CONFIGURE+" RETURNING source.*)"+auditInsert("revise");
         return write(sql,args);
+    }
+
+    public List<BusinessOption> availableBusinesses(String identity) {
+        if (flags==null || !StringUtils.hasText(identity)) return List.of();
+        String sql="SELECT owner.business_id,owner.display_name FROM (SELECT id AS business_id,display_name FROM businesses) owner"
+            +ACTOR+" WHERE TRUE"+READ+" ORDER BY owner.display_name,owner.business_id";
+        try {
+            return jdbc.query(sql,parameters(null,identity,null,null),
+                (rs,row)->new BusinessOption(rs.getLong("business_id"),rs.getString("display_name")));
+        } catch (DataAccessException ex) { return List.of(); }
+    }
+
+    public boolean canConfigure(Long businessId,String identity) {
+        if (!validActor(businessId,identity)) return false;
+        String sql="SELECT EXISTS (SELECT 1 FROM (SELECT CAST(:businessId AS BIGINT) AS business_id) owner"+ACTOR
+            +" JOIN users actor ON lower(actor.username)=n.user_identity WHERE TRUE"+READ+CONFIGURE+")";
+        try { return Boolean.TRUE.equals(jdbc.queryForObject(sql,parameters(businessId,identity,null,null),Boolean.class)); }
+        catch (DataAccessException ex) { return false; }
+    }
+
+    /** Catalog summaries omit body/origin and filter live READ/current origin before keyset pagination. */
+    public List<Summary> catalog(Long businessId,String identity,Kind kind,Status status,String query,Long before,int limit) {
+        if (!validActor(businessId,identity) || query==null || query.length()>200 || (before!=null && before<1)) return List.of();
+        String sql="""
+            SELECT source.id,source.source_kind,source.source_key,source.title,source.status,source.revision
+              FROM ai_scoped_sources source JOIN (SELECT CAST(:businessId AS BIGINT) AS business_id) owner
+                ON owner.business_id=source.business_id
+            """+ACTOR+" WHERE source.business_id=:businessId AND "+CURRENT_ORIGIN+READ+"""
+              AND (CAST(:kind AS TEXT) IS NULL OR source.source_kind=:kind)
+              AND (CAST(:status AS TEXT) IS NULL OR source.status=:status)
+              AND (:query='' OR POSITION(lower(:query) IN lower(source.title||' '||source.body))>0)
+              AND (CAST(:before AS BIGINT) IS NULL OR source.id<:before)
+            ORDER BY source.id DESC LIMIT :limit
+            """;
+        var args=parameters(businessId,identity,kind,null).addValue("status",status==null?null:status.name(),Types.VARCHAR)
+            .addValue("query",query.trim(),Types.VARCHAR).addValue("before",before,Types.BIGINT)
+            .addValue("limit",bounded(limit,51),Types.INTEGER);
+        try {
+            return jdbc.query(sql,args,(rs,row)->new Summary(rs.getLong("id"),Kind.valueOf(rs.getString("source_kind")),
+                rs.getString("source_key"),rs.getString("title"),Status.valueOf(rs.getString("status")),rs.getLong("revision")));
+        } catch (DataAccessException ex) { return List.of(); }
     }
 
     public Optional<Source> find(Long businessId,String identity,Kind kind,String key) {
@@ -211,6 +265,8 @@ public class ScopedAiSourceService {
 
     public enum Kind { KNOWLEDGE,MEMORY }
     public enum Status { DRAFT,APPROVED,ARCHIVED }
+    public record BusinessOption(long id,String displayName) { }
+    public record Summary(long id,Kind kind,String key,String title,Status status,long revision) { }
     public record Source(long id,Long businessId,Kind kind,String key,String title,String body,Status status,long revision,UiEventTicketScope origin) {
         @Override public String toString() { return "ScopedAiSource[id="+id+",businessId="+businessId+",kind="+kind+",revision="+revision+"]"; }
     }

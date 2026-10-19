@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AI-источники — iguana</title>
+    <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
+    <link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css">
+    <link rel="stylesheet" href="/vendor/bootstrap-icons/1.10.5/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="stylesheet" th:href="@{/css/sidebar.css}">
+</head>
+<body class="with-sidebar sidebar-pinned" data-ui-page="ai-sources">
+<div th:replace="~{fragments/navbar :: navbar('ai-sources')}"></div>
+<main class="main-content container-fluid py-4 page-shell" data-ai-source-catalog>
+    <header class="page-header-card page-hero mb-4">
+        <span class="page-kicker">Знания и решения</span>
+        <h1 class="page-title">AI-источники</h1>
+        <p class="page-subtitle mb-0">Материалы и проверенные решения хранятся отдельно для каждого бизнеса.</p>
+    </header>
+    <form method="get" th:action="@{/business-ai-sources}" class="card card-body mb-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-4"><label class="form-label" for="sourceBusiness">Бизнес</label>
+                <select class="form-select" id="sourceBusiness" name="businessId" required>
+                    <option value="">Выберите бизнес</option>
+                    <option th:each="option : ${businesses}" th:value="${option.id}" th:text="${option.displayName}"
+                            th:selected="${business != null and option.id == business.id}"></option>
+                </select></div>
+            <div class="col-md-3"><label class="form-label" for="sourceQuery">Поиск по материалам</label>
+                <input class="form-control" id="sourceQuery" name="q" maxlength="200" th:value="${q}" autocomplete="off"></div>
+            <div class="col-md-2"><label class="form-label" for="sourceKind">Тип</label>
+                <select class="form-select" id="sourceKind" name="kind">
+                    <option value="">Все типы</option>
+                    <option value="KNOWLEDGE" th:selected="${kind != null and kind.name() == 'KNOWLEDGE'}">Материал</option>
+                    <option value="MEMORY" th:selected="${kind != null and kind.name() == 'MEMORY'}">Решение из обращения</option>
+                </select></div>
+            <div class="col-md-2"><label class="form-label" for="sourceStatus">Статус</label>
+                <select class="form-select" id="sourceStatus" name="status">
+                    <option value="">Все статусы</option>
+                    <option value="DRAFT" th:selected="${status != null and status.name() == 'DRAFT'}">Черновик</option>
+                    <option value="APPROVED" th:selected="${status != null and status.name() == 'APPROVED'}">Одобрен</option>
+                    <option value="ARCHIVED" th:selected="${status != null and status.name() == 'ARCHIVED'}">Архив</option>
+                </select></div>
+            <div class="col-md-1"><button class="btn btn-primary w-100" type="submit">Открыть</button></div>
+        </div>
+    </form>
+    <p th:if="${business == null}" class="text-muted" role="status">Выберите один доступный бизнес, чтобы открыть его материалы.</p>
+    <p th:if="${#lists.isEmpty(businesses)}" class="alert alert-info" role="status">Нет доступных бизнесов. Обратитесь к администратору.</p>
+    <section th:if="${business != null}" aria-labelledby="sourceCatalogTitle">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+            <h2 class="h4 mb-0" id="sourceCatalogTitle" th:text="${business.displayName}"></h2>
+            <a th:if="${canConfigure}" class="btn btn-primary" data-ai-source-create
+               th:href="@{/business-ai-sources/new(businessId=${business.id})}">Добавить материал</a>
+        </div>
+        <p class="text-muted">Одобряйте материалы после проверки содержания. Автоматические ответы пока выключены.</p>
+        <div class="card"><div class="table-responsive"><table class="table align-middle mb-0">
+            <thead><tr><th scope="col">Название</th><th scope="col">Тип</th><th scope="col">Статус</th><th scope="col">Версия</th></tr></thead>
+            <tbody>
+            <tr th:each="source : ${sources}" data-ai-source-row>
+                <td><a th:text="${source.title}" th:href="@{/business-ai-sources/edit(businessId=${business.id},kind=${source.kind},key=${source.key})}"></a></td>
+                <td th:text="${source.kind.name() == 'KNOWLEDGE' ? 'Материал' : 'Решение из обращения'}"></td>
+                <td th:text="${source.status.name() == 'DRAFT' ? 'Черновик' : (source.status.name() == 'APPROVED' ? 'Одобрен' : 'Архив')}"></td>
+                <td th:text="${source.revision}"></td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(sources)}"><td colspan="4" class="text-muted py-4">Материалы не найдены.</td></tr>
+            </tbody>
+        </table></div></div>
+        <nav class="d-flex gap-3 mt-3" aria-label="Страницы материалов">
+            <a th:href="@{/business-ai-sources(businessId=${business.id},kind=${kind},status=${status},q=${q})}">К началу списка</a>
+            <a th:if="${nextBefore != null}" data-ai-source-next
+               th:href="@{/business-ai-sources(businessId=${business.id},kind=${kind},status=${status},q=${q},before=${nextBefore})}">Более ранние материалы</a>
+        </nav>
+    </section>
+</main>
+<script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js"></script>
+</body>
+</html>

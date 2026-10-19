@@ -50,7 +50,7 @@ class ScopedAiSourcePostgresTest {
     @BeforeEach
     void setUp() throws Exception {
         jdbc=PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType("scoped_ai_sources");
-        jdbc.execute("CREATE TABLE businesses(id BIGINT PRIMARY KEY,status TEXT)");
+        jdbc.execute("CREATE TABLE businesses(id BIGINT PRIMARY KEY,status TEXT,display_name TEXT)");
         jdbc.execute("CREATE TABLE users(id BIGINT PRIMARY KEY,username TEXT,enabled BOOLEAN,is_blocked BOOLEAN)");
         jdbc.execute("CREATE TABLE user_authorities(user_id BIGINT,authority TEXT)");
         jdbc.execute("CREATE TABLE business_memberships(user_id BIGINT,business_id BIGINT,role_code TEXT,is_active BOOLEAN)");
@@ -59,7 +59,7 @@ class ScopedAiSourcePostgresTest {
         for (String migration:List.of("V62__scoped_ai_records.sql","V63__business_owned_ai_sources.sql")) {
             jdbc.execute(Files.readString(Path.of("src/main/resources/db/migration/postgresql",migration)));
         }
-        jdbc.update("INSERT INTO businesses VALUES(1,'active'),(2,'active')");
+        jdbc.update("INSERT INTO businesses VALUES(1,'active','Business A'),(2,'active','Business B')");
         jdbc.update("INSERT INTO users VALUES(1,'admin',TRUE,FALSE),(2,'operator',TRUE,FALSE),(3,'viewer',TRUE,FALSE),"
             +"(4,'manager',TRUE,FALSE),(5,'foreign',TRUE,FALSE),(6,'global-admin',TRUE,FALSE),(7,'all-admin',TRUE,FALSE),(8,'all-viewer',TRUE,FALSE)");
         jdbc.update("INSERT INTO user_authorities VALUES(6,'ROLE_ADMIN')");
@@ -84,6 +84,8 @@ class ScopedAiSourcePostgresTest {
         if (grant.equals("membership")) jdbc.update("INSERT INTO business_memberships VALUES(2,1,?,TRUE)",role);
         else jdbc.update("INSERT INTO business_access_grants VALUES(2,'ALL_BUSINESSES',?,TRUE)",role);
         boolean read=!role.equals("UNKNOWN"),configure=role.equals("ADMIN");
+        assertThat(service.availableBusinesses(" OPERATOR ")).hasSize(read ? (grant.equals("all") ? 2 : 1) : 0);
+        assertThat(service.canConfigure(1L,"operator")).isEqualTo(configure);
         assertThat(service.find(1L," OPERATOR ",KNOWLEDGE,source.key()).isPresent()).isEqualTo(read);
         assertThat(service.history(1L,"operator",KNOWLEDGE,source.key(),1)).hasSize(read?1:0);
         assertThat(service.retrieve(scope,"operator","решения",1)).hasSize(read?1:0);
@@ -147,7 +149,40 @@ class ScopedAiSourcePostgresTest {
         assertThat(service.createKnowledge(1L,"admin","other","Title",BODY)).isFalse();
         assertThat(service.createMemory(origin,"admin","memory","Title",BODY)).isFalse();
         assertThat(service.revise(1L,"admin",KNOWLEDGE,"key",2,"Changed",BODY,APPROVED)).isFalse();
+        assertThat(service.availableBusinesses("admin")).isEmpty();
+        assertThat(service.canConfigure(1L,"admin")).isFalse();
+        assertThat(service.catalog(1L,"admin",null,null,"",null,26)).isEmpty();
         assertThat(snapshots()).isEqualTo(before);
+    }
+
+    @Test
+    void catalogFiltersLiveBusinessOriginAndStatusBeforeKeysetPaginationWithoutReturningBody() {
+        Source a=approved(KNOWLEDGE,"a");
+        Source memory=approved(MEMORY,"memory");
+        assertThat(service.createKnowledge(1L,"admin","draft","Draft title","Only %_ literal")).isTrue();
+        jdbc.update("INSERT INTO ai_scoped_sources(business_id,source_kind,source_key,title,body,status,revision,updated_by_user_id,updated_by)"
+            +" SELECT 2,'KNOWLEDGE','foreign-'||i,'Foreign secret',?,'DRAFT',1,5,'foreign' FROM generate_series(1,30) i",BODY);
+        assertThat(service.catalog(1L,"all-admin",KNOWLEDGE,APPROVED,"",null,1)).extracting(ScopedAiSourceService.Summary::id).containsExactly(a.id());
+        assertThat(service.catalog(1L,"viewer",null,null,"",null,26)).hasSize(3);
+        assertThat(service.catalog(1L,"viewer",null,null,"%_",null,1)).extracting(ScopedAiSourceService.Summary::key).containsExactly("draft");
+        assertThat(service.catalog(1L,"viewer",null,null,"",memory.id(),26)).extracting(ScopedAiSourceService.Summary::id).containsExactly(a.id());
+        assertThat(service.catalog(1L,"viewer",null,null,"",null,26).toString()).doesNotContain(BODY,ORIGIN);
+        mutateOwner(30,"generation");
+        assertThat(service.catalog(1L,"all-admin",MEMORY,null,"",null,1)).isEmpty();
+        assertThat(service.catalog(1L,"foreign",null,null,"",null,1)).isEmpty();
+    }
+
+    @Test
+    void anExpectedSourceIdCannotUpdateAnotherBusinessOrARecreatedKeyAtTheSameRevision() {
+        Source original=approved(KNOWLEDGE,"same");
+        jdbc.update("DELETE FROM ai_scoped_source_events WHERE source_id=?",original.id());
+        jdbc.update("DELETE FROM ai_scoped_sources WHERE id=?",original.id());
+        Source replacement=approved(KNOWLEDGE,"same");
+        var before=snapshots();
+        assertThat(service.reviseExpected(1L,"admin",KNOWLEDGE,"same",original.id(),2,"Wrong",BODY,APPROVED)).isFalse();
+        assertThat(snapshots()).isEqualTo(before);
+        assertThat(service.reviseExpected(1L,"admin",KNOWLEDGE,"same",replacement.id(),2,"New",BODY,DRAFT)).isTrue();
+        assertThat(service.find(1L,"viewer",KNOWLEDGE,"same").orElseThrow().revision()).isEqualTo(3);
     }
 
     @ParameterizedTest @ValueSource(strings={"revoke","disabled","blocked","identity_collision","archive","role"})
@@ -351,6 +386,11 @@ class ScopedAiSourcePostgresTest {
         assertThat(guarded.find(1L,"admin",KNOWLEDGE," ")).isEmpty();
         assertThat(guarded.history(1L,"admin",null,"key",1)).isEmpty();
         assertThat(guarded.retrieve(scope,"admin"," ",1)).isEmpty();
+        assertThat(guarded.availableBusinesses(" ")).isEmpty();
+        assertThat(guarded.canConfigure(null,"admin")).isFalse();
+        assertThat(guarded.catalog(1L,"admin",null,null,null,null,1)).isEmpty();
+        assertThat(guarded.catalog(1L,"admin",null,null,"",0L,1)).isEmpty();
+        assertThat(guarded.reviseExpected(1L,"admin",KNOWLEDGE,"key",0,1,"Title",BODY,DRAFT)).isFalse();
         assertThat(new ScopedAiSourceService(observed,null).retrieve(scope,"admin","решения",1)).isEmpty();
         verifyNoInteractions(observed);
     }

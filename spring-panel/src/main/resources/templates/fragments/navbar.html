@@ -147,6 +147,12 @@
                         <span class="nav-label-sub">Статьи, инструкции и импорт</span>
                     </span>
                 </a>
+                <a class="nav-link" data-page-key="ai-sources" data-nav-group="workspace" th:if="${canViewScopedAiSources == true}"
+                   th:classappend="${active}=='ai-sources' ? ' active'" th:href="@{/business-ai-sources}">
+                    <span class="icon" aria-hidden="true">📖</span>
+                    <span class="label"><span class="nav-label-main">AI-источники</span>
+                        <span class="nav-label-sub">Знания и решения по бизнесам</span></span>
+                </a>
             </div>
             <div class="sidebar-nav-group" data-nav-group="admin">
                 <div class="sidebar-section-label">Администрирование</div>

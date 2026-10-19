@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Материал — iguana</title>
+    <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
+    <link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css">
+    <link rel="stylesheet" href="/vendor/bootstrap-icons/1.10.5/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="stylesheet" th:href="@{/css/sidebar.css}">
+</head>
+<body class="with-sidebar sidebar-pinned" data-ui-page="ai-sources">
+<div th:replace="~{fragments/navbar :: navbar('ai-sources')}"></div>
+<main class="main-content container-fluid py-4 page-shell" data-ai-source-editor>
+    <header class="page-header-card page-hero mb-4">
+        <a th:href="@{/business-ai-sources(businessId=${business.id})}">← Материалы бизнеса</a>
+        <h1 class="page-title mt-3" th:text="${isNew ? 'Новый материал' : sourceTitle}"></h1>
+        <p class="page-subtitle mb-0" th:text="${business.displayName}"></p>
+        <p th:if="${!isNew}" class="small text-muted mt-2 mb-0">
+            <span th:text="${sourceKind.name() == 'KNOWLEDGE' ? 'Материал' : 'Решение из обращения'}"></span> ·
+            <span th:text="${sourceStatus.name() == 'DRAFT' ? 'Черновик' : (sourceStatus.name() == 'APPROVED' ? 'Одобрен' : 'Архив')}"></span> ·
+            версия <span th:text="${revision}"></span>
+        </p>
+    </header>
+    <form th:if="${canConfigure}" method="post" class="card card-body"
+          th:action="${isNew} ? @{/business-ai-sources/create} : @{/business-ai-sources/revise}" data-ai-source-form>
+        <input type="hidden" name="businessId" th:value="${business.id}">
+        <input type="hidden" name="key" th:value="${sourceKey}">
+        <th:block th:if="${!isNew}">
+            <input type="hidden" name="sourceId" th:value="${sourceId}">
+            <input type="hidden" name="kind" th:value="${sourceKind}">
+            <input type="hidden" name="revision" th:value="${revision}">
+        </th:block>
+        <label class="form-label" for="sourceTitle">Название</label>
+        <input class="form-control mb-3" id="sourceTitle" name="title" maxlength="300" required th:value="${sourceTitle}">
+        <label class="form-label" for="sourceBody">Содержание</label>
+        <textarea class="form-control mb-3" id="sourceBody" name="body" rows="14" maxlength="16000" required th:text="${sourceBody}"></textarea>
+        <p th:if="${isNew}" class="text-muted">Новый материал будет сохранён как черновик.</p>
+        <p th:if="${!isNew}" class="text-muted">Сохранение черновика снимает одобрение. Одобряйте только проверенный текст для выбранного бизнеса; автоответы при этом не включаются.</p>
+        <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-primary" type="submit" name="status" value="DRAFT" data-ai-source-draft>Сохранить черновик</button>
+            <button th:if="${!isNew}" class="btn btn-outline-success" type="submit" name="status" value="APPROVED" data-ai-source-approve>Одобрить</button>
+            <button th:if="${!isNew}" class="btn btn-outline-secondary" type="submit" name="status" value="ARCHIVED" data-ai-source-archive>В архив</button>
+        </div>
+    </form>
+    <section th:if="${!canConfigure}" class="card card-body" aria-labelledby="sourceContentTitle">
+        <h2 class="h5" id="sourceContentTitle">Содержание</h2>
+        <label class="form-label" for="sourceReadOnly">Текст материала · только чтение</label>
+        <textarea class="form-control" id="sourceReadOnly" rows="14" readonly th:text="${sourceBody}"></textarea>
+    </section>
+    <section th:if="${!isNew}" class="card card-body mt-4" aria-labelledby="sourceHistoryTitle">
+        <h2 class="h5" id="sourceHistoryTitle">Последние изменения</h2>
+        <div class="table-responsive"><table class="table table-sm mb-0">
+            <thead><tr><th scope="col">Версия</th><th scope="col">Статус</th><th scope="col">Сотрудник</th><th scope="col">Дата</th></tr></thead>
+            <tbody><tr th:each="entry : ${history}">
+                <td th:text="${entry['revision']}"></td>
+                <td th:text="${entry['status'] == 'DRAFT' ? 'Черновик' : (entry['status'] == 'APPROVED' ? 'Одобрен' : 'Архив')}"></td>
+                <td th:text="${entry['actor']}"></td>
+                <td th:text="${entry['created_at']}"></td>
+            </tr></tbody>
+        </table></div>
+    </section>
+</main>
+<script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js"></script>
+</body>
+</html>

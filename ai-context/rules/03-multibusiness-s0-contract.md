@@ -333,11 +333,33 @@ READ/control перед будущим handoff. Это statement-time proof, н�
 Scoped result всегда autoReplyAllowed=false; raw Candidate/policy не используются.
 R130 incoming по-прежнему только записывает handoff и уведомляет оператора,
 новый retrieval не подключён к нему. Автоматического learning/legacy sync нет.
-Новых HTTP endpoints/UI editor нет; page authority/CSRF, source privacy/retention,
-более точный ranking/evidence policy и worker retrieval ещё требуют отдельного scope.
+R132 добавляет server-rendered каталог /business-ai-sources и editor/review:
+foundation+ui-selector gates, явный один business без aggregate/default-all,
+PAGE_KNOWLEDGE_BASE на каждом GET/POST и текущий READ внутри data SQL. Список
+доступных business names также требует enabled/unblocked unique canonical account
+и live READ. Catalog возвращает summaries без body/origin; literal q, kind/status
+и current MEMORY origin фильтруются до id-keyset ORDER/LIMIT (25 строк на странице).
+Private HTML получает Cache-Control: no-store; titles/body/keys экранируются
+Thymeleaf, raw origin/user ID не передаются в editor model. Навигация использует
+existing PermissionService и flags; авторитетным page gate остаётся server @PreAuthorize.
+
+POST create создаёт только KNOWLEDGE DRAFT с новым opaque key формы; переданный
+client status/kind/actor не определяет тип, одобрение или автора записи. POST revise
+требует текущего CONFIGURE и CSRF стандартного SecurityFilterChain. В final UPDATE
+reviseExpected совпадают immutable source ID, business/kind/exact key и revision;
+старую форму нельзя применить к другому business или пересозданному key с той же
+revision, даже при ALL_BUSINESSES. Отзыв account/grants после controller precheck
+закрывает SQL mutation. Existing R131 revise API сохранён для внутренних callers.
+Draft save — первая/default кнопка; approval/archive требуют отдельного действия.
+Конфликт identity/version/доступа либо ошибка atomic audit дают 409 без overwrite.
+
+UI читает/reviews существующие MEMORY с current origin; создание MEMORY из
+диалога ещё PENDING и этим HTTP API не открывается. R130 state/control APIs пока
+внутренние. Source privacy/retention, более точный ranking/evidence policy и
+worker retrieval ещё требуют отдельного scope; auto-reply не включён.
 
 Полноценный scoped AI требует scope до media/LLM handoff и client delivery,
-review UI/worker integration и policy источников для автоответа. Они PENDING вместе
+dialogue-origin curation/worker integration и policy источников для автоответа. Они PENDING вместе
 с producer context до INSERT и global page/system policy. V62/V63 — source migrations,
 проверяемые в Testcontainers; рабочая DB/backfill не выполняются. Новых flags/rollout нет.
 

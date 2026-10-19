@@ -2,6 +2,8 @@ package com.example.panel.service;
 
 import com.example.panel.entity.PanelUser;
 import com.example.panel.repository.PanelUserRepository;
+import com.example.panel.config.MultibusinessFeatureFlags;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.ui.Model;
@@ -14,20 +16,33 @@ public class NavigationService {
     private final PanelUserRepository panelUserRepository;
     private final UnblockRequestService unblockRequestService;
     private final PanelUserPhotoService panelUserPhotoService;
+    private final MultibusinessFeatureFlags flags;
 
     public NavigationService(PermissionService permissionService,
                              PanelUserRepository panelUserRepository,
                              UnblockRequestService unblockRequestService,
                              PanelUserPhotoService panelUserPhotoService) {
+        this(permissionService,panelUserRepository,unblockRequestService,panelUserPhotoService,null);
+    }
+
+    @Autowired
+    public NavigationService(PermissionService permissionService,
+                             PanelUserRepository panelUserRepository,
+                             UnblockRequestService unblockRequestService,
+                             PanelUserPhotoService panelUserPhotoService,
+                             MultibusinessFeatureFlags flags) {
         this.permissionService = permissionService;
         this.panelUserRepository = panelUserRepository;
         this.unblockRequestService = unblockRequestService;
         this.panelUserPhotoService = panelUserPhotoService;
+        this.flags = flags;
     }
 
     public void enrich(Model model, Authentication authentication) {
         model.addAttribute("canViewAnalytics", permissionService.hasAuthority(authentication, "PAGE_ANALYTICS"));
         model.addAttribute("canEditKnowledgeBase", permissionService.hasAuthority(authentication, "PAGE_KNOWLEDGE_BASE"));
+        model.addAttribute("canViewScopedAiSources", flags!=null && flags.isFoundationEnabled() && flags.isUiSelector()
+                && permissionService.hasAuthority(authentication,"PAGE_KNOWLEDGE_BASE"));
         model.addAttribute("canManageTasks", permissionService.hasAuthority(authentication, "PAGE_TASKS"));
         model.addAttribute("canManageChannels", permissionService.hasAuthority(authentication, "PAGE_CHANNELS"));
         model.addAttribute("canManageUsers", permissionService.hasAuthority(authentication, "PAGE_USERS"));
