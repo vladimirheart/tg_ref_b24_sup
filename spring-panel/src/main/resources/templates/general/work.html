@@ -105,7 +105,7 @@
             <textarea id="generalReplyMessage" name="message" maxlength="4000" required rows="5" class="form-control"></textarea>
             <button type="submit" class="btn btn-primary mt-2">Отправить ответ</button>
         </form>
-        <h3 class="h5 mt-3">Последние отправки</h3>
+        <h3 class="h5 mt-3">Последние отправки — первоначальный текст</h3>
         <p th:if="${#lists.isEmpty(replies)}">Отправок пока нет.</p>
         <article th:each="reply : ${replies}" class="card card-body mb-2">
             <p th:switch="${reply.state}">
@@ -116,6 +116,46 @@
             </p>
             <time th:text="${reply.createdAt}"></time>
             <p class="text-break" style="white-space:pre-wrap" th:text="${reply.message}"></p>
+        </article>
+    </section>
+    <section class="mt-4" data-general-reply-changes>
+        <h2 class="h4">Изменить отправленный текст</h2>
+        <p>Доступны подтверждённые текстовые ответы Telegram в открытом обращении.
+            Текущий текст смотрите в истории обращения. После удаления он скрывается из истории;
+            первоначальная отправка сохраняется в журнале выше.</p>
+        <p th:if="${#lists.isEmpty(replyChangeTargets)}">Доступных для изменения сообщений нет.</p>
+        <article th:each="target : ${replyChangeTargets}" class="card card-body mb-3">
+            <form method="post" th:action="@{/general-dialog-work/{id}/reply-change(id=${publicId})}" data-general-reply-edit>
+                <input type="hidden" name="revision" th:value="${revision}">
+                <input type="hidden" name="requestKey" th:value="${target.requestKey}">
+                <input type="hidden" name="sourceKey" th:value="${target.sourceKey}">
+                <input type="hidden" name="expected" th:value="${target.fingerprint}">
+                <input type="hidden" name="action" value="EDIT">
+                <label class="form-label">Новый текст
+                    <textarea name="message" maxlength="4000" required rows="4" class="form-control" th:text="${target.message}"></textarea>
+                </label>
+                <button type="submit" class="btn btn-primary">Сохранить в Telegram</button>
+            </form>
+            <form method="post" th:action="@{/general-dialog-work/{id}/reply-change(id=${publicId})}" data-general-reply-delete class="mt-2">
+                <input type="hidden" name="revision" th:value="${revision}">
+                <input type="hidden" name="requestKey" th:value="${target.requestKey}">
+                <input type="hidden" name="sourceKey" th:value="${target.sourceKey}">
+                <input type="hidden" name="expected" th:value="${target.fingerprint}">
+                <input type="hidden" name="action" value="DELETE">
+                <label class="form-check"><input type="checkbox" required class="form-check-input"> Подтверждаю удаление сообщения у клиента</label>
+                <button type="submit" class="btn btn-outline-danger">Удалить в Telegram</button>
+            </form>
+        </article>
+        <h3 class="h5 mt-3">Последние изменения отправок</h3>
+        <article th:each="change : ${replyChanges}" class="card card-body mb-2">
+            <p><time th:text="${change.createdAt}"></time>;
+                <span th:text="${change.action == 'EDIT' ? 'Редактирование' : 'Удаление'}"></span>.</p>
+            <p th:switch="${change.state}">
+                <span th:case="'APPLIED'">Провайдер подтвердил изменение</span>
+                <span th:case="'CANCELLED'">Изменение отменено: данные, канал или права изменились</span>
+                <span th:case="'QUEUED'">Изменение подготовлено</span>
+                <span th:case="*">Результат изменения требует проверки. Повторное изменение заблокировано до сверки.</span>
+            </p>
         </article>
     </section>
 </main></body></html>

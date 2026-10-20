@@ -59,6 +59,7 @@ class GeneralTicketWorkHttpPostgresTest {
     @Autowired MockMvc mvc;@Autowired JdbcTemplate jdbc;@Autowired MultibusinessFeatureFlags flags;
     @Autowired GeneralTicketAccessService access;@SpyBean GeneralTicketWorkService work;
     @SpyBean GeneralTicketReplyService replies;
+    @SpyBean GeneralTicketReplyChangeService changes;
     @SpyBean GeneralTicketAssignmentService assignments;
     @SpyBean GeneralManualTicketCreationService manual;
     private String worker,reader,admin,publicId,root,raw;
@@ -440,4 +441,79 @@ class GeneralTicketWorkHttpPostgresTest {
         CsrfToken masked=(CsrfToken)request.getAttribute(CsrfToken.class.getName());request.setParameter(masked.getParameterName(),masked.getToken());return request;
     };}
     private String hidden(String html,String name) {var matcher=Pattern.compile("<input[^>]*name=\""+name+"\"[^>]*value=\"([^\"]*)\"").matcher(html);assertThat(matcher.find()).isTrue();return HtmlUtils.htmlUnescape(matcher.group(1));}
+
+    private String confirmedReply() {
+        replyDestination();String key=UUID.randomUUID().toString().replace("-","");
+        var scope=new GeneralTicketEventScope(owner,raw,publicId);
+        assertThat(replies.submit(scope,worker,0,key,"Original text",replies.destinationFingerprint(scope,worker,0).orElseThrow())).isTrue();
+        clearInvocations(replyTransport);
+        doAnswer(call->{
+            assertThat(((java.util.function.BooleanSupplier)call.getArgument(4)).getAsBoolean()).isTrue();
+            return DialogReplyTransportService.DialogReplyTransportResult.success(77L,1L);
+        }).when(replyTransport).editTelegramMessageGuarded(any(),anyLong(),anyLong(),anyString(),any());
+        doAnswer(call->{
+            assertThat(((java.util.function.BooleanSupplier)call.getArgument(3)).getAsBoolean()).isTrue();
+            return DialogReplyTransportService.DialogReplyTransportResult.success(77L,1L);
+        }).when(replyTransport).deleteTelegramMessageGuarded(any(),anyLong(),anyLong(),any());
+        return key;
+    }
+    @ParameterizedTest @ValueSource(strings={"EDIT","DELETE"})
+    void renderedChangeFormUsesRealCsrfAndDuplicatePostChangesProviderOnce(String action) throws Exception {
+        confirmedReply();var opened=mvc.perform(actor(get(root),worker,"PAGE_DIALOGS")).andExpect(status().isOk()).andReturn();
+        String html=form(opened.getResponse().getContentAsString(),"EDIT".equals(action)?"data-general-reply-edit":"data-general-reply-delete");
+        String message="EDIT".equals(action)?"<script>Changed 😀</script>":"";
+        for(int i=0;i<2;i++)mvc.perform(actor(post(root+"/reply-change").param("revision",hidden(html,"revision"))
+            .param("requestKey",hidden(html,"requestKey")).param("sourceKey",hidden(html,"sourceKey"))
+            .param("expected",hidden(html,"expected")).param("action",action).param("message",message)
+            .param("_csrf",hidden(html,"_csrf")).cookie(opened.getResponse().getCookies()),worker,"PAGE_DIALOGS"))
+            .andExpect(redirectedUrl(root));
+        if("EDIT".equals(action))verify(replyTransport,times(1)).editTelegramMessageGuarded(any(),eq(owner),eq(201L),eq(message),any());
+        else verify(replyTransport,times(1)).deleteTelegramMessageGuarded(any(),eq(owner),eq(201L),any());
+        var refreshed=mvc.perform(actor(get(root),worker,"PAGE_DIALOGS")).andExpect(status().isOk())
+            .andExpect(content().string(containsString("Провайдер подтвердил изменение"))).andExpect(content().string(not(containsString(raw)))).andReturn();
+        if("EDIT".equals(action))assertThat(refreshed.getResponse().getContentAsString()).contains("&lt;script&gt;Changed").doesNotContain("<script>Changed");
+        else assertThat(refreshed.getResponse().getContentAsString()).doesNotContain("data-general-reply-edit");
+        var history=mvc.perform(actor(get("/api/general-tickets/"+publicId+"/history"),reader,"PAGE_DIALOGS")).andExpect(status().isOk());
+        if("EDIT".equals(action))history.andExpect(jsonPath("$.entries[0].message").value(message));else history.andExpect(jsonPath("$.entries").isEmpty());
+    }
+    private MockHttpServletRequestBuilder changeReplyPost(String sourceKey) {
+        var target=changes.targets(new GeneralTicketEventScope(owner,raw,publicId),worker,0).get(0);
+        return post(root+"/reply-change").param("revision","0").param("requestKey",UUID.randomUUID().toString().replace("-",""))
+            .param("sourceKey",sourceKey).param("expected",target.fingerprint()).param("action","EDIT").param("message","Changed");
+    }
+    @Test void changeRequiresPageSeparateOperateRealCsrfAndValidInputs() throws Exception {
+        String source=confirmedReply();
+        mvc.perform(actor(get(root),reader,"PAGE_DIALOGS")).andExpect(status().isOk()).andExpect(content().string(not(containsString("data-general-reply-edit"))));
+        mvc.perform(actor(changeReplyPost(source),worker,"PAGE_DIALOGS")).andExpect(redirectedUrl("/error/403"));
+        mvc.perform(actor(changeReplyPost(source),reader,"PAGE_DIALOGS").with(csrf())).andExpect(status().isForbidden());
+        mvc.perform(actor(changeReplyPost(source),worker,"ROLE_ADMIN").with(csrf())).andExpect(status().isForbidden());
+        mvc.perform(actor(changeReplyPost("invalid"),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isBadRequest());
+        verifyNoInteractions(replyTransport);
+    }
+    @ParameterizedTest @ValueSource(strings={"read","operate","owner","revision","flag","channel","content"})
+    void changeReprovesLateChangesAfterControllerLookup(String mutation) throws Exception {
+        String source=confirmedReply();var post=changeReplyPost(source);var scope=new GeneralTicketEventScope(owner,raw,publicId);
+        doAnswer(call->{
+            switch(mutation) {
+                case "read"->access.revokeRead(workerId);
+                case "operate"->access.revokeOperate(workerId);
+                case "owner"->jdbc.update("UPDATE tickets SET is_general=FALSE,general_selection_source=NULL WHERE ticket_public_id=?",publicId);
+                case "revision"->jdbc.update("UPDATE tickets SET status='open' WHERE ticket_public_id=?",publicId);
+                case "flag"->flags.setGeneralTicketQueue(false);
+                case "channel"->jdbc.update("UPDATE channels SET token='rotated' WHERE id=(SELECT channel_id FROM tickets WHERE ticket_public_id=?)",publicId);
+                case "content"->jdbc.update("UPDATE chat_history SET message='changed elsewhere' WHERE ticket_public_id=?",publicId);
+            }
+            return call.callRealMethod();
+        }).when(changes).submit(eq(scope),eq(worker),anyLong(),anyString(),anyString(),anyString(),anyString(),anyString());
+        mvc.perform(actor(post,worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());verifyNoInteractions(replyTransport);
+    }
+    @Test void ambiguousChangeIsVisibleAndHidesFurtherCommands() throws Exception {
+        String source=confirmedReply();
+        doReturn(null).when(replyTransport).editTelegramMessageGuarded(any(),anyLong(),anyLong(),anyString(),any());
+        mvc.perform(actor(changeReplyPost(source),worker,"PAGE_DIALOGS").with(csrf())).andExpect(redirectedUrl(root));
+        mvc.perform(actor(get(root),reader,"PAGE_DIALOGS")).andExpect(status().isOk())
+            .andExpect(content().string(containsString("Результат изменения требует проверки")))
+            .andExpect(content().string(not(containsString("Провайдер подтвердил изменение"))));
+        mvc.perform(actor(get(root),worker,"PAGE_DIALOGS")).andExpect(status().isOk()).andExpect(content().string(not(containsString("data-general-reply-edit"))));
+    }
 }

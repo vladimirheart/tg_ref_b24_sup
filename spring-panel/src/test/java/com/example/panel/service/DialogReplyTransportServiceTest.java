@@ -503,4 +503,43 @@ class DialogReplyTransportServiceTest {
         channel.setToken("max-test-token");
         return channel;
     }
+
+    @ParameterizedTest @ValueSource(strings={"EDIT","DELETE"})
+    void guardedTelegramChangeUsesFrozenChannelAndBody(String action) throws Exception {
+        HttpClient http=mock(HttpClient.class);IntegrationNetworkService network=mock(IntegrationNetworkService.class);
+        Channel channel=new Channel();channel.setPlatform("telegram");channel.setToken("frozen-change-token");
+        when(network.createChannelHttpClient(any(),any(Duration.class))).thenAnswer(call->{
+            Channel copy=call.getArgument(0);assertThat(copy).isNotSameAs(channel);copy.setToken("tampered");
+            copy.setPlatformConfig("{\"telegram_bot_api_base_url\":\"https://example.invalid\"}");return http;
+        });
+        List<HttpRequest> requests=new ArrayList<>();
+        when(http.send(any(HttpRequest.class),any(HttpResponse.BodyHandler.class))).thenAnswer(call->{
+            HttpRequest request=call.getArgument(0);requests.add(request);
+            return responseFor(request,new ArrayList<>(),"{\"ok\":true,\"result\":{\"message_id\":77}}",200);
+        });
+        var service=new DialogReplyTransportService(mock(com.example.panel.repository.ChannelRepository.class),network,new ObjectMapper());
+        var result="EDIT".equals(action)?service.editTelegramMessageGuarded(channel,42L,77L,"Исправлено 😀",()->true)
+            :service.deleteTelegramMessageGuarded(channel,42L,77L,()->true);
+        assertThat(result.success()).isTrue();assertThat(requests).hasSize(1);
+        HttpRequest request=requests.get(0);assertThat(request.uri().toString()).contains("botfrozen-change-token").doesNotContain("tampered","example.invalid");
+        var body=new ObjectMapper().readTree(requestBody(request));assertThat(body.path("chat_id").asLong()).isEqualTo(42L);
+        assertThat(body.path("message_id").asLong()).isEqualTo(77L);
+        if("EDIT".equals(action))assertThat(body.path("text").asText()).isEqualTo("Исправлено 😀");else assertThat(body.has("text")).isFalse();
+    }
+    @ParameterizedTest @ValueSource(strings={"EDIT","DELETE"})
+    void absentOrDeniedTelegramChangeGuardNeverCallsProvider(String action) throws Exception {
+        HttpClient http=mock(HttpClient.class);IntegrationNetworkService network=mock(IntegrationNetworkService.class);
+        when(network.createChannelHttpClient(any(),any(Duration.class))).thenReturn(http);
+        Channel channel=new Channel();channel.setPlatform("telegram");channel.setToken("test-token");
+        var service=new DialogReplyTransportService(mock(com.example.panel.repository.ChannelRepository.class),network,new ObjectMapper());
+        for(java.util.function.BooleanSupplier guard:new java.util.function.BooleanSupplier[]{null,()->false}) {
+            var result="EDIT".equals(action)?service.editTelegramMessageGuarded(channel,42L,77L,"Changed",guard)
+                :service.deleteTelegramMessageGuarded(channel,42L,77L,guard);
+            assertThat(result.classification()).isEqualTo("scope_denied");
+        }
+        channel.setPlatform("max");
+        assertThat(service.editTelegramMessageGuarded(channel,42L,77L,"Changed",()->true).classification()).isEqualTo("scope_denied");
+        assertThat(service.deleteTelegramMessageGuarded(channel,42L,77L,()->true).classification()).isEqualTo("scope_denied");
+        verify(http,never()).send(any(),any(HttpResponse.BodyHandler.class));
+    }
 }

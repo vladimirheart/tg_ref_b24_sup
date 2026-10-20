@@ -70,6 +70,8 @@ class PostgresRuntimeReadinessVerifierTest {
         verify(jdbcTemplate).queryForList(contains("SELECT record_general_work_interval("));
         verify(jdbcTemplate).queryForList("SELECT request_key, ticket_public_id, destination_sha256, state, chat_history_id FROM general_ticket_text_replies WHERE 1 = 0");
         verify(jdbcTemplate).queryForList("SELECT request_key, state, actor_user_id FROM general_ticket_reply_events WHERE 1 = 0");
+        verify(jdbcTemplate).queryForList(contains("FROM general_ticket_reply_changes WHERE 1 = 0"));
+        verify(jdbcTemplate).queryForList(contains("FROM general_ticket_reply_change_events WHERE 1 = 0"));
         verify(jdbcTemplate).queryForList("SELECT ticket_public_id FROM chat_history WHERE 1 = 0");
         verify(jdbcTemplate).queryForList("SELECT worker_key, cursor_text, updated_at FROM runtime_worker_checkpoints WHERE 1 = 0");
         verify(jdbcTemplate).queryForList(contains("FROM integration_transport_outbox"));
@@ -217,5 +219,16 @@ class PostgresRuntimeReadinessVerifierTest {
                 .hasMessageContaining("SQLite runtime mode is retired");
 
         verify(jdbcTemplate, never()).queryForList(anyString());
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"FROM general_ticket_reply_changes","FROM general_ticket_reply_change_events"})
+    void missingGeneralReplyChangeSchemaFailsReadiness(String missing) {
+        JdbcTemplate jdbc=mock(JdbcTemplate.class);
+        when(jdbc.queryForList(anyString())).thenReturn(List.of());
+        when(jdbc.queryForList(contains(missing))).thenThrow(new IllegalStateException("V71 is missing"));
+        var verifier=new PostgresRuntimeReadinessVerifier(jdbc,new MockEnvironment().withProperty("app.datasource.mode","postgresql"),
+            mock(com.example.panel.service.RuntimeCoordinationService.class),mock(com.example.panel.storage.AttachmentObjectStorageService.class));
+        assertThatThrownBy(()->verifier.onApplicationEvent(null)).isInstanceOf(IllegalStateException.class).hasRootCauseMessage("V71 is missing");
     }
 }

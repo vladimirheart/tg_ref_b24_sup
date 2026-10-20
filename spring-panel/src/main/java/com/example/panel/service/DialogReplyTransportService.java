@@ -111,10 +111,18 @@ public class DialogReplyTransportService {
         return copy;
     }
 
-    public DialogReplyTransportResult editTelegramMessage(Channel channel,
+    public DialogReplyTransportResult editTelegramMessage(Channel channel,Long userId,Long telegramMessageId,String message) {
+        return editTelegramMessageInternal(channel,userId,telegramMessageId,message,()->true);
+    }
+    public DialogReplyTransportResult editTelegramMessageGuarded(Channel channel,Long userId,Long telegramMessageId,String message,BooleanSupplier sendGuard) {
+        if (channel==null || !"telegram".equals(channel.getPlatform()) || sendGuard==null) return scopeDenied();
+        return editTelegramMessageInternal(channel,userId,telegramMessageId,message,sendGuard);
+    }
+
+    private DialogReplyTransportResult editTelegramMessageInternal(Channel channel,
                                                           Long userId,
                                                           Long telegramMessageId,
-                                                          String message) {
+                                                          String message, BooleanSupplier sendGuard) {
         String platform = normalizePlatform(channel != null ? channel.getPlatform() : null);
         if (!"telegram".equals(platform)) {
             return DialogReplyTransportResult.failure(
@@ -135,13 +143,14 @@ public class DialogReplyTransportService {
             payload.put("chat_id", userId);
             payload.put("message_id", telegramMessageId);
             payload.put("text", message);
-            HttpClient client = integrationNetworkService.createChannelHttpClient(channel, TELEGRAM_REQUEST_TIMEOUT);
+            HttpClient client = integrationNetworkService.createChannelHttpClient(textNetworkCopy(channel), TELEGRAM_REQUEST_TIMEOUT);
             HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(buildTelegramMethodUrl(channel, "editMessageText")))
                 .timeout(TELEGRAM_REQUEST_TIMEOUT)
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
                 .build();
+            if (sendGuard==null || !sendGuard.getAsBoolean()) return scopeDenied();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             DialogReplyTransportResult result = resolveTelegramTransportResult(
                 response,
@@ -182,9 +191,17 @@ public class DialogReplyTransportService {
         }
     }
 
-    public DialogReplyTransportResult deleteTelegramMessage(Channel channel,
+    public DialogReplyTransportResult deleteTelegramMessage(Channel channel,Long userId,Long telegramMessageId) {
+        return deleteTelegramMessageInternal(channel,userId,telegramMessageId,()->true);
+    }
+    public DialogReplyTransportResult deleteTelegramMessageGuarded(Channel channel,Long userId,Long telegramMessageId,BooleanSupplier sendGuard) {
+        if (channel==null || !"telegram".equals(channel.getPlatform()) || sendGuard==null) return scopeDenied();
+        return deleteTelegramMessageInternal(channel,userId,telegramMessageId,sendGuard);
+    }
+
+    private DialogReplyTransportResult deleteTelegramMessageInternal(Channel channel,
                                                             Long userId,
-                                                            Long telegramMessageId) {
+                                                            Long telegramMessageId, BooleanSupplier sendGuard) {
         String platform = normalizePlatform(channel != null ? channel.getPlatform() : null);
         if (!"telegram".equals(platform)) {
             return DialogReplyTransportResult.failure(
@@ -204,13 +221,14 @@ public class DialogReplyTransportService {
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("chat_id", userId);
             payload.put("message_id", telegramMessageId);
-            HttpClient client = integrationNetworkService.createChannelHttpClient(channel, TELEGRAM_REQUEST_TIMEOUT);
+            HttpClient client = integrationNetworkService.createChannelHttpClient(textNetworkCopy(channel), TELEGRAM_REQUEST_TIMEOUT);
             HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(buildTelegramMethodUrl(channel, "deleteMessage")))
                 .timeout(TELEGRAM_REQUEST_TIMEOUT)
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
                 .build();
+            if (sendGuard==null || !sendGuard.getAsBoolean()) return scopeDenied();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             DialogReplyTransportResult result = resolveTelegramTransportResult(
                 response,

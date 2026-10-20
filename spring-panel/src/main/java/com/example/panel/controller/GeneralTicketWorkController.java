@@ -2,6 +2,7 @@ package com.example.panel.controller;
 
 import com.example.panel.service.GeneralTicketWorkService;
 import com.example.panel.service.GeneralTicketReplyService;
+import com.example.panel.service.GeneralTicketReplyChangeService;
 import com.example.panel.service.GeneralTicketWorkTimeService;
 import com.example.panel.service.GeneralTicketAssignmentService;
 import com.example.panel.service.NavigationService;
@@ -24,9 +25,10 @@ public class GeneralTicketWorkController {
     private final GeneralTicketReplyService replies;
     private final GeneralTicketWorkTimeService time;
     private final GeneralTicketAssignmentService assignments;
+    private final GeneralTicketReplyChangeService changes;
     public GeneralTicketWorkController(GeneralTicketWorkService work,NavigationService navigation,GeneralTicketReplyService replies,
-            GeneralTicketWorkTimeService time,GeneralTicketAssignmentService assignments) {
-        this.work=work;this.navigation=navigation;this.replies=replies;this.time=time;this.assignments=assignments;
+            GeneralTicketWorkTimeService time,GeneralTicketAssignmentService assignments,GeneralTicketReplyChangeService changes) {
+        this.work=work;this.navigation=navigation;this.replies=replies;this.time=time;this.assignments=assignments;this.changes=changes;
     }
     @GetMapping
     public String view(@PathVariable String publicId,Authentication auth,Model model,HttpServletResponse response) {
@@ -37,6 +39,8 @@ public class GeneralTicketWorkController {
         model.addAttribute("replyDestination",state.canOperate()
             ?replies.destinationFingerprint(state.scope(),auth.getName(),state.revision()).orElse(null):null);
         model.addAttribute("replies",replies.recent(state.scope(),auth.getName()));
+        model.addAttribute("replyChangeTargets",changes.targets(state.scope(),auth.getName(),state.revision()));
+        model.addAttribute("replyChanges",changes.recent(state.scope(),auth.getName()));
         model.addAttribute("workTime",time.summary(state.scope(),auth.getName()).orElse(null));
         model.addAttribute("workIntervals",time.recent(state.scope(),auth.getName()));
         model.addAttribute("assignment",assignments.current(state.scope(),auth.getName()).orElse(null));
@@ -62,6 +66,18 @@ public class GeneralTicketWorkController {
         if (!GeneralTicketReplyService.validInput(requestKey,message)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         if (!replies.submit(state.scope(),auth.getName(),version(revision),requestKey,message,destination))
             throw new ResponseStatusException(HttpStatus.CONFLICT,"Данные, канал или права изменились. Обновите страницу.");
+        var redirect=new RedirectView("/general-dialog-work/"+publicId,true);redirect.setExposeModelAttributes(false);return redirect;
+    }
+    @PostMapping("/reply-change")
+    public RedirectView replyChange(@PathVariable String publicId,Authentication auth,HttpServletResponse response,
+            @RequestParam String revision,@RequestParam String requestKey,@RequestParam String sourceKey,
+            @RequestParam String expected,@RequestParam String action,@RequestParam(defaultValue="") String message) {
+        var state=find(publicId,auth,response);
+        if (!state.canOperate()) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        if (!GeneralTicketReplyChangeService.validInput(requestKey,sourceKey,expected,action,message))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        if (!changes.submit(state.scope(),auth.getName(),version(revision),requestKey,sourceKey,expected,action,message))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Сообщение, данные или права изменились. Обновите страницу.");
         var redirect=new RedirectView("/general-dialog-work/"+publicId,true);redirect.setExposeModelAttributes(false);return redirect;
     }
     @PostMapping("/assignment")

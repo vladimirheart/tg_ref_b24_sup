@@ -306,6 +306,28 @@ UI предупреждает о локальном клиенте и отсут
 содержит только public ID. Readiness требует V70 tables/function. Retention/
 reconciliation keys, media/feedback, auto-assignment и live acceptance остаются gates.
 
+R141 добавляет отдельные Telegram EDIT/DELETE только для подтверждённых R136
+GENERAL text replies. Нужны PAGE_DIALOGS/current READ+OPERATE/account, CSRF,
+foundation/general-ticket-queue и pending/open exact owner с unique raw ID.
+Canonical history имеет exact tuple/public generation, sender operator,
+operator_message, без attachment; старые/NULL-generation/client/note rows
+не классифицируются. Source reply/destination/provider ID и text/timestamps
+фиксируются в форме/immutable command V71. Смена actor/input/snapshot/owner/
+work revision/channel/config закрывает запрос без recapture. Reply/history
+update locks и root/ticket/channel/account/grant share locks сохраняются через
+provider call; transport повторяет guard прямо перед HTTP и использует frozen
+channel. Старые transport entrypoints остаются совместимыми.
+
+Single QUEUED→SENDING claim не допускает повторного HTTP для key. Подтверждение
+provider атомарно меняет canonical text/edited_at либо deleted_at, APPLIED/audit
+и metadata GENERAL outbox; исходная отправка сохраняется как audit. Любой
+неясный внешний результат — UNKNOWN либо durable SENDING при ошибке closeout;
+partial unique index блокирует последующие команды этого source reply. Нет
+auto-retry или автоматической reconciliation. Safe guard denial — CANCELLED.
+Устаревший content fingerprint не перезаписывает более новое сообщение.
+Media, VK/MAX edit/delete, feedback и retention/reconciliation — gates.
+V71 не переписывает старые data/grants и не включает flags.
+
 `/api/general-tickets` и `/general-dialogs` закрыты foundation и отдельным
 default-off `multibusiness.general-ticket-queue`. Каждый SQL read повторно
 проверяет grant и выбирает только `is_general=TRUE`, `business_id IS NULL` и
@@ -341,7 +363,7 @@ Heartbeat повторно проверяет grant/account/flags; при отк
 general_access_revoked без ticket data, emitter закрывается. UI очищает данные
 при отзыве/ошибке stream, отменяет pending refresh и не применяет старые HTTP
 ответы. Pagehide закрывает подписку. Сам этап R134 не добавлял migrations/flags.
-GENERAL triage/OPERATE, text reply, close/reopen, observed intervals, assignment и manual creation описаны в R135–R140 выше;
+GENERAL triage/OPERATE, text reply, close/reopen, intervals, assignment, creation и Telegram text edit/delete описаны в R135–R141 выше;
 остальные GENERAL write, отдельные bell/внешняя доставка и live Redis/proxy/provider acceptance PENDING.
 
 Основные legacy dialog reads (список/summary, карточка, история, предыдущие
