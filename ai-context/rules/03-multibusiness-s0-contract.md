@@ -779,7 +779,7 @@ Panel API/другие transport modes ещё требуют отдельног�
 
 R143 сам по себе — read-only handshake, не право создать ticket. Контракт
 BUSINESS producer/INSERT/replay добавлен в R144 ниже; MAX selection UX — в R145,
-VK — в R146. Кнопки Telegram, GENERAL option общего канала, scoped locations и сквозная
+VK — в R146, Telegram — в R147. GENERAL option общего канала, scoped locations и сквозная
 приёмка resume/UX после rebind остаются PENDING. Новый shared-channel flow нельзя включать до
 подключения совместимых consumers; существующий general-only flow сохранён.
 
@@ -816,7 +816,7 @@ flag также не превращает уже выбранный BUSINESS roo
 точный повтор. Сами transport event IDs и display поля не выдают права доступа.
 
 Подтверждены typed JSON/CAS scope и MAX state round-trip. Подключение MAX
-pending choice/selection UX описано в R145, VK — в R146; Telegram остаётся PENDING.
+pending choice/selection UX описано в R145, VK — в R146, Telegram — в R147.
 GENERAL option общего канала требует отдельной явной настройки, а не ослабления
 general-only binding. Нет новых scoped presets/locations, version registry для
 старых незавершённых опросов или разрешения на flags/migration/rollout.
@@ -862,7 +862,7 @@ proxy и rolling-upgrade acceptance ещё обязательны до rollout.
 Проверки используют реальный handler/JSON/CAS с изолированными doubles для
 доставки и отдельные PostgreSQL suites; это не живой provider E2E.
 
-После VK R146 Telegram, GENERAL option общего канала, scoped locations/presets и release
+После VK R146 и Telegram R147 GENERAL option общего канала, scoped locations/presets и release
 остаются отдельными этапами. Новых migrations нет; minimum schema — V73.
 Необходимость совместимого backend/fleet не разрешает менять рабочие flags,
 запускать migration/backfill, rebuild или deployment без отдельного scope.
@@ -921,8 +921,62 @@ Selected sessions не удаляются legacy first-response scheduler: со�
 явного /start, /cancel либо TTL store. TTL/retention, dedup TTL, non-Rabbit/API-off,
 rolling upgrades, несколько active бизнесов и live Redis/VK/Long Poll/proxy
 проверяются отдельно. Session store остаётся transport state, не canonical DB.
-Новых migrations/flags нет; минимум V73. Telegram, shared GENERAL option,
+Новых migrations/flags нет; минимум V73. После Telegram R147 shared GENERAL option,
 scoped locations/presets и release остаются PENDING; rollout этим не разрешён.
+
+### R147: Telegram — отдельный сохраняемый BUSINESS опрос
+
+Новый TelegramQuestionnaireHandler обрабатывает только private user/chat tuple
+активного Telegram channel. Он вызывается основным SupportBot до legacy edits,
+feedback, active shortcut и media. GENERAL-only/unbound runtime остаются в
+прежней ветке; отказ настроенного scoped API не открывает local/global fallback.
+BUSINESS старт/selection использует writer-version ACK и selected loader R145.
+
+Pending меню хранит catalog/SHA, nonce, страницу, начальный provider message ID
+и identity клиента. Нативные reply buttons посылают generation-bound текст;
+до 100 бизнесов, 8 на страницу. Кнопки выбора/навигации после выбора не становятся
+ответами. Выбранный payload, исходный order, ответы, history/provider IDs,
+посещения вопросов и accepted-answer ledger сохраняются в JSON/CAS namespace
+telegram-questionnaire-v1 + canonical channels.id. ID служебного чата не
+используется как channel/session authority; delivery guard также canonical-scoped.
+
+Вопросник не получает обязательных business/problem или прошлых business answers.
+Сохраняются select по номеру/label, forward routes по option ID, возврат назад с
+очисткой следующих ответов и optional skip. Bootstrap относится только к новому
+началу: оставшийся legacy/GENERAL in-memory ответ при rebind не переносится в
+новый BUSINESS history. Меню сохраняется до отправки; выбор и каждый ответ —
+до следующего prompt. Selected marker не находится в legacy scheduler map.
+
+До первой публикации проверяются current catalog/selection и отсутствие другого
+active root. Последний ответ и fixed submission message ID сохраняются до queue.
+После ошибки публикации/marker persistence повторяется тот же command, не новая
+версия/owner/ответ. Сохранённый ticket ID marker и accepted ledger переживают
+потерю update dedup cache. Сообщения до нового /start и запоздалые более ранние
+ответы не продвигают новый опрос. CAS conflicts после трёх попыток не подтверждаются.
+
+Follow-up ждёт свой canonical root/user/active ID; другой active ticket не
+выбирается. Текст нового сообщения, пришедшего во время восстановления публикации,
+не подменяет последний ответ: клиент получает явную просьбу повторить сообщение,
+обработка завершается retryable error. Это не durable очередь follow-up. Живая
+семантика Telegram Long Poll offset/re-delivery после exception ещё не доказана;
+настоящие recovery/доставка требуют отдельной приёмки, а не только unit replay.
+
+Новый путь text-only: media/unsupported payload и edits явно отклоняются до
+unscoped storage/writer. Selected commands не вызывают legacy ticket-list/reply
+маршруты; raw summary/support-chat relay/rating prompt не отправляются. Blacklist
+сохраняется. Saved state проверяет user/chat/channel/version, template membership,
+progress, только свои text history и известные answer keys. Это локальная защита,
+не завершённый общий recipient/child attribution или media/feedback policy.
+
+TTL/retention/4096-event budget, non-Rabbit/API-off modes, fleet/rolling upgrade, Long Poll/proxy/Redis,
+GENERAL/legacy session persistence и несколько active бизнесов остаются PENDING.
+Session state не является canonical relational source of truth.
+При direct coordination BotSessionStoreService хранит state в памяти процесса;
+durability полного process restart требует Redis mode и отдельной приёмки.
+Тесты восстанавливают handler/бота с общим store, а не доказывают live Redis restart.
+GENERAL option общего канала не добавлена: она требует собственного явного binding и writer,
+а не ослабления BUSINESS или general-only API. Scoped locations/presets и release
+также отдельные этапы. Новых migrations/flags нет; минимум V73, rollout не разрешён.
 
 ## Scope guard и API contract
 

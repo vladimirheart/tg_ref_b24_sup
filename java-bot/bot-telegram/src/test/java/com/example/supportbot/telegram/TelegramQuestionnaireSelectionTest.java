@@ -1,0 +1,305 @@
+package com.example.supportbot.telegram;
+
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+import com.example.supportbot.config.*;
+import com.example.supportbot.entity.*;
+import com.example.supportbot.service.*;
+import com.example.supportbot.service.PanelRuntimeConfigClient.*;
+import com.example.supportbot.settings.BotSettingsService;
+import com.fasterxml.jackson.databind.*;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.*;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+
+/** Real SupportBot ingress and selected handler; JSON/CAS and guard, no external SDK writes. */
+class TelegramQuestionnaireSelectionTest {
+    private final ObjectMapper mapper=Jackson2ObjectMapperBuilder.json().build();
+    private final Channel channel=new Channel();
+    private final RuntimeConfigService runtime=mock(RuntimeConfigService.class);
+    private final SharedConfigService local=mock(SharedConfigService.class);
+    private final TicketService tickets=mock(TicketService.class);
+    private final ChannelService channels=mock(ChannelService.class);
+    private final BlacklistService blacklist=mock(BlacklistService.class);
+    private final AttachmentService attachments=mock(AttachmentService.class);
+    private final FeedbackService feedback=mock(FeedbackService.class);
+    private final List<SendMessage> sent=new ArrayList<>();
+    private BotSessionStoreService store;
+    private BotWebhookDeliveryGuardService guard;
+    private BotSettingsService settings;
+    private TelegramQuestionnaireHandler handler;
+    private SupportBot bot;
+    private BotProperties properties;
+    private ChoiceCatalog catalog;
+    private SelectedQuestionnaire a,b;
+    @BeforeEach void setup() throws Exception {
+        channel.setId(55L);channel.setPlatform("telegram");channel.setActive(true);channel.setSupportChatId("unverified-shared-chat");
+        properties=new BotProperties();properties.setToken("test-telegram-token");properties.setChannelId(900077L);
+        var coordination=new BotIngressCoordinationProperties();coordination.setMode("direct");
+        @SuppressWarnings("unchecked") ObjectProvider<StringRedisTemplate> redis=mock(ObjectProvider.class);
+        store=spy(new BotSessionStoreService(coordination,mapper,redis));guard=spy(new BotWebhookDeliveryGuardService(coordination,redis));
+        settings=new BotSettingsService(mapper,local,runtime);
+        catalog=new ChoiceCatalog(1,55,"c".repeat(64),List.of(new Choice("BUSINESS",7,"a","Business A","q-a","a".repeat(64)),
+                new Choice("BUSINESS",8,"b","Business B","q-b","b".repeat(64))));
+        a=selected(7,"q-a","a",false);b=selected(8,"q-b","b",false);
+        when(channels.ensurePublicIdForToken("test-telegram-token")).thenReturn(channel);
+        when(blacklist.getStatus(1001L)).thenReturn(new BlacklistService.BlacklistStatus(false,false));
+        when(runtime.findChannelConfig(channel)).thenThrow(unavailable());when(runtime.questionnaireChoices(channel)).thenReturn(catalog);
+        when(runtime.selectQuestionnaire(channel,catalog,7L)).thenReturn(a);when(runtime.selectQuestionnaire(channel,catalog,8L)).thenReturn(b);
+        when(tickets.createConversationTicket(any())).thenReturn(new TicketService.TicketCreationResult("T-TG",null,"queued"));
+        when(tickets.awaitClientTicketNumber(any())).thenReturn(Optional.empty());rebuild();
+    }
+    private SelectedQuestionnaire selected(long owner,String id,String hash,boolean branching) {
+        List<Map<String,Object>> flow=branching?List.of(
+                Map.of("id","choice","type","select","order",10,"text","Choose","options",List.of(Map.of("id","yes","label","Да"),Map.of("id","no","label","Нет")),
+                    "routes",List.of(Map.of("value_id","yes","next_question_id","last"))),
+                Map.of("id","optional","type","text","order",20,"text","Optional","required",false),
+                Map.of("id","last","type","text","order",30,"text","Last")):
+                List.of(Map.of("id","free-second","type","text","order",20,"text",id+" second"),
+                        Map.of("id","free-first","type","text","order",10,"text",id+" first"));
+        return new SelectedQuestionnaire(1,55,"BUSINESS","USER_SELECTION",owner,id,hash.repeat(64),"c".repeat(64),
+                Map.of("active_template_id",id,"question_templates",List.of(Map.of("id",id,"name",id,"question_flow",flow))),Map.of(),Map.of());
+    }
+    private void rebuild() throws Exception {
+        handler=new TelegramQuestionnaireHandler(runtime,settings,store,tickets,blacklist);
+        bot=spy(new SupportBot(properties,blacklist,mock(UnblockRequestService.class),attachments,channels,settings,tickets,
+                mock(ChatHistoryService.class),feedback,mock(BotIngressCoordinationService.class),guard,runtime,handler,mapper));
+        doAnswer(call->{sent.add(call.getArgument(0));return new Message();}).when(bot).execute(any(SendMessage.class));
+    }
+    private void resetDeliveryCache() {
+        var config=new BotIngressCoordinationProperties();config.setMode("direct");
+        @SuppressWarnings("unchecked") ObjectProvider<StringRedisTemplate> redis=mock(ObjectProvider.class);
+        guard=spy(new BotWebhookDeliveryGuardService(config,redis));
+    }
+    private Update update(int id,String text) {
+        var user=new User();user.setId(1001L);user.setFirstName("Client");user.setUserName("client");
+        var chat=new Chat();chat.setId(1001L);chat.setType("private");
+        var message=new Message();message.setMessageId(id);message.setDate(123456789);message.setFrom(user);message.setChat(chat);message.setText(text);
+        var update=new Update();update.setUpdateId(1000+id);update.setMessage(message);return update;
+    }
+    private void receive(int id,String text) {bot.onUpdateReceived(update(id,text));}
+    private TelegramQuestionnaireHandler.State state() {return store.load(TelegramQuestionnaireHandler.SESSION_PLATFORM,55L,1001L,TelegramQuestionnaireHandler.State.class).orElseThrow().payload();}
+    private String choice(int index) {var state=state();return TelegramQuestionnaireMenu.button(state.catalog,state.nonce,index);}
+    private void chooseA() {receive(1,"/start");receive(2,choice(0));}
+    private void first() {chooseA();receive(3,"One");}
+    private void complete() {first();receive(4,"Two");}
+    private ScopedRuntimeConfigUnavailableException unavailable() {return new ScopedRuntimeConfigUnavailableException("test unavailable");}
+    @Test void durableMenuPrecedesNativeKeyboardAndUsesCanonicalChannelNotOperatorChat() {
+        receive(1,"/start");assertThat(state().selected).isNull();assertThat(state().answers).isEmpty();
+        assertThat(sent.get(0).getReplyMarkup()).isInstanceOf(ReplyKeyboardMarkup.class);
+        assertThat(state().channelId).isEqualTo(55);verify(guard).tryClaim("telegram",55L,"update:1001");
+        verifyNoInteractions(local,feedback);verify(tickets,never()).createConversationTicket(any());
+    }
+    @Test void restartRestoresMenuThenChosenPayloadOrderBootstrapAndAnswers() throws Exception {
+        receive(1,"Initial complaint");String nonce=state().nonce,button=choice(0);rebuild();receive(2,button);rebuild();receive(3,"One");
+        assertThat(state().nonce).isEqualTo(nonce);assertThat(state().selected.businessId()).isEqualTo(7);
+        assertThat(state().bootstrap).isEqualTo("Initial complaint");assertThat(state().answers).containsOnlyKeys("free-first");
+        assertThat(sent).extracting(SendMessage::getText).anyMatch(t->t.startsWith("q-a first"));verifyNoInteractions(local,feedback);
+    }
+    @Test void completeFlowPublishesFrozenIdentityWithoutMandatoryFieldsOrRawSupportSummary() {
+        complete();var commands=org.mockito.ArgumentCaptor.forClass(ConversationTicketCreationCommand.class);
+        verify(tickets).createConversationTicket(commands.capture());var command=commands.getValue();
+        assertThat(command.businessId()).isEqualTo(7);assertThat(command.scopeKind()).isEqualTo("BUSINESS");
+        assertThat(command.scopeSelectionSource()).isEqualTo("USER_SELECTION");assertThat(command.questionTemplateId()).isEqualTo("q-a");
+        assertThat(command.templateSha256()).isEqualTo("a".repeat(64));assertThat(command.catalogSha256()).isEqualTo("c".repeat(64));
+        assertThat(command.answers()).containsExactlyInAnyOrderEntriesOf(Map.of("free-first","One","free-second","Two"));
+        assertThat(command.providerEventKey()).isEqualTo("telegram-message:1001:4");assertThat(state().submittedTicketId).isEqualTo("T-TG");
+        assertThat(sent).allMatch(request->request.getChatId().equals("1001"));verifyNoInteractions(local,attachments,feedback);
+    }
+    @ParameterizedTest @ValueSource(strings={"Business A","1","/business ffffffffffff 7","/business 123456abcdef 999"})
+    void invalidChoicesCannotChooseOrReachFeedback(String text) {
+        receive(1,"/start");receive(2,text);assertThat(state().selected).isNull();assertThat(state().answers).isEmpty();
+        verify(runtime,never()).selectQuestionnaire(any(),any(),anyLong());verifyNoInteractions(feedback);
+    }
+    @Test void explicitStartInvalidatesOldButtonsAndDelayedOldAnswers() {
+        chooseA();String old=choice(0);receive(10,"/start");receive(11,old);assertThat(state().selected).isNull();
+        receive(12,choice(1));receive(3,"Private answer for A");assertThat(state().answers).isEmpty();assertThat(state().selected.businessId()).isEqualTo(8);
+    }
+    @Test void oldChoiceDoesNotFillFirstQuestionAndAnswerDedupSurvivesCacheLoss() throws Exception {
+        chooseA();receive(20,choice(0));assertThat(state().answers).isEmpty();receive(21,"One");
+        resetDeliveryCache();rebuild();receive(21,"One");assertThat(state().index).isEqualTo(1);verify(tickets,never()).createConversationTicket(any());
+    }
+    @Test void menuSendFailurePreservesNonceBeforeDeliveryAndReusesIt() throws Exception {
+        doThrow(new TelegramApiException("test send failure")).doAnswer(call->{sent.add(call.getArgument(0));return new Message();})
+                .when(bot).execute(any(SendMessage.class));
+        assertThatThrownBy(()->receive(1,"/start")).hasMessageContaining("delivery failed");String nonce=state().nonce;
+        rebuild();receive(1,"/start");assertThat(state().nonce).isEqualTo(nonce);verify(runtime,times(1)).questionnaireChoices(channel);
+    }
+    @Test void questionSendFailurePreservesChosenScopeAndChoiceReplayDoesNotAnswer() throws Exception {
+        receive(1,"/start");String button=choice(0);doThrow(new TelegramApiException("test failure")).when(bot).execute(any(SendMessage.class));
+        assertThatThrownBy(()->receive(2,button)).hasMessageContaining("delivery failed");rebuild();receive(2,button);
+        assertThat(state().selected.businessId()).isEqualTo(7);assertThat(state().answers).isEmpty();
+    }
+    @Test void failedQueuePublicationRetainsFinalAnswerAndExactCommandDespiteRebind() throws Exception {
+        first();when(tickets.createConversationTicket(any())).thenThrow(new IllegalStateException("test queue failure"))
+                .thenReturn(new TicketService.TicketCreationResult("T-TG",null,"queued"));
+        assertThatThrownBy(()->receive(4,"Two")).hasMessageContaining("queue failure");
+        when(runtime.selectQuestionnaire(channel,catalog,7L)).thenThrow(unavailable());rebuild();receive(4,"Edited retry");
+        var commands=org.mockito.ArgumentCaptor.forClass(ConversationTicketCreationCommand.class);
+        verify(tickets,times(2)).createConversationTicket(commands.capture());assertThat(commands.getAllValues().get(0)).isEqualTo(commands.getAllValues().get(1));
+        assertThat(state().answers).containsEntry("free-second","Two");
+    }
+    @Test void staleBeforeSelectionCannotRecaptureANewCatalog() {
+        receive(1,"/start");when(runtime.selectQuestionnaire(channel,catalog,7L)).thenThrow(unavailable());receive(2,choice(0));
+        assertThat(state().selected).isNull();verify(runtime,times(1)).questionnaireChoices(channel);
+    }
+    @Test void staleBeforeFreshPublicationKeepsAnswersButCannotEnqueue() {
+        first();when(runtime.selectQuestionnaire(channel,catalog,7L)).thenThrow(unavailable());receive(4,"Two");
+        assertThat(state().answers).containsEntry("free-second","Two");assertThat(state().submissionMessageId).isNull();verify(tickets,never()).createConversationTicket(any());
+    }
+    @Test void markerPersistenceFailureAfterQueueAcceptanceRetriesOnlyFrozenCommand() throws Exception {
+        first();var once=new AtomicBoolean(true);
+        doAnswer(call->{var incoming=(TelegramQuestionnaireHandler.State)call.getArgument(4);
+            if(incoming.submittedTicketId!=null && once.getAndSet(false)) throw new IllegalStateException("test marker failure");return call.callRealMethod();})
+                .when(store).saveIfUnchanged(eq(TelegramQuestionnaireHandler.SESSION_PLATFORM),eq(55L),eq(1001L),anyString(),any());
+        assertThatThrownBy(()->receive(4,"Two")).hasMessageContaining("marker failure");rebuild();receive(4,"Two");
+        var commands=org.mockito.ArgumentCaptor.forClass(ConversationTicketCreationCommand.class);verify(tickets,times(2)).createConversationTicket(commands.capture());
+        assertThat(commands.getAllValues().get(0)).isEqualTo(commands.getAllValues().get(1));
+    }
+    @Test void confirmationFailureAndCacheLossCannotCreateAnotherRoot() throws Exception {
+        first();doThrow(new TelegramApiException("test confirmation failure")).when(bot).execute(any(SendMessage.class));
+        assertThatThrownBy(()->receive(4,"Two")).hasMessageContaining("delivery failed");
+        resetDeliveryCache();rebuild();receive(4,"Two");receive(3,"One");receive(1,"/start");verify(tickets,times(1)).createConversationTicket(any());
+    }
+    @Test void deliveryAckLossReleasesClaimWithoutDroppingTerminalMarker() throws Exception {
+        first();var once=new AtomicBoolean(true);
+        doAnswer(call->{if(once.getAndSet(false)) throw new IllegalStateException("test ack loss");return call.callRealMethod();}).when(guard).markProcessed(any());
+        assertThatThrownBy(()->receive(4,"Two")).hasMessageContaining("ack loss");rebuild();receive(4,"Two");verify(tickets,times(1)).createConversationTicket(any());
+    }
+    @Test void followupWaitsForOwnCanonicalRootAndRejectsAnotherActiveTicket() {
+        complete();assertThatThrownBy(()->receive(5,"Followup")).hasMessageContaining("not registered");
+        var active=new TicketActive();active.setTicketId("OTHER");when(tickets.findActiveTicketForUser(eq(1001L),anyString(),eq(55L))).thenReturn(Optional.of(active));
+        assertThatThrownBy(()->receive(5,"Followup")).hasMessageContaining("Different active");verify(tickets,never()).recordActiveClientMessage(any());
+        active.setTicketId("T-TG");when(tickets.findByTicketId("T-TG")).thenReturn(Optional.of(new TicketService.TicketWithUser(1001L,"T-TG","open")));
+        receive(5,"Followup");var commands=org.mockito.ArgumentCaptor.forClass(ActiveInboundClientMessageCommand.class);
+        verify(tickets).recordActiveClientMessage(commands.capture());assertThat(commands.getValue().ticketId()).isEqualTo("T-TG");
+        assertThat(commands.getValue().providerMessageId()).isEqualTo(5);assertThat(sent).allMatch(request->request.getChatId().equals("1001"));
+    }
+    @Test void anotherActiveRootBlocksFreshSubmissionAndUnselectedShortcut() {
+        var active=new TicketActive();active.setTicketId("OTHER");when(tickets.findActiveTicketForUser(eq(1001L),anyString(),eq(55L))).thenReturn(Optional.of(active));
+        complete();verify(tickets,never()).createConversationTicket(any());verify(tickets,never()).recordActiveClientMessage(any());assertThat(state().submissionMessageId).isNull();
+    }
+    @Test void cancelDeletesPendingMenuAndOldButtonCannotCreateANewSession() {
+        receive(1,"/start");String old=choice(0);receive(2,"/cancel");receive(3,old);
+        assertThat(store.load(TelegramQuestionnaireHandler.SESSION_PLATFORM,55L,1001L,TelegramQuestionnaireHandler.State.class)).isEmpty();
+        verify(runtime,times(1)).questionnaireChoices(channel);
+    }
+    @Test void newMessageDuringPendingPublicationGetsExplicitRetryInsteadOfBeingConsumed() {
+        first();when(tickets.createConversationTicket(any())).thenThrow(new IllegalStateException("test queue failure"))
+                .thenReturn(new TicketService.TicketCreationResult("T-TG",null,"queued"));
+        assertThatThrownBy(()->receive(4,"Two")).hasMessageContaining("queue failure");
+        assertThatThrownBy(()->receive(5,"New followup")).hasMessageContaining("Retry new");
+        assertThat(sent).extracting(SendMessage::getText).anyMatch(t->t.contains("Повторите это сообщение"));
+        assertThat(state().answers).doesNotContainValue("New followup");
+    }
+    @Test void selectRouteBackAndOptionalSkipPreserveQuestionnaireSemantics() {
+        a=selected(7,"q-a","a",true);when(runtime.selectQuestionnaire(channel,catalog,7L)).thenReturn(a);
+        chooseA();receive(3,"1");assertThat(state().index).isEqualTo(2);
+        receive(4,"Назад");assertThat(state().index).isZero();assertThat(state().answers).isEmpty();
+        receive(5,"нет");assertThat(state().index).isEqualTo(1);receive(6,"Пропустить");assertThat(state().answers).containsEntry("optional","");
+        receive(7,"Final");verify(tickets).createConversationTicket(any());
+    }
+    @Test void malformedChoiceDoesNotConsumeASelectQuestion() {
+        a=selected(7,"q-a","a",true);when(runtime.selectQuestionnaire(channel,catalog,7L)).thenReturn(a);chooseA();receive(3,"999");
+        assertThat(state().answers).isEmpty();assertThat(state().index).isZero();
+    }
+    @Test void optimisticConflictCannotOverwriteConcurrentBusinessChoice() {
+        receive(1,"/start");String first=choice(0),second=choice(1);var once=new AtomicBoolean(true);
+        doAnswer(call->{var state=(TelegramQuestionnaireHandler.State)call.getArgument(4);
+            if(state.selected!=null && once.getAndSet(false)) receive(22,second);return call.callRealMethod();})
+                .when(store).saveIfUnchanged(eq(TelegramQuestionnaireHandler.SESSION_PLATFORM),eq(55L),eq(1001L),anyString(),any());
+        receive(2,first);assertThat(state().selected.businessId()).isEqualTo(8);assertThat(state().answers).isEmpty();
+    }
+    @Test void exhaustedCasConflictsAreNotAcknowledged() {
+        receive(1,"/start");String code=choice(0);clearInvocations(guard);
+        doReturn(Optional.empty()).when(store).saveIfUnchanged(eq(TelegramQuestionnaireHandler.SESSION_PLATFORM),eq(55L),eq(1001L),anyString(),any());
+        assertThatThrownBy(()->receive(2,code)).isInstanceOf(SessionStateConflictException.class);verify(guard,never()).markProcessed(any());
+    }
+    @ParameterizedTest @ValueSource(strings={"user","chat","channel","template","progress","marker","version","answer","history"})
+    void corruptedStateCannotCrossOwnerOrPublish(String kind) {
+        chooseA();var tree=(ObjectNode)mapper.valueToTree(state());
+        switch(kind) {
+            case "user"->tree.put("userId",9999);case "chat"->tree.put("chatId",9999);case "channel"->tree.put("channelId",999);
+            case "template"->((ObjectNode)tree.path("selected")).put("questionTemplateId","foreign");
+            case "progress"->tree.put("index",999);case "marker"->tree.put("submittedTicketId","foreign");case "version"->tree.put("version",9);
+            case "answer"->((ObjectNode)tree.path("answers")).put("foreign-field","foreign-answer");
+            case "history"->tree.set("history",mapper.valueToTree(List.of(new ConversationHistoryEntry(9999L,"foreign","text",null,null,"88",java.time.OffsetDateTime.now()))));
+        }
+        store.save(TelegramQuestionnaireHandler.SESSION_PLATFORM,55L,1001L,tree);assertThatThrownBy(()->receive(3,"Unsafe")).isInstanceOf(RuntimeException.class);
+        verify(tickets,never()).createConversationTicket(any());verify(tickets,never()).recordActiveClientMessage(any());
+    }
+    @Test void selectedMediaAndEditsCannotReachLegacyStorageOrEditWriter() {
+        chooseA();var update=update(3,null);update.getMessage().setDocument(new Document());bot.onUpdateReceived(update);
+        var edited=update(4,"Edited answer");edited.setEditedMessage(edited.getMessage());edited.setMessage(null);bot.onUpdateReceived(edited);
+        assertThat(state().answers).isEmpty();verifyNoInteractions(attachments);verify(tickets,never()).recordActiveClientMessage(any());
+    }
+    @Test void blockedClientCannotChooseOrContinue() {
+        receive(1,"/start");when(blacklist.getStatus(1001L)).thenReturn(new BlacklistService.BlacklistStatus(true,false));
+        receive(2,choice(0));assertThat(state().selected).isNull();verify(runtime,never()).selectQuestionnaire(any(),any(),anyLong());
+    }
+    @Test void previousInMemoryQuestionnaireDoesNotLeakAnswersIntoNewBootstrap() {
+        @SuppressWarnings("unchecked") Map<Long,Object> legacy=(Map<Long,Object>)ReflectionTestUtils.getField(bot,"conversations");
+        legacy.put(1001L,new Object());receive(1,"Old private answer");assertThat(state().bootstrap).isNull();assertThat(state().history).isEmpty();assertThat(legacy).isEmpty();
+    }
+    @Test void legacyAndGeneralOnlyRuntimeAreNotClaimedByNewHandler() {
+        doReturn(Optional.empty()).when(runtime).findChannelConfig(channel);
+        assertThat(handler.handle(update(1,"/start"),channel,sent::add)).isFalse();
+        doReturn(Optional.of(new RuntimeConfigSnapshot(55L,a.botSettings(),Map.of(),Map.of(),"GENERAL","GENERAL_CHANNEL","q-a","a".repeat(64))))
+                .when(runtime).findChannelConfig(channel);
+        assertThat(handler.handle(update(2,"/start"),channel,sent::add)).isFalse();assertThat(sent).isEmpty();
+    }
+    @Test void generalOnlyStillRunsThroughRealSupportBotWithoutSelectingBusiness() {
+        doReturn(Optional.of(new RuntimeConfigSnapshot(55L,a.botSettings(),Map.of(),Map.of(),"GENERAL","GENERAL_CHANNEL","q-a","a".repeat(64))))
+                .when(runtime).findChannelConfig(channel);
+        receive(1,"/start");receive(2,"General one");receive(3,"General two");
+        var command=org.mockito.ArgumentCaptor.forClass(ConversationTicketCreationCommand.class);verify(tickets).createConversationTicket(command.capture());
+        assertThat(command.getValue().scopeKind()).isEqualTo("GENERAL");assertThat(command.getValue().businessId()).isNull();verify(runtime,never()).questionnaireChoices(any());
+    }
+    @Test void twoCanonicalChannelsWithSameOperatorChatAndClientCannotMixMenus() throws Exception {
+        receive(1,"/start");String original=choice(0);
+        var second=new Channel();second.setId(66L);second.setPlatform("telegram");second.setActive(true);
+        when(channels.ensurePublicIdForToken("second-telegram-token")).thenReturn(second);when(runtime.findChannelConfig(second)).thenThrow(unavailable());
+        when(runtime.questionnaireChoices(second)).thenReturn(new ChoiceCatalog(1,66,"d".repeat(64),catalog.choices()));
+        properties.setToken("second-telegram-token");rebuild();receive(1,"/start");
+        assertThat(store.load(TelegramQuestionnaireHandler.SESSION_PLATFORM,66L,1001L,TelegramQuestionnaireHandler.State.class)).isPresent();
+        properties.setToken("test-telegram-token");rebuild();receive(2,original);assertThat(state().selected.businessId()).isEqualTo(7);
+        assertThat(store.load(TelegramQuestionnaireHandler.SESSION_PLATFORM,66L,1001L,TelegramQuestionnaireHandler.State.class).orElseThrow().payload().selected).isNull();
+    }
+    @Test void pageAndGenerationSurviveRestore() throws Exception {
+        var choices=new ArrayList<>(catalog.choices());for(long id=100;id<110;id++) choices.add(new Choice("BUSINESS",id,"b"+id,"Business "+id,"q"+id,"a".repeat(64)));
+        catalog=new ChoiceCatalog(1,55,"c".repeat(64),choices);when(runtime.questionnaireChoices(channel)).thenReturn(catalog);
+        receive(1,"/start");String nonce=state().nonce;receive(2,TelegramQuestionnaireMenu.pageButton(nonce,1,true));resetDeliveryCache();rebuild();receive(1,"/start");
+        assertThat(state().page).isEqualTo(1);assertThat(state().nonce).isEqualTo(nonce);verify(runtime,times(1)).questionnaireChoices(channel);
+    }
+    @Test void selectedCommandCannotBecomeUnscopedTicketListOrClientReply() {
+        complete();receive(5,"/mytickets");verify(tickets,never()).recordActiveClientMessage(any());
+    }
+    @Test void closedRootDoesNotStartAnotherQuestionnaireImplicitly() {
+        complete();when(tickets.findByTicketId("T-TG")).thenReturn(Optional.of(new TicketService.TicketWithUser(1001L,"T-TG","closed")));
+        receive(5,"Followup");verify(tickets,never()).recordActiveClientMessage(any());verify(runtime,times(1)).questionnaireChoices(channel);
+    }
+    @Test void invalidStableProviderIdCannotStartBusinessQuestionnaire() {
+        var update=update(1,"/start");update.getMessage().setMessageId(0);
+        assertThatThrownBy(()->bot.onUpdateReceived(update)).hasMessageContaining("Stable Telegram message ID");
+        verify(store,never()).saveIfUnchanged(anyString(),anyLong(),anyLong(),any(),any());
+    }
+    @ParameterizedTest @ValueSource(strings={"platform","inactive","private-owner"})
+    void invalidChannelOrPrivateOwnerFailsClosed(String kind) {
+        var update=update(1,"/start");
+        if(kind.equals("platform")) channel.setPlatform("max");else if(kind.equals("inactive")) channel.setActive(false);else update.getMessage().getFrom().setId(9999L);
+        assertThatThrownBy(()->bot.onUpdateReceived(update)).hasMessageContaining("owner/channel");verify(tickets,never()).createConversationTicket(any());
+    }
+}

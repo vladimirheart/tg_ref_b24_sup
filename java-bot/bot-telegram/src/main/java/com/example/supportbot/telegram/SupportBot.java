@@ -106,6 +106,7 @@ public class SupportBot extends TelegramLongPollingBot {
     private final BotIngressCoordinationService ingressCoordinationService;
     private final BotWebhookDeliveryGuardService webhookDeliveryGuardService;
     private final RuntimeConfigService runtimeConfigService;
+    private final TelegramQuestionnaireHandler questionnaireHandler;
     private final ObjectMapper objectMapper;
 
     private final Map<Long, ConversationSession> conversations = new ConcurrentHashMap<>();
@@ -131,6 +132,7 @@ public class SupportBot extends TelegramLongPollingBot {
                       BotIngressCoordinationService ingressCoordinationService,
                       BotWebhookDeliveryGuardService webhookDeliveryGuardService,
                       RuntimeConfigService runtimeConfigService,
+                      TelegramQuestionnaireHandler questionnaireHandler,
                       ObjectMapper objectMapper) {
         super(resolveTelegramBotOptionsFromEnv(), properties.getToken());
         this.properties = properties;
@@ -145,6 +147,7 @@ public class SupportBot extends TelegramLongPollingBot {
         this.ingressCoordinationService = ingressCoordinationService;
         this.webhookDeliveryGuardService = webhookDeliveryGuardService;
         this.runtimeConfigService = runtimeConfigService;
+        this.questionnaireHandler = questionnaireHandler;
         this.objectMapper = objectMapper;
     }
 
@@ -230,7 +233,7 @@ public class SupportBot extends TelegramLongPollingBot {
         String deliveryKey = TelegramDeliveryIdentitySupport.buildDeliveryKey(update);
         BotWebhookDeliveryGuardService.DeliveryClaim claim = webhookDeliveryGuardService.tryClaim(
                 "telegram",
-                properties.getChannelId(),
+                getChannel().getId(),
                 deliveryKey);
         if (claim.alreadyProcessed()) {
             log.info("Skipping already processed Telegram delivery {}", deliveryKey);
@@ -250,6 +253,15 @@ public class SupportBot extends TelegramLongPollingBot {
     }
 
     private void processUpdate(Update update) {
+        Message privateMessage = update.getMessage() != null ? update.getMessage() : update.getEditedMessage();
+        if (privateMessage != null && privateMessage.getChat() != null && privateMessage.getChat().isUserChat()
+                && questionnaireHandler.handle(update, getChannel(), request -> {
+                    try { execute(request); }
+                    catch (TelegramApiException ex) { throw new IllegalStateException("Telegram questionnaire delivery failed", ex); }
+                }, privateMessage.getFrom() == null || !conversations.containsKey(privateMessage.getFrom().getId()))) {
+            if (privateMessage.getFrom() != null) conversations.remove(privateMessage.getFrom().getId());
+            return;
+        }
         log.info("Received Telegram update {} (message={}, callbackQuery={}, editedMessage={}, channelPost={})",
                 update.getUpdateId(),
                 update.getMessage() != null,
