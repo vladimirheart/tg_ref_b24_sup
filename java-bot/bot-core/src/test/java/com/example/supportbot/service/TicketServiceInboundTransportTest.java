@@ -243,7 +243,12 @@ class TicketServiceInboundTransportTest {
                 901L, "tg-901", "client", "Client", java.util.Map.of("problem", "Help"),
                 java.util.List.of(), java.util.List.of(), channel,
                 OffsetDateTime.parse("2026-10-15T10:00:00Z"), "message:901:3", null,
-                null, null, "q-general", "a".repeat(64))
+                null, null, "q-general", "a".repeat(64)),
+            new ConversationTicketCreationCommand(
+                901L, "tg-901", "client", "Client", java.util.Map.of("problem", "Help"),
+                java.util.List.of(), java.util.List.of(), channel,
+                OffsetDateTime.parse("2026-10-15T10:00:00Z"), "message:901:4", null,
+                null, null, null, null, "c".repeat(64))
         )) {
             assertThatThrownBy(() -> service.createConversationTicket(command))
                 .isInstanceOf(IllegalStateException.class)

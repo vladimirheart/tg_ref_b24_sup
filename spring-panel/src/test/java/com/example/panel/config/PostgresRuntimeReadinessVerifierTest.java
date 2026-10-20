@@ -20,6 +20,19 @@ import org.springframework.mock.env.MockEnvironment;
 class PostgresRuntimeReadinessVerifierTest {
 
     @Test
+    void missingBusinessSelectionProvenanceCannotReportReady() {
+        var jdbc=mock(JdbcTemplate.class);
+        when(jdbc.queryForList(anyString())).thenReturn(List.of());
+        when(jdbc.queryForList(contains("questionnaire_catalog_sha256"))).thenThrow(new IllegalStateException("V73 is missing"));
+        var verifier=new PostgresRuntimeReadinessVerifier(jdbc,
+            new MockEnvironment().withProperty("app.datasource.mode","postgresql"),
+            mock(com.example.panel.service.RuntimeCoordinationService.class),
+            mock(com.example.panel.storage.AttachmentObjectStorageService.class));
+        assertThatThrownBy(()->verifier.onApplicationEvent(null)).isInstanceOf(IllegalStateException.class)
+            .hasRootCauseMessage("V73 is missing");
+    }
+
+    @Test
     void postgresModeVerifiesTransportAndIncidentContours() throws Exception {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         MockEnvironment environment = new MockEnvironment()
@@ -59,6 +72,7 @@ class PostgresRuntimeReadinessVerifierTest {
             + "ticket_scope_kind, ticket_business_id FROM ui_event_outbox WHERE 1 = 0");
         verify(jdbcTemplate).queryForList(contains("FROM integration_inbound_event_inbox"));
         verify(jdbcTemplate).queryForList("SELECT ticket_id, created_at, general_work_revision FROM tickets WHERE 1 = 0");
+        verify(jdbcTemplate).queryForList("SELECT business_selection_source,questionnaire_catalog_sha256 FROM tickets WHERE 1 = 0");
         verify(jdbcTemplate).queryForList("SELECT user_id, is_active FROM general_ticket_operate_grants WHERE 1 = 0");
         verify(jdbcTemplate).queryForList("SELECT ticket_public_id, revision, actor_user_id FROM general_ticket_work_events WHERE 1 = 0");
         verify(jdbcTemplate).queryForList("SELECT general_ticket_transition_allowed('open','closed') WHERE 1 = 0");

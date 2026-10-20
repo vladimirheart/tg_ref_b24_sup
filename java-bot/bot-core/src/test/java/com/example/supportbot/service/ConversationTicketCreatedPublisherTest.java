@@ -18,6 +18,30 @@ import static org.mockito.Mockito.when;
 class ConversationTicketCreatedPublisherTest {
 
     @Test
+    void allProvidersTransportTheSameFrozenBusinessSelection() {
+        var outbox=mock(IntegrationTransportOutboxService.class);
+        when(outbox.enqueueConversationTicketCreated(any(),any())).thenReturn(true);
+        var publisher=new ConversationTicketCreatedPublisher(outbox,new IntegrationRabbitProperties());
+        for(String platform:List.of("telegram","vk","max")) {
+            var channel=new Channel();channel.setId(25L);channel.setPlatform(platform);
+            var command=new ConversationTicketCreationCommand(901L,"client","client","Client",
+                Map.of("free","answer"),List.of(),List.of(),channel,OffsetDateTime.now(),"event-"+platform,
+                7L,"BUSINESS","USER_SELECTION","q-a","a".repeat(64),"c".repeat(64));
+            assertThat(publisher.publish(command,"ticket-"+platform,"Display only",null,null,null,"Help")).isTrue();
+        }
+        var events=ArgumentCaptor.forClass(ConversationTicketCreatedEvent.class);
+        verify(outbox,times(3)).enqueueConversationTicketCreated(events.capture(),any());
+        assertThat(events.getAllValues()).allSatisfy(event -> {
+            assertThat(event.businessId()).isEqualTo(7L);
+            assertThat(event.scopeKind()).isEqualTo("BUSINESS");
+            assertThat(event.scopeSelectionSource()).isEqualTo("USER_SELECTION");
+            assertThat(event.questionTemplateId()).isEqualTo("q-a");
+            assertThat(event.templateSha256()).isEqualTo("a".repeat(64));
+            assertThat(event.catalogSha256()).isEqualTo("c".repeat(64));
+        });
+    }
+
+    @Test
     void transportsTheQuestionnaireVersionSelectedByTheSession() {
         IntegrationTransportOutboxService outbox = mock(IntegrationTransportOutboxService.class);
         when(outbox.enqueueConversationTicketCreated(any(), any())).thenReturn(true);

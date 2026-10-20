@@ -2053,11 +2053,12 @@ public class SupportBot extends TelegramLongPollingBot {
                         channel,
                         session.startedAt(),
                         session.providerEventKey(),
-                        null,
+                        session.scope() != null ? session.scope().businessId() : null,
                         session.scope() != null ? session.scope().scopeKind() : null,
                         session.scope() != null ? session.scope().scopeSelectionSource() : null,
                         session.scope() != null ? session.scope().questionTemplateId() : null,
-                        session.scope() != null ? session.scope().templateSha256() : null
+                        session.scope() != null ? session.scope().templateSha256() : null,
+                        session.scope() != null ? session.scope().catalogSha256() : null
                 )
         );
         if ("duplicate".equals(ticket.status())) {

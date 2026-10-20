@@ -887,11 +887,12 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                         channel,
                         session.startedAt(),
                         null,
-                        null,
+                        session.scope() != null ? session.scope().businessId() : null,
                         session.scope() != null ? session.scope().scopeKind() : null,
                         session.scope() != null ? session.scope().scopeSelectionSource() : null,
                         session.scope() != null ? session.scope().questionTemplateId() : null,
-                        session.scope() != null ? session.scope().templateSha256() : null
+                        session.scope() != null ? session.scope().templateSha256() : null,
+                        session.scope() != null ? session.scope().catalogSha256() : null
                 )
         );
         Optional<String> requestNumber = ticketService.awaitClientTicketNumber(result);

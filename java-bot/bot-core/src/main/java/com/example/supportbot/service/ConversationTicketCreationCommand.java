@@ -20,7 +20,17 @@ public record ConversationTicketCreationCommand(Long userId,
                                                 String scopeKind,
                                                 String scopeSelectionSource,
                                                 String questionTemplateId,
-                                                String templateSha256) {
+                                                String templateSha256,
+                                                String catalogSha256) {
+
+    public ConversationTicketCreationCommand(Long userId, String userIdentity, String username,
+            String clientName, Map<String, String> answers, List<TicketService.TicketAttributeInput> attributes,
+            List<ConversationHistoryEntry> historyEntries, Channel channel, OffsetDateTime startedAt,
+            String providerEventKey, Long businessId, String scopeKind, String scopeSelectionSource,
+            String questionTemplateId, String templateSha256) {
+        this(userId, userIdentity, username, clientName, answers, attributes, historyEntries, channel,
+            startedAt, providerEventKey, businessId, scopeKind, scopeSelectionSource, questionTemplateId, templateSha256, null);
+    }
 
     public ConversationTicketCreationCommand(Long userId, String userIdentity, String username,
                                              String clientName, Map<String, String> answers,

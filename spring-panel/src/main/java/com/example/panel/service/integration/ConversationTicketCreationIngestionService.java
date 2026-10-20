@@ -16,6 +16,7 @@ import com.example.panel.repository.TicketRepository;
 import com.example.panel.repository.TicketSpanRepository;
 import com.example.panel.service.ChatAttachmentMetadataService;
 import com.example.panel.service.GeneralChannelQuestionTemplateService;
+import com.example.panel.service.BusinessQuestionTemplateRegistryService;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
@@ -46,6 +47,7 @@ public class ConversationTicketCreationIngestionService {
     private final MultibusinessFeatureFlags multibusinessFeatureFlags;
     private final BusinessTicketWriteScopeResolver businessTicketWriteScopeResolver;
     private final GeneralChannelQuestionTemplateService generalChannelQuestionTemplateService;
+    private final BusinessQuestionTemplateRegistryService businessTemplates;
 
     public ConversationTicketCreationIngestionService(IntegrationInboundEventInboxService inboxService,
                                                       LegacyTicketIdConcurrencyGuard legacyTicketIdConcurrencyGuard,
@@ -59,7 +61,8 @@ public class ConversationTicketCreationIngestionService {
                                                       JdbcTemplate jdbcTemplate,
                                                       MultibusinessFeatureFlags multibusinessFeatureFlags,
                                                       BusinessTicketWriteScopeResolver businessTicketWriteScopeResolver,
-                                                      GeneralChannelQuestionTemplateService generalChannelQuestionTemplateService) {
+                                                      GeneralChannelQuestionTemplateService generalChannelQuestionTemplateService,
+                                                      BusinessQuestionTemplateRegistryService businessTemplates) {
         this.inboxService = inboxService;
         this.legacyTicketIdConcurrencyGuard = legacyTicketIdConcurrencyGuard;
         this.channelRepository = channelRepository;
@@ -73,6 +76,7 @@ public class ConversationTicketCreationIngestionService {
         this.multibusinessFeatureFlags = multibusinessFeatureFlags;
         this.businessTicketWriteScopeResolver = businessTicketWriteScopeResolver;
         this.generalChannelQuestionTemplateService = generalChannelQuestionTemplateService;
+        this.businessTemplates = businessTemplates;
     }
 
     @Transactional
@@ -118,29 +122,45 @@ public class ConversationTicketCreationIngestionService {
         }
         boolean generalChannel = isGeneralScope(event)
             && "GENERAL_CHANNEL".equals(event.scopeSelectionSource());
-        if (!generalChannel && (event.questionTemplateId() != null || event.templateSha256() != null)) {
+        boolean selectedBusiness = "BUSINESS".equals(event.scopeKind())
+            && "USER_SELECTION".equals(event.scopeSelectionSource());
+        if (selectedBusiness) {
+            requireSelectedBusinessShape(event);
+            if (!strictBusinessWrite || !multibusinessFeatureFlags.isSharedChannelResolution()) {
+                throw new IllegalStateException("Business questionnaire selection requires strict shared-channel writes");
+            }
+        }
+        if (!selectedBusiness && event.catalogSha256() != null) {
+            throw new IllegalStateException("Unexpected questionnaire catalog fingerprint");
+        }
+        if (!generalChannel && !selectedBusiness
+                && (event.questionTemplateId() != null || event.templateSha256() != null)) {
             throw new IllegalStateException("Questionnaire provenance requires a general channel scope");
         }
         if (ticketRepository.existsById(canonicalLocator)) {
-            if (strictBusinessWrite) {
-                // A retry keeps the ticket's frozen owner even if channel bindings changed later.
-                Ticket existing = ticketRepository.findById(canonicalLocator)
-                    .orElseThrow(() -> new IllegalStateException("Ticket creation replay lost its existing ticket"));
+            Ticket existing = ticketRepository.findById(canonicalLocator)
+                .orElseThrow(() -> new IllegalStateException("Ticket creation replay lost its existing ticket"));
+            if (strictBusinessWrite || existing.getBusinessSelectionSource() != null
+                    || existing.getQuestionnaireCatalogSha256() != null) {
+                // A retry keeps the frozen owner/version, including after feature flags change.
                 Long existingChannelId = existing.getChannel() != null ? existing.getChannel().getId() : null;
                 boolean generalReplay = isGeneralScope(event);
                 boolean businessReplay = (event.scopeKind() == null || "BUSINESS".equals(event.scopeKind()))
-                    && event.scopeSelectionSource() == null
+                    && (event.scopeSelectionSource() == null || selectedBusiness)
                     && event.businessId() != null && event.businessId() > 0;
                 if ((!generalReplay && !businessReplay)
                     || existing.isGeneral() != generalReplay
                     || !Objects.equals(existing.getBusinessId(), event.businessId())
+                    || !Objects.equals(existing.getBusinessSelectionSource(),
+                        selectedBusiness ? event.scopeSelectionSource() : null)
                     || (generalReplay && !Objects.equals(existing.getGeneralSelectionSource(),
                         event.scopeSelectionSource()))
                     || !Objects.equals(existingChannelId, event.channelId())) {
                     throw new IllegalStateException("Ticket creation replay business or channel mismatch");
                 }
                 if (!Objects.equals(existing.getQuestionTemplateId(), event.questionTemplateId())
-                    || !Objects.equals(existing.getQuestionTemplateSha256(), event.templateSha256())) {
+                    || !Objects.equals(existing.getQuestionTemplateSha256(), event.templateSha256())
+                    || !Objects.equals(existing.getQuestionnaireCatalogSha256(), event.catalogSha256())) {
                     throw new IllegalStateException("Ticket creation replay questionnaire mismatch");
                 }
             }
@@ -150,6 +170,10 @@ public class ConversationTicketCreationIngestionService {
         // must fail closed instead of silently dropping an unrelated ticket.
         if (ticketRepository.existsByIdTicketId(event.ticketId())) {
             throw new IllegalStateException("Legacy ticket ID collision across users");
+        }
+
+        if (!selectedBusiness && businessTicketWriteScopeResolver.requiresExplicitSelection(event.channelId())) {
+            throw new IllegalStateException("Shared channel requires an explicit verified business questionnaire");
         }
 
         if (generalChannelQuestionTemplateService.findBinding(event.channelId())
@@ -174,11 +198,25 @@ public class ConversationTicketCreationIngestionService {
                 if (event.scopeKind() != null && !"BUSINESS".equals(event.scopeKind())) {
                     throw new IllegalStateException("Unsupported ticket scope kind");
                 }
-                if (event.scopeSelectionSource() != null) {
+                if (selectedBusiness) {
+                    if (event.platform() == null || !List.of("telegram", "vk", "max").contains(event.platform())
+                            || !Objects.equals(channel.getPlatform(), event.platform())) {
+                        throw new IllegalStateException("Business questionnaire channel platform mismatch");
+                    }
+                    BusinessQuestionTemplateRegistryService.SelectedRuntime selected = businessTemplates
+                        .select(event.channelId(), event.businessId(), event.catalogSha256())
+                        .orElseThrow(() -> new IllegalStateException("Business questionnaire selection is stale; restart questionnaire"));
+                    if (!Objects.equals(selected.questionTemplateId(), event.questionTemplateId())
+                            || !Objects.equals(selected.templateSha256(), event.templateSha256())) {
+                        throw new IllegalStateException("Business questionnaire version mismatch; restart questionnaire");
+                    }
+                    businessId = selected.businessId();
+                } else if (event.scopeSelectionSource() != null) {
                     throw new IllegalStateException("Unexpected business scope selection source");
+                } else {
+                    businessId = businessTicketWriteScopeResolver.requireSingleBusinessBinding(
+                        event.channelId(), event.businessId());
                 }
-                businessId = businessTicketWriteScopeResolver.requireSingleBusinessBinding(
-                    event.channelId(), event.businessId());
             }
         }
 
@@ -249,11 +287,24 @@ public class ConversationTicketCreationIngestionService {
         ticket.setGeneralSelectionSource(general ? event.scopeSelectionSource() : null);
         ticket.setQuestionTemplateId(event.questionTemplateId());
         ticket.setQuestionTemplateSha256(event.templateSha256());
+        ticket.setBusinessSelectionSource("BUSINESS".equals(event.scopeKind())
+            && "USER_SELECTION".equals(event.scopeSelectionSource()) ? "USER_SELECTION" : null);
+        ticket.setQuestionnaireCatalogSha256(event.catalogSha256());
         ticket.setReopenCount(0);
         ticket.setClosedCount(0);
         ticket.setWorkTimeTotalSec(0L);
         ticket.setLastReopenAt(occurredAt);
         return ticket;
+    }
+
+    private void requireSelectedBusinessShape(ConversationTicketCreatedEvent event) {
+        if (event.businessId() == null || event.businessId() <= 0
+                || event.questionTemplateId() == null || event.questionTemplateId().isBlank()
+                || !event.questionTemplateId().equals(event.questionTemplateId().strip())
+                || event.templateSha256() == null || !event.templateSha256().matches("[a-f0-9]{64}")
+                || event.catalogSha256() == null || !event.catalogSha256().matches("[a-f0-9]{64}")) {
+            throw new IllegalStateException("Incomplete selected business questionnaire");
+        }
     }
 
     private void requireMatchingGeneralQuestionnaire(ConversationTicketCreatedEvent event) {

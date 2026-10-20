@@ -24,6 +24,36 @@ import org.testcontainers.utility.DockerImageName;
 class IntegrationTransportOutboxServiceTest {
 
     @Test
+    void selectedBusinessCatalogCannotBeChangedOrDroppedOnOutboxRetry() throws Exception {
+        var original=selectedBusiness("c".repeat(64));
+        assertThat(service.enqueueConversationTicketCreated(original,properties)).isTrue();
+        String stored=jdbcTemplate.queryForObject("SELECT payload_json FROM integration_transport_outbox WHERE event_id=?",
+            String.class,original.eventId());
+        var dates=new com.fasterxml.jackson.databind.module.SimpleModule();
+        dates.addDeserializer(OffsetDateTime.class,new com.fasterxml.jackson.databind.JsonDeserializer<OffsetDateTime>() {
+            @Override public OffsetDateTime deserialize(com.fasterxml.jackson.core.JsonParser parser,
+                    com.fasterxml.jackson.databind.DeserializationContext context) throws java.io.IOException {
+                return OffsetDateTime.parse(parser.getValueAsString());
+            }
+        });
+        assertThat(new ObjectMapper().registerModule(dates).readValue(stored,ConversationTicketCreatedEvent.class)).isEqualTo(original);
+        assertThat(service.enqueueConversationTicketCreated(original,properties)).isFalse();
+        for(String fingerprint:new String[]{null,"d".repeat(64)}) {
+            assertThatThrownBy(()->service.enqueueConversationTicketCreated(selectedBusiness(fingerprint),properties))
+                .hasMessageContaining("identity or business mismatch");
+        }
+        assertThat(jdbcTemplate.queryForObject("SELECT payload_json FROM integration_transport_outbox WHERE event_id=?",
+            String.class,original.eventId())).isEqualTo(stored);
+    }
+
+    private ConversationTicketCreatedEvent selectedBusiness(String catalog) {
+        return new ConversationTicketCreatedEvent("selected-business","ticket.created.initial_contact","telegram",10L,
+            "T-BUSINESS",20L,"client","client","Client","Display",null,null,null,"Help",
+            OffsetDateTime.parse("2026-10-20T10:00:00Z"),List.of(),List.of(),7L,
+            "BUSINESS","USER_SELECTION","q-a","a".repeat(64),catalog);
+    }
+
+    @Test
     void questionnaireVersionSurvivesOutboxAndCannotChangeOnDuplicate() {
         ConversationTicketCreatedEvent original = questionnaireEvent("q-general", "a".repeat(64));
         assertThat(service.enqueueConversationTicketCreated(original, properties)).isTrue();

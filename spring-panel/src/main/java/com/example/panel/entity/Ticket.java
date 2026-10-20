@@ -45,6 +45,28 @@ public class Ticket {
     @Column(name = "question_template_sha256", length = 64, updatable = false)
     private String questionTemplateSha256;
 
+    @Column(name = "business_selection_source", length = 32, updatable = false)
+    private String businessSelectionSource;
+
+    @Column(name = "questionnaire_catalog_sha256", length = 64, updatable = false)
+    private String questionnaireCatalogSha256;
+
+    public String getBusinessSelectionSource() {
+        return businessSelectionSource;
+    }
+
+    public void setBusinessSelectionSource(String businessSelectionSource) {
+        this.businessSelectionSource = businessSelectionSource;
+    }
+
+    public String getQuestionnaireCatalogSha256() {
+        return questionnaireCatalogSha256;
+    }
+
+    public void setQuestionnaireCatalogSha256(String questionnaireCatalogSha256) {
+        this.questionnaireCatalogSha256 = questionnaireCatalogSha256;
+    }
+
     private String status;
 
     private OffsetDateTime resolvedAt;

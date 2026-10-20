@@ -34,6 +34,14 @@ public class BusinessTicketWriteScopeResolver {
         return businessId;
     }
 
+    /** An explicit-selection channel must never create a legacy/unresolved root. */
+    public boolean requiresExplicitSelection(long channelId) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("""
+            SELECT EXISTS(SELECT 1 FROM business_channel_bindings
+                WHERE channel_id=? AND is_active=TRUE AND resolution_mode='EXPLICIT_SELECTION')
+            """, Boolean.class, channelId));
+    }
+
     private record Binding(long businessId, String resolutionMode, String businessStatus) {
     }
 }

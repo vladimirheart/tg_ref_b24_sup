@@ -768,11 +768,49 @@ scope/версии, подмена payload или глобальные presets/s
 Совместимость legacy runtime остаётся только для unbound channels; отключённый
 Panel API/другие transport modes ещё требуют отдельного аудита.
 
-Это read-only подготовка, не право создать ticket и не сохранённая сессия.
-Кнопки Telegram/VK/MAX, GENERAL option общего канала, BUSINESS scope через
-sessions/events/INSERT/replay, scoped locations и resume после rebind пока
-PENDING. Нельзя активировать новый shared-channel flow/rollout до подключения
-совместимых consumers и writer proof; существующий general-only flow сохранён.
+R143 сам по себе — read-only handshake, не право создать ticket. Контракт
+BUSINESS producer/INSERT/replay добавлен в R144 ниже. Кнопки Telegram/VK/MAX,
+GENERAL option общего канала, scoped locations и полноценный resume/UX после
+rebind остаются PENDING. Новый shared-channel flow нельзя включать до
+подключения совместимых consumers; существующий general-only flow сохранён.
+
+### R144: создание BUSINESS по сохранённому выбору вопросника
+
+QuestionnaireScope для BUSINESS содержит положительный businessId,
+USER_SELECTION, stable template ID, SHA-256 шаблона и catalogSha256. Неполный
+BUSINESS snapshot не десериализуется как legacy/GENERAL. Старый GENERAL snapshot
+совместим с nullable новыми полями. Command и оба event DTO передают catalogSha256
+без повторного lookup; Telegram/VK/MAX finalizers используют businessId и
+отпечатки из scope сессии. Это подготовка finalizers, не подключение меню выбора.
+
+Новый BUSINESS/USER_SELECTION INSERT требует foundation, strict ticket writes
+и shared-channel-resolution. До записи корня backend проверяет platform канала,
+полный актуальный каталог R143, membership выбора и точные template ID/SHA.
+Изменение любого варианта меню, rebind или stale template требует начать выбор
+заново; нельзя молча получить новую версию или вывести owner из display business.
+Канал с активным EXPLICIT_SELECTION не принимает новый legacy/unresolved или
+непроверенный GENERAL envelope, в том числе при выключенном strict flag.
+SINGLE_BUSINESS сохраняет отдельную прежнюю проверку однозначной привязки.
+
+V73 добавляет nullable immutable business_selection_source и
+questionnaire_catalog_sha256 в tickets. CHECK допускает только полный
+BUSINESS/USER_SELECTION с owner и версией шаблона; GENERAL поля не переиспользуются.
+Исторические строки не получают сегодняшнюю конфигурацию. SQL trigger запрещает
+смену/удаление новых полей; readiness требует новую схему до READY.
+
+Outbox и inbox сверяют catalogSha256 наряду с owner/scope/template identity
+до пропуска duplicate или reclaim. Replay существующего canonical tuple
+сверяет frozen owner/source/template/catalog/channel, а не нынешние bindings;
+новый event ID не позволяет потерять selection provenance. Отключение strict
+flag также не превращает уже выбранный BUSINESS root в legacy replay.
+При ошибке дочерней записи root/children откатываются, failed inbox допускает
+точный повтор. Сами transport event IDs и display поля не выдают права доступа.
+
+Подтверждены typed JSON/CAS scope и MAX state round-trip; сохранение/восстановление
+pending choice и фактический selection UX всех провайдеров ещё не реализованы.
+GENERAL option общего канала требует отдельной явной настройки, а не ослабления
+general-only binding. Нет новых scoped presets/locations, version registry для
+старых незавершённых опросов или разрешения на flags/migration/rollout.
 
 ## Scope guard и API contract
 

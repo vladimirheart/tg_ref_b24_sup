@@ -182,7 +182,7 @@ public class TicketService {
         }
         if (command.businessId() != null || command.scopeKind() != null
             || command.scopeSelectionSource() != null || command.questionTemplateId() != null
-            || command.templateSha256() != null) {
+            || command.templateSha256() != null || command.catalogSha256() != null) {
             throw new IllegalStateException("Direct ticket storage cannot persist a canonical ticket scope");
         }
         TicketCreationResult created = createTicketDirect(

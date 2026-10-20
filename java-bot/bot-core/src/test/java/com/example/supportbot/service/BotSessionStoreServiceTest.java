@@ -15,6 +15,23 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 class BotSessionStoreServiceTest {
 
     @Test
+    void sessionCasKeepsTheSelectedBusinessAndCatalogSnapshot() {
+        var properties=new BotIngressCoordinationProperties();properties.setMode("direct");
+        var service=new BotSessionStoreService(properties,new ObjectMapper(),emptyProvider());
+        var scope=new QuestionnaireScope("BUSINESS","USER_SELECTION","q-a","a".repeat(64),7L,"c".repeat(64));
+        var initial=new SelectedSession(scope,0);
+        String first=service.saveIfUnchanged("vk",17L,101L,null,initial).orElseThrow();
+        var loaded=service.load("vk",17L,101L,SelectedSession.class).orElseThrow();
+        assertThat(loaded.payload()).isEqualTo(initial);
+        assertThat(service.saveIfUnchanged("vk",17L,101L,first,new SelectedSession(scope,1))).isPresent();
+        var anotherScope=new QuestionnaireScope("BUSINESS","USER_SELECTION","q-b","b".repeat(64),8L,"d".repeat(64));
+        assertThat(service.saveIfUnchanged("vk",17L,101L,first,new SelectedSession(anotherScope,2))).isEmpty();
+        assertThat(service.load("vk",17L,101L,SelectedSession.class).orElseThrow().payload()).isEqualTo(new SelectedSession(scope,1));
+    }
+
+    private record SelectedSession(QuestionnaireScope scope,int step) { }
+
+    @Test
     void directModePersistsAndLoadsSessionPayloads() {
         BotIngressCoordinationProperties properties = new BotIngressCoordinationProperties();
         properties.setMode("direct");

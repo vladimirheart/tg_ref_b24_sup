@@ -26,6 +26,7 @@ import com.example.panel.repository.TicketRepository;
 import com.example.panel.repository.TicketSpanRepository;
 import com.example.panel.service.ChatAttachmentMetadataService;
 import com.example.panel.service.GeneralChannelQuestionTemplateService;
+import com.example.panel.service.BusinessQuestionTemplateRegistryService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.time.OffsetDateTime;
@@ -63,7 +64,8 @@ class ConversationTicketCreationIngestionServiceTest {
             jdbcTemplate,
             disabledFlags(),
             mock(BusinessTicketWriteScopeResolver.class),
-            mock(GeneralChannelQuestionTemplateService.class)
+            mock(GeneralChannelQuestionTemplateService.class),
+            mock(BusinessQuestionTemplateRegistryService.class)
         );
 
         OffsetDateTime occurredAt = OffsetDateTime.parse("2026-08-14T11:00:00Z");
@@ -211,7 +213,8 @@ class ConversationTicketCreationIngestionServiceTest {
             mock(TicketSpanRepository.class), mock(TicketActiveRepository.class),
             mock(ChatHistoryRepository.class), mock(ChatAttachmentMetadataService.class),
             mock(JdbcTemplate.class), disabledFlags(), mock(BusinessTicketWriteScopeResolver.class),
-            mock(GeneralChannelQuestionTemplateService.class)
+            mock(GeneralChannelQuestionTemplateService.class),
+            mock(BusinessQuestionTemplateRegistryService.class)
         );
         ConversationTicketCreatedEvent event = minimalEvent("evt-same-owner", 901L, "T-RABBIT-SAME");
         Channel channel = new Channel();
@@ -226,6 +229,7 @@ class ConversationTicketCreationIngestionServiceTest {
         canonicalLocator.setUserId(901L);
         canonicalLocator.setTicketId("T-RABBIT-SAME");
         when(ticketRepository.existsById(canonicalLocator)).thenReturn(true);
+        when(ticketRepository.findById(canonicalLocator)).thenReturn(Optional.of(new Ticket()));
 
         service.ingest(event, "integration.ticket.telegram");
 
@@ -247,7 +251,8 @@ class ConversationTicketCreationIngestionServiceTest {
             mock(TicketSpanRepository.class), mock(TicketActiveRepository.class),
             mock(ChatHistoryRepository.class), mock(ChatAttachmentMetadataService.class),
             mock(JdbcTemplate.class), disabledFlags(), mock(BusinessTicketWriteScopeResolver.class),
-            mock(GeneralChannelQuestionTemplateService.class)
+            mock(GeneralChannelQuestionTemplateService.class),
+            mock(BusinessQuestionTemplateRegistryService.class)
         );
         ConversationTicketCreatedEvent event = minimalEvent("evt-other-owner", 902L, "T-RABBIT-COLLISION");
         Channel channel = new Channel();
@@ -291,7 +296,8 @@ class ConversationTicketCreationIngestionServiceTest {
             mock(JdbcTemplate.class),
             disabledFlags(),
             mock(BusinessTicketWriteScopeResolver.class),
-            mock(GeneralChannelQuestionTemplateService.class)
+            mock(GeneralChannelQuestionTemplateService.class),
+            mock(BusinessQuestionTemplateRegistryService.class)
         );
         ConversationTicketCreatedEvent event = new ConversationTicketCreatedEvent(
             "evt-ticket-dup",
@@ -853,7 +859,7 @@ class ConversationTicketCreationIngestionServiceTest {
         return new ConversationTicketCreationIngestionService(inbox, mock(LegacyTicketIdConcurrencyGuard.class),
             channels, messages, tickets, mock(TicketSpanRepository.class), mock(TicketActiveRepository.class),
             mock(ChatHistoryRepository.class), mock(ChatAttachmentMetadataService.class),
-            mock(JdbcTemplate.class), flags, resolver, generalTemplates);
+            mock(JdbcTemplate.class), flags, resolver, generalTemplates, mock(BusinessQuestionTemplateRegistryService.class));
     }
 
     private ConversationTicketCreatedEvent eventWithBusinessId(Long businessId) {

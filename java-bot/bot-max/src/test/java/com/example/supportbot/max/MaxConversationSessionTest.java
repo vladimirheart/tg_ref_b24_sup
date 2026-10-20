@@ -14,6 +14,19 @@ import org.junit.jupiter.api.Test;
 class MaxConversationSessionTest {
 
     @Test
+    void snapshotKeepsSelectedBusinessVersionAndFreeQuestionOrderAcrossJson() throws Exception {
+        var scope=new QuestionnaireScope("BUSINESS","USER_SELECTION","q-a","a".repeat(64),7L,"c".repeat(64));
+        var session=new MaxConversationSession(1001L,2002L,null,null,
+            List.of(question("free-first","text","First"),question("free-second","text","Second")),null,scope);
+        session.recordAnswer("First answer");
+        var mapper=org.springframework.http.converter.json.Jackson2ObjectMapperBuilder.json().build();
+        var restored=new MaxConversationSession(mapper.readValue(mapper.writeValueAsString(session.snapshot()),MaxConversationSession.State.class));
+        assertThat(restored.scope()).isEqualTo(scope);
+        assertThat(restored.currentQuestion().getId()).isEqualTo("free-second");
+        assertThat(restored.answers()).containsEntry("free-first","First answer");
+    }
+
+    @Test
     void snapshotKeepsGeneralScopeChosenBeforeFirstQuestion() {
         QuestionnaireScope scope = new QuestionnaireScope("GENERAL", "GENERAL_CHANNEL", "q-general", "hash");
         MaxConversationSession session = new MaxConversationSession(1001L, 2002L, null, null,

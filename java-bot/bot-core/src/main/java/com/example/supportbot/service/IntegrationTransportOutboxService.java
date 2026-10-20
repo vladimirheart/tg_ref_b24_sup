@@ -106,6 +106,7 @@ public class IntegrationTransportOutboxService {
             || !Objects.equals(original.businessId(), incoming.businessId())
             || !Objects.equals(original.questionTemplateId(), incoming.questionTemplateId())
             || !Objects.equals(original.templateSha256(), incoming.templateSha256())
+            || !Objects.equals(original.catalogSha256(), incoming.catalogSha256())
             || !Objects.equals(original.scopeKind(), incoming.scopeKind())
             || !Objects.equals(original.scopeSelectionSource(), incoming.scopeSelectionSource())
             || !Objects.equals(original.eventKind(), incoming.eventKind())) {
