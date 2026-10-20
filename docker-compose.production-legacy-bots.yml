@@ -1,3 +1,9 @@
+x-iguana-logging: &iguana-logging
+  driver: json-file
+  options:
+    max-size: "${IGUANA_DOCKER_LOG_MAX_SIZE:-10m}"
+    max-file: "${IGUANA_DOCKER_LOG_MAX_FILES:-3}"
+
 # Emergency-only legacy static bot services for task 01-242.
 # This file is not a normal production entrypoint.
 # Combine it with docker-compose.production-contour.yml only through
@@ -6,10 +12,13 @@
 
 services:
   bot-telegram:
+    logging: *iguana-logging
     # Emergency-only compatibility runtime; normal production uses bot-runner.
     build:
       context: .
       dockerfile: docker/bot.Dockerfile
+      labels:
+        io.iguana.project: ${COMPOSE_PROJECT_NAME}
       args:
         BOT_MODULE: bot-telegram
     restart: "no"
@@ -60,9 +69,12 @@ services:
       - ${IGUANA_LOGS_DIR:-./logs}:/opt/iguana/logs
 
   bot-vk:
+    logging: *iguana-logging
     build:
       context: .
       dockerfile: docker/bot.Dockerfile
+      labels:
+        io.iguana.project: ${COMPOSE_PROJECT_NAME}
       args:
         BOT_MODULE: bot-vk
     restart: "no"
@@ -120,9 +132,12 @@ services:
       - ${IGUANA_LOGS_DIR:-./logs}:/opt/iguana/logs
 
   bot-max:
+    logging: *iguana-logging
     build:
       context: .
       dockerfile: docker/bot.Dockerfile
+      labels:
+        io.iguana.project: ${COMPOSE_PROJECT_NAME}
       args:
         BOT_MODULE: bot-max
     restart: "no"

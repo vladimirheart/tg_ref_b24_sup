@@ -118,6 +118,15 @@ docker compose -f docker-compose.production-contour.yml -f docker-compose.produc
 .\scripts\docker-production-up.ps1 -ValidateOnly
 ```
 
+После успешного detached-запуска с пересборкой helper scripts не чаще раза в
+неделю очищают старые образы проекта без тегов. Ручной отчёт:
+
+~~~powershell
+.\scripts\docker-maintenance.ps1
+~~~
+
+Подробности и настройки: [обслуживание Docker-хранилища](docs/docker-production-contour.md#обслуживание-docker-хранилища).
+
 После старта проверьте, что `bot-runner` healthy и только он владеет запуском активных каналов:
 
 ```powershell

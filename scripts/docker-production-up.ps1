@@ -649,6 +649,23 @@ if (-not $NoDetach -and (Test-Path -LiteralPath $runnerStarter -PathType Leaf)) 
     }
 }
 
+if ($Build -and -not $NoDetach) {
+    $autoCleanup = Get-SettingValue -DotEnv $dotEnv -Name "IGUANA_DOCKER_AUTO_CLEANUP"
+    if ([string]::IsNullOrWhiteSpace($autoCleanup) -or (Test-TruthySetting -Value $autoCleanup)) {
+        try {
+            $maintenance = Join-Path $PSScriptRoot "docker-maintenance.ps1"
+            $retention = Get-SettingValue -DotEnv $dotEnv -Name "IGUANA_DOCKER_IMAGE_RETENTION_HOURS"
+            $interval = Get-SettingValue -DotEnv $dotEnv -Name "IGUANA_DOCKER_CLEANUP_INTERVAL_HOURS"
+            if ([string]::IsNullOrWhiteSpace($retention)) { $retention = "168" }
+            if ([string]::IsNullOrWhiteSpace($interval)) { $interval = "168" }
+            & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $maintenance -Clean -IfDue -RetentionHours $retention -IntervalHours $interval
+            if ($LASTEXITCODE -ne 0) { Write-Warning "Docker contour started, but project image cleanup failed." }
+        } catch {
+            Write-Warning "Docker contour started, but project image cleanup failed: $($_.Exception.Message)"
+        }
+    }
+}
+
 Write-Host "[INFO] Iguana docker production contour started."
 if ($Observability) {
     $grafanaPort = (Get-SettingValue -DotEnv $dotEnv -Name "IGUANA_GRAFANA_PORT")

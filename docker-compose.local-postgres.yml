@@ -1,5 +1,12 @@
+x-iguana-logging: &iguana-logging
+  driver: json-file
+  options:
+    max-size: "${IGUANA_DOCKER_LOG_MAX_SIZE:-10m}"
+    max-file: "${IGUANA_DOCKER_LOG_MAX_FILES:-3}"
+
 services:
   postgres:
+    logging: *iguana-logging
     image: postgres:16-alpine
     container_name: iguana-postgres
     restart: unless-stopped
@@ -17,6 +24,7 @@ services:
       timeout: 5s
       retries: 20
   rabbitmq:
+    logging: *iguana-logging
     image: rabbitmq:3.13-management-alpine
     container_name: iguana-rabbitmq
     restart: unless-stopped

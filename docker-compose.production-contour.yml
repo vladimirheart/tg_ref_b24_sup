@@ -1,8 +1,16 @@
+x-iguana-logging: &iguana-logging
+  driver: json-file
+  options:
+    max-size: "${IGUANA_DOCKER_LOG_MAX_SIZE:-10m}"
+    max-file: "${IGUANA_DOCKER_LOG_MAX_FILES:-3}"
+
 x-panel-build: &panel-build
   image: ${IGUANA_PANEL_IMAGE:-iguana-panel:local}
   build:
     context: .
     dockerfile: docker/panel.Dockerfile
+    labels:
+      io.iguana.project: ${COMPOSE_PROJECT_NAME}
 
 x-panel-environment: &panel-environment
   APP_DB_MODE: postgresql
@@ -93,6 +101,7 @@ x-panel-healthcheck: &panel-healthcheck
 
 services:
   postgres:
+    logging: *iguana-logging
     image: postgres:16-alpine
     restart: unless-stopped
     command: ["postgres", "-c", "max_connections=${APP_POSTGRES_MAX_CONNECTIONS:-150}"]
@@ -111,6 +120,7 @@ services:
       retries: 20
 
   rabbitmq:
+    logging: *iguana-logging
     image: rabbitmq:3.13-management-alpine
     restart: unless-stopped
     environment:
@@ -128,6 +138,7 @@ services:
       retries: 20
 
   redis:
+    logging: *iguana-logging
     image: redis:7-alpine
     restart: unless-stopped
     command:
@@ -147,6 +158,7 @@ services:
       retries: 20
 
   minio:
+    logging: *iguana-logging
     image: minio/minio:RELEASE.2025-07-23T15-54-02Z
     restart: unless-stopped
     command: server /data --console-address ":9001"
@@ -160,6 +172,7 @@ services:
       - iguana-minio-data:/data
 
   minio-init:
+    logging: *iguana-logging
     image: minio/mc:RELEASE.2025-07-21T05-28-08Z
     restart: "no"
     depends_on:
@@ -174,6 +187,7 @@ services:
         mc anonymous set none local/${APP_STORAGE_OBJECT_BUCKET:-iguana} || true
 
   shared-config-check:
+    logging: *iguana-logging
     image: busybox:1.36.1
     restart: "no"
     volumes:
@@ -186,6 +200,7 @@ services:
         test -s /target/locations.json;
         test -s /target/org_structure.json
   db-migrate:
+    logging: *iguana-logging
     <<: *panel-build
     restart: "no"
     depends_on:
@@ -198,6 +213,7 @@ services:
     volumes: *db-migrate-volumes
 
   ops-worker:
+    logging: *iguana-logging
     <<: *panel-build
     restart: unless-stopped
     depends_on:
@@ -216,6 +232,7 @@ services:
   # Exactly one supervisor owns all dynamically configured bot runtimes.
   # Do not scale this service: each active channel maps to one child process.
   bot-runner:
+    logging: *iguana-logging
     <<: *panel-build
     restart: unless-stopped
     depends_on:
@@ -233,6 +250,7 @@ services:
     healthcheck: *panel-healthcheck
 
   panel-web:
+    logging: *iguana-logging
     <<: *panel-build
     restart: unless-stopped
     depends_on:
@@ -253,6 +271,7 @@ services:
   # Stable loopback ingress preserves the historical 127.0.0.1:8080 access
   # without publishing a port from every scalable panel-web replica.
   panel-direct:
+    logging: *iguana-logging
     image: nginx:1.27-alpine
     restart: unless-stopped
     depends_on:

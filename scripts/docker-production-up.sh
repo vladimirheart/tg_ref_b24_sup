@@ -476,4 +476,17 @@ if [[ "${DETACH}" == "1" && -f "${RUNNER_STARTER}" ]]; then
   bash "${RUNNER_STARTER}" --detach-from-parent || echo "[WARN] Docker contour started, but backup policy background runner failed to start." >&2
 fi
 
+if [[ "${BUILD}" == "1" && "${DETACH}" == "1" ]]; then
+  auto_cleanup="$(get_setting_value "IGUANA_DOCKER_AUTO_CLEANUP")"
+  case "$(printf '%s' "$auto_cleanup" | tr '[:upper:]' '[:lower:]')" in
+    ""|1|true|yes|on)
+      retention="$(get_setting_value "IGUANA_DOCKER_IMAGE_RETENTION_HOURS")"
+      interval="$(get_setting_value "IGUANA_DOCKER_CLEANUP_INTERVAL_HOURS")"
+      if ! bash "${SCRIPT_DIR}/docker-maintenance.sh" --clean --if-due --retention-hours "${retention:-168}" --interval-hours "${interval:-168}"; then
+        echo "[WARN] Docker contour started, but project image cleanup failed." >&2
+      fi
+      ;;
+  esac
+fi
+
 echo "[INFO] Iguana docker production contour started."

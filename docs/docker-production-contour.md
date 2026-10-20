@@ -116,6 +116,74 @@ IGUANA_OPS_WORKER_REPLICAS=1
 
 Hardcoded `container_name` в contour отсутствуют, поэтому project name и `--scale` работают штатно.
 
+## Обслуживание Docker-хранилища
+
+Собираемые проектом образы получают image label `io.iguana.project`, равный
+фактическому `COMPOSE_PROJECT_NAME`. В `scripts/docker-production-up.ps1/.sh`
+после успешного detached-запуска с `-Build` / `--build` запускается очистка:
+только образы без тегов, не используемые контейнерами, созданные более 168 часов
+назад. Именованные release/rollback images сохраняются. Возраст считается от
+создания образа, а не от его последнего использования. Образы без новой метки,
+созданные до этого изменения, скрипт не удаляет.
+
+Состояние последней успешной очистки и блокировка находятся в игнорируемом Git
+каталоге `run/docker-maintenance/`; ключ включает Docker daemon ID и project name.
+Автоматический запуск происходит не чаще раза в 168 часов и только при следующей
+успешной пересборке. Это не фоновое расписание. Foreground `-NoDetach` /
+`--no-detach`, запуск без build, raw `docker compose up` и validation-only
+автоочистку не выполняют. Ошибка обслуживания выводится как warning и не меняет
+успешный результат запуска приложения.
+
+Ручной отчёт без изменений:
+
+~~~powershell
+.\scripts\docker-maintenance.ps1
+~~~
+
+Явная очистка с отчётом до и после:
+
+~~~powershell
+.\scripts\docker-maintenance.ps1 -Clean
+# Соблюдать недельный интервал:
+.\scripts\docker-maintenance.ps1 -Clean -IfDue
+~~~
+
+~~~bash
+bash scripts/docker-maintenance.sh
+bash scripts/docker-maintenance.sh --clean
+bash scripts/docker-maintenance.sh --clean --if-due
+~~~
+
+При необходимости передайте `-ProjectName` / `--project-name` для другого
+Compose-проекта. Скрипт по умолчанию получает имя через Compose с учётом `.env`
+и окружения. Ручные параметры `-RetentionHours`, `-IntervalHours`,
+`-StateDirectory` имеют эквиваленты `--retention-hours`, `--interval-hours`,
+`--state-directory`. После аварийного завершения процесса может остаться пустой
+каталог `*.last-clean.lock`: удаляйте только этот каталог, убедившись, что
+обслуживание уже не запущено.
+
+Настройки автоматического обслуживания в `.env`:
+
+~~~dotenv
+IGUANA_DOCKER_AUTO_CLEANUP=true
+IGUANA_DOCKER_IMAGE_RETENTION_HOURS=168
+IGUANA_DOCKER_CLEANUP_INTERVAL_HOURS=168
+IGUANA_DOCKER_LOG_MAX_SIZE=10m
+IGUANA_DOCKER_LOG_MAX_FILES=3
+~~~
+
+`IGUANA_DOCKER_AUTO_CLEANUP=false` отключает автоматическое удаление образов.
+Все Compose services используют ротацию Docker stdout/stderr: по умолчанию
+три файла по 10 МБ на контейнер. Изменение logging применяется после пересоздания
+соответствующих контейнеров; log-файлы приложения в bind mounts имеют отдельную
+политику хранения и этой настройкой не ограничиваются.
+
+Maintenance не удаляет контейнеры или volumes, не очищает общий build cache и
+не меняет Docker Engine. Порог builder GC, например `defaultKeepStorage: 20GB`,
+настраивается на машине в Docker Desktop → Settings → Docker Engine. Он не
+ограничивает суммарный размер образов, volumes и VHDX. Сжатие VHDX, остановка
+Docker и WSL остаются отдельной ручной операцией обслуживания машины.
+
 ## 5. Secrets
 
 Split roles обязательно используют один и тот же:

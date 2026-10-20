@@ -1,7 +1,14 @@
+x-iguana-logging: &iguana-logging
+  driver: json-file
+  options:
+    max-size: "${IGUANA_DOCKER_LOG_MAX_SIZE:-10m}"
+    max-file: "${IGUANA_DOCKER_LOG_MAX_FILES:-3}"
+
 services:
   # 01-198 receives read-only visibility into portable recovery packages/evidence.
   # panel-web intentionally receives no backup mount.
   ops-worker:
+    logging: *iguana-logging
     volumes:
       - type: bind
         source: ${IGUANA_BACKUP_DESTINATION_DIR:?Set IGUANA_BACKUP_DESTINATION_DIR to an off-host/NAS mounted filesystem path}
@@ -9,6 +16,7 @@ services:
         read_only: true
 
   postgres-backup:
+    logging: *iguana-logging
     image: postgres:16-alpine
     profiles: ["backup"]
     restart: "no"
@@ -36,10 +44,13 @@ services:
         exec /bin/sh /tmp/postgres-backup.sh
 
   minio-backup:
+    logging: *iguana-logging
     image: ${IGUANA_MINIO_BACKUP_TOOLS_IMAGE:-iguana-minio-backup-tools:local}
     build:
       context: .
       dockerfile: docker/backup/minio-tools.Dockerfile
+      labels:
+        io.iguana.project: ${COMPOSE_PROJECT_NAME}
     profiles: ["backup"]
     restart: "no"
     depends_on:
@@ -64,6 +75,7 @@ services:
         exec /bin/sh /tmp/minio-backup.sh
 
   files-backup:
+    logging: *iguana-logging
     depends_on:
       shared-config-check:
         condition: service_completed_successfully
@@ -94,6 +106,7 @@ services:
         exec /bin/sh /tmp/files-backup.sh
 
   postgres-restore-target:
+    logging: *iguana-logging
     image: postgres:16-alpine
     profiles: ["backup"]
     restart: "no"
@@ -110,6 +123,7 @@ services:
       retries: 30
 
   postgres-restore-rehearsal:
+    logging: *iguana-logging
     image: postgres:16-alpine
     profiles: ["backup"]
     restart: "no"
@@ -135,6 +149,7 @@ services:
         exec /bin/sh /tmp/postgres-restore-rehearsal.sh
 
   minio-restore-target:
+    logging: *iguana-logging
     image: minio/minio:RELEASE.2025-07-23T15-54-02Z
     profiles: ["backup"]
     restart: "no"
@@ -146,10 +161,13 @@ services:
       - /data
 
   minio-restore-rehearsal:
+    logging: *iguana-logging
     image: ${IGUANA_MINIO_BACKUP_TOOLS_IMAGE:-iguana-minio-backup-tools:local}
     build:
       context: .
       dockerfile: docker/backup/minio-tools.Dockerfile
+      labels:
+        io.iguana.project: ${COMPOSE_PROJECT_NAME}
     profiles: ["backup"]
     restart: "no"
     depends_on:
@@ -168,6 +186,7 @@ services:
         exec /bin/sh /tmp/minio-restore-rehearsal.sh
 
   files-restore-rehearsal:
+    logging: *iguana-logging
     image: busybox:1.36.1
     profiles: ["backup"]
     restart: "no"

@@ -27,6 +27,7 @@ attachments/
 /config/shared/backup-policy-runner.status
 /config/shared/backup-policy-runner.stop
 /run/backup-policy-runner.pid
+/run/docker-maintenance/
 /.tmp/
 *.patch
 *.bak

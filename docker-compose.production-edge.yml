@@ -1,5 +1,12 @@
+x-iguana-logging: &iguana-logging
+  driver: json-file
+  options:
+    max-size: "${IGUANA_DOCKER_LOG_MAX_SIZE:-10m}"
+    max-file: "${IGUANA_DOCKER_LOG_MAX_FILES:-3}"
+
 services:
   nginx:
+    logging: *iguana-logging
     image: nginx:1.27-alpine
     restart: unless-stopped
     depends_on:
