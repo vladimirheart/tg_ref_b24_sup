@@ -43,6 +43,8 @@ class GeneralTicketWorkHttpPostgresTest {
     @MockBean BotProcessService botProcessService;
     @MockBean(name="taskScheduler") TaskScheduler scheduler;
     @MockBean DialogReplyTransportService replyTransport;
+    @MockBean com.example.panel.storage.AttachmentObjectStorageService documentStorage;
+    private final Map<String,byte[]> documentObjects=new java.util.concurrent.ConcurrentHashMap<>();
     @DynamicPropertySource static void isolatedDatabase(DynamicPropertyRegistry registry) throws Exception {
         var source=(DriverManagerDataSource)PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType("general_work_http").getDataSource();
         var config=Files.createTempDirectory("general-work-config-");var storage=Files.createTempDirectory("general-work-storage-");
@@ -60,11 +62,21 @@ class GeneralTicketWorkHttpPostgresTest {
     @Autowired GeneralTicketAccessService access;@SpyBean GeneralTicketWorkService work;
     @SpyBean GeneralTicketReplyService replies;
     @SpyBean GeneralTicketReplyChangeService changes;
+    @SpyBean GeneralTicketDocumentReplyService documents;
     @SpyBean GeneralTicketAssignmentService assignments;
     @SpyBean GeneralManualTicketCreationService manual;
     private String worker,reader,admin,publicId,root,raw;
     private long workerId,readerId,owner;
-    @BeforeEach void setup() {
+    @BeforeEach void setup() throws Exception {
+        when(documentStorage.providerLabel()).thenReturn("s3");
+        when(documentStorage.storeDialogAttachment(anyString(),anyString(),anyString(),any())).thenAnswer(call->{
+            String key=call.getArgument(0)+"/"+call.getArgument(1);byte[] bytes=((java.io.InputStream)call.getArgument(3)).readAllBytes();documentObjects.put(key,bytes);
+            return new com.example.panel.storage.AttachmentObjectStorageService.StoredBinary(key,"application/octet-stream",bytes.length,new java.io.ByteArrayInputStream(bytes));
+        });
+        when(documentStorage.openDialogAttachmentByStorageKey(anyString())).thenAnswer(call->{
+            byte[] bytes=documentObjects.get(call.getArgument(0));if(bytes==null)throw new java.io.IOException("missing test object");
+            return new com.example.panel.storage.AttachmentObjectStorageService.StoredBinary(call.getArgument(0),"application/octet-stream",bytes.length,new java.io.ByteArrayInputStream(bytes));
+        });
         flags.setManualTicketCreation(false);
         flags.getFoundation().setEnabled(true);flags.setGeneralTicketQueue(true);
         String prefix="r135-"+IDS.incrementAndGet();worker=prefix+"-worker";reader=prefix+"-reader";admin=prefix+"-admin";
@@ -515,5 +527,77 @@ class GeneralTicketWorkHttpPostgresTest {
             .andExpect(content().string(containsString("Результат изменения требует проверки")))
             .andExpect(content().string(not(containsString("Провайдер подтвердил изменение"))));
         mvc.perform(actor(get(root),worker,"PAGE_DIALOGS")).andExpect(status().isOk()).andExpect(content().string(not(containsString("data-general-reply-edit"))));
+    }
+
+    private String documentDestination(){
+        replyDestination();
+        doAnswer(call->{assertThat(((java.util.function.BooleanSupplier)call.getArgument(4)).getAsBoolean()).isTrue();
+            return DialogReplyTransportService.DialogReplyTransportResult.success(301L,1L);
+        }).when(replyTransport).sendTelegramDocumentGuarded(any(),anyLong(),any(),anyString(),any());
+        return documents.destinationFingerprint(new GeneralTicketEventScope(owner,raw,publicId),worker,0).orElseThrow();
+    }
+    private MockHttpServletRequestBuilder documentPost(String key,String fingerprint){
+        return multipart(root+"/document").file(new org.springframework.mock.web.MockMultipartFile("file","Отчёт.pdf","text/html",new byte[]{0,1,2,-1,10}))
+            .param("revision","0").param("requestKey",key).param("caption","<script>caption</script>").param("destination",fingerprint);
+    }
+    @Test void actualMultipartCsrfDuplicatePostAndAuthorizedDownloadPreserveExactBytes()throws Exception{
+        documentDestination();var opened=mvc.perform(actor(get(root),worker,"PAGE_DIALOGS")).andExpect(status().isOk()).andReturn();
+        String html=form(opened.getResponse().getContentAsString(),"data-general-document-form");String key=hidden(html,"requestKey");
+        for(int i=0;i<2;i++)mvc.perform(actor(documentPost(key,hidden(html,"destination")).param("_csrf",hidden(html,"_csrf")).cookie(opened.getResponse().getCookies()),worker,"PAGE_DIALOGS"))
+            .andExpect(redirectedUrl(root));
+        verify(replyTransport,times(1)).sendTelegramDocumentGuarded(any(),eq(owner),any(),eq("<script>caption</script>"),any());
+        long history=jdbc.queryForObject("SELECT chat_history_id FROM general_ticket_document_replies WHERE request_key=?",Long.class,key);
+        mvc.perform(actor(get("/api/general-tickets/"+publicId+"/history/"+history+"/attachment"),reader,"PAGE_DIALOGS"))
+            .andExpect(status().isOk()).andExpect(header().string("Cache-Control","no-store")).andExpect(header().string("X-Content-Type-Options","nosniff"))
+            .andExpect(header().string("Content-Disposition",containsString("attachment"))).andExpect(content().contentTypeCompatibleWith("application/octet-stream"))
+            .andExpect(content().bytes(new byte[]{0,1,2,-1,10}));
+        mvc.perform(actor(get(root),reader,"PAGE_DIALOGS")).andExpect(status().isOk()).andExpect(content().string(containsString("&lt;script&gt;caption&lt;/script&gt;")))
+            .andExpect(content().string(not(containsString("data-general-document-form")))).andExpect(content().string(containsString("Провайдер подтвердил отправку документа")));
+        mvc.perform(actor(get("/api/general-tickets/"+publicId+"/history"),reader,"PAGE_DIALOGS")).andExpect(status().isOk()).andExpect(jsonPath("$.entries[0].hasAttachment").value(true));
+    }
+    @Test void documentRequiresPageOperateCsrfValidFilenameAndBody()throws Exception{
+        String fingerprint=documentDestination();String key=UUID.randomUUID().toString().replace("-","");
+        mvc.perform(actor(documentPost(key,fingerprint),worker,"PAGE_DIALOGS")).andExpect(redirectedUrl("/error/403"));
+        mvc.perform(actor(documentPost(key,fingerprint),reader,"PAGE_DIALOGS").with(csrf())).andExpect(status().isForbidden());
+        mvc.perform(actor(documentPost(key,fingerprint),worker,"ROLE_ADMIN").with(csrf())).andExpect(status().isForbidden());
+        mvc.perform(actor(documentPost("bad",fingerprint),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isBadRequest());
+        mvc.perform(actor(multipart(root+"/document").file(new org.springframework.mock.web.MockMultipartFile("file","../bad","text/html",new byte[]{1}))
+            .param("revision","0").param("requestKey",key).param("destination",fingerprint),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isBadRequest());
+        verifyNoInteractions(replyTransport);
+    }
+    @ParameterizedTest @ValueSource(strings={"read","operate","scope","revision","flag","channel"})
+    void documentReprovesLateChangesBeforePersistingOrSending(String mutation)throws Exception{
+        String fingerprint=documentDestination();String key=UUID.randomUUID().toString().replace("-","");var scope=new GeneralTicketEventScope(owner,raw,publicId);
+        doAnswer(call->{switch(mutation){
+            case "read"->access.revokeRead(workerId);case "operate"->access.revokeOperate(workerId);
+            case "scope"->jdbc.update("UPDATE tickets SET is_general=FALSE,general_selection_source=NULL WHERE ticket_public_id=?",publicId);
+            case "revision"->jdbc.update("UPDATE tickets SET status='open' WHERE ticket_public_id=?",publicId);
+            case "flag"->flags.setGeneralTicketQueue(false);
+            case "channel"->jdbc.update("UPDATE channels SET token=? WHERE id=(SELECT channel_id FROM tickets WHERE ticket_public_id=?)","rotated-"+publicId,publicId);
+        }return call.callRealMethod();}).when(documents).submit(eq(scope),eq(worker),anyLong(),anyString(),anyString(),any(),anyString());
+        mvc.perform(actor(documentPost(key,fingerprint),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_document_replies WHERE request_key=?",Integer.class,key)).isZero();verifyNoInteractions(replyTransport);
+    }
+    @ParameterizedTest @ValueSource(strings={"bytes","size","late-read","metadata"})
+    void downloadRejectsObjectTamperingAndRightsRevocationDuringStorageRead(String mutation)throws Exception{
+        String fingerprint=documentDestination();String key=UUID.randomUUID().toString().replace("-","");
+        mvc.perform(actor(documentPost(key,fingerprint),worker,"PAGE_DIALOGS").with(csrf())).andExpect(redirectedUrl(root));
+        long history=jdbc.queryForObject("SELECT chat_history_id FROM general_ticket_document_replies WHERE request_key=?",Long.class,key);
+        String object=publicId+"/general-"+key+".bin";
+        switch(mutation){
+            case "bytes"->documentObjects.put(object,new byte[5]);case "size"->documentObjects.put(object,new byte[2]);
+            case "metadata"->jdbc.update("UPDATE chat_attachment_metadata SET content_hash='bad' WHERE chat_history_id=?",history);
+            case "late-read"->doAnswer(call->{access.revokeRead(readerId);byte[] bytes=documentObjects.get(object);
+                return new com.example.panel.storage.AttachmentObjectStorageService.StoredBinary(object,"application/octet-stream",bytes.length,new java.io.ByteArrayInputStream(bytes));
+            }).when(documentStorage).openDialogAttachmentByStorageKey(eq(object));
+        }
+        mvc.perform(actor(get("/api/general-tickets/"+publicId+"/history/"+history+"/attachment"),reader,"PAGE_DIALOGS")).andExpect(status().isNotFound());
+    }
+    @Test void unknownDocumentResultIsVisibleAndSameKeyNeverResends()throws Exception{
+        String fingerprint=documentDestination();String key=UUID.randomUUID().toString().replace("-","");
+        doReturn(null).when(replyTransport).sendTelegramDocumentGuarded(any(),anyLong(),any(),anyString(),any());
+        for(int i=0;i<2;i++)mvc.perform(actor(documentPost(key,fingerprint),worker,"PAGE_DIALOGS").with(csrf())).andExpect(redirectedUrl(root));
+        mvc.perform(actor(get(root),reader,"PAGE_DIALOGS")).andExpect(status().isOk()).andExpect(content().string(containsString("Результат отправки документа требует проверки")));
+        verify(replyTransport,times(1)).sendTelegramDocumentGuarded(any(),anyLong(),any(),anyString(),any());
     }
 }

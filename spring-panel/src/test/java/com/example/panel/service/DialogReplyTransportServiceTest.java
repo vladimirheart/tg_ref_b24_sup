@@ -542,4 +542,26 @@ class DialogReplyTransportServiceTest {
         assertThat(service.deleteTelegramMessageGuarded(channel,42L,77L,()->true).classification()).isEqualTo("scope_denied");
         verify(http,never()).send(any(),any(HttpResponse.BodyHandler.class));
     }
+
+    @Test void guardedDocumentUsesFrozenChannelAndExactMultipartBody()throws Exception{
+        HttpClient http=mock(HttpClient.class);IntegrationNetworkService network=mock(IntegrationNetworkService.class);Channel channel=telegramChannel();
+        when(network.createChannelHttpClient(any(),any(Duration.class))).thenAnswer(call->{Channel copy=call.getArgument(0);assertThat(copy).isNotSameAs(channel);copy.setToken("tampered");return http;});
+        List<String> bodies=new ArrayList<>();
+        when(http.send(any(HttpRequest.class),any(HttpResponse.BodyHandler.class))).thenAnswer(call->{HttpRequest request=call.getArgument(0);
+            assertThat(request.uri().toString()).endsWith("/sendDocument").doesNotContain("tampered");bodies.add(requestBody(request));
+            return responseFor(request,new ArrayList<>(),"{\"ok\":true,\"result\":{\"message_id\":77}}",200);
+        });
+        var transport=new DialogReplyTransportService(mock(com.example.panel.repository.ChannelRepository.class),network,new ObjectMapper());
+        byte[] bytes="DOC\u0000BYTES\n".getBytes(StandardCharsets.UTF_8);
+        assertThat(transport.sendTelegramDocumentGuarded(channel,42L,new MockMultipartFile("file","report.pdf","application/octet-stream",bytes)," caption ",()->true).success()).isTrue();
+        assertThat(bodies).singleElement().satisfies(body->assertThat(body).contains("name=\"chat_id\"","42","name=\"document\"","report.pdf","application/octet-stream","DOC\u0000BYTES\n","caption"));
+    }
+    @ParameterizedTest @ValueSource(strings={"false","null","unsupported"})
+    void deniedDocumentGuardNeverCallsProvider(String mode)throws Exception{
+        HttpClient http=mock(HttpClient.class);IntegrationNetworkService network=mock(IntegrationNetworkService.class);
+        when(network.createChannelHttpClient(any(),any(Duration.class))).thenReturn(http);Channel channel=telegramChannel();if(mode.equals("unsupported"))channel.setPlatform("max");
+        var transport=new DialogReplyTransportService(mock(com.example.panel.repository.ChannelRepository.class),network,new ObjectMapper());
+        assertThat(transport.sendTelegramDocumentGuarded(channel,42L,new MockMultipartFile("file","file.bin","application/octet-stream",new byte[]{1}),"",mode.equals("null")?null:()->false).classification()).isEqualTo("scope_denied");
+        verify(http,never()).send(any(),any(HttpResponse.BodyHandler.class));
+    }
 }

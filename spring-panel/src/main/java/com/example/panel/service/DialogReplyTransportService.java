@@ -280,7 +280,7 @@ public class DialogReplyTransportService {
             return sendMaxMedia(channel, userId, file, caption, originalName, replyToTelegramId);
         }
         if ("telegram".equals(platform)) {
-            return sendTelegramMediaSafely(channel, userId, file, caption, originalName, replyToTelegramId);
+            return sendTelegramMediaSafely(channel, userId, file, caption, originalName, replyToTelegramId,()->true);
         }
         return DialogReplyTransportResult.failure(
             "Отправка медиа пока поддерживается только для Telegram и MAX.",
@@ -482,12 +482,18 @@ public class DialogReplyTransportService {
         }
     }
 
+    public DialogReplyTransportResult sendTelegramDocumentGuarded(Channel channel,Long userId,MultipartFile file,
+            String caption,BooleanSupplier sendGuard) {
+        if(channel==null||!"telegram".equals(channel.getPlatform())||sendGuard==null)return scopeDenied();
+        return sendTelegramMediaSafely(channel,userId,file,caption,file==null?null:file.getOriginalFilename(),null,sendGuard);
+    }
+
     private DialogReplyTransportResult sendTelegramMediaSafely(Channel channel,
                                                                Long userId,
                                                                MultipartFile file,
                                                                String caption,
                                                                String originalName,
-                                                               Long replyToTelegramId) {
+                                                               Long replyToTelegramId, BooleanSupplier sendGuard) {
         long startedAtNs = System.nanoTime();
         if (userId == null) {
             return DialogReplyTransportResult.failure(
@@ -535,7 +541,7 @@ public class DialogReplyTransportService {
                 sanitizedFilename,
                 contentType,
                 fileSize,
-                elapsedMillis(startedAtNs)
+                elapsedMillis(startedAtNs),sendGuard
             );
         } catch (HttpTimeoutException ex) {
             logTelegramMediaException(TELEGRAM_MEDIA_METHOD, userId, resolvedOriginalName, sanitizedFilename, contentType, fileSize, ex);
@@ -591,8 +597,8 @@ public class DialogReplyTransportService {
                                                                String sanitizedFilename,
                                                                String contentType,
                                                                long fileSize,
-                                                               Long durationMs) throws IOException, InterruptedException {
-        HttpClient client = integrationNetworkService.createChannelHttpClient(channel, TELEGRAM_MEDIA_REQUEST_TIMEOUT);
+                                                               Long durationMs,BooleanSupplier sendGuard) throws IOException, InterruptedException {
+        HttpClient client = integrationNetworkService.createChannelHttpClient(textNetworkCopy(channel), TELEGRAM_MEDIA_REQUEST_TIMEOUT);
         String fieldName = resolveTelegramField(method);
         Path multipartFile = createMultipartTempFile(
             List.of(
@@ -612,6 +618,7 @@ public class DialogReplyTransportService {
                 .header("Content-Type", "multipart/form-data; boundary=" + MULTIPART_BOUNDARY)
                 .POST(HttpRequest.BodyPublishers.ofFile(multipartFile))
                 .build();
+            if(sendGuard==null||!sendGuard.getAsBoolean())return scopeDenied();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() / 100 != 2 || isTelegramApiFailure(response.body())) {
                 logTelegramMediaApiError(method, response.statusCode(), userId, originalName, sanitizedFilename, contentType, fileSize, response.body());

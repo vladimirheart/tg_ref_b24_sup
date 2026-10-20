@@ -129,12 +129,17 @@ public class GeneralTicketReadService {
 
     public Optional<AttachmentReference> attachment(long userId, String publicId, long historyId) {
         if (!validPublicId(publicId) || historyId <= 0) return Optional.empty();
+        try {
+        var document=documentAttachment(userId,publicId,historyId);
+        if(document.isPresent())return document;
         List<AttachmentReference> rows = jdbc.query(ONE_TICKET + """
             SELECT ticket.ticket_id, history.attachment, metadata.storage_key, metadata.original_name
               FROM authorized_ticket ticket
               JOIN chat_history history ON history.id = :historyId
                    AND history.ticket_owner_user_id = ticket.user_id AND history.ticket_id = ticket.ticket_id
                    AND history.deleted_at IS NULL
+                   AND history.message_type IS DISTINCT FROM 'general_operator_document'
+                   AND NOT EXISTS(SELECT 1 FROM general_ticket_document_replies document WHERE document.chat_history_id=history.id)
                    AND (history.ticket_public_id IS NULL OR history.ticket_public_id=ticket.ticket_public_id)
               JOIN chat_attachment_metadata metadata ON metadata.chat_history_id = history.id
                    AND metadata.ticket_id = ticket.ticket_id
@@ -155,6 +160,33 @@ public class GeneralTicketReadService {
                     AttachmentStorageKeyResolver.resolveOriginalName(rs.getString("original_name"), raw, key));
             });
         return rows.stream().filter(java.util.Objects::nonNull).findFirst();
+        } catch(org.springframework.dao.DataAccessException ex) { return Optional.empty(); }
+    }
+
+    private Optional<AttachmentReference> documentAttachment(long userId,String publicId,long historyId) {
+        try { return jdbc.query(ONE_TICKET+"""
+            SELECT document.storage_key,document.original_name,document.content_sha256,octet_length(document.payload) AS bytes
+            FROM authorized_ticket ticket JOIN general_ticket_document_replies document
+              ON document.ticket_user_id=ticket.user_id AND document.ticket_id=ticket.ticket_id
+              AND document.ticket_public_id=ticket.ticket_public_id AND document.state='SENT'
+            JOIN chat_history history ON history.id=document.chat_history_id AND history.id=:historyId
+              AND history.user_id=ticket.user_id AND history.ticket_owner_user_id=ticket.user_id
+              AND history.ticket_id=ticket.ticket_id AND history.ticket_public_id=ticket.ticket_public_id
+              AND history.sender='operator' AND history.message_type='general_operator_document' AND history.deleted_at IS NULL
+              AND history.channel_id=document.channel_id AND history.tg_message_id=document.provider_message_id
+              AND history.attachment=document.storage_key
+            JOIN chat_attachment_metadata metadata ON metadata.chat_history_id=history.id AND metadata.ticket_id=ticket.ticket_id
+              AND metadata.channel_id=document.channel_id AND metadata.storage_key=document.storage_key
+              AND metadata.original_name=document.original_name AND metadata.content_hash=document.content_sha256
+              AND metadata.size=octet_length(document.payload) AND metadata.mime_type='application/octet-stream'
+              AND metadata.storage_class='dialog_attachment' AND metadata.normalization_status='normalized'
+              AND metadata.availability_status='available' AND metadata.storage_provider IN ('local_fs','s3')
+              AND metadata.deleted_at IS NULL AND metadata.archived_at IS NULL
+            WHERE ticket.relation_verified AND document.storage_key=ticket.ticket_public_id||'/general-'||document.request_key||'.bin'
+              AND NOT EXISTS(SELECT 1 FROM chat_attachment_metadata other WHERE other.storage_key=metadata.storage_key AND other.id<>metadata.id)
+            """,params(userId,publicId).addValue("historyId",historyId),(rs,row)->new AttachmentReference(rs.getString("storage_key"),
+                rs.getString("original_name"),rs.getString("content_sha256"),rs.getLong("bytes"))).stream().findFirst();
+        }catch(org.springframework.dao.DataAccessException ex){return Optional.empty();}
     }
 
     private boolean safeStorageKey(String ticketId, String key) {
@@ -192,6 +224,8 @@ public class GeneralTicketReadService {
     public record TicketHistory(TicketRow ticket, List<HistoryEntry> entries, boolean hasMore, Long nextBeforeId) {}
     public record AnswerEntry(String questionId, String questionText, String valueLabel, String valueText) {}
     public record TicketAnswers(TicketRow ticket, boolean relationVerified, List<AnswerEntry> answers) {}
-    public record AttachmentReference(String storageKey, String originalName) {}
+    public record AttachmentReference(String storageKey,String originalName,String sha256,Long size) {
+        public AttachmentReference(String storageKey,String originalName){this(storageKey,originalName,null,null);}
+    }
     public static class AnswerLimitExceededException extends RuntimeException {}
 }

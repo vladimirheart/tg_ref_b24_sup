@@ -158,4 +158,31 @@
             </p>
         </article>
     </section>
+    <section class="mt-4" data-general-documents>
+        <h2 class="h4">Отправить файл</h2>
+        <p>Telegram: один документ до 10 МиБ, подпись до 1024 символов. Файл отправляется как документ;
+            просмотр содержимого доступен через скачивание. Локальному клиенту без канала отправить файл нельзя.</p>
+        <form th:if="${canOperate and documentDestination != null and (status == 'pending' or status == 'open')}" method="post"
+              enctype="multipart/form-data" th:action="@{/general-dialog-work/{id}/document(id=${publicId})}" class="card card-body" data-general-document-form>
+            <input type="hidden" name="revision" th:value="${revision}">
+            <input type="hidden" name="requestKey" th:value="${documentRequestKey}">
+            <input type="hidden" name="destination" th:value="${documentDestination}">
+            <label class="form-label">Файл<input type="file" name="file" required class="form-control"></label>
+            <label class="form-label">Подпись<textarea name="caption" maxlength="1024" rows="3" class="form-control"></textarea></label>
+            <button type="submit" class="btn btn-primary">Отправить документ</button>
+        </form>
+        <p th:if="${documentDestination == null}">Отправка файлов сейчас недоступна: проверьте канал, статус и права.</p>
+        <h3 class="h5 mt-3">Последние 20 отправок файлов</h3>
+        <article th:each="document : ${documentReplies}" class="card card-body mb-2">
+            <p><time th:text="${document.createdAt}"></time>; <span th:text="${document.name}"></span>.</p>
+            <p class="text-break" th:text="${document.caption}"></p>
+            <p th:switch="${document.state}">
+                <span th:case="'SENT'">Провайдер подтвердил отправку документа</span>
+                <span th:case="'QUEUED'">Документ подготовлен</span>
+                <span th:case="'CANCELLED'">Документ не отправлен: данные, канал или права изменились</span>
+                <span th:case="*">Результат отправки документа требует проверки — не повторяйте отправку</span>
+            </p>
+            <a th:if="${document.state == 'SENT'}" th:href="@{/api/general-tickets/{id}/history/{historyId}/attachment(id=${publicId},historyId=${document.historyId})}">Скачать документ</a>
+        </article>
+    </section>
 </main></body></html>

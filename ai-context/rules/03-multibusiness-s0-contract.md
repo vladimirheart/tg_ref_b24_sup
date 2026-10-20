@@ -328,6 +328,31 @@ auto-retry или автоматической reconciliation. Safe guard denial
 Media, VK/MAX edit/delete, feedback и retention/reconciliation — gates.
 V71 не переписывает старые data/grants и не включает flags.
 
+R142 добавляет отдельную multipart/CSRF отправку Telegram GENERAL documents.
+PAGE_DIALOGS/current READ+OPERATE/account, foundation/general-ticket-queue,
+pending/open, exact tuple/public generation, revision и unique raw ID/root/channel
+обязательны; только USER_SELECTION/GENERAL_CHANNEL, не MANUAL local client.
+Один файл 1..10 МиБ, caption<=1024 UTF-16 units, безопасное имя<=200 units,
+forced application/octet-stream, без inline preview. Raw ID<=255 из-за старого
+metadata field; storage key основан на public ID. Actual bounded bytes и SHA-256
+сохраняются в immutable V72 intent. Key привязан к actor/input/destination/work
+snapshot; единственный QUEUED→SENDING claim, guarded HTTP и frozen payload/channel.
+Share locks удерживаются через provider call и closeout. Только positive provider
+ID и проверенные key/size/SHA object storage допускают atomic SQL history/
+metadata/SENT/audit и metadata-only GENERAL outbox. Неясный результат — UNKNOWN
+либо durable SENDING, auto-retry нет; новый key означает новый intent.
+
+Document download требует SENT registry + exact canonical history/generation/
+owner/provider и available unique metadata key/name/hash/size. Legacy fallback
+исключает document marker ИЛИ registry-linked history даже при порче marker.
+Bounded read проверяет actual bytes/size/SHA, затем повторяет current READ/metadata
+proof после IO; attachment/octet-stream/nosniff/no-store, mismatch/revocation=404.
+Object storage не участвует в SQL rollback, возможен orphan после внешнего успеха.
+Immutable SQL payload и external objects требуют отдельной retention/quotas/
+reconciliation policy; no auto-cleanup. V72 не меняет старые rows/grants/flags.
+Inline media, VK/MAX uploads и media edit/delete остаются gates; live acceptance
+на рабочей машине не выполнена.
+
 `/api/general-tickets` и `/general-dialogs` закрыты foundation и отдельным
 default-off `multibusiness.general-ticket-queue`. Каждый SQL read повторно
 проверяет grant и выбирает только `is_general=TRUE`, `business_id IS NULL` и
@@ -363,7 +388,7 @@ Heartbeat повторно проверяет grant/account/flags; при отк
 general_access_revoked без ticket data, emitter закрывается. UI очищает данные
 при отзыве/ошибке stream, отменяет pending refresh и не применяет старые HTTP
 ответы. Pagehide закрывает подписку. Сам этап R134 не добавлял migrations/flags.
-GENERAL triage/OPERATE, text reply, close/reopen, intervals, assignment, creation и Telegram text edit/delete описаны в R135–R141 выше;
+GENERAL triage/OPERATE, text reply, close/reopen, intervals, assignment, creation, Telegram text edit/delete и documents описаны в R135–R142 выше;
 остальные GENERAL write, отдельные bell/внешняя доставка и live Redis/proxy/provider acceptance PENDING.
 
 Основные legacy dialog reads (список/summary, карточка, история, предыдущие

@@ -231,4 +231,14 @@ class PostgresRuntimeReadinessVerifierTest {
             mock(com.example.panel.service.RuntimeCoordinationService.class),mock(com.example.panel.storage.AttachmentObjectStorageService.class));
         assertThatThrownBy(()->verifier.onApplicationEvent(null)).isInstanceOf(IllegalStateException.class).hasRootCauseMessage("V71 is missing");
     }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"FROM general_ticket_document_replies","FROM general_ticket_document_events"})
+    void missingGeneralDocumentSchemaFailsReadiness(String missing){
+        JdbcTemplate jdbc=mock(JdbcTemplate.class);when(jdbc.queryForList(anyString())).thenReturn(List.of());
+        when(jdbc.queryForList(contains(missing))).thenThrow(new IllegalStateException("V72 is missing"));
+        var verifier=new PostgresRuntimeReadinessVerifier(jdbc,new MockEnvironment().withProperty("app.datasource.mode","postgresql"),
+            mock(com.example.panel.service.RuntimeCoordinationService.class),mock(com.example.panel.storage.AttachmentObjectStorageService.class));
+        assertThatThrownBy(()->verifier.onApplicationEvent(null)).isInstanceOf(IllegalStateException.class).hasRootCauseMessage("V72 is missing");
+    }
 }

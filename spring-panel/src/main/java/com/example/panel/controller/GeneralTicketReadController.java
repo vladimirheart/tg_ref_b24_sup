@@ -7,6 +7,8 @@ import com.example.panel.storage.AttachmentObjectStorageService;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.ByteArrayResource;
+import com.example.panel.service.GeneralTicketDocumentReplyService;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.MediaType;
@@ -111,6 +113,21 @@ public class GeneralTicketReadController {
         filename = filename.substring(filename.lastIndexOf('/') + 1).trim();
         if (filename.isBlank() || filename.length() > 255 || filename.chars().anyMatch(Character::isISOControl)) {
             filename = "file";
+        }
+        if(reference.sha256()!=null) {
+            byte[] bytes;
+            try(binary) {
+                if(reference.size()==null||reference.size()<1||reference.size()>GeneralTicketDocumentReplyService.MAX_BYTES||binary.size()!=reference.size())
+                    throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+                bytes=binary.inputStream().readNBytes(GeneralTicketDocumentReplyService.MAX_BYTES+1);
+                if(bytes.length!=reference.size()||!reference.sha256().equals(GeneralTicketDocumentReplyService.sha256(bytes)))
+                    throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+            }
+            if(service.attachment(userId,publicId,id).filter(reference::equals).isEmpty())
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+            return ResponseEntity.ok().header("Cache-Control","no-store").header("X-Content-Type-Options","nosniff")
+                .header("Content-Disposition",ContentDisposition.attachment().filename(filename,StandardCharsets.UTF_8).build().toString())
+                .contentType(MediaType.APPLICATION_OCTET_STREAM).contentLength(bytes.length).body(new ByteArrayResource(bytes));
         }
         return ResponseEntity.ok().header("Cache-Control", "no-store").header("X-Content-Type-Options", "nosniff")
             .header("Content-Disposition", ContentDisposition.attachment().filename(filename, StandardCharsets.UTF_8)
