@@ -16,7 +16,11 @@ import com.example.supportbot.service.FeedbackService;
 import com.example.supportbot.service.GeneralQuestionnaireFlow;
 import com.example.supportbot.service.BotIngressCoordinationService;
 import com.example.supportbot.service.BotSessionStoreService;
+import com.example.supportbot.service.BotWebhookDeliveryGuardService;
 import com.example.supportbot.service.QuestionnaireScope;
+import com.example.supportbot.service.PanelRuntimeConfigClient.ChoiceCatalog;
+import com.example.supportbot.service.PanelRuntimeConfigClient.SelectedQuestionnaire;
+import com.example.supportbot.service.PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException;
 import com.example.supportbot.service.RuntimeConfigService;
 import com.example.supportbot.service.SessionStateConflictException;
 import com.example.supportbot.service.TicketService;
@@ -39,6 +43,7 @@ import com.vk.api.sdk.httpclient.HttpTransportClient;
 import com.vk.api.sdk.objects.callback.longpoll.responses.GetLongPollEventsResponse;
 import com.vk.api.sdk.objects.messages.AudioMessage;
 import com.vk.api.sdk.objects.messages.Message;
+import com.vk.api.sdk.objects.messages.Keyboard;
 import com.vk.api.sdk.objects.messages.MessageAttachment;
 import com.vk.api.sdk.objects.messages.MessageAttachmentType;
 import com.vk.api.sdk.objects.docs.Doc;
@@ -90,6 +95,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             "Вы не ответили. Диалог был закрыт. При возникновении или актуализации вопросов создайте новое обращение.";
     private static final Duration VK_PROFILE_CACHE_TTL = Duration.ofMinutes(30);
     private static final String SESSION_PLATFORM = "vk";
+    private static final String QUESTIONNAIRE_SESSION_PLATFORM = "vk-questionnaire-v1";
     private static final String UNBLOCK_DIGEST_JOB = "unblock-digest";
     private static final String EXPIRE_SESSIONS_JOB = "expire-silent-question-flow-sessions";
     private static final int SESSION_MUTATION_MAX_RETRIES = 3;
@@ -105,6 +111,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     private final FeedbackService feedbackService;
     private final BotIngressCoordinationService ingressCoordinationService;
     private final BotSessionStoreService sessionStoreService;
+    private final BotWebhookDeliveryGuardService webhookDeliveryGuardService;
     private final RuntimeConfigService runtimeConfigService;
     private final ObjectMapper objectMapper;
     private final Gson gson;
@@ -133,6 +140,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                         FeedbackService feedbackService,
                         BotIngressCoordinationService ingressCoordinationService,
                         BotSessionStoreService sessionStoreService,
+                        BotWebhookDeliveryGuardService webhookDeliveryGuardService,
                         RuntimeConfigService runtimeConfigService,
                         ObjectMapper objectMapper) {
         this.properties = properties;
@@ -146,6 +154,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         this.feedbackService = feedbackService;
         this.ingressCoordinationService = ingressCoordinationService;
         this.sessionStoreService = sessionStoreService;
+        this.webhookDeliveryGuardService = webhookDeliveryGuardService;
         this.runtimeConfigService = runtimeConfigService;
         this.objectMapper = objectMapper;
         this.gson = new Gson();
@@ -173,12 +182,28 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             return;
         }
         GroupActor actor = createActor();
-        handleIncomingMessage(actor, message, 0);
+        if (message.getConversationMessageId() == null || message.getConversationMessageId() <= 0
+                || message.getPeerId() == null || message.getPeerId() <= 0) {
+            handleIncomingMessage(actor, message, 0);
+            return;
+        }
+        var claim = webhookDeliveryGuardService.tryClaim(SESSION_PLATFORM, getChannel().getId(), VkQuestionnaireChoiceSupport.eventKey(message));
+        if (claim.alreadyProcessed()) return;
+        if (claim.inFlight()) throw new IllegalStateException("VK message is already being processed");
+        try {
+            handleIncomingMessage(actor, message, 0);
+            webhookDeliveryGuardService.markProcessed(claim);
+        } catch (RuntimeException ex) {
+            webhookDeliveryGuardService.release(claim);
+            throw ex;
+        }
     }
 
     private void handleIncomingMessage(GroupActor actor, Message message, int attempt) {
         try {
             onMessage(actor, message);
+        } catch (ScopedRuntimeConfigUnavailableException ex) {
+            sendQuestionnaireText(actor, message.getPeerId(), "Вопросник недоступен или изменился. Для нового выбора отправьте /start.", null);
         } catch (SessionStateConflictException ex) {
             if (attempt + 1 >= SESSION_MUTATION_MAX_RETRIES) {
                 Long userId = message != null ? message.getFromId() : null;
@@ -186,7 +211,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                     userId,
                     attempt + 1,
                     ex.getMessage());
-                return;
+                throw ex;
             }
             Long userId = message != null ? message.getFromId() : null;
             log.info("Retrying VK session mutation for user {} after optimistic conflict (attempt {}/{})",
@@ -210,8 +235,8 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                         .getEvents(state.server(), state.key(), state.ts())
                         .waitTime(25)
                         .execute();
-                state = state.withTs(response != null ? response.getTs() : state.ts());
                 handleUpdates(actor, response);
+                state = state.withTs(response != null ? response.getTs() : state.ts());
             } catch (ApiException | ClientException e) {
                 log.warn("VK long poll state refresh required, requesting new server", e);
                 state = fetchLongPollState(actor);
@@ -262,7 +287,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             }
             Message message = gson.fromJson(object.get("message"), Message.class);
             if (message != null) {
-                onMessage(actor, message);
+                handleIncomingMessage(message);
             }
         }
     }
@@ -296,7 +321,69 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         if ("/start".equalsIgnoreCase(text)) {
             log.info("Received /start from VK user {}", fromId);
         }
-        if (!text.isEmpty() && tryHandleFeedback(actor, message, channel, text)) {
+        ConversationSession session = loadSession(fromId);
+        String eventKey = session != null && session.selection != null ? VkQuestionnaireChoiceSupport.eventKey(message) : null;
+        if (session != null && session.selection != null) {
+            if (channel == null || !Objects.equals(channel.getId(), session.selection.catalog().channelId()))
+                throw new IllegalStateException("VK questionnaire channel changed");
+            if (VkQuestionnaireChoiceSupport.predatesMenu(session.selection.startEventKey(), eventKey)) {
+                if (session.isComplete() && session.selectedBusiness())
+                    sendQuestionnaireText(actor, peerId, "Это сообщение относится к предыдущему опросу. Для нового обращения — /start.", null);
+                else promptCurrentQuestion(actor, session);
+                return;
+            }
+            if (session.selection.submissionEventKey() != null && session.selection.submittedTicketId() == null) {
+                finalizeConversation(actor, session);
+                if (!session.acceptedEvent(eventKey)) throw new IllegalStateException("Retry the message after VK ticket registration");
+            }
+            if (session.acceptedEvent(eventKey)) {
+                if (session.selection.submittedTicketId() != null) {
+                    sendQuestionnaireText(actor, peerId, "Ваше обращение уже принято. Для нового обращения — /start.", null);
+                } else if (session.selectedBusiness() && session.isComplete()) {
+                    finalizeConversation(actor, session);
+                } else {
+                    promptCurrentQuestion(actor, session);
+                }
+                return;
+            }
+        }
+        if ("/start".equalsIgnoreCase(text) && session != null) {
+            deleteSession(session);
+            session = null;
+        }
+        if (!"/cancel".equalsIgnoreCase(text) && !"/unblock".equalsIgnoreCase(text)
+                && session != null && session.selection == null) {
+            var currentScope = QuestionnaireScope.from(runtimeConfigService.findChannelConfig(channel).orElse(null));
+            if (!Objects.equals(session.scope(), currentScope))
+                throw new ScopedRuntimeConfigUnavailableException("VK previous questionnaire must be restarted");
+        }
+        if (session != null && session.awaitingBusinessSelection()) {
+            if (hasAttachments(message)) {
+                sendQuestionnaireText(actor, peerId, "В этом вопроснике пока поддерживается только текст. Выберите бизнес без вложений.", null);
+                promptCurrentQuestion(actor, session);
+                return;
+            }
+            var action = VkQuestionnaireChoiceSupport.resolve(session.selection.catalog(), session.selection.nonce(), text, message.getPayload());
+            if (action.isPresent()) {
+                if (action.get().page()) {
+                    session.changeMenuPage((int) action.get().value());
+                    saveSession(session);
+                } else {
+                    session = session.choose(runtimeConfigService.selectQuestionnaire(channel, session.selection.catalog(), action.get().value()), eventKey);
+                    saveSession(session);
+                }
+            }
+            if (!"/cancel".equalsIgnoreCase(text) && !"/unblock".equalsIgnoreCase(text)) {
+                promptCurrentQuestion(actor, session);
+                return;
+            }
+        }
+        if (VkQuestionnaireChoiceSupport.isChoiceCommand(text, message.getPayload())) {
+            if (session != null) promptCurrentQuestion(actor, session);
+            else sendQuestionnaireText(actor, peerId, "Для выбора вопросника отправьте /start.", null);
+            return;
+        }
+        if ((session == null || session.selection == null) && !text.isEmpty() && tryHandleFeedback(actor, message, channel, text)) {
             log.info("Handled feedback from VK user {}", fromId);
             return;
         }
@@ -306,7 +393,6 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             return;
         }
 
-        ConversationSession session = loadSession(fromId);
         if ("/cancel".equalsIgnoreCase(text)) {
             log.info("Received /cancel from VK user {}", fromId);
             if (session != null) {
@@ -321,6 +407,27 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             return;
         }
 
+        if (session != null && session.selectedBusiness() && session.selection.submittedTicketId() != null) {
+            var active = resolveActiveTicketId(message, clientProfile);
+            if (active.isPresent() && !session.selection.submittedTicketId().equals(active.get()))
+                throw new IllegalStateException("VK active ticket differs from the saved questionnaire root");
+            if (active.isEmpty()) {
+                var ticket = ticketService.findByTicketId(session.selection.submittedTicketId());
+                if (ticket.isPresent() && Objects.equals(ticket.get().userId(), session.userId()) && isClosedStatus(ticket.get().status())) {
+                    sendQuestionnaireText(actor, peerId, "Обращение закрыто. Для нового обращения отправьте /start.", null);
+                    return;
+                }
+                throw new IllegalStateException("VK questionnaire root is not registered yet");
+            }
+            if (hasAttachments(message)) {
+                sendQuestionnaireText(actor, peerId, "В этом вопроснике пока поддерживается только текст. Отправьте сообщение без вложений.", null);
+                return;
+            }
+            if (!handleActiveTicketMessage(actor, message, channel, text, clientProfile, session.selection.submittedTicketId()))
+                throw new IllegalStateException("VK questionnaire root is unavailable");
+            return;
+        }
+
         if (session == null) {
             if (handleActiveTicketMessage(actor, message, channel, text, clientProfile)) {
                 return;
@@ -330,7 +437,21 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                 session.captureBootstrapClientText(text);
             }
             saveSession(session);
+            if (session.selection != null) {
+                if (hasAttachments(message))
+                    sendQuestionnaireText(actor, peerId, "В этом вопроснике пока поддерживается только текст. Вложения не сохранены.", null);
+                promptCurrentQuestion(actor, session);
+            }
             return;
+        }
+
+        if (session.selectedBusiness() && hasAttachments(message)) {
+            sendQuestionnaireText(actor, peerId, "В этом вопроснике пока поддерживается только текст. Отправьте ответ без вложений.", null);
+            return;
+        }
+        if (session.selectedBusiness() && session.isComplete()) {
+            finalizeConversation(actor, session);
+            throw new IllegalStateException("Retry the message after VK ticket registration");
         }
 
         session.markClientResponseReceived();
@@ -369,6 +490,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
 
         if (!resolvedAnswer.isBlank() || isOptionalFreeQuestion(current)) {
             session.recordAnswer(resolvedAnswer);
+            if (session.selectedBusiness()) session.acceptEvent(eventKey);
         }
         storeAttachments(message, session);
 
@@ -465,7 +587,20 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     }
 
     private ConversationSession startSession(GroupActor actor, Message message, Channel channel, VkClientProfile clientProfile) {
-        var runtime = runtimeConfigService.findChannelConfig(channel);
+        Optional<com.example.supportbot.service.PanelRuntimeConfigClient.RuntimeConfigSnapshot> runtime;
+        try {
+            runtime = runtimeConfigService.findChannelConfig(channel);
+        } catch (ScopedRuntimeConfigUnavailableException ex) {
+            String eventKey = VkQuestionnaireChoiceSupport.eventKey(message);
+            ChoiceCatalog catalog = runtimeConfigService.questionnaireChoices(channel);
+            if (channel == null || !Objects.equals(channel.getId(), catalog.channelId()))
+                throw new IllegalStateException("VK questionnaire channel identity mismatch");
+            var pending = new ConversationSession(message.getPeerId(), message.getFromId(), clientProfile.username(),
+                    clientProfile.clientName(), List.of(), null, null);
+            pending.selection = new QuestionnaireSelection(catalog, java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12),
+                    eventKey, null, null, List.of(), 0);
+            return pending;
+        }
         QuestionnaireScope scope = QuestionnaireScope.from(runtime.orElse(null));
         BotSettingsDto settings = botSettingsService.loadFromChannel(channel, runtime);
         List<QuestionFlowItemDto> flow = scope != null
@@ -515,6 +650,13 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     }
 
     private void promptCurrentQuestion(GroupActor actor, ConversationSession session) {
+        if (session.awaitingBusinessSelection()) {
+            var selection = session.selection;
+            String prompt = VkQuestionnaireChoiceSupport.menuText(selection.catalog(), selection.nonce(), selection.page());
+            sendQuestionnaireText(actor, session.peerId(), prompt,
+                    VkQuestionnaireChoiceSupport.keyboard(selection.catalog(), selection.nonce(), selection.page()));
+            return;
+        }
         if (session.awaitingReuseDecision()) {
             sendText(actor, session.peerId(), session.reusePrompt());
             return;
@@ -522,7 +664,8 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         QuestionFlowItemDto current = session.currentQuestion();
         if (current != null) {
             List<String> options = isChoiceQuestion(current) ? resolveQuestionOptions(current, session.answers()) : List.of();
-            sendText(actor, session.peerId(), buildQuestionPromptText(current, options));
+            if (session.selectedBusiness()) sendQuestionnaireText(actor, session.peerId(), buildQuestionPromptText(current, options), null);
+            else sendText(actor, session.peerId(), buildQuestionPromptText(current, options));
         }
     }
 
@@ -783,11 +926,24 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                                               Channel channel,
                                               String text,
                                               VkClientProfile clientProfile) {
+        // A shared-channel active ticket cannot be inferred without the saved selection context.
+        try {
+            runtimeConfigService.findChannelConfig(channel);
+        } catch (ScopedRuntimeConfigUnavailableException ex) {
+            return false;
+        }
+        return handleActiveTicketMessage(actor, message, channel, text, clientProfile, null);
+    }
+
+    private boolean handleActiveTicketMessage(GroupActor actor, Message message, Channel channel, String text,
+                                              VkClientProfile clientProfile, String expectedTicketId) {
         Optional<String> activeTicketId = resolveActiveTicketId(message, clientProfile);
         if (activeTicketId.isEmpty()) {
             return false;
         }
         String ticketId = activeTicketId.get();
+        if (expectedTicketId != null && !expectedTicketId.equals(ticketId))
+            throw new IllegalStateException("VK active ticket changed during delivery");
         Optional<TicketService.TicketWithUser> ticketDetails = ticketService.findByTicketId(ticketId);
         if (ticketDetails.isEmpty()) {
             return false;
@@ -795,6 +951,8 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         if (isClosedStatus(ticketDetails.get().status())) {
             return false;
         }
+        if (expectedTicketId != null && !Objects.equals(message.getFromId(), ticketDetails.get().userId()))
+            throw new IllegalStateException("VK active ticket owner differs from the saved questionnaire");
         Long userId = message.getFromId();
         String username = clientProfile != null ? clientProfile.identity() : (userId != null ? userId.toString() : null);
         boolean hasAttachments = message.getAttachments() != null && !message.getAttachments().isEmpty();
@@ -816,12 +974,12 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                 messageType,
                 null,
                 null,
-                null,
+                expectedTicketId != null && message.getId() != null && message.getId() > 0 ? message.getId().longValue() : null,
                 null,
                 null,
                 OffsetDateTime.now()
         ));
-        relayActiveMessageToOperators(actor, ticketId, clientText, userId, hasAttachments, clientProfile);
+        if (expectedTicketId == null) relayActiveMessageToOperators(actor, ticketId, clientText, userId, hasAttachments, clientProfile);
         return true;
     }
 
@@ -863,8 +1021,25 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     }
 
     private void finalizeConversation(GroupActor actor, ConversationSession session) {
-        deleteSession(session);
         Channel channel = getChannel();
+        String providerEventKey = null;
+        if (session.selectedBusiness()) {
+            saveSession(session);
+            if (session.selection.submissionEventKey() == null) {
+                if (ticketService.findActiveTicketForUser(session.userId(),
+                        session.username() != null ? session.username() : String.valueOf(session.userId()), channel.getId()).isPresent())
+                    throw new ScopedRuntimeConfigUnavailableException("VK cannot create a second active questionnaire root");
+                var selected = runtimeConfigService.selectQuestionnaire(channel, session.selection.catalog(), session.scope().businessId());
+                if (!session.scope().equals(QuestionnaireScope.fromSelection(selected)))
+                    throw new ScopedRuntimeConfigUnavailableException("VK questionnaire identity changed");
+                var acceptedKeys = session.selection.acceptedEventKeys();
+                session.prepareSubmission(acceptedKeys.get(acceptedKeys.size() - 1));
+                saveSession(session);
+            }
+            providerEventKey = session.selection.submissionEventKey();
+        } else {
+            deleteSession(session);
+        }
         TicketService.TicketCreationResult result = ticketService.createConversationTicket(
                 new ConversationTicketCreationCommand(
                         session.userId(),
@@ -886,7 +1061,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                                 .toList(),
                         channel,
                         session.startedAt(),
-                        null,
+                        providerEventKey,
                         session.scope() != null ? session.scope().businessId() : null,
                         session.scope() != null ? session.scope().scopeKind() : null,
                         session.scope() != null ? session.scope().scopeSelectionSource() : null,
@@ -895,18 +1070,20 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                         session.scope() != null ? session.scope().catalogSha256() : null
                 )
         );
+        if (session.selectedBusiness()) {
+            session.markSubmitted(result.ticketId());
+            saveSession(session);
+        }
         Optional<String> requestNumber = ticketService.awaitClientTicketNumber(result);
         log.info("Created VK ticket {} for user {}", result.ticketId(), session.userId());
-        sendText(
-                actor,
-                session.peerId(),
-                requestNumber.map(number -> "Спасибо! Ваше обращение №" + number + " отправлено оператору.")
-                        .orElse("Спасибо! Ваше обращение принято и передано оператору. Номер появится после регистрации.")
-        );
-        if (properties.getChannelId() != null && properties.getChannelId() > 0) {
+        String confirmation = requestNumber.map(number -> "Спасибо! Ваше обращение №" + number + " отправлено оператору.")
+                .orElse("Спасибо! Ваше обращение принято и передано оператору. Номер появится после регистрации.");
+        if (session.selectedBusiness()) sendQuestionnaireText(actor, session.peerId(), confirmation, null);
+        else sendText(actor, session.peerId(), confirmation);
+        if (!session.selectedBusiness() && properties.getChannelId() != null && properties.getChannelId() > 0) {
             sendText(actor, properties.getChannelId().longValue(), session.buildSummary(result.ticketId()));
         }
-        requestNumber.ifPresent(number -> {
+        if (!session.selectedBusiness()) requestNumber.ifPresent(number -> {
             int scale = botSettingsService.ratingScale(session.settings(), 5);
             String prompt = botSettingsService.ratingPrompt(session.settings(), "Оцените заявку {ticket_id} по шкале 1-{scale}")
                     .replace("{ticket_id}", number)
@@ -1007,6 +1184,22 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         }
     }
 
+    private boolean hasAttachments(Message message) {
+        return message.getAttachments() != null && !message.getAttachments().isEmpty();
+    }
+
+    private void sendQuestionnaireText(GroupActor actor, Long peerId, String text, Keyboard keyboard) {
+        try {
+            var request = vkClient.messages().sendDeprecated(actor).peerId(peerId)
+                    .randomId(ThreadLocalRandom.current().nextInt()).message(text);
+            if (keyboard != null) request.keyboard(keyboard);
+            request.execute();
+        } catch (ApiException | ClientException ex) {
+            // Do not acknowledge Callback or advance Long Poll on a failed required delivery.
+            throw new IllegalStateException("VK questionnaire delivery failed", ex);
+        }
+    }
+
     @Scheduled(cron = "0 0 * * * *")
     public void sendUnblockDigest() {
         if (!ingressCoordinationService.tryAcquireOrRenewJob(SESSION_PLATFORM, properties.getChannelId(), UNBLOCK_DIGEST_JOB)) {
@@ -1049,6 +1242,8 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         OffsetDateTime now = OffsetDateTime.now();
         sessionStoreService.loadAll(SESSION_PLATFORM, properties.getChannelId(), ConversationSessionState.class).forEach(storedSession -> {
             ConversationSession session = restoreSession(storedSession);
+            // Selected questionnaires retain their dedup/submission marker until explicit restart/cancel or store TTL.
+            if (session.selection != null) return;
             int timeoutMinutes = botSettingsService.firstResponseTimeoutMinutes(
                     session.settings(),
                     DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES
@@ -1289,7 +1484,31 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                                             String bootstrapProblemText,
                                             boolean firstClientResponseReceived,
                                             boolean reuseDecisionPending,
-                                            int currentIndex) {
+                                            int currentIndex,
+                                            QuestionnaireSelection selection) {
+    }
+
+    private record QuestionnaireSelection(ChoiceCatalog catalog, String nonce, String startEventKey,
+                                          String submissionEventKey, String submittedTicketId,
+                                          List<String> acceptedEventKeys, int page) {
+        QuestionnaireSelection {
+            VkQuestionnaireChoiceSupport.validate(catalog, nonce);
+            VkQuestionnaireChoiceSupport.predatesMenu(startEventKey, startEventKey);
+            if (!StringUtils.hasText(startEventKey) || acceptedEventKeys == null || acceptedEventKeys.size() > 4096
+                    || acceptedEventKeys.stream().anyMatch(key -> !StringUtils.hasText(key))
+                    || new java.util.HashSet<>(acceptedEventKeys).size() != acceptedEventKeys.size()
+                    || page < 0 || page >= VkQuestionnaireChoiceSupport.pageCount(catalog)
+                    || (submissionEventKey != null && (acceptedEventKeys.isEmpty()
+                        || !submissionEventKey.equals(acceptedEventKeys.get(acceptedEventKeys.size() - 1))))
+                    || (submittedTicketId != null && (!StringUtils.hasText(submittedTicketId) || !StringUtils.hasText(submissionEventKey))))
+                throw new IllegalStateException("Invalid VK questionnaire event identity");
+            acceptedEventKeys = List.copyOf(acceptedEventKeys);
+        }
+        QuestionnaireSelection accept(String eventKey) {
+            var keys = new ArrayList<>(acceptedEventKeys);
+            if (!keys.contains(eventKey)) keys.add(eventKey);
+            return new QuestionnaireSelection(catalog, nonce, startEventKey, submissionEventKey, submittedTicketId, keys, page);
+        }
     }
 
     private final class ConversationSession {
@@ -1311,6 +1530,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         private boolean firstClientResponseReceived = false;
         private boolean reuseDecisionPending = false;
         private int currentIndex = 0;
+        private QuestionnaireSelection selection;
 
         ConversationSession(Long peerId,
                             Long userId,
@@ -1356,6 +1576,60 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             this.firstClientResponseReceived = state.firstClientResponseReceived();
             this.reuseDecisionPending = state.reuseDecisionPending();
             this.currentIndex = Math.max(0, state.currentIndex());
+            this.selection = state.selection();
+            if (scope != null && "BUSINESS".equals(scope.scopeKind()) && selection == null)
+                throw new IllegalStateException("Saved VK business questionnaire has no menu");
+            if (selection != null) {
+                if (reuseDecisionPending || state.currentIndex() < 0 || currentIndex > flow.size()
+                        || (scope == null && (!flow.isEmpty() || !answers.isEmpty() || currentIndex != 0))
+                        || (selection.submissionEventKey() != null && (scope == null || !isComplete()))
+                        || (scope != null && (!"BUSINESS".equals(scope.scopeKind()) || flow.isEmpty()
+                            || !selection.catalog().catalogSha256().equals(scope.catalogSha256())
+                            || selection.catalog().choices().stream().noneMatch(choice -> Objects.equals(scope.businessId(), choice.businessId())
+                                && choice.questionTemplateId().equals(scope.questionTemplateId())
+                                && choice.templateSha256().equals(scope.templateSha256()))
+                            || !Objects.equals(scope.questionTemplateId(), settings != null ? settings.getActiveTemplateId() : null)
+                            || !objectMapper.valueToTree(flow).equals(objectMapper.valueToTree(
+                                GeneralQuestionnaireFlow.from(botSettingsService.questionFlow(settings)))))))
+                    throw new IllegalStateException("Saved VK questionnaire does not match its menu");
+            }
+        }
+
+        boolean awaitingBusinessSelection() { return selection != null && scope == null; }
+        boolean selectedBusiness() { return selection != null && scope != null; }
+        boolean acceptedEvent(String eventKey) {
+            return selection != null && (selection.startEventKey().equals(eventKey) || selection.acceptedEventKeys().contains(eventKey));
+        }
+        void acceptEvent(String eventKey) { selection = selection.accept(eventKey); }
+        void changeMenuPage(int page) {
+            selection = new QuestionnaireSelection(selection.catalog(), selection.nonce(), selection.startEventKey(),
+                    selection.submissionEventKey(), selection.submittedTicketId(), selection.acceptedEventKeys(), page);
+        }
+        ConversationSession choose(SelectedQuestionnaire selected, String eventKey) {
+            if (!awaitingBusinessSelection() || selected.channelId() != selection.catalog().channelId()
+                    || !selection.catalog().catalogSha256().equals(selected.catalogSha256())
+                    || selection.catalog().choices().stream().noneMatch(choice -> choice.businessId() == selected.businessId()
+                        && choice.questionTemplateId().equals(selected.questionTemplateId())
+                        && choice.templateSha256().equals(selected.templateSha256())))
+                throw new IllegalStateException("VK choice does not match the saved menu");
+            BotSettingsDto chosenSettings = botSettingsService.loadSelectedQuestionnaire(selected);
+            var chosenFlow = GeneralQuestionnaireFlow.from(botSettingsService.questionFlow(chosenSettings));
+            var chosen = new ConversationSession(new ConversationSessionState(peerId, userId, username, clientName,
+                    chosenFlow, chosenSettings, QuestionnaireScope.fromSelection(selected), Map.of(), List.copyOf(history),
+                    List.of(), startedAt, Map.of(), bootstrapProblemText, false, false, 0, selection.accept(eventKey)));
+            chosen.restorePersistedRawPayload(persistedRawPayload);
+            return chosen;
+        }
+        void prepareSubmission(String eventKey) {
+            if (!selectedBusiness() || !isComplete() || !StringUtils.hasText(eventKey))
+                throw new IllegalStateException("VK questionnaire is not ready for submission");
+            if (selection.submissionEventKey() == null)
+                selection = new QuestionnaireSelection(selection.catalog(), selection.nonce(), selection.startEventKey(),
+                        eventKey, null, selection.acceptedEventKeys(), selection.page());
+        }
+        void markSubmitted(String ticketId) {
+            selection = new QuestionnaireSelection(selection.catalog(), selection.nonce(), selection.startEventKey(),
+                    selection.submissionEventKey(), ticketId, selection.acceptedEventKeys(), selection.page());
         }
 
         QuestionnaireScope scope() {
@@ -1577,7 +1851,8 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                     bootstrapProblemText,
                     firstClientResponseReceived,
                     reuseDecisionPending,
-                    currentIndex
+                    currentIndex,
+                    selection
             );
         }
 
@@ -1719,8 +1994,18 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     }
 
     private ConversationSession loadSession(Long userId) {
+        var selected = sessionStoreService.load(QUESTIONNAIRE_SESSION_PLATFORM, getChannel().getId(), userId, ConversationSessionState.class);
+        if (selected.isPresent()) {
+            var session = restoreSession(selected.get());
+            if (session.selection == null) throw new IllegalStateException("VK selected session lost its menu identity");
+            return session;
+        }
         return sessionStoreService.load(SESSION_PLATFORM, properties.getChannelId(), userId, ConversationSessionState.class)
-                .map(this::restoreSession)
+                .map(stored -> {
+                    var session = restoreSession(stored);
+                    if (session.selection != null) throw new IllegalStateException("VK selected session has a legacy storage namespace");
+                    return session;
+                })
                 .orElse(null);
     }
 
@@ -1729,6 +2014,10 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             return null;
         }
         ConversationSession session = new ConversationSession(stored.payload());
+        if (!Objects.equals(stored.userId(), session.userId())
+                || !Objects.equals(session.peerId(), session.userId())
+                || (session.selection != null && !Objects.equals(getChannel().getId(), session.selection.catalog().channelId())))
+            throw new IllegalStateException("Saved VK questionnaire has a different owner or channel");
         session.restorePersistedRawPayload(stored.rawPayload());
         return session;
     }
@@ -1738,8 +2027,8 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             return;
         }
         String rawPayload = sessionStoreService.saveIfUnchanged(
-                SESSION_PLATFORM,
-                properties.getChannelId(),
+                session.selection != null ? QUESTIONNAIRE_SESSION_PLATFORM : SESSION_PLATFORM,
+                session.selection != null ? getChannel().getId() : properties.getChannelId(),
                 session.userId(),
                 session.persistedRawPayload(),
                 session.snapshot())
@@ -1748,21 +2037,18 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         session.restorePersistedRawPayload(rawPayload);
     }
 
-    private void deleteSession(Long userId) {
-        sessionStoreService.delete(SESSION_PLATFORM, properties.getChannelId(), userId);
-    }
-
     private void deleteSession(ConversationSession session) {
         if (session == null) {
             return;
         }
         if (!StringUtils.hasText(session.persistedRawPayload())) {
-            deleteSession(session.userId());
+            sessionStoreService.delete(session.selection != null ? QUESTIONNAIRE_SESSION_PLATFORM : SESSION_PLATFORM,
+                    session.selection != null ? getChannel().getId() : properties.getChannelId(), session.userId());
             return;
         }
         if (!sessionStoreService.deleteIfUnchanged(
-                SESSION_PLATFORM,
-                properties.getChannelId(),
+                session.selection != null ? QUESTIONNAIRE_SESSION_PLATFORM : SESSION_PLATFORM,
+                session.selection != null ? getChannel().getId() : properties.getChannelId(),
                 session.userId(),
                 session.persistedRawPayload())) {
             throw new SessionStateConflictException(

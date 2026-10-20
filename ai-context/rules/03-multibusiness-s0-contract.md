@@ -14,6 +14,15 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 ## Среда выполнения и сессии
 
+Актуальное уточнение R143–R146 (2026-10-20): пользователь подтвердил, что
+рабочая копия и рабочий экземпляр находятся на машине текущей сессии;
+необходимый restart разрешён. В R146 он не понадобился. Подтверждён Docker
+Server 29.7.2 для изолированных Testcontainers; рабочие DB/flags/контейнеры
+не менялись. Runtime evidence R143 и source/test evidence R146 различаются;
+подтверждение машины не разрешает deploy/migration/backfill/flags.
+
+Историческое уточнение другой сессии:
+
 Уточнение R137 (2026-10-19): по уточнению пользователя рабочий Docker
 и весь запущенный проект находятся на другой локальной машине, в другой сессии
 агента относительно source/test-сессии R137. Docker/image observations R135/R136
@@ -769,8 +778,8 @@ scope/версии, подмена payload или глобальные presets/s
 Panel API/другие transport modes ещё требуют отдельного аудита.
 
 R143 сам по себе — read-only handshake, не право создать ticket. Контракт
-BUSINESS producer/INSERT/replay добавлен в R144 ниже; MAX selection UX — в R145.
-Кнопки Telegram/VK, GENERAL option общего канала, scoped locations и сквозная
+BUSINESS producer/INSERT/replay добавлен в R144 ниже; MAX selection UX — в R145,
+VK — в R146. Кнопки Telegram, GENERAL option общего канала, scoped locations и сквозная
 приёмка resume/UX после rebind остаются PENDING. Новый shared-channel flow нельзя включать до
 подключения совместимых consumers; существующий general-only flow сохранён.
 
@@ -807,7 +816,7 @@ flag также не превращает уже выбранный BUSINESS roo
 точный повтор. Сами transport event IDs и display поля не выдают права доступа.
 
 Подтверждены typed JSON/CAS scope и MAX state round-trip. Подключение MAX
-pending choice/selection UX описано в R145; Telegram/VK остаются PENDING.
+pending choice/selection UX описано в R145, VK — в R146; Telegram остаётся PENDING.
 GENERAL option общего канала требует отдельной явной настройки, а не ослабления
 general-only binding. Нет новых scoped presets/locations, version registry для
 старых незавершённых опросов или разрешения на flags/migration/rollout.
@@ -853,10 +862,67 @@ proxy и rolling-upgrade acceptance ещё обязательны до rollout.
 Проверки используют реальный handler/JSON/CAS с изолированными doubles для
 доставки и отдельные PostgreSQL suites; это не живой provider E2E.
 
-Telegram/VK, GENERAL option общего канала, scoped locations/presets и release
+После VK R146 Telegram, GENERAL option общего канала, scoped locations/presets и release
 остаются отдельными этапами. Новых migrations нет; minimum schema — V73.
 Необходимость совместимого backend/fleet не разрешает менять рабочие flags,
 запускать migration/backfill, rebuild или deployment без отдельного scope.
+
+### R146: VK — выбор, сохранённый опрос и Callback/Long Poll retry
+
+VK использует тот же writer-gated choices/selection и выбранный loader R145.
+Новый BUSINESS опрос не использует channel/global overrides, legacy defaults,
+прошлые business answers либо обязательный problem. GENERAL-only и unbound
+legacy остаются отдельными совместимыми ветками, не вариантами общего меню.
+
+До отправки меню сохраняются каталог/его SHA, nonce, стартовый conversation
+message ID и страница. До первого вопроса сохранены scope/template ID/SHA,
+flow/settings, bootstrap и ответы. Нативные text buttons несут JSON payload
+с nonce и business ID; видимый label не является authority. До 8 бизнесов на
+странице, 2 кнопки в ряду и отдельная навигация: не более 5 рядов/10 кнопок.
+Усечённые имена сохраняют ID suffix; текст страницы и ручной код позволяют
+различать варианты. Страницы не меняют каталог, /start создаёт новую генерацию.
+Старые, чужие и malformed payload не превращаются в ответы вопросника.
+
+В существующей конфигурации vk-bot.channel-id берётся из VK_OPERATOR_CHAT_ID:
+это внешний служебный peer, не channels.id. Новые selected sessions используют
+отдельный namespace vk-questionnaire-v1 + канонический channels.id, разрешённый
+через token. Внутренний message guard тоже привязан к этому ID; общий служебный
+чат не смешивает опросы двух каналов одного клиента. Старый vk/legacy namespace
+совместим отдельно и не выдаётся за selected state. Рабочие ключи не переносятся
+и не удаляются миграцией. Legacy ingress/job lease namespaces требуют отдельного
+аудита; новая схема сессий не доказывает готовность всей fleet coordination.
+
+Callback и Long Poll используют общий guard по peer/conversation_message_id,
+а не только event_id envelope. В новой сессии сохранён список принятых answer
+events (до 4096, превышение — отказ, не усечение). Он сохраняет дедупликацию
+ответов при потере transport cache. Сообщение с conversation message ID меньше
+стартового относится к предыдущему опросу и не заполняет новый бизнес.
+Long Poll продвигает ts только после успешной обработки пачки; повтор пропускает
+ранее завершённые сообщения. CAS conflict после трёх попыток остаётся retryable,
+не подтверждается как обработанный. BUSINESS требует положительный stable
+conversation_message_id; дата, текст и random ID его не заменяют.
+
+До первой публикации проверяются актуальный выбор и отсутствие другого active
+root. Последний ответ, submission key и accepted-answer ledger сохраняются до
+очереди. Retry после ошибки очереди использует тот же command, даже при смене
+bindings. После queue acceptance сохранён ticket ID marker; ошибка записи самого
+marker допускает повтор только того же детерминированного command, не новый root.
+Следующее сообщение при восстановлении pending публикации остаётся retryable,
+не теряется под подтверждением завершения опроса. Follow-up ждёт именно свой
+canonical root и проверяет user/active ID; другой active ticket его не перехватывает.
+
+Новый selected VK путь text-only: вложения явно отклоняются до storage/ответа,
+без unscoped upload. Raw support-chat summaries/follow-up и прежний rating prompt
+для этого пути не отправляются; shared-channel active shortcut без сохранённого
+контекста также не публикует raw сообщение. Это не завершённая общая destination,
+media/feedback, follow-up event retention или permission policy остальных путей.
+
+Selected sessions не удаляются legacy first-response scheduler: сохраняются до
+явного /start, /cancel либо TTL store. TTL/retention, dedup TTL, non-Rabbit/API-off,
+rolling upgrades, несколько active бизнесов и live Redis/VK/Long Poll/proxy
+проверяются отдельно. Session store остаётся transport state, не canonical DB.
+Новых migrations/flags нет; минимум V73. Telegram, shared GENERAL option,
+scoped locations/presets и release остаются PENDING; rollout этим не разрешён.
 
 ## Scope guard и API contract
 
