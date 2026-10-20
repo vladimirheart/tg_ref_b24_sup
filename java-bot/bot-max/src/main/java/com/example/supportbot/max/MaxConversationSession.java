@@ -2,6 +2,8 @@ package com.example.supportbot.max;
 
 import com.example.supportbot.service.ConversationProblemTextSupport;
 import com.example.supportbot.service.QuestionnaireScope;
+import com.example.supportbot.service.PanelRuntimeConfigClient.ChoiceCatalog;
+import com.example.supportbot.service.PanelRuntimeConfigClient.SelectedQuestionnaire;
 import com.example.supportbot.service.TicketService;
 import com.example.supportbot.settings.dto.BotSettingsDto;
 import com.example.supportbot.settings.dto.QuestionFlowItemDto;
@@ -34,7 +36,17 @@ final class MaxConversationSession {
                  String bootstrapProblemText,
                  boolean firstClientResponseReceived,
                  boolean reuseDecisionPending,
-                 int currentIndex) {
+                 int currentIndex,
+                 Selection selection) {
+    }
+
+    record Selection(ChoiceCatalog catalog,String nonce,String startEventKey,String submissionEventKey,String submittedTicketId) {
+        Selection {
+            MaxQuestionnaireChoiceSupport.validate(catalog,nonce);
+            if(startEventKey==null || startEventKey.isBlank()) throw new IllegalStateException("Menu lost its event identity");
+            if(submittedTicketId!=null && (submissionEventKey==null || submissionEventKey.isBlank()))
+                throw new IllegalStateException("Submitted questionnaire lost its event identity");
+        }
     }
 
     private final Long userId;
@@ -55,6 +67,42 @@ final class MaxConversationSession {
     private boolean firstClientResponseReceived = false;
     private boolean reuseDecisionPending = false;
     private int currentIndex = 0;
+    private Selection selection;
+
+    static MaxConversationSession pending(Long userId,Long chatId,String username,String clientName,ChoiceCatalog catalog,String eventKey) {
+        var session=new MaxConversationSession(userId,chatId,username,clientName,List.of(),null,null);
+        session.selection=new Selection(catalog,java.util.UUID.randomUUID().toString().replace("-","").substring(0,12),eventKey,null,null);
+        return session;
+    }
+
+    boolean awaitingBusinessSelection() { return selection!=null && scope==null; }
+    boolean selectedBusiness() { return selection!=null && scope!=null && "BUSINESS".equals(scope.scopeKind()); }
+    Selection selection() { return selection; }
+    MaxConversationSession choose(SelectedQuestionnaire selected,BotSettingsDto chosenSettings,List<QuestionFlowItemDto> chosenFlow) {
+        if(!awaitingBusinessSelection() || selected.channelId()!=selection.catalog().channelId()
+                || !selected.catalogSha256().equals(selection.catalog().catalogSha256())
+                || selection.catalog().choices().stream().noneMatch(choice->choice.businessId()==selected.businessId()
+                    && choice.questionTemplateId().equals(selected.questionTemplateId())
+                    && choice.templateSha256().equals(selected.templateSha256())))
+            throw new IllegalStateException("Questionnaire choice does not match the saved menu");
+        var state=snapshot();
+        var chosen=new MaxConversationSession(new State(userId,chatId,username,clientName,chosenFlow,chosenSettings,
+            QuestionnaireScope.fromSelection(selected),Map.of(),state.history(),List.of(),startedAt,Map.of(),
+            bootstrapProblemText,false,false,0,selection));
+        chosen.restorePersistedRawPayload(persistedRawPayload);
+        return chosen;
+    }
+    void prepareSubmission(String eventKey) {
+        if(!selectedBusiness() || !isComplete() || eventKey==null || eventKey.isBlank())
+            throw new IllegalStateException("Questionnaire is not ready for submission");
+        if(selection.submissionEventKey()==null)
+            selection=new Selection(selection.catalog(),selection.nonce(),selection.startEventKey(),eventKey,null);
+    }
+    void markSubmitted(String ticketId) {
+        if(ticketId==null || ticketId.isBlank() || selection==null || selection.submissionEventKey()==null)
+            throw new IllegalStateException("Incomplete questionnaire submission");
+        selection=new Selection(selection.catalog(),selection.nonce(),selection.startEventKey(),selection.submissionEventKey(),ticketId);
+    }
 
     MaxConversationSession(Long userId,
                            Long chatId,
@@ -105,6 +153,16 @@ final class MaxConversationSession {
         this.firstClientResponseReceived = state.firstClientResponseReceived();
         this.reuseDecisionPending = state.reuseDecisionPending();
         this.currentIndex = Math.max(0, state.currentIndex());
+        this.selection = state.selection();
+        if(selection!=null && ((scope==null && (!flow.isEmpty() || !answers.isEmpty()))
+                || (scope!=null && flow.isEmpty())
+                || (selection.submissionEventKey()!=null && (scope==null || !isComplete()))
+                || (scope!=null && (!"BUSINESS".equals(scope.scopeKind())
+                    || !selection.catalog().catalogSha256().equals(scope.catalogSha256())
+                    || selection.catalog().choices().stream().noneMatch(choice->java.util.Objects.equals(scope.businessId(),choice.businessId())
+                        && choice.questionTemplateId().equals(scope.questionTemplateId())
+                        && choice.templateSha256().equals(scope.templateSha256()))))))
+            throw new IllegalStateException("Saved questionnaire scope does not match its menu");
     }
 
     QuestionnaireScope scope() {
@@ -337,7 +395,8 @@ final class MaxConversationSession {
                 bootstrapProblemText,
                 firstClientResponseReceived,
                 reuseDecisionPending,
-                currentIndex
+                currentIndex,
+                selection
         );
     }
 

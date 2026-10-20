@@ -63,18 +63,36 @@ public class PanelRuntimeConfigClient {
     }
 
     public ChoiceCatalog choices(long channelId) {
+        return choices(channelId, false);
+    }
+
+    public ChoiceCatalog choicesForStart(long channelId) {
+        return choices(channelId, true);
+    }
+
+    private ChoiceCatalog choices(long channelId, boolean forStart) {
         requireChannel(channelId);
-        ChoiceCatalog catalog=fetchTyped("/internal/api/bot/channels/"+channelId+"/questionnaire/choices",ChoiceCatalog.class);
+        ChoiceCatalog catalog=fetchTyped("/internal/api/bot/channels/"+channelId+"/questionnaire/choices"
+            +(forStart ? "?forStart=true" : ""),ChoiceCatalog.class,forStart);
         validateCatalog(channelId,catalog);
         return catalog;
     }
 
     public SelectedQuestionnaire select(ChoiceCatalog catalog,long businessId) {
+        return select(catalog, businessId, false);
+    }
+
+    public SelectedQuestionnaire selectForStart(ChoiceCatalog catalog,long businessId) {
+        return select(catalog, businessId, true);
+    }
+
+    private SelectedQuestionnaire select(ChoiceCatalog catalog,long businessId,boolean forStart) {
         if (catalog==null) throw unavailable();
         requireChannel(catalog.channelId());validateCatalog(catalog.channelId(),catalog);
         Choice choice=catalog.choices().stream().filter(item->item.businessId()==businessId).findFirst().orElseThrow(PanelRuntimeConfigClient::unavailable);
         SelectedQuestionnaire selected=fetchTyped("/internal/api/bot/channels/"+catalog.channelId()
-            +"/questionnaire/selection?businessId="+businessId+"&catalogSha256="+catalog.catalogSha256(),SelectedQuestionnaire.class);
+            +"/questionnaire/selection?businessId="+businessId+"&catalogSha256="+catalog.catalogSha256()
+            +(forStart ? "&forStart=true" : ""),SelectedQuestionnaire.class,forStart);
         if (selected==null || selected.version()!=1 || selected.channelId()!=catalog.channelId() || selected.businessId()!=businessId
                 || !"BUSINESS".equals(selected.scopeKind()) || !"USER_SELECTION".equals(selected.scopeSelectionSource())
                 || !catalog.catalogSha256().equals(selected.catalogSha256()) || !choice.questionTemplateId().equals(selected.questionTemplateId())
@@ -110,6 +128,9 @@ public class PanelRuntimeConfigClient {
         return new ScopedRuntimeConfigUnavailableException("Verified questionnaire runtime is unavailable");
     }
     private <T> T fetchTyped(String path,Class<T> type) {
+        return fetchTyped(path,type,false);
+    }
+    private <T> T fetchTyped(String path,Class<T> type,boolean requireWriter) {
         URI uri = resolve(path);
         HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
             .timeout(properties.getRequestTimeout())
@@ -119,6 +140,9 @@ public class PanelRuntimeConfigClient {
         try {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw unavailable();
+            }
+            if(requireWriter && !"1".equals(response.headers().firstValue("X-Iguana-Questionnaire-Writer-Version").orElse(null))) {
                 throw unavailable();
             }
             return objectMapper.readValue(response.body(),type);

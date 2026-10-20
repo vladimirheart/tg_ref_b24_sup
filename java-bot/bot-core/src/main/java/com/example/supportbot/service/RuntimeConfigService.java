@@ -43,6 +43,28 @@ public class RuntimeConfigService {
         return loadLocalLocationTree();
     }
 
+    public PanelRuntimeConfigClient.ChoiceCatalog questionnaireChoices(Channel channel) {
+        requireRemoteQuestionnaire(channel);
+        return panelRuntimeConfigClient.choicesForStart(channel.getId());
+    }
+
+    public PanelRuntimeConfigClient.SelectedQuestionnaire selectQuestionnaire(Channel channel,
+            PanelRuntimeConfigClient.ChoiceCatalog catalog, long businessId) {
+        requireRemoteQuestionnaire(channel);
+        if (catalog == null || catalog.channelId() != channel.getId()) {
+            throw new PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException("Questionnaire channel mismatch");
+        }
+        return panelRuntimeConfigClient.selectForStart(catalog, businessId);
+    }
+
+    private void requireRemoteQuestionnaire(Channel channel) {
+        if (!integrationTransportMode.isRabbitMqMode() || !panelRuntimeConfigClient.isEnabled()
+                || channel == null || channel.getId() == null || channel.getId() <= 0
+                || !channel.isActive()) {
+            throw new PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException("Verified questionnaire runtime is unavailable");
+        }
+    }
+
     public Map<String, Object> basePresetDefinitions(Channel channel) {
         Optional<PanelRuntimeConfigClient.RuntimeConfigSnapshot> remoteConfig = findChannelConfig(channel);
         if (remoteConfig.isPresent()) {

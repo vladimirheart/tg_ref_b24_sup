@@ -17,6 +17,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class SharedQuestionnaireClientTest {
+    private String lastStartPath;
+    private String writerVersion="1";
     private HttpServer server;
     private PanelRuntimeConfigClient client;
     private final ObjectMapper mapper=new ObjectMapper();
@@ -37,6 +39,9 @@ class SharedQuestionnaireClientTest {
         selected.set("locationTree",mapper.createObjectNode());selected.set("presetDefinitions",mapper.createObjectNode());
         server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
         server.createContext("/internal/api/bot/channels/8/questionnaire",exchange->{
+            lastStartPath=exchange.getRequestURI().toString();
+            if(lastStartPath.contains("forStart=true") && !"missing".equals(writerVersion))
+                exchange.getResponseHeaders().set("X-Iguana-Questionnaire-Writer-Version",writerVersion);
             requests.incrementAndGet();
             try {
                 String time=exchange.getRequestHeaders().getFirst("X-Iguana-Request-Timestamp");
@@ -56,6 +61,19 @@ class SharedQuestionnaireClientTest {
         client=new PanelRuntimeConfigClient(properties,mapper,new PanelApiRequestHeadersFactory(properties));
     }
     @AfterEach void stop(){server.stop(0);}
+    @Test void startHandshakeSignsTheWriterGateInBothRequests() {
+        var choices=client.choicesForStart(8);
+        assertThat(signatureValid).isTrue();assertThat(lastStartPath).endsWith("/choices?forStart=true");
+        client.selectForStart(choices,7);
+        assertThat(signatureValid).isTrue();assertThat(lastStartPath).contains("&forStart=true");
+    }
+    @ParameterizedTest @ValueSource(strings={"missing","0","2"})
+    void anOlderOrIncompatibleBackendCannotPretendThatItAcceptedTheStartGate(String version) {
+        writerVersion=version;
+        var catalog=client.choices(8); // The read-only R143 handshake remains compatible.
+        assertThatThrownBy(()->client.choicesForStart(8)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
+        assertThatThrownBy(()->client.selectForStart(catalog,7)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
+    }
     @Test void signedChoiceAndSelectionRoundtripPreservesScopeAndTemplateBytes() {
         var choices=client.choices(8);assertThat(signatureValid).isTrue();
         var runtime=client.select(choices,7);

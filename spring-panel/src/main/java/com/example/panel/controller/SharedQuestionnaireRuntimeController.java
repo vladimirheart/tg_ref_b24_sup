@@ -22,18 +22,28 @@ public class SharedQuestionnaireRuntimeController {
     }
     @GetMapping("/choices")
     public BusinessQuestionTemplateRegistryService.ChoiceCatalog choices(HttpServletRequest request,HttpServletResponse response,
-            @RequestHeader(name="X-Iguana-Bot-Api-Token",required=false) String token,@PathVariable long channelId) {
+            @RequestHeader(name="X-Iguana-Bot-Api-Token",required=false) String token,@PathVariable long channelId,
+            @RequestParam(defaultValue="false") boolean forStart) {
         authorize(request,response,token);
+        requireWriterWhenStarting(forStart,response);
         try { return registry.choices(channelId).orElseThrow(()->new ResponseStatusException(HttpStatus.CONFLICT)); }
         catch (IllegalArgumentException ex) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST); }
     }
     @GetMapping("/selection")
     public BusinessQuestionTemplateRegistryService.SelectedRuntime selection(HttpServletRequest request,HttpServletResponse response,
             @RequestHeader(name="X-Iguana-Bot-Api-Token",required=false) String token,@PathVariable long channelId,
-            @RequestParam long businessId,@RequestParam String catalogSha256) {
+            @RequestParam long businessId,@RequestParam String catalogSha256,
+            @RequestParam(defaultValue="false") boolean forStart) {
         authorize(request,response,token);
+        requireWriterWhenStarting(forStart,response);
         try { return registry.select(channelId,businessId,catalogSha256).orElseThrow(()->new ResponseStatusException(HttpStatus.CONFLICT)); }
         catch (IllegalArgumentException ex) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST); }
+    }
+    private void requireWriterWhenStarting(boolean forStart,HttpServletResponse response) {
+        if (forStart && !flags.isTicketWriteRequiresBusiness()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+        if(forStart) response.setHeader("X-Iguana-Questionnaire-Writer-Version","1");
     }
     private void authorize(HttpServletRequest request,HttpServletResponse response,String token) {
         response.setHeader("Cache-Control","no-store");

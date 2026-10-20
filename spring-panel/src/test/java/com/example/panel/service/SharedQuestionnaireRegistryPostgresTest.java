@@ -155,6 +155,14 @@ class SharedQuestionnaireRegistryPostgresTest {
         String digest=registry.choices(10).orElseThrow().catalogSha256();
         String selection=root+"/selection?businessId="+a+"&catalogSha256="+digest;
         mvc.perform(signed(selection)).andExpect(status().isOk()).andExpect(jsonPath("$.businessId").value(a)).andExpect(jsonPath("$.scopeKind").value("BUSINESS"));
+        mvc.perform(signed(root+"/choices?forStart=true")).andExpect(status().isNotFound()).andExpect(header().string("Cache-Control","no-store"));
+        mvc.perform(signed(selection+"&forStart=true")).andExpect(status().isNotFound());
+        flags.setTicketWriteRequiresBusiness(true);
+        mvc.perform(signed(root+"/choices?forStart=true")).andExpect(status().isOk()).andExpect(jsonPath("$.choices.length()").value(2))
+            .andExpect(header().string("X-Iguana-Questionnaire-Writer-Version","1"));
+        mvc.perform(signed(selection+"&forStart=true")).andExpect(status().isOk()).andExpect(jsonPath("$.businessId").value(a))
+            .andExpect(header().string("X-Iguana-Questionnaire-Writer-Version","1"));
+        mvc.perform(signed(selection+"&forStart=true").queryParam("tamper","true")).andExpect(status().isUnauthorized());
         mvc.perform(signed(selection).queryParam("unexpected","tamper")).andExpect(status().isUnauthorized());
         jdbc.update("UPDATE businesses SET display_name='Changed' WHERE id=?",a);
         mvc.perform(signed(selection)).andExpect(status().isConflict()).andExpect(header().string("Cache-Control","no-store"));

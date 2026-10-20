@@ -19,6 +19,7 @@ import com.example.supportbot.service.FeedbackService;
 import com.example.supportbot.service.GeneralQuestionnaireFlow;
 import com.example.supportbot.service.MessagingService;
 import com.example.supportbot.service.QuestionnaireScope;
+import com.example.supportbot.service.PanelRuntimeConfigClient;
 import com.example.supportbot.service.RuntimeConfigService;
 import com.example.supportbot.service.SessionStateConflictException;
 import com.example.supportbot.service.TicketService;
@@ -219,11 +220,31 @@ public class MaxWebhookController {
             }
 
         MaxConversationSession session = loadSession(userId);
+        if(session!=null && session.scope()==null && session.selection()==null) {
+            var current=runtimeConfigService.findChannelConfig(channel);
+            if(current.isPresent() && QuestionnaireScope.from(current.get())!=null)
+                throw new PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException("Legacy session requires a new scope selection");
+        }
+        if(session!=null && session.selection()!=null) {
+            if(!java.util.Objects.equals(session.chatId(),chatId)) {
+                webhookDeliveryGuardService.release(claim);
+                return ResponseEntity.status(409).body(Map.of("ok",false,"error","session-chat-mismatch"));
+            }
+            if(deliveryKey.equals(session.selection().startEventKey())) {
+                promptCurrentQuestion(channel,session);
+                return completeDelivery(claim,ResponseEntity.ok(Map.of("ok",true,"questionnaire_replayed",true)));
+            }
+            if(session.selectedBusiness() && session.selection().submissionEventKey()!=null) {
+                if(session.selection().submittedTicketId()==null) finalizeConversation(channel,session,session.selection().submissionEventKey());
+                if(deliveryKey.equals(session.selection().submissionEventKey()))
+                    return completeDelivery(claim,ResponseEntity.ok(Map.of("ok",true,"ticket_id",session.selection().submittedTicketId())));
+            }
+        }
         if (MaxCommandSupport.isStartCommand(text)) {
             if (session != null) {
                 deleteSession(session);
             }
-            session = startSession(userId, chatId, clientProfile.username(), clientProfile.clientName(), channel);
+            session = startSession(userId, chatId, clientProfile.username(), clientProfile.clientName(), channel, deliveryKey);
             saveSession(session);
             promptCurrentQuestion(channel, session);
             return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true)));
@@ -239,6 +260,30 @@ public class MaxWebhookController {
             return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "cancelled", true)));
         }
 
+        if(session!=null && session.awaitingBusinessSelection()) {
+            var business=MaxQuestionnaireChoiceSupport.resolve(session.selection().catalog(),session.selection().nonce(),text);
+            if(business.isEmpty()) {
+                promptCurrentQuestion(channel,session);
+                return completeDelivery(claim,ResponseEntity.ok(Map.of("ok",true,"awaiting_business",true)));
+            }
+            try {
+                var selected=runtimeConfigService.selectQuestionnaire(channel,session.selection().catalog(),business.get());
+                var settings=botSettingsService.loadSelectedQuestionnaire(selected);
+                session=session.choose(selected,settings,GeneralQuestionnaireFlow.from(botSettingsService.questionFlow(settings)));
+                saveSession(session); // Frozen choice is durable before the first question is sent.
+            } catch(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException ex) {
+                messagingService.sendToUser(channel,userId,"Настройки опроса изменились или недоступны. Отправьте /start для нового выбора.");
+                return completeDelivery(claim,ResponseEntity.ok(Map.of("ok",true,"restart_questionnaire",true)));
+            }
+            promptCurrentQuestion(channel,session);
+            return completeDelivery(claim,ResponseEntity.ok(Map.of("ok",true,"business_selected",true)));
+        }
+        if(MaxQuestionnaireChoiceSupport.isChoiceCommand(text)) {
+            if(session!=null) promptCurrentQuestion(channel,session);
+            else messagingService.sendToUser(channel,userId,"Это меню больше не активно. Отправьте /start для нового выбора.");
+            return completeDelivery(claim,ResponseEntity.ok(Map.of("ok",true,"choice_ignored",true)));
+        }
+
         Optional<TicketActive> active = ticketService.findActiveTicketForUser(
                 userId,
                 clientProfile.identity(),
@@ -249,7 +294,12 @@ public class MaxWebhookController {
             active = Optional.empty();
         }
         if (active.isPresent()) {
-            if (session != null) {
+            if(session!=null && session.selectedBusiness()
+                    && !java.util.Objects.equals(session.selection().submittedTicketId(),active.get().getTicketId())) {
+                webhookDeliveryGuardService.release(claim);
+                return ResponseEntity.status(503).body(Map.of("ok",false,"error","questionnaire-ticket-not-ready","retryable",true));
+            }
+            if (session != null && !session.selectedBusiness()) {
                 deleteSession(session);
             }
             String ticketId = active.get().getTicketId();
@@ -276,16 +326,27 @@ public class MaxWebhookController {
                 inboundPayload.forwardedFrom(),
                 OffsetDateTime.now()
             ));
-            notifyOperatorsAboutActiveMessage(channel, ticketId, clientProfile, clientText, messageType, attachmentRef, attachments.size());
+            if(session==null || !session.selectedBusiness())
+                notifyOperatorsAboutActiveMessage(channel, ticketId, clientProfile, clientText, messageType, attachmentRef, attachments.size());
             return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "ticket_id", ticketId)));
         }
 
+        if(session!=null && session.selectedBusiness() && session.selection().submittedTicketId()!=null) {
+            boolean closed=ticketService.findByTicketId(session.selection().submittedTicketId())
+                .map(ticket->"closed".equalsIgnoreCase(ticket.status())).orElse(false);
+            if(closed) {
+                messagingService.sendToUser(channel,userId,"Обращение закрыто. Для нового выбора отправьте /start.");
+                return completeDelivery(claim,ResponseEntity.ok(Map.of("ok",true,"questionnaire_finished",true)));
+            }
+            webhookDeliveryGuardService.release(claim);
+            return ResponseEntity.status(503).body(Map.of("ok",false,"error","questionnaire-ticket-not-ready","retryable",true));
+        }
         if (session == null) {
             ResponseEntity<Map<String, Object>> feedbackResponse = tryHandleFeedback(channel, userId, text);
             if (feedbackResponse != null) {
                 return completeDelivery(claim, feedbackResponse);
             }
-            session = startSession(userId, chatId, clientProfile.username(), clientProfile.clientName(), channel);
+            session = startSession(userId, chatId, clientProfile.username(), clientProfile.clientName(), channel, deliveryKey);
             if (shouldCaptureBootstrapProblemText(text)) {
                 session.captureBootstrapClientText(text);
             }
@@ -355,6 +416,9 @@ public class MaxWebhookController {
         saveSession(session);
         promptCurrentQuestion(channel, session);
         return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "question_prompted", true)));
+        } catch (PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException ex) {
+            messagingService.sendToUser(getChannel(),userId,"Настройки опроса изменились или недоступны. Отправьте /start для нового выбора.");
+            return completeDelivery(claim,ResponseEntity.ok(Map.of("ok",true,"restart_questionnaire",true)));
         } catch (RuntimeException ex) {
             webhookDeliveryGuardService.release(claim);
             throw ex;
@@ -498,8 +562,13 @@ public class MaxWebhookController {
                 .orElse(true);
     }
 
-    private MaxConversationSession startSession(Long userId, Long chatId, String username, String clientName, Channel channel) {
-        var runtime = runtimeConfigService.findChannelConfig(channel);
+    private MaxConversationSession startSession(Long userId, Long chatId, String username, String clientName, Channel channel, String eventKey) {
+        Optional<PanelRuntimeConfigClient.RuntimeConfigSnapshot> runtime;
+        try { runtime=runtimeConfigService.findChannelConfig(channel); }
+        catch(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException ex) {
+            return MaxConversationSession.pending(userId,chatId,username,clientName,
+                runtimeConfigService.questionnaireChoices(channel),eventKey);
+        }
         QuestionnaireScope scope = QuestionnaireScope.from(runtime.orElse(null));
         BotSettingsDto settings = botSettingsService.loadFromChannel(channel, runtime);
         List<QuestionFlowItemDto> flow = scope != null
@@ -525,6 +594,11 @@ public class MaxWebhookController {
     }
 
     private void promptCurrentQuestion(Channel channel, MaxConversationSession session) {
+        if(session.awaitingBusinessSelection()) {
+            if(!maxApiClient.sendQuestionnaireChoices(session.userId(),session.selection().catalog(),session.selection().nonce()))
+                throw new IllegalStateException("Questionnaire menu delivery was not confirmed");
+            return;
+        }
         if (session.awaitingReuseDecision()) {
             messagingService.sendToUser(channel, session.userId(), session.reusePrompt());
             return;
@@ -534,13 +608,22 @@ public class MaxWebhookController {
             return;
         }
         List<String> options = MaxQuestionInputSupport.isChoiceQuestion(current) ? resolveQuestionOptions(current, session.answers()) : List.of();
-        messagingService.sendToUser(channel, session.userId(), MaxQuestionInputSupport.buildQuestionPromptText(current, options, session.canGoBack()));
+        boolean sent=messagingService.sendToUser(channel, session.userId(), MaxQuestionInputSupport.buildQuestionPromptText(current, options, session.canGoBack()));
+        if(session.selectedBusiness() && !sent) throw new IllegalStateException("Questionnaire prompt delivery was not confirmed");
     }
 
     private TicketService.TicketCreationResult finalizeConversation(Channel channel,
                                                                       MaxConversationSession session,
                                                                       String providerEventKey) {
-        deleteSession(session);
+        if(session.selectedBusiness()) {
+            if(session.selection().submissionEventKey()==null) {
+                saveSession(session); // Keep the final answer even if configuration validation is unavailable.
+                runtimeConfigService.selectQuestionnaire(channel,session.selection().catalog(),session.scope().businessId());
+            }
+            session.prepareSubmission(providerEventKey);
+            saveSession(session);
+            providerEventKey=session.selection().submissionEventKey();
+        } else deleteSession(session);
         TicketService.TicketCreationResult created = ticketService.createConversationTicket(
                 new ConversationTicketCreationCommand(
                         session.userId(),
@@ -571,6 +654,10 @@ public class MaxWebhookController {
                         session.scope() != null ? session.scope().catalogSha256() : null
                 )
         );
+        if(session.selectedBusiness()) {
+            session.markSubmitted(created.ticketId());
+            saveSession(session);
+        }
         if ("duplicate".equals(created.status())) {
             log.info("Skipped duplicate MAX ticket finalization for user {} event {}",
                     session.userId(),
@@ -584,7 +671,8 @@ public class MaxWebhookController {
                 requestNumber.map(number -> "Заявка создана. Номер: " + number)
                         .orElse("Заявка принята и передана оператору. Номер появится после регистрации.")
         );
-        messagingService.sendToSupportChat(channel, session.buildSummary(created.ticketId()));
+        if(!session.selectedBusiness())
+            messagingService.sendToSupportChat(channel, session.buildSummary(created.ticketId()));
         return created;
     }
 
@@ -726,6 +814,11 @@ public class MaxWebhookController {
             return null;
         }
         MaxConversationSession session = new MaxConversationSession(stored.payload());
+        if(session.selection()!=null && (!java.util.Objects.equals(stored.userId(),session.userId())
+                || session.selection().catalog().channelId()!=properties.getChannelId()))
+            throw new IllegalStateException("Saved questionnaire owner or channel mismatch");
+        if(session.scope()!=null && "BUSINESS".equals(session.scope().scopeKind()) && !session.selectedBusiness())
+            throw new IllegalStateException("Saved business questionnaire has no selection snapshot");
         session.restorePersistedRawPayload(stored.rawPayload());
         return session;
     }

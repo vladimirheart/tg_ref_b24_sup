@@ -1,0 +1,270 @@
+package com.example.supportbot.max;
+
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+import com.example.supportbot.config.*;
+import com.example.supportbot.entity.*;
+import com.example.supportbot.service.*;
+import com.example.supportbot.service.PanelRuntimeConfigClient.*;
+import com.example.supportbot.settings.BotSettingsService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.*;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
+
+/** Real handler, settings normalizer, JSON session store/CAS and delivery guard; no real provider writes. */
+class MaxQuestionnaireSelectionTest {
+    private final ObjectMapper mapper=Jackson2ObjectMapperBuilder.json().build();
+    private final Channel channel=new Channel();
+    private final RuntimeConfigService runtime=mock(RuntimeConfigService.class);
+    private final SharedConfigService local=mock(SharedConfigService.class);
+    private final TicketService tickets=mock(TicketService.class);
+    private final MessagingService messages=mock(MessagingService.class);
+    private final MaxApiClient api=mock(MaxApiClient.class);
+    private final BotIngressCoordinationService ingress=mock(BotIngressCoordinationService.class);
+    private final ChannelService channels=mock(ChannelService.class);
+    private final BlacklistService blacklist=mock(BlacklistService.class);
+    private final FeedbackService feedback=mock(FeedbackService.class);
+    private BotSessionStoreService store;
+    private BotWebhookDeliveryGuardService guard;
+    private BotSettingsService settings;
+    private MaxWebhookController controller;
+    private MaxBotProperties properties;
+    private ChoiceCatalog catalog;
+    private SelectedQuestionnaire a,b;
+    @BeforeEach void setup() {
+        channel.setId(55L);channel.setPlatform("max");channel.setSupportChatId("unverified-shared-chat");
+        properties=new MaxBotProperties();properties.setEnabled(true);properties.setChannelId(55L);properties.setWebhookSecret("test-secret");
+        var coordination=new BotIngressCoordinationProperties();coordination.setMode("direct");
+        @SuppressWarnings("unchecked") ObjectProvider<StringRedisTemplate> redis=mock(ObjectProvider.class);
+        store=spy(new BotSessionStoreService(coordination,mapper,redis));
+        guard=spy(new BotWebhookDeliveryGuardService(coordination,redis));
+        settings=new BotSettingsService(mapper,local,runtime);
+        catalog=new ChoiceCatalog(1,55,"c".repeat(64),List.of(
+            new Choice("BUSINESS",7,"a","Business A","q-a","a".repeat(64)),
+            new Choice("BUSINESS",8,"b","Business B","q-b","b".repeat(64))));
+        a=selected(7,"q-a","a");b=selected(8,"q-b","b");
+        when(ingress.tryAcquireOrRenew("max",55L)).thenReturn(true);
+        when(channels.resolveConfiguredChannel(55L,"","MAX","max")).thenReturn(channel);
+        when(blacklist.resolveStatus(eq(1001L),anyString(),any(),eq("2002")))
+            .thenReturn(new BlacklistService.ResolvedBlacklistStatus(null,new BlacklistService.BlacklistStatus(false,false)));
+        when(runtime.findChannelConfig(channel)).thenThrow(unavailable());
+        when(runtime.questionnaireChoices(channel)).thenReturn(catalog);
+        when(runtime.selectQuestionnaire(channel,catalog,7L)).thenReturn(a);
+        when(runtime.selectQuestionnaire(channel,catalog,8L)).thenReturn(b);
+        when(messages.sendToUser(eq(channel),eq(1001L),anyString())).thenReturn(true);
+        when(api.sendQuestionnaireChoices(eq(1001L),any(),anyString())).thenReturn(true);
+        when(tickets.createConversationTicket(any())).thenReturn(new TicketService.TicketCreationResult("T-MAX",null,"queued"));
+        when(tickets.awaitClientTicketNumber(any())).thenReturn(Optional.empty());
+        rebuild();
+    }
+    private SelectedQuestionnaire selected(long business,String id,String hash) {
+        var template=Map.of("id",id,"name",id,"question_flow",List.of(
+            Map.of("id","free-second","type","text","order",20,"text",id+" second"),
+            Map.of("id","free-first","type","text","order",10,"text",id+" first")));
+        return new SelectedQuestionnaire(1,55,"BUSINESS","USER_SELECTION",business,id,hash.repeat(64),"c".repeat(64),
+            Map.of("active_template_id",id,"question_templates",List.of(template)),Map.of(),Map.of());
+    }
+    private void rebuild() {
+        controller=new MaxWebhookController(properties,blacklist,channels,tickets,mock(ChatHistoryService.class),messages,
+            feedback,settings,ingress,guard,store,runtime,mock(AttachmentService.class),api,mock(MaxClientAvatarSyncService.class),mapper);
+    }
+    private ResponseEntity<Map<String,Object>> send(String id,String text) {
+        var update=mapper.valueToTree(Map.of("update_type","message_created","update_id",id,"message",
+            Map.of("sender",Map.of("user_id",1001,"username","client","name","Client"),
+                "recipient",Map.of("chat_id",2002),"body",Map.of("text",text))));
+        return controller.handleUpdate(update,"test-secret");
+    }
+    private MaxConversationSession.State state() {return store.load("max",55L,1001L,MaxConversationSession.State.class).orElseThrow().payload();}
+    private String choice(int index) {var saved=state();return MaxQuestionnaireChoiceSupport.buttonText(saved.selection().catalog(),saved.selection().nonce(),index);}
+    private void chooseA() {send("start","/start");send("choose",choice(0));}
+    private void answerFirst() {chooseA();send("first","One");}
+    private ScopedRuntimeConfigUnavailableException unavailable() {return new ScopedRuntimeConfigUnavailableException("test unavailable");}
+
+    @Test void menuIsDurableBeforeAnyQuestionAndDoesNotReadGlobalSettings() {
+        send("start","/start");
+        assertThat(state().scope()).isNull();assertThat(state().flow()).isEmpty();assertThat(state().answers()).isEmpty();
+        assertThat(state().selection().catalog()).isEqualTo(catalog);
+        verify(api).sendQuestionnaireChoices(1001L,catalog,state().selection().nonce());
+        verifyNoInteractions(local);verify(tickets,never()).createConversationTicket(any());
+        verify(messages,never()).sendToUser(any(),any(),contains("q-a first"));
+    }
+    @Test void restartRestoresTheExactPendingMenuThenTheChosenFirstQuestion() {
+        send("start","Initial client problem");String code=choice(0);String nonce=state().selection().nonce();
+        rebuild();send("choose",code);
+        assertThat(state().scope()).isEqualTo(new QuestionnaireScope("BUSINESS","USER_SELECTION","q-a","a".repeat(64),7L,"c".repeat(64)));
+        assertThat(state().selection().nonce()).isEqualTo(nonce);
+        assertThat(state().flow()).extracting(item->item.getId()).containsExactly("free-first","free-second");
+        assertThat(state().bootstrapProblemText()).isEqualTo("Initial client problem");
+        assertThat(state().answers()).isEmpty();
+        verify(messages).sendToUser(eq(channel),eq(1001L),startsWith("q-a first"));
+        verify(messages,never()).sendToUser(any(),any(),contains("q-b first"));verifyNoInteractions(local);
+    }
+    @ParameterizedTest @ValueSource(strings={"foreign-nonce","foreign-business","label","number","overflow"})
+    void malformedOrOldChoiceCannotSelectOrBecomeAQuestionAnswer(String kind) {
+        send("start","/start");String nonce=state().selection().nonce();
+        String code=switch(kind) {
+            case "foreign-nonce"->"/business ffffffffffff 7 A";
+            case "foreign-business"->"/business "+nonce+" 999 A";
+            case "label"->"Business A";case "number"->"1";
+            default->"/business "+nonce+" 9223372036854775808 A";
+        };
+        send("bad",code);assertThat(state().scope()).isNull();assertThat(state().answers()).isEmpty();
+        verify(runtime,never()).selectQuestionnaire(any(),any(),anyLong());
+    }
+    @Test void staleCatalogNeedsExplicitRestartAndCannotRecaptureAnotherVersion() {
+        send("start","/start");String code=choice(0);
+        when(runtime.selectQuestionnaire(channel,catalog,7)).thenThrow(unavailable());
+        assertThat(send("choose",code).getBody()).containsEntry("restart_questionnaire",true);
+        assertThat(state().scope()).isNull();assertThat(state().selection().catalog().catalogSha256()).isEqualTo("c".repeat(64));
+        verify(runtime,times(1)).questionnaireChoices(channel);verifyNoInteractions(local);
+    }
+    @Test void startingAgainInvalidatesOldButtonsEvenWhenTheCatalogHasNotChanged() {
+        send("start","/start");String old=choice(0);
+        send("restart","/start");assertThat(choice(0)).isNotEqualTo(old);
+        send("late",old);assertThat(state().scope()).isNull();
+        verify(runtime,never()).selectQuestionnaire(any(),any(),anyLong());
+    }
+    @Test void aRepeatedChoiceAfterTheFirstPromptDoesNotAnswerTheFirstQuestion() {
+        send("start","/start");String code=choice(0);send("choose",code);
+        rebuild();send("new-choice-delivery",code);
+        assertThat(state().answers()).isEmpty();assertThat(state().currentIndex()).isZero();
+        verify(runtime,times(1)).selectQuestionnaire(channel,catalog,7);
+    }
+    @Test void menuDeliveryFailureKeepsItsNonceAndReplayDoesNotFetchAFreshMenu() {
+        when(api.sendQuestionnaireChoices(anyLong(),any(),anyString())).thenReturn(false).thenReturn(true);
+        assertThatThrownBy(()->send("start","/start")).isInstanceOf(IllegalStateException.class);
+        String nonce=state().selection().nonce();rebuild();send("start","/start");
+        assertThat(state().selection().nonce()).isEqualTo(nonce);
+        verify(runtime,times(1)).questionnaireChoices(channel);
+    }
+    @Test void questionDeliveryFailureKeepsTheChosenScopeAndChoiceReplayDoesNotAdvance() {
+        send("start","/start");String code=choice(0);
+        when(messages.sendToUser(eq(channel),eq(1001L),startsWith("q-a first"))).thenReturn(false).thenReturn(true);
+        assertThatThrownBy(()->send("choose",code)).isInstanceOf(IllegalStateException.class);
+        rebuild();send("choose",code);assertThat(state().scope().businessId()).isEqualTo(7);
+        assertThat(state().answers()).isEmpty();
+    }
+    @Test void completeFlowProducesOnlyTheChosenOwnerAndFreeQuestionsWithoutBusinessOrProblemInjection() {
+        answerFirst();rebuild();send("last","Two");
+        var command=org.mockito.ArgumentCaptor.forClass(ConversationTicketCreationCommand.class);
+        verify(tickets).createConversationTicket(command.capture());
+        assertThat(command.getValue().businessId()).isEqualTo(7);
+        assertThat(command.getValue().scopeSelectionSource()).isEqualTo("USER_SELECTION");
+        assertThat(command.getValue().questionTemplateId()).isEqualTo("q-a");
+        assertThat(command.getValue().templateSha256()).isEqualTo("a".repeat(64));
+        assertThat(command.getValue().catalogSha256()).isEqualTo("c".repeat(64));
+        assertThat(command.getValue().answers()).containsExactlyInAnyOrderEntriesOf(Map.of("free-first","One","free-second","Two"));
+        assertThat(state().selection().submittedTicketId()).isEqualTo("T-MAX");
+        verify(messages,never()).sendToSupportChat(any(),anyString());verifyNoInteractions(local);
+    }
+    @Test void failedPublicationKeepsTheFinalAnswerAndRetriesTheSameEventWithoutFreshBindings() {
+        answerFirst();
+        when(tickets.createConversationTicket(any())).thenThrow(new IllegalStateException("test publication failure"))
+            .thenReturn(new TicketService.TicketCreationResult("T-MAX",null,"queued"));
+        assertThatThrownBy(()->send("last","Two")).hasMessageContaining("publication failure");
+        String event=state().selection().submissionEventKey();
+        assertThat(state().answers()).containsEntry("free-second","Two");
+        when(runtime.selectQuestionnaire(channel,catalog,7)).thenThrow(unavailable());
+        rebuild();send("last","Two");
+        var commands=org.mockito.ArgumentCaptor.forClass(ConversationTicketCreationCommand.class);
+        verify(tickets,times(2)).createConversationTicket(commands.capture());
+        assertThat(commands.getAllValues().get(0)).isEqualTo(commands.getAllValues().get(1));
+        assertThat(commands.getValue().providerEventKey()).isEqualTo(event);
+        assertThat(state().selection().submittedTicketId()).isEqualTo("T-MAX");
+    }
+    @Test void staleBeforeFreshSubmissionPreservesAnswersAndDoesNotEnqueueOrRecapture() {
+        answerFirst();when(runtime.selectQuestionnaire(channel,catalog,7)).thenThrow(unavailable());
+        assertThat(send("last","Two").getBody()).containsEntry("restart_questionnaire",true);
+        assertThat(state().answers()).containsEntry("free-second","Two");assertThat(state().selection().submissionEventKey()).isNull();
+        verify(tickets,never()).createConversationTicket(any());
+    }
+    @Test void finalDeliveryReplayAfterDedupCacheLossUsesTheSavedSubmissionTombstone() {
+        answerFirst();send("last","Two");
+        var coordination=new BotIngressCoordinationProperties();coordination.setMode("direct");
+        @SuppressWarnings("unchecked") ObjectProvider<StringRedisTemplate> redis=mock(ObjectProvider.class);
+        guard=new BotWebhookDeliveryGuardService(coordination,redis);rebuild();
+        assertThat(send("last","Two").getBody()).containsEntry("ticket_id","T-MAX");
+        verify(tickets,times(1)).createConversationTicket(any());
+    }
+    @Test void newClientMessageWaitsForItsCanonicalRootThenUsesOnlyThatTicketAndSuppressesUnverifiedChat() {
+        answerFirst();send("last","Two");
+        assertThat(send("followup","Followup").getStatusCode().value()).isEqualTo(503);
+        var active=new TicketActive();active.setTicketId("T-MAX");
+        when(tickets.findActiveTicketForUser(eq(1001L),anyString(),eq(55L))).thenReturn(Optional.of(active));
+        when(tickets.findByTicketId("T-MAX")).thenReturn(Optional.of(new TicketService.TicketWithUser(1001L,"T-MAX","open")));
+        assertThat(send("followup","Followup").getBody()).containsEntry("ticket_id","T-MAX");
+        var command=org.mockito.ArgumentCaptor.forClass(ActiveInboundClientMessageCommand.class);
+        verify(tickets).recordActiveClientMessage(command.capture());assertThat(command.getValue().ticketId()).isEqualTo("T-MAX");
+        verify(messages,never()).sendToSupportChat(any(),anyString());
+    }
+    @Test void aDifferentActiveTicketCannotCaptureTheNewBusinessFollowup() {
+        answerFirst();send("last","Two");
+        var active=new TicketActive();active.setTicketId("OTHER");
+        when(tickets.findActiveTicketForUser(eq(1001L),anyString(),eq(55L))).thenReturn(Optional.of(active));
+        when(tickets.findByTicketId("OTHER")).thenReturn(Optional.of(new TicketService.TicketWithUser(1001L,"OTHER","open")));
+        assertThat(send("followup","Followup").getStatusCode().value()).isEqualTo(503);
+        verify(tickets,never()).recordActiveClientMessage(any());
+    }
+    @Test void queueAcceptanceBeforeDeliveryAckFailureStillCannotPublishTwice() {
+        answerFirst();
+        var broken=new java.util.concurrent.atomic.AtomicBoolean(true);
+        doAnswer(call->{if(broken.getAndSet(false))throw new IllegalStateException("test ack failure");return call.callRealMethod();})
+            .when(guard).markProcessed(any());
+        assertThatThrownBy(()->send("last","Two")).hasMessageContaining("ack failure");
+        assertThat(state().selection().submittedTicketId()).isEqualTo("T-MAX");
+        rebuild();assertThat(send("last","Two").getBody()).containsEntry("ticket_id","T-MAX");
+        verify(tickets,times(1)).createConversationTicket(any());
+    }
+    @Test void concurrentSelectionCannotBeOverwrittenByAnOlderCasWriter() {
+        send("start","/start");String code=choice(0);
+        var once=new java.util.concurrent.atomic.AtomicBoolean(true);
+        doAnswer(call->{
+            MaxConversationSession.State incoming=call.getArgument(4);
+            if(incoming.scope()!=null && once.getAndSet(false)) {
+                var current=new MaxConversationSession(state());
+                var chosenSettings=settings.loadSelectedQuestionnaire(b);
+                var other=current.choose(b,chosenSettings,GeneralQuestionnaireFlow.from(settings.questionFlow(chosenSettings)));
+                store.save("max",55L,1001L,other.snapshot());
+            }
+            return call.callRealMethod();
+        }).when(store).saveIfUnchanged(eq("max"),eq(55L),eq(1001L),anyString(),any());
+        send("choose",code);
+        assertThat(state().scope().businessId()).isEqualTo(8L);
+        assertThat(state().answers()).isEmpty();verify(tickets,never()).createConversationTicket(any());
+    }
+    @ParameterizedTest @ValueSource(strings={"user","channel","chat","flow"})
+    void corruptedSessionCannotCrossItsStoredOwnerOrChannel(String corruption) {
+        chooseA();var tree=mapper.valueToTree(state());
+        switch(corruption) {
+            case "user"->((com.fasterxml.jackson.databind.node.ObjectNode)tree).put("userId",9999);
+            case "channel"->((com.fasterxml.jackson.databind.node.ObjectNode)tree.at("/selection/catalog")).put("channelId",999);
+            case "chat"->((com.fasterxml.jackson.databind.node.ObjectNode)tree).put("chatId",9999);
+            case "flow"->((com.fasterxml.jackson.databind.node.ObjectNode)tree).set("flow",mapper.createArrayNode());
+        }
+        store.save("max",55L,1001L,tree);rebuild();
+        if(corruption.equals("chat")) assertThat(send("unsafe","Answer").getStatusCode().value()).isEqualTo(409);
+        else assertThatThrownBy(()->send("unsafe","Answer")).isInstanceOf(RuntimeException.class);
+        verify(tickets,never()).createConversationTicket(any());verify(tickets,never()).recordActiveClientMessage(any());
+    }
+    @Test void anOldLegacySessionCannotContinueAfterTheChannelRequiresBusinessSelection() {
+        var question=new com.example.supportbot.settings.dto.QuestionFlowItemDto("legacy","text","Private legacy",1,null,List.of());
+        var legacy=new MaxConversationSession(1001L,2002L,"client","Client",List.of(question),null);
+        store.save("max",55L,1001L,legacy.snapshot());
+        assertThat(send("answer","Do not recapture").getBody()).containsEntry("restart_questionnaire",true);
+        assertThat(state().answers()).isEmpty();assertThat(state().selection()).isNull();
+        verify(tickets,never()).createConversationTicket(any());verifyNoInteractions(local);
+    }
+    @Test void cancellingDeletesPendingMenuAndTheOldButtonCannotStartANewQuestionnaire() {
+        send("start","/start");String old=choice(0);send("cancel","/cancel");
+        assertThat(store.load("max",55L,1001L,MaxConversationSession.State.class)).isEmpty();
+        assertThat(send("late",old).getBody()).containsEntry("choice_ignored",true);
+        verify(runtime,times(1)).questionnaireChoices(channel);
+    }
+}

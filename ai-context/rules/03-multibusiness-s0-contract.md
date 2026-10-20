@@ -769,9 +769,9 @@ scope/версии, подмена payload или глобальные presets/s
 Panel API/другие transport modes ещё требуют отдельного аудита.
 
 R143 сам по себе — read-only handshake, не право создать ticket. Контракт
-BUSINESS producer/INSERT/replay добавлен в R144 ниже. Кнопки Telegram/VK/MAX,
-GENERAL option общего канала, scoped locations и полноценный resume/UX после
-rebind остаются PENDING. Новый shared-channel flow нельзя включать до
+BUSINESS producer/INSERT/replay добавлен в R144 ниже; MAX selection UX — в R145.
+Кнопки Telegram/VK, GENERAL option общего канала, scoped locations и сквозная
+приёмка resume/UX после rebind остаются PENDING. Новый shared-channel flow нельзя включать до
 подключения совместимых consumers; существующий general-only flow сохранён.
 
 ### R144: создание BUSINESS по сохранённому выбору вопросника
@@ -806,11 +806,57 @@ flag также не превращает уже выбранный BUSINESS roo
 При ошибке дочерней записи root/children откатываются, failed inbox допускает
 точный повтор. Сами transport event IDs и display поля не выдают права доступа.
 
-Подтверждены typed JSON/CAS scope и MAX state round-trip; сохранение/восстановление
-pending choice и фактический selection UX всех провайдеров ещё не реализованы.
+Подтверждены typed JSON/CAS scope и MAX state round-trip. Подключение MAX
+pending choice/selection UX описано в R145; Telegram/VK остаются PENDING.
 GENERAL option общего канала требует отдельной явной настройки, а не ослабления
 general-only binding. Нет новых scoped presets/locations, version registry для
 старых незавершённых опросов или разрешения на flags/migration/rollout.
+
+### R145: MAX — выбор до первого вопроса и восстановление сессии
+
+MAX при отказе primary runtime может запросить только проверенный BUSINESS
+каталог, не локальные/global settings. Для choices/selection с forStart=true
+обязательны foundation + shared-channel-resolution + strict writes, internal
+token/HMAC, no-store и X-Iguana-Questionnaire-Writer-Version: 1. SDK требует
+явный ответ этой версии на обоих этапах: старый backend, игнорирующий query,
+не считается готовым к созданию обращений. Read-only R143 API совместим.
+Новый selection path работает только с RabbitMQ + настроенным Panel API и
+активным channel; audit старых non-Rabbit/disabled-API modes остаётся PENDING.
+
+До первого вопроса сохраняются каталог, его SHA, случайный nonce меню и
+исходный provider event key. Нативные MAX message buttons содержат business
+name/code и ограниченный по длине код выбора. Код принадлежит этому nonce,
+user/channel/chat и одному из business IDs сохранённого каталога. Чужая или
+старая кнопка после /start не выбирает новый бизнес и не становится ответом
+на первый вопрос. CAS не позволяет старому обработчику заменить чужой выбор.
+
+Проверенный выбранный payload преобразуется в DTO без повторной нормализации,
+смены order или channel/local overrides. Нет обязательных business/problem
+вопросов и подстановки прошлых бизнес-ответов. Bootstrap, flow, ответы,
+scope/ID/SHA/catalog и nonce сохраняются в существующем session store.
+Старый legacy flow после смены режима канала требует новый /start.
+
+До первой постановки в очередь выбор проверяется ещё раз; stale/unavailable
+даёт явный /start без захвата новой версии. После подготовки публикации
+сохранены последний ответ и фиксированный submission event key. Retry
+публикует тот же command без свежих bindings. После принятия в очередь
+сохраняется маркер с ticket ID: потеря delivery dedup cache не создаёт другой
+опрос/обращение. Это транспортное состояние, не canonical ticket source of truth.
+Новый follow-up ожидает именно этот canonical root, не другой active ticket;
+pending/retry и terminal state не удаляются перед публикацией.
+
+Создание и follow-up этого selected MAX flow не отправляют raw summary в
+непроверенный support chat. Это локальная защита нового пути, не завершённая
+recipient policy всех legacy/direct/active путей. Общие правила destinations,
+TTL/retention сессий, одновременные обращения разных бизнесов, live Redis/MAX/
+proxy и rolling-upgrade acceptance ещё обязательны до rollout.
+Проверки используют реальный handler/JSON/CAS с изолированными doubles для
+доставки и отдельные PostgreSQL suites; это не живой provider E2E.
+
+Telegram/VK, GENERAL option общего канала, scoped locations/presets и release
+остаются отдельными этапами. Новых migrations нет; minimum schema — V73.
+Необходимость совместимого backend/fleet не разрешает менять рабочие flags,
+запускать migration/backfill, rebuild или deployment без отдельного scope.
 
 ## Scope guard и API contract
 

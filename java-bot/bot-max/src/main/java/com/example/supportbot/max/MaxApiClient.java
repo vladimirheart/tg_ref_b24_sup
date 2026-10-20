@@ -53,6 +53,12 @@ public class MaxApiClient {
         return send("chat_id=" + chatId, text);
     }
 
+    public boolean sendQuestionnaireChoices(Long userId,
+            com.example.supportbot.service.PanelRuntimeConfigClient.ChoiceCatalog catalog,String nonce) {
+        if(userId==null || userId<=0) return false;
+        return sendPayload("user_id="+userId,MaxQuestionnaireChoiceSupport.messageBody(catalog,nonce));
+    }
+
     public PollBatch fetchUpdates(String marker, int limit, int timeoutSeconds) {
         String token = properties.getToken();
         if (token == null || token.isBlank()) {
@@ -243,6 +249,10 @@ public class MaxApiClient {
     }
 
     private boolean send(String query, String text) {
+        return sendPayload(query,Map.of("text",text==null ? "" : text));
+    }
+
+    private boolean sendPayload(String query, Map<String,Object> payload) {
         String token = properties.getToken();
         if (token == null || token.isBlank()) {
             log.warn("MAX token is not configured");
@@ -254,7 +264,7 @@ public class MaxApiClient {
                 .header("Authorization", token)
                 .header("Content-Type", "application/json")
                 .timeout(Duration.ofSeconds(10))
-                .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(Map.of("text", text == null ? "" : text)),
+                .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload),
                     StandardCharsets.UTF_8))
                 .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));

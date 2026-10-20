@@ -97,6 +97,21 @@ public class BotSettingsService {
         return loadFromChannel(channel, runtimeConfigService.findChannelConfig(channel));
     }
 
+    /** No channel override, local presets or settings from a different business. */
+    public BotSettingsDto loadSelectedQuestionnaire(PanelRuntimeConfigClient.SelectedQuestionnaire selected) {
+        com.example.supportbot.service.QuestionnaireScope.fromSelection(selected);
+        // The backend already normalized and fingerprinted this payload. Re-sanitizing
+        // it would re-index question order and execute a different version.
+        BotSettingsDto settings = objectMapper.convertValue(selected.botSettings(), BotSettingsDto.class);
+        var template = activeQuestionTemplate(settings);
+        if (template == null || !selected.questionTemplateId().equals(settings.getActiveTemplateId())
+                || !selected.questionTemplateId().equals(template.getId())
+                || questionFlow(settings).isEmpty()) {
+            throw new IllegalStateException("Selected questionnaire could not be loaded");
+        }
+        return settings;
+    }
+
     /** Uses the exact runtime snapshot from questionnaire start, including its scope marker. */
     public BotSettingsDto loadFromChannel(Channel channel,
             Optional<PanelRuntimeConfigClient.RuntimeConfigSnapshot> remoteConfig) {
