@@ -1,7 +1,6 @@
 package com.example.supportbot.service;
 
 import com.example.supportbot.config.IntegrationPanelApiProperties;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.net.URI;
@@ -10,26 +9,23 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.time.Instant;
+import java.security.MessageDigest;
+import java.util.HexFormat;
+import java.util.HashSet;
+import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
 public class PanelRuntimeConfigClient {
 
-    private static final Logger log = LoggerFactory.getLogger(PanelRuntimeConfigClient.class);
-    private static final Duration CACHE_TTL = Duration.ofMinutes(1);
 
     private final IntegrationPanelApiProperties properties;
     private final ObjectMapper objectMapper;
     private final PanelApiRequestHeadersFactory requestHeadersFactory;
     private final HttpClient httpClient;
-    private final ConcurrentHashMap<Long, CachedRuntimeConfig> cache = new ConcurrentHashMap<>();
 
     public PanelRuntimeConfigClient(IntegrationPanelApiProperties properties,
                                     ObjectMapper objectMapper,
@@ -50,18 +46,70 @@ public class PanelRuntimeConfigClient {
         if (!isEnabled() || channelId == null || channelId <= 0) {
             return Optional.empty();
         }
-        CachedRuntimeConfig cached = cache.get(channelId);
-        if (cached != null && cached.isFresh()) {
-            return Optional.of(cached.snapshot());
-        }
-        return fetch(channelId).map(snapshot -> {
-            cache.put(channelId, new CachedRuntimeConfig(snapshot, Instant.now()));
-            return snapshot;
-        });
+        // Each new lookup re-proves channel mode; a cached legacy config must not survive a business rebind.
+        return fetch(channelId);
     }
 
     private Optional<RuntimeConfigSnapshot> fetch(Long channelId) {
         String path = "/internal/api/bot/channels/" + channelId + "/runtime-config";
+        RuntimeConfigResponse payload=fetchTyped(path,RuntimeConfigResponse.class);
+        if (payload==null || !channelId.equals(payload.channelId()) || payload.botSettings()==null
+                || payload.locationTree()==null || payload.presetDefinitions()==null) throw unavailable();
+        var snapshot=payload.toSnapshot();
+        boolean legacy=snapshot.scopeKind()==null && snapshot.scopeSelectionSource()==null
+            && snapshot.questionTemplateId()==null && snapshot.templateSha256()==null;
+        if (!legacy && !snapshot.isGeneralChannel()) throw unavailable();
+        return Optional.of(snapshot);
+    }
+
+    public ChoiceCatalog choices(long channelId) {
+        requireChannel(channelId);
+        ChoiceCatalog catalog=fetchTyped("/internal/api/bot/channels/"+channelId+"/questionnaire/choices",ChoiceCatalog.class);
+        validateCatalog(channelId,catalog);
+        return catalog;
+    }
+
+    public SelectedQuestionnaire select(ChoiceCatalog catalog,long businessId) {
+        if (catalog==null) throw unavailable();
+        requireChannel(catalog.channelId());validateCatalog(catalog.channelId(),catalog);
+        Choice choice=catalog.choices().stream().filter(item->item.businessId()==businessId).findFirst().orElseThrow(PanelRuntimeConfigClient::unavailable);
+        SelectedQuestionnaire selected=fetchTyped("/internal/api/bot/channels/"+catalog.channelId()
+            +"/questionnaire/selection?businessId="+businessId+"&catalogSha256="+catalog.catalogSha256(),SelectedQuestionnaire.class);
+        if (selected==null || selected.version()!=1 || selected.channelId()!=catalog.channelId() || selected.businessId()!=businessId
+                || !"BUSINESS".equals(selected.scopeKind()) || !"USER_SELECTION".equals(selected.scopeSelectionSource())
+                || !catalog.catalogSha256().equals(selected.catalogSha256()) || !choice.questionTemplateId().equals(selected.questionTemplateId())
+                || !choice.templateSha256().equals(selected.templateSha256()) || selected.locationTree()==null || !selected.locationTree().isEmpty()
+                || selected.presetDefinitions()==null || !selected.presetDefinitions().isEmpty() || selected.botSettings()==null
+                || !selected.botSettings().keySet().equals(java.util.Set.of("active_template_id","question_templates"))
+                || !choice.questionTemplateId().equals(selected.botSettings().get("active_template_id"))
+                || !(selected.botSettings().get("question_templates") instanceof List<?> templates) || templates.size()!=1
+                || !(templates.get(0) instanceof Map<?,?> template) || !choice.questionTemplateId().equals(template.get("id"))) throw unavailable();
+        try {
+            String actual=HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(objectMapper.writeValueAsBytes(template)));
+            if (!actual.equals(choice.templateSha256())) throw unavailable();
+        } catch (java.security.NoSuchAlgorithmException | IOException ex) { throw unavailable(); }
+        return selected;
+    }
+
+    private void requireChannel(long channelId) {
+        if (!isEnabled() || channelId<=0) throw unavailable();
+    }
+    private void validateCatalog(long channelId,ChoiceCatalog catalog) {
+        if (catalog==null || catalog.version()!=1 || catalog.channelId()!=channelId || !hash(catalog.catalogSha256())
+                || catalog.choices()==null || catalog.choices().isEmpty() || catalog.choices().size()>100) throw unavailable();
+        var businesses=new HashSet<Long>();var templates=new HashSet<String>();
+        for (Choice choice:catalog.choices()) {
+            if (choice==null || !"BUSINESS".equals(choice.scopeKind()) || choice.businessId()<=0 || !businesses.add(choice.businessId())
+                    || choice.code()==null || choice.code().isBlank() || choice.displayName()==null || choice.displayName().isBlank()
+                    || choice.questionTemplateId()==null || choice.questionTemplateId().isBlank() || !templates.add(choice.questionTemplateId())
+                    || !hash(choice.templateSha256())) throw unavailable();
+        }
+    }
+    private static boolean hash(String value) { return value!=null && value.matches("[a-f0-9]{64}"); }
+    private static ScopedRuntimeConfigUnavailableException unavailable() {
+        return new ScopedRuntimeConfigUnavailableException("Verified questionnaire runtime is unavailable");
+    }
+    private <T> T fetchTyped(String path,Class<T> type) {
         URI uri = resolve(path);
         HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
             .timeout(properties.getRequestTimeout())
@@ -70,21 +118,15 @@ public class PanelRuntimeConfigClient {
         HttpRequest request = builder.build();
         try {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            if (response.statusCode() == 409) {
-                throw new ScopedRuntimeConfigUnavailableException("Scoped runtime config is unavailable for channel " + channelId);
-            }
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                log.warn("Internal panel runtime config request {} failed with status {}", path, response.statusCode());
-                return Optional.empty();
+                throw unavailable();
             }
-            RuntimeConfigResponse payload = objectMapper.readValue(response.body(), new TypeReference<RuntimeConfigResponse>() {});
-            return Optional.of(payload.toSnapshot());
+            return objectMapper.readValue(response.body(),type);
         } catch (IOException | InterruptedException ex) {
             if (ex instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
-            log.warn("Failed to call internal panel runtime config API {}", path, ex);
-            return Optional.empty();
+            throw unavailable();
         }
     }
 
@@ -116,11 +158,11 @@ public class PanelRuntimeConfigClient {
         }
     }
 
-    private record CachedRuntimeConfig(RuntimeConfigSnapshot snapshot, Instant loadedAt) {
-        private boolean isFresh() {
-            return loadedAt != null && loadedAt.plus(CACHE_TTL).isAfter(Instant.now());
-        }
-    }
+    public record Choice(String scopeKind,long businessId,String code,String displayName,String questionTemplateId,String templateSha256) { }
+    public record ChoiceCatalog(int version,long channelId,String catalogSha256,List<Choice> choices) { }
+    public record SelectedQuestionnaire(int version,long channelId,String scopeKind,String scopeSelectionSource,long businessId,
+        String questionTemplateId,String templateSha256,String catalogSha256,Map<String,Object> botSettings,
+        Map<String,Object> locationTree,Map<String,Object> presetDefinitions) { }
 
     private record RuntimeConfigResponse(Long channelId,
                                          Map<String, Object> botSettings,

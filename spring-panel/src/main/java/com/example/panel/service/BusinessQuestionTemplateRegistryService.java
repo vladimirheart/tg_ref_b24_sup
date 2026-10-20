@@ -49,6 +49,83 @@ public class BusinessQuestionTemplateRegistryService {
                 rs.getString("template_sha256"), rs.getBoolean("is_active")), businessId).stream().findFirst();
     }
 
+    /** A configured business channel must not enter the unscoped legacy runtime. */
+    public boolean hasActiveChannelBindings(long channelId) {
+        requirePositive(channelId);
+        return Boolean.TRUE.equals(jdbc.queryForObject("""
+            SELECT EXISTS(SELECT 1 FROM business_channel_bindings WHERE channel_id=? AND is_active=TRUE)
+            """,Boolean.class,channelId));
+    }
+
+    public Optional<ChoiceCatalog> choices(long channelId) {
+        return choiceSnapshot(channelId).map(ChoiceSnapshot::catalog);
+    }
+
+    /** A choice from an older menu cannot silently select a rebound/edited template. */
+    public Optional<SelectedRuntime> select(long channelId,long businessId,String expectedCatalogSha256) {
+        requirePositive(channelId);requirePositive(businessId);
+        if (expectedCatalogSha256==null || !expectedCatalogSha256.matches("[a-f0-9]{64}")) {
+            throw new IllegalArgumentException("Invalid catalog fingerprint");
+        }
+        return choiceSnapshot(channelId).filter(snapshot->snapshot.catalog().catalogSha256().equals(expectedCatalogSha256))
+            .flatMap(snapshot->Optional.ofNullable(snapshot.runtimes().get(businessId)));
+    }
+
+    private Optional<ChoiceSnapshot> choiceSnapshot(long channelId) {
+        requirePositive(channelId);
+        var rows=jdbc.query("""
+            SELECT binding.business_id,business.code,business.display_name,business.status,
+                binding.resolution_mode,template.template_id,template.template_sha256,template.is_active AS template_active
+            FROM channels channel JOIN business_channel_bindings binding ON binding.channel_id=channel.id
+            JOIN businesses business ON business.id=binding.business_id
+            LEFT JOIN business_question_template_bindings template ON template.business_id=business.id
+            WHERE channel.id=? AND channel.is_active=TRUE AND binding.is_active=TRUE
+              AND NOT EXISTS(SELECT 1 FROM general_channel_question_template_bindings general_binding
+                  WHERE general_binding.channel_id=channel.id AND general_binding.is_active=TRUE)
+            ORDER BY binding.business_id LIMIT 101
+            """,(rs,row)->new ChoiceBinding(rs.getLong("business_id"),rs.getString("code"),rs.getString("display_name"),
+                rs.getString("status"),rs.getString("resolution_mode"),rs.getString("template_id"),
+                rs.getString("template_sha256"),rs.getBoolean("template_active")),channelId);
+        if (rows.isEmpty() || rows.size()>100) return Optional.empty();
+        Map<String,Template> templates=new LinkedHashMap<>();
+        for (Template template:loadTemplates()) templates.put(template.id(),template);
+        List<Choice> choices=new ArrayList<>();
+        Map<Long,Map<String,Object>> payloads=new LinkedHashMap<>();
+        Set<String> selectedTemplateIds=new HashSet<>();
+        for (ChoiceBinding binding:rows) {
+            Template template=templates.get(binding.templateId());
+            if (!"active".equals(binding.status()) || !"EXPLICIT_SELECTION".equals(binding.mode()) || !binding.active()
+                    || template==null || isLegacyAssigned(template.id()) || !selectedTemplateIds.add(template.id())
+                    || !fingerprint(template.payload()).equals(binding.sha256()) || !uniqueQuestionIds(template.payload())) {
+                return Optional.empty();
+            }
+            choices.add(new Choice("BUSINESS",binding.businessId(),binding.code(),binding.name(),template.id(),binding.sha256()));
+            // Round-trip creates an independent nested snapshot, not a view into mutable canonical settings.
+            payloads.put(binding.businessId(),objectMapper.convertValue(objectMapper.valueToTree(template.payload()),
+                new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>() {}));
+        }
+        var identity=new LinkedHashMap<String,Object>();
+        identity.put("version",1);identity.put("channelId",channelId);identity.put("choices",choices);
+        String sha256=fingerprint(identity);
+        Map<Long,SelectedRuntime> runtimes=new LinkedHashMap<>();
+        for (Choice choice:choices) {
+            runtimes.put(choice.businessId(),new SelectedRuntime(1,channelId,"BUSINESS","USER_SELECTION",choice.businessId(),
+                choice.questionTemplateId(),choice.templateSha256(),sha256,
+                Map.of("active_template_id",choice.questionTemplateId(),"question_templates",List.of(payloads.get(choice.businessId()))),
+                Map.of(),Map.of()));
+        }
+        return Optional.of(new ChoiceSnapshot(new ChoiceCatalog(1,channelId,sha256,List.copyOf(choices)),runtimes));
+    }
+
+    private boolean uniqueQuestionIds(Map<String,Object> template) {
+        Set<String> ids=new HashSet<>();
+        if (!(template.get("question_flow") instanceof List<?> questions)) return false;
+        for (Object item:questions) {
+            if (!(item instanceof Map<?,?> question) || !ids.add(text(question.get("id")))) return false;
+        }
+        return !ids.isEmpty();
+    }
+
     /** Bind a distinct existing ID; cloning in the settings editor precedes this call. */
     public Optional<Binding> bind(long businessId, String templateId) throws DuplicateKeyException {
         requirePositive(businessId);
@@ -227,6 +304,16 @@ public class BusinessQuestionTemplateRegistryService {
 
     public record TemplateSummary(String id, String name) {
     }
+
+    private record ChoiceBinding(long businessId,String code,String name,String status,String mode,
+                                 String templateId,String sha256,boolean active) { }
+    private record ChoiceSnapshot(ChoiceCatalog catalog,Map<Long,SelectedRuntime> runtimes) { }
+    public record Choice(String scopeKind,long businessId,String code,String displayName,
+                         String questionTemplateId,String templateSha256) { }
+    public record ChoiceCatalog(int version,long channelId,String catalogSha256,List<Choice> choices) { }
+    public record SelectedRuntime(int version,long channelId,String scopeKind,String scopeSelectionSource,
+                                  long businessId,String questionTemplateId,String templateSha256,String catalogSha256,
+                                  Map<String,Object> botSettings,Map<String,Object> locationTree,Map<String,Object> presetDefinitions) { }
 
     public record Binding(long businessId, String templateId, String templateSha256, boolean active) {
     }

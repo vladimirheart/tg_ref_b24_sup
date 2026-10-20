@@ -22,19 +22,22 @@ public class BotRuntimeConfigService {
     private final ObjectMapper objectMapper;
     private final GeneralChannelQuestionTemplateService generalTemplates;
     private final MultibusinessFeatureFlags featureFlags;
+    private final BusinessQuestionTemplateRegistryService businessTemplates;
 
     public BotRuntimeConfigService(BotRuntimeChannelService channelService,
                                    SharedConfigService sharedConfigService,
                                    BotSettingsPayloadNormalizer botSettingsPayloadNormalizer,
                                    ObjectMapper objectMapper,
                                    GeneralChannelQuestionTemplateService generalTemplates,
-                                   MultibusinessFeatureFlags featureFlags) {
+                                   MultibusinessFeatureFlags featureFlags,
+                                   BusinessQuestionTemplateRegistryService businessTemplates) {
         this.channelService = channelService;
         this.sharedConfigService = sharedConfigService;
         this.botSettingsPayloadNormalizer = botSettingsPayloadNormalizer;
         this.objectMapper = objectMapper;
         this.generalTemplates = generalTemplates;
         this.featureFlags = featureFlags;
+        this.businessTemplates = businessTemplates;
     }
 
     public Optional<RuntimeConfigLookup> findRuntimeConfig(Long channelId) {
@@ -49,6 +52,9 @@ public class BotRuntimeConfigService {
                     return new RuntimeConfigLookup(scoped.channelId(), scoped.botSettings(), scoped.locationTree(),
                         scoped.presetDefinitions(), scoped.scopeKind(), scoped.scopeSelectionSource(),
                         scoped.questionTemplateId(), scoped.templateSha256());
+                }
+                if (businessTemplates.hasActiveChannelBindings(channel.getId())) {
+                    throw new ScopedRuntimeConfigUnavailableException("Explicit business selection is required before questions");
                 }
                 return new RuntimeConfigLookup(channel.getId(), resolveBotSettings(channel),
                     resolveLocationTree(), sharedConfigService.presetDefinitions(), null, null, null, null);

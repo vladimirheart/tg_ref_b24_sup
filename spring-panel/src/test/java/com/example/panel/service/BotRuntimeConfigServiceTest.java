@@ -31,7 +31,7 @@ class BotRuntimeConfigServiceTest {
             Map.of("question_templates", java.util.List.of(Map.of("id", "q-general"))), Map.of(), Map.of())));
 
         BotRuntimeConfigService service = new BotRuntimeConfigService(channels, mock(SharedConfigService.class),
-            new BotSettingsPayloadNormalizer(), new ObjectMapper(), general, flags);
+            new BotSettingsPayloadNormalizer(), new ObjectMapper(), general, flags, mock(BusinessQuestionTemplateRegistryService.class));
         BotRuntimeConfigService.RuntimeConfigLookup config = service.findRuntimeConfig(44L).orElseThrow();
 
         assertThat(config.scopeKind()).isEqualTo("GENERAL");
@@ -57,7 +57,7 @@ class BotRuntimeConfigServiceTest {
         when(general.resolve(44L)).thenReturn(Optional.empty());
 
         BotRuntimeConfigService service = new BotRuntimeConfigService(channels, mock(SharedConfigService.class),
-            new BotSettingsPayloadNormalizer(), new ObjectMapper(), general, flags);
+            new BotSettingsPayloadNormalizer(), new ObjectMapper(), general, flags, mock(BusinessQuestionTemplateRegistryService.class));
 
         assertThatThrownBy(() -> service.findRuntimeConfig(44L))
             .isInstanceOf(BotRuntimeConfigService.ScopedRuntimeConfigUnavailableException.class);
@@ -102,7 +102,8 @@ class BotRuntimeConfigServiceTest {
             normalizer,
             objectMapper,
             mock(GeneralChannelQuestionTemplateService.class),
-            mock(MultibusinessFeatureFlags.class)
+            mock(MultibusinessFeatureFlags.class),
+            mock(BusinessQuestionTemplateRegistryService.class)
         );
 
         BotRuntimeConfigService.RuntimeConfigLookup lookup = service.findRuntimeConfig(44L).orElseThrow();
@@ -112,5 +113,18 @@ class BotRuntimeConfigServiceTest {
         assertThat(lookup.botSettings()).containsEntry("active_rating_template_id", "rate-channel");
         assertThat(lookup.locationTree()).containsKey("Retail");
         assertThat(lookup.presetDefinitions()).containsKey("locations");
+    }
+
+    @Test void businessBoundChannelNeverFallsBackToLegacySettingsEvenWithFlagsOff() {
+        BotRuntimeChannelService channels=mock(BotRuntimeChannelService.class);
+        var businesses=mock(BusinessQuestionTemplateRegistryService.class);
+        var config=mock(SharedConfigService.class);
+        Channel channel=new Channel();channel.setId(44L);
+        when(channels.findChannel(44L)).thenReturn(Optional.of(channel));
+        when(businesses.hasActiveChannelBindings(44L)).thenReturn(true);
+        var service=new BotRuntimeConfigService(channels,config,new BotSettingsPayloadNormalizer(),new ObjectMapper(),
+            mock(GeneralChannelQuestionTemplateService.class),new MultibusinessFeatureFlags(),businesses);
+        assertThatThrownBy(()->service.findRuntimeConfig(44L)).isInstanceOf(BotRuntimeConfigService.ScopedRuntimeConfigUnavailableException.class);
+        org.mockito.Mockito.verifyNoInteractions(config);
     }
 }

@@ -740,6 +740,40 @@ selection и сквозная provider-приёмка всё ещё обязат
 `bot_settings`; редактирование template B не может менять template A. Пока
 JSON-owner и precedence не утверждены, S1 не меняет эти поля.
 
+### R143: read-only handshake выбора BUSINESS в общем канале
+
+GET /internal/api/bot/channels/{channelId}/questionnaire/choices требует
+существующий internal token/HMAC guard и foundation + shared-channel-resolution.
+Меню версии 1 содержит только ID/code/display name бизнесов канала и ID/SHA-256
+их шаблонов, без вопросов/глобальных settings. Все активные привязки должны
+быть EXPLICIT_SELECTION, business/channel/template — active, шаблон — distinct,
+не legacy/general-only, без unsupported presets и duplicate question IDs.
+Неполный/stale/mixed набор закрывает весь новый каталог. До 100 вариантов;
+более крупный каталог требует отдельного pagination/UX-контракта.
+
+GET .../questionnaire/selection принимает businessId и catalogSha256 исходного
+меню. Любое изменение видимого состава/имени/template version требует нового
+выбора; шаблон не захватывается молча из свежей привязки. Конфигурация выбранного
+BUSINESS/USER_SELECTION получается из того же read snapshot, только с одним
+вопросником и пустыми locationTree/presetDefinitions. Оба ответа no-store.
+Старый business runtime endpoint сохраняет R112 semantics.
+
+Основной unscoped runtime endpoint больше не выдаёт legacy settings каналу
+с активными business bindings, даже при выключенных flags: нужен явный выбор.
+Общий PanelRuntimeConfigClient не кэширует legacy/general runtime между
+lookup и не возвращает local fallback при ошибке настроенного API. Новый SDK
+choices/select проверяет channel/business/version/catalog hash, membership
+выбора, точную форму settings и SHA-256 фактических bytes шаблона. Неизвестные
+scope/версии, подмена payload или глобальные presets/settings закрыты.
+Совместимость legacy runtime остаётся только для unbound channels; отключённый
+Panel API/другие transport modes ещё требуют отдельного аудита.
+
+Это read-only подготовка, не право создать ticket и не сохранённая сессия.
+Кнопки Telegram/VK/MAX, GENERAL option общего канала, BUSINESS scope через
+sessions/events/INSERT/replay, scoped locations и resume после rebind пока
+PENDING. Нельзя активировать новый shared-channel flow/rollout до подключения
+совместимых consumers и writer proof; существующий general-only flow сохранён.
+
 ## Scope guard и API contract
 
 Один сервис `BusinessAccessService` должен предоставлять:
