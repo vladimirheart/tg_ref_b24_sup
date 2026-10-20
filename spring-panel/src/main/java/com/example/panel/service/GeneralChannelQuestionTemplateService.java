@@ -48,6 +48,7 @@ public class GeneralChannelQuestionTemplateService {
         if (templateId == null || templateId.isBlank() || !templateId.equals(templateId.strip())) {
             throw new IllegalArgumentException("Question template ID is required");
         }
+        jdbc.queryForList("SELECT pg_advisory_xact_lock(hashtext('question-template-scope'),hashtext(?))", templateId);
         List<ChannelSelection> channels = jdbc.query("""
                 SELECT question_template_id, is_active FROM channels WHERE id = ? FOR UPDATE
                 """, (rs, row) -> new ChannelSelection(rs.getString("question_template_id"),
@@ -61,8 +62,13 @@ public class GeneralChannelQuestionTemplateService {
         if (hasActiveBusinessBindings(channelId)) {
             throw new IllegalStateException("General channel cannot have active business bindings");
         }
-        if (isBusinessTemplate(templateId)) {
-            throw new IllegalStateException("Question template is bound to a business");
+        if (Boolean.TRUE.equals(jdbc.queryForObject("""
+                SELECT EXISTS(SELECT 1 FROM shared_channel_general_question_template_bindings WHERE channel_id=? AND is_active=TRUE)
+                """, Boolean.class, channelId))) {
+            throw new IllegalStateException("Deactivate the shared general choice before configuring a general-only channel");
+        }
+        if (isReservedTemplate(templateId)) {
+            throw new IllegalStateException("Question template is bound to a business or reserved shared general choice");
         }
         Template template = findTemplate(templateId)
                 .orElseThrow(() -> new IllegalArgumentException("Question template not found or unsuitable"));
@@ -104,6 +110,10 @@ public class GeneralChannelQuestionTemplateService {
                        SELECT 1 FROM business_channel_bindings business_binding
                         WHERE business_binding.channel_id = channel.id
                           AND business_binding.is_active = TRUE)
+                   AND NOT EXISTS (
+                       SELECT 1 FROM shared_channel_general_question_template_bindings shared_general
+                        WHERE shared_general.template_id = binding.template_id
+                           OR (shared_general.channel_id = channel.id AND shared_general.is_active = TRUE))
                    AND NOT EXISTS (
                        SELECT 1 FROM business_question_template_bindings business_template
                         WHERE business_template.template_id = binding.template_id)
@@ -172,7 +182,12 @@ public class GeneralChannelQuestionTemplateService {
                 """, Boolean.class, channelId));
     }
 
-    private boolean isBusinessTemplate(String templateId) {
+    private boolean isReservedTemplate(String templateId) {
+        if (Boolean.TRUE.equals(jdbc.queryForObject("""
+                SELECT EXISTS (SELECT 1 FROM shared_channel_general_question_template_bindings WHERE template_id = ?)
+                """, Boolean.class, templateId))) {
+            return true;
+        }
         return Boolean.TRUE.equals(jdbc.queryForObject("""
                 SELECT EXISTS (SELECT 1 FROM business_question_template_bindings
                                 WHERE template_id = ?)

@@ -20,6 +20,20 @@ import org.springframework.mock.env.MockEnvironment;
 class PostgresRuntimeReadinessVerifierTest {
 
     @Test
+    void missingSharedGeneralBindingCannotReportReady() {
+        var jdbc=mock(JdbcTemplate.class);
+        when(jdbc.queryForList(anyString())).thenReturn(List.of());
+        when(jdbc.queryForList(contains("FROM shared_channel_general_question_template_bindings")))
+            .thenThrow(new IllegalStateException("V74 is missing"));
+        var verifier=new PostgresRuntimeReadinessVerifier(jdbc,
+            new MockEnvironment().withProperty("app.datasource.mode","postgresql"),
+            mock(com.example.panel.service.RuntimeCoordinationService.class),
+            mock(com.example.panel.storage.AttachmentObjectStorageService.class));
+        assertThatThrownBy(()->verifier.onApplicationEvent(null)).isInstanceOf(IllegalStateException.class)
+            .hasRootCauseMessage("V74 is missing");
+    }
+
+    @Test
     void missingBusinessSelectionProvenanceCannotReportReady() {
         var jdbc=mock(JdbcTemplate.class);
         when(jdbc.queryForList(anyString())).thenReturn(List.of());

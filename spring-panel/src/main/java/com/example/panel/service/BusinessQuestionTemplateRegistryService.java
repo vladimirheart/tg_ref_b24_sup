@@ -15,6 +15,7 @@ import java.util.Set;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /** Links one business to one distinct, unchanged template in canonical bot_settings. */
 @Service
@@ -49,12 +50,13 @@ public class BusinessQuestionTemplateRegistryService {
                 rs.getString("template_sha256"), rs.getBoolean("is_active")), businessId).stream().findFirst();
     }
 
-    /** A configured business channel must not enter the unscoped legacy runtime. */
+    /** A configured business/shared GENERAL channel must not enter the unscoped legacy runtime. */
     public boolean hasActiveChannelBindings(long channelId) {
         requirePositive(channelId);
         return Boolean.TRUE.equals(jdbc.queryForObject("""
             SELECT EXISTS(SELECT 1 FROM business_channel_bindings WHERE channel_id=? AND is_active=TRUE)
-            """,Boolean.class,channelId));
+                OR EXISTS(SELECT 1 FROM shared_channel_general_question_template_bindings WHERE channel_id=? AND is_active=TRUE)
+            """,Boolean.class,channelId,channelId));
     }
 
     public Optional<ChoiceCatalog> choices(long channelId) {
@@ -127,11 +129,13 @@ public class BusinessQuestionTemplateRegistryService {
     }
 
     /** Bind a distinct existing ID; cloning in the settings editor precedes this call. */
+    @Transactional
     public Optional<Binding> bind(long businessId, String templateId) throws DuplicateKeyException {
         requirePositive(businessId);
         if (templateId == null || templateId.isBlank() || !templateId.equals(templateId.strip())) {
             throw new IllegalArgumentException("Question template ID is required");
         }
+        jdbc.queryForList("SELECT pg_advisory_xact_lock(hashtext('question-template-scope'),hashtext(?))", templateId);
         Template template = loadTemplates().stream()
                 .filter(item -> templateId.equals(item.id()))
                 .findFirst()
@@ -254,6 +258,11 @@ public class BusinessQuestionTemplateRegistryService {
     }
 
     private boolean isLegacyAssigned(String templateId) {
+        if (Boolean.TRUE.equals(jdbc.queryForObject("""
+                SELECT EXISTS (SELECT 1 FROM shared_channel_general_question_template_bindings WHERE template_id = ?)
+                """, Boolean.class, templateId))) {
+            return true;
+        }
         Map<String, Object> botSettings = normalizer.normalize(
                 sharedConfigService.loadSettings().get("bot_settings"));
         if (templateId.equals(text(botSettings.get("active_template_id")))) {

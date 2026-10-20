@@ -116,6 +116,7 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
             "SELECT ticket_id, created_at, general_work_revision FROM tickets WHERE 1 = 0"
         );
         jdbcTemplate.queryForList("SELECT business_selection_source,questionnaire_catalog_sha256 FROM tickets WHERE 1 = 0");
+        jdbcTemplate.queryForList("SELECT channel_id,template_id,template_sha256,is_active FROM shared_channel_general_question_template_bindings WHERE 1 = 0");
         jdbcTemplate.queryForList("SELECT user_id, is_active FROM general_ticket_operate_grants WHERE 1 = 0");
         jdbcTemplate.queryForList("SELECT ticket_public_id, revision, actor_user_id FROM general_ticket_work_events WHERE 1 = 0");
         jdbcTemplate.queryForList("SELECT general_ticket_transition_allowed('open','closed') WHERE 1 = 0");

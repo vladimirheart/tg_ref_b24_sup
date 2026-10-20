@@ -137,6 +137,7 @@ class BusinessQuestionTemplateRegistryPostgresIntegrationTest {
         migrate(jdbc, "V51__multibusiness_foundation.sql");
         migrate(jdbc, "V55__business_question_template_bindings.sql");
         migrate(jdbc, "V57__general_channel_question_template_bindings.sql");
+        migrate(jdbc, "V74__shared_channel_general_questionnaire.sql");
         return jdbc;
     }
 

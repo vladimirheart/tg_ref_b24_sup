@@ -5,6 +5,7 @@ import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.service.BotProcessService;
 import com.example.panel.service.BusinessQuestionTemplateRegistryService;
 import com.example.panel.service.SharedConfigService;
+import com.example.panel.service.SharedGeneralQuestionnaireService;
 import com.example.panel.support.PostgresqlJdbcTestSupport;
 import java.nio.file.Files;
 import java.time.OffsetDateTime;
@@ -54,6 +55,7 @@ class SelectedBusinessTicketCreationPostgresTest {
     @Autowired SharedConfigService settings;
     @Autowired MultibusinessFeatureFlags flags;
     @Autowired BusinessQuestionTemplateRegistryService registry;
+    @Autowired SharedGeneralQuestionnaireService sharedQuestionnaires;
     @Autowired ConversationTicketCreationIngestionService ingestion;
     private long channel,a,b;
     private ConversationTicketCreatedEvent event;
@@ -82,6 +84,7 @@ class SelectedBusinessTicketCreationPostgresTest {
     }
     @AfterEach void flagsOff() {
         flags.getFoundation().setEnabled(false);flags.setTicketWriteRequiresBusiness(false);flags.setSharedChannelResolution(false);
+        flags.setGeneralChannelResolution(false);
     }
     private void saveTemplates(String firstText) {
         settings.saveSettings(Map.of("bot_settings",Map.of("active_template_id","r144-legacy","question_templates",
@@ -145,6 +148,35 @@ class SelectedBusinessTicketCreationPostgresTest {
         var rejected=mutate(event,mutation,false);
         assertThatThrownBy(()->ingest(rejected)).isInstanceOf(IllegalStateException.class);emptyWrites();
     }
+    @ParameterizedTest @ValueSource(strings={"GENERAL","BUSINESS"})
+    void v2PreviewCannotBeUsedAsAWriterCapability(String kind) {
+        flags.setGeneralChannelResolution(true);
+        String generalTemplateId="r148-general-"+channel;
+        settings.saveSettings(Map.of("bot_settings",Map.of("active_template_id","r144-legacy","question_templates",
+            List.of(template("r144-legacy","Global"),template("r144-a","Private A"),template("r144-b","Private B"),
+                template(generalTemplateId,"General only")))));
+        sharedQuestionnaires.bind(channel,generalTemplateId);
+        var catalog=sharedQuestionnaires.choices(channel).orElseThrow();
+        var selected=sharedQuestionnaires.select(channel,kind,"BUSINESS".equals(kind)?a:null,catalog.catalogSha256()).orElseThrow();
+        var rejected=change(event,event.eventId(),channel,event.userId(),selected.businessId(),selected.scopeKind(),
+            selected.scopeSelectionSource(),selected.questionTemplateId(),selected.templateSha256(),selected.catalogSha256(),event.platform());
+        assertThatThrownBy(()->ingest(rejected)).isInstanceOf(IllegalStateException.class);
+        emptyWrites();assertThat(inboxStatus(event.eventId())).isEqualTo("failed");
+    }
+
+    @Test void activeSharedGeneralCannotBecomeLegacyAfterBusinessBindingsAndStrictFlagAreRemoved() {
+        String generalTemplateId="r148-general-"+channel;
+        settings.saveSettings(Map.of("bot_settings",Map.of("active_template_id","r144-legacy","question_templates",
+            List.of(template("r144-legacy","Global"),template("r144-a","Private A"),template("r144-b","Private B"),
+                template(generalTemplateId,"General only")))));
+        sharedQuestionnaires.bind(channel,generalTemplateId);
+        jdbc.update("UPDATE business_channel_bindings SET is_active=FALSE WHERE channel_id=?",channel);
+        flags.setTicketWriteRequiresBusiness(false);flags.setSharedChannelResolution(false);
+        var rejected=change(event,event.eventId(),channel,event.userId(),null,null,null,null,null,null,event.platform());
+        assertThatThrownBy(()->ingest(rejected)).isInstanceOf(IllegalStateException.class);
+        emptyWrites();assertThat(inboxStatus(event.eventId())).isEqualTo("failed");
+    }
+
     @Test void exactReplayUsesFrozenOwnerAndVersionNotTodaysBindings() {
         ingest(event);
         jdbc.update("UPDATE business_channel_bindings SET is_active=FALSE WHERE channel_id=?",channel);

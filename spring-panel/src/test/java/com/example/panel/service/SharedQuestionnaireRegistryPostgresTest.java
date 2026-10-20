@@ -39,7 +39,7 @@ class SharedQuestionnaireRegistryPostgresTest {
         jdbc.execute("CREATE TABLE users(id BIGINT PRIMARY KEY,username TEXT NOT NULL UNIQUE)");
         jdbc.execute("CREATE TABLE channels(id BIGINT PRIMARY KEY,is_active BOOLEAN NOT NULL DEFAULT TRUE,question_template_id TEXT)");
         jdbc.execute("CREATE TABLE tickets(user_id BIGINT NOT NULL,ticket_id TEXT NOT NULL,PRIMARY KEY(user_id,ticket_id))");
-        for(String migration:List.of("V51__multibusiness_foundation.sql","V55__business_question_template_bindings.sql","V57__general_channel_question_template_bindings.sql"))
+        for(String migration:List.of("V51__multibusiness_foundation.sql","V55__business_question_template_bindings.sql","V57__general_channel_question_template_bindings.sql","V74__shared_channel_general_questionnaire.sql"))
             jdbc.execute(Files.readString(Path.of("src/main/resources/db/migration/postgresql",migration)));
         a=jdbc.queryForObject("SELECT id FROM businesses WHERE code='sushi'",Long.class);
         b=jdbc.queryForObject("SELECT id FROM businesses WHERE code='bliny'",Long.class);

@@ -39,7 +39,8 @@ public class BusinessTicketWriteScopeResolver {
         return Boolean.TRUE.equals(jdbc.queryForObject("""
             SELECT EXISTS(SELECT 1 FROM business_channel_bindings
                 WHERE channel_id=? AND is_active=TRUE AND resolution_mode='EXPLICIT_SELECTION')
-            """, Boolean.class, channelId));
+                OR EXISTS(SELECT 1 FROM shared_channel_general_question_template_bindings WHERE channel_id=? AND is_active=TRUE)
+            """, Boolean.class, channelId, channelId));
     }
 
     private record Binding(long businessId, String resolutionMode, String businessStatus) {

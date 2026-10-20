@@ -14,11 +14,11 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R143–R146 (2026-10-20): пользователь подтвердил, что
+Актуальное уточнение R143–R148 (2026-10-20): пользователь подтвердил, что
 рабочая копия и рабочий экземпляр находятся на машине текущей сессии;
-необходимый restart разрешён. В R146 он не понадобился. Подтверждён Docker
+необходимый restart разрешён. В R148 он не понадобился. Подтверждён Docker
 Server 29.7.2 для изолированных Testcontainers; рабочие DB/flags/контейнеры
-не менялись. Runtime evidence R143 и source/test evidence R146 различаются;
+не менялись. Runtime evidence R143 и source/test evidence R148 различаются;
 подтверждение машины не разрешает deploy/migration/backfill/flags.
 
 Историческое уточнение другой сессии:
@@ -977,6 +977,52 @@ durability полного process restart требует Redis mode и отде�
 GENERAL option общего канала не добавлена: она требует собственного явного binding и writer,
 а не ослабления BUSINESS или general-only API. Scoped locations/presets и release
 также отдельные этапы. Новых migrations/flags нет; минимум V73, rollout не разрешён.
+
+### R148: отдельная настройка и read-only v2 preview варианта «Без бизнеса»
+
+V74 создаёт пустой `shared_channel_general_question_template_bindings` с FK канала,
+unique template ID и SHA-256. Это не расширение GENERAL-only V57: для новой
+привязки нужен active shared channel с полностью валидным BUSINESS/EXPLICIT_SELECTION
+каталогом и отдельный canonical шаблон. Legacy/channel/global-active, business
+и GENERAL-only шаблоны не переиспользуются. Шаблон без business/problem вопросов
+допустим; его исходные question IDs/order сохраняются. Presets, пустые flow,
+duplicate template/question IDs запрещены. Deactivate не освобождает template ID
+для другого scope; повторное bind обновляет явную привязку и frozen SHA.
+
+GET/PUT/DELETE `/api/business-admin/shared-channels/{channelId}/general-question-template`
+требуют foundation и одновременно PAGE_SETTINGS + системный ROLE_ADMIN;
+мутации — CSRF. Business ADMIN/ALL_BUSINESSES не заменяют эти полномочия.
+Успешные bind/deactivate оставляют actor/channel/template audit log, но не создают
+grants. Три template-binding writer используют общий PostgreSQL transaction-scoped
+advisory lock по template ID; GENERAL-only сохраняет запрет active business bindings.
+Удаление всех business bindings не открывает legacy runtime/INSERT: active shared
+GENERAL registry сам требует explicit selection даже при выключенных flags.
+GENERAL-only на том же канале также требует сначала явного deactivate shared GENERAL.
+Внешние обходные SQL/config edits не узакониваются: runtime повторно проверяет
+reserved references и fingerprints и закрывается при конфликте.
+
+Подписанные GET `/internal/api/bot/channels/{channelId}/questionnaire/v2/choices`
+и `/selection` — **только preview**. Требуют foundation + shared-channel-resolution +
+general-channel-resolution, token/HMAC с query и no-store. Каталог версии 2 содержит
+BUSINESS choices и только явно включённый GENERAL с `businessId=null`, не 0 и не
+UNRESOLVED. Выбор задаётся `scopeKind`, nullable `businessId`, `catalogSha256`.
+GENERAL имеет USER_SELECTION, собственный template ID/SHA и общий catalog SHA.
+Payload содержит ровно выбранный вопросник; global settings/presets/location tree
+не выдаются. В каталоге не более 100 вариантов **с учётом GENERAL**. Повреждённая
+active GENERAL настройка закрывает весь v2 каталог; отключение/перепривязка GENERAL
+и изменение любого видимого BUSINESS варианта делают прежний выбор устаревшим.
+DB snapshot использует REPEATABLE_READ; настройки из файла проверяются по frozen SHA,
+но не становятся частью PostgreSQL-транзакции. Preview меню не загружает runtime
+payload всех бизнесов повторно; selection выдаёт только выбранный BUSINESS payload.
+
+V1 API/SDK/боты и v1 writer ACK сохраняются отдельно. V2 `forStart=true` всегда 404
+и **никогда не возвращает writer-version ACK**, даже при всех включённых flags.
+V73 writer пока отклоняет GENERAL/USER_SELECTION с catalog SHA; preview не является
+разрешением записи или запуска опроса. Следующий связный этап — v2 INSERT/replay и
+immutable GENERAL provenance, затем SDK/session/menu consumers всех трёх ботов.
+Readiness проверяет V74; рабочая migration/flags/restart/rollout не выполнялись
+и не разрешены этим source-only шагом. Scoped locations/presets и общая приёмка
+остаются открытыми.
 
 ## Scope guard и API contract
 
