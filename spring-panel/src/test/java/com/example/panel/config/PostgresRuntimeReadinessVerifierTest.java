@@ -18,6 +18,15 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.mock.env.MockEnvironment;
 
 class PostgresRuntimeReadinessVerifierTest {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"SELECT responsibility_revision","FROM scoped_sla_assignment_events"})
+    void missingScopedSlaSchemaCannotReportReady(String fragment) {
+        var jdbc=mock(JdbcTemplate.class);when(jdbc.queryForList(anyString())).thenReturn(List.of());
+        when(jdbc.queryForList(contains(fragment))).thenThrow(new IllegalStateException("V77 is missing"));
+        var verifier=new PostgresRuntimeReadinessVerifier(jdbc,new MockEnvironment().withProperty("app.datasource.mode","postgresql"),
+            mock(com.example.panel.service.RuntimeCoordinationService.class),mock(com.example.panel.storage.AttachmentObjectStorageService.class));
+        assertThatThrownBy(()->verifier.onApplicationEvent(null)).isInstanceOf(IllegalStateException.class).hasRootCauseMessage("V77 is missing");
+    }
 
     @Test void missingFrozenQuestionnaireVersionCannotReportReady() {
         var jdbc=mock(JdbcTemplate.class);

@@ -32,6 +32,7 @@ public class SlaEscalationWebhookNotifier {
     private final SlaRoutingPolicyService slaRoutingPolicyService;
     private final SlaEscalationWebhookDeliveryService slaEscalationWebhookDeliveryService;
     private final RuntimeCoordinationService runtimeCoordinationService;
+    private final ScopedSlaAssignmentService scopedAssignment;
     private final Map<String, Instant> ticketCooldownCache = new ConcurrentHashMap<>();
 
     enum SlaOrchestrationMode {
@@ -42,9 +43,13 @@ public class SlaEscalationWebhookNotifier {
 
     record WebhookEndpoint(String url, Map<String, String> headers) {}
 
-    record AutoAssignDecision(String ticketId, String assignee, String source, String route, String previousResponsible) {}
+    record AutoAssignDecision(String ticketId,String assignee,String source,String route,String previousResponsible,
+            @com.fasterxml.jackson.annotation.JsonIgnore DialogLookupReadService.ScopedSlaDialog context) {
+        AutoAssignDecision(String ticketId,String assignee,String source,String route,String previousResponsible) {
+            this(ticketId,assignee,source,route,previousResponsible,null);
+        }
+    }
 
-    @Autowired
     public SlaEscalationWebhookNotifier(SharedConfigService sharedConfigService,
                                         DialogLookupReadService dialogLookupReadService,
                                         DialogResponsibilityService dialogResponsibilityService,
@@ -55,6 +60,16 @@ public class SlaEscalationWebhookNotifier {
                                         SlaRoutingPolicyService slaRoutingPolicyService,
                                         SlaEscalationWebhookDeliveryService slaEscalationWebhookDeliveryService,
                                         RuntimeCoordinationService runtimeCoordinationService) {
+        this(sharedConfigService,dialogLookupReadService,dialogResponsibilityService,dialogAuditService,objectMapper,
+            slaEscalationCandidateService,slaEscalationAutoAssignService,slaRoutingPolicyService,slaEscalationWebhookDeliveryService,runtimeCoordinationService,null);
+    }
+
+    @Autowired
+    public SlaEscalationWebhookNotifier(SharedConfigService sharedConfigService,DialogLookupReadService dialogLookupReadService,
+            DialogResponsibilityService dialogResponsibilityService,DialogAuditService dialogAuditService,ObjectMapper objectMapper,
+            SlaEscalationCandidateService slaEscalationCandidateService,SlaEscalationAutoAssignService slaEscalationAutoAssignService,
+            SlaRoutingPolicyService slaRoutingPolicyService,SlaEscalationWebhookDeliveryService slaEscalationWebhookDeliveryService,
+            RuntimeCoordinationService runtimeCoordinationService,ScopedSlaAssignmentService scopedAssignment) {
         this.sharedConfigService = sharedConfigService;
         this.dialogLookupReadService = dialogLookupReadService;
         this.dialogResponsibilityService = dialogResponsibilityService;
@@ -64,6 +79,7 @@ public class SlaEscalationWebhookNotifier {
         this.slaRoutingPolicyService = slaRoutingPolicyService;
         this.slaEscalationWebhookDeliveryService = slaEscalationWebhookDeliveryService;
         this.runtimeCoordinationService = runtimeCoordinationService;
+        this.scopedAssignment=scopedAssignment;
     }
 
     SlaEscalationWebhookNotifier(SharedConfigService sharedConfigService,
@@ -82,6 +98,7 @@ public class SlaEscalationWebhookNotifier {
         );
         this.slaEscalationWebhookDeliveryService = new SlaEscalationWebhookDeliveryService(objectMapper);
         this.runtimeCoordinationService = null;
+        this.scopedAssignment=null;
     }
 
     public void notifyCriticalUnassignedDialogs() {
@@ -110,7 +127,9 @@ public class SlaEscalationWebhookNotifier {
         if (orchestrationMode == SlaOrchestrationMode.AUTOPILOT) {
             includeAssigned = true;
         }
-        List<Map<String, Object>> candidates = findEscalationCandidates(loadDialogsForRouting(null), targetMinutes, criticalMinutes, includeAssigned);
+        var frozen=dialogLookupReadService==null?List.<DialogLookupReadService.ScopedSlaDialog>of():dialogLookupReadService.loadScopedSlaDialogs();
+        List<Map<String,Object>> candidates=findEscalationCandidates(frozen.stream().map(DialogLookupReadService.ScopedSlaDialog::dialog).toList(),
+            targetMinutes,criticalMinutes,includeAssigned);
         if (candidates.isEmpty()) {
             return;
         }
@@ -122,7 +141,7 @@ public class SlaEscalationWebhookNotifier {
                 autoAssignConfig.put("sla_critical_auto_assign_enabled", true);
                 autoAssignConfig.put("sla_critical_auto_assign_include_assigned", true);
             }
-            applyAutoAssignment(candidates, autoAssignConfig);
+            applyAutoAssignment(candidates, autoAssignConfig,frozen);
         }
 
         if (!resolveBoolean(dialogConfig, "sla_critical_escalation_webhook_enabled", false)) {
@@ -194,8 +213,9 @@ public class SlaEscalationWebhookNotifier {
         return slaEscalationWebhookDeliveryService.resolveWebhookEndpoints(dialogConfig);
     }
 
-    private void applyAutoAssignment(List<Map<String, Object>> candidates, Map<String, Object> dialogConfig) {
-        List<AutoAssignDecision> decisions = resolveAutoAssignDecisions(candidates, dialogConfig);
+    private void applyAutoAssignment(List<Map<String, Object>> candidates,Map<String,Object> dialogConfig,List<DialogLookupReadService.ScopedSlaDialog> frozen) {
+        if(scopedAssignment==null) return;
+        List<AutoAssignDecision> decisions=slaEscalationAutoAssignService.resolveScopedAutoAssignDecisions(candidates,dialogConfig,frozen);
         if (decisions.isEmpty()) {
             return;
         }
@@ -204,20 +224,13 @@ public class SlaEscalationWebhookNotifier {
             actor = "sla_orchestrator";
         }
         int assignedCount = 0;
+        int routedByRules=0;
         for (AutoAssignDecision decision : decisions) {
-            assignResponsibleIfMissingOrRedirected(decision.ticketId(), decision.assignee(), actor);
-            String action = decision.previousResponsible() == null ? "sla_auto_assign" : "sla_auto_reassign";
-            String detail = "assigned_to=" + decision.assignee()
-                    + ";source=" + decision.source()
-                    + ";route=" + decision.route()
-                    + (decision.previousResponsible() != null ? ";previous_responsible=" + decision.previousResponsible() : "");
-            if (dialogAuditService != null) {
-                dialogAuditService.logDialogActionAudit(decision.ticketId(), actor, action, "success", detail);
+            if(scopedAssignment.assign(decision.context(),decision.assignee(),actor,decision.source(),decision.route())) {
+                assignedCount++;if("rules".equals(decision.source())) routedByRules++;
             }
-            assignedCount++;
         }
         if (assignedCount > 0) {
-            long routedByRules = decisions.stream().filter(item -> "rules".equals(item.source())).count();
             log.info("SLA auto-assigned {} critical ticket(s). Routed by rules: {}, fallback: {}.",
                     assignedCount,
                     routedByRules,
@@ -264,12 +277,6 @@ public class SlaEscalationWebhookNotifier {
             return dialogLookupReadService.loadDialogs(operator);
         }
         return List.of();
-    }
-
-    private void assignResponsibleIfMissingOrRedirected(String ticketId, String newResponsible, String assignedBy) {
-        if (dialogResponsibilityService != null) {
-            dialogResponsibilityService.assignResponsibleIfMissingOrRedirected(ticketId, newResponsible, assignedBy);
-        }
     }
 
     private void cleanupCooldownCache(Instant now, long retentionMinutes) {

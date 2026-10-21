@@ -19,13 +19,20 @@ public class SlaEscalationAutoAssignService {
 
     private final DialogLookupReadService dialogLookupReadService;
     private final RuntimeCoordinationService runtimeCoordinationService;
+    private final ScopedAssignmentCandidateService scopedCandidates;
     private final Map<String, Integer> roundRobinCursorByRoute = new ConcurrentHashMap<>();
+
+    public SlaEscalationAutoAssignService(DialogLookupReadService dialogLookupReadService,
+                                          RuntimeCoordinationService runtimeCoordinationService) {
+        this(dialogLookupReadService,runtimeCoordinationService,null);
+    }
 
     @Autowired
     public SlaEscalationAutoAssignService(DialogLookupReadService dialogLookupReadService,
-                                          RuntimeCoordinationService runtimeCoordinationService) {
+            RuntimeCoordinationService runtimeCoordinationService,ScopedAssignmentCandidateService scopedCandidates) {
         this.dialogLookupReadService = dialogLookupReadService;
         this.runtimeCoordinationService = runtimeCoordinationService;
+        this.scopedCandidates=scopedCandidates;
     }
 
     public SlaEscalationAutoAssignService(DialogLookupReadService dialogLookupReadService) {
@@ -40,6 +47,24 @@ public class SlaEscalationAutoAssignService {
 
     public List<SlaEscalationWebhookNotifier.AutoAssignDecision> resolveAutoAssignDecisions(List<Map<String, Object>> candidates,
                                                                                              Map<String, Object> dialogConfig) {
+        return resolveAutoAssignDecisions(candidates,dialogConfig,null);
+    }
+
+    public List<SlaEscalationWebhookNotifier.AutoAssignDecision> resolveScopedAutoAssignDecisions(List<Map<String,Object>> candidates,
+            Map<String,Object> config,List<DialogLookupReadService.ScopedSlaDialog> source) {
+        if(scopedCandidates==null || source==null) return List.of();
+        var contexts=new LinkedHashMap<String,DialogLookupReadService.ScopedSlaDialog>();
+        var duplicates=new HashSet<String>();
+        for(var row:source) if(row!=null && row.scope()!=null && row.scope().isValid() && row.dialog()!=null
+                && row.scope().ticketId().equals(row.dialog().ticketId())) {
+            if(contexts.putIfAbsent(row.scope().ticketId(),row)!=null) duplicates.add(row.scope().ticketId());
+        }
+        duplicates.forEach(contexts::remove);
+        return resolveAutoAssignDecisions(candidates,config,contexts);
+    }
+
+    private List<SlaEscalationWebhookNotifier.AutoAssignDecision> resolveAutoAssignDecisions(List<Map<String,Object>> candidates,
+            Map<String,Object> dialogConfig,Map<String,DialogLookupReadService.ScopedSlaDialog> contexts) {
         if (!resolveBoolean(dialogConfig, "sla_critical_auto_assign_enabled", false)) {
             return List.of();
         }
@@ -68,7 +93,17 @@ public class SlaEscalationAutoAssignService {
                 continue;
             }
             processedTicketIds.add(ticketId);
-            String currentResponsible = trimToNull(String.valueOf(candidate.get("responsible")));
+            DialogLookupReadService.ScopedSlaDialog frozen=null;
+            RoutingContext context=null;
+            if(contexts!=null) {
+                frozen=contexts.get(ticketId);
+                if(frozen==null) continue;
+                var snapshot=scopedCandidates.capture(frozen.scope(),frozen.channelId());
+                if(snapshot.isEmpty()) continue;
+                if(!snapshot.get().legacyUnresolved()) context=new RoutingContext(snapshot.get().openCounts(),
+                    "business:"+frozen.scope().businessId()+":channel:"+frozen.channelId()+":");
+            }
+            String currentResponsible = trimToNull(String.valueOf(contexts==null?candidate.get("responsible"):frozen.expectedResponsible()));
             if (!includeAssigned && currentResponsible != null) {
                 continue;
             }
@@ -100,15 +135,15 @@ public class SlaEscalationAutoAssignService {
                     candidateRequestNumber
             );
             String assignee = matchedRule != null
-                    ? resolveRuleAssignee(matchedRule, ticketId, maxOpenPerOperator, openLoadCache, operatorSkills, operatorQueues)
+                    ? resolveRuleAssignee(matchedRule, ticketId, maxOpenPerOperator, openLoadCache, operatorSkills, operatorQueues,context)
                     : fallbackAssignee;
             if (!isAssigneeEligible(assignee, maxOpenPerOperator, openLoadCache, operatorSkills, operatorQueues,
                     matchedRule != null ? matchedRule.requiredAssigneeSkills() : Set.of(),
-                    matchedRule != null ? matchedRule.requiredAssigneeQueues() : Set.of())) {
+                    matchedRule != null ? matchedRule.requiredAssigneeQueues() : Set.of(),context)) {
                 assignee = null;
             }
             if (assignee == null && fallbackAssignee != null && isAssigneeEligible(
-                    fallbackAssignee, maxOpenPerOperator, openLoadCache, operatorSkills, operatorQueues, Set.of(), Set.of())) {
+                    fallbackAssignee, maxOpenPerOperator, openLoadCache, operatorSkills, operatorQueues, Set.of(), Set.of(),context)) {
                 assignee = fallbackAssignee;
                 matchedRule = null;
             }
@@ -120,7 +155,7 @@ public class SlaEscalationAutoAssignService {
             }
             String source = matchedRule != null ? "rules" : "fallback";
             String route = matchedRule != null ? matchedRule.route() : "fallback_default";
-            decisions.add(new SlaEscalationWebhookNotifier.AutoAssignDecision(ticketId, assignee, source, route, currentResponsible));
+            decisions.add(new SlaEscalationWebhookNotifier.AutoAssignDecision(ticketId, assignee, source, route, currentResponsible,frozen));
         }
         return decisions;
     }
@@ -313,9 +348,20 @@ public class SlaEscalationAutoAssignService {
                                        Integer maxOpenPerOperator,
                                        Map<String, Long> openLoadCache,
                                        Map<String, Set<String>> operatorSkills,
-                                       Map<String, Set<String>> operatorQueues) {
+                                       Map<String, Set<String>> operatorQueues,RoutingContext context) {
         if (rule.assigneePool() == null || rule.assigneePool().isEmpty()) {
             return rule.assignee();
+        }
+        if(context!=null) {
+            var pool=rule.assigneePool().stream().filter(name->isAssigneeEligible(name,maxOpenPerOperator,openLoadCache,operatorSkills,operatorQueues,
+                rule.requiredAssigneeSkills(),rule.requiredAssigneeQueues(),context)).toList();
+            if(pool.isEmpty()) return null;
+            return switch(rule.poolAssignStrategy()) {
+                case HASH_BY_TICKET -> resolvePoolAssigneeByHash(pool,ticketId);
+                case LEAST_LOADED -> pool.stream().min(Comparator.comparingLong((String name)->context.count(name))
+                    .thenComparing(String::compareToIgnoreCase)).orElse(null);
+                case ROUND_ROBIN -> pool.get((int)Math.floorMod(nextRoundRobinCursor("sla-auto-assign:"+context.namespace()+rule.route()+":"+String.join(",",pool)),(long)pool.size()));
+            };
         }
         return switch (rule.poolAssignStrategy()) {
             case ROUND_ROBIN -> resolvePoolAssigneeRoundRobin(rule);
@@ -369,6 +415,17 @@ public class SlaEscalationAutoAssignService {
             return false;
         }
         return maxOpenPerOperator == null || loadOpenCount(assignee, openLoadCache) < maxOpenPerOperator;
+    }
+
+    private record RoutingContext(Map<String,Long> counts,String namespace) {
+        long count(String name) {return counts.getOrDefault(name.toLowerCase(java.util.Locale.ROOT),Long.MAX_VALUE);}
+    }
+    private boolean isAssigneeEligible(String assignee,Integer limit,Map<String,Long> cache,
+            Map<String,Set<String>> skills,Map<String,Set<String>> queues,Set<String> requiredSkills,Set<String> requiredQueues,RoutingContext context) {
+        if(context==null) return isAssigneeEligible(assignee,limit,cache,skills,queues,requiredSkills,requiredQueues);
+        return assignee!=null && context.counts().containsKey(assignee.toLowerCase(java.util.Locale.ROOT))
+            && hasRequiredSkills(assignee,skills,requiredSkills) && hasRequiredSkills(assignee,queues,requiredQueues)
+            && (limit==null || context.count(assignee)<limit);
     }
 
     private boolean hasRequiredSkills(String assignee, Map<String, Set<String>> operatorSkills, Set<String> requiredSkills) {

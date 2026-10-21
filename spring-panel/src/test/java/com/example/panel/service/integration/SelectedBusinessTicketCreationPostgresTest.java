@@ -321,7 +321,10 @@ class SelectedBusinessTicketCreationPostgresTest {
         var original=upgrade.queryForList("SELECT * FROM tickets ORDER BY user_id");
         org.flywaydb.core.Flyway.configure().dataSource(upgrade.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").load().migrate();
         var upgraded=upgrade.queryForList("SELECT * FROM tickets ORDER BY user_id");
-        for(var row:upgraded){assertThat(row).containsEntry("questionnaire_version",null);row.remove("questionnaire_version");}
+        for(var row:upgraded){
+            assertThat(row).containsEntry("questionnaire_version",null).containsEntry("responsibility_revision",0L);
+            row.remove("questionnaire_version");row.remove("responsibility_revision");
+        }
         assertThat(upgraded).isEqualTo(original);
     }
     private InboundClientMessageEvent r156Batch(long provider,int size) throws Exception {

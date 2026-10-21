@@ -26,7 +26,7 @@ public class DialogResponsibilityService {
 
     // Internal auto-routing grants no operator authority. The proposed BUSINESS assignee
     // must currently have OPERATE, not merely READ or a global page/system role.
-    private static final String ASSIGNEE_CAN_OPERATE_SQL = """
+    static final String ASSIGNEE_CAN_OPERATE_SQL = """
         EXISTS (
             SELECT 1 FROM users assignee
             JOIN businesses assignable_business ON assignable_business.id = owner.business_id

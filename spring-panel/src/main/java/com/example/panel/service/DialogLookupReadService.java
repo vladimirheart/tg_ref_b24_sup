@@ -101,6 +101,26 @@ public class DialogLookupReadService {
     }
 
     public List<DialogListItem> loadDialogs(String currentOperator) {
+        return loadDialogsInternal(currentOperator,null);
+    }
+
+    public record ScopedSlaDialog(DialogListItem dialog,UiEventTicketScope scope,Long channelId,long revision,String expectedResponsible) {}
+
+    /** Frozen scope and CAS revision come from the same statement as the routing attributes. */
+    public List<ScopedSlaDialog> loadScopedSlaDialogs() {
+        List<ScopedSlaDialog> captured=new ArrayList<>();
+        List<DialogListItem> views=loadDialogsInternal(null,captured);
+        Map<String,ScopedSlaDialog> byId=new java.util.HashMap<>();
+        for(var row:captured) byId.put(row.dialog().ticketId(),row);
+        List<ScopedSlaDialog> result=new ArrayList<>();
+        for(var view:views) {
+            var row=byId.get(view.ticketId());
+            if(row!=null) result.add(new ScopedSlaDialog(view,row.scope(),row.channelId(),row.revision(),row.expectedResponsible()));
+        }
+        return result;
+    }
+
+    private List<DialogListItem> loadDialogsInternal(String currentOperator,List<ScopedSlaDialog> captured) {
         try {
             Set<String> feedbackColumns = loadTableColumns("feedbacks");
             boolean feedbackHasTicketId = feedbackColumns.contains("ticket_id");
@@ -136,7 +156,7 @@ public class DialogLookupReadService {
                     .formatted(feedbackOrderBy)
                     : "NULL AS rating,";
             String sql = """
-                    SELECT t.ticket_id, m.group_msg_id AS request_number,
+                    SELECT %s t.ticket_id, m.group_msg_id AS request_number,
                            COALESCE(
                                m.user_id,
                                t.user_id,
@@ -229,11 +249,13 @@ public class DialogLookupReadService {
                                )
                            )
                      WHERE t.is_general = FALSE
+                       AND %s
                        AND (SELECT COUNT(*) FROM tickets legacy_ticket
                             WHERE legacy_ticket.ticket_id = t.ticket_id) = 1
                       ORDER BY %s,
                                t.ticket_id DESC
                     """.formatted(
+                    captured==null?"":"t.user_id AS scoped_user_id,t.ticket_public_id,t.business_id AS scoped_business_id,t.channel_id AS scoped_channel_id,t.responsibility_revision,",
                     latestMessageOrder,
                     ratingSelect,
                     latestHistoryOrder,
@@ -244,9 +266,11 @@ public class DialogLookupReadService {
                     latestMessageSnapshotOrder,
                     latestMessageOrder,
                     latestMessageOrder,
+                    captured==null?"TRUE":"(m.user_id IS NULL OR m.user_id=t.user_id) AND (m.channel_id IS NULL OR m.channel_id=t.channel_id)",
                     timestampSqlSupport.orderByTimestampDesc(lastActivityExpression)
             );
-            List<DialogListItem> items = jdbcTemplate.query(sql, (rs, rowNum) -> new DialogListItem(
+            List<DialogListItem> items = jdbcTemplate.query(sql, (rs, rowNum) -> {
+                var item=new DialogListItem(
                     rs.getString("ticket_id"),
                     rs.getString("request_number"),
                     rs.getObject("user_id") != null ? rs.getLong("user_id") : null,
@@ -274,7 +298,16 @@ public class DialogLookupReadService {
                     rs.getString("categories"),
                     null,
                     null
-            ), currentOperator);
+                );
+                if(captured!=null) {
+                    Long business=rs.getObject("scoped_business_id",Long.class);
+                    var scope=new UiEventTicketScope(rs.getObject("scoped_user_id",Long.class),item.ticketId(),rs.getString("ticket_public_id"),
+                        business==null?"UNRESOLVED":"BUSINESS",business);
+                    Long channel=rs.getObject("scoped_channel_id",Long.class);
+                    if(scope.isValid() && channel!=null && channel>0) captured.add(new ScopedSlaDialog(item,scope,channel,rs.getLong("responsibility_revision"),rs.getString("responsible")));
+                }
+                return item;
+            }, currentOperator);
             return assignDailyRequestNumbers(enrichResponsibleProfiles(items));
         } catch (DataAccessException ex) {
             log.warn("Unable to load dialogs, returning empty list: {}", DialogDataAccessSupport.summarizeDataAccessException(ex));

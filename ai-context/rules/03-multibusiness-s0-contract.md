@@ -678,6 +678,36 @@ SLA/escalation/manual/raw assignment writers, child attribution, внешние 
 destinations и live Redis/fleet acceptance остаются отдельными gates. Новых SQL
 migrations/flags/рабочих изменений или rollout R157 не выполняет.
 
+R158: background SLA использует отдельный typed source. Frozen canonical
+user/raw/public/business/kind/channel, responsibility_revision и точный stored
+responsible читаются тем же SQL, что и SLA-атрибуты. Нет позднего разрешения owner
+по raw ID; message user/channel mismatch и ambiguous root исключаются.
+BUSINESS candidate pool использует R157 current OPERATE перед стратегией;
+skills/queues/max-open проверяются по business pool и workload. Round-robin
+разделён по canonical business/channel/route/pool и использует полный long.
+Старые routing preview API остаются read-only, не authority для назначения.
+
+Финальный ScopedSlaAssignmentService открывает отдельную транзакцию, берёт
+legacy-ID advisory guard и root/channel locks, повторяет frozen owner/generation,
+active channel, open/non-GENERAL/unique root, current OPERATE и CAS по exact
+previous responsible + revision. V77 trigger увеличивает root revision на
+assignment insert/change/delete, включая legacy writers; last_read_at сам по
+себе её не меняет. Поэтому A→B→A и delete/insert не оживляют устаревшее решение.
+Назначение и новый append-only scoped_sla_assignment_events с frozen provenance
+commit вместе; отказ и rollback не создают raw success audit. Повтор того же
+снимка не назначает повторно. Upgrade V76→V77 оставляет прежние root/assignment
+поля без изменений, новая revision=0; это не historical attribution/backfill.
+
+GENERAL не допускается; typed UNRESOLVED — только после current exact proof до
+strict. Поздний отказ не запускает global/raw fallback или подбор следующего.
+Current grant проверяется SQL на момент записи, не блокируется на всё время
+внешнего workflow; max-open остаётся snapshot policy, не резервированием лимита.
+Raw/manual writers в целом не переведены на scoped API; порядок их locks,
+старые child rows, внешний SLA webhook destination/recipient READ policy,
+scoped UI/read и retention нового audit, live/fleet acceptance остаются gates. Frozen контекст
+не сериализуется во внешний decision payload. V77 — source-only migration с
+readiness probe, без рабочего migration/flags/rollout.
+
 Scoped auto-close callback передаёт исходный V61 scope и channel ID события
 в DialogNotificationService.notifyScopedSupportChat. Один SQL capture требует
 полного expected owner, unique raw ID/non-GENERAL, совпадения canonical
