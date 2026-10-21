@@ -40,7 +40,10 @@ final class MaxConversationSession {
                  Selection selection) {
     }
 
-    record Selection(ChoiceCatalog catalog,String nonce,String startEventKey,String submissionEventKey,String submittedTicketId) {
+    record Selection(ChoiceCatalog catalog,String nonce,String startEventKey,String submissionEventKey,String submittedTicketId,SelectedQuestionnaire selected) {
+        Selection(ChoiceCatalog catalog,String nonce,String startEventKey,String submissionEventKey,String submittedTicketId) {
+            this(catalog,nonce,startEventKey,submissionEventKey,submittedTicketId,null);
+        }
         Selection {
             MaxQuestionnaireChoiceSupport.validate(catalog,nonce);
             if(startEventKey==null || startEventKey.isBlank()) throw new IllegalStateException("Menu lost its event identity");
@@ -88,7 +91,8 @@ final class MaxConversationSession {
         var state=snapshot();
         var chosen=new MaxConversationSession(new State(userId,chatId,username,clientName,chosenFlow,chosenSettings,
             QuestionnaireScope.fromSelection(selected),Map.of(),state.history(),List.of(),startedAt,Map.of(),
-            bootstrapProblemText,false,false,0,selection));
+            bootstrapProblemText,false,false,0,new Selection(selection.catalog(),selection.nonce(),selection.startEventKey(),null,null,
+                selected.version()==3?selected:null)));
         chosen.restorePersistedRawPayload(persistedRawPayload);
         return chosen;
     }
@@ -96,12 +100,12 @@ final class MaxConversationSession {
         if(!selectedBusiness() || !isComplete() || eventKey==null || eventKey.isBlank())
             throw new IllegalStateException("Questionnaire is not ready for submission");
         if(selection.submissionEventKey()==null)
-            selection=new Selection(selection.catalog(),selection.nonce(),selection.startEventKey(),eventKey,null);
+            selection=new Selection(selection.catalog(),selection.nonce(),selection.startEventKey(),eventKey,null,selection.selected());
     }
     void markSubmitted(String ticketId) {
         if(ticketId==null || ticketId.isBlank() || selection==null || selection.submissionEventKey()==null)
             throw new IllegalStateException("Incomplete questionnaire submission");
-        selection=new Selection(selection.catalog(),selection.nonce(),selection.startEventKey(),selection.submissionEventKey(),ticketId);
+        selection=new Selection(selection.catalog(),selection.nonce(),selection.startEventKey(),selection.submissionEventKey(),ticketId,selection.selected());
     }
 
     MaxConversationSession(Long userId,
@@ -154,11 +158,17 @@ final class MaxConversationSession {
         this.reuseDecisionPending = state.reuseDecisionPending();
         this.currentIndex = Math.max(0, state.currentIndex());
         this.selection = state.selection();
+        if(selection!=null && scope!=null && selection.catalog().version()==3) {
+            if(selection.selected()==null || selection.selected().version()!=3 || selection.selected().channelId()!=selection.catalog().channelId()
+                    || !QuestionnaireScope.fromSelection(selection.selected()).equals(scope))
+                throw new IllegalStateException("Saved MAX questionnaire lost its resource snapshot");
+            com.example.supportbot.service.SelectedQuestionnaireOptions.validate(selection.selected(),selection.catalog());
+        }
         if(scope!=null && scope.catalogSha256()!=null && selection==null) throw new IllegalStateException("Selected questionnaire has no saved menu");
         if(selection!=null && ((scope==null && (!flow.isEmpty() || !answers.isEmpty()))
                 || (scope!=null && flow.isEmpty())
                 || (selection.submissionEventKey()!=null && (scope==null || !isComplete()))
-                || (scope!=null && (!("BUSINESS".equals(scope.scopeKind()) || (selection.catalog().version()==2 && "GENERAL".equals(scope.scopeKind())))
+                || (scope!=null && (!("BUSINESS".equals(scope.scopeKind()) || (selection.catalog().version()>=2 && "GENERAL".equals(scope.scopeKind())))
                     || !selection.catalog().catalogSha256().equals(scope.catalogSha256())
                     || selection.catalog().choices().stream().noneMatch(choice->choice.scopeKind().equals(scope.scopeKind()) && java.util.Objects.equals(scope.businessId(),choice.businessId())
                         && choice.questionTemplateId().equals(scope.questionTemplateId())
@@ -409,6 +419,7 @@ final class MaxConversationSession {
         if (!bindingKey.isEmpty()) {
             return bindingKey;
         }
+        if(selection!=null && selection.catalog().version()==3) return item.getId();
         if (item.getPreset() != null && item.getPreset().field() != null
                 && !item.getPreset().field().isBlank()) {
             return item.getPreset().field();

@@ -19,7 +19,7 @@ final class MaxQuestionnaireChoiceSupport {
     }
     static Optional<com.example.supportbot.service.PanelRuntimeConfigClient.Choice> resolveChoice(ChoiceCatalog catalog,String nonce,String text) {
         validate(catalog,nonce);
-        if(generalInput(nonce,text)) return catalog.choices().stream().filter(c->catalog.version()==2 && c.general()).findFirst();
+        if(generalInput(nonce,text)) return catalog.choices().stream().filter(c->catalog.version()>=2 && c.general()).findFirst();
         return resolve(catalog,nonce,text).flatMap(id->catalog.choices().stream().filter(c->java.util.Objects.equals(c.businessId(),id)).findFirst());
     }
     private static boolean generalInput(String nonce,String text) {

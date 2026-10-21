@@ -389,7 +389,7 @@ public class MaxWebhookController {
         if (MaxQuestionInputSupport.isOptionalFreeQuestion(current) && MaxQuestionInputSupport.SKIP_BUTTON.equalsIgnoreCase(String.valueOf(text).trim())) {
             resolvedAnswer = "";
         } else if (MaxQuestionInputSupport.isChoiceQuestion(current)) {
-            List<String> options = resolveQuestionOptions(current, session.answers());
+            List<String> options = resolveQuestionOptions(current, session);
             if (options.isEmpty()) {
                 messagingService.sendToUser(channel, userId,
                         "Сейчас нет доступных вариантов для выбора. Обратитесь к администратору.");
@@ -608,7 +608,7 @@ public class MaxWebhookController {
         if (current == null) {
             return;
         }
-        List<String> options = MaxQuestionInputSupport.isChoiceQuestion(current) ? resolveQuestionOptions(current, session.answers()) : List.of();
+        List<String> options = MaxQuestionInputSupport.isChoiceQuestion(current) ? resolveQuestionOptions(current, session) : List.of();
         boolean sent=messagingService.sendToUser(channel, session.userId(), MaxQuestionInputSupport.buildQuestionPromptText(current, options, session.canGoBack()));
         if(session.selectedBusiness() && !sent) throw new IllegalStateException("Questionnaire prompt delivery was not confirmed");
     }
@@ -687,6 +687,10 @@ public class MaxWebhookController {
         return response;
     }
 
+    private List<String> resolveQuestionOptions(QuestionFlowItemDto current,MaxConversationSession session) {
+        if(session.selectedBusiness()) return com.example.supportbot.service.SelectedQuestionnaireOptions.options(session.selection().selected(),current,session.answers());
+        return resolveQuestionOptions(current,session.answers());
+    }
     private List<String> resolveQuestionOptions(QuestionFlowItemDto current, Map<String, String> answers) {
         if (MaxQuestionInputSupport.isSelectQuestion(current)) {
             return MaxQuestionOptionSupport.resolveSelectOptions(current);

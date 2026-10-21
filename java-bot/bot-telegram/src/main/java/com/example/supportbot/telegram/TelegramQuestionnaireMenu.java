@@ -31,7 +31,7 @@ final class TelegramQuestionnaireMenu {
         validate(catalog,nonce);
         if(text==null) return Optional.empty();
         if(text.strip().equals("/general "+nonce) || text.strip().endsWith(" ["+nonce+":general]"))
-            return catalog.version()==2 && catalog.choices().stream().anyMatch(c->c.general()) ? Optional.of(new Action(false,0,true)) : Optional.empty();
+            return catalog.version()>=2 && catalog.choices().stream().anyMatch(c->c.general()) ? Optional.of(new Action(false,0,true)) : Optional.empty();
         var page=PAGE.matcher(text.strip());
         if(page.matches()) {
             int number=Integer.parseInt(page.group(2));

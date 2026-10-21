@@ -44,7 +44,7 @@ public class SharedGeneralQuestionnaireService {
         jdbc.queryForList("SELECT pg_advisory_xact_lock(hashtext('question-template-scope'),hashtext(?))", templateId);
         var channels = jdbc.queryForList("SELECT id FROM channels WHERE id=? AND is_active=TRUE FOR UPDATE", Long.class, channelId);
         if (channels.isEmpty()) return Optional.empty();
-        var catalog = businesses.choices(channelId);
+        var catalog = businesses.choicesWithResources(channelId);
         if (catalog.isEmpty() || catalog.get().choices().size() >= 100)
             throw new IllegalStateException("A valid explicit-selection business catalog is required");
         if (templateReservedElsewhere(templateId))
@@ -70,40 +70,50 @@ public class SharedGeneralQuestionnaireService {
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public Optional<Catalog> choices(long channelId) {
-        return snapshot(channelId).map(Snapshot::catalog);
+        return snapshot(channelId,false).map(Snapshot::catalog);
     }
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public Optional<Selected> select(long channelId, String scopeKind, Long businessId, String catalogSha256) {
+        return select(channelId,scopeKind,businessId,catalogSha256,false);
+    }
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public Optional<Catalog> choicesWithResources(long channelId) {return snapshot(channelId,true).map(Snapshot::catalog);}
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public Optional<Selected> selectWithResources(long channelId,String kind,Long businessId,String sha) {
+        return select(channelId,kind,businessId,sha,true);
+    }
+    private Optional<Selected> select(long channelId,String scopeKind,Long businessId,String catalogSha256,boolean withResources) {
         positive(channelId);
         if (!("GENERAL".equals(scopeKind) && businessId == null)
                 && !("BUSINESS".equals(scopeKind) && businessId != null && businessId > 0))
             throw new IllegalArgumentException("Invalid questionnaire choice identity");
         if (catalogSha256 == null || !catalogSha256.matches("[a-f0-9]{64}"))
             throw new IllegalArgumentException("Invalid catalog fingerprint");
-        return snapshot(channelId).filter(s -> s.catalog().catalogSha256().equals(catalogSha256)).flatMap(s -> {
+        return snapshot(channelId,withResources).filter(s -> s.catalog().catalogSha256().equals(catalogSha256)).flatMap(s -> {
             var choice = s.catalog().choices().stream().filter(c -> scopeKind.equals(c.scopeKind())
                 && Objects.equals(businessId, c.businessId())).findFirst();
             if (choice.isEmpty()) return Optional.empty();
             var c = choice.get();
-            if ("GENERAL".equals(scopeKind)) return Optional.of(new Selected(2, channelId, "GENERAL", "USER_SELECTION",
+            if ("GENERAL".equals(scopeKind)) return Optional.of(new Selected(withResources?3:2, channelId, "GENERAL", "USER_SELECTION",
                 null, c.questionTemplateId(), c.templateSha256(), catalogSha256,
                 Map.of("active_template_id", c.questionTemplateId(), "question_templates", List.of(s.generalTemplate())),
                 Map.of(), Map.of()));
-            return businesses.select(channelId, businessId, s.businessCatalog().catalogSha256()).map(b ->
-                new Selected(2, channelId, "BUSINESS", "USER_SELECTION", b.businessId(), b.questionTemplateId(),
-                    b.templateSha256(), catalogSha256, b.botSettings(), Map.of(), Map.of()));
+            return (withResources?businesses.selectWithResources(channelId,businessId,s.businessCatalog().catalogSha256())
+                :businesses.select(channelId, businessId, s.businessCatalog().catalogSha256())).map(b ->
+                new Selected(withResources?3:2, channelId, "BUSINESS", "USER_SELECTION", b.businessId(), b.questionTemplateId(),
+                    b.templateSha256(), catalogSha256, b.botSettings(), b.locationTree(), b.presetDefinitions()));
         });
     }
 
-    private Optional<Snapshot> snapshot(long channelId) {
+    private Optional<Snapshot> snapshot(long channelId,boolean withResources) {
         positive(channelId);
-        var businessCatalog = businesses.choices(channelId);
+        var businessCatalog = withResources?businesses.choicesWithResources(channelId):businesses.choices(channelId);
         if (businessCatalog.isEmpty()) return Optional.empty();
         List<Choice> choices = new ArrayList<>();
         for (var choice : businessCatalog.get().choices()) {
             choices.add(new Choice("BUSINESS", choice.businessId(), choice.code(), choice.displayName(),
-                choice.questionTemplateId(), choice.templateSha256()));
+                choice.questionTemplateId(), choice.templateSha256(),withResources?choice.resourcesSha256():null));
         }
         Map<String, Object> generalTemplate = Map.of();
         var binding = findBinding(channelId).filter(Binding::active);
@@ -113,13 +123,15 @@ public class SharedGeneralQuestionnaireService {
             if (templateReservedElsewhere(general.templateId()) || template.isEmpty()
                     || !general.templateSha256().equals(fingerprint(template.get())) || choices.size() >= 100)
                 return Optional.empty();
-            choices.add(new Choice("GENERAL", null, "GENERAL", "Без бизнеса", general.templateId(), general.templateSha256()));
+            choices.add(new Choice("GENERAL", null, "GENERAL", "Без бизнеса", general.templateId(), general.templateSha256(),withResources?BusinessQuestionnaireResourcesService.resourceSha256(Map.of(),Map.of()):null));
             generalTemplate = template.get();
         }
         var identity = new LinkedHashMap<String, Object>();
-        identity.put("version", 2); identity.put("channelId", channelId); identity.put("choices", choices);
+        int version=withResources?3:2;
+        identity.put("version", version); identity.put("channelId", channelId); identity.put("choices", choices);
+        if(withResources) identity.put("businessCatalogSha256",businessCatalog.get().catalogSha256());
         String digest = fingerprint(identity);
-        return Optional.of(new Snapshot(new Catalog(2, channelId, digest, List.copyOf(choices)),
+        return Optional.of(new Snapshot(new Catalog(version, channelId, digest, List.copyOf(choices)),
             businessCatalog.get(), generalTemplate));
     }
 
@@ -164,7 +176,10 @@ public class SharedGeneralQuestionnaireService {
 
     public record Binding(long channelId, String templateId, String templateSha256, boolean active) {}
     public record Choice(String scopeKind, Long businessId, String code, String displayName,
-                         String questionTemplateId, String templateSha256) {}
+                         String questionTemplateId, String templateSha256,
+                         @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) String resourcesSha256) {
+        public Choice(String kind,Long businessId,String code,String name,String template,String sha){this(kind,businessId,code,name,template,sha,null);}
+    }
     public record Catalog(int version, long channelId, String catalogSha256, List<Choice> choices) {}
     public record Selected(int version, long channelId, String scopeKind, String scopeSelectionSource, Long businessId,
                            String questionTemplateId, String templateSha256, String catalogSha256,

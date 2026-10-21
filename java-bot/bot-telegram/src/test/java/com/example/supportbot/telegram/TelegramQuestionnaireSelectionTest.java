@@ -342,4 +342,55 @@ class TelegramQuestionnaireSelectionTest {
         generalMenu();receive(1,"/start");String old="/general "+state().nonce;receive(10,"/start");receive(11,old);assertThat(state().selected).isNull();
         verify(runtime,never()).selectGeneralQuestionnaire(any(),any());verify(tickets,never()).createConversationTicket(any());
     }
+
+    private void r150Menu() {
+        var flow=List.of(
+            Map.of("id","city-q","binding_key","city_answer","type","preset","text","City","order",10,"preset",Map.of("group","locations","field","city")),
+            Map.of("id","spot","type","preset","text","Location","order",20,"preset",Map.of("group","locations","field","location_name")),
+            Map.of("id","team","type","preset","text","Department","order",30,"preset",Map.of("group","department","field","name")));
+        var tree=Map.<String,Object>of("businessId",7L,"locations",List.of(
+            Map.of("id",91L,"name","North site","locationType","Store","city","North"),
+            Map.of("id",92L,"name","South site","locationType","Store","city","South")));
+        var presets=Map.<String,Object>of("businessId",7L,"groups",Map.of("department",Map.of("name",List.of("Kitchen","Delivery"))));
+        var resourcesSha=com.example.supportbot.service.SelectedQuestionnaireOptions.resourceSha256(tree,presets);
+        a=new SelectedQuestionnaire(3,55,"BUSINESS","USER_SELECTION",7L,"q-a","a".repeat(64),"c".repeat(64),
+            Map.of("active_template_id","q-a","question_templates",List.of(Map.of("id","q-a","name","A","question_flow",flow))),tree,presets);
+        catalog=new ChoiceCatalog(3,55,"c".repeat(64),List.of(new Choice("BUSINESS",7L,"a","Business A","q-a","a".repeat(64),resourcesSha)));
+        doReturn(catalog).when(runtime).questionnaireChoices(channel);doReturn(a).when(runtime).selectQuestionnaire(channel,catalog,7L);
+    }
+
+    @Test void v3ResourcesSurviveJsonRestoreAndRejectForeignOrWrongCityAnswers() throws Exception {
+        r150Menu();chooseA();rebuild();receive(3,"Foreign B");assertThat(state().answers).isEmpty();
+        receive(4,"North");rebuild();receive(5,"South site");
+        verify(tickets,never()).createConversationTicket(any());receive(6,"North site");rebuild();receive(8,"Kitchen");
+        var capture=org.mockito.ArgumentCaptor.forClass(ConversationTicketCreationCommand.class);verify(tickets).createConversationTicket(capture.capture());
+        assertThat(capture.getValue().businessId()).isEqualTo(7L);
+        assertThat(capture.getValue().answers()).containsExactlyInAnyOrderEntriesOf(Map.of("city_answer","North","spot","North site","team","Kitchen"));
+        verifyNoInteractions(local,feedback);
+    }
+    @Test void v3QueueRetryKeepsTheFrozenResourceAnswersAndPublicationIdentity() throws Exception {
+        r150Menu();chooseA();receive(4,"North");receive(6,"North site");
+        when(tickets.createConversationTicket(any())).thenThrow(new IllegalStateException("r150 queue failure"))
+            .thenReturn(new TicketService.TicketCreationResult("R150-T",null,"queued"));
+        assertThatThrownBy(()->receive(8,"Kitchen")).hasMessageContaining("r150 queue failure");
+        doThrow(unavailable()).when(runtime).selectQuestionnaire(channel,catalog,7L);rebuild();receive(8,"Edited retry");
+        var capture=org.mockito.ArgumentCaptor.forClass(ConversationTicketCreationCommand.class);verify(tickets,times(2)).createConversationTicket(capture.capture());
+        assertThat(capture.getAllValues().get(0)).isEqualTo(capture.getAllValues().get(1));
+        assertThat(capture.getValue().answers()).containsEntry("team","Kitchen");verifyNoInteractions(local,feedback);
+    }
+
+
+    @Test void v3GeneralRestoresWithoutAnyBusinessResourcesOrOwner() throws Exception {
+        var payload=selected(7L,"q-general","d",false);var emptySha=com.example.supportbot.service.SelectedQuestionnaireOptions.resourceSha256(Map.of(),Map.of());
+        var general=new SelectedQuestionnaire(3,55,"GENERAL","USER_SELECTION",(Long)null,"q-general","d".repeat(64),"c".repeat(64),payload.botSettings(),Map.of(),Map.of());
+        catalog=new ChoiceCatalog(3,55,"c".repeat(64),List.of(
+            new Choice("BUSINESS",7L,"a","Business A","q-a","a".repeat(64),"a".repeat(64)),
+            new Choice("GENERAL",(Long)null,"GENERAL","Без бизнеса","q-general","d".repeat(64),emptySha)));
+        doReturn(catalog).when(runtime).questionnaireChoices(channel);doReturn(general).when(runtime).selectGeneralQuestionnaire(channel,catalog);
+        receive(1,"/start");receive(2,choice(1));rebuild();receive(3,"One");rebuild();receive(4,"Two");
+        var capture=org.mockito.ArgumentCaptor.forClass(ConversationTicketCreationCommand.class);verify(tickets).createConversationTicket(capture.capture());
+        assertThat(capture.getValue().scopeKind()).isEqualTo("GENERAL");assertThat(capture.getValue().businessId()).isNull();
+        assertThat(capture.getValue().answers()).containsExactlyInAnyOrderEntriesOf(Map.of("free-first","One","free-second","Two"));verifyNoInteractions(local,feedback);
+    }
+
 }

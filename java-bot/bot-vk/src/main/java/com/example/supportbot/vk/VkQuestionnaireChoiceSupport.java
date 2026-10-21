@@ -58,7 +58,7 @@ final class VkQuestionnaireChoiceSupport {
                 if (object.size() != 3 || !nonce.equals(object.get(PAYLOAD_KEY).getAsString())) return Optional.empty();
                 String kind = object.get("kind").getAsString();
                 if("general".equals(kind))
-                    return object.get("value").getAsString().equals("general") && catalog.version()==2 && catalog.choices().stream().anyMatch(c->c.general())
+                    return object.get("value").getAsString().equals("general") && catalog.version()>=2 && catalog.choices().stream().anyMatch(c->c.general())
                         ? Optional.of(new Action(false,0,true)) : Optional.empty();
                 if (!"business".equals(kind) && !"page".equals(kind)) return Optional.empty();
                 boolean page = "page".equals(kind);
@@ -70,7 +70,7 @@ final class VkQuestionnaireChoiceSupport {
             } catch (RuntimeException ex) { return Optional.empty(); }
         }
         if (command == null) return Optional.empty();
-        if(command.strip().equals("/general "+nonce)) return catalog.version()==2 && catalog.choices().stream().anyMatch(c->c.general())
+        if(command.strip().equals("/general "+nonce)) return catalog.version()>=2 && catalog.choices().stream().anyMatch(c->c.general())
             ? Optional.of(new Action(false,0,true)) : Optional.empty();
         var matcher = COMMAND.matcher(command.strip());
         if (!matcher.matches() || !nonce.equals(matcher.group(1))) return Optional.empty();

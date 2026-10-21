@@ -25,6 +25,7 @@ public class BusinessQuestionTemplateRegistryService {
     private final SharedConfigService sharedConfigService;
     private final BotSettingsPayloadNormalizer normalizer;
     private final ObjectMapper objectMapper;
+    private final BusinessQuestionnaireResourcesService resources;
 
     public BusinessQuestionTemplateRegistryService(JdbcTemplate jdbc, SharedConfigService sharedConfigService,
             BotSettingsPayloadNormalizer normalizer, ObjectMapper objectMapper) {
@@ -32,10 +33,11 @@ public class BusinessQuestionTemplateRegistryService {
         this.sharedConfigService = sharedConfigService;
         this.normalizer = normalizer;
         this.objectMapper = objectMapper;
+        this.resources = new BusinessQuestionnaireResourcesService(jdbc,objectMapper);
     }
 
     public List<TemplateSummary> availableTemplates() {
-        return loadTemplates().stream()
+        return loadTemplates(true).stream()
                 .filter(template -> !isLegacyAssigned(template.id()))
                 .map(template -> new TemplateSummary(template.id(), template.name()))
                 .toList();
@@ -73,7 +75,16 @@ public class BusinessQuestionTemplateRegistryService {
             .flatMap(snapshot->Optional.ofNullable(snapshot.runtimes().get(businessId)));
     }
 
-    private Optional<ChoiceSnapshot> choiceSnapshot(long channelId) {
+    @Transactional(readOnly=true,isolation=org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+    public Optional<ChoiceCatalog> choicesWithResources(long channelId) { return choiceSnapshot(channelId,true).map(ChoiceSnapshot::catalog); }
+    @Transactional(readOnly=true,isolation=org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+    public Optional<SelectedRuntime> selectWithResources(long channelId,long businessId,String expected) {
+        requirePositive(channelId); requirePositive(businessId);
+        if(expected==null || !expected.matches("[a-f0-9]{64}")) throw new IllegalArgumentException("Invalid catalog fingerprint");
+        return choiceSnapshot(channelId,true).filter(s->s.catalog().catalogSha256().equals(expected)).map(s->s.runtimes().get(businessId));
+    }
+    private Optional<ChoiceSnapshot> choiceSnapshot(long channelId) { return choiceSnapshot(channelId,false); }
+    private Optional<ChoiceSnapshot> choiceSnapshot(long channelId,boolean withResources) {
         requirePositive(channelId);
         var rows=jdbc.query("""
             SELECT binding.business_id,business.code,business.display_name,business.status,
@@ -90,8 +101,9 @@ public class BusinessQuestionTemplateRegistryService {
                 rs.getString("template_sha256"),rs.getBoolean("template_active")),channelId);
         if (rows.isEmpty() || rows.size()>100) return Optional.empty();
         Map<String,Template> templates=new LinkedHashMap<>();
-        for (Template template:loadTemplates()) templates.put(template.id(),template);
+        for (Template template:loadTemplates(withResources)) templates.put(template.id(),template);
         List<Choice> choices=new ArrayList<>();
+        Map<Long,BusinessQuestionnaireResourcesService.Resources> snapshots=new LinkedHashMap<>();
         Map<Long,Map<String,Object>> payloads=new LinkedHashMap<>();
         Set<String> selectedTemplateIds=new HashSet<>();
         for (ChoiceBinding binding:rows) {
@@ -101,22 +113,30 @@ public class BusinessQuestionTemplateRegistryService {
                     || !fingerprint(template.payload()).equals(binding.sha256()) || !uniqueQuestionIds(template.payload())) {
                 return Optional.empty();
             }
-            choices.add(new Choice("BUSINESS",binding.businessId(),binding.code(),binding.name(),template.id(),binding.sha256()));
+            if(withResources) {
+                var resource=resources.snapshot(binding.businessId());
+                if(resource.isEmpty() || !resources.supports(template.payload(),resource.get())) return Optional.empty();
+                snapshots.put(binding.businessId(),resource.get());
+            }
+            choices.add(new Choice("BUSINESS",binding.businessId(),binding.code(),binding.name(),template.id(),binding.sha256(),withResources?snapshots.get(binding.businessId()).sha256():null));
             // Round-trip creates an independent nested snapshot, not a view into mutable canonical settings.
             payloads.put(binding.businessId(),objectMapper.convertValue(objectMapper.valueToTree(template.payload()),
                 new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>() {}));
         }
         var identity=new LinkedHashMap<String,Object>();
-        identity.put("version",1);identity.put("channelId",channelId);identity.put("choices",choices);
+        int version=withResources?3:1;
+        identity.put("version",version);identity.put("channelId",channelId);identity.put("choices",choices);
+        if(withResources) identity.put("resources",snapshots.entrySet().stream().map(e->List.of(e.getKey(),e.getValue().sha256())).toList());
         String sha256=fingerprint(identity);
         Map<Long,SelectedRuntime> runtimes=new LinkedHashMap<>();
         for (Choice choice:choices) {
-            runtimes.put(choice.businessId(),new SelectedRuntime(1,channelId,"BUSINESS","USER_SELECTION",choice.businessId(),
+            runtimes.put(choice.businessId(),new SelectedRuntime(version,channelId,"BUSINESS","USER_SELECTION",choice.businessId(),
                 choice.questionTemplateId(),choice.templateSha256(),sha256,
                 Map.of("active_template_id",choice.questionTemplateId(),"question_templates",List.of(payloads.get(choice.businessId()))),
-                Map.of(),Map.of()));
+                withResources?snapshots.get(choice.businessId()).locationTree():Map.of(),
+                withResources?snapshots.get(choice.businessId()).presetDefinitions():Map.of()));
         }
-        return Optional.of(new ChoiceSnapshot(new ChoiceCatalog(1,channelId,sha256,List.copyOf(choices)),runtimes));
+        return Optional.of(new ChoiceSnapshot(new ChoiceCatalog(version,channelId,sha256,List.copyOf(choices)),runtimes));
     }
 
     private boolean uniqueQuestionIds(Map<String,Object> template) {
@@ -136,7 +156,7 @@ public class BusinessQuestionTemplateRegistryService {
             throw new IllegalArgumentException("Question template ID is required");
         }
         jdbc.queryForList("SELECT pg_advisory_xact_lock(hashtext('question-template-scope'),hashtext(?))", templateId);
-        Template template = loadTemplates().stream()
+        Template template = loadTemplates(true).stream()
                 .filter(item -> templateId.equals(item.id()))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Question template not found or unsuitable"));
@@ -147,6 +167,8 @@ public class BusinessQuestionTemplateRegistryService {
                 businessId).isEmpty()) {
             return Optional.empty();
         }
+        var resource=resources.snapshot(businessId).orElseThrow();
+        if(!resources.supports(template.payload(),resource)) throw new IllegalArgumentException("Question template references unavailable business presets");
         String fingerprint = fingerprint(template.payload());
         jdbc.update("""
                 INSERT INTO business_question_template_bindings(business_id, template_id, template_sha256, is_active)
@@ -221,7 +243,8 @@ public class BusinessQuestionTemplateRegistryService {
                 binding.fingerprint(), botSettings, Map.of(), Map.of()));
     }
 
-    private List<Template> loadTemplates() {
+    private List<Template> loadTemplates() {return loadTemplates(false);}
+    private List<Template> loadTemplates(boolean withResources) {
         Object raw = normalizer.normalize(sharedConfigService.loadSettings().get("bot_settings"))
                 .get("question_templates");
         if (!(raw instanceof List<?> source)) {
@@ -245,7 +268,7 @@ public class BusinessQuestionTemplateRegistryService {
             if (id.isEmpty() || !(flow instanceof List<?> questions) || questions.isEmpty()
                     || questions.stream().anyMatch(question -> !(question instanceof Map<?, ?> questionMap)
                         || text(questionMap.get("id")).isEmpty())
-                    || hasUnsupportedPresets(questions)) {
+                    || (!withResources && hasUnsupportedPresets(questions))) {
                 continue;
             }
             if (!seenIds.add(id)) {
@@ -318,7 +341,10 @@ public class BusinessQuestionTemplateRegistryService {
                                  String templateId,String sha256,boolean active) { }
     private record ChoiceSnapshot(ChoiceCatalog catalog,Map<Long,SelectedRuntime> runtimes) { }
     public record Choice(String scopeKind,long businessId,String code,String displayName,
-                         String questionTemplateId,String templateSha256) { }
+                         String questionTemplateId,String templateSha256,
+                         @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) String resourcesSha256) {
+        public Choice(String kind,long businessId,String code,String name,String template,String sha){this(kind,businessId,code,name,template,sha,null);}
+    }
     public record ChoiceCatalog(int version,long channelId,String catalogSha256,List<Choice> choices) { }
     public record SelectedRuntime(int version,long channelId,String scopeKind,String scopeSelectionSource,
                                   long businessId,String questionTemplateId,String templateSha256,String catalogSha256,

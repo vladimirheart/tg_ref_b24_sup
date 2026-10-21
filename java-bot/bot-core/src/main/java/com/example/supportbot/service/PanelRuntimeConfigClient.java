@@ -85,8 +85,14 @@ public class PanelRuntimeConfigClient {
         if(catalog==null || catalog.version()!=2) throw unavailable();
         validateCatalog(channelId,catalog);return catalog;
     }
+    public ChoiceCatalog choicesV3ForStart(long channelId) {
+        requireChannel(channelId);
+        var catalog=fetchTyped("/internal/api/bot/channels/"+channelId+"/questionnaire/v3/choices?forStart=true",ChoiceCatalog.class,3);
+        if(catalog==null || catalog.version()!=3) throw unavailable();
+        validateCatalog(channelId,catalog);return catalog;
+    }
     public SelectedQuestionnaire selectGeneralForStart(ChoiceCatalog catalog) {
-        if(catalog==null || catalog.version()!=2) throw unavailable();
+        if(catalog==null || (catalog.version()!=2 && catalog.version()!=3)) throw unavailable();
         return select(catalog,"GENERAL",null,true);
     }
 
@@ -106,14 +112,14 @@ public class PanelRuntimeConfigClient {
         requireChannel(catalog.channelId());validateCatalog(catalog.channelId(),catalog);
         Choice choice=catalog.choices().stream().filter(item->kind.equals(item.scopeKind()) && java.util.Objects.equals(item.businessId(),businessId)).findFirst().orElseThrow(PanelRuntimeConfigClient::unavailable);
         SelectedQuestionnaire selected=fetchTyped("/internal/api/bot/channels/"+catalog.channelId()
-            +"/questionnaire/"+(catalog.version()==2?"v2/":"")+"selection?"
-            +(catalog.version()==2?"scopeKind="+kind+"&":"")+(businessId==null?"":"businessId="+businessId+"&")
+            +"/questionnaire/"+(catalog.version()>=2?"v"+catalog.version()+"/":"")+"selection?"
+            +(catalog.version()>=2?"scopeKind="+kind+"&":"")+(businessId==null?"":"businessId="+businessId+"&")
             +"catalogSha256="+catalog.catalogSha256()+(forStart ? "&forStart=true" : ""),SelectedQuestionnaire.class,forStart?catalog.version():0);
         if (selected==null || selected.version()!=catalog.version() || selected.channelId()!=catalog.channelId() || !java.util.Objects.equals(selected.businessId(),businessId)
                 || !kind.equals(selected.scopeKind()) || !"USER_SELECTION".equals(selected.scopeSelectionSource())
                 || !catalog.catalogSha256().equals(selected.catalogSha256()) || !choice.questionTemplateId().equals(selected.questionTemplateId())
-                || !choice.templateSha256().equals(selected.templateSha256()) || selected.locationTree()==null || !selected.locationTree().isEmpty()
-                || selected.presetDefinitions()==null || !selected.presetDefinitions().isEmpty() || selected.botSettings()==null
+                || !choice.templateSha256().equals(selected.templateSha256()) || selected.locationTree()==null || (selected.version()!=3 && !selected.locationTree().isEmpty())
+                || selected.presetDefinitions()==null || (selected.version()!=3 && !selected.presetDefinitions().isEmpty()) || selected.botSettings()==null
                 || !selected.botSettings().keySet().equals(java.util.Set.of("active_template_id","question_templates"))
                 || !choice.questionTemplateId().equals(selected.botSettings().get("active_template_id"))
                 || !(selected.botSettings().get("question_templates") instanceof List<?> templates) || templates.size()!=1
@@ -122,6 +128,7 @@ public class PanelRuntimeConfigClient {
             String actual=HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(objectMapper.writeValueAsBytes(template)));
             if (!actual.equals(choice.templateSha256())) throw unavailable();
         } catch (java.security.NoSuchAlgorithmException | IOException ex) { throw unavailable(); }
+        try {SelectedQuestionnaireOptions.validate(selected,catalog);} catch(IllegalStateException | IllegalArgumentException ex) {throw unavailable();}
         return selected;
     }
 
@@ -129,17 +136,17 @@ public class PanelRuntimeConfigClient {
         if (!isEnabled() || channelId<=0) throw unavailable();
     }
     public static void validateCatalog(long channelId,ChoiceCatalog catalog) {
-        if (channelId<=0 || catalog==null || (catalog.version()!=1 && catalog.version()!=2) || catalog.channelId()!=channelId || !hash(catalog.catalogSha256())
+        if (channelId<=0 || catalog==null || (catalog.version()!=1 && catalog.version()!=2 && catalog.version()!=3) || catalog.channelId()!=channelId || !hash(catalog.catalogSha256())
                 || catalog.choices()==null || catalog.choices().isEmpty() || catalog.choices().size()>100) throw unavailable();
         var businesses=new HashSet<Long>();var templates=new HashSet<String>();boolean general=false;
         for (Choice choice:catalog.choices()) {
-            boolean isGeneral=choice!=null && catalog.version()==2 && "GENERAL".equals(choice.scopeKind()) && choice.businessId()==null;
+            boolean isGeneral=choice!=null && catalog.version()>=2 && "GENERAL".equals(choice.scopeKind()) && choice.businessId()==null;
             boolean isBusiness=choice!=null && "BUSINESS".equals(choice.scopeKind()) && choice.businessId()!=null && choice.businessId()>0;
             if (choice==null || (!isGeneral && !isBusiness) || (isGeneral && general)
                     || (isBusiness && !businesses.add(choice.businessId()))
                     || choice.code()==null || choice.code().isBlank() || choice.displayName()==null || choice.displayName().isBlank()
                     || choice.questionTemplateId()==null || choice.questionTemplateId().isBlank() || !templates.add(choice.questionTemplateId())
-                    || !hash(choice.templateSha256())) throw unavailable();
+                    || !hash(choice.templateSha256()) || (catalog.version()==3 && !hash(choice.resourcesSha256()))) throw unavailable();
             general|=isGeneral;
         }
         if(businesses.isEmpty()) throw unavailable();
@@ -206,9 +213,10 @@ public class PanelRuntimeConfigClient {
         }
     }
 
-    public record Choice(String scopeKind,Long businessId,String code,String displayName,String questionTemplateId,String templateSha256) {
+    public record Choice(String scopeKind,Long businessId,String code,String displayName,String questionTemplateId,String templateSha256,String resourcesSha256) {
+        public Choice(String kind,Long businessId,String code,String name,String template,String sha){this(kind,businessId,code,name,template,sha,null);}
         public Choice(String scopeKind,long businessId,String code,String displayName,String questionTemplateId,String templateSha256) {
-            this(scopeKind,Long.valueOf(businessId),code,displayName,questionTemplateId,templateSha256);
+            this(scopeKind,Long.valueOf(businessId),code,displayName,questionTemplateId,templateSha256,null);
         }
         public boolean general() {return "GENERAL".equals(scopeKind) && businessId==null;}
     }

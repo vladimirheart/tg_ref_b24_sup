@@ -477,7 +477,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         if (isOptionalFreeQuestion(current) && SKIP_BUTTON.equalsIgnoreCase(String.valueOf(text).trim())) {
             resolvedAnswer = "";
         } else if (isChoiceQuestion(current)) {
-            List<String> options = resolveQuestionOptions(current, session.answers());
+            List<String> options = resolveQuestionOptions(current, session);
             if (options.isEmpty()) {
                 sendText(actor, peerId, "Сейчас нет доступных вариантов для выбора. Обратитесь к администратору.");
                 return;
@@ -664,7 +664,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         }
         QuestionFlowItemDto current = session.currentQuestion();
         if (current != null) {
-            List<String> options = isChoiceQuestion(current) ? resolveQuestionOptions(current, session.answers()) : List.of();
+            List<String> options = isChoiceQuestion(current) ? resolveQuestionOptions(current, session) : List.of();
             if (session.selectedBusiness()) sendQuestionnaireText(actor, session.peerId(), buildQuestionPromptText(current, options), null);
             else sendText(actor, session.peerId(), buildQuestionPromptText(current, options));
         }
@@ -791,6 +791,10 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                 .replaceAll("[\\p{Punct}\\s]+", "");
     }
 
+    private List<String> resolveQuestionOptions(QuestionFlowItemDto current,ConversationSession session) {
+        if(session.selectedBusiness()) return com.example.supportbot.service.SelectedQuestionnaireOptions.options(session.selection.selected(),current,session.answers());
+        return resolveQuestionOptions(current,session.answers());
+    }
     private List<String> resolveQuestionOptions(QuestionFlowItemDto current, Map<String, String> answers) {
         if (isSelectQuestion(current)) {
             return current.getOptions().stream()
@@ -1492,7 +1496,10 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
 
     private record QuestionnaireSelection(ChoiceCatalog catalog, String nonce, String startEventKey,
                                           String submissionEventKey, String submittedTicketId,
-                                          List<String> acceptedEventKeys, int page) {
+                                          List<String> acceptedEventKeys, int page,SelectedQuestionnaire selected) {
+        QuestionnaireSelection(ChoiceCatalog catalog,String nonce,String startEventKey,String submissionEventKey,String submittedTicketId,List<String> acceptedEventKeys,int page) {
+            this(catalog,nonce,startEventKey,submissionEventKey,submittedTicketId,acceptedEventKeys,page,null);
+        }
         QuestionnaireSelection {
             VkQuestionnaireChoiceSupport.validate(catalog, nonce);
             VkQuestionnaireChoiceSupport.predatesMenu(startEventKey, startEventKey);
@@ -1509,7 +1516,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         QuestionnaireSelection accept(String eventKey) {
             var keys = new ArrayList<>(acceptedEventKeys);
             if (!keys.contains(eventKey)) keys.add(eventKey);
-            return new QuestionnaireSelection(catalog, nonce, startEventKey, submissionEventKey, submittedTicketId, keys, page);
+            return new QuestionnaireSelection(catalog, nonce, startEventKey, submissionEventKey, submittedTicketId, keys, page,selected);
         }
     }
 
@@ -1579,13 +1586,19 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             this.reuseDecisionPending = state.reuseDecisionPending();
             this.currentIndex = Math.max(0, state.currentIndex());
             this.selection = state.selection();
+            if(selection!=null && scope!=null && selection.catalog().version()==3) {
+                if(selection.selected()==null || selection.selected().version()!=3 || selection.selected().channelId()!=selection.catalog().channelId()
+                        || !QuestionnaireScope.fromSelection(selection.selected()).equals(scope))
+                    throw new IllegalStateException("Saved VK questionnaire lost its resource snapshot");
+                com.example.supportbot.service.SelectedQuestionnaireOptions.validate(selection.selected(),selection.catalog());
+            }
             if (scope != null && scope.catalogSha256()!=null && selection == null)
                 throw new IllegalStateException("Saved VK business questionnaire has no menu");
             if (selection != null) {
                 if (reuseDecisionPending || state.currentIndex() < 0 || currentIndex > flow.size()
                         || (scope == null && (!flow.isEmpty() || !answers.isEmpty() || currentIndex != 0))
                         || (selection.submissionEventKey() != null && (scope == null || !isComplete()))
-                        || (scope != null && (!("BUSINESS".equals(scope.scopeKind()) || (selection.catalog().version()==2 && "GENERAL".equals(scope.scopeKind()))) || flow.isEmpty()
+                        || (scope != null && (!("BUSINESS".equals(scope.scopeKind()) || (selection.catalog().version()>=2 && "GENERAL".equals(scope.scopeKind()))) || flow.isEmpty()
                             || !selection.catalog().catalogSha256().equals(scope.catalogSha256())
                             || selection.catalog().choices().stream().noneMatch(choice -> choice.scopeKind().equals(scope.scopeKind()) && Objects.equals(scope.businessId(), choice.businessId())
                                 && choice.questionTemplateId().equals(scope.questionTemplateId())
@@ -1605,7 +1618,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         void acceptEvent(String eventKey) { selection = selection.accept(eventKey); }
         void changeMenuPage(int page) {
             selection = new QuestionnaireSelection(selection.catalog(), selection.nonce(), selection.startEventKey(),
-                    selection.submissionEventKey(), selection.submittedTicketId(), selection.acceptedEventKeys(), page);
+                    selection.submissionEventKey(), selection.submittedTicketId(), selection.acceptedEventKeys(), page,selection.selected());
         }
         ConversationSession choose(SelectedQuestionnaire selected, String eventKey) {
             if (!awaitingBusinessSelection() || selected.version()!=selection.catalog().version() || selected.channelId() != selection.catalog().channelId()
@@ -1618,7 +1631,8 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             var chosenFlow = GeneralQuestionnaireFlow.from(botSettingsService.questionFlow(chosenSettings));
             var chosen = new ConversationSession(new ConversationSessionState(peerId, userId, username, clientName,
                     chosenFlow, chosenSettings, QuestionnaireScope.fromSelection(selected), Map.of(), List.copyOf(history),
-                    List.of(), startedAt, Map.of(), bootstrapProblemText, false, false, 0, selection.accept(eventKey)));
+                    List.of(), startedAt, Map.of(), bootstrapProblemText, false, false, 0,new QuestionnaireSelection(selection.catalog(),selection.nonce(),selection.startEventKey(),null,null,
+                        selection.accept(eventKey).acceptedEventKeys(),selection.page(),selected.version()==3?selected:null)));
             chosen.restorePersistedRawPayload(persistedRawPayload);
             return chosen;
         }
@@ -1627,11 +1641,11 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                 throw new IllegalStateException("VK questionnaire is not ready for submission");
             if (selection.submissionEventKey() == null)
                 selection = new QuestionnaireSelection(selection.catalog(), selection.nonce(), selection.startEventKey(),
-                        eventKey, null, selection.acceptedEventKeys(), selection.page());
+                        eventKey, null, selection.acceptedEventKeys(), selection.page(),selection.selected());
         }
         void markSubmitted(String ticketId) {
             selection = new QuestionnaireSelection(selection.catalog(), selection.nonce(), selection.startEventKey(),
-                    selection.submissionEventKey(), ticketId, selection.acceptedEventKeys(), selection.page());
+                    selection.submissionEventKey(), ticketId, selection.acceptedEventKeys(), selection.page(),selection.selected());
         }
 
         QuestionnaireScope scope() {
@@ -1866,6 +1880,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             if (!bindingKey.isEmpty()) {
                 return bindingKey;
             }
+            if(selection!=null && selection.catalog().version()==3) return item.getId();
             if (item.getPreset() != null && item.getPreset().field() != null
                     && !item.getPreset().field().isBlank()) {
                 return item.getPreset().field();

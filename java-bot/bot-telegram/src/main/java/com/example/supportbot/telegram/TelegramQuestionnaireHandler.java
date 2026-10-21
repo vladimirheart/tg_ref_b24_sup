@@ -133,7 +133,8 @@ public class TelegramQuestionnaireHandler {
             }
             prompt(sender,session);return true;
         }
-        List<String> options=options(question);
+        List<String> options=session.options(question);
+        if(com.example.supportbot.service.SelectedQuestionnaireOptions.preset(question) && options.isEmpty()) {prompt(sender,session);return true;}
         String answer=options.isEmpty()?text:TelegramChoiceInputSupport.resolveDirectAnswer(text,options);
         if(options.isEmpty() && !question.isRequiredAnswer() && "Пропустить".equalsIgnoreCase(text)) answer="";
         else if((!options.isEmpty() && !options.contains(answer)) || (answer.isBlank() && question.isRequiredAnswer())) {
@@ -164,7 +165,7 @@ public class TelegramQuestionnaireHandler {
         for(var question:session.flow) {
             String answer=state.answers.get(key(question));
             if(answer!=null && !answer.isBlank()) attributes.add(TicketService.TicketAttributeInput.fromQuestion(question,valueId(question,answer),
-                    options(question).isEmpty()?null:answer,answer));
+                    session.options(question).isEmpty()?null:answer,answer));
         }
         var result=tickets.createConversationTicket(new ConversationTicketCreationCommand(state.userId,identity(state),state.username,state.clientName,
                 new LinkedHashMap<>(state.answers),attributes,List.copyOf(state.history),channel,state.startedAt,
@@ -198,8 +199,9 @@ public class TelegramQuestionnaireHandler {
         }
         if(session.complete()) {send(sender,state.chatId,"Обращение уже принято или ожидает регистрации. Для нового опроса — /start.");return;}
         var question=session.flow.get(state.index);var text=new StringBuilder(Objects.toString(question.getText(),""));
-        var options=options(question);for(int index=0;index<options.size();index++) text.append('\n').append(index+1).append(". ").append(options.get(index));
-        if(options.isEmpty() && !question.isRequiredAnswer()) text.append("\nМожно пропустить: Пропустить.");
+        var options=session.options(question);for(int index=0;index<options.size();index++) text.append('\n').append(index+1).append(". ").append(options.get(index));
+        if(options.isEmpty() && com.example.supportbot.service.SelectedQuestionnaireOptions.preset(question)) text.append("\nСейчас нет доступных вариантов. Вернитесь к предыдущему вопросу или начните новый опрос.");
+        if(options.isEmpty() && !com.example.supportbot.service.SelectedQuestionnaireOptions.preset(question) && !question.isRequiredAnswer()) text.append("\nМожно пропустить: Пропустить.");
         if(!state.visited.isEmpty()) text.append("\nНазад — к предыдущему вопросу.");
         send(sender,state.chatId,text.toString());
     }
@@ -218,10 +220,6 @@ public class TelegramQuestionnaireHandler {
     private static String identity(State state) {return state.username!=null && !state.username.isBlank()?state.username:Long.toString(state.userId);}
     private static String key(QuestionFlowItemDto question) {
         return question.getBindingKey()!=null && !question.getBindingKey().isBlank()?question.getBindingKey():question.getId();
-    }
-    private static List<String> options(QuestionFlowItemDto question) {
-        if(!"select".equalsIgnoreCase(question.getType()) || question.getOptions()==null) return List.of();
-        return question.getOptions().stream().filter(Objects::nonNull).map(QuestionOptionDto::getLabel).filter(Objects::nonNull).toList();
     }
     private static String valueId(QuestionFlowItemDto question,String answer) {
         return question.getOptions()==null?null:question.getOptions().stream().filter(Objects::nonNull)
@@ -272,6 +270,7 @@ public class TelegramQuestionnaireHandler {
         }
         void validateSelected() {
             var selected=state.selected;QuestionnaireScope.fromSelection(selected);
+            com.example.supportbot.service.SelectedQuestionnaireOptions.validate(selected,state.catalog);
             if(selected.version()!=state.catalog.version() || selected.channelId()!=state.channelId || !state.catalog.catalogSha256().equals(selected.catalogSha256())
                     || state.catalog.choices().stream().noneMatch(choice->choice.scopeKind().equals(selected.scopeKind()) && Objects.equals(choice.businessId(),selected.businessId())
                         && choice.questionTemplateId().equals(selected.questionTemplateId()) && choice.templateSha256().equals(selected.templateSha256())))
@@ -279,12 +278,11 @@ public class TelegramQuestionnaireHandler {
             flow=GeneralQuestionnaireFlow.from(settings.questionFlow(settings.loadSelectedQuestionnaire(selected)));
             var keys=new HashSet<String>();
             for(var question:flow) {
-                if(question.getPreset()!=null || "preset".equalsIgnoreCase(question.getType()))
-                    throw new IllegalStateException("Scoped Telegram presets are not available");
                 keys.add(key(question));
             }
             if(!keys.containsAll(state.answers.keySet())) throw new IllegalStateException("Unexpected saved Telegram answers");
         }
+        List<String> options(QuestionFlowItemDto question) {return com.example.supportbot.service.SelectedQuestionnaireOptions.options(state.selected,question,state.answers);}
         boolean complete() {return state.selected!=null && state.index>=flow.size();}
         void accept(long id) {
             if(!state.accepted.contains(id)) state.accepted.add(id);

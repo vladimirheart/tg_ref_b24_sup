@@ -89,7 +89,7 @@ class VkQuestionnaireChoiceSupportTest {
             case "general" -> choices.set(0,new Choice("GENERAL",1,"a","A","q-a","a".repeat(64)));
             case "template" -> choices.set(1,new Choice("BUSINESS",2,"b","B",choices.get(0).questionTemplateId(),"b".repeat(64)));
         }
-        var broken=new ChoiceCatalog(kind.equals("version")?3:1,55,kind.equals("hash")?"bad":"c".repeat(64),choices);
+        var broken=new ChoiceCatalog(kind.equals("version")?4:1,55,kind.equals("hash")?"bad":"c".repeat(64),choices);
         assertThatThrownBy(()->VkQuestionnaireChoiceSupport.validate(broken,nonce)).isInstanceOf(IllegalStateException.class);
     }
 }

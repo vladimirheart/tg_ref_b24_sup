@@ -18,10 +18,10 @@ class RuntimeQuestionnaireStartTest {
         var client=mock(PanelRuntimeConfigClient.class);when(mode.isRabbitMqMode()).thenReturn(true);when(client.isEnabled()).thenReturn(true);
         var runtime=new RuntimeConfigService(local,mode,client,new ObjectMapper());
         var channel=new Channel();channel.setId(55L);
-        var catalog=new PanelRuntimeConfigClient.ChoiceCatalog(2,55,"c".repeat(64),List.of());
-        when(client.choicesV2ForStart(55)).thenReturn(catalog);
+        var catalog=new PanelRuntimeConfigClient.ChoiceCatalog(3,55,"c".repeat(64),List.of());
+        when(client.choicesV3ForStart(55)).thenReturn(catalog);
         runtime.questionnaireChoices(channel);runtime.selectQuestionnaire(channel,catalog,7);
-        verify(client).choicesV2ForStart(55);verify(client).selectForStart(catalog,7);
+        verify(client).choicesV3ForStart(55);verify(client).selectForStart(catalog,7);
         verify(client,never()).choices(anyLong());verify(client,never()).select(any(),anyLong());verifyNoInteractions(local);
     }
     @ParameterizedTest @ValueSource(strings={"mode","disabled","missing-channel","missing-id","inactive","catalog-channel"})

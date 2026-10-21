@@ -337,4 +337,97 @@ class SelectedBusinessTicketCreationPostgresTest {
     private int count(String table) {return jdbc.queryForObject("SELECT COUNT(*) FROM "+table+" WHERE ticket_id=?",Integer.class,event.ticketId());}
     private void emptyWrites() {for(String table:List.of("messages","tickets","ticket_attributes","chat_history","ticket_spans","ticket_active"))assertThat(count(table)).as(table).isZero();}
     private String inboxStatus(String id) {return jdbc.queryForObject("SELECT status FROM integration_inbound_event_inbox WHERE event_id=?",String.class,id);}
+
+    private void r150Resources() {
+        jdbc.update("UPDATE businesses SET settings='{}'::jsonb WHERE id IN (?,?)",a,b);
+        jdbc.update("UPDATE business_locations SET status='archived' WHERE business_id IN (?,?)",a,b);
+        jdbc.update("INSERT INTO business_locations(business_id,location_name,normalized_location_name,location_type,city) VALUES(?,'R150 A','r150-a','Store','City') ON CONFLICT(business_id,normalized_location_name,location_type,city) DO UPDATE SET status='active'",a);
+        var catalog=sharedQuestionnaires.choicesWithResources(channel).orElseThrow();
+        var selected=sharedQuestionnaires.selectWithResources(channel,"BUSINESS",a,catalog.catalogSha256()).orElseThrow();
+        event=change(event,event.eventId(),channel,event.userId(),a,"BUSINESS","USER_SELECTION",selected.questionTemplateId(),selected.templateSha256(),selected.catalogSha256(),event.platform());
+    }
+    @ParameterizedTest @ValueSource(strings={"telegram","vk","max"})
+    void v3ResourceSelectionCreatesOnceAndReplaysItsFrozenCatalogAfterResourceChanges(String platform) {
+        r150Resources();jdbc.update("UPDATE channels SET platform=? WHERE id=?",platform,channel);
+        event=change(event,event.eventId(),channel,event.userId(),a,"BUSINESS","USER_SELECTION",event.questionTemplateId(),event.templateSha256(),event.catalogSha256(),platform);
+        ingest(event);
+        jdbc.update("UPDATE business_locations SET status='archived' WHERE business_id=?",a);
+        var replay=change(event,UUID.randomUUID().toString(),channel,event.userId(),a,"BUSINESS","USER_SELECTION",event.questionTemplateId(),event.templateSha256(),event.catalogSha256(),platform);
+        ingest(replay);
+        assertThat(jdbc.queryForObject("SELECT questionnaire_catalog_sha256 FROM tickets WHERE ticket_id=?",String.class,event.ticketId())).isEqualTo(event.catalogSha256());
+        assertThat(jdbc.queryForObject("SELECT business_id FROM tickets WHERE ticket_id=?",Long.class,event.ticketId())).isEqualTo(a);
+        for(String table:List.of("messages","tickets","ticket_attributes","chat_history","ticket_spans","ticket_active"))assertThat(count(table)).as(table).isEqualTo(1);
+    }
+    @ParameterizedTest @ValueSource(strings={"own-location","other-location","own-presets","other-presets"})
+    void staleV3ResourcesAreRejectedBeforeAnyRootOrChildWrite(String kind) {
+        r150Resources();long owner=kind.startsWith("own")?a:b;
+        if(kind.endsWith("location"))jdbc.update("INSERT INTO business_locations(business_id,location_name,normalized_location_name) VALUES(?,'Added','added')",owner);
+        else jdbc.update("UPDATE businesses SET settings=jsonb_set(settings,'{questionnaire_presets}','{\"g\":{\"f\":[\"New\"]}}'::jsonb) WHERE id=?",owner);
+        assertThatThrownBy(()->ingest(event)).isInstanceOf(IllegalStateException.class);emptyWrites();assertThat(inboxStatus(event.eventId())).isEqualTo("failed");
+    }
+
+
+    private void r150PresetEvent() {
+        r150Resources();
+        jdbc.update("INSERT INTO business_locations(business_id,location_name,normalized_location_name,location_type,city) VALUES(?,'South site','r150-south','Store','South') ON CONFLICT(business_id,normalized_location_name,location_type,city) DO UPDATE SET status='active'",a);
+        jdbc.update("UPDATE businesses SET settings='{\"questionnaire_presets\":{\"department\":{\"name\":[\"Kitchen\"]}}}'::jsonb WHERE id=?",a);
+        var scoped=Map.<String,Object>of("id","r144-a","name","A","question_flow",List.of(
+            Map.of("id","city-q","binding_key","city_answer","type","preset","preset",Map.of("group","locations","field","city")),
+            Map.of("id","spot","type","preset","preset",Map.of("group","locations","field","location_name")),
+            Map.of("id","team","type","preset","preset",Map.of("group","department","field","name"))));
+        settings.saveSettings(Map.of("bot_settings",Map.of("active_template_id","r144-legacy","question_templates",List.of(
+            template("r144-legacy","Global"),scoped,template("r144-b","Private B")))));
+        registry.bind(a,"r144-a");var catalog=sharedQuestionnaires.choicesWithResources(channel).orElseThrow();
+        var selected=sharedQuestionnaires.selectWithResources(channel,"BUSINESS",a,catalog.catalogSha256()).orElseThrow();
+        event=change(event,event.eventId(),channel,event.userId(),a,"BUSINESS","USER_SELECTION",selected.questionTemplateId(),selected.templateSha256(),selected.catalogSha256(),event.platform());
+        event=r150Attributes(List.of(
+            new ConversationTicketCreatedEvent.TicketAttributePayload("city-q","city_answer","City","preset",null,"City","City",true),
+            new ConversationTicketCreatedEvent.TicketAttributePayload("spot","spot","Location","preset",null,"R150 A","R150 A",true),
+            new ConversationTicketCreatedEvent.TicketAttributePayload("team","team","Department","preset",null,"Kitchen","Kitchen",true)),null);
+    }
+    private ConversationTicketCreatedEvent r150Attributes(List<ConversationTicketCreatedEvent.TicketAttributePayload> attributes,String city) {
+        return new ConversationTicketCreatedEvent(event.eventId(),event.eventKind(),event.platform(),channel,event.ticketId(),event.userId(),event.userIdentity(),event.username(),event.clientName(),
+            event.business(),null,city,null,event.problem(),event.occurredAt(),attributes,event.historyEntries(),a,"BUSINESS","USER_SELECTION",event.questionTemplateId(),event.templateSha256(),event.catalogSha256());
+    }
+    @Test void resourceAnswersAreValidatedInsideTheActualSpringWriterTransaction() {
+        r150PresetEvent();ingest(event);
+        assertThat(count("tickets")).isEqualTo(1);assertThat(count("ticket_attributes")).isEqualTo(3);
+        assertThat(jdbc.queryForObject("SELECT value_text FROM ticket_attributes WHERE ticket_id=? AND question_id='spot'",String.class,event.ticketId())).isEqualTo("R150 A");
+    }
+    @ParameterizedTest @ValueSource(strings={"foreign-location","wrong-city","foreign-preset","forged-key","duplicate","unknown-question","label","projection"})
+    void invalidResourceAnswersNeverReachTheRootOrChildren(String mutation) {
+        r150PresetEvent();var attributes=new java.util.ArrayList<>(event.attributes());String city=null;
+        switch(mutation) {
+            case "foreign-location"->attributes.set(1,new ConversationTicketCreatedEvent.TicketAttributePayload("spot","spot","Location","preset",null,"Foreign B","Foreign B",true));
+            case "wrong-city"->attributes.set(1,new ConversationTicketCreatedEvent.TicketAttributePayload("spot","spot","Location","preset",null,"South site","South site",true));
+            case "foreign-preset"->attributes.set(2,new ConversationTicketCreatedEvent.TicketAttributePayload("team","team","Department","preset",null,"Secret B","Secret B",true));
+            case "forged-key"->attributes.set(2,new ConversationTicketCreatedEvent.TicketAttributePayload("team","other","Department","preset",null,"Kitchen","Kitchen",true));
+            case "duplicate"->attributes.add(attributes.get(1));
+            case "unknown-question"->attributes.add(new ConversationTicketCreatedEvent.TicketAttributePayload("unknown","unknown","?","text",null,null,"Secret",true));
+            case "label"->attributes.set(2,new ConversationTicketCreatedEvent.TicketAttributePayload("team","team","Department","preset",null,"Secret B","Kitchen",true));
+            default->city="Forged city";
+        }
+        var rejected=r150Attributes(attributes,city);
+        assertThatThrownBy(()->ingest(rejected)).isInstanceOf(IllegalStateException.class);emptyWrites();assertThat(inboxStatus(event.eventId())).isEqualTo("failed");
+    }
+
+
+    @ParameterizedTest @ValueSource(strings={"telegram","vk","max"})
+    void v3GeneralWriterKeepsANullOwnerAndFrozenReplayAfterBusinessResourcesChange(String platform) {
+        r150Resources();flags.setGeneralChannelResolution(true);jdbc.update("UPDATE channels SET platform=? WHERE id=?",platform,channel);
+        String id="r150-general-"+channel;
+        settings.saveSettings(Map.of("bot_settings",Map.of("active_template_id","r144-legacy","question_templates",List.of(
+            template("r144-legacy","Global"),template("r144-a","Private A"),template("r144-b","Private B"),template(id,"General")))));
+        sharedQuestionnaires.bind(channel,id);var catalog=sharedQuestionnaires.choicesWithResources(channel).orElseThrow();
+        var general=sharedQuestionnaires.selectWithResources(channel,"GENERAL",null,catalog.catalogSha256()).orElseThrow();
+        event=change(event,event.eventId(),channel,event.userId(),null,"GENERAL","USER_SELECTION",general.questionTemplateId(),general.templateSha256(),general.catalogSha256(),platform);
+        ingest(event);jdbc.update("UPDATE business_locations SET status='archived' WHERE business_id=?",a);
+        ingest(change(event,UUID.randomUUID().toString(),channel,event.userId(),null,"GENERAL","USER_SELECTION",general.questionTemplateId(),general.templateSha256(),general.catalogSha256(),platform));
+        var row=jdbc.queryForMap("SELECT * FROM tickets WHERE ticket_id=?",event.ticketId());
+        assertThat(row.get("business_id")).isNull();assertThat(row.get("business_selection_source")).isNull();
+        assertThat(row.get("is_general")).isEqualTo(true);assertThat(row.get("general_selection_source")).isEqualTo("USER_SELECTION");
+        assertThat(row.get("questionnaire_catalog_sha256")).isEqualTo(general.catalogSha256());
+        for(String table:List.of("messages","tickets","ticket_attributes","chat_history","ticket_spans","ticket_active"))assertThat(count(table)).as(table).isEqualTo(1);
+    }
+
 }

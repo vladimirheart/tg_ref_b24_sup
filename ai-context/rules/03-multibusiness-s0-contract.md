@@ -14,7 +14,7 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R149 (2026-10-21): рабочий экземпляр проекта находится
+Актуальное уточнение R150 (2026-10-21): рабочий экземпляр проекта находится
 на другой машине, в другой сессии агента. Здесь source/tests и isolated
 PostgreSQL Testcontainers. Уточнение R143–R148 о размещении «на этой машине»
 является evidence той сессии, не наблюдением текущего runtime. Рабочие revision/
@@ -1213,3 +1213,49 @@ decisions из decision table и precise changed-file/test plan against fresh
 GENERAL через fallback. Рабочая migration/flags и provider/Redis/proxy приёмка не
 выполнены. Scoped locations/presets/media, feedback/edit, rolling-upgrade и
 retention остаются gates; общий статус задачи 🟡.
+
+### R150: изолированные ресурсы выбранного бизнес-вопросника
+
+- Активные business_locations читаются по точному business_id. Global/iiko/
+  legacy location tree и dialog_config.preset_definitions не участвуют.
+  Business presets хранятся в businesses.settings.questionnaire_presets как
+  group → field → список строк. Names/labels не определяют owner. GENERAL
+  возвращает только свой вопросник и два пустых объекта ресурсов.
+- System-admin GET/PUT /api/business-admin/businesses/{businessId}/questionnaire-presets
+  требует PAGE_SETTINGS + ROLE_ADMIN, foundation и CSRF для PUT. READ/ADMIN
+  бизнеса или ALL_BUSINESSES не заменяют системные полномочия. expectedSha256
+  и row lock защищают от потери параллельного изменения. Другие settings
+  сохраняются; отсутствующий/архивный бизнес даёт 404, stale version — 409.
+- V3 /internal/api/bot/channels/{channelId}/questionnaire/v3/choices и selection
+  используют подпись path/query/forStart и ACK=3 для starts. Каждый choice
+  содержит resourcesSha256. Хешируется UTF-8 JSON [locationTree,presetDefinitions]
+  с рекурсивной сортировкой object keys и сохранением порядка массивов; общий
+  catalog SHA фиксирует все choices и resource versions. ID/SHA самого шаблона
+  не подменяется материализованным flow. V1/V2 не содержат нового nullable
+  digest в backend JSON и по-прежнему не выдают presets; SDK поддерживает их
+  сохранённые сессии, новые starts общего каталога запрашивает только через V3.
+- SDK проверяет resource SHA по сохранённому choice, точный owner, shape,
+  положительные/уникальные location IDs, допустимые поля, группы и значения.
+  Для location_type/city/location_name разрешена одна reference на dimension;
+  порядок вопросов произвольный, уже выбранные dimensions взаимно ограничивают
+  варианты. Остальные business presets — независимые списки строк. Exclusions
+  сохраняются, пустой список не становится свободным вводом и не открывает
+  global fallback. Лимиты: 1000 активных локаций, 20 групп × 20 полей, до 100
+  строк на поле и до 1000 строк суммарно. Каталог пока до 100 choices.
+- MAX/VK сохраняют весь выбранный resource snapshot в Selection; Telegram —
+  в уже существующем SelectedQuestionnaire. Restore проверяет menu/owner/hash.
+  В V3 answer key — явный binding_key либо ID вопроса; прежняя legacy/preset
+  эвристика MAX/VK для старых сессий сохранена. Повтор после неизвестного
+  результата queue использует ту же команду/ответы/publication key. GENERAL V3
+  переживает JSON/rebuild без синтетического business ID и без чужих ресурсов.
+- До нового root/child INSERT writer повторно проверяет полный current catalog,
+  шаблон и resource version. V3 preset attributes проверяются по question ID,
+  binding key, input type, text/label, допустимым значениям и согласованным
+  dimensions; duplicate/unknown attributes и несовпадающие непустые legacy
+  projections отклоняются. Exact replay существующего root сохраняет frozen
+  proof и не перечитывает новый справочник. Полная server-side проверка всего
+  route/required question path этим шагом не объявляется готовой.
+
+Source-схема остаётся V75; runtime rollout/flags/migrations не выполнялись.
+UI presets/reference editor, полный route/required validator и все прочие gates
+текущей сводки 01-278 остаются открытыми. Статус 🟡.

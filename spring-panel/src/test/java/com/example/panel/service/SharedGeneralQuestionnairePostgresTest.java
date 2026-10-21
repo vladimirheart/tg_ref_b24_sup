@@ -314,4 +314,140 @@ class SharedGeneralQuestionnairePostgresTest {
         String signature = HexFormat.of().formatHex(mac.doFinal(("GET\n" + path + "\n" + time + "\n" + bodyHash).getBytes(StandardCharsets.UTF_8)));
         return get(path).header("X-Iguana-Bot-Api-Token", "test-token").header("X-Iguana-Request-Timestamp", time).header("X-Iguana-Request-Signature", signature);
     }
+
+    private BusinessQuestionnaireResourcesService r150Resources() {return transactional(new BusinessQuestionnaireResourcesService(jdbc,mapper));}
+    private void r150Location(long owner,String name) {
+        jdbc.update("INSERT INTO business_locations(business_id,location_name,normalized_location_name,location_type,city) VALUES(?, ?,lower(?),'Store','City')",owner,name,name);
+    }
+    @Test void v3ContainsOnlyCanonicalChosenResourcesAndGeneralRemainsEmpty() throws Exception {
+        r150Location(a,"Only A");r150Location(b,"Secret B");
+        var resources=r150Resources();var before=resources.presets(a).orElseThrow();
+        resources.replacePresets(a,before.sha256(),Map.of("department",Map.of("name",List.of("Kitchen","Delivery"))));
+        shared.bind(10,"q-general");
+        var v2=shared.choices(10).orElseThrow();var catalog=shared.choicesWithResources(10).orElseThrow();
+        assertThat(catalog.version()).isEqualTo(3);assertThat(catalog.catalogSha256()).isNotEqualTo(v2.catalogSha256());
+        assertThat(mapper.writeValueAsString(catalog)).doesNotContain("Only A","Secret B","Kitchen");
+        var selected=shared.selectWithResources(10,"BUSINESS",a,catalog.catalogSha256()).orElseThrow();
+        assertThat(selected.locationTree()).containsEntry("businessId",a);
+        assertThat(selected.presetDefinitions()).containsEntry("businessId",a);
+        assertThat(mapper.writeValueAsString(selected)).contains("Only A","Kitchen").doesNotContain("Secret B","GLOBAL SECRET");
+        assertThat(catalog.choices().get(0).resourcesSha256()).isEqualTo(BusinessQuestionnaireResourcesService.resourceSha256(selected.locationTree(),selected.presetDefinitions()));
+        var general=shared.selectWithResources(10,"GENERAL",null,catalog.catalogSha256()).orElseThrow();
+        assertThat(general.locationTree()).isEmpty();assertThat(general.presetDefinitions()).isEmpty();
+        assertThat(shared.select(10,"BUSINESS",a,catalog.catalogSha256())).isEmpty();
+        assertThat(shared.selectWithResources(10,"BUSINESS",a,v2.catalogSha256())).isEmpty();
+        r150Location(b,"New B");
+        assertThat(shared.choices(10).orElseThrow()).isEqualTo(v2);
+        assertThat(shared.choicesWithResources(10).orElseThrow().catalogSha256()).isNotEqualTo(catalog.catalogSha256());
+        assertThat(shared.selectWithResources(10,"BUSINESS",a,catalog.catalogSha256())).isEmpty();
+        assertThat(shared.selectWithResources(10,"GENERAL",null,catalog.catalogSha256())).isEmpty();
+    }
+    @Test void businessPresetsUseCompareAndSetPreserveOtherSettingsAndStableKeyOrder() {
+        jdbc.update("UPDATE businesses SET settings='{"+"\"other\":\"keep\"}'::jsonb WHERE id=?",a);
+        var resources=r150Resources();var initial=resources.presets(a).orElseThrow();
+        var groups=new LinkedHashMap<String,Object>();groups.put("z",Map.of("v",List.of("Last")));groups.put("a",Map.of("v",List.of("First")));
+        var saved=resources.replacePresets(a,initial.sha256(),groups).orElseThrow();
+        assertThat(jdbc.queryForObject("SELECT settings->>'other' FROM businesses WHERE id=?",String.class,a)).isEqualTo("keep");
+        assertThat(resources.presets(b).orElseThrow().groups()).isEmpty();
+        assertThatThrownBy(()->resources.replacePresets(a,initial.sha256(),Map.of())).isInstanceOf(IllegalStateException.class);
+        var reordered=new LinkedHashMap<String,Object>();reordered.put("a",groups.get("a"));reordered.put("z",groups.get("z"));
+        assertThat(resources.replacePresets(a,saved.sha256(),reordered).orElseThrow().sha256()).isEqualTo(saved.sha256());
+        jdbc.update("UPDATE businesses SET status='archived' WHERE id=?",a);
+        assertThat(resources.snapshot(a)).isEmpty();assertThat(resources.replacePresets(a,saved.sha256(),Map.of())).isEmpty();
+    }
+    @ParameterizedTest @ValueSource(strings={"locations","blank","duplicate","object","oversize","control","key"})
+    void invalidBusinessPresetsNeverChangeTheStoredConfiguration(String kind) {
+        var resources=r150Resources();var initial=resources.presets(a).orElseThrow();
+        Map<String,Object> groups=switch(kind) {
+            case "locations"->Map.of("locations",Map.of("city",List.of("Fake")));
+            case "blank"->Map.of("g",Map.of("f",List.of(" ")));
+            case "duplicate"->Map.of("g",Map.of("f",List.of("A","A")));
+            case "object"->Map.of("g",Map.of("f",List.of(Map.of("secret","value"))));
+            case "oversize"->Map.of("g",Map.of("f",java.util.stream.IntStream.range(0,101).mapToObj(i->"V"+i).toList()));
+            case "control"->Map.of("g",Map.of("f",List.of("bad\nvalue")));
+            default->Map.of("../global",Map.of("f",List.of("A")));
+        };
+        assertThatThrownBy(()->resources.replacePresets(a,initial.sha256(),groups)).isInstanceOf(IllegalArgumentException.class);
+        assertThat(resources.presets(a).orElseThrow()).isEqualTo(initial);
+    }
+    @Test void onlyV3CanRunTemplatesWithExplicitBusinessPresetReferences() {
+        r150Location(a,"A location");var resources=r150Resources();
+        resources.replacePresets(a,resources.presets(a).orElseThrow().sha256(),Map.of("department",Map.of("name",List.of("Kitchen"))));
+        var scoped=Map.<String,Object>of("id","q-a","name","A","question_flow",List.of(
+            Map.of("id","where","type","preset","preset",Map.of("group","locations","field","city")),
+            Map.of("id","team","type","preset","preset",Map.of("group","department","field","name"))));
+        settings.saveSettings(Map.of("bot_settings",Map.of("active_template_id","q-legacy","question_templates",List.of(
+            template("q-legacy","GLOBAL SECRET"),scoped,template("q-b","Private B"),template("q-general","General")))));
+        businesses.bind(a,"q-a");shared.bind(10,"q-general");
+        assertThat(businesses.availableTemplates()).extracting(BusinessQuestionTemplateRegistryService.TemplateSummary::id).contains("q-a");
+        assertThat(businesses.choices(10)).isEmpty();assertThat(shared.choices(10)).isEmpty();
+        var catalog=shared.choicesWithResources(10).orElseThrow();
+        assertThat(shared.selectWithResources(10,"BUSINESS",a,catalog.catalogSha256())).isPresent();
+        jdbc.update("UPDATE business_locations SET status='archived' WHERE business_id=?",a);
+        assertThat(shared.choicesWithResources(10)).isEmpty();
+    }
+    @Test void v3ResourcesHandshakeSignsThePathAndAcknowledgesOnlyTheMatchingWriter() throws Exception {
+        shared.bind(10, "q-general");
+        var props = new InternalBotApiProperties(); props.setToken("test-token"); props.setSignatureSecret("test-secret"); props.setRequireRequestSignature(true);
+        @SuppressWarnings("unchecked") ObjectProvider<StringRedisTemplate> provider = mock(ObjectProvider.class);
+        var guard = new InternalBotApiRequestGuardService(props, new RuntimeCoordinationProperties(), mapper, provider);
+        var flags = new MultibusinessFeatureFlags(); flags.getFoundation().setEnabled(true); flags.setSharedChannelResolution(true);
+        flags.setGeneralChannelResolution(true); flags.setTicketWriteRequiresBusiness(true);
+        var mvc = MockMvcBuilders.standaloneSetup(new SharedResourceQuestionnaireRuntimeController(shared, guard, flags)).build();
+        String root = "/internal/api/bot/channels/10/questionnaire/v3";
+        mvc.perform(get(root + "/choices")).andExpect(status().isUnauthorized()).andExpect(header().string("Cache-Control", "no-store"));
+        mvc.perform(get(root + "/choices").header("X-Iguana-Bot-Api-Token", "test-token")).andExpect(status().isUnauthorized());
+        mvc.perform(signed(root + "/choices")).andExpect(status().isOk()).andExpect(jsonPath("$.version").value(3))
+            .andExpect(jsonPath("$.choices.length()").value(3)).andExpect(jsonPath("$.choices[2].businessId").isEmpty())
+            .andExpect(header().doesNotExist("X-Iguana-Questionnaire-Writer-Version"));
+        String selection = root + "/selection?scopeKind=GENERAL&catalogSha256=" + shared.choicesWithResources(10).orElseThrow().catalogSha256();
+        mvc.perform(signed(selection)).andExpect(status().isOk()).andExpect(jsonPath("$.scopeKind").value("GENERAL"))
+            .andExpect(jsonPath("$.businessId").isEmpty()).andExpect(jsonPath("$.scopeSelectionSource").value("USER_SELECTION"));
+        flags.setTicketWriteRequiresBusiness(false);
+        for (String path : List.of(root + "/choices?forStart=true", selection + "&forStart=true"))
+            mvc.perform(signed(path)).andExpect(status().isNotFound()).andExpect(header().doesNotExist("X-Iguana-Questionnaire-Writer-Version"));
+        flags.setTicketWriteRequiresBusiness(true);
+        for (String path : List.of(root + "/choices?forStart=true", selection + "&forStart=true"))
+            mvc.perform(signed(path)).andExpect(status().isOk()).andExpect(header().string("X-Iguana-Questionnaire-Writer-Version","3"));
+        mvc.perform(signed(selection).queryParam("businessId", Long.toString(a))).andExpect(status().isUnauthorized());
+        mvc.perform(signed(selection + "&businessId=" + a)).andExpect(status().isBadRequest());
+        shared.deactivate(10);
+        mvc.perform(signed(selection)).andExpect(status().isConflict()).andExpect(header().string("Cache-Control", "no-store"));
+        flags.setGeneralChannelResolution(false);
+        mvc.perform(signed(root + "/choices")).andExpect(status().isNotFound());
+        mvc.perform(signed(root + "/choices?forStart=true")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.choices.length()").value(2)).andExpect(header().string("X-Iguana-Questionnaire-Writer-Version","3"));
+        String businessOnly=root+"/selection?scopeKind=BUSINESS&businessId="+a+"&catalogSha256="
+            +shared.choicesWithResources(10).orElseThrow().catalogSha256()+"&forStart=true";
+        mvc.perform(signed(businessOnly)).andExpect(status().isOk()).andExpect(jsonPath("$.businessId").value(a))
+            .andExpect(header().string("X-Iguana-Questionnaire-Writer-Version","3"));
+        flags.setGeneralChannelResolution(true); flags.setSharedChannelResolution(false);
+        mvc.perform(signed(root + "/choices")).andExpect(status().isNotFound());
+        flags.setSharedChannelResolution(true); flags.getFoundation().setEnabled(false);
+        mvc.perform(signed(root + "/choices")).andExpect(status().isNotFound());
+    }
+
+
+    @Test void resourceDigestHasAStableCrossModuleVector() {
+        var tree=Map.<String,Object>of("businessId",7L,"locations",List.of(Map.of("id",91L,"name","Only A","locationType","Store","city","North")));
+        var groups=Map.<String,Object>of("businessId",7L,"groups",Map.of("department",Map.of("name",List.of("Kitchen"))));
+        assertThat(BusinessQuestionnaireResourcesService.resourceSha256(tree,groups)).isEqualTo("0d234a0b5df12624860061454ecf3f3b82734a3387ab864a7339653210745735");
+    }
+
+    @Test void concurrentPresetUpdatesWithOneVersionCannotOverwriteEachOther() throws Exception {
+        var resource=r150Resources();var initial=resource.presets(a).orElseThrow();
+        var begin=new CountDownLatch(1);var pool=Executors.newFixedThreadPool(2);
+        try {
+            java.util.function.Function<String,Boolean> update=value->{
+                try {if(!begin.await(10,TimeUnit.SECONDS))throw new IllegalStateException("Start timeout");}
+                catch(InterruptedException ex){Thread.currentThread().interrupt();throw new IllegalStateException(ex);}
+                try {resource.replacePresets(a,initial.sha256(),Map.of("g",Map.of("f",List.of(value))));return true;}
+                catch(IllegalStateException conflict){return false;}
+            };
+            var first=pool.submit(()->update.apply("First"));var second=pool.submit(()->update.apply("Second"));begin.countDown();
+            assertThat(List.of(first.get(10,TimeUnit.SECONDS),second.get(10,TimeUnit.SECONDS))).containsExactlyInAnyOrder(true,false);
+            assertThat(resource.presets(a).orElseThrow().sha256()).isNotEqualTo(initial.sha256());
+        }finally{begin.countDown();pool.shutdownNow();}
+    }
+
 }

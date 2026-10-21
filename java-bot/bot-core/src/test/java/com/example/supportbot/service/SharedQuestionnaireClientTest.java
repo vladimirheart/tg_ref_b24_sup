@@ -194,4 +194,52 @@ class SharedQuestionnaireClientTest {
         assertThatThrownBy(()->client.selectGeneralForStart(choices)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
     }
 
+
+    private void v3(String kind) throws Exception {
+        v2(kind);writerVersion="3";catalog.put("version",3);selected.put("version",3);
+        var tree=Map.<String,Object>of("businessId",7L,"locations",List.of(Map.of("id",91L,"name","Only A","locationType","Store","city","North")));
+        var presets=Map.<String,Object>of("businessId",7L,"groups",Map.of("department",Map.of("name",List.of("Kitchen"))));
+        ((ObjectNode)catalog.withArray("choices").get(0)).put("resourcesSha256",SelectedQuestionnaireOptions.resourceSha256(tree,presets));
+        ((ObjectNode)catalog.withArray("choices").get(1)).put("resourcesSha256",SelectedQuestionnaireOptions.resourceSha256(Map.of(),Map.of()));
+        if("BUSINESS".equals(kind)) {selected.set("locationTree",mapper.valueToTree(tree));selected.set("presetDefinitions",mapper.valueToTree(presets));}
+    }
+    @Test void v3SignsTheResourceProtocolAndBindsSelectedBytesToTheSavedMenu() throws Exception {
+        v3("BUSINESS");var choices=client.choicesV3ForStart(8);assertThat(signatureValid).isTrue();
+        assertThat(lastStartPath).endsWith("/v3/choices?forStart=true");
+        var result=client.selectForStart(choices,7);assertThat(signatureValid).isTrue();
+        assertThat(lastStartPath).contains("/v3/selection?scopeKind=BUSINESS&businessId=7&");
+        assertThat(result.locationTree().toString()).contains("Only A");
+        var restored=mapper.readValue(mapper.writeValueAsBytes(result),PanelRuntimeConfigClient.SelectedQuestionnaire.class);
+        SelectedQuestionnaireOptions.validate(restored,choices);assertThat(restored).isEqualTo(result);
+    }
+    @Test void v3GeneralKeepsANullOwnerAndNoBusinessResources() throws Exception {
+        v3("GENERAL");var choices=client.choicesV3ForStart(8);var result=client.selectGeneralForStart(choices);
+        assertThat(result.businessId()).isNull();assertThat(result.locationTree()).isEmpty();assertThat(result.presetDefinitions()).isEmpty();
+        assertThat(lastStartPath).contains("/v3/selection?scopeKind=GENERAL").doesNotContain("businessId");
+    }
+    @ParameterizedTest @ValueSource(strings={"missing","1","2","4"})
+    void v3RequiresItsExactWriterAcknowledgementWithoutDowngrade(String ack) throws Exception {
+        v3("BUSINESS");var choices=client.choicesV3ForStart(8);writerVersion=ack;
+        int before=requests.get();assertThatThrownBy(()->client.choicesV3ForStart(8)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
+        assertThat(requests.get()).isEqualTo(before+1);assertThat(lastStartPath).contains("/v3/");
+        assertThatThrownBy(()->client.selectForStart(choices,7)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
+    }
+    @ParameterizedTest @ValueSource(strings={"owner","fractional-owner","duplicate-location","missing-id","extra-root","location-bytes","preset-bytes","missing-groups","missing-resources"})
+    void v3RejectsForeignMalformedAndSubstitutedResourceSnapshots(String mutation) throws Exception {
+        v3("BUSINESS");var menu=client.choicesV3ForStart(8);var tree=(ObjectNode)selected.path("locationTree");
+        var row=(ObjectNode)tree.withArray("locations").get(0);
+        switch(mutation) {
+            case "owner"->tree.put("businessId",8);case "fractional-owner"->tree.put("businessId",7.1);
+            case "duplicate-location"->tree.withArray("locations").add(row.deepCopy());case "missing-id"->row.remove("id");
+            case "extra-root"->tree.put("global","secret");case "location-bytes"->row.put("name","Substituted");
+            case "preset-bytes"->((ObjectNode)selected.path("presetDefinitions").path("groups").path("department")).set("name",mapper.valueToTree(List.of("Other business")));
+            case "missing-groups"->((ObjectNode)selected.path("presetDefinitions")).remove("groups");default->selected.set("locationTree",mapper.createObjectNode());
+        }
+        assertThatThrownBy(()->client.selectForStart(menu,7)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
+    }
+    @Test void v3MenuWithoutTheCommittedResourceDigestFailsBeforeSelection() throws Exception {
+        v3("BUSINESS");((ObjectNode)catalog.withArray("choices").get(0)).remove("resourcesSha256");
+        assertThatThrownBy(()->client.choicesV3ForStart(8)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
+    }
+
 }
