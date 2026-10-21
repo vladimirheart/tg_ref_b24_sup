@@ -58,6 +58,11 @@ public class MaxApiClient {
         if(userId==null || userId<=0) return false;
         return sendPayload("user_id="+userId,MaxQuestionnaireChoiceSupport.messageBody(catalog,nonce));
     }
+    public boolean sendQuestionnaireChoices(Long userId,
+            com.example.supportbot.service.PanelRuntimeConfigClient.ChoiceCatalog catalog,String nonce,int page) {
+        if(userId==null || userId<=0) return false;
+        return sendPayload("user_id="+userId,MaxQuestionnaireChoiceSupport.messageBody(catalog,nonce,page));
+    }
 
     public PollBatch fetchUpdates(String marker, int limit, int timeoutSeconds) {
         String token = properties.getToken();

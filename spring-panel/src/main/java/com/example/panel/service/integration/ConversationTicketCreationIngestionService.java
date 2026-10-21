@@ -327,11 +327,12 @@ public class ConversationTicketCreationIngestionService {
             throw new IllegalStateException("Shared questionnaire channel platform mismatch");
         var selected = sharedQuestionnaires.select(event.channelId(), event.scopeKind(), event.businessId(), event.catalogSha256())
             .or(()->sharedQuestionnaires.selectWithResources(event.channelId(),event.scopeKind(),event.businessId(),event.catalogSha256()))
+            .or(()->sharedQuestionnaires.selectExpanded(event.channelId(),event.scopeKind(),event.businessId(),event.catalogSha256()))
             .orElseThrow(() -> new IllegalStateException("Shared questionnaire selection is stale; restart questionnaire"));
         if (!Objects.equals(selected.questionTemplateId(), event.questionTemplateId())
                 || !Objects.equals(selected.templateSha256(), event.templateSha256()))
             throw new IllegalStateException("Shared questionnaire version mismatch; restart questionnaire");
-        if(selected.version()==3) QuestionnaireResourceAnswerValidator.requireValid(selected,event);
+        if(selected.version()>=3) QuestionnaireResourceAnswerValidator.requireValid(selected,event);
     }
 
     private void requireMatchingGeneralQuestionnaire(ConversationTicketCreatedEvent event) {

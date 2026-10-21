@@ -48,4 +48,22 @@ class MaxQuestionnaireChoiceSupportTest {
         assertThatThrownBy(()->MaxQuestionnaireChoiceSupport.messageBody(catalog,nonce)).isInstanceOf(IllegalStateException.class);
         assertThatThrownBy(()->MaxQuestionnaireChoiceSupport.resolve(catalog,nonce,"/business 123456abcdef 7")).isInstanceOf(IllegalStateException.class);
     }
+    @ParameterizedTest @ValueSource(ints={101,1000})
+    void expandedPagesReachEveryChoiceAndTheFinalGeneralWithoutOversizedKeyboards(int count) throws Exception {
+        var choices=new ArrayList<com.example.supportbot.service.PanelRuntimeConfigClient.Choice>();
+        for(long id=1;id<count;id++)choices.add(new com.example.supportbot.service.PanelRuntimeConfigClient.Choice("BUSINESS",id,"b-"+id,"Business "+id,"q-"+id,"a".repeat(64),"b".repeat(64)));
+        choices.add(new com.example.supportbot.service.PanelRuntimeConfigClient.Choice("GENERAL",(Long)null,"GENERAL","Без бизнеса","q-general","c".repeat(64),"d".repeat(64)));
+        var menu=new ChoiceCatalog(4,55,"c".repeat(64),choices);String nonce="123456abcdef";var seen=new java.util.HashSet<Long>();int pages=(count+7)/8;
+        for(int page=0;page<pages;page++) {
+            var tree=new ObjectMapper().valueToTree(MaxQuestionnaireChoiceSupport.messageBody(menu,nonce,page)).at("/attachments/0/payload/buttons");assertThat(tree.size()).isLessThanOrEqualTo(5);
+            for(var row:tree)for(var button:row) {
+                String text=button.path("text").asText();
+                var target=MaxQuestionnaireChoiceSupport.resolvePage(menu,nonce,text);
+                if(target.isPresent()){assertThat(target.get()).isBetween(0,pages-1);continue;}
+                var choice=MaxQuestionnaireChoiceSupport.resolveChoice(menu,nonce,text).orElseThrow();if(choice.general())seen.add(0L);else seen.add(choice.businessId());
+            }
+        }
+        assertThat(seen).hasSize(count).contains(0L,(long)count-1);
+    }
+
 }

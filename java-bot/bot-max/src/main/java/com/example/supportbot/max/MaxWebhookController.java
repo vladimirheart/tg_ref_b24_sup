@@ -261,6 +261,11 @@ public class MaxWebhookController {
         }
 
         if(session!=null && session.awaitingBusinessSelection()) {
+            var page=MaxQuestionnaireChoiceSupport.resolvePage(session.selection().catalog(),session.selection().nonce(),text);
+            if(page.isPresent()) {
+                session.questionnairePage(page.get());saveSession(session);promptCurrentQuestion(channel,session);
+                return completeDelivery(claim,ResponseEntity.ok(Map.of("ok",true,"questionnaire_page",page.get())));
+            }
             var business=MaxQuestionnaireChoiceSupport.resolveChoice(session.selection().catalog(),session.selection().nonce(),text);
             if(business.isEmpty()) {
                 promptCurrentQuestion(channel,session);
@@ -596,7 +601,10 @@ public class MaxWebhookController {
 
     private void promptCurrentQuestion(Channel channel, MaxConversationSession session) {
         if(session.awaitingBusinessSelection()) {
-            if(!maxApiClient.sendQuestionnaireChoices(session.userId(),session.selection().catalog(),session.selection().nonce()))
+            boolean delivered=session.selection().catalog().version()==4
+                ?maxApiClient.sendQuestionnaireChoices(session.userId(),session.selection().catalog(),session.selection().nonce(),session.selection().page())
+                :maxApiClient.sendQuestionnaireChoices(session.userId(),session.selection().catalog(),session.selection().nonce());
+            if(!delivered)
                 throw new IllegalStateException("Questionnaire menu delivery was not confirmed");
             return;
         }

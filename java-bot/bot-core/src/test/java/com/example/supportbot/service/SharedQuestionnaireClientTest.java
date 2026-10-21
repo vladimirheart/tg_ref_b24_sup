@@ -242,4 +242,37 @@ class SharedQuestionnaireClientTest {
         assertThatThrownBy(()->client.choicesV3ForStart(8)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
     }
 
+    private void r152Large(String kind,int count) throws Exception {
+        v3(kind);writerVersion="4";catalog.put("version",4);selected.put("version",4);
+        var business=(ObjectNode)catalog.withArray("choices").get(0);var general=(ObjectNode)catalog.withArray("choices").get(1);
+        var all=mapper.createArrayNode();for(int index=0;index<count-2;index++)all.add(business.deepCopy().put("businessId",index+20).put("questionTemplateId","q-extra-"+index));
+        all.add(business);all.add(general);catalog.set("choices",all);
+    }
+    @ParameterizedTest @ValueSource(strings={"BUSINESS","GENERAL"})
+    void v4SignedCatalogAndSelectionSupportOneThousandChoicesWithFrozenResourceProof(String kind) throws Exception {
+        r152Large(kind,1000);var menu=client.choicesV4ForStart(8);assertThat(menu.choices()).hasSize(1000);assertThat(signatureValid).isTrue();
+        assertThat(lastStartPath).endsWith("/v4/choices?forStart=true");
+        var result=kind.equals("GENERAL")?client.selectGeneralForStart(menu):client.selectForStart(menu,7);
+        assertThat(signatureValid).isTrue();assertThat(result.version()).isEqualTo(4);assertThat(lastStartPath).contains("/v4/selection?");
+        var restored=mapper.readValue(mapper.writeValueAsBytes(menu),PanelRuntimeConfigClient.ChoiceCatalog.class);
+        SelectedQuestionnaireOptions.validate(result,restored);
+        if(kind.equals("GENERAL")){assertThat(result.businessId()).isNull();assertThat(result.locationTree()).isEmpty();}
+        else assertThat(result.locationTree().toString()).contains("Only A");
+    }
+    @ParameterizedTest @ValueSource(strings={"missing","0","1","2","3","5"})
+    void v4RequiresExactAckAndNeverRequestsAnOlderProtocol(String ack) throws Exception {
+        r152Large("BUSINESS",105);writerVersion=ack;int before=requests.get();
+        assertThatThrownBy(()->client.choicesV4ForStart(8)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
+        assertThat(requests.get()).isEqualTo(before+1);assertThat(lastStartPath).contains("/v4/");
+    }
+    @ParameterizedTest @ValueSource(strings={"overflow","missing-resource-digest","old-capacity","foreign-resource"})
+    void expandedCapacityCannotWeakenSelectionOrOlderCatalogValidation(String mutation) throws Exception {
+        r152Large("BUSINESS",mutation.equals("overflow")?1001:105);
+        if(mutation.equals("missing-resource-digest"))((ObjectNode)catalog.withArray("choices").get(0)).remove("resourcesSha256");
+        if(mutation.equals("old-capacity")){catalog.put("version",3);writerVersion="3";assertThatThrownBy(()->client.choicesV3ForStart(8)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);return;}
+        if(!mutation.equals("foreign-resource")){assertThatThrownBy(()->client.choicesV4ForStart(8)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);return;}
+        var menu=client.choicesV4ForStart(8);((ObjectNode)selected.path("locationTree")).put("businessId",999);
+        assertThatThrownBy(()->client.selectForStart(menu,7)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
+    }
+
 }

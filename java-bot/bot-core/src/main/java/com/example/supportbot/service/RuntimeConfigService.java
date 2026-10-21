@@ -45,7 +45,7 @@ public class RuntimeConfigService {
 
     public PanelRuntimeConfigClient.ChoiceCatalog questionnaireChoices(Channel channel) {
         requireRemoteQuestionnaire(channel);
-        return panelRuntimeConfigClient.choicesV3ForStart(channel.getId());
+        return panelRuntimeConfigClient.choicesV4ForStart(channel.getId());
     }
 
     public PanelRuntimeConfigClient.SelectedQuestionnaire selectQuestionnaire(Channel channel,

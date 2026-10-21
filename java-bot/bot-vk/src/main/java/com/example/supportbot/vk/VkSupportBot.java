@@ -1586,8 +1586,8 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             this.reuseDecisionPending = state.reuseDecisionPending();
             this.currentIndex = Math.max(0, state.currentIndex());
             this.selection = state.selection();
-            if(selection!=null && scope!=null && selection.catalog().version()==3) {
-                if(selection.selected()==null || selection.selected().version()!=3 || selection.selected().channelId()!=selection.catalog().channelId()
+            if(selection!=null && scope!=null && selection.catalog().version()>=3) {
+                if(selection.selected()==null || selection.selected().version()<3 || selection.selected().channelId()!=selection.catalog().channelId()
                         || !QuestionnaireScope.fromSelection(selection.selected()).equals(scope))
                     throw new IllegalStateException("Saved VK questionnaire lost its resource snapshot");
                 com.example.supportbot.service.SelectedQuestionnaireOptions.validate(selection.selected(),selection.catalog());
@@ -1632,7 +1632,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             var chosen = new ConversationSession(new ConversationSessionState(peerId, userId, username, clientName,
                     chosenFlow, chosenSettings, QuestionnaireScope.fromSelection(selected), Map.of(), List.copyOf(history),
                     List.of(), startedAt, Map.of(), bootstrapProblemText, false, false, 0,new QuestionnaireSelection(selection.catalog(),selection.nonce(),selection.startEventKey(),null,null,
-                        selection.accept(eventKey).acceptedEventKeys(),selection.page(),selected.version()==3?selected:null)));
+                        selection.accept(eventKey).acceptedEventKeys(),selection.page(),selected.version()>=3?selected:null)));
             chosen.restorePersistedRawPayload(persistedRawPayload);
             return chosen;
         }
@@ -1880,7 +1880,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             if (!bindingKey.isEmpty()) {
                 return bindingKey;
             }
-            if(selection!=null && selection.catalog().version()==3) return item.getId();
+            if(selection!=null && selection.catalog().version()>=3) return item.getId();
             if (item.getPreset() != null && item.getPreset().field() != null
                     && !item.getPreset().field().isBlank()) {
                 return item.getPreset().field();

@@ -49,7 +49,23 @@ class TelegramQuestionnaireMenuTest {
             case "duplicate"->choices.set(1,choices.get(0));
             case "general"->choices.set(0,new Choice("GENERAL",1,"a","A","q-a","a".repeat(64)));
         }
-        var menu=new ChoiceCatalog(kind.equals("version")?4:1,55,kind.equals("hash")?"bad":"c".repeat(64),choices);
+        var menu=new ChoiceCatalog(kind.equals("version")?5:1,55,kind.equals("hash")?"bad":"c".repeat(64),choices);
         assertThatThrownBy(()->TelegramQuestionnaireMenu.validate(menu,nonce)).isInstanceOf(IllegalStateException.class);
     }
+    @ParameterizedTest @ValueSource(ints={101,1000})
+    void expandedPagesReachEveryChoiceAndTheFinalGeneralWithoutOversizedKeyboards(int count) throws Exception {
+        var choices=new ArrayList<com.example.supportbot.service.PanelRuntimeConfigClient.Choice>();
+        for(long id=1;id<count;id++)choices.add(new com.example.supportbot.service.PanelRuntimeConfigClient.Choice("BUSINESS",id,"b-"+id,"Business "+id,"q-"+id,"a".repeat(64),"b".repeat(64)));
+        choices.add(new com.example.supportbot.service.PanelRuntimeConfigClient.Choice("GENERAL",(Long)null,"GENERAL","Без бизнеса","q-general","c".repeat(64),"d".repeat(64)));
+        var menu=new ChoiceCatalog(4,55,"c".repeat(64),choices);String nonce="123456abcdef";var seen=new java.util.HashSet<Long>();int pages=(count+7)/8;
+        for(int page=0;page<pages;page++) {
+            var tree=new com.fasterxml.jackson.databind.ObjectMapper().valueToTree(TelegramQuestionnaireMenu.keyboard(menu,nonce,page)).path("keyboard");assertThat(tree.size()).isLessThanOrEqualTo(5);assertThat(TelegramQuestionnaireMenu.text(menu,nonce,page).length()).isLessThan(2200);
+            for(var row:tree)for(var button:row) {
+                var action=TelegramQuestionnaireMenu.resolve(menu,nonce,button.path("text").asText()).orElseThrow();if(action.page()){assertThat(action.value()).isBetween(0L,(long)pages-1);continue;}
+                if(action.general())seen.add(0L);else seen.add(action.value());
+            }
+        }
+        assertThat(seen).hasSize(count).contains(0L,(long)count-1);
+    }
+
 }

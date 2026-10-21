@@ -89,7 +89,23 @@ class VkQuestionnaireChoiceSupportTest {
             case "general" -> choices.set(0,new Choice("GENERAL",1,"a","A","q-a","a".repeat(64)));
             case "template" -> choices.set(1,new Choice("BUSINESS",2,"b","B",choices.get(0).questionTemplateId(),"b".repeat(64)));
         }
-        var broken=new ChoiceCatalog(kind.equals("version")?4:1,55,kind.equals("hash")?"bad":"c".repeat(64),choices);
+        var broken=new ChoiceCatalog(kind.equals("version")?5:1,55,kind.equals("hash")?"bad":"c".repeat(64),choices);
         assertThatThrownBy(()->VkQuestionnaireChoiceSupport.validate(broken,nonce)).isInstanceOf(IllegalStateException.class);
     }
+    @ParameterizedTest @ValueSource(ints={101,1000})
+    void expandedPagesReachEveryChoiceAndTheFinalGeneralWithoutOversizedKeyboards(int count) throws Exception {
+        var choices=new ArrayList<com.example.supportbot.service.PanelRuntimeConfigClient.Choice>();
+        for(long id=1;id<count;id++)choices.add(new com.example.supportbot.service.PanelRuntimeConfigClient.Choice("BUSINESS",id,"b-"+id,"Business "+id,"q-"+id,"a".repeat(64),"b".repeat(64)));
+        choices.add(new com.example.supportbot.service.PanelRuntimeConfigClient.Choice("GENERAL",(Long)null,"GENERAL","Без бизнеса","q-general","c".repeat(64),"d".repeat(64)));
+        var menu=new ChoiceCatalog(4,55,"c".repeat(64),choices);String nonce="123456abcdef";var seen=new java.util.HashSet<Long>();int pages=(count+7)/8;
+        for(int page=0;page<pages;page++) {
+            var tree=JsonParser.parseString(new Gson().toJson(VkQuestionnaireChoiceSupport.keyboard(menu,nonce,page))).getAsJsonObject().getAsJsonArray("buttons");assertThat(tree.size()).isLessThanOrEqualTo(5);assertThat(VkQuestionnaireChoiceSupport.menuText(menu,nonce,page).length()).isLessThan(2200);
+            for(var row:tree)for(var button:row.getAsJsonArray()) {
+                var action=VkQuestionnaireChoiceSupport.resolve(menu,nonce,"label",button.getAsJsonObject().getAsJsonObject("action").get("payload").getAsString()).orElseThrow();if(action.page()){assertThat(action.value()).isBetween(0L,(long)pages-1);continue;}
+                if(action.general())seen.add(0L);else seen.add(action.value());
+            }
+        }
+        assertThat(seen).hasSize(count).contains(0L,(long)count-1);
+    }
+
 }

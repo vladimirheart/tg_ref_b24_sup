@@ -450,4 +450,65 @@ class SharedGeneralQuestionnairePostgresTest {
         }finally{begin.countDown();pool.shutdownNow();}
     }
 
+    private List<Long> r152Large(int businessCount) throws Exception {
+        var ids=jdbc.queryForList("INSERT INTO businesses(code,display_name) SELECT 'large-'||n,'Large '||n FROM generate_series(3,?) n RETURNING id",Long.class,businessCount);
+        var templates=new ArrayList<Map<String,Object>>(List.of(template("q-legacy","Global"),template("q-a","Private A"),template("q-b","Private B"),template("q-general","General")));
+        for(long id:ids)templates.add(template("q-large-"+id,"Private "+id));
+        settings.saveSettings(Map.of("bot_settings",Map.of("active_template_id","q-legacy","question_templates",templates)));
+        var bindings=new ArrayList<Object[]>();var channelBindings=new ArrayList<Object[]>();
+        @SuppressWarnings("unchecked") var stored=(List<Map<String,Object>>)new BotSettingsPayloadNormalizer().normalize(settings.loadSettings().get("bot_settings")).get("question_templates");
+        var hashes=new HashMap<String,String>();for(var t:stored)hashes.put((String)t.get("id"),HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(mapper.writeValueAsBytes(t))));
+        for(long id:ids){bindings.add(new Object[]{id,"q-large-"+id,hashes.get("q-large-"+id)});channelBindings.add(new Object[]{id});}
+        jdbc.batchUpdate("INSERT INTO business_question_template_bindings(business_id,template_id,template_sha256) VALUES(?,?,?)",bindings);
+        jdbc.batchUpdate("INSERT INTO business_channel_bindings(channel_id,business_id,resolution_mode) VALUES(10,?,'EXPLICIT_SELECTION')",channelBindings);
+        return ids;
+    }
+    @ParameterizedTest @org.junit.jupiter.params.provider.CsvSource({"101,false","999,true","1000,false"})
+    void expandedCatalogHasItsOwnCapacityAndRetainsOnlyTheChosenResourcePayload(int count,boolean general) throws Exception {
+        var ids=r152Large(count);if(general)shared.bind(10,"q-general");
+        var catalog=shared.choicesExpanded(10).orElseThrow();assertThat(catalog.version()).isEqualTo(4);assertThat(catalog.choices()).hasSize(count+(general?1:0));
+        assertThat(shared.choices(10)).isEmpty();assertThat(shared.choicesWithResources(10)).isEmpty();
+        long selectedId=ids.get(ids.size()-1);var chosen=shared.selectExpanded(10,"BUSINESS",selectedId,catalog.catalogSha256()).orElseThrow();
+        assertThat(chosen.version()).isEqualTo(4);assertThat(chosen.businessId()).isEqualTo(selectedId);
+        assertThat(chosen.locationTree().get("businessId")).isEqualTo(selectedId);
+        assertThat(mapper.writeValueAsString(chosen)).contains("Private "+selectedId).doesNotContain("Private A","Private B");
+        assertThat(businesses.expandedSnapshot(10,null).orElseThrow().selected()).isNull();
+        if(general){var last=catalog.choices().get(catalog.choices().size()-1);assertThat(last.scopeKind()).isEqualTo("GENERAL");
+            var selected=shared.selectExpanded(10,"GENERAL",null,catalog.catalogSha256()).orElseThrow();assertThat(selected.businessId()).isNull();assertThat(selected.locationTree()).isEmpty();assertThat(selected.presetDefinitions()).isEmpty();}
+    }
+    @ParameterizedTest @ValueSource(ints={1000,1001})
+    void expandedOverflowNeverTruncatesTheCatalogOrSilentlyDropsGeneral(int count) throws Exception {
+        r152Large(count);assertThatThrownBy(()->shared.bind(10,"q-general")).isInstanceOf(IllegalStateException.class);
+        if(count==1001)assertThat(shared.choicesExpanded(10)).isEmpty();
+        else {assertThat(shared.choicesExpanded(10).orElseThrow().choices()).hasSize(1000);
+            jdbc.update("INSERT INTO shared_channel_general_question_template_bindings(channel_id,template_id,template_sha256) VALUES(10,'q-general',?)",
+                HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(mapper.writeValueAsBytes(template("q-general","General")))));
+            assertThat(shared.choicesExpanded(10)).isEmpty();}
+    }
+    @ParameterizedTest @ValueSource(strings={"location","preset","name"})
+    void resourcesAndNamesAfterTheHundredthChoiceInvalidateEveryOldV4Choice(String mutation) throws Exception {
+        var ids=r152Large(105);shared.bind(10,"q-general");var catalog=shared.choicesExpanded(10).orElseThrow();long other=ids.get(ids.size()-1);
+        if(mutation.equals("location"))jdbc.update("INSERT INTO business_locations(business_id,location_name,normalized_location_name) VALUES(?,'Changed','changed')",other);
+        else if(mutation.equals("preset"))jdbc.update("UPDATE businesses SET settings='{\"questionnaire_presets\":{\"g\":{\"f\":[\"New\"]}}}'::jsonb WHERE id=?",other);
+        else jdbc.update("UPDATE businesses SET display_name='Renamed' WHERE id=?",other);
+        assertThat(shared.selectExpanded(10,"BUSINESS",a,catalog.catalogSha256())).isEmpty();
+        assertThat(shared.selectExpanded(10,"GENERAL",null,catalog.catalogSha256())).isEmpty();
+        assertThat(shared.choicesExpanded(10).orElseThrow().catalogSha256()).isNotEqualTo(catalog.catalogSha256());
+    }
+    @Test void v4SignedStartAndSelectionRequireTheNewWriterAckWithoutDowngrade() throws Exception {
+        shared.bind(10,"q-general");
+        var props=new InternalBotApiProperties();props.setToken("test-token");props.setSignatureSecret("test-secret");props.setRequireRequestSignature(true);
+        @SuppressWarnings("unchecked") ObjectProvider<StringRedisTemplate> provider=mock(ObjectProvider.class);
+        var guard=new InternalBotApiRequestGuardService(props,new RuntimeCoordinationProperties(),mapper,provider);
+        var flags=new MultibusinessFeatureFlags();flags.getFoundation().setEnabled(true);flags.setSharedChannelResolution(true);flags.setGeneralChannelResolution(true);flags.setTicketWriteRequiresBusiness(true);
+        var mvc=MockMvcBuilders.standaloneSetup(new SharedExpandedQuestionnaireRuntimeController(shared,guard,flags)).build();
+        String path="/internal/api/bot/channels/10/questionnaire/v4/choices?forStart=true";
+        mvc.perform(signed(path)).andExpect(status().isOk()).andExpect(header().string("X-Iguana-Questionnaire-Writer-Version","4"))
+            .andExpect(header().string("Cache-Control","no-store")).andExpect(jsonPath("$.version").value(4));
+        var catalog=shared.choicesExpanded(10).orElseThrow();String selection="/internal/api/bot/channels/10/questionnaire/v4/selection?scopeKind=GENERAL&catalogSha256="+catalog.catalogSha256()+"&forStart=true";
+        mvc.perform(signed(selection)).andExpect(status().isOk()).andExpect(header().string("X-Iguana-Questionnaire-Writer-Version","4")).andExpect(jsonPath("$.businessId").doesNotExist());
+        mvc.perform(get(path).header("X-Iguana-Bot-Api-Token","test-token")).andExpect(status().isUnauthorized());
+        flags.setTicketWriteRequiresBusiness(false);mvc.perform(signed(path)).andExpect(status().isNotFound());
+    }
+
 }

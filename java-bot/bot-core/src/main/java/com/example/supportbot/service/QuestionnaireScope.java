@@ -26,7 +26,7 @@ public record QuestionnaireScope(String scopeKind, String scopeSelectionSource,
     }
 
     public static QuestionnaireScope fromSelection(PanelRuntimeConfigClient.SelectedQuestionnaire selected) {
-        if (selected == null || (selected.version() != 1 && selected.version() != 2 && selected.version() != 3) || selected.channelId() <= 0
+        if (selected == null || (selected.version() != 1 && selected.version() != 2 && selected.version() != 3 && selected.version() != 4) || selected.channelId() <= 0
                 || !("BUSINESS".equals(selected.scopeKind()) || (selected.version()>=2 && "GENERAL".equals(selected.scopeKind())))) {
             throw new IllegalArgumentException("Unsupported questionnaire selection");
         }

@@ -89,6 +89,7 @@ class MaxQuestionnaireSelectionTest {
 
     @Test void menuIsDurableBeforeAnyQuestionAndDoesNotReadGlobalSettings() {
         send("start","/start");
+        assertThat(mapper.valueToTree(state()).at("/selection/page").isMissingNode()).isTrue();
         assertThat(state().scope()).isNull();assertThat(state().flow()).isEmpty();assertThat(state().answers()).isEmpty();
         assertThat(state().selection().catalog()).isEqualTo(catalog);
         verify(api).sendQuestionnaireChoices(1001L,catalog,state().selection().nonce());
@@ -381,6 +382,38 @@ class MaxQuestionnaireSelectionTest {
         assertThat(capture.getValue().answers()).containsExactlyInAnyOrderEntriesOf(Map.of("city_answer",city,"team","Kitchen"));
         assertThat(capture.getValue().attributes()).extracting(TicketService.TicketAttributeInput::questionId).containsExactly("city-q","team");
         verifyNoInteractions(local,feedback);
+    }
+
+    private void r152LargeMenu(boolean includeGeneral) {
+        r150Menu();a=new SelectedQuestionnaire(4,55,"BUSINESS","USER_SELECTION",7L,"q-a",a.templateSha256(),a.catalogSha256(),a.botSettings(),a.locationTree(),a.presetDefinitions());
+        var choices=new ArrayList<Choice>();for(long id=100;id<203;id++)choices.add(new Choice("BUSINESS",id,"b-"+id,"Business "+id,"q-"+id,"a".repeat(64),"b".repeat(64)));
+        choices.add(new Choice("BUSINESS",7L,"a","Business A","q-a",a.templateSha256(),SelectedQuestionnaireOptions.resourceSha256(a.locationTree(),a.presetDefinitions())));
+        var payload=selected(7L,"q-general","d");
+        var general=new SelectedQuestionnaire(4,55,"GENERAL","USER_SELECTION",(Long)null,"q-general","d".repeat(64),"c".repeat(64),payload.botSettings(),Map.of(),Map.of());
+        if(includeGeneral)choices.add(new Choice("GENERAL",(Long)null,"GENERAL","Без бизнеса","q-general","d".repeat(64),SelectedQuestionnaireOptions.resourceSha256(Map.of(),Map.of())));
+        catalog=new ChoiceCatalog(4,55,"c".repeat(64),choices);doReturn(catalog).when(runtime).questionnaireChoices(channel);
+        doReturn(a).when(runtime).selectQuestionnaire(channel,catalog,7L);doReturn(general).when(runtime).selectGeneralQuestionnaire(channel,catalog);doReturn(true).when(api).sendQuestionnaireChoices(eq(1001L),any(),anyString(),anyInt());
+    }
+
+    @ParameterizedTest @ValueSource(booleans={false,true})
+    void v4LastPageRestoresThenSelectsItsOwnFrozenBusinessOrGeneral(boolean general) throws Exception {
+        r152LargeMenu(general);send("start","/start");String nonce=state().selection().nonce();int page=general?13:12;
+        send("page",MaxQuestionnaireChoiceSupport.pageButton(nonce,page,true));rebuild();assertThat(state().selection().page()).isEqualTo(page);
+        verify(api).sendQuestionnaireChoices(1001L,catalog,nonce,page);
+        send("choose",choice(general?104:103));rebuild();send("old-page",MaxQuestionnaireChoiceSupport.pageButton(nonce,0,false));assertThat(state().answers()).isEmpty();
+        send("first",general?"One":"North");rebuild();send("second",general?"Two":"North site");if(!general){rebuild();send("third","Kitchen");}
+        var capture=org.mockito.ArgumentCaptor.forClass(ConversationTicketCreationCommand.class);verify(tickets).createConversationTicket(capture.capture());
+        assertThat(capture.getValue().scopeKind()).isEqualTo(general?"GENERAL":"BUSINESS");assertThat(capture.getValue().businessId()).isEqualTo(general?null:7L);
+        assertThat(capture.getValue().catalogSha256()).isEqualTo(catalog.catalogSha256());assertThat(state().selection().page()).isEqualTo(page);
+        verify(runtime,times(1)).questionnaireChoices(channel);verifyNoInteractions(local,feedback);
+    }
+    @Test void v4PageDeliveryFailureKeepsThePageAndNonceBeforeRetry() {
+        r152LargeMenu(false);send("start","/start");String nonce=state().selection().nonce();
+        doReturn(false).doReturn(true).when(api).sendQuestionnaireChoices(1001L,catalog,nonce,1);
+        String button=MaxQuestionnaireChoiceSupport.pageButton(nonce,1,true);
+        assertThatThrownBy(()->send("page",button)).hasMessageContaining("menu delivery");assertThat(state().selection().page()).isEqualTo(1);
+        rebuild();send("page",button);assertThat(state().selection().nonce()).isEqualTo(nonce);assertThat(state().answers()).isEmpty();
+        verify(runtime,times(1)).questionnaireChoices(channel);verify(tickets,never()).createConversationTicket(any());
     }
 
 }

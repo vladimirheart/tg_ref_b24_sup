@@ -52,6 +52,7 @@ class SelectedBusinessTicketCreationPostgresTest {
         properties.add("monitoring.credentials.master-key",()->"r144-test-monitoring-key");
     }
     @Autowired JdbcTemplate jdbc;
+    @Autowired com.fasterxml.jackson.databind.ObjectMapper mapper;
     @Autowired SharedConfigService settings;
     @Autowired MultibusinessFeatureFlags flags;
     @Autowired BusinessQuestionTemplateRegistryService registry;
@@ -461,6 +462,43 @@ class SelectedBusinessTicketCreationPostgresTest {
         assertThat(row.get("is_general")).isEqualTo(true);assertThat(row.get("general_selection_source")).isEqualTo("USER_SELECTION");
         assertThat(row.get("questionnaire_catalog_sha256")).isEqualTo(general.catalogSha256());
         for(String table:List.of("messages","tickets","ticket_attributes","chat_history","ticket_spans","ticket_active"))assertThat(count(table)).as(table).isEqualTo(1);
+    }
+
+    private void r152LargeEvent(String platform,boolean general) throws Exception {
+        r150Resources();jdbc.update("UPDATE channels SET platform=? WHERE id=?",platform,channel);
+        var ids=jdbc.queryForList("INSERT INTO businesses(code,display_name) SELECT 'r152-"+channel+"-'||n,'Large '||n FROM generate_series(1,103) n RETURNING id",Long.class);
+        var templates=new java.util.ArrayList<Map<String,Object>>(List.of(template("r144-legacy","Global"),template("r144-a","Private A"),template("r144-b","Private B"),template("r152-general-"+channel,"General")));
+        for(long id:ids)templates.add(template("r152-q-"+id,"Private "+id));
+        settings.saveSettings(Map.of("bot_settings",Map.of("active_template_id","r144-legacy","question_templates",templates)));
+        var normalized=new com.example.panel.service.BotSettingsPayloadNormalizer().normalize(settings.loadSettings().get("bot_settings"));
+        @SuppressWarnings("unchecked") var stored=(List<Map<String,Object>>)normalized.get("question_templates");
+        var hashes=new java.util.HashMap<String,String>();for(var t:stored)hashes.put((String)t.get("id"),java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(mapper.writeValueAsBytes(t))));
+        var bindings=new java.util.ArrayList<Object[]>();var channelBindings=new java.util.ArrayList<Object[]>();
+        for(long id:ids){bindings.add(new Object[]{id,"r152-q-"+id,hashes.get("r152-q-"+id)});channelBindings.add(new Object[]{channel,id});}
+        jdbc.batchUpdate("INSERT INTO business_question_template_bindings(business_id,template_id,template_sha256) VALUES(?,?,?)",bindings);
+        jdbc.batchUpdate("INSERT INTO business_channel_bindings(channel_id,business_id,resolution_mode) VALUES(?,?,'EXPLICIT_SELECTION')",channelBindings);
+        if(general){flags.setGeneralChannelResolution(true);sharedQuestionnaires.bind(channel,"r152-general-"+channel);}
+        var catalog=sharedQuestionnaires.choicesExpanded(channel).orElseThrow();
+        var selected=sharedQuestionnaires.selectExpanded(channel,general?"GENERAL":"BUSINESS",general?null:ids.get(ids.size()-1),catalog.catalogSha256()).orElseThrow();
+        event=change(event,event.eventId(),channel,event.userId(),selected.businessId(),selected.scopeKind(),"USER_SELECTION",selected.questionTemplateId(),selected.templateSha256(),selected.catalogSha256(),platform);
+        String questionText=general?"General":"Private "+selected.businessId();
+        event=new ConversationTicketCreatedEvent(event.eventId(),event.eventKind(),platform,channel,event.ticketId(),event.userId(),event.userIdentity(),event.username(),event.clientName(),event.business(),null,null,null,event.problem(),event.occurredAt(),
+            List.of(new ConversationTicketCreatedEvent.TicketAttributePayload("free","free",questionText,"text",null,null,"Answer",false)),event.historyEntries(),selected.businessId(),selected.scopeKind(),"USER_SELECTION",selected.questionTemplateId(),selected.templateSha256(),selected.catalogSha256());
+    }
+    @ParameterizedTest @org.junit.jupiter.params.provider.CsvSource({"telegram,false","vk,false","max,false","telegram,true","vk,true","max,true"})
+    void v4SelectionBeyondOneHundredCreatesOnceAndReplaysWithoutCurrentCatalog(String platform,boolean general) throws Exception {
+        r152LargeEvent(platform,general);ingest(event);
+        assertThat(jdbc.queryForObject("SELECT business_id FROM tickets WHERE ticket_id=?",Long.class,event.ticketId())).isEqualTo(event.businessId());
+        jdbc.update("UPDATE business_channel_bindings SET is_active=FALSE WHERE channel_id=?",channel);
+        ingest(change(event,UUID.randomUUID().toString(),channel,event.userId(),event.businessId(),event.scopeKind(),"USER_SELECTION",event.questionTemplateId(),event.templateSha256(),event.catalogSha256(),platform));
+        for(String table:List.of("messages","tickets","ticket_attributes","chat_history","ticket_spans","ticket_active"))assertThat(count(table)).isEqualTo(1);
+    }
+    @ParameterizedTest @ValueSource(strings={"telegram","vk","max"})
+    void v4MissingRequiredAnswerRollsBackBeforeTheFirstWrite(String platform) throws Exception {
+        r152LargeEvent(platform,false);
+        var invalid=new ConversationTicketCreatedEvent(event.eventId(),event.eventKind(),platform,channel,event.ticketId(),event.userId(),event.userIdentity(),event.username(),event.clientName(),event.business(),null,null,null,event.problem(),event.occurredAt(),
+            List.of(),event.historyEntries(),event.businessId(),event.scopeKind(),"USER_SELECTION",event.questionTemplateId(),event.templateSha256(),event.catalogSha256());
+        assertThatThrownBy(()->ingest(invalid)).isInstanceOf(IllegalStateException.class);emptyWrites();assertThat(inboxStatus(event.eventId())).isEqualTo("failed");
     }
 
 }

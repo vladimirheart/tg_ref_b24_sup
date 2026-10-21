@@ -15,7 +15,7 @@ public final class SelectedQuestionnaireOptions {
                 || !Objects.equals(catalog.catalogSha256(),selected.catalogSha256()))throw invalid();
         var choice=catalog.choices().stream().filter(c->Objects.equals(c.scopeKind(),selected.scopeKind()) && Objects.equals(c.businessId(),selected.businessId())
             && Objects.equals(c.questionTemplateId(),selected.questionTemplateId()) && Objects.equals(c.templateSha256(),selected.templateSha256())).findFirst().orElseThrow(SelectedQuestionnaireOptions::invalid);
-        if(selected.version()==3 && !Objects.equals(choice.resourcesSha256(),resourceSha256(selected.locationTree(),selected.presetDefinitions())))throw invalid();
+        if(selected.version()>=3 && !Objects.equals(choice.resourcesSha256(),resourceSha256(selected.locationTree(),selected.presetDefinitions())))throw invalid();
     }
     public static String resourceSha256(Map<String,Object> tree,Map<String,Object> presets) {
         try{return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
@@ -29,7 +29,7 @@ public final class SelectedQuestionnaireOptions {
     public static void validate(SelectedQuestionnaire selected) {
         QuestionnaireScope.fromSelection(selected);
         if(selected.locationTree()==null || selected.presetDefinitions()==null) throw invalid();
-        if(selected.version()!=3 || "GENERAL".equals(selected.scopeKind())) {
+        if(selected.version()<3 || "GENERAL".equals(selected.scopeKind())) {
             if(!selected.locationTree().isEmpty() || !selected.presetDefinitions().isEmpty()) throw invalid();
             for(var q:questions(selected)) if(q.get("preset")!=null || "preset".equalsIgnoreCase(Objects.toString(q.get("type"),""))) throw invalid();
             return;
@@ -73,7 +73,7 @@ public final class SelectedQuestionnaireOptions {
             return exclude(q,q.getOptions().stream().filter(Objects::nonNull).map(o->o.getLabel()).filter(Objects::nonNull).toList());
         }
         validate(selected);
-        if(selected.version()!=3 || !"BUSINESS".equals(selected.scopeKind()) || q.getPreset()==null)throw invalid();
+        if(selected.version()<3 || !"BUSINESS".equals(selected.scopeKind()) || q.getPreset()==null)throw invalid();
         String group=q.getPreset().group(),field=q.getPreset().field();List<String> values;
         if("locations".equals(group)) {
             var locations=(List<?>)selected.locationTree().get("locations");
