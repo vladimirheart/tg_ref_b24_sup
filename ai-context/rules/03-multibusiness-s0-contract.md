@@ -14,12 +14,16 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R143–R148 (2026-10-20): пользователь подтвердил, что
-рабочая копия и рабочий экземпляр находятся на машине текущей сессии;
-необходимый restart разрешён. В R148 он не понадобился. Подтверждён Docker
-Server 29.7.2 для изолированных Testcontainers; рабочие DB/flags/контейнеры
-не менялись. Runtime evidence R143 и source/test evidence R148 различаются;
-подтверждение машины не разрешает deploy/migration/backfill/flags.
+Актуальное уточнение R149 (2026-10-21): рабочий экземпляр проекта находится
+на другой машине, в другой сессии агента. Здесь source/tests и isolated
+PostgreSQL Testcontainers. Уточнение R143–R148 о размещении «на этой машине»
+является evidence той сессии, не наблюдением текущего runtime. Рабочие revision/
+DB/flags здесь неизвестны, deploy/restart/migration/backfill/config не выполняются.
+
+Commit/push без дополнительного подтверждения разрешены пользователем только
+2026-10-21 Europe/Moscow (повторное разрешение), после технических проверок.
+Это исключение из default manual git flow не действует после
+2026-10-22 00:00 +03:00 и не разрешает rollout.
 
 Историческое уточнение другой сессии:
 
@@ -1174,3 +1178,38 @@ decisions из decision table и precise changed-file/test plan against fresh
 `main`. Отдельное явное
 разрешение на запуск migration, backfill или rollout по-прежнему обязательно:
 ни один из них не следует из source foundation.
+
+### R149: v2 GENERAL producer, nullable SDK и выбранные sessions во всех ботах
+
+- V75 расширяет только CHECK нового questionnaire catalog: GENERAL/USER_SELECTION
+  имеет business_id=NULL и business_selection_source=NULL, свой ID/SHA и общий
+  catalog SHA. V73/V58 fingerprints остаются immutable; новый trigger также
+  фиксирует выбранные owner/kind/source/channel/composite ID. Старые rows не
+  переписываются; GENERAL-only и nullable legacy representation сохраняются.
+- Writer заново проверяет flags, platform/active channel, полный current catalog,
+  membership и selected ID/SHA до root/children. BUSINESS V1 поддерживается без
+  active shared GENERAL reservation; с ней требуется v2 catalog, а не каталог,
+  в котором GENERAL отсутствует. USER_SELECTION без version proof не превращает
+  shared channel в legacy/GENERAL-only. Inbox, root/composite locator и child
+  writes атомарны; inbox проверяет повторный payload и сохраняет статус ошибки.
+  Exact replay хранит frozen version и не захватывает новый owner.
+- V2 choices/selection forStart выдаёт ACK=2 только при strict writer; preview
+  не выдаёт ACK. GENERAL требует general resolution. BUSINESS-only v2 start не
+  требует включать GENERAL при отсутствии active GENERAL binding. HMAC покрывает
+  path/query/forStart. SDK проверяет обе версии, NULL versus fake owner, duplicate
+  scope/template, selected bytes SHA и отсутствие global locations/presets;
+  новые starts не откатываются на v1 при ошибке/отсутствии ACK=2.
+- MAX/VK/Telegram имеют отдельный GENERAL command/button namespace и выбор до
+  первого вопроса, JSON/CAS persistence и exact template flow. ScopeKind + nullable
+  business ID сопоставляются с сохранённым меню; version/channel/catalog обязаны
+  совпасть. Stale nonce не является ответом. Сессия/ответы переживают rebuild,
+  final publication key фиксируется до queue; неизвестный итог повторяет ту же
+  frozen command, а не перечитывает текущие bindings. Shared GENERAL использует
+  выбранную сохраняемую ветку, не legacy GENERAL-only path. Raw support-chat,
+  local/global settings, legacy feedback/media fallback не открываются.
+
+Новые starts требуют совместимых backend V75 и SDK/consumers v2; отсутствие ACK=2
+закрывает запуск. Старые V1 BUSINESS sessions поддерживаются явно, не получают
+GENERAL через fallback. Рабочая migration/flags и provider/Redis/proxy приёмка не
+выполнены. Scoped locations/presets/media, feedback/edit, rolling-upgrade и
+retention остаются gates; общий статус задачи 🟡.

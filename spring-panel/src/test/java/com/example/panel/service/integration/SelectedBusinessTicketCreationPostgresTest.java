@@ -148,8 +148,10 @@ class SelectedBusinessTicketCreationPostgresTest {
         var rejected=mutate(event,mutation,false);
         assertThatThrownBy(()->ingest(rejected)).isInstanceOf(IllegalStateException.class);emptyWrites();
     }
-    @ParameterizedTest @ValueSource(strings={"GENERAL","BUSINESS"})
-    void v2PreviewCannotBeUsedAsAWriterCapability(String kind) {
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"GENERAL,telegram","GENERAL,vk","GENERAL,max","BUSINESS,telegram","BUSINESS,vk","BUSINESS,max"})
+    void v2SelectionCreatesCanonicalBusinessOrGeneralRoot(String kind,String platform) {
+        jdbc.update("UPDATE channels SET platform=? WHERE id=?",platform,channel);
         flags.setGeneralChannelResolution(true);
         String generalTemplateId="r148-general-"+channel;
         settings.saveSettings(Map.of("bot_settings",Map.of("active_template_id","r144-legacy","question_templates",
@@ -158,10 +160,21 @@ class SelectedBusinessTicketCreationPostgresTest {
         sharedQuestionnaires.bind(channel,generalTemplateId);
         var catalog=sharedQuestionnaires.choices(channel).orElseThrow();
         var selected=sharedQuestionnaires.select(channel,kind,"BUSINESS".equals(kind)?a:null,catalog.catalogSha256()).orElseThrow();
-        var rejected=change(event,event.eventId(),channel,event.userId(),selected.businessId(),selected.scopeKind(),
-            selected.scopeSelectionSource(),selected.questionTemplateId(),selected.templateSha256(),selected.catalogSha256(),event.platform());
-        assertThatThrownBy(()->ingest(rejected)).isInstanceOf(IllegalStateException.class);
-        emptyWrites();assertThat(inboxStatus(event.eventId())).isEqualTo("failed");
+        event=change(event,event.eventId(),channel,event.userId(),selected.businessId(),selected.scopeKind(),
+            selected.scopeSelectionSource(),selected.questionTemplateId(),selected.templateSha256(),selected.catalogSha256(),platform);
+        ingest(event);ingest(event);
+        var row=jdbc.queryForMap("SELECT * FROM tickets WHERE ticket_id=?",event.ticketId());
+        assertThat(row.get("business_id")).isEqualTo(selected.businessId());
+        assertThat(row.get("is_general")).isEqualTo("GENERAL".equals(kind));
+        assertThat(row.get("general_selection_source")).isEqualTo("GENERAL".equals(kind)?"USER_SELECTION":null);
+        assertThat(row.get("business_selection_source")).isEqualTo("BUSINESS".equals(kind)?"USER_SELECTION":null);
+        assertThat(row.get("question_template_id")).isEqualTo(selected.questionTemplateId());
+        assertThat(row.get("questionnaire_catalog_sha256")).isEqualTo(selected.catalogSha256());
+        for(String table:List.of("messages","tickets","ticket_attributes","chat_history","ticket_spans","ticket_active")) assertThat(count(table)).as(table).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT business FROM messages WHERE ticket_id=?",String.class,event.ticketId()))
+            .isEqualTo("GENERAL".equals(kind)?null:event.business());
+        assertThat(jdbc.queryForObject("SELECT ticket_owner_user_id FROM chat_history WHERE ticket_id=?",Long.class,event.ticketId())).isEqualTo(event.userId());
+        assertThat(inboxStatus(event.eventId())).isEqualTo("processed");
     }
 
     @Test void activeSharedGeneralCannotBecomeLegacyAfterBusinessBindingsAndStrictFlagAreRemoved() {
@@ -231,10 +244,84 @@ class SelectedBusinessTicketCreationPostgresTest {
         assertThat(jdbc.queryForMap("SELECT business_selection_source,questionnaire_catalog_sha256 FROM tickets WHERE ticket_id=?",legacy))
             .containsEntry("business_selection_source",null).containsEntry("questionnaire_catalog_sha256",null);
     }
+    private void sharedGeneralEvent() {
+        flags.setGeneralChannelResolution(true);
+        String id="r149-general-"+channel;
+        settings.saveSettings(Map.of("bot_settings",Map.of("active_template_id","r144-legacy","question_templates",
+            List.of(template("r144-legacy","Global"),template("r144-a","Private A"),template("r144-b","Private B"),template(id,"GENERAL free")))));
+        sharedQuestionnaires.bind(channel,id);
+        var catalog=sharedQuestionnaires.choices(channel).orElseThrow();
+        var selected=sharedQuestionnaires.select(channel,"GENERAL",null,catalog.catalogSha256()).orElseThrow();
+        event=change(event,event.eventId(),channel,event.userId(),null,"GENERAL","USER_SELECTION",selected.questionTemplateId(),selected.templateSha256(),selected.catalogSha256(),event.platform());
+    }
+    @ParameterizedTest @ValueSource(strings={"general-flag","shared-flag","strict-flag","foundation","channel","platform","inactive-binding","removed-businesses","name","changed-business-template","changed-general-template","legacy-catalog","missing-catalog","missing-template","foreign-template","hash","fake-zero","fake-owner","general-only-source"})
+    void mixedGeneralRequiresCurrentFullCatalogAndCannotDowngradeOrSubstituteOwner(String mutation) {
+        var legacy=event;sharedGeneralEvent();
+        switch(mutation) {
+            case "general-flag"->flags.setGeneralChannelResolution(false);case "shared-flag"->flags.setSharedChannelResolution(false);
+            case "strict-flag"->flags.setTicketWriteRequiresBusiness(false);case "foundation"->flags.getFoundation().setEnabled(false);
+            case "channel"->jdbc.update("UPDATE channels SET is_active=FALSE WHERE id=?",channel);
+            case "platform"->jdbc.update("UPDATE channels SET platform='vk' WHERE id=?",channel);
+            case "inactive-binding"->sharedQuestionnaires.deactivate(channel);
+            case "removed-businesses"->jdbc.update("UPDATE business_channel_bindings SET is_active=FALSE WHERE channel_id=?",channel);
+            case "name"->jdbc.update("UPDATE businesses SET display_name=display_name||' changed' WHERE id=?",a);
+            case "changed-business-template","changed-general-template"->settings.saveSettings(Map.of("bot_settings",Map.of(
+                "active_template_id","r144-legacy","question_templates",List.of(template("r144-legacy","Global"),
+                    template("r144-a",mutation.equals("changed-business-template")?"Changed A":"Private A"),template("r144-b","Private B"),
+                    template("r149-general-"+channel,mutation.equals("changed-general-template")?"Changed GENERAL":"GENERAL free")))));
+            case "legacy-catalog"->event=change(event,event.eventId(),channel,event.userId(),null,"GENERAL","USER_SELECTION",event.questionTemplateId(),event.templateSha256(),legacy.catalogSha256(),event.platform());
+            case "missing-catalog"->event=change(event,event.eventId(),channel,event.userId(),null,"GENERAL","USER_SELECTION",event.questionTemplateId(),event.templateSha256(),null,event.platform());
+            case "missing-template"->event=change(event,event.eventId(),channel,event.userId(),null,"GENERAL","USER_SELECTION",null,null,event.catalogSha256(),event.platform());
+            case "foreign-template"->event=change(event,event.eventId(),channel,event.userId(),null,"GENERAL","USER_SELECTION",legacy.questionTemplateId(),legacy.templateSha256(),event.catalogSha256(),event.platform());
+            case "hash"->event=mutate(event,"hash",false);
+            case "fake-zero","fake-owner"->event=change(event,event.eventId(),channel,event.userId(),mutation.equals("fake-zero")?0L:a,"GENERAL","USER_SELECTION",event.questionTemplateId(),event.templateSha256(),event.catalogSha256(),event.platform());
+            case "general-only-source"->event=change(event,event.eventId(),channel,event.userId(),null,"GENERAL","GENERAL_CHANNEL",event.questionTemplateId(),event.templateSha256(),event.catalogSha256(),event.platform());
+        }
+        var rejected=event;assertThatThrownBy(()->ingest(rejected)).isInstanceOf(IllegalStateException.class);emptyWrites();
+        jdbc.update("UPDATE businesses SET display_name=replace(display_name,' changed','') WHERE id=?",a);
+    }
+    @ParameterizedTest @ValueSource(strings={"owner","source","kind","id","hash","catalog","missing-catalog","channel","user"})
+    void mixedGeneralReplayAndInboxCannotChangeFrozenIdentity(String mutation) {
+        sharedGeneralEvent();ingest(event);
+        for(boolean newId:List.of(false,true)) {
+            var rejected=mutate(event,mutation,newId);assertThatThrownBy(()->ingest(rejected)).isInstanceOf(IllegalStateException.class);
+        }
+        assertThat(count("tickets")).isEqualTo(1);assertThat(count("chat_history")).isEqualTo(1);
+    }
+    @Test void mixedGeneralExactReplayIgnoresTodaysReboundConfigurationAndDatabaseIdentityIsImmutable() {
+        sharedGeneralEvent();ingest(event);sharedQuestionnaires.deactivate(channel);saveTemplates("Edited after delivery");
+        ingest(event);ingest(change(event,UUID.randomUUID().toString(),channel,event.userId(),null,"GENERAL","USER_SELECTION",event.questionTemplateId(),event.templateSha256(),event.catalogSha256(),event.platform()));
+        for(String assignment:List.of("general_selection_source='GENERAL_CHANNEL'","is_general=FALSE,general_selection_source=NULL,business_id="+a,
+                "user_id=user_id+1","channel_id=NULL","questionnaire_catalog_sha256=NULL","question_template_id='other'"))
+            assertThatThrownBy(()->jdbc.update("UPDATE tickets SET "+assignment+" WHERE ticket_id=?",event.ticketId())).isInstanceOf(DataAccessException.class);
+        assertThat(count("tickets")).isEqualTo(1);assertThat(count("chat_history")).isEqualTo(1);
+    }
+    @Test void mixedGeneralChildFailureRollsBackAllWritesAndFrozenEventCanRetry() {
+        sharedGeneralEvent();
+        jdbc.execute("CREATE FUNCTION reject_r149_child() RETURNS TRIGGER LANGUAGE plpgsql AS $r149$ BEGIN RAISE EXCEPTION 'synthetic'; END; $r149$");
+        jdbc.execute("CREATE TRIGGER reject_r149_child BEFORE INSERT ON ticket_attributes FOR EACH ROW EXECUTE FUNCTION reject_r149_child()");
+        try {assertThatThrownBy(()->ingest(event)).isInstanceOf(RuntimeException.class);emptyWrites();}
+        finally {jdbc.execute("DROP TRIGGER reject_r149_child ON ticket_attributes");jdbc.execute("DROP FUNCTION reject_r149_child()");}
+        ingest(event);assertThat(count("tickets")).isEqualTo(1);
+    }
+    @Test void activeGeneralReservationRejectsAnOlderBusinessOnlyCatalogBeforeInsert() {
+        var old=event;sharedGeneralEvent();event=old;assertThatThrownBy(()->ingest(old)).isInstanceOf(IllegalStateException.class);emptyWrites();
+    }
+
+    @Test void v74UpgradePreservesLegacyGeneralAndBusinessRowsWithoutInferringSelection() {
+        var upgrade=PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType("shared_selection_upgrade");
+        org.flywaydb.core.Flyway.configure().dataSource(upgrade.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").target("74").load().migrate();
+        upgrade.update("INSERT INTO tickets(user_id,ticket_id) VALUES(1,'legacy')");
+        upgrade.update("INSERT INTO tickets(user_id,ticket_id,is_general,general_selection_source,question_template_id,question_template_sha256) VALUES(2,'general-only',TRUE,'GENERAL_CHANNEL','old-general',?)","a".repeat(64));
+        upgrade.update("INSERT INTO tickets(user_id,ticket_id,business_id,business_selection_source,question_template_id,question_template_sha256,questionnaire_catalog_sha256) VALUES(3,'business',(SELECT id FROM businesses LIMIT 1),'USER_SELECTION','old-business',?,?)","b".repeat(64),"c".repeat(64));
+        var original=upgrade.queryForList("SELECT * FROM tickets ORDER BY user_id");
+        org.flywaydb.core.Flyway.configure().dataSource(upgrade.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").load().migrate();
+        assertThat(upgrade.queryForList("SELECT * FROM tickets ORDER BY user_id")).isEqualTo(original);
+    }
     private ConversationTicketCreatedEvent mutate(ConversationTicketCreatedEvent base,String mutation,boolean newId) {
         return change(base,newId?UUID.randomUUID().toString():base.eventId(),
             mutation.equals("channel")?channel+999999:channel,mutation.equals("user")?902L:901L,
-            mutation.equals("owner")?b:base.businessId(),mutation.equals("kind")?null:base.scopeKind(),
+            mutation.equals("owner")?Long.valueOf(b):base.businessId(),mutation.equals("kind")?null:base.scopeKind(),
             mutation.equals("source")?null:base.scopeSelectionSource(),mutation.equals("id")?"another":base.questionTemplateId(),
             mutation.equals("hash")?"f".repeat(64):base.templateSha256(),
             mutation.equals("catalog")?"f".repeat(64):mutation.equals("missing-catalog")?null:base.catalogSha256(),

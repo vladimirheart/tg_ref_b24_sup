@@ -11,29 +11,27 @@ final class TelegramQuestionnaireMenu {
     private static final Pattern CODE=Pattern.compile("^/business ([a-f0-9]{12}) ([1-9][0-9]{0,18})$");
     private static final Pattern BUTTON=Pattern.compile("^.+ \\[([a-f0-9]{12}):([1-9][0-9]{0,18})\\]$");
     private static final Pattern PAGE=Pattern.compile("^(?:Назад|Далее) \\[([a-f0-9]{12}):page:([0-9]{1,2})\\]$");
-    record Action(boolean page,long value) { }
+    record Action(boolean page,long value,boolean general) {
+        Action(boolean page,long value) {this(page,value,false);}
+    }
     private TelegramQuestionnaireMenu() { }
 
     static void validate(ChoiceCatalog catalog,String nonce) {
-        if(catalog==null || catalog.version()!=1 || catalog.channelId()<=0 || catalog.catalogSha256()==null
-                || !catalog.catalogSha256().matches("[a-f0-9]{64}") || catalog.choices()==null
-                || catalog.choices().isEmpty() || catalog.choices().size()>100 || nonce==null || !nonce.matches("[a-f0-9]{12}"))
-            throw new IllegalStateException("Invalid saved Telegram questionnaire menu");
-        var ids=new HashSet<Long>();var templates=new HashSet<String>();
-        for(var choice:catalog.choices()) {
-            if(choice==null || !"BUSINESS".equals(choice.scopeKind()) || choice.businessId()<=0 || !ids.add(choice.businessId())
-                    || choice.code()==null || choice.code().isBlank() || choice.displayName()==null || choice.displayName().isBlank()
-                    || choice.questionTemplateId()==null || choice.questionTemplateId().isBlank() || !templates.add(choice.questionTemplateId())
-                    || choice.templateSha256()==null || !choice.templateSha256().matches("[a-f0-9]{64}"))
-                throw new IllegalStateException("Invalid saved Telegram questionnaire choice");
+        if(catalog==null || nonce==null || !nonce.matches("[a-f0-9]{12}")) throw new IllegalStateException("Invalid saved menu");
+        try { com.example.supportbot.service.PanelRuntimeConfigClient.validateCatalog(catalog.channelId(),catalog); }
+        catch(IllegalArgumentException | com.example.supportbot.service.PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException ex) {
+            throw new IllegalStateException("Invalid saved menu",ex);
         }
     }
+
     static boolean reserved(String text) {
-        return text!=null && (text.startsWith("/business") || BUTTON.matcher(text).matches() || PAGE.matcher(text).matches());
+        return text!=null && (text.startsWith("/business") || text.startsWith("/general") || text.contains(":general]") || BUTTON.matcher(text).matches() || PAGE.matcher(text).matches());
     }
     static Optional<Action> resolve(ChoiceCatalog catalog,String nonce,String text) {
         validate(catalog,nonce);
         if(text==null) return Optional.empty();
+        if(text.strip().equals("/general "+nonce) || text.strip().endsWith(" ["+nonce+":general]"))
+            return catalog.version()==2 && catalog.choices().stream().anyMatch(c->c.general()) ? Optional.of(new Action(false,0,true)) : Optional.empty();
         var page=PAGE.matcher(text.strip());
         if(page.matches()) {
             int number=Integer.parseInt(page.group(2));
@@ -43,13 +41,13 @@ final class TelegramQuestionnaireMenu {
         if(!code.matches() || !nonce.equals(code.group(1))) return Optional.empty();
         try {
             long id=Long.parseLong(code.group(2));
-            return catalog.choices().stream().anyMatch(choice->choice.businessId()==id)?Optional.of(new Action(false,id)):Optional.empty();
+            return catalog.choices().stream().anyMatch(choice->"BUSINESS".equals(choice.scopeKind()) && java.util.Objects.equals(choice.businessId(),id))?Optional.of(new Action(false,id)):Optional.empty();
         } catch(NumberFormatException ex) {return Optional.empty();}
     }
     static int pages(ChoiceCatalog catalog) {return (catalog.choices().size()+7)/8;}
     static String button(ChoiceCatalog catalog,String nonce,int index) {
         validate(catalog,nonce);var choice=catalog.choices().get(index);
-        String suffix=" ["+nonce+":"+choice.businessId()+"]";
+        String suffix=" ["+nonce+":"+(choice.general()?"general":choice.businessId())+"]";
         return shorten(choice.displayName()+" ("+choice.code()+")",96-suffix.length())+suffix;
     }
     static String pageButton(String nonce,int page,boolean next) {
@@ -70,10 +68,10 @@ final class TelegramQuestionnaireMenu {
     }
     static String text(ChoiceCatalog catalog,String nonce,int page) {
         validatePage(catalog,nonce,page);
-        var text=new StringBuilder("Выберите бизнес до первого вопроса. Страница ").append(page+1).append('/').append(pages(catalog)).append(".\n");
+        var text=new StringBuilder("Выберите бизнес или «Без бизнеса» до первого вопроса. Страница ").append(page+1).append('/').append(pages(catalog)).append(".\n");
         for(int i=page*8;i<Math.min(page*8+8,catalog.choices().size());i++) {
             var choice=catalog.choices().get(i);
-            text.append('#').append(choice.businessId()).append(" — ").append(shorten(choice.displayName()+" ("+choice.code()+")",180)).append('\n');
+            text.append(choice.general()?"Без бизнеса":"#"+choice.businessId()).append(" — ").append(shorten(choice.displayName()+" ("+choice.code()+")",180)).append('\n');
         }
         return text.append("Нажмите кнопку или отправьте /business ").append(nonce).append(" ID. Новый выбор — /start, отмена — /cancel.").toString();
     }

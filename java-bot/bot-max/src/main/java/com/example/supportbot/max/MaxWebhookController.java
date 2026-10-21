@@ -261,13 +261,14 @@ public class MaxWebhookController {
         }
 
         if(session!=null && session.awaitingBusinessSelection()) {
-            var business=MaxQuestionnaireChoiceSupport.resolve(session.selection().catalog(),session.selection().nonce(),text);
+            var business=MaxQuestionnaireChoiceSupport.resolveChoice(session.selection().catalog(),session.selection().nonce(),text);
             if(business.isEmpty()) {
                 promptCurrentQuestion(channel,session);
                 return completeDelivery(claim,ResponseEntity.ok(Map.of("ok",true,"awaiting_business",true)));
             }
             try {
-                var selected=runtimeConfigService.selectQuestionnaire(channel,session.selection().catalog(),business.get());
+                var selected=business.get().general()?runtimeConfigService.selectGeneralQuestionnaire(channel,session.selection().catalog())
+                    :runtimeConfigService.selectQuestionnaire(channel,session.selection().catalog(),business.get().businessId());
                 var settings=botSettingsService.loadSelectedQuestionnaire(selected);
                 session=session.choose(selected,settings,GeneralQuestionnaireFlow.from(botSettingsService.questionFlow(settings)));
                 saveSession(session); // Frozen choice is durable before the first question is sent.
@@ -618,7 +619,11 @@ public class MaxWebhookController {
         if(session.selectedBusiness()) {
             if(session.selection().submissionEventKey()==null) {
                 saveSession(session); // Keep the final answer even if configuration validation is unavailable.
-                runtimeConfigService.selectQuestionnaire(channel,session.selection().catalog(),session.scope().businessId());
+                var current="GENERAL".equals(session.scope().scopeKind())
+                    ?runtimeConfigService.selectGeneralQuestionnaire(channel,session.selection().catalog())
+                    :runtimeConfigService.selectQuestionnaire(channel,session.selection().catalog(),session.scope().businessId());
+                if(!com.example.supportbot.service.QuestionnaireScope.fromSelection(current).equals(session.scope()))
+                    throw new IllegalStateException("Selected MAX questionnaire changed");
             }
             session.prepareSubmission(providerEventKey);
             saveSession(session);

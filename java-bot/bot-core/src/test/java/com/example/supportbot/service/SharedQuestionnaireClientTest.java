@@ -132,4 +132,66 @@ class SharedQuestionnaireClientTest {
         assertThatThrownBy(()->client.select(menu,7)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
         assertThatThrownBy(()->client.choices(8)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
     }
+
+    private void v2(String kind) throws Exception {
+        writerVersion="2";catalog.put("version",2);selected.put("version",2);
+        Map<String,Object> template=Map.of("id","q-general","question_flow",List.of(Map.of("id","free","type","text","text","General private")));
+        String sha=HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(mapper.writeValueAsBytes(template)));
+        ObjectNode general=mapper.createObjectNode().put("scopeKind","GENERAL").putNull("businessId").put("code","GENERAL")
+            .put("displayName","Без бизнеса").put("questionTemplateId","q-general").put("templateSha256",sha);
+        catalog.withArray("choices").add(general);
+        if("GENERAL".equals(kind)) {
+            selected.put("scopeKind","GENERAL").putNull("businessId").put("questionTemplateId","q-general").put("templateSha256",sha);
+            selected.set("botSettings",mapper.valueToTree(Map.of("active_template_id","q-general","question_templates",List.of(template))));
+        }
+    }
+    @Test void v2GeneralSignsTheNullOwnerSelectionAndKeepsItAcrossJsonAndScope() throws Exception {
+        v2("GENERAL");var choices=client.choicesV2ForStart(8);assertThat(signatureValid).isTrue();
+        assertThat(lastStartPath).contains("/questionnaire/v2/choices?forStart=true");
+        var result=client.selectGeneralForStart(choices);assertThat(signatureValid).isTrue();
+        assertThat(lastStartPath).contains("/v2/selection?scopeKind=GENERAL&catalogSha256=").doesNotContain("businessId");
+        assertThat(result.businessId()).isNull();assertThat(result.botSettings().toString()).contains("General private").doesNotContain("Private A");
+        assertThat(QuestionnaireScope.fromSelection(mapper.readValue(mapper.writeValueAsBytes(result),PanelRuntimeConfigClient.SelectedQuestionnaire.class)))
+            .isEqualTo(new QuestionnaireScope("GENERAL","USER_SELECTION","q-general",result.templateSha256(),null,choices.catalogSha256()));
+    }
+    @Test void v2BusinessUsesTheSameMixedCatalogWithoutReadingGeneralPayload() throws Exception {
+        v2("BUSINESS");var choices=client.choicesV2ForStart(8);var result=client.selectForStart(choices,7);
+        assertThat(lastStartPath).contains("/v2/selection?scopeKind=BUSINESS&businessId=7&");
+        assertThat(result.businessId()).isEqualTo(7L);assertThat(result.botSettings().toString()).doesNotContain("General private");
+    }
+    @ParameterizedTest @ValueSource(strings={"missing","0","1","3"})
+    void v2NeverFallsBackToAnOlderWriterOrAnotherProtocol(String ack) throws Exception {
+        v2("GENERAL");var choices=client.choicesV2ForStart(8);writerVersion=ack;
+        int count=requests.get();assertThatThrownBy(()->client.choicesV2ForStart(8)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
+        assertThat(requests.get()).isEqualTo(count+1);assertThat(lastStartPath).contains("/v2/");
+        assertThatThrownBy(()->client.selectGeneralForStart(choices)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
+        assertThat(lastStartPath).contains("scopeKind=GENERAL").doesNotContain("businessId");
+    }
+    @ParameterizedTest @ValueSource(strings={"fake-zero","fake-owner","duplicate-general","wrong-version","kind","missing-hash","duplicate-template","no-business"})
+    void v2GeneralMenuRejectsFakeOwnersAndAmbiguousOrDowngradedIdentity(String mutation) throws Exception {
+        v2("GENERAL");ObjectNode general=(ObjectNode)catalog.withArray("choices").get(1);
+        switch(mutation) {
+            case "fake-zero"->general.put("businessId",0);case "fake-owner"->general.put("businessId",7);
+            case "duplicate-general"->catalog.withArray("choices").add(general.deepCopy().put("questionTemplateId","other"));
+            case "wrong-version"->catalog.put("version",1);case "kind"->general.put("scopeKind","UNRESOLVED");
+            case "missing-hash"->general.remove("templateSha256");case "duplicate-template"->general.put("questionTemplateId","q-a");
+            case "no-business"->catalog.withArray("choices").remove(0);
+        }
+        assertThatThrownBy(()->client.choicesV2ForStart(8)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
+    }
+    @ParameterizedTest @ValueSource(strings={"fake-zero","fake-owner","source","kind","version","catalog","template","bytes","locations","presets"})
+    void v2SelectedGeneralRequiresExactSnapshotAndNoGlobalSideData(String mutation) throws Exception {
+        v2("GENERAL");var choices=client.choicesV2ForStart(8);
+        switch(mutation) {
+            case "fake-zero"->selected.put("businessId",0);case "fake-owner"->selected.put("businessId",7);
+            case "source"->selected.put("scopeSelectionSource","GENERAL_CHANNEL");case "kind"->selected.put("scopeKind","BUSINESS");
+            case "version"->selected.put("version",1);case "catalog"->selected.put("catalogSha256","f".repeat(64));
+            case "template"->selected.put("questionTemplateId","q-a");
+            case "bytes"->((ObjectNode)selected.path("botSettings").path("question_templates").get(0)).put("changed",true);
+            case "locations"->selected.set("locationTree",mapper.valueToTree(Map.of("foreign","location")));
+            case "presets"->selected.set("presetDefinitions",mapper.valueToTree(Map.of("foreign","preset")));
+        }
+        assertThatThrownBy(()->client.selectGeneralForStart(choices)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
+    }
+
 }

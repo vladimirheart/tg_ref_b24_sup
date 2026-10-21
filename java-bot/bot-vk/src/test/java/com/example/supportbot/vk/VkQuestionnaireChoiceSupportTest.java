@@ -72,6 +72,14 @@ class VkQuestionnaireChoiceSupportTest {
         assertThat(VkQuestionnaireChoiceSupport.eventKey(first)).isEqualTo("vk-message:1001:42");
         assertThatThrownBy(()->VkQuestionnaireChoiceSupport.eventKey(first.setConversationMessageId(0))).isInstanceOf(IllegalStateException.class);
     }
+    @Test void messagesWithoutTextCanStillCarryAChoicePayload() {
+        assertThat(VkQuestionnaireChoiceSupport.isChoiceCommand(null,null)).isFalse();
+        assertThat(VkQuestionnaireChoiceSupport.isChoiceCommand(null,"{}")).isFalse();
+        String payload=VkQuestionnaireChoiceSupport.payload(nonce,"business",1);
+        assertThat(VkQuestionnaireChoiceSupport.isChoiceCommand(null,payload)).isTrue();
+        assertThat(VkQuestionnaireChoiceSupport.resolve(catalog(2),nonce,null,payload))
+            .contains(new VkQuestionnaireChoiceSupport.Action(false,1));
+    }
     @ParameterizedTest @ValueSource(strings={"empty","oversize","version","hash","duplicate","general","template"})
     void invalidSavedMenusFailClosed(String kind) {
         var choices=new ArrayList<>(catalog(2).choices());
@@ -81,7 +89,7 @@ class VkQuestionnaireChoiceSupportTest {
             case "general" -> choices.set(0,new Choice("GENERAL",1,"a","A","q-a","a".repeat(64)));
             case "template" -> choices.set(1,new Choice("BUSINESS",2,"b","B",choices.get(0).questionTemplateId(),"b".repeat(64)));
         }
-        var broken=new ChoiceCatalog(kind.equals("version")?2:1,55,kind.equals("hash")?"bad":"c".repeat(64),choices);
+        var broken=new ChoiceCatalog(kind.equals("version")?3:1,55,kind.equals("hash")?"bad":"c".repeat(64),choices);
         assertThatThrownBy(()->VkQuestionnaireChoiceSupport.validate(broken,nonce)).isInstanceOf(IllegalStateException.class);
     }
 }

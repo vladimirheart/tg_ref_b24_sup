@@ -49,7 +49,7 @@ class TelegramQuestionnaireMenuTest {
             case "duplicate"->choices.set(1,choices.get(0));
             case "general"->choices.set(0,new Choice("GENERAL",1,"a","A","q-a","a".repeat(64)));
         }
-        var menu=new ChoiceCatalog(kind.equals("version")?2:1,55,kind.equals("hash")?"bad":"c".repeat(64),choices);
+        var menu=new ChoiceCatalog(kind.equals("version")?3:1,55,kind.equals("hash")?"bad":"c".repeat(64),choices);
         assertThatThrownBy(()->TelegramQuestionnaireMenu.validate(menu,nonce)).isInstanceOf(IllegalStateException.class);
     }
 }

@@ -369,7 +369,8 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                     session.changeMenuPage((int) action.get().value());
                     saveSession(session);
                 } else {
-                    session = session.choose(runtimeConfigService.selectQuestionnaire(channel, session.selection.catalog(), action.get().value()), eventKey);
+                    session = session.choose(action.get().general()?runtimeConfigService.selectGeneralQuestionnaire(channel,session.selection.catalog())
+                        :runtimeConfigService.selectQuestionnaire(channel, session.selection.catalog(), action.get().value()), eventKey);
                     saveSession(session);
                 }
             }
@@ -1029,7 +1030,8 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                 if (ticketService.findActiveTicketForUser(session.userId(),
                         session.username() != null ? session.username() : String.valueOf(session.userId()), channel.getId()).isPresent())
                     throw new ScopedRuntimeConfigUnavailableException("VK cannot create a second active questionnaire root");
-                var selected = runtimeConfigService.selectQuestionnaire(channel, session.selection.catalog(), session.scope().businessId());
+                var selected = "GENERAL".equals(session.scope().scopeKind())?runtimeConfigService.selectGeneralQuestionnaire(channel,session.selection.catalog())
+                    :runtimeConfigService.selectQuestionnaire(channel, session.selection.catalog(), session.scope().businessId());
                 if (!session.scope().equals(QuestionnaireScope.fromSelection(selected)))
                     throw new ScopedRuntimeConfigUnavailableException("VK questionnaire identity changed");
                 var acceptedKeys = session.selection.acceptedEventKeys();
@@ -1577,15 +1579,15 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             this.reuseDecisionPending = state.reuseDecisionPending();
             this.currentIndex = Math.max(0, state.currentIndex());
             this.selection = state.selection();
-            if (scope != null && "BUSINESS".equals(scope.scopeKind()) && selection == null)
+            if (scope != null && scope.catalogSha256()!=null && selection == null)
                 throw new IllegalStateException("Saved VK business questionnaire has no menu");
             if (selection != null) {
                 if (reuseDecisionPending || state.currentIndex() < 0 || currentIndex > flow.size()
                         || (scope == null && (!flow.isEmpty() || !answers.isEmpty() || currentIndex != 0))
                         || (selection.submissionEventKey() != null && (scope == null || !isComplete()))
-                        || (scope != null && (!"BUSINESS".equals(scope.scopeKind()) || flow.isEmpty()
+                        || (scope != null && (!("BUSINESS".equals(scope.scopeKind()) || (selection.catalog().version()==2 && "GENERAL".equals(scope.scopeKind()))) || flow.isEmpty()
                             || !selection.catalog().catalogSha256().equals(scope.catalogSha256())
-                            || selection.catalog().choices().stream().noneMatch(choice -> Objects.equals(scope.businessId(), choice.businessId())
+                            || selection.catalog().choices().stream().noneMatch(choice -> choice.scopeKind().equals(scope.scopeKind()) && Objects.equals(scope.businessId(), choice.businessId())
                                 && choice.questionTemplateId().equals(scope.questionTemplateId())
                                 && choice.templateSha256().equals(scope.templateSha256()))
                             || !Objects.equals(scope.questionTemplateId(), settings != null ? settings.getActiveTemplateId() : null)
@@ -1606,9 +1608,9 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                     selection.submissionEventKey(), selection.submittedTicketId(), selection.acceptedEventKeys(), page);
         }
         ConversationSession choose(SelectedQuestionnaire selected, String eventKey) {
-            if (!awaitingBusinessSelection() || selected.channelId() != selection.catalog().channelId()
+            if (!awaitingBusinessSelection() || selected.version()!=selection.catalog().version() || selected.channelId() != selection.catalog().channelId()
                     || !selection.catalog().catalogSha256().equals(selected.catalogSha256())
-                    || selection.catalog().choices().stream().noneMatch(choice -> choice.businessId() == selected.businessId()
+                    || selection.catalog().choices().stream().noneMatch(choice -> choice.scopeKind().equals(selected.scopeKind()) && Objects.equals(choice.businessId(), selected.businessId())
                         && choice.questionTemplateId().equals(selected.questionTemplateId())
                         && choice.templateSha256().equals(selected.templateSha256())))
                 throw new IllegalStateException("VK choice does not match the saved menu");

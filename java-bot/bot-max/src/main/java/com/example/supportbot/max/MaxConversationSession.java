@@ -76,12 +76,12 @@ final class MaxConversationSession {
     }
 
     boolean awaitingBusinessSelection() { return selection!=null && scope==null; }
-    boolean selectedBusiness() { return selection!=null && scope!=null && "BUSINESS".equals(scope.scopeKind()); }
+    boolean selectedBusiness() { return selection!=null && scope!=null; }
     Selection selection() { return selection; }
     MaxConversationSession choose(SelectedQuestionnaire selected,BotSettingsDto chosenSettings,List<QuestionFlowItemDto> chosenFlow) {
-        if(!awaitingBusinessSelection() || selected.channelId()!=selection.catalog().channelId()
+        if(!awaitingBusinessSelection() || selected.version()!=selection.catalog().version() || selected.channelId()!=selection.catalog().channelId()
                 || !selected.catalogSha256().equals(selection.catalog().catalogSha256())
-                || selection.catalog().choices().stream().noneMatch(choice->choice.businessId()==selected.businessId()
+                || selection.catalog().choices().stream().noneMatch(choice->choice.scopeKind().equals(selected.scopeKind()) && java.util.Objects.equals(choice.businessId(),selected.businessId())
                     && choice.questionTemplateId().equals(selected.questionTemplateId())
                     && choice.templateSha256().equals(selected.templateSha256())))
             throw new IllegalStateException("Questionnaire choice does not match the saved menu");
@@ -154,12 +154,13 @@ final class MaxConversationSession {
         this.reuseDecisionPending = state.reuseDecisionPending();
         this.currentIndex = Math.max(0, state.currentIndex());
         this.selection = state.selection();
+        if(scope!=null && scope.catalogSha256()!=null && selection==null) throw new IllegalStateException("Selected questionnaire has no saved menu");
         if(selection!=null && ((scope==null && (!flow.isEmpty() || !answers.isEmpty()))
                 || (scope!=null && flow.isEmpty())
                 || (selection.submissionEventKey()!=null && (scope==null || !isComplete()))
-                || (scope!=null && (!"BUSINESS".equals(scope.scopeKind())
+                || (scope!=null && (!("BUSINESS".equals(scope.scopeKind()) || (selection.catalog().version()==2 && "GENERAL".equals(scope.scopeKind())))
                     || !selection.catalog().catalogSha256().equals(scope.catalogSha256())
-                    || selection.catalog().choices().stream().noneMatch(choice->java.util.Objects.equals(scope.businessId(),choice.businessId())
+                    || selection.catalog().choices().stream().noneMatch(choice->choice.scopeKind().equals(scope.scopeKind()) && java.util.Objects.equals(scope.businessId(),choice.businessId())
                         && choice.questionTemplateId().equals(scope.questionTemplateId())
                         && choice.templateSha256().equals(scope.templateSha256()))))))
             throw new IllegalStateException("Saved questionnaire scope does not match its menu");

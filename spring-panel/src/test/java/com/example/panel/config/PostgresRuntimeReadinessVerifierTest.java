@@ -269,4 +269,11 @@ class PostgresRuntimeReadinessVerifierTest {
             mock(com.example.panel.service.RuntimeCoordinationService.class),mock(com.example.panel.storage.AttachmentObjectStorageService.class));
         assertThatThrownBy(()->verifier.onApplicationEvent(null)).isInstanceOf(IllegalStateException.class).hasRootCauseMessage("V72 is missing");
     }
+    @Test void missingSharedGeneralSelectionWriterFailsReadiness() {
+        JdbcTemplate jdbc=mock(JdbcTemplate.class);when(jdbc.queryForList(anyString())).thenReturn(List.of());
+        when(jdbc.queryForList(contains("prevent_ticket_shared_general_selection_change"))).thenThrow(new IllegalStateException("V75 missing"));
+        var verifier=new PostgresRuntimeReadinessVerifier(jdbc,new MockEnvironment().withProperty("app.datasource.mode","postgresql"),
+            mock(com.example.panel.service.RuntimeCoordinationService.class),mock(com.example.panel.storage.AttachmentObjectStorageService.class));
+        assertThatThrownBy(()->verifier.onApplicationEvent(null)).isInstanceOf(IllegalStateException.class).hasRootCauseMessage("V75 missing");
+    }
 }

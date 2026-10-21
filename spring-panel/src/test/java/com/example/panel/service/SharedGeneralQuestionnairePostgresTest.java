@@ -283,14 +283,24 @@ class SharedGeneralQuestionnairePostgresTest {
         String selection = root + "/selection?scopeKind=GENERAL&catalogSha256=" + shared.choices(10).orElseThrow().catalogSha256();
         mvc.perform(signed(selection)).andExpect(status().isOk()).andExpect(jsonPath("$.scopeKind").value("GENERAL"))
             .andExpect(jsonPath("$.businessId").isEmpty()).andExpect(jsonPath("$.scopeSelectionSource").value("USER_SELECTION"));
+        flags.setTicketWriteRequiresBusiness(false);
         for (String path : List.of(root + "/choices?forStart=true", selection + "&forStart=true"))
             mvc.perform(signed(path)).andExpect(status().isNotFound()).andExpect(header().doesNotExist("X-Iguana-Questionnaire-Writer-Version"));
+        flags.setTicketWriteRequiresBusiness(true);
+        for (String path : List.of(root + "/choices?forStart=true", selection + "&forStart=true"))
+            mvc.perform(signed(path)).andExpect(status().isOk()).andExpect(header().string("X-Iguana-Questionnaire-Writer-Version","2"));
         mvc.perform(signed(selection).queryParam("businessId", Long.toString(a))).andExpect(status().isUnauthorized());
         mvc.perform(signed(selection + "&businessId=" + a)).andExpect(status().isBadRequest());
         shared.deactivate(10);
         mvc.perform(signed(selection)).andExpect(status().isConflict()).andExpect(header().string("Cache-Control", "no-store"));
         flags.setGeneralChannelResolution(false);
         mvc.perform(signed(root + "/choices")).andExpect(status().isNotFound());
+        mvc.perform(signed(root + "/choices?forStart=true")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.choices.length()").value(2)).andExpect(header().string("X-Iguana-Questionnaire-Writer-Version","2"));
+        String businessOnly=root+"/selection?scopeKind=BUSINESS&businessId="+a+"&catalogSha256="
+            +shared.choices(10).orElseThrow().catalogSha256()+"&forStart=true";
+        mvc.perform(signed(businessOnly)).andExpect(status().isOk()).andExpect(jsonPath("$.businessId").value(a))
+            .andExpect(header().string("X-Iguana-Questionnaire-Writer-Version","2"));
         flags.setGeneralChannelResolution(true); flags.setSharedChannelResolution(false);
         mvc.perform(signed(root + "/choices")).andExpect(status().isNotFound());
         flags.setSharedChannelResolution(true); flags.getFoundation().setEnabled(false);

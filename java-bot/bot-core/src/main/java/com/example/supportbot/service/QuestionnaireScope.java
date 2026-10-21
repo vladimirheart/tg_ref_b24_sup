@@ -11,8 +11,10 @@ public record QuestionnaireScope(String scopeKind, String scopeSelectionSource,
     }
 
     public QuestionnaireScope {
-        if ("BUSINESS".equals(scopeKind)) {
-            if (!"USER_SELECTION".equals(scopeSelectionSource) || businessId == null || businessId <= 0
+        if ("BUSINESS".equals(scopeKind) || ("GENERAL".equals(scopeKind) && "USER_SELECTION".equals(scopeSelectionSource))) {
+            if (!"USER_SELECTION".equals(scopeSelectionSource)
+                    || ("BUSINESS".equals(scopeKind) && (businessId == null || businessId <= 0))
+                    || ("GENERAL".equals(scopeKind) && businessId != null)
                     || questionTemplateId == null || questionTemplateId.isBlank()
                     || !questionTemplateId.equals(questionTemplateId.strip())
                     || !hash(templateSha256) || !hash(catalogSha256)) {
@@ -24,8 +26,8 @@ public record QuestionnaireScope(String scopeKind, String scopeSelectionSource,
     }
 
     public static QuestionnaireScope fromSelection(PanelRuntimeConfigClient.SelectedQuestionnaire selected) {
-        if (selected == null || selected.version() != 1 || selected.channelId() <= 0
-                || !"BUSINESS".equals(selected.scopeKind())) {
+        if (selected == null || (selected.version() != 1 && selected.version() != 2) || selected.channelId() <= 0
+                || !("BUSINESS".equals(selected.scopeKind()) || (selected.version()==2 && "GENERAL".equals(selected.scopeKind())))) {
             throw new IllegalArgumentException("Unsupported questionnaire selection");
         }
         return new QuestionnaireScope(selected.scopeKind(), selected.scopeSelectionSource(),

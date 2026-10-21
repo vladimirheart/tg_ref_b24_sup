@@ -65,7 +65,7 @@ class ConversationTicketCreationIngestionServiceTest {
             disabledFlags(),
             mock(BusinessTicketWriteScopeResolver.class),
             mock(GeneralChannelQuestionTemplateService.class),
-            mock(BusinessQuestionTemplateRegistryService.class)
+            mock(BusinessQuestionTemplateRegistryService.class), mock(com.example.panel.service.SharedGeneralQuestionnaireService.class)
         );
 
         OffsetDateTime occurredAt = OffsetDateTime.parse("2026-08-14T11:00:00Z");
@@ -214,7 +214,7 @@ class ConversationTicketCreationIngestionServiceTest {
             mock(ChatHistoryRepository.class), mock(ChatAttachmentMetadataService.class),
             mock(JdbcTemplate.class), disabledFlags(), mock(BusinessTicketWriteScopeResolver.class),
             mock(GeneralChannelQuestionTemplateService.class),
-            mock(BusinessQuestionTemplateRegistryService.class)
+            mock(BusinessQuestionTemplateRegistryService.class), mock(com.example.panel.service.SharedGeneralQuestionnaireService.class)
         );
         ConversationTicketCreatedEvent event = minimalEvent("evt-same-owner", 901L, "T-RABBIT-SAME");
         Channel channel = new Channel();
@@ -252,7 +252,7 @@ class ConversationTicketCreationIngestionServiceTest {
             mock(ChatHistoryRepository.class), mock(ChatAttachmentMetadataService.class),
             mock(JdbcTemplate.class), disabledFlags(), mock(BusinessTicketWriteScopeResolver.class),
             mock(GeneralChannelQuestionTemplateService.class),
-            mock(BusinessQuestionTemplateRegistryService.class)
+            mock(BusinessQuestionTemplateRegistryService.class), mock(com.example.panel.service.SharedGeneralQuestionnaireService.class)
         );
         ConversationTicketCreatedEvent event = minimalEvent("evt-other-owner", 902L, "T-RABBIT-COLLISION");
         Channel channel = new Channel();
@@ -297,7 +297,7 @@ class ConversationTicketCreationIngestionServiceTest {
             disabledFlags(),
             mock(BusinessTicketWriteScopeResolver.class),
             mock(GeneralChannelQuestionTemplateService.class),
-            mock(BusinessQuestionTemplateRegistryService.class)
+            mock(BusinessQuestionTemplateRegistryService.class), mock(com.example.panel.service.SharedGeneralQuestionnaireService.class)
         );
         ConversationTicketCreatedEvent event = new ConversationTicketCreatedEvent(
             "evt-ticket-dup",
@@ -859,7 +859,7 @@ class ConversationTicketCreationIngestionServiceTest {
         return new ConversationTicketCreationIngestionService(inbox, mock(LegacyTicketIdConcurrencyGuard.class),
             channels, messages, tickets, mock(TicketSpanRepository.class), mock(TicketActiveRepository.class),
             mock(ChatHistoryRepository.class), mock(ChatAttachmentMetadataService.class),
-            mock(JdbcTemplate.class), flags, resolver, generalTemplates, mock(BusinessQuestionTemplateRegistryService.class));
+            mock(JdbcTemplate.class), flags, resolver, generalTemplates, mock(BusinessQuestionTemplateRegistryService.class), mock(com.example.panel.service.SharedGeneralQuestionnaireService.class));
     }
 
     private ConversationTicketCreatedEvent eventWithBusinessId(Long businessId) {

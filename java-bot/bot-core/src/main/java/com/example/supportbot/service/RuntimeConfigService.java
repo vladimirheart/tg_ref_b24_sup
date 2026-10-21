@@ -45,7 +45,7 @@ public class RuntimeConfigService {
 
     public PanelRuntimeConfigClient.ChoiceCatalog questionnaireChoices(Channel channel) {
         requireRemoteQuestionnaire(channel);
-        return panelRuntimeConfigClient.choicesForStart(channel.getId());
+        return panelRuntimeConfigClient.choicesV2ForStart(channel.getId());
     }
 
     public PanelRuntimeConfigClient.SelectedQuestionnaire selectQuestionnaire(Channel channel,
@@ -55,6 +55,14 @@ public class RuntimeConfigService {
             throw new PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException("Questionnaire channel mismatch");
         }
         return panelRuntimeConfigClient.selectForStart(catalog, businessId);
+    }
+
+    public PanelRuntimeConfigClient.SelectedQuestionnaire selectGeneralQuestionnaire(Channel channel,
+            PanelRuntimeConfigClient.ChoiceCatalog catalog) {
+        requireRemoteQuestionnaire(channel);
+        if(catalog==null || catalog.channelId()!=channel.getId())
+            throw new PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException("Questionnaire channel mismatch");
+        return panelRuntimeConfigClient.selectGeneralForStart(catalog);
     }
 
     private void requireRemoteQuestionnaire(Channel channel) {

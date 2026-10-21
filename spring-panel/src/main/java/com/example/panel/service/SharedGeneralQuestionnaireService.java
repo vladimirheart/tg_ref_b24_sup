@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Preview v2 contract. It does not authorize a ticket write or a bot session start. */
+/** Version 2 catalog and immutable selection snapshot; the ingestion writer independently verifies it. */
 @Service
 public class SharedGeneralQuestionnaireService {
     private final JdbcTemplate jdbc;

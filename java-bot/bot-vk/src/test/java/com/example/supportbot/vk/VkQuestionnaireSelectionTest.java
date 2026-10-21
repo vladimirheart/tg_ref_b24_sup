@@ -404,4 +404,44 @@ class VkQuestionnaireSelectionTest {
         receive(2,"Legacy one");receive(2,"Legacy one");assertThat(state().path("currentIndex").asInt()).isEqualTo(1);
         verify(runtime,never()).questionnaireChoices(any());verify(tickets,never()).createConversationTicket(any());
     }
+
+    private void generalMenu() {
+        var payload=selected(7L,"q-general","d");
+        var general=new SelectedQuestionnaire(2,55,"GENERAL","USER_SELECTION",(Long)null,"q-general","d".repeat(64),"c".repeat(64),payload.botSettings(),Map.of(),Map.of());
+        catalog=new ChoiceCatalog(2,55,"c".repeat(64),List.of(new Choice("BUSINESS",7,"a","Business A","q-a","a".repeat(64)),
+            new Choice("GENERAL",(Long)null,"GENERAL","Без бизнеса","q-general","d".repeat(64))));
+        doReturn(catalog).when(runtime).questionnaireChoices(channel);
+        doReturn(general).when(runtime).selectGeneralQuestionnaire(channel,catalog);
+    }
+
+    private void chooseGeneral() throws Exception {generalMenu();receive(1,"/start");receive(2,"Без бизнеса","{\"iguana_questionnaire\":\""+state().at("/selection/nonce").asText()+"\",\"kind\":\"general\",\"value\":\"general\"}");}
+    @Test void generalChoiceRestartsAndPublishesNullOwnerWithOnlyItsFrozenFreeAnswers() throws Exception {
+        chooseGeneral();assertThat(state().at("/scope/businessId").isNull()).isTrue();rebuild();receive(3,"One");rebuild();receive(4,"Two");
+        var capture=org.mockito.ArgumentCaptor.forClass(ConversationTicketCreationCommand.class);verify(tickets).createConversationTicket(capture.capture());
+        var command=capture.getValue();assertThat(command.businessId()).isNull();assertThat(command.scopeKind()).isEqualTo("GENERAL");
+        assertThat(command.scopeSelectionSource()).isEqualTo("USER_SELECTION");assertThat(command.questionTemplateId()).isEqualTo("q-general");
+        assertThat(command.answers()).containsExactlyInAnyOrderEntriesOf(Map.of("free-first","One","free-second","Two"));verifyNoInteractions(local,feedback);
+    }
+    @Test void generalPublicationFailureRetriesTheSameCommandAfterSessionRestore() throws Exception {
+        chooseGeneral();receive(3,"One");
+        when(tickets.createConversationTicket(any())).thenThrow(new IllegalStateException("general queue failure")).thenReturn(new TicketService.TicketCreationResult("GENERAL-T",null,"queued"));
+        assertThatThrownBy(()->receive(4,"Two")).hasMessageContaining("general queue failure");
+        doThrow(unavailable()).when(runtime).selectGeneralQuestionnaire(channel,catalog);rebuild();receive(4,"Edited retry");
+        var capture=org.mockito.ArgumentCaptor.forClass(ConversationTicketCreationCommand.class);verify(tickets,times(2)).createConversationTicket(capture.capture());
+        assertThat(capture.getAllValues().get(0)).isEqualTo(capture.getAllValues().get(1));assertThat(capture.getValue().businessId()).isNull();
+    }
+    @ParameterizedTest @ValueSource(strings={"choice","submission"})
+    void generalStaleScopeNeverRecapturesOrPublishes(String boundary) throws Exception {
+        generalMenu();receive(1,"/start");
+        if(boundary.equals("submission")){receive(2,"Без бизнеса","{\"iguana_questionnaire\":\""+state().at("/selection/nonce").asText()+"\",\"kind\":\"general\",\"value\":\"general\"}");receive(3,"One");}
+        doThrow(unavailable()).when(runtime).selectGeneralQuestionnaire(channel,catalog);
+        if(boundary.equals("choice")){receive(2,"Без бизнеса","{\"iguana_questionnaire\":\""+state().at("/selection/nonce").asText()+"\",\"kind\":\"general\",\"value\":\"general\"}");}else receive(4,"Two");
+        verify(tickets,never()).createConversationTicket(any());verify(runtime,times(1)).questionnaireChoices(channel);
+    }
+
+
+    @Test void oldGeneralCommandNeverSelectsAfterExplicitRestart() throws Exception {
+        generalMenu();receive(1,"/start");String old="/general "+state().at("/selection/nonce").asText();receive(10,"/start");receive(11,old);assertThat(state().path("scope").isNull()).isTrue();
+        verify(runtime,never()).selectGeneralQuestionnaire(any(),any());verify(tickets,never()).createConversationTicket(any());
+    }
 }

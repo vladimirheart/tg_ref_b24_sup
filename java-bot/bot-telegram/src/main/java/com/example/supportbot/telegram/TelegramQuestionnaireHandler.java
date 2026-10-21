@@ -108,7 +108,8 @@ public class TelegramQuestionnaireHandler {
             if(action.isPresent()) {
                 if(action.get().page()) session.state.page=(int)action.get().value();
                 else {
-                    session.state.selected=runtime.selectQuestionnaire(channel,session.state.catalog,action.get().value());
+                    session.state.selected=action.get().general()?runtime.selectGeneralQuestionnaire(channel,session.state.catalog)
+                        :runtime.selectQuestionnaire(channel,session.state.catalog,action.get().value());
                     session.validateSelected();session.accept(id);
                 }
                 save(session);
@@ -152,7 +153,8 @@ public class TelegramQuestionnaireHandler {
         if(state.submissionMessageId==null) {
             if(tickets.findActiveTicketForUser(state.userId,identity(state),state.channelId).isPresent())
                 throw new ScopedRuntimeConfigUnavailableException("A different active Telegram root already exists");
-            var current=runtime.selectQuestionnaire(channel,state.catalog,state.selected.businessId());
+            var current="GENERAL".equals(state.selected.scopeKind())?runtime.selectGeneralQuestionnaire(channel,state.catalog)
+                :runtime.selectQuestionnaire(channel,state.catalog,state.selected.businessId());
             if(!QuestionnaireScope.fromSelection(current).equals(QuestionnaireScope.fromSelection(state.selected)))
                 throw new ScopedRuntimeConfigUnavailableException("Selected Telegram questionnaire changed");
             state.submissionMessageId=state.accepted.get(state.accepted.size()-1);save(session);
@@ -270,8 +272,8 @@ public class TelegramQuestionnaireHandler {
         }
         void validateSelected() {
             var selected=state.selected;QuestionnaireScope.fromSelection(selected);
-            if(selected.channelId()!=state.channelId || !state.catalog.catalogSha256().equals(selected.catalogSha256())
-                    || state.catalog.choices().stream().noneMatch(choice->choice.businessId()==selected.businessId()
+            if(selected.version()!=state.catalog.version() || selected.channelId()!=state.channelId || !state.catalog.catalogSha256().equals(selected.catalogSha256())
+                    || state.catalog.choices().stream().noneMatch(choice->choice.scopeKind().equals(selected.scopeKind()) && Objects.equals(choice.businessId(),selected.businessId())
                         && choice.questionTemplateId().equals(selected.questionTemplateId()) && choice.templateSha256().equals(selected.templateSha256())))
                 throw new IllegalStateException("Telegram questionnaire differs from its saved menu");
             flow=GeneralQuestionnaireFlow.from(settings.questionFlow(settings.loadSelectedQuestionnaire(selected)));

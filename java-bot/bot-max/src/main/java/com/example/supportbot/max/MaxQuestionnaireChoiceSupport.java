@@ -15,7 +15,15 @@ final class MaxQuestionnaireChoiceSupport {
     private MaxQuestionnaireChoiceSupport() { }
 
     static boolean isChoiceCommand(String text) {
-        return text != null && (text.startsWith("/business") || BUTTON.matcher(text.strip()).matches());
+        return text != null && (text.startsWith("/business") || text.startsWith("/general") || text.contains(":general]") || BUTTON.matcher(text.strip()).matches());
+    }
+    static Optional<com.example.supportbot.service.PanelRuntimeConfigClient.Choice> resolveChoice(ChoiceCatalog catalog,String nonce,String text) {
+        validate(catalog,nonce);
+        if(generalInput(nonce,text)) return catalog.choices().stream().filter(c->catalog.version()==2 && c.general()).findFirst();
+        return resolve(catalog,nonce,text).flatMap(id->catalog.choices().stream().filter(c->java.util.Objects.equals(c.businessId(),id)).findFirst());
+    }
+    private static boolean generalInput(String nonce,String text) {
+        return text!=null && (text.strip().equals("/general "+nonce) || text.strip().endsWith(" ["+nonce+":general]"));
     }
     static Optional<Long> resolve(ChoiceCatalog catalog,String nonce,String text) {
         validate(catalog,nonce);
@@ -25,28 +33,21 @@ final class MaxQuestionnaireChoiceSupport {
         if(!matcher.matches() || !nonce.equals(matcher.group(1))) return Optional.empty();
         try {
             long businessId=Long.parseLong(matcher.group(2));
-            return catalog.choices().stream().filter(choice->choice.businessId()==businessId).map(choice->choice.businessId()).findFirst();
+            return catalog.choices().stream().filter(choice->"BUSINESS".equals(choice.scopeKind()) && java.util.Objects.equals(choice.businessId(),businessId)).map(choice->choice.businessId()).findFirst();
         } catch(NumberFormatException ex) {return Optional.empty();}
     }
     static void validate(ChoiceCatalog catalog,String nonce) {
-        if(catalog==null || catalog.version()!=1 || catalog.channelId()<=0 || catalog.catalogSha256()==null
-                || !catalog.catalogSha256().matches("[a-f0-9]{64}") || catalog.choices()==null
-                || catalog.choices().isEmpty() || catalog.choices().size()>100 || nonce==null || !nonce.matches("[a-f0-9]{12}"))
-            throw new IllegalStateException("Invalid saved questionnaire menu");
-        var ids=new HashSet<Long>();var templates=new HashSet<String>();
-        for(var choice:catalog.choices()) {
-            if(choice==null || !"BUSINESS".equals(choice.scopeKind()) || choice.businessId()<=0 || !ids.add(choice.businessId())
-                    || choice.code()==null || choice.code().isBlank()
-                    || choice.displayName()==null || choice.displayName().isBlank() || choice.questionTemplateId()==null
-                    || choice.questionTemplateId().isBlank() || !templates.add(choice.questionTemplateId())
-                    || choice.templateSha256()==null || !choice.templateSha256().matches("[a-f0-9]{64}"))
-                throw new IllegalStateException("Invalid saved questionnaire choice");
+        if(catalog==null || nonce==null || !nonce.matches("[a-f0-9]{12}")) throw new IllegalStateException("Invalid saved menu");
+        try { com.example.supportbot.service.PanelRuntimeConfigClient.validateCatalog(catalog.channelId(),catalog); }
+        catch(IllegalArgumentException | com.example.supportbot.service.PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException ex) {
+            throw new IllegalStateException("Invalid saved menu",ex);
         }
     }
+
     static String buttonText(ChoiceCatalog catalog,String nonce,int index) {
         validate(catalog,nonce);
         var choice=catalog.choices().get(index);
-        String suffix=" ["+nonce+":"+choice.businessId()+"]";
+        String suffix=" ["+nonce+":"+(choice.general()?"general":choice.businessId())+"]";
         String label=(choice.displayName()+" ("+choice.code()+")").replaceAll("[\\p{Cntrl}]"," ");
         int end=Math.min(128-suffix.length(),label.length());
         if(end>0 && Character.isHighSurrogate(label.charAt(end-1))) end--;
@@ -61,7 +62,7 @@ final class MaxQuestionnaireChoiceSupport {
                 row.add(Map.of("type","message","text",buttonText(catalog,nonce,item)));
             rows.add(List.copyOf(row));
         }
-        return Map.of("text","Выберите бизнес до начала опроса. Нажмите кнопку или отправьте её текст. Для нового выбора — /start, отмена — /cancel.",
+        return Map.of("text","Выберите бизнес или «Без бизнеса» до начала опроса. Нажмите кнопку или отправьте её текст. Для нового выбора — /start, отмена — /cancel.",
             "attachments",List.of(Map.of("type","inline_keyboard","payload",Map.of("buttons",List.copyOf(rows)))));
     }
 }

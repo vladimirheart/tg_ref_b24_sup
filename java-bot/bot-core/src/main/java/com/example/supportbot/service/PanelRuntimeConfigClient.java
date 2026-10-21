@@ -74,8 +74,20 @@ public class PanelRuntimeConfigClient {
         requireChannel(channelId);
         ChoiceCatalog catalog=fetchTyped("/internal/api/bot/channels/"+channelId+"/questionnaire/choices"
             +(forStart ? "?forStart=true" : ""),ChoiceCatalog.class,forStart);
+        if (catalog == null || catalog.version() != 1) throw unavailable();
         validateCatalog(channelId,catalog);
         return catalog;
+    }
+
+    public ChoiceCatalog choicesV2ForStart(long channelId) {
+        requireChannel(channelId);
+        var catalog=fetchTyped("/internal/api/bot/channels/"+channelId+"/questionnaire/v2/choices?forStart=true",ChoiceCatalog.class,2);
+        if(catalog==null || catalog.version()!=2) throw unavailable();
+        validateCatalog(channelId,catalog);return catalog;
+    }
+    public SelectedQuestionnaire selectGeneralForStart(ChoiceCatalog catalog) {
+        if(catalog==null || catalog.version()!=2) throw unavailable();
+        return select(catalog,"GENERAL",null,true);
     }
 
     public SelectedQuestionnaire select(ChoiceCatalog catalog,long businessId) {
@@ -87,14 +99,18 @@ public class PanelRuntimeConfigClient {
     }
 
     private SelectedQuestionnaire select(ChoiceCatalog catalog,long businessId,boolean forStart) {
+        return select(catalog,"BUSINESS",businessId,forStart);
+    }
+    private SelectedQuestionnaire select(ChoiceCatalog catalog,String kind,Long businessId,boolean forStart) {
         if (catalog==null) throw unavailable();
         requireChannel(catalog.channelId());validateCatalog(catalog.channelId(),catalog);
-        Choice choice=catalog.choices().stream().filter(item->item.businessId()==businessId).findFirst().orElseThrow(PanelRuntimeConfigClient::unavailable);
+        Choice choice=catalog.choices().stream().filter(item->kind.equals(item.scopeKind()) && java.util.Objects.equals(item.businessId(),businessId)).findFirst().orElseThrow(PanelRuntimeConfigClient::unavailable);
         SelectedQuestionnaire selected=fetchTyped("/internal/api/bot/channels/"+catalog.channelId()
-            +"/questionnaire/selection?businessId="+businessId+"&catalogSha256="+catalog.catalogSha256()
-            +(forStart ? "&forStart=true" : ""),SelectedQuestionnaire.class,forStart);
-        if (selected==null || selected.version()!=1 || selected.channelId()!=catalog.channelId() || selected.businessId()!=businessId
-                || !"BUSINESS".equals(selected.scopeKind()) || !"USER_SELECTION".equals(selected.scopeSelectionSource())
+            +"/questionnaire/"+(catalog.version()==2?"v2/":"")+"selection?"
+            +(catalog.version()==2?"scopeKind="+kind+"&":"")+(businessId==null?"":"businessId="+businessId+"&")
+            +"catalogSha256="+catalog.catalogSha256()+(forStart ? "&forStart=true" : ""),SelectedQuestionnaire.class,forStart?catalog.version():0);
+        if (selected==null || selected.version()!=catalog.version() || selected.channelId()!=catalog.channelId() || !java.util.Objects.equals(selected.businessId(),businessId)
+                || !kind.equals(selected.scopeKind()) || !"USER_SELECTION".equals(selected.scopeSelectionSource())
                 || !catalog.catalogSha256().equals(selected.catalogSha256()) || !choice.questionTemplateId().equals(selected.questionTemplateId())
                 || !choice.templateSha256().equals(selected.templateSha256()) || selected.locationTree()==null || !selected.locationTree().isEmpty()
                 || selected.presetDefinitions()==null || !selected.presetDefinitions().isEmpty() || selected.botSettings()==null
@@ -112,16 +128,21 @@ public class PanelRuntimeConfigClient {
     private void requireChannel(long channelId) {
         if (!isEnabled() || channelId<=0) throw unavailable();
     }
-    private void validateCatalog(long channelId,ChoiceCatalog catalog) {
-        if (catalog==null || catalog.version()!=1 || catalog.channelId()!=channelId || !hash(catalog.catalogSha256())
+    public static void validateCatalog(long channelId,ChoiceCatalog catalog) {
+        if (channelId<=0 || catalog==null || (catalog.version()!=1 && catalog.version()!=2) || catalog.channelId()!=channelId || !hash(catalog.catalogSha256())
                 || catalog.choices()==null || catalog.choices().isEmpty() || catalog.choices().size()>100) throw unavailable();
-        var businesses=new HashSet<Long>();var templates=new HashSet<String>();
+        var businesses=new HashSet<Long>();var templates=new HashSet<String>();boolean general=false;
         for (Choice choice:catalog.choices()) {
-            if (choice==null || !"BUSINESS".equals(choice.scopeKind()) || choice.businessId()<=0 || !businesses.add(choice.businessId())
+            boolean isGeneral=choice!=null && catalog.version()==2 && "GENERAL".equals(choice.scopeKind()) && choice.businessId()==null;
+            boolean isBusiness=choice!=null && "BUSINESS".equals(choice.scopeKind()) && choice.businessId()!=null && choice.businessId()>0;
+            if (choice==null || (!isGeneral && !isBusiness) || (isGeneral && general)
+                    || (isBusiness && !businesses.add(choice.businessId()))
                     || choice.code()==null || choice.code().isBlank() || choice.displayName()==null || choice.displayName().isBlank()
                     || choice.questionTemplateId()==null || choice.questionTemplateId().isBlank() || !templates.add(choice.questionTemplateId())
                     || !hash(choice.templateSha256())) throw unavailable();
+            general|=isGeneral;
         }
+        if(businesses.isEmpty()) throw unavailable();
     }
     private static boolean hash(String value) { return value!=null && value.matches("[a-f0-9]{64}"); }
     private static ScopedRuntimeConfigUnavailableException unavailable() {
@@ -131,6 +152,9 @@ public class PanelRuntimeConfigClient {
         return fetchTyped(path,type,false);
     }
     private <T> T fetchTyped(String path,Class<T> type,boolean requireWriter) {
+        return fetchTyped(path,type,requireWriter?1:0);
+    }
+    private <T> T fetchTyped(String path,Class<T> type,int writerVersion) {
         URI uri = resolve(path);
         HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
             .timeout(properties.getRequestTimeout())
@@ -142,7 +166,7 @@ public class PanelRuntimeConfigClient {
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw unavailable();
             }
-            if(requireWriter && !"1".equals(response.headers().firstValue("X-Iguana-Questionnaire-Writer-Version").orElse(null))) {
+            if(writerVersion>0 && !Integer.toString(writerVersion).equals(response.headers().firstValue("X-Iguana-Questionnaire-Writer-Version").orElse(null))) {
                 throw unavailable();
             }
             return objectMapper.readValue(response.body(),type);
@@ -182,11 +206,21 @@ public class PanelRuntimeConfigClient {
         }
     }
 
-    public record Choice(String scopeKind,long businessId,String code,String displayName,String questionTemplateId,String templateSha256) { }
+    public record Choice(String scopeKind,Long businessId,String code,String displayName,String questionTemplateId,String templateSha256) {
+        public Choice(String scopeKind,long businessId,String code,String displayName,String questionTemplateId,String templateSha256) {
+            this(scopeKind,Long.valueOf(businessId),code,displayName,questionTemplateId,templateSha256);
+        }
+        public boolean general() {return "GENERAL".equals(scopeKind) && businessId==null;}
+    }
     public record ChoiceCatalog(int version,long channelId,String catalogSha256,List<Choice> choices) { }
-    public record SelectedQuestionnaire(int version,long channelId,String scopeKind,String scopeSelectionSource,long businessId,
+    public record SelectedQuestionnaire(int version,long channelId,String scopeKind,String scopeSelectionSource,Long businessId,
         String questionTemplateId,String templateSha256,String catalogSha256,Map<String,Object> botSettings,
-        Map<String,Object> locationTree,Map<String,Object> presetDefinitions) { }
+        Map<String,Object> locationTree,Map<String,Object> presetDefinitions) {
+        public SelectedQuestionnaire(int version,long channelId,String scopeKind,String source,long businessId,
+                String template,String sha,String catalog,Map<String,Object> settings,Map<String,Object> locations,Map<String,Object> presets) {
+            this(version,channelId,scopeKind,source,Long.valueOf(businessId),template,sha,catalog,settings,locations,presets);
+        }
+    }
 
     private record RuntimeConfigResponse(Long channelId,
                                          Map<String, Object> botSettings,

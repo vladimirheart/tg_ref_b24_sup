@@ -267,4 +267,47 @@ class MaxQuestionnaireSelectionTest {
         assertThat(send("late",old).getBody()).containsEntry("choice_ignored",true);
         verify(runtime,times(1)).questionnaireChoices(channel);
     }
+
+    private void generalMenu() {
+        var payload=selected(7L,"q-general","d");
+        var general=new SelectedQuestionnaire(2,55,"GENERAL","USER_SELECTION",(Long)null,"q-general","d".repeat(64),"c".repeat(64),payload.botSettings(),Map.of(),Map.of());
+        catalog=new ChoiceCatalog(2,55,"c".repeat(64),List.of(new Choice("BUSINESS",7,"a","Business A","q-a","a".repeat(64)),
+            new Choice("GENERAL",(Long)null,"GENERAL","Без бизнеса","q-general","d".repeat(64))));
+        doReturn(catalog).when(runtime).questionnaireChoices(channel);
+        doReturn(general).when(runtime).selectGeneralQuestionnaire(channel,catalog);
+    }
+
+    @Test void generalChoiceRestartsAndPublishesNullOwnerWithOnlyItsFrozenFreeAnswers() {
+        generalMenu();send("start","/start");String button=choice(1);assertThat(button).contains("general]");
+        rebuild();send("choose",button);assertThat(state().scope().businessId()).isNull();
+        send("late-button",button);assertThat(state().answers()).isEmpty();
+        send("first","One");rebuild();send("last","Two");
+        var capture=org.mockito.ArgumentCaptor.forClass(ConversationTicketCreationCommand.class);verify(tickets).createConversationTicket(capture.capture());
+        var command=capture.getValue();assertThat(command.businessId()).isNull();assertThat(command.scopeKind()).isEqualTo("GENERAL");
+        assertThat(command.scopeSelectionSource()).isEqualTo("USER_SELECTION");assertThat(command.questionTemplateId()).isEqualTo("q-general");
+        assertThat(command.answers()).containsExactlyInAnyOrderEntriesOf(Map.of("free-first","One","free-second","Two"));
+        assertThat(state().selection().submittedTicketId()).isEqualTo("T-MAX");verifyNoInteractions(local);verify(messages,never()).sendToSupportChat(any(),anyString());
+    }
+    @Test void generalPublicationFailureRetriesTheSameCommandAfterSessionRestore() {
+        generalMenu();send("start","/start");send("choose",choice(1));send("first","One");
+        when(tickets.createConversationTicket(any())).thenThrow(new IllegalStateException("general queue failure")).thenReturn(new TicketService.TicketCreationResult("T-MAX",null,"queued"));
+        assertThatThrownBy(()->send("last","Two")).hasMessageContaining("general queue failure");
+        doThrow(unavailable()).when(runtime).selectGeneralQuestionnaire(channel,catalog);rebuild();send("last","Edited retry");
+        var capture=org.mockito.ArgumentCaptor.forClass(ConversationTicketCreationCommand.class);verify(tickets,times(2)).createConversationTicket(capture.capture());
+        assertThat(capture.getAllValues().get(0)).isEqualTo(capture.getAllValues().get(1));assertThat(capture.getValue().businessId()).isNull();
+    }
+    @ParameterizedTest @ValueSource(strings={"choice","submission"})
+    void generalStaleScopeNeverRecapturesOrPublishes(String boundary) {
+        generalMenu();send("start","/start");
+        if(boundary.equals("submission")){send("choose",choice(1));send("first","One");}
+        doThrow(unavailable()).when(runtime).selectGeneralQuestionnaire(channel,catalog);
+        var result=boundary.equals("choice")?send("choose",choice(1)):send("last","Two");
+        assertThat(result.getBody()).containsEntry("restart_questionnaire",true);verify(tickets,never()).createConversationTicket(any());
+    }
+
+
+    @Test void oldGeneralCommandNeverSelectsAfterExplicitRestart() throws Exception {
+        generalMenu();send("start","/start");String old="/general "+state().selection().nonce();send("restart","/start");send("late",old);assertThat(state().scope()).isNull();
+        verify(runtime,never()).selectGeneralQuestionnaire(any(),any());verify(tickets,never()).createConversationTicket(any());
+    }
 }

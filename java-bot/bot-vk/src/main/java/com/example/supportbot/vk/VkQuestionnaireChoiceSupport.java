@@ -23,7 +23,9 @@ final class VkQuestionnaireChoiceSupport {
     private static final String PAYLOAD_KEY = "iguana_questionnaire";
     private static final int PAGE_SIZE = 8;
 
-    record Action(boolean page, long value) { }
+    record Action(boolean page,long value,boolean general) {
+        Action(boolean page,long value) {this(page,value,false);}
+    }
     private VkQuestionnaireChoiceSupport() { }
 
     static String eventKey(Message message) {
@@ -34,7 +36,7 @@ final class VkQuestionnaireChoiceSupport {
     }
 
     static boolean isChoiceCommand(String text, String payload) {
-        return (text != null && text.startsWith("/business"))
+        return (text != null && (text.startsWith("/business") || text.startsWith("/general")))
                 || (payload != null && payload.contains(PAYLOAD_KEY));
     }
 
@@ -55,6 +57,9 @@ final class VkQuestionnaireChoiceSupport {
                 var object = JsonParser.parseString(payload).getAsJsonObject();
                 if (object.size() != 3 || !nonce.equals(object.get(PAYLOAD_KEY).getAsString())) return Optional.empty();
                 String kind = object.get("kind").getAsString();
+                if("general".equals(kind))
+                    return object.get("value").getAsString().equals("general") && catalog.version()==2 && catalog.choices().stream().anyMatch(c->c.general())
+                        ? Optional.of(new Action(false,0,true)) : Optional.empty();
                 if (!"business".equals(kind) && !"page".equals(kind)) return Optional.empty();
                 boolean page = "page".equals(kind);
                 String value = object.get("value").getAsString();
@@ -65,31 +70,22 @@ final class VkQuestionnaireChoiceSupport {
             } catch (RuntimeException ex) { return Optional.empty(); }
         }
         if (command == null) return Optional.empty();
+        if(command.strip().equals("/general "+nonce)) return catalog.version()==2 && catalog.choices().stream().anyMatch(c->c.general())
+            ? Optional.of(new Action(false,0,true)) : Optional.empty();
         var matcher = COMMAND.matcher(command.strip());
         if (!matcher.matches() || !nonce.equals(matcher.group(1))) return Optional.empty();
         try {
             long id = Long.parseLong(matcher.group(2));
-            return catalog.choices().stream().anyMatch(choice -> choice.businessId() == id)
+            return catalog.choices().stream().anyMatch(choice -> "BUSINESS".equals(choice.scopeKind()) && java.util.Objects.equals(choice.businessId(),id))
                     ? Optional.of(new Action(false, id)) : Optional.empty();
         } catch (NumberFormatException ex) { return Optional.empty(); }
     }
 
-    static void validate(ChoiceCatalog catalog, String nonce) {
-        if (catalog == null || catalog.version() != 1 || catalog.channelId() <= 0 || catalog.catalogSha256() == null
-                || !catalog.catalogSha256().matches("[a-f0-9]{64}") || catalog.choices() == null
-                || catalog.choices().isEmpty() || catalog.choices().size() > 100
-                || nonce == null || !nonce.matches("[a-f0-9]{12}"))
-            throw new IllegalStateException("Invalid saved VK questionnaire menu");
-        var ids = new HashSet<Long>();
-        var templates = new HashSet<String>();
-        for (var choice : catalog.choices()) {
-            if (choice == null || !"BUSINESS".equals(choice.scopeKind()) || choice.businessId() <= 0
-                    || !ids.add(choice.businessId()) || choice.code() == null || choice.code().isBlank()
-                    || choice.displayName() == null || choice.displayName().isBlank()
-                    || choice.questionTemplateId() == null || choice.questionTemplateId().isBlank()
-                    || !templates.add(choice.questionTemplateId()) || choice.templateSha256() == null
-                    || !choice.templateSha256().matches("[a-f0-9]{64}"))
-                throw new IllegalStateException("Invalid saved VK questionnaire choice");
+    static void validate(ChoiceCatalog catalog,String nonce) {
+        if(catalog==null || nonce==null || !nonce.matches("[a-f0-9]{12}")) throw new IllegalStateException("Invalid saved menu");
+        try { com.example.supportbot.service.PanelRuntimeConfigClient.validateCatalog(catalog.channelId(),catalog); }
+        catch(IllegalArgumentException | com.example.supportbot.service.PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException ex) {
+            throw new IllegalStateException("Invalid saved menu",ex);
         }
     }
 
@@ -102,11 +98,11 @@ final class VkQuestionnaireChoiceSupport {
     static String menuText(ChoiceCatalog catalog, String nonce, int page) {
         validate(catalog, nonce);
         if (page < 0 || page >= pageCount(catalog)) throw new IllegalStateException("Invalid questionnaire page");
-        var text = new StringBuilder("Выберите бизнес до начала опроса. Страница ")
+        var text = new StringBuilder("Выберите бизнес или «Без бизнеса» до начала опроса. Страница ")
                 .append(page + 1).append('/').append(pageCount(catalog)).append(".\n");
         for (int i = page * PAGE_SIZE; i < Math.min((page + 1) * PAGE_SIZE, catalog.choices().size()); i++) {
             var choice = catalog.choices().get(i);
-            text.append('#').append(choice.businessId()).append(" — ")
+            text.append(choice.general()?"Без бизнеса":"#"+choice.businessId()).append(" — ")
                     .append(shorten(choice.displayName() + " (" + choice.code() + ")", 180)).append('\n');
         }
         return text.append("Нажмите кнопку или отправьте /business ").append(nonce)
@@ -122,8 +118,14 @@ final class VkQuestionnaireChoiceSupport {
             List<KeyboardButton> row = new ArrayList<>();
             for (int index = i; index < Math.min(i + 2, end); index++) {
                 var choice = catalog.choices().get(index);
-                String suffix = " #" + choice.businessId();
-                row.add(button(shorten(choice.displayName(), 40 - suffix.length()) + suffix, nonce, "business", choice.businessId()));
+                if(choice.general()) {
+                    var action=new KeyboardButtonActionText().setType(KeyboardButtonActionTextType.TEXT).setLabel("Без бизнеса")
+                        .setPayload(GSON.toJson(Map.of(PAYLOAD_KEY,nonce,"kind","general","value","general")));
+                    row.add(new KeyboardButton().setColor(KeyboardButtonColor.PRIMARY).setAction(action));
+                } else {
+                    String suffix = " #" + choice.businessId();
+                    row.add(button(shorten(choice.displayName(), 40 - suffix.length()) + suffix, nonce, "business", choice.businessId()));
+                }
             }
             rows.add(List.copyOf(row));
         }

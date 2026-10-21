@@ -48,6 +48,7 @@ public class ConversationTicketCreationIngestionService {
     private final BusinessTicketWriteScopeResolver businessTicketWriteScopeResolver;
     private final GeneralChannelQuestionTemplateService generalChannelQuestionTemplateService;
     private final BusinessQuestionTemplateRegistryService businessTemplates;
+    private final com.example.panel.service.SharedGeneralQuestionnaireService sharedQuestionnaires;
 
     public ConversationTicketCreationIngestionService(IntegrationInboundEventInboxService inboxService,
                                                       LegacyTicketIdConcurrencyGuard legacyTicketIdConcurrencyGuard,
@@ -62,7 +63,8 @@ public class ConversationTicketCreationIngestionService {
                                                       MultibusinessFeatureFlags multibusinessFeatureFlags,
                                                       BusinessTicketWriteScopeResolver businessTicketWriteScopeResolver,
                                                       GeneralChannelQuestionTemplateService generalChannelQuestionTemplateService,
-                                                      BusinessQuestionTemplateRegistryService businessTemplates) {
+                                                      BusinessQuestionTemplateRegistryService businessTemplates,
+                                                      com.example.panel.service.SharedGeneralQuestionnaireService sharedQuestionnaires) {
         this.inboxService = inboxService;
         this.legacyTicketIdConcurrencyGuard = legacyTicketIdConcurrencyGuard;
         this.channelRepository = channelRepository;
@@ -77,6 +79,7 @@ public class ConversationTicketCreationIngestionService {
         this.businessTicketWriteScopeResolver = businessTicketWriteScopeResolver;
         this.generalChannelQuestionTemplateService = generalChannelQuestionTemplateService;
         this.businessTemplates = businessTemplates;
+        this.sharedQuestionnaires = sharedQuestionnaires;
     }
 
     @Transactional
@@ -124,16 +127,21 @@ public class ConversationTicketCreationIngestionService {
             && "GENERAL_CHANNEL".equals(event.scopeSelectionSource());
         boolean selectedBusiness = "BUSINESS".equals(event.scopeKind())
             && "USER_SELECTION".equals(event.scopeSelectionSource());
-        if (selectedBusiness) {
-            requireSelectedBusinessShape(event);
+        boolean sharedChannel = businessTicketWriteScopeResolver.requiresExplicitSelection(event.channelId());
+        boolean selectedGeneral = isGeneralScope(event) && "USER_SELECTION".equals(event.scopeSelectionSource())
+            && (event.catalogSha256() != null || sharedChannel);
+        if (selectedBusiness || selectedGeneral) {
+            requireSelectedQuestionnaireShape(event);
             if (!strictBusinessWrite || !multibusinessFeatureFlags.isSharedChannelResolution()) {
                 throw new IllegalStateException("Business questionnaire selection requires strict shared-channel writes");
             }
         }
-        if (!selectedBusiness && event.catalogSha256() != null) {
+        if (selectedGeneral && !multibusinessFeatureFlags.isGeneralChannelResolution())
+            throw new IllegalStateException("Shared GENERAL selection requires GENERAL resolution");
+        if (!selectedBusiness && !selectedGeneral && event.catalogSha256() != null) {
             throw new IllegalStateException("Unexpected questionnaire catalog fingerprint");
         }
-        if (!generalChannel && !selectedBusiness
+        if (!generalChannel && !selectedBusiness && !selectedGeneral
                 && (event.questionTemplateId() != null || event.templateSha256() != null)) {
             throw new IllegalStateException("Questionnaire provenance requires a general channel scope");
         }
@@ -172,7 +180,7 @@ public class ConversationTicketCreationIngestionService {
             throw new IllegalStateException("Legacy ticket ID collision across users");
         }
 
-        if (!selectedBusiness && businessTicketWriteScopeResolver.requiresExplicitSelection(event.channelId())) {
+        if (!selectedBusiness && !selectedGeneral && sharedChannel) {
             throw new IllegalStateException("Shared channel requires an explicit verified business questionnaire");
         }
 
@@ -192,6 +200,8 @@ public class ConversationTicketCreationIngestionService {
                 }
                 if (generalChannel) {
                     requireMatchingGeneralQuestionnaire(event);
+                } else if (selectedGeneral) {
+                    requireSharedSelection(event);
                 }
                 general = true;
             } else {
@@ -203,14 +213,17 @@ public class ConversationTicketCreationIngestionService {
                             || !Objects.equals(channel.getPlatform(), event.platform())) {
                         throw new IllegalStateException("Business questionnaire channel platform mismatch");
                     }
-                    BusinessQuestionTemplateRegistryService.SelectedRuntime selected = businessTemplates
-                        .select(event.channelId(), event.businessId(), event.catalogSha256())
-                        .orElseThrow(() -> new IllegalStateException("Business questionnaire selection is stale; restart questionnaire"));
-                    if (!Objects.equals(selected.questionTemplateId(), event.questionTemplateId())
-                            || !Objects.equals(selected.templateSha256(), event.templateSha256())) {
-                        throw new IllegalStateException("Business questionnaire version mismatch; restart questionnaire");
-                    }
-                    businessId = selected.businessId();
+                    // V1 stays available without a shared GENERAL reservation; a V2 hash commits the full mixed catalog.
+                    boolean generalReserved = sharedQuestionnaires.findBinding(event.channelId())
+                        .filter(com.example.panel.service.SharedGeneralQuestionnaireService.Binding::active).isPresent();
+                    var legacy = generalReserved ? java.util.Optional.<BusinessQuestionTemplateRegistryService.SelectedRuntime>empty()
+                        : businessTemplates.select(event.channelId(), event.businessId(), event.catalogSha256());
+                    if (legacy.isPresent()) {
+                        if (!Objects.equals(legacy.get().questionTemplateId(), event.questionTemplateId())
+                                || !Objects.equals(legacy.get().templateSha256(), event.templateSha256()))
+                            throw new IllegalStateException("Business questionnaire version mismatch; restart questionnaire");
+                    } else requireSharedSelection(event);
+                    businessId = event.businessId();
                 } else if (event.scopeSelectionSource() != null) {
                     throw new IllegalStateException("Unexpected business scope selection source");
                 } else {
@@ -297,14 +310,26 @@ public class ConversationTicketCreationIngestionService {
         return ticket;
     }
 
-    private void requireSelectedBusinessShape(ConversationTicketCreatedEvent event) {
-        if (event.businessId() == null || event.businessId() <= 0
+    private void requireSelectedQuestionnaireShape(ConversationTicketCreatedEvent event) {
+        if (("BUSINESS".equals(event.scopeKind()) && (event.businessId() == null || event.businessId() <= 0))
+                || ("GENERAL".equals(event.scopeKind()) && event.businessId() != null)
                 || event.questionTemplateId() == null || event.questionTemplateId().isBlank()
                 || !event.questionTemplateId().equals(event.questionTemplateId().strip())
                 || event.templateSha256() == null || !event.templateSha256().matches("[a-f0-9]{64}")
                 || event.catalogSha256() == null || !event.catalogSha256().matches("[a-f0-9]{64}")) {
             throw new IllegalStateException("Incomplete selected business questionnaire");
         }
+    }
+
+    private void requireSharedSelection(ConversationTicketCreatedEvent event) {
+        if (event.platform() == null || !List.of("telegram", "vk", "max").contains(event.platform())
+                || !Objects.equals(channelRepository.findById(event.channelId()).orElseThrow().getPlatform(), event.platform()))
+            throw new IllegalStateException("Shared questionnaire channel platform mismatch");
+        var selected = sharedQuestionnaires.select(event.channelId(), event.scopeKind(), event.businessId(), event.catalogSha256())
+            .orElseThrow(() -> new IllegalStateException("Shared questionnaire selection is stale; restart questionnaire"));
+        if (!Objects.equals(selected.questionTemplateId(), event.questionTemplateId())
+                || !Objects.equals(selected.templateSha256(), event.templateSha256()))
+            throw new IllegalStateException("Shared questionnaire version mismatch; restart questionnaire");
     }
 
     private void requireMatchingGeneralQuestionnaire(ConversationTicketCreatedEvent event) {

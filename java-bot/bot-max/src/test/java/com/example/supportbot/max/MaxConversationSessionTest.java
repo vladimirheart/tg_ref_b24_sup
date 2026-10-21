@@ -3,6 +3,9 @@ package com.example.supportbot.max;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.supportbot.service.QuestionnaireScope;
+import com.example.supportbot.service.PanelRuntimeConfigClient.Choice;
+import com.example.supportbot.service.PanelRuntimeConfigClient.ChoiceCatalog;
+import com.example.supportbot.service.PanelRuntimeConfigClient.SelectedQuestionnaire;
 import com.example.supportbot.settings.dto.QuestionFlowItemDto;
 import com.example.supportbot.settings.dto.QuestionOptionDto;
 import com.example.supportbot.settings.dto.QuestionRouteDto;
@@ -16,12 +19,17 @@ class MaxConversationSessionTest {
     @Test
     void snapshotKeepsSelectedBusinessVersionAndFreeQuestionOrderAcrossJson() throws Exception {
         var scope=new QuestionnaireScope("BUSINESS","USER_SELECTION","q-a","a".repeat(64),7L,"c".repeat(64));
-        var session=new MaxConversationSession(1001L,2002L,null,null,
-            List.of(question("free-first","text","First"),question("free-second","text","Second")),null,scope);
+        var catalog=new ChoiceCatalog(1,55L,"c".repeat(64),
+            List.of(new Choice("BUSINESS",7L,"a","Business A","q-a","a".repeat(64))));
+        var selected=new SelectedQuestionnaire(1,55L,"BUSINESS","USER_SELECTION",7L,"q-a",
+            "a".repeat(64),"c".repeat(64),Map.of(),Map.of(),Map.of());
+        var session=MaxConversationSession.pending(1001L,2002L,null,null,catalog,"start")
+            .choose(selected,null,List.of(question("free-first","text","First"),question("free-second","text","Second")));
         session.recordAnswer("First answer");
         var mapper=org.springframework.http.converter.json.Jackson2ObjectMapperBuilder.json().build();
         var restored=new MaxConversationSession(mapper.readValue(mapper.writeValueAsString(session.snapshot()),MaxConversationSession.State.class));
         assertThat(restored.scope()).isEqualTo(scope);
+        assertThat(restored.selection()).isEqualTo(session.selection());
         assertThat(restored.currentQuestion().getId()).isEqualTo("free-second");
         assertThat(restored.answers()).containsEntry("free-first","First answer");
     }
