@@ -42,7 +42,7 @@ class AlertQueueServiceTest {
             return raw == null ? "/dialogs" : "/dialogs/" + String.valueOf(raw).trim();
         });
         channelAssignmentRoutingService = mock(ChannelAssignmentRoutingService.class);
-        when(channelAssignmentRoutingService.resolve(any(), any(), any()))
+        when(channelAssignmentRoutingService.resolveRecipients(any(), any(), any()))
                 .thenReturn(ChannelAssignmentRoutingService.ResolvedAssignmentRouting.disabled());
         legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
         when(legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(any())).thenReturn(true);
@@ -177,7 +177,7 @@ class AlertQueueServiceTest {
 
     @Test
     void notifyQueueForNewPublicAppealPrefersAssignmentRoutingRecipients() {
-        when(channelAssignmentRoutingService.resolve(any(), any(), any()))
+        when(channelAssignmentRoutingService.resolveRecipients(any(), any(), any()))
                 .thenReturn(new ChannelAssignmentRoutingService.ResolvedAssignmentRouting(
                         true,
                         java.util.List.of("alice", "bob"),
@@ -215,7 +215,7 @@ class AlertQueueServiceTest {
 
         assertThat(notified).isFalse();
         verify(notificationService, never()).notifyDialogUsers(any(), any(), any(), any());
-        verify(channelAssignmentRoutingService, never()).resolve(any(), any(), any());
+        verify(channelAssignmentRoutingService, never()).resolveRecipients(any(), any(), any());
     }
 
     private Channel channel(String channelName, String questionsCfg) {

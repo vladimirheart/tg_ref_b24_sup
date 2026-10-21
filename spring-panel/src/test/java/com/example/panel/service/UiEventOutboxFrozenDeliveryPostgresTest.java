@@ -168,7 +168,8 @@ class UiEventOutboxFrozenDeliveryPostgresTest {
         channel.setChannelName("scope channel");
         when(channels.findById(9L)).thenReturn(Optional.of(channel));
         routing = mock(ChannelAssignmentRoutingService.class);
-        when(routing.resolve(any(), any(), anyString())).thenReturn(ChannelAssignmentRoutingService.ResolvedAssignmentRouting.disabled());
+        when(routing.resolveRecipients(any(), any(), anyString())).thenReturn(ChannelAssignmentRoutingService.ResolvedAssignmentRouting.disabled());
+        when(routing.resolveScoped(any(),any(),any())).thenReturn(ChannelAssignmentRoutingService.ResolvedAssignmentRouting.disabled());
         queue = new AlertQueueService(jdbc, notices, new ObjectMapper(), routing, guard);
         ai = mock(DialogAiAssistantService.class);
         responsibility = spy(new DialogResponsibilityService(observed, guard, flags));
@@ -261,7 +262,12 @@ class UiEventOutboxFrozenDeliveryPostgresTest {
     @ParameterizedTest
     @MethodSource("midCallbackCases")
     void routingAndGlobalRecipientFallbackKeepTheOriginalScope(String event, String mutation) {
-        when(routing.resolve(any(), any(), anyString())).thenAnswer(call -> {
+        when(routing.resolveScoped(any(),any(),any())).thenAnswer(call -> {
+            mutate(mutation);
+            return new ChannelAssignmentRoutingService.ResolvedAssignmentRouting(true,
+                List.of("all-reader"),"all-reader","fixed","fixed");
+        });
+        when(routing.resolveRecipients(any(), any(), anyString())).thenAnswer(call -> {
             mutate(mutation);
             return new ChannelAssignmentRoutingService.ResolvedAssignmentRouting(true,
                 List.of("all-reader"), "all-reader", "fixed", "fixed");
@@ -376,9 +382,12 @@ class UiEventOutboxFrozenDeliveryPostgresTest {
     private void enableAutoAssignment() {
         jdbc.update("DELETE FROM ticket_responsibles WHERE ticket_id=?", RAW);
         jdbc.update("UPDATE business_access_grants SET role_code='OPERATOR' WHERE user_id=1");
-        when(routing.resolve(any(), any(), anyString())).thenReturn(
+        when(routing.resolveRecipients(any(), any(), anyString())).thenReturn(
             new ChannelAssignmentRoutingService.ResolvedAssignmentRouting(true,
                 List.of("all-reader"), "all-reader", "single_operator", "round_robin"));
+        when(routing.resolveScoped(any(),any(),any())).thenReturn(
+            new ChannelAssignmentRoutingService.ResolvedAssignmentRouting(true,
+                List.of("all-reader"),"all-reader","single_operator","round_robin"));
     }
 
     @ParameterizedTest

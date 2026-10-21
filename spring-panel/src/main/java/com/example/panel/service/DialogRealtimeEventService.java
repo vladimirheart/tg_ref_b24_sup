@@ -59,11 +59,12 @@ public class DialogRealtimeEventService {
         }
         if (channel != null) {
             ChannelAssignmentRoutingService.ResolvedAssignmentRouting routing =
-                    channelAssignmentRoutingService.resolve(
+                    scope==null?channelAssignmentRoutingService.resolve(
                             channel,
                             ChannelAssignmentRoutingService.RoutingEvent.NEW_PUBLIC_APPEAL,
                             normalizedTicketId
-                    );
+                    ):channelAssignmentRoutingService.resolveScoped(channel,
+                        ChannelAssignmentRoutingService.RoutingEvent.NEW_PUBLIC_APPEAL,scope);
             if (!isCurrent(scope)) {
                 return;
             }

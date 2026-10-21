@@ -124,7 +124,7 @@ public class AlertQueueService {
     private Set<String> notifyChannelEventRecipients(Channel channel, AlertEvent event, String ticketId,
                                                      String text, String url, UiEventTicketScope expectedScope) {
         ChannelAssignmentRoutingService.ResolvedAssignmentRouting assignmentRouting =
-                channelAssignmentRoutingService.resolve(channel, mapRoutingEvent(event), ticketId);
+                channelAssignmentRoutingService.resolveRecipients(channel, mapRoutingEvent(event), ticketId);
         if (assignmentRouting.enabled() && !assignmentRouting.recipients().isEmpty()) {
             Set<String> recipients = normalizeRecipientSet(assignmentRouting.recipients());
             if (!recipients.isEmpty()) {

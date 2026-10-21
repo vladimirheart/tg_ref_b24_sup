@@ -27,19 +27,27 @@ public class ChannelAssignmentRoutingService {
     private final DialogParticipantService dialogParticipantService;
     private final DialogLookupReadService dialogLookupReadService;
     private final RuntimeCoordinationService runtimeCoordinationService;
+    private final ScopedAssignmentCandidateService scopedCandidates;
     private final Map<String, Integer> roundRobinCursorByRoute = new ConcurrentHashMap<>();
 
-    @Autowired
     public ChannelAssignmentRoutingService(ObjectMapper objectMapper,
                                            SharedConfigService sharedConfigService,
                                            DialogParticipantService dialogParticipantService,
                                            DialogLookupReadService dialogLookupReadService,
                                            RuntimeCoordinationService runtimeCoordinationService) {
+        this(objectMapper,sharedConfigService,dialogParticipantService,dialogLookupReadService,runtimeCoordinationService,null);
+    }
+
+    @Autowired
+    public ChannelAssignmentRoutingService(ObjectMapper objectMapper,SharedConfigService sharedConfigService,
+            DialogParticipantService dialogParticipantService,DialogLookupReadService dialogLookupReadService,
+            RuntimeCoordinationService runtimeCoordinationService,ScopedAssignmentCandidateService scopedCandidates) {
         this.objectMapper = objectMapper;
         this.sharedConfigService = sharedConfigService;
         this.dialogParticipantService = dialogParticipantService;
         this.dialogLookupReadService = dialogLookupReadService;
         this.runtimeCoordinationService = runtimeCoordinationService;
+        this.scopedCandidates=scopedCandidates;
     }
 
     ChannelAssignmentRoutingService(ObjectMapper objectMapper,
@@ -50,6 +58,14 @@ public class ChannelAssignmentRoutingService {
     }
 
     public ResolvedAssignmentRouting resolve(Channel channel, RoutingEvent event, String ticketId) {
+        return resolve(channel,event,ticketId,true);
+    }
+
+    public ResolvedAssignmentRouting resolveRecipients(Channel channel,RoutingEvent event,String ticketId) {
+        return resolve(channel,event,ticketId,false);
+    }
+
+    private ResolvedAssignmentRouting resolve(Channel channel,RoutingEvent event,String ticketId,boolean selectAssignee) {
         AssignmentRoutingConfig config = parseConfig(channel);
         if (!config.enabled() || config.mode() == RoutingMode.DISABLED) {
             return ResolvedAssignmentRouting.disabled();
@@ -62,7 +78,7 @@ public class ChannelAssignmentRoutingService {
         }
 
         String assignee = null;
-        if (event == RoutingEvent.NEW_PUBLIC_APPEAL && config.assignResponsibleOnCreate()) {
+        if (selectAssignee && event == RoutingEvent.NEW_PUBLIC_APPEAL && config.assignResponsibleOnCreate()) {
             assignee = resolveAssignee(config, routingCandidates, ticketId);
         }
 
@@ -73,6 +89,33 @@ public class ChannelAssignmentRoutingService {
                 config.mode().wireValue(),
                 config.strategy().wireValue()
         );
+    }
+
+    /** Only the scoped auto-assignment callback uses OPERATE candidates. Bell/queue recipients still require independent READ. */
+    public ResolvedAssignmentRouting resolveScoped(Channel channel,RoutingEvent event,UiEventTicketScope scope) {
+        AssignmentRoutingConfig config=parseConfig(channel);
+        if(!config.enabled() || config.mode()==RoutingMode.DISABLED || scopedCandidates==null || channel==null)
+            return ResolvedAssignmentRouting.disabled();
+        var captured=scopedCandidates.capture(scope,channel.getId());
+        if(captured.isEmpty()) return ResolvedAssignmentRouting.disabled();
+        var snapshot=captured.get();
+        if(snapshot.legacyUnresolved()) return resolve(channel,event,scope.ticketId()); // Explicitly proved pre-strict compatibility only.
+        var directory=new LinkedHashMap<String,DialogOperatorOption>();
+        if(!snapshot.openCounts().isEmpty()) for(var option:dialogParticipantService.loadAssignableOperators(snapshot.openCounts().keySet())) {
+            String identity=normalizeIdentity(option.username());
+            if(identity!=null && snapshot.openCounts().containsKey(identity)) directory.putIfAbsent(identity,option);
+        }
+        var pool=resolveRoutingCandidates(config,directory);
+        String assignee=null;
+        if(!pool.isEmpty() && event==RoutingEvent.NEW_PUBLIC_APPEAL && config.assignResponsibleOnCreate()) {
+            assignee=config.mode()==RoutingMode.SINGLE_OPERATOR?pool.get(0):switch(config.strategy()) {
+                case HASH_BY_TICKET -> resolvePoolAssigneeByHash(pool,scope.ticketId());
+                case LEAST_LOADED -> pool.stream().min(Comparator.comparingLong((String name)->snapshot.openCounts().get(name))
+                    .thenComparing(String::compareToIgnoreCase)).orElse(null);
+                case ROUND_ROBIN -> resolvePoolAssigneeRoundRobin(config,pool,"business:"+scope.businessId()+":channel:"+channel.getId());
+            };
+        }
+        return new ResolvedAssignmentRouting(true,List.copyOf(pool),assignee,config.mode().wireValue(),config.strategy().wireValue());
     }
 
     public Map<String, Object> loadCatalogPayload() {
@@ -194,10 +237,14 @@ public class ChannelAssignmentRoutingService {
     }
 
     private String resolvePoolAssigneeRoundRobin(AssignmentRoutingConfig config, List<String> assigneePool) {
-        String routeKey = config.mode().wireValue() + "::" + normalizeIdentity(config.operatorUsername()) + "::"
+        return resolvePoolAssigneeRoundRobin(config,assigneePool,null);
+    }
+
+    private String resolvePoolAssigneeRoundRobin(AssignmentRoutingConfig config,List<String> assigneePool,String namespace) {
+        String routeKey = (namespace==null?"":namespace+"::")+config.mode().wireValue() + "::" + normalizeIdentity(config.operatorUsername()) + "::"
                 + trimToNull(config.department()) + "::" + String.join(",", assigneePool);
         long cursor = nextRoundRobinCursor("channel-assignment-routing:" + routeKey);
-        return assigneePool.get(Math.floorMod((int) cursor, assigneePool.size()));
+        return assigneePool.get(namespace==null?Math.floorMod((int)cursor,assigneePool.size()):(int)Math.floorMod(cursor,(long)assigneePool.size()));
     }
 
     private String resolvePoolAssigneeLeastLoaded(List<String> assigneePool) {

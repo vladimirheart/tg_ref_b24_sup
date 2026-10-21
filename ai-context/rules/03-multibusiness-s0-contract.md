@@ -642,6 +642,42 @@ Existing responsible не переназначается; прежние trim/ac
 candidate pool/load balancing, остальные raw assignment writers и миграция
 child identity ещё PENDING; отказ не запускает выбор другого кандидата.
 
+R157 закрывает ранний BUSINESS candidate pool для scoped ticket_created callback,
+не все assignment writers. ScopedAssignmentCandidateService одним SQL snapshot
+сверяет frozen user/raw/public/business/kind, unique raw ID, non-GENERAL, canonical
+channel и его active state. BUSINESS требует foundation flag; schema/owner mismatch
+не открывают global fallback. Текущие enabled/unblocked/однозначные canonical
+accounts с OPERATOR/MANAGER/ADMIN membership либо ALL_BUSINESSES отбираются до
+single/pool/department strategy. VIEWER, чужой business, ROLE_ADMIN без business
+OPERATE и ai_agent не входят. Это тот же internal OPERATE contract R125; назначение
+не выдаёт page authority, membership или recipient READ.
+
+Для least_loaded читается число открытых assigned roots только текущего business,
+с unique raw ID и non-GENERAL; closed/resolved строки исключаются по прежней status
+семантике, NULL status считается open. Глобальный loadDialogs не вызывается.
+Это текущая canonical привязка ticket_responsibles, не backfill/доказательство
+исторической business/generation attribution старых child rows.
+Round-robin namespace разделяет canonical business/channel и route/pool; scoped
+ветка использует полный long cursor. Глобальные queue/notification routing calls
+не продвигают этот business counter.
+AlertQueue использует resolveRecipients: тот же список получателей без расчёта
+assignee, global workload reads и любых assignment cursor side effects.
+
+Метаданные directory запрашиваются только для допущенных usernames; пустой набор
+никогда не означает всех пользователей. Scoped directory читает только canonical
+migrated users/roles, без optional-column metadata других schemas и без legacy
+users.role fallback. Hash/least_loaded/round_robin выбирают
+только отфильтрованный pool. Итоговый условный INSERT R125 по-прежнему проверяет
+current owner/OPERATE; это не lock на всё время callback. Поздний отказ не запускает
+автоматический подбор следующего кандидата. Existing responsible не заменяется.
+Notification READ остаётся независимым: READ-only получатель не исключается из
+bell/SSE только из-за отсутствия OPERATE. UI/global directory catalog не менялся.
+Typed UNRESOLVED делегирует прежней стратегии только после exact root/channel
+proof до strict; GENERAL и invalid scope не попадают в BUSINESS routing.
+SLA/escalation/manual/raw assignment writers, child attribution, внешние chat
+destinations и live Redis/fleet acceptance остаются отдельными gates. Новых SQL
+migrations/flags/рабочих изменений или rollout R157 не выполняет.
+
 Scoped auto-close callback передаёт исходный V61 scope и channel ID события
 в DialogNotificationService.notifyScopedSupportChat. Один SQL capture требует
 полного expected owner, unique raw ID/non-GENERAL, совпадения canonical

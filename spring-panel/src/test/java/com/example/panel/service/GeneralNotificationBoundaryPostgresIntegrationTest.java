@@ -105,7 +105,7 @@ class GeneralNotificationBoundaryPostgresIntegrationTest {
         Fixture f = new Fixture();
         f.jdbc.update("INSERT INTO tickets VALUES (1, 'T-LATE', FALSE)");
         ChannelAssignmentRoutingService routing = mock(ChannelAssignmentRoutingService.class);
-        when(routing.resolve(any(), any(), any())).thenAnswer(call -> {
+        when(routing.resolveRecipients(any(), any(), any())).thenAnswer(call -> {
             f.jdbc.update("UPDATE tickets SET is_general = TRUE WHERE ticket_id = 'T-LATE'");
             return new ChannelAssignmentRoutingService.ResolvedAssignmentRouting(true,
                 List.of("global_operator"), "global_operator", "operator_pool", "round_robin");

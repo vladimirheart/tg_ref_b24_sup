@@ -113,6 +113,30 @@ public class DialogParticipantService {
         return queryOperators(Set.of());
     }
 
+    public List<DialogOperatorOption> loadAssignableOperators(Set<String> usernames) {
+        // An empty scoped directory must never mean "all users".
+        if(usernames==null || usernames.isEmpty()) return List.of();
+        Set<String> identities=usernames.stream().map(this::normalizeIdentity).filter(StringUtils::hasText).collect(Collectors.toSet());
+        if(identities.isEmpty()) return List.of();
+        // Scoped routing requires the canonical migrated schema. Do not infer optional columns
+        // from JDBC metadata spanning other schemas or fall back to legacy users.role.
+        try {
+            return usersJdbcTemplate.query("""
+                SELECT u.username,u.full_name,u.photo,u.department,r.name AS role_name
+                FROM users u LEFT JOIN roles r ON r.id=u.role_id
+                WHERE u.enabled=TRUE AND u.is_blocked=FALSE AND lower(u.username)<>'ai_agent'
+                    AND 1=(SELECT count(*) FROM users duplicate_identity WHERE lower(duplicate_identity.username)=lower(u.username))
+                    AND lower(u.username) IN (
+                """+String.join(",",identities.stream().map(value->"?").toList())+") ORDER BY lower(u.username)",
+                (rs,row)->new DialogOperatorOption(rs.getString("username"),trimToNull(rs.getString("full_name")),
+                    trimToNull(rs.getString("photo")),trimToNull(rs.getString("department")),trimToNull(rs.getString("role_name"))),
+                identities.toArray());
+        } catch(DataAccessException ex) {
+            log.warn("Unable to load scoped assignable operators: {}",DialogDataAccessSupport.summarizeDataAccessException(ex));
+            return List.of();
+        }
+    }
+
     public Optional<DialogOperatorOption> findOperator(String username) {
         String normalizedUsername = normalizeIdentity(username);
         if (normalizedUsername == null) {
