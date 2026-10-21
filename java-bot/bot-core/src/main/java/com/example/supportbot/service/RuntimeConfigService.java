@@ -65,6 +65,13 @@ public class RuntimeConfigService {
         return "vk".equals(channel.getPlatform()) && catalog.version()==4?panelRuntimeConfigClient.selectGeneralForStart(catalog,true):panelRuntimeConfigClient.selectGeneralForStart(catalog);
     }
 
+    public PanelRuntimeConfigClient.SelectedMediaAdmission selectedMediaAdmission(Channel channel,long userId,String ticketId,
+            PanelRuntimeConfigClient.SelectedQuestionnaire selected) {
+        requireRemoteQuestionnaire(channel);
+        if(!"telegram".equals(channel.getPlatform())) throw new PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException("Unsupported selected media platform");
+        return panelRuntimeConfigClient.selectedMediaAdmission(channel.getId(),userId,ticketId,selected);
+    }
+
     private void requireRemoteQuestionnaire(Channel channel) {
         if (!integrationTransportMode.isRabbitMqMode() || !panelRuntimeConfigClient.isEnabled()
                 || channel == null || channel.getId() == null || channel.getId() <= 0

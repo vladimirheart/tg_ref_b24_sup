@@ -171,6 +171,23 @@ public class PanelRuntimeConfigClient {
     private static ScopedRuntimeConfigUnavailableException unavailable() {
         return new ScopedRuntimeConfigUnavailableException("Verified questionnaire runtime is unavailable");
     }
+    public SelectedMediaAdmission selectedMediaAdmission(long channelId,long userId,String ticketId,SelectedQuestionnaire selected) {
+        requireChannel(channelId);
+        if(userId<=0 || ticketId==null || ticketId.isBlank() || ticketId.length()>512 || selected==null
+                || selected.version()!=4 || selected.channelId()!=channelId) throw unavailable();
+        String path="/internal/api/bot/channels/"+channelId+"/questionnaire-media?userId="+userId+"&ticketId="
+            +java.net.URLEncoder.encode(ticketId,StandardCharsets.UTF_8);
+        var proof=fetchTyped(path,SelectedMediaAdmission.class);
+        if(proof==null || proof.version()!=1 || proof.channelId()!=channelId || proof.userId()!=userId
+                || !ticketId.equals(proof.ticketId()) || !java.util.Objects.equals(selected.businessId(),proof.businessId())
+                || !selected.scopeKind().equals(proof.scopeKind()) || !selected.questionTemplateId().equals(proof.questionTemplateId())
+                || !selected.templateSha256().equals(proof.templateSha256()) || !selected.catalogSha256().equals(proof.catalogSha256())
+                || proof.remainingFiles()<1 || proof.remainingFiles()>10) throw unavailable();
+        return proof;
+    }
+    public record SelectedMediaAdmission(int version,long channelId,long userId,String ticketId,Long businessId,String scopeKind,
+            String questionTemplateId,String templateSha256,String catalogSha256,int remainingFiles) {}
+
     private <T> T fetchTyped(String path,Class<T> type) {
         return fetchTyped(path,type,false);
     }

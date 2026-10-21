@@ -28,6 +28,10 @@ public class InboundClientMessageIngestionService {
     private final MessageRepository messageRepository;
     private final TicketActiveRepository ticketActiveRepository;
     private final ChatAttachmentMetadataService chatAttachmentMetadataService;
+    private SelectedTicketFollowupMediaService selectedMedia;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setSelectedMedia(SelectedTicketFollowupMediaService selectedMedia) { this.selectedMedia=selectedMedia; }
 
     public InboundClientMessageIngestionService(IntegrationInboundEventInboxService inboxService,
                                                 LegacyTicketIdConcurrencyGuard legacyTicketIdConcurrencyGuard,
@@ -90,6 +94,14 @@ public class InboundClientMessageIngestionService {
         }
 
         OffsetDateTime occurredAt = event.occurredAt() != null ? event.occurredAt() : OffsetDateTime.now();
+        boolean selectedRoot=ticket.getQuestionnaireCatalogSha256()!=null;
+        boolean media=event.attachmentPath()!=null || !"text".equals(event.messageType());
+        SelectedQuestionnaireMediaValidator.Verified verified=null;
+        if((selectedRoot && media && "telegram".equals(channel.getPlatform()))
+                || com.example.panel.storage.QuestionnaireMediaStorageProof.isScoped(event.attachmentPath())) {
+            if(selectedMedia==null) throw new IllegalStateException("Selected follow-up media verifier is unavailable");
+            verified=selectedMedia.verify(event);
+        }
         ChatHistory history = new ChatHistory();
         history.setUserId(event.userId());
         history.setSender("client");
@@ -106,7 +118,9 @@ public class InboundClientMessageIngestionService {
         history.setFileName(event.attachmentName());
         ChatHistory saved = chatHistoryRepository.save(history);
 
-        chatAttachmentMetadataService.upsertForChatHistory(
+        if(verified!=null) chatAttachmentMetadataService.upsertForChatHistory(saved.getId(),event.ticketId(),channel.getId(),
+            event.attachmentPath(),event.attachmentName(),null,verified.size(),event.messageType(),verified.sha256());
+        else chatAttachmentMetadataService.upsertForChatHistory(
             saved.getId(),
             event.ticketId(),
             channel.getId(),

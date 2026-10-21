@@ -75,6 +75,7 @@ public class TelegramQuestionnaireHandler {
         long id=message.getMessageId().longValue();
         if(update.getEditedMessage()!=null) {send(sender,message.getChatId(),"Редактирование ответов здесь пока недоступно. Для нового опроса — /start.");return true;}
         if(session!=null) {
+            if(session.state.pendingMedia!=null) publishFollowupMedia(session,channel);
             if(id<session.state.startMessageId || (!session.state.accepted.isEmpty() && id<Collections.max(session.state.accepted)
                     && !session.state.accepted.contains(id))) {prompt(sender,session);return true;}
             if(session.state.submissionMessageId!=null && session.state.submittedTicketId==null) {
@@ -161,7 +162,8 @@ public class TelegramQuestionnaireHandler {
         var state=session.state;
         if(state.selected==null) {send(sender,state.chatId,"Сначала выберите вопросник, затем отправьте вложение повторно.");prompt(sender,session);return;}
         if(state.selected.version()!=4) {send(sender,state.chatId,"В этом сохранённом опросе поддерживается только текст. Для нового опроса — /start.");return;}
-        if(session.complete() || state.submittedTicketId!=null) {send(sender,state.chatId,"Вложения доступны во время опроса. Для нового обращения — /start.");return;}
+        if(state.submittedTicketId!=null) {acceptFollowupMedia(sender,session,channel,message,fileSource);return;}
+        if(session.complete()) {send(sender,state.chatId,"Вложения доступны во время опроса. Для нового обращения — /start.");return;}
         var question=session.flow.get(state.index);
         if(SelectedQuestionnaireOptions.preset(question) || !session.options(question).isEmpty()) {
             send(sender,state.chatId,"Выберите вариант текстом. Вложение можно отправить со свободным ответом.");prompt(sender,session);return;
@@ -222,16 +224,57 @@ public class TelegramQuestionnaireHandler {
     }
 
     private void followup(Consumer<SendMessage> sender,Session session,Channel channel,Message message,String text) {
+        if(!openRoot(sender,session)) return;
+        var state=session.state;
+        tickets.recordActiveClientMessage(new ActiveInboundClientMessageCommand(state.userId,identity(state),state.username,state.clientName,channel,
+                state.submittedTicketId,text,"text",null,null,message.getMessageId().longValue(),null,null,occurredAt(message,state.startedAt)));
+    }
+
+    private boolean openRoot(Consumer<SendMessage> sender,Session session) {
         var state=session.state;var active=tickets.findActiveTicketForUser(state.userId,identity(state),state.channelId);
         if(active.isPresent() && !state.submittedTicketId.equals(active.get().getTicketId())) throw new IllegalStateException("Different active Telegram questionnaire root");
         var canonical=tickets.findByTicketId(state.submittedTicketId);
         if(canonical.isEmpty() || !Objects.equals(canonical.get().userId(),state.userId)) throw new IllegalStateException("Telegram questionnaire root is not registered");
         if(Set.of("closed","resolved").contains(Objects.toString(canonical.get().status(),"").toLowerCase(Locale.ROOT))) {
-            send(sender,state.chatId,"Обращение закрыто. Для нового обращения отправьте /start.");return;
+            send(sender,state.chatId,"Обращение закрыто. Для нового обращения отправьте /start.");return false;
         }
         if(active.isEmpty()) throw new IllegalStateException("Telegram questionnaire root is not active");
+        return true;
+    }
+
+    private void acceptFollowupMedia(Consumer<SendMessage> sender,Session session,Channel channel,Message message,Function<String,InputStream> fileSource) {
+        var state=session.state;
+        if(tickets.findByTicketId(state.submittedTicketId).isEmpty()) {
+            send(sender,state.chatId,"Обращение ещё регистрируется. Повторите вложение после регистрации.");return;
+        }
+        if(!openRoot(sender,session)) return;
+        if(state.followupMediaCount+state.history.stream().filter(e->e.attachmentPath()!=null).count()>=QuestionnaireMedia.MAX_FILES) {
+            send(sender,state.chatId,"К одному обращению можно приложить до 10 файлов. Продолжите текстом.");return;
+        }
+        if(runtime.selectedMediaAdmission(channel,state.userId,state.submittedTicketId,state.selected)==null)
+            throw new ScopedRuntimeConfigUnavailableException("Selected media writer admission is unavailable");
+        TelegramQuestionnaireMedia.Item item;
+        try {item=TelegramQuestionnaireMedia.describe(message);}
+        catch(IllegalArgumentException ex) {send(sender,state.chatId,"Файл недоступен или превышает 10 МиБ. Отправьте другой файл.");return;}
+        AttachmentService.StoredAttachment stored;
+        try(InputStream input=fileSource.apply(item.fileId())) {
+            stored=attachments.storeQuestionnaire(state.channelId,state.selected.businessId(),state.userId,state.catalog.catalogSha256(),
+                message.getMessageId().longValue(),item.extension(),input);
+        } catch(AttachmentService.MediaSizeException ex) {send(sender,state.chatId,"Файл должен содержать от 1 байта до 10 МиБ. Отправьте другой файл или текст.");return;}
+        catch(IOException ex) {throw new IllegalStateException("Telegram follow-up media storage failed",ex);}
+        if(stored==null || !QuestionnaireMedia.matches(stored.storageKey(),state.channelId,state.selected.businessId(),state.userId,state.catalog.catalogSha256(),message.getMessageId().longValue()))
+            throw new IllegalStateException("Telegram follow-up media has a foreign storage key");
+        String text=message.getCaption()!=null && !message.getCaption().isBlank()?message.getCaption().strip():item.fallback();
+        state.pendingMedia=new ConversationHistoryEntry(state.userId,text,item.type(),stored.storageKey(),item.name(),message.getMessageId().toString(),occurredAt(message,state.startedAt));
+        state.version=2; // Older consumers reject this session instead of silently dropping the prepared event.
+        save(session);publishFollowupMedia(session,channel);
+    }
+
+    private void publishFollowupMedia(Session session,Channel channel) {
+        var state=session.state;var entry=state.pendingMedia;
         tickets.recordActiveClientMessage(new ActiveInboundClientMessageCommand(state.userId,identity(state),state.username,state.clientName,channel,
-                state.submittedTicketId,text,"text",null,null,message.getMessageId().longValue(),null,null,occurredAt(message,state.startedAt)));
+            state.submittedTicketId,entry.text(),entry.messageType(),entry.attachmentPath(),entry.attachmentName(),Long.parseLong(entry.providerMessageId()),null,null,entry.occurredAt()));
+        session.accept(Long.parseLong(entry.providerMessageId()));state.followupMediaCount++;state.pendingMedia=null;save(session);
     }
 
     private void prompt(Consumer<SendMessage> sender,Session session) {
@@ -285,6 +328,8 @@ public class TelegramQuestionnaireHandler {
         public SelectedQuestionnaire selected;
         public OffsetDateTime startedAt;
         public Long submissionMessageId;
+        public ConversationHistoryEntry pendingMedia;
+        public int followupMediaCount;
         public Map<String,String> answers=new LinkedHashMap<>();
         public List<ConversationHistoryEntry> history=new ArrayList<>();
         public List<Integer> visited=new ArrayList<>();
@@ -294,7 +339,7 @@ public class TelegramQuestionnaireHandler {
         final State state;String raw;List<QuestionFlowItemDto> flow=List.of();
         Session(State state,String raw,Channel channel,Message message) {
             this.state=state;this.raw=raw;
-            if(state==null || state.version!=1 || state.channelId!=channel.getId() || state.userId!=message.getFrom().getId()
+            if(state==null || (state.version!=1 && state.version!=2) || state.channelId!=channel.getId() || state.userId!=message.getFrom().getId()
                     || state.chatId!=message.getChatId() || state.userId!=state.chatId || state.startMessageId<=0 || state.startedAt==null
                     || state.catalog==null || state.catalog.channelId()!=state.channelId || state.answers==null || state.visited==null
                     || state.history==null || state.accepted==null || state.accepted.size()>4096 || state.accepted.stream().anyMatch(id->id==null || id<=0)
@@ -307,6 +352,12 @@ public class TelegramQuestionnaireHandler {
             if(state.selected!=null) validateSelected();
             else if(!state.answers.isEmpty() || !state.visited.isEmpty() || state.index!=0 || state.submissionMessageId!=null || state.submittedTicketId!=null)
                 throw new IllegalStateException("Pending Telegram menu contains selected answers");
+            if((state.version==1 && (state.pendingMedia!=null || state.followupMediaCount!=0)) || state.followupMediaCount<0 || state.followupMediaCount+state.history.stream().filter(e->e.attachmentPath()!=null).count()>QuestionnaireMedia.MAX_FILES
+                    || (state.pendingMedia!=null && (state.selected==null || state.selected.version()!=4 || state.submittedTicketId==null
+                        || !TelegramQuestionnaireMedia.validHistory(state,state.pendingMedia) || state.pendingMedia.attachmentPath()==null
+                        || Long.parseLong(state.pendingMedia.providerMessageId())<=state.submissionMessageId
+                        || state.accepted.contains(Long.parseLong(state.pendingMedia.providerMessageId())))))
+                throw new IllegalStateException("Invalid saved Telegram follow-up media");
             if(state.index<0 || state.index>flow.size() || state.visited.stream().anyMatch(index->index==null || index<0 || index>=flow.size())
                     || (state.submissionMessageId!=null && (!complete() || !state.accepted.contains(state.submissionMessageId)))
                     || (state.submittedTicketId!=null && (state.submissionMessageId==null || state.submittedTicketId.isBlank())))

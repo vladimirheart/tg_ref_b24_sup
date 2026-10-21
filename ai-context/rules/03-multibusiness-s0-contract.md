@@ -14,16 +14,16 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R154 (2026-10-21): рабочий экземпляр проекта находится
-на другой машине, в другой сессии агента. Здесь source/tests и isolated
-PostgreSQL Testcontainers. Уточнение R143–R148 о размещении «на этой машине»
-является evidence той сессии, не наблюдением текущего runtime. Рабочие revision/
-DB/flags здесь неизвестны, deploy/restart/migration/backfill/config не выполняются.
+Актуальное уточнение R155 (2026-10-21): пользователь подтвердил рабочий экземпляр
+на машине текущей сессии. Заново проверены Docker Server 29.7.2 и healthy
+panel-web/bot-runner/ops-worker/panel-direct, PostgreSQL/RabbitMQ/Redis. Рабочие
+revision/DB migrations/flags/acceptance не подтверждены; рабочие изменения,
+deploy/restart/backfill/config/flags не выполнялись. Уточнение R149–R154 о другой
+машине относится к другой сессии и не определяет текущую среду.
 
-Commit/push без дополнительного подтверждения разрешены пользователем только
-2026-10-21 Europe/Moscow (повторное разрешение), после технических проверок.
-Это исключение из default manual git flow не действует после
-2026-10-22 00:00 +03:00 и не разрешает rollout.
+Историческое разрешение commit/push R149–R154 было ограничено датой/сессией;
+оно не переносится в текущую сессию только по тексту документа. R155 не выполняет
+staging/commit/push, не предлагает ручные команды фиксации и не разрешает rollout.
 
 Историческое уточнение другой сессии:
 
@@ -1027,6 +1027,48 @@ immutable GENERAL provenance, затем SDK/session/menu consumers всех т�
 Readiness проверяет V74; рабочая migration/flags/restart/rollout не выполнялись
 и не разрешены этим source-only шагом. Scoped locations/presets и общая приёмка
 остаются открытыми.
+
+### R155: Telegram selected followup media и frozen root version
+
+V76 добавляет nullable immutable tickets.questionnaire_version. Новый selected
+INSERT записывает 1–4 из проверенного backend-каталога; GENERAL-only/legacy/manual
+без такого каталога остаются NULL. Existing rows не backfill-ятся и version NULL
+не превращается в 4 после retry/rebind. SQL CHECK и trigger запрещают подмену и
+удаление версии. Старое scoped чтение draft attachments не требует новой версии.
+
+GET /internal/api/bot/channels/{channelId}/questionnaire-media?userId=...&ticketId=...
+является token/HMAC-signed no-store admission только для Telegram root version=4.
+Он проверяет canonical tuple, active channel/root, USER_SELECTION, frozen scope/
+template/catalog и remainingFiles. BUSINESS/GENERAL различаются nullable business ID;
+GENERAL дополнительно требует своего flag. Foundation/strict/shared flags обязательны.
+Нет lookup текущих bindings/resources и нет local/legacy fallback. Capability version=1
+в ответе — версия admission протокола, не версия каталога. SDK проверяет все поля
+против сохранённого выбора и не кэширует admission.
+
+Telegram допускает те же 8 типов и 1 байт–10 МиБ/файл после регистрации своего root.
+Клиентский бюджет 10 файлов включает draft и followup; операторские/legacy attachment
+writers этим пакетом не переводятся на общую quota policy. Неподтверждённый/чужой/
+закрытый root, старые catalog sessions и исторический root без version=4 не открывают download.
+Полный pending media command snapshot сохраняется CAS до enqueue. При первом таком
+событии session становится v2; новый consumer читает старый v1 без followup fields,
+а старый consumer отвергает v2 вместо потери prepared события. Rolling upgrade/fencing
+требует живой приёмки. Нельзя объявлять её выполненной по unit JSON restore.
+
+Inbound writer для selected Telegram media и новых scoped namespaces повторяет
+проверку frozen canonical root и provider uniqueness до INSERT. Ticket/channel/active
+locks вместе с существующим legacy-ID guard сериализуют close/media/quota paths.
+Проверяются реальные bytes, key/type/name/hash/size; history/metadata/profile/activity
+записываются одной транзакцией. Failed event допускает точный retry, processed inbox
+duplicate не открывает файл и не зависит от нынешних flags/bindings. Creation history
+и answers не дополняются followup payload; raw operator relay/AI/feedback не вызываются.
+MAX legacy attachment admission сохраняется отдельно, не объявляется безопасным
+новым протоколом. VK selected followup пока не открыт.
+
+Namespace questionnaires/telegram и прежний scoped download contract сохраняются:
+frozen root/provider proof, current READ и bytes SHA/size. Legacy URLs не открываются.
+Остались old-root admission policy, VK followup, edit/delete/feedback, retention/orphan
+reconciliation и live Redis/provider/S3/proxy/fleet acceptance. Source minimum V76;
+рабочая migration/flags/restart/deploy этим этапом не разрешаются.
 
 ## Scope guard и API contract
 

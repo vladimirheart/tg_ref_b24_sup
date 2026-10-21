@@ -51,6 +51,12 @@ public class Ticket {
     @Column(name = "questionnaire_catalog_sha256", length = 64, updatable = false)
     private String questionnaireCatalogSha256;
 
+    @Column(name = "questionnaire_version", updatable = false)
+    private Integer questionnaireVersion;
+
+    public Integer getQuestionnaireVersion() { return questionnaireVersion; }
+    public void setQuestionnaireVersion(Integer questionnaireVersion) { this.questionnaireVersion = questionnaireVersion; }
+
     public String getBusinessSelectionSource() {
         return businessSelectionSource;
     }

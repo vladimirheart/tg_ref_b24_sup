@@ -511,6 +511,54 @@ class TelegramQuestionnaireSelectionTest {
         r153Choose(false,false);receive(3,"One");receive(4,"Two");bot.onUpdateReceived(r153Media(5,"photo","More"));
         verify(bot,never()).fetchFile(anyString());verifyNoInteractions(attachments);verify(tickets,never()).recordActiveClientMessage(any());
     }
+    private void r155Complete(boolean general) {
+        r153Choose(general,false);receive(3,"One");receive(4,"Two");
+        var active=new TicketActive();active.setTicketId("T-TG");
+        when(tickets.findActiveTicketForUser(eq(1001L),anyString(),eq(55L))).thenReturn(Optional.of(active));
+        when(tickets.findByTicketId("T-TG")).thenReturn(Optional.of(new TicketService.TicketWithUser(1001L,"T-TG","open")));
+        doReturn(new SelectedMediaAdmission(1,55,1001,"T-TG",a.businessId(),a.scopeKind(),a.questionTemplateId(),a.templateSha256(),a.catalogSha256(),10))
+            .when(runtime).selectedMediaAdmission(eq(channel),eq(1001L),eq("T-TG"),any());
+    }
+    @ParameterizedTest @ValueSource(strings={"document","photo","video","voice","audio","animation","sticker","video_note"})
+    void followupMediaUsesTheRegisteredRootAndDoesNotMutateCreationHistory(String type) throws Exception {
+        r155Complete(false);var original=state().history;rebuild();bot.onUpdateReceived(r153Media(5,type,"Follow-up"));
+        var capture=org.mockito.ArgumentCaptor.forClass(ActiveInboundClientMessageCommand.class);verify(tickets).recordActiveClientMessage(capture.capture());
+        assertThat(capture.getValue().ticketId()).isEqualTo("T-TG");assertThat(capture.getValue().providerMessageId()).isEqualTo(5);
+        assertThat(capture.getValue().attachmentPath()).contains("/business-7/1001/");assertThat(capture.getValue().messageType()).isEqualTo(type);
+        assertThat(state().history).isEqualTo(original);assertThat(state().followupMediaCount).isEqualTo(1);assertThat(state().pendingMedia).isNull();
+        resetDeliveryCache();rebuild();bot.onUpdateReceived(r153Media(5,type,"Changed"));
+        verify(tickets).recordActiveClientMessage(any());verify(bot,never()).fetchFile(anyString());
+        verify(attachments,times(1)).storeQuestionnaire(anyLong(),nullable(Long.class),anyLong(),anyString(),anyLong(),anyString(),any(java.io.InputStream.class));verifyNoInteractions(local,feedback);
+    }
+    @Test void generalFollowupRetainsNullBusinessAndDoesNotRevalidateMutableBindings() throws Exception {
+        r155Complete(true);doThrow(unavailable()).when(runtime).selectGeneralQuestionnaire(channel,catalog);
+        rebuild();bot.onUpdateReceived(r153Media(5,"document",null));
+        var capture=org.mockito.ArgumentCaptor.forClass(ActiveInboundClientMessageCommand.class);verify(tickets).recordActiveClientMessage(capture.capture());
+        assertThat(capture.getValue().attachmentPath()).contains("/general/1001/");assertThat(state().selected.businessId()).isNull();
+        verifyNoInteractions(local,feedback);
+    }
+    @Test void failedFollowupPublicationRestoresTheExactPreparedPayloadWithoutRedownload() throws Exception {
+        r155Complete(false);
+        doThrow(new IllegalStateException("r155 queue failure")).doNothing().when(tickets).recordActiveClientMessage(any());
+        assertThatThrownBy(()->bot.onUpdateReceived(r153Media(5,"document","Frozen"))).hasMessageContaining("r155 queue failure");
+        assertThat(state().pendingMedia).isNotNull();assertThat(state().version).isEqualTo(2);rebuild();bot.onUpdateReceived(r153Media(5,"document","Changed"));
+        var capture=org.mockito.ArgumentCaptor.forClass(ActiveInboundClientMessageCommand.class);verify(tickets,times(2)).recordActiveClientMessage(capture.capture());
+        assertThat(capture.getAllValues().get(0)).isEqualTo(capture.getAllValues().get(1));assertThat(capture.getValue().text()).isEqualTo("Frozen");
+        assertThat(state().pendingMedia).isNull();assertThat(state().followupMediaCount).isEqualTo(1);verify(bot,never()).fetchFile(anyString());
+        verify(attachments,times(1)).storeQuestionnaire(anyLong(),nullable(Long.class),anyLong(),anyString(),anyLong(),anyString(),any(java.io.InputStream.class));
+    }
+    @ParameterizedTest @ValueSource(strings={"admission","closed","foreign-root","quota"})
+    void followupCannotDownloadBeforeCanonicalAdmission(String boundary) throws Exception {
+        r155Complete(false);
+        if(boundary.equals("admission")) doThrow(unavailable()).when(runtime).selectedMediaAdmission(eq(channel),eq(1001L),eq("T-TG"),any());
+        if(boundary.equals("closed")) when(tickets.findByTicketId("T-TG")).thenReturn(Optional.of(new TicketService.TicketWithUser(1001L,"T-TG","closed")));
+        if(boundary.equals("foreign-root")) {var active=new TicketActive();active.setTicketId("OTHER");when(tickets.findActiveTicketForUser(eq(1001L),anyString(),eq(55L))).thenReturn(Optional.of(active));}
+        if(boundary.equals("quota")) {var s=state();s.version=2;s.followupMediaCount=10;store.save(TelegramQuestionnaireHandler.SESSION_PLATFORM,55L,1001L,s);}
+        if(boundary.equals("foreign-root")) assertThatThrownBy(()->bot.onUpdateReceived(r153Media(5,"photo","More"))).isInstanceOf(IllegalStateException.class);
+        else bot.onUpdateReceived(r153Media(5,"photo","More"));
+        verify(bot,never()).fetchFile(anyString());verify(tickets,never()).recordActiveClientMessage(any());verifyNoInteractions(attachments);
+    }
+
     @Test void foreignMediaKeyInRestoredStateFailsBeforeAnyWriter() throws Exception {
         r153Choose(false,false);bot.onUpdateReceived(r153Media(3,"document","One"));var tree=(ObjectNode)mapper.valueToTree(state());
         ((ObjectNode)tree.path("history").get(0)).put("attachmentPath",state().history.get(0).attachmentPath().replace("/business-7/","/business-8/"));

@@ -27,6 +27,20 @@ import org.mockito.ArgumentCaptor;
 
 class InboundClientMessageIngestionServiceTest {
 
+    @Test void selectedMaxLegacyAttachmentAdmissionIsNotChangedByTelegramFollowupSupport() {
+        var inbox=mock(IntegrationInboundEventInboxService.class);var channels=mock(ChannelRepository.class);
+        var tickets=mock(TicketRepository.class);var history=mock(ChatHistoryRepository.class);var messages=mock(MessageRepository.class);
+        var active=mock(TicketActiveRepository.class);var metadata=mock(ChatAttachmentMetadataService.class);
+        var service=new InboundClientMessageIngestionService(inbox,mock(LegacyTicketIdConcurrencyGuard.class),channels,tickets,history,messages,active,metadata);
+        var channel=new Channel();channel.setId(17L);channel.setPlatform("max");
+        var ticket=new Ticket();var id=new TicketId();id.setUserId(7001L);id.setTicketId("T-MAX");ticket.setId(id);ticket.setChannel(channel);ticket.setQuestionnaireCatalogSha256("c".repeat(64));
+        var event=new InboundClientMessageEvent("max-regression","client_message.active_ticket","max",17L,"T-MAX",7001L,"client","client","Client","Photo","photo","max/legacy/photo.jpg","photo.jpg","88",null,null,OffsetDateTime.now());
+        when(inbox.beginProcessing(any(),any(),any(),any(),any(),any(),any(),any())).thenReturn(true);
+        when(channels.findById(17L)).thenReturn(Optional.of(channel));when(tickets.findById(any())).thenReturn(Optional.of(ticket));
+        var saved=new ChatHistory();saved.setId(100L);when(history.save(any())).thenReturn(saved);when(active.findById("T-MAX")).thenReturn(Optional.empty());
+        service.ingest(event,"integration.ticket.max");verify(history).save(any());verify(inbox).markProcessed("max-regression");
+    }
+
     @Test
     void ingestStoresInboundMessageInsidePanelBusinessTables() {
         IntegrationInboundEventInboxService inboxService = mock(IntegrationInboundEventInboxService.class);

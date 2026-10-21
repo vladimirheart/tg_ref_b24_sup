@@ -245,6 +245,7 @@ public class ConversationTicketCreationIngestionService {
         messageRepository.save(message);
 
         Ticket ticket = buildTicket(event, channel, groupMessageId, occurredAt, businessId, general);
+        ticket.setQuestionnaireVersion(selectedVersion > 0 ? selectedVersion : null);
         ticketRepository.save(ticket);
 
         TicketSpan span = new TicketSpan();

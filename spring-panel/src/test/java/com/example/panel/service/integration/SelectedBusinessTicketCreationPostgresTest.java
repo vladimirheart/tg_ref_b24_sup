@@ -58,6 +58,8 @@ class SelectedBusinessTicketCreationPostgresTest {
     @Autowired BusinessQuestionTemplateRegistryService registry;
     @Autowired SharedGeneralQuestionnaireService sharedQuestionnaires;
     @Autowired ConversationTicketCreationIngestionService ingestion;
+    @Autowired InboundClientMessageIngestionService followupIngestion;
+    @Autowired SelectedTicketFollowupMediaService followupMedia;
     @Autowired com.example.panel.storage.AttachmentObjectStorageService mediaStorage;
     private long channel,a,b;
     private ConversationTicketCreatedEvent event;
@@ -318,8 +320,89 @@ class SelectedBusinessTicketCreationPostgresTest {
         upgrade.update("INSERT INTO tickets(user_id,ticket_id,business_id,business_selection_source,question_template_id,question_template_sha256,questionnaire_catalog_sha256) VALUES(3,'business',(SELECT id FROM businesses LIMIT 1),'USER_SELECTION','old-business',?,?)","b".repeat(64),"c".repeat(64));
         var original=upgrade.queryForList("SELECT * FROM tickets ORDER BY user_id");
         org.flywaydb.core.Flyway.configure().dataSource(upgrade.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").load().migrate();
-        assertThat(upgrade.queryForList("SELECT * FROM tickets ORDER BY user_id")).isEqualTo(original);
+        var upgraded=upgrade.queryForList("SELECT * FROM tickets ORDER BY user_id");
+        for(var row:upgraded){assertThat(row).containsEntry("questionnaire_version",null);row.remove("questionnaire_version");}
+        assertThat(upgraded).isEqualTo(original);
     }
+    private InboundClientMessageEvent r155Followup(long provider,String key) {
+        return new InboundClientMessageEvent("r155-"+UUID.randomUUID(),"client_message.active_ticket","telegram",channel,event.ticketId(),901L,
+            event.userIdentity(),event.username(),event.clientName(),"Follow-up","document",key,"followup.bin",Long.toString(provider),null,null,event.occurredAt().plusSeconds(5));
+    }
+    private String r155Key(long provider) {return "questionnaires/telegram/"+channel+"/"+(event.businessId()==null?"general":"business-"+event.businessId())
+        +"/901/"+event.catalogSha256()+"/"+provider+"/"+r153Key.substring(r153Key.lastIndexOf('/')+1);}
+    private void r155Ingest(InboundClientMessageEvent input) {followupIngestion.ingest(input,"integration.ticket.telegram");}
+
+    @ParameterizedTest @ValueSource(booleans={false,true})
+    void selectedFollowupRetainsFrozenOwnerMetadataReadAndExactReplayAfterRebind(boolean general) throws Exception {
+        r153MediaEvent(general);ingest(event);
+        assertThat(jdbc.queryForObject("SELECT questionnaire_version FROM tickets WHERE ticket_id=?",Integer.class,event.ticketId())).isEqualTo(4);
+        jdbc.update("UPDATE business_channel_bindings SET is_active=FALSE WHERE channel_id=?",channel);
+        settings.saveSettings(Map.of("bot_settings",Map.of("question_templates",List.of(template("changed","New global")))));
+        assertThat(followupMedia.admission(channel,901,event.ticketId()).remainingFiles()).isEqualTo(9);
+        String key=r155Key(88);r153Write(key,R153_BYTES);var input=r155Followup(88,key);r155Ingest(input);
+        var row=jdbc.queryForMap("SELECT history.id,history.ticket_owner_user_id,history.channel_id,metadata.size,metadata.content_hash FROM chat_history history JOIN chat_attachment_metadata metadata ON metadata.chat_history_id=history.id WHERE history.ticket_id=? AND history.tg_message_id=88",event.ticketId());
+        assertThat(row.get("ticket_owner_user_id")).isEqualTo(901L);assertThat(row.get("channel_id")).isEqualTo(channel);
+        assertThat(((Number)row.get("size")).longValue()).isEqualTo(R153_BYTES.length);assertThat(row.get("content_hash")).isNotNull();
+        long reader=r153Reader(general),history=((Number)row.get("id")).longValue();
+        if(general) assertThat(generalRead.attachment(reader,r153PublicId(),history).orElseThrow().storageKey()).isEqualTo(key);
+        else assertThat(businessRead.findAttachmentByPublicId(reader,r153PublicId(),history).orElseThrow().storageKey()).isEqualTo(key);
+        if(general) {generalAccess.revokeRead(reader);assertThat(generalRead.attachment(reader,r153PublicId(),history)).isEmpty();}
+        else {jdbc.update("UPDATE business_access_grants SET is_active=FALSE WHERE user_id=?",reader);assertThat(businessRead.findAttachmentByPublicId(reader,r153PublicId(),history)).isEmpty();}
+        jdbc.update("UPDATE tickets SET status='closed' WHERE ticket_id=?",event.ticketId());flags.setTicketWriteRequiresBusiness(false);
+        r153Write(key,"changed bytes".getBytes(java.nio.charset.StandardCharsets.UTF_8));r155Ingest(input);
+        assertThat(count("chat_history")).isEqualTo(2);assertThat(inboxStatus(input.eventId())).isEqualTo("processed");
+    }
+
+    @ParameterizedTest @ValueSource(strings={"owner","channel","user-key","catalog","legacy-path","type","name","closed","inactive","strict","platform","provider","bytes","missing","oversize","duplicate-provider","general-flag"})
+    void invalidSelectedFollowupRollsBackHistoryMetadataAndActivity(String mutation) throws Exception {
+        r153MediaEvent(mutation.equals("general-flag"));ingest(event);String key=r155Key(mutation.equals("duplicate-provider")?33:88);
+        if(mutation.equals("owner")) key=key.replace("/business-"+a+"/","/business-"+b+"/");
+        if(mutation.equals("channel")) key=key.replace("/telegram/"+channel+"/","/telegram/999999/");
+        if(mutation.equals("user-key")) key=key.replace("/901/","/902/");
+        if(mutation.equals("catalog")) key=key.replace(event.catalogSha256(),"f".repeat(64));
+        if(mutation.equals("legacy-path")) key=event.ticketId()+"/old.bin";
+        if(!mutation.equals("missing")) r153Write(key,mutation.equals("oversize")?new byte[10*1024*1024+1]:mutation.equals("bytes")?new byte[]{1,2,3}:R153_BYTES);
+        var input=r155Followup(mutation.equals("duplicate-provider")?33:88,key);
+        if(mutation.equals("type") || mutation.equals("name") || mutation.equals("provider") || mutation.equals("platform")) input=new InboundClientMessageEvent(input.eventId(),input.eventKind(),mutation.equals("platform")?"vk":"telegram",channel,input.ticketId(),901L,input.userIdentity(),input.username(),input.clientName(),input.text(),mutation.equals("type")?"html":input.messageType(),key,mutation.equals("name")?"../unsafe":input.attachmentName(),mutation.equals("provider")?null:input.providerMessageId(),null,null,input.occurredAt());
+        if(mutation.equals("closed")) jdbc.update("UPDATE tickets SET status='closed' WHERE ticket_id=?",event.ticketId());
+        if(mutation.equals("inactive")) jdbc.update("DELETE FROM ticket_active WHERE ticket_id=?",event.ticketId());
+        if(mutation.equals("strict")) flags.setTicketWriteRequiresBusiness(false);
+        if(mutation.equals("general-flag")) flags.setGeneralChannelResolution(false);
+        var rejected=input;assertThatThrownBy(()->r155Ingest(rejected)).isInstanceOf(RuntimeException.class);
+        assertThat(count("chat_history")).isEqualTo(1);assertThat(count("chat_attachment_metadata")).isEqualTo(1);
+        assertThat(inboxStatus(input.eventId())).isEqualTo("failed");
+    }
+
+    @Test void followupEnforcesTenFilesAcrossDraftAndRegisteredHistoryAndRejectsProviderReuse() throws Exception {
+        r153MediaEvent(false);ingest(event);
+        InboundClientMessageEvent last=null;
+        for(long id=88;id<97;id++){String key=r155Key(id);r153Write(key,R153_BYTES);last=r155Followup(id,key);r155Ingest(last);}
+        assertThat(count("chat_history")).isEqualTo(10);
+        assertThatThrownBy(()->followupMedia.admission(channel,901,event.ticketId())).isInstanceOf(IllegalStateException.class);
+        r155Ingest(last);assertThat(count("chat_history")).isEqualTo(10);
+        String key=r155Key(97);r153Write(key,R153_BYTES);var rejected=r155Followup(97,key);
+        assertThatThrownBy(()->r155Ingest(rejected)).isInstanceOf(IllegalStateException.class);assertThat(count("chat_history")).isEqualTo(10);
+    }
+
+    @Test void frozenVersionCannotBeChangedOrAssignedToHistoricalRows() throws Exception {
+        ingest(event);assertThat(jdbc.queryForObject("SELECT questionnaire_version FROM tickets WHERE ticket_id=?",Integer.class,event.ticketId())).isEqualTo(1);
+        assertThatThrownBy(()->followupMedia.admission(channel,901,event.ticketId())).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(()->jdbc.update("UPDATE tickets SET questionnaire_version=4 WHERE ticket_id=?",event.ticketId())).isInstanceOf(DataAccessException.class);
+        String legacy=event.ticketId()+"-legacy";
+        jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,channel_id,status,is_general) VALUES(901,?,?,?,'open',FALSE)",legacy,UUID.randomUUID().toString().replace("-",""),channel);
+        assertThat(jdbc.queryForObject("SELECT questionnaire_version FROM tickets WHERE ticket_id=?",Integer.class,legacy)).isNull();
+        assertThatThrownBy(()->jdbc.update("UPDATE tickets SET questionnaire_version=4 WHERE ticket_id=?",legacy)).isInstanceOf(DataAccessException.class);
+    }
+
+    @Test void followupMetadataFailureRollsBackAndExactFailedEventCanRetry() throws Exception {
+        r153MediaEvent(false);ingest(event);String key=r155Key(88);r153Write(key,R153_BYTES);var input=r155Followup(88,key);
+        jdbc.execute("CREATE FUNCTION reject_r155_metadata() RETURNS TRIGGER LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'synthetic r155 metadata failure'; END; $$");
+        jdbc.execute("CREATE TRIGGER reject_r155_metadata BEFORE INSERT ON chat_attachment_metadata FOR EACH ROW EXECUTE FUNCTION reject_r155_metadata()");
+        try{assertThatThrownBy(()->r155Ingest(input)).isInstanceOf(RuntimeException.class);assertThat(count("chat_history")).isEqualTo(1);}
+        finally{jdbc.execute("DROP TRIGGER reject_r155_metadata ON chat_attachment_metadata");jdbc.execute("DROP FUNCTION reject_r155_metadata()");}
+        r155Ingest(input);assertThat(count("chat_history")).isEqualTo(2);assertThat(count("chat_attachment_metadata")).isEqualTo(2);
+    }
+
     private ConversationTicketCreatedEvent mutate(ConversationTicketCreatedEvent base,String mutation,boolean newId) {
         return change(base,newId?UUID.randomUUID().toString():base.eventId(),
             mutation.equals("channel")?channel+999999:channel,mutation.equals("user")?902L:901L,
