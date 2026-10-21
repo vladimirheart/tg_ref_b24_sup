@@ -21,6 +21,11 @@ public class BusinessQuestionnairePresetsAdminController {
         enabled();try{return service.presets(businessId).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND));}
         catch(IllegalArgumentException ex){throw new ResponseStatusException(HttpStatus.BAD_REQUEST,ex.getMessage());}
     }
+    @GetMapping("/resources") public BusinessQuestionnaireResourcesService.Resources resources(@PathVariable long businessId){
+        enabled();try{return service.snapshot(businessId).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND));}
+        catch(IllegalArgumentException ex){throw new ResponseStatusException(HttpStatus.BAD_REQUEST,ex.getMessage());}
+        catch(IllegalStateException ex){throw new ResponseStatusException(HttpStatus.CONFLICT,ex.getMessage());}
+    }
     @PutMapping public BusinessQuestionnaireResourcesService.Presets put(@PathVariable long businessId,@RequestBody Request request,Authentication actor){
         enabled();if(request==null)throw new ResponseStatusException(HttpStatus.BAD_REQUEST);try{
             var saved=service.replacePresets(businessId,request.expectedSha256(),request.groups()).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND));

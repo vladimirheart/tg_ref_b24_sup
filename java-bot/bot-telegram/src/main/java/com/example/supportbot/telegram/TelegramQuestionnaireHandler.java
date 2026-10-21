@@ -222,8 +222,9 @@ public class TelegramQuestionnaireHandler {
         return question.getBindingKey()!=null && !question.getBindingKey().isBlank()?question.getBindingKey():question.getId();
     }
     private static String valueId(QuestionFlowItemDto question,String answer) {
-        return question.getOptions()==null?null:question.getOptions().stream().filter(Objects::nonNull)
+        String value=question.getOptions()==null?null:question.getOptions().stream().filter(Objects::nonNull)
                 .filter(option->Objects.equals(option.getLabel(),answer)).map(QuestionOptionDto::getId).findFirst().orElse(null);
+        return value!=null?value:SelectedQuestionnaireOptions.preset(question)?answer:null;
     }
     private static OffsetDateTime occurredAt(Message message,OffsetDateTime fallback) {
         return message.getDate()!=null?OffsetDateTime.ofInstant(Instant.ofEpochSecond(message.getDate()),ZoneOffset.UTC):fallback;

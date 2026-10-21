@@ -345,6 +345,7 @@ class SelectedBusinessTicketCreationPostgresTest {
         var catalog=sharedQuestionnaires.choicesWithResources(channel).orElseThrow();
         var selected=sharedQuestionnaires.selectWithResources(channel,"BUSINESS",a,catalog.catalogSha256()).orElseThrow();
         event=change(event,event.eventId(),channel,event.userId(),a,"BUSINESS","USER_SELECTION",selected.questionTemplateId(),selected.templateSha256(),selected.catalogSha256(),event.platform());
+        event=r150Attributes(List.of(new ConversationTicketCreatedEvent.TicketAttributePayload("free","free","Private A","text",null,null,"Answer",false)),null);
     }
     @ParameterizedTest @ValueSource(strings={"telegram","vk","max"})
     void v3ResourceSelectionCreatesOnceAndReplaysItsFrozenCatalogAfterResourceChanges(String platform) {
@@ -372,9 +373,9 @@ class SelectedBusinessTicketCreationPostgresTest {
         jdbc.update("INSERT INTO business_locations(business_id,location_name,normalized_location_name,location_type,city) VALUES(?,'South site','r150-south','Store','South') ON CONFLICT(business_id,normalized_location_name,location_type,city) DO UPDATE SET status='active'",a);
         jdbc.update("UPDATE businesses SET settings='{\"questionnaire_presets\":{\"department\":{\"name\":[\"Kitchen\"]}}}'::jsonb WHERE id=?",a);
         var scoped=Map.<String,Object>of("id","r144-a","name","A","question_flow",List.of(
-            Map.of("id","city-q","binding_key","city_answer","type","preset","preset",Map.of("group","locations","field","city")),
-            Map.of("id","spot","type","preset","preset",Map.of("group","locations","field","location_name")),
-            Map.of("id","team","type","preset","preset",Map.of("group","department","field","name"))));
+            Map.of("id","city-q","binding_key","city_answer","text","City","include_in_dashboard",true,"type","preset","preset",Map.of("group","locations","field","city")),
+            Map.of("id","spot","text","Location","include_in_dashboard",true,"type","preset","preset",Map.of("group","locations","field","location_name")),
+            Map.of("id","team","text","Department","include_in_dashboard",true,"type","preset","preset",Map.of("group","department","field","name"))));
         settings.saveSettings(Map.of("bot_settings",Map.of("active_template_id","r144-legacy","question_templates",List.of(
             template("r144-legacy","Global"),scoped,template("r144-b","Private B")))));
         registry.bind(a,"r144-a");var catalog=sharedQuestionnaires.choicesWithResources(channel).orElseThrow();
@@ -394,7 +395,7 @@ class SelectedBusinessTicketCreationPostgresTest {
         assertThat(count("tickets")).isEqualTo(1);assertThat(count("ticket_attributes")).isEqualTo(3);
         assertThat(jdbc.queryForObject("SELECT value_text FROM ticket_attributes WHERE ticket_id=? AND question_id='spot'",String.class,event.ticketId())).isEqualTo("R150 A");
     }
-    @ParameterizedTest @ValueSource(strings={"foreign-location","wrong-city","foreign-preset","forged-key","duplicate","unknown-question","label","projection"})
+    @ParameterizedTest @ValueSource(strings={"foreign-location","wrong-city","foreign-preset","forged-key","duplicate","unknown-question","label","projection","missing-preset"})
     void invalidResourceAnswersNeverReachTheRootOrChildren(String mutation) {
         r150PresetEvent();var attributes=new java.util.ArrayList<>(event.attributes());String city=null;
         switch(mutation) {
@@ -405,10 +406,40 @@ class SelectedBusinessTicketCreationPostgresTest {
             case "duplicate"->attributes.add(attributes.get(1));
             case "unknown-question"->attributes.add(new ConversationTicketCreatedEvent.TicketAttributePayload("unknown","unknown","?","text",null,null,"Secret",true));
             case "label"->attributes.set(2,new ConversationTicketCreatedEvent.TicketAttributePayload("team","team","Department","preset",null,"Secret B","Kitchen",true));
+            case "missing-preset"->attributes.remove(2);
             default->city="Forged city";
         }
         var rejected=r150Attributes(attributes,city);
         assertThatThrownBy(()->ingest(rejected)).isInstanceOf(IllegalStateException.class);emptyWrites();assertThat(inboxStatus(event.eventId())).isEqualTo("failed");
+    }
+
+    private void r151RouteEvent(String platform) {
+        r150Resources();jdbc.update("UPDATE channels SET platform=? WHERE id=?",platform,channel);
+        var scoped=Map.<String,Object>of("id","r144-a","name","A","question_flow",List.of(
+            Map.of("id","last","type","custom","order",30,"text","Last"),
+            Map.of("id","branch","type","select","order",10,"text","Choose","options",List.of(Map.of("id","skip","label","Skip"),Map.of("id","more","label","More")),
+                "routes",List.of(Map.of("value_id","skip","next_question_id","last"))),
+            Map.of("id","middle","type","text","order",20,"text","Required only on More")));
+        settings.saveSettings(Map.of("bot_settings",Map.of("active_template_id","r144-legacy","question_templates",List.of(template("r144-legacy","Global"),scoped,template("r144-b","Private B")))));
+        registry.bind(a,"r144-a");var catalog=sharedQuestionnaires.choicesWithResources(channel).orElseThrow();
+        var selected=sharedQuestionnaires.selectWithResources(channel,"BUSINESS",a,catalog.catalogSha256()).orElseThrow();
+        event=change(event,event.eventId(),channel,event.userId(),a,"BUSINESS","USER_SELECTION",selected.questionTemplateId(),selected.templateSha256(),selected.catalogSha256(),platform);
+        event=r150Attributes(List.of(new ConversationTicketCreatedEvent.TicketAttributePayload("branch","branch","Choose","select","skip","Skip","Skip",false),
+            new ConversationTicketCreatedEvent.TicketAttributePayload("last","last","Last","custom",null,null,"Help",false)),null);
+    }
+    @ParameterizedTest @ValueSource(strings={"telegram","vk","max"})
+    void actualWriterAcceptsOnlyTheChosenForwardBranch(String platform) {
+        r151RouteEvent(platform);ingest(event);assertThat(count("tickets")).isEqualTo(1);assertThat(count("ticket_attributes")).isEqualTo(2);
+        assertThat(jdbc.queryForList("SELECT question_id FROM ticket_attributes WHERE ticket_id=? ORDER BY question_id",String.class,event.ticketId())).containsExactly("branch","last");
+    }
+    @ParameterizedTest @org.junit.jupiter.params.provider.CsvSource({"telegram,missing","vk,missing","max,missing","telegram,off-route","vk,off-route","max,off-route","telegram,option","vk,option","max,option"})
+    void invalidV3PathRollsBackEveryRootAndChild(String platform,String mutation) {
+        r151RouteEvent(platform);var answers=new java.util.ArrayList<>(event.attributes());
+        if(mutation.equals("missing"))answers.remove(1);
+        else if(mutation.equals("off-route"))answers.add(new ConversationTicketCreatedEvent.TicketAttributePayload("middle","middle","Required only on More","text",null,null,"Stale",false));
+        else answers.set(0,new ConversationTicketCreatedEvent.TicketAttributePayload("branch","branch","Choose","select","more","Skip","Skip",false));
+        var rejected=r150Attributes(answers,null);assertThatThrownBy(()->ingest(rejected)).isInstanceOf(IllegalStateException.class);
+        emptyWrites();assertThat(inboxStatus(event.eventId())).isEqualTo("failed");
     }
 
 
@@ -421,6 +452,8 @@ class SelectedBusinessTicketCreationPostgresTest {
         sharedQuestionnaires.bind(channel,id);var catalog=sharedQuestionnaires.choicesWithResources(channel).orElseThrow();
         var general=sharedQuestionnaires.selectWithResources(channel,"GENERAL",null,catalog.catalogSha256()).orElseThrow();
         event=change(event,event.eventId(),channel,event.userId(),null,"GENERAL","USER_SELECTION",general.questionTemplateId(),general.templateSha256(),general.catalogSha256(),platform);
+        event=new ConversationTicketCreatedEvent(event.eventId(),event.eventKind(),event.platform(),channel,event.ticketId(),event.userId(),event.userIdentity(),event.username(),event.clientName(),event.business(),null,null,null,event.problem(),event.occurredAt(),
+            List.of(new ConversationTicketCreatedEvent.TicketAttributePayload("free","free","General","text",null,null,"Answer",false)),event.historyEntries(),null,"GENERAL","USER_SELECTION",event.questionTemplateId(),event.templateSha256(),event.catalogSha256());
         ingest(event);jdbc.update("UPDATE business_locations SET status='archived' WHERE business_id=?",a);
         ingest(change(event,UUID.randomUUID().toString(),channel,event.userId(),null,"GENERAL","USER_SELECTION",general.questionTemplateId(),general.templateSha256(),general.catalogSha256(),platform));
         var row=jdbc.queryForMap("SELECT * FROM tickets WHERE ticket_id=?",event.ticketId());

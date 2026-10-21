@@ -31,16 +31,27 @@ class BusinessQuestionnairePresetsAdminControllerWebMvcTest {
     void businessGrantsAndPartialSystemAuthorityCannotReadOrWrite(String authority) throws Exception {
         when(flags.isFoundationEnabled()).thenReturn(true);
         mvc.perform(get(path).with(user("limited").authorities(()->authority))).andExpect(status().isForbidden());
+        mvc.perform(get(path+"/resources").with(user("limited").authorities(()->authority))).andExpect(status().isForbidden());
         mvc.perform(put(path).with(user("limited").authorities(()->authority)).with(csrf()).contentType("application/json").content(body)).andExpect(status().isForbidden());
         verifyNoInteractions(service);
     }
     @Test void disabledFoundationAndMissingCsrfNeverCallTheWriter() throws Exception {
         var admin=user("admin").authorities(()->"PAGE_SETTINGS",()->"ROLE_ADMIN");
         mvc.perform(get(path).with(admin)).andExpect(status().isNotFound());
+        mvc.perform(get(path+"/resources").with(admin)).andExpect(status().isNotFound());
         mvc.perform(put(path).with(admin).with(csrf()).contentType("application/json").content(body)).andExpect(status().isNotFound());
         when(flags.isFoundationEnabled()).thenReturn(true);
         mvc.perform(put(path).with(admin).contentType("application/json").content(body)).andExpect(status().isForbidden());
         verifyNoInteractions(service);
+    }
+    @Test void resourcePreviewUsesTheExactOwnerAndReportsMissingOrUnavailableSnapshots() throws Exception {
+        when(flags.isFoundationEnabled()).thenReturn(true);var admin=user("admin").authorities(()->"PAGE_SETTINGS",()->"ROLE_ADMIN");
+        var resources=new BusinessQuestionnaireResourcesService.Resources(Map.of("businessId",7,"locations",List.of()),Map.of("businessId",7,"groups",Map.of()),"a".repeat(64));
+        when(service.snapshot(7)).thenReturn(Optional.of(resources));
+        mvc.perform(get(path+"/resources").with(admin)).andExpect(status().isOk()).andExpect(jsonPath("$.locationTree.businessId").value(7));
+        verify(service).snapshot(7);verify(service,never()).snapshot(8);
+        when(service.snapshot(7)).thenReturn(Optional.empty());mvc.perform(get(path+"/resources").with(admin)).andExpect(status().isNotFound());
+        when(service.snapshot(7)).thenThrow(new IllegalStateException("Unavailable"));mvc.perform(get(path+"/resources").with(admin)).andExpect(status().isConflict());
     }
     @Test void administratorReadsAndWritesOnlyTheExplicitOwnerAndVersion() throws Exception {
         when(flags.isFoundationEnabled()).thenReturn(true);var admin=user("admin").authorities(()->"PAGE_SETTINGS",()->"ROLE_ADMIN");

@@ -119,6 +119,7 @@
   const PRESET_GROUPS = {};
   let presetDefinitionsLoadingPromise = null;
   let botSettingsLoadingPromise = null;
+  let presetContext = 'legacy';
   const QUESTION_ROUTE_PROBLEM_ID = 'problem';
   const DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES = 10;
   const DEFAULT_FIRST_RESPONSE_TIMEOUT_MESSAGE = 'Вы не ответили. Диалог был закрыт. При возникновении или актуализации вопросов создайте новое обращение.';
@@ -170,11 +171,26 @@
 
   applyPresetDefinitions(pageBotPresetDefinitions);
 
+  const presetBusinessSelect = templateModalEl?.querySelector('[data-bot-preset-business]');
+  if (presetBusinessSelect && window.BusinessQuestionnairePresets) {
+    window.BusinessQuestionnairePresets.context({
+      select: presetBusinessSelect,
+      status: templateModalEl.querySelector('[data-bot-preset-context-status]'),
+      container: templateModalEl.querySelector('[data-bot-preset-context]'),
+      changed: value => { presetContext = value; },
+      apply: definitions => { applyPresetDefinitions(definitions); rerenderPresetUi(); },
+      legacy: () => { applyPresetDefinitions(pageBotPresetDefinitions); rerenderPresetUi(); void ensurePresetDefinitionsLoaded(); },
+    });
+  }
+
   function hasPresetDefinitions() {
     return Object.values(PRESET_GROUPS).some((groupValue) => Object.keys(groupValue.fields || {}).length);
   }
 
   function presetUnavailableMessage() {
+    if (presetContext !== 'legacy') return presetContext === 'general'
+      ? 'Готовые поля бизнеса недоступны для вопросника «Без бизнеса».'
+      : 'У выбранного бизнеса нет доступных готовых полей. Настройте его локации или справочник.';
     return 'Готовые поля недоступны. Добавьте структуру локаций / готовые поля в разделе "Структура локаций".';
   }
 
@@ -194,6 +210,7 @@
   }
 
   function ensurePresetDefinitionsLoaded(forceReload = false) {
+    if (presetContext !== 'legacy') return Promise.resolve(hasPresetDefinitions());
     if (!forceReload && hasPresetDefinitions()) {
       return Promise.resolve(true);
     }
@@ -207,7 +224,7 @@
     presetDefinitionsLoadingPromise = fetchPageDataSection('channels', forceReload ? { force: true } : {})
       .then((section) => {
         const rawDefinitions = section && typeof section === 'object' ? section.botPresetDefinitions : null;
-        if (rawDefinitions && typeof rawDefinitions === 'object') {
+        if (presetContext === 'legacy' && rawDefinitions && typeof rawDefinitions === 'object') {
           applyPresetDefinitions(rawDefinitions);
         }
         return hasPresetDefinitions();
@@ -960,7 +977,7 @@
     }
   }
 
-  function validateQuestionFlow(questionFlow, templateName) {
+  function validateQuestionFlow(questionFlow, templateName, checkResources = true) {
     const usedBindingKeys = new Map();
     for (let i = 0; i < questionFlow.length; i += 1) {
       const question = questionFlow[i] || {};
@@ -989,8 +1006,10 @@
           }
         }
       }
-      const normalizedRoutes = sanitizeQuestionRoutes(question, i, meta);
-      if (Array.isArray(question.routes) && normalizedRoutes.length !== cloneQuestionRoutes(question.routes).length) {
+      const targets = new Set(questionFlow.slice(i + 1).map(item => item.id));
+      const choices = new Set(resolveQuestionRouteChoices(question, meta).map(item => item.id));
+      if (cloneQuestionRoutes(question.routes).some(route => !targets.has(route.nextQuestionId)
+          || (!(question.type === 'preset' && !checkResources) && !choices.has(route.valueId)))) {
         return `Проверьте маршруты для вопроса №${questionNumber}${templateName ? ` в шаблоне "${templateName}"` : ''}: часть переходов указывает на недоступные варианты или вопросы выше по сценарию.`;
       }
       if (includeInDashboard && !bindingKey) {
@@ -999,12 +1018,13 @@
       if (includeInDashboard && !isDashboardBindingKeyAllowed(bindingKey)) {
         return `Для вопроса №${questionNumber}${templateName ? ` в шаблоне "${templateName}"` : ''} выберите атрибут из списка разрешённых значений дашборда.`;
       }
-      if (bindingKey) {
-        const previousIndex = usedBindingKeys.get(bindingKey);
+      const effectiveKey = normalizeBindingKey(question.bindingKey || question.binding_key || '') || question.id;
+      if (effectiveKey) {
+        const previousIndex = usedBindingKeys.get(effectiveKey);
         if (previousIndex != null) {
-          return `Ключ атрибута "${bindingKey}" повторяется в вопросах №${previousIndex + 1} и №${questionNumber}${templateName ? ` шаблона "${templateName}"` : ''}.`;
+          return `Ключ атрибута "${effectiveKey}" повторяется в вопросах №${previousIndex + 1} и №${questionNumber}${templateName ? ` шаблона "${templateName}"` : ''}.`;
         }
-        usedBindingKeys.set(bindingKey, i);
+        usedBindingKeys.set(effectiveKey, i);
       }
     }
     return null;
@@ -2892,7 +2912,7 @@
     const meta = question.type === 'preset' && question.preset
       ? getPresetMeta(question.preset.group, question.preset.field)
       : null;
-    const routes = sanitizeQuestionRoutes(question, index, meta);
+    const routes = cloneQuestionRoutes(question.routes);
     const entry = {
       id: question.id || generateQuestionId(),
       type: question.type === 'preset' ? 'preset' : (question.type === 'select' ? 'select' : 'custom'),
@@ -2900,7 +2920,7 @@
       order: index + 1,
       required: question.type === 'preset' ? true : question.required !== false,
     };
-    if (entry.type === 'preset' && question.preset && presetExists(question.preset.group, question.preset.field)) {
+    if (entry.type === 'preset' && question.preset && question.preset.group && question.preset.field) {
       entry.preset = { group: question.preset.group, field: question.preset.field };
       const excluded = Array.isArray(question.excludedOptions)
         ? question.excludedOptions.map((value) => (value || '').toString().trim()).filter((value) => value)
@@ -3024,7 +3044,7 @@
       if (!flow.length) {
         return `Шаблон "${String(template.name || '').trim() || 'Шаблон вопросов'}" должен содержать хотя бы один вопрос.`;
       }
-      const flowError = validateQuestionFlow(flow, String(template.name || '').trim());
+      const flowError = validateQuestionFlow(flow, String(template.name || '').trim(), false);
       if (flowError) {
         return flowError;
       }
@@ -3717,7 +3737,7 @@
       if (!flow.length) {
         return `Шаблон "${String(template.name || '').trim() || 'Шаблон вопросов'}" должен содержать хотя бы один вопрос.`;
       }
-      const flowError = validateQuestionFlow(flow, String(template.name || '').trim());
+      const flowError = validateQuestionFlow(flow, String(template.name || '').trim(), false);
       if (flowError) {
         return flowError;
       }

@@ -114,6 +114,7 @@ public class BusinessQuestionTemplateRegistryService {
                 return Optional.empty();
             }
             if(withResources) {
+                if(!QuestionnaireFlowContract.supports(template.payload())) return Optional.empty();
                 var resource=resources.snapshot(binding.businessId());
                 if(resource.isEmpty() || !resources.supports(template.payload(),resource.get())) return Optional.empty();
                 snapshots.put(binding.businessId(),resource.get());

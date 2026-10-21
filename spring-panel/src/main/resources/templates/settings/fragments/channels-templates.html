@@ -232,6 +232,15 @@
                   <button class="btn btn-outline-secondary" type="button" data-bot-question-add data-type="preset">+ Готовое поле</button>
                 </div>
               </div>
+              <div class="mb-3" data-bot-preset-context hidden>
+                <label class="form-label" for="botPresetBusiness">Справочник для просмотра готовых полей</label>
+                <select class="form-select" id="botPresetBusiness" data-bot-preset-business>
+                  <option value="legacy">Общий справочник (прежние каналы)</option>
+                  <option value="general">Без бизнеса</option>
+                </select>
+                <p class="form-text mb-1" role="status" aria-live="polite" data-bot-preset-context-status>Выбор справочника не меняет привязку шаблона.</p>
+                <a href="/businesses/manage" class="small">Настроить поля бизнеса</a>
+              </div>
               <div class="alert alert-warning small py-2 px-3 mb-3 d-none" data-bot-preset-empty-alert role="alert">
                 Готовые поля сейчас недоступны. Добавьте структуру локаций / готовые поля в разделе «Структура локаций», чтобы использовать этот тип вопроса.
               </div>

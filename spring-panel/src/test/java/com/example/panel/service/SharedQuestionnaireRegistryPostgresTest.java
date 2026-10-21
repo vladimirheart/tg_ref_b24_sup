@@ -102,7 +102,24 @@ class SharedQuestionnaireRegistryPostgresTest {
             }
         }
         assertThat(registry.choices(10)).isEmpty();
+        assertThat(registry.choicesWithResources(10)).isEmpty();
         assertThat(registry.select(10,a,old.catalogSha256())).isEmpty();
+    }
+    @ParameterizedTest @ValueSource(strings={"key","route","required","options"})
+    void v3FlowAdmissionDoesNotChangeTheOlderCatalogContract(String mutation) {
+        var first=new LinkedHashMap<String,Object>(Map.of("id","first","type","text","order",1));
+        var second=new LinkedHashMap<String,Object>(Map.of("id","second","type","text","order",2));
+        switch(mutation) {
+            case "key" -> {first.put("binding_key","same");second.put("binding_key","same");}
+            case "route" -> first.put("routes",List.of(Map.of("value_id","anything","next_question_id","missing")));
+            case "required" -> first.put("required","false");
+            case "options" -> first.put("type","select");
+        }
+        var scoped=Map.of("id","q-a","name","A","question_flow",List.of(first,second));
+        settings.saveSettings(Map.of("bot_settings",Map.of("active_template_id","q-legacy","question_templates",List.of(template("q-legacy","Global"),scoped,template("q-b","Private B")))));
+        registry.bind(a,"q-a");
+        assertThat(registry.choices(10)).isPresent();
+        assertThat(registry.choicesWithResources(10)).isEmpty();
     }
     @ParameterizedTest @ValueSource(strings={"rename","remove","rebind","add"})
     void oldMenuCannotSelectAfterAnyVisibleMembershipOrTemplateChange(String mutation) {

@@ -393,4 +393,19 @@ class TelegramQuestionnaireSelectionTest {
         assertThat(capture.getValue().answers()).containsExactlyInAnyOrderEntriesOf(Map.of("free-first","One","free-second","Two"));verifyNoInteractions(local,feedback);
     }
 
+    @Test void v3PresetRoutesFollowFrozenLabelsAfterRestore() throws Exception {
+        r150Menu();
+        @SuppressWarnings("unchecked") var template=(Map<String,Object>)((List<?>)a.botSettings().get("question_templates")).get(0);
+        @SuppressWarnings("unchecked") var flow=new ArrayList<>((List<Map<String,Object>>)template.get("question_flow"));
+        flow.set(0,new HashMap<>(flow.get(0)));flow.get(0).put("routes",List.of(Map.of("value_id","North","next_question_id","team")));
+        a=new SelectedQuestionnaire(3,55,"BUSINESS","USER_SELECTION",7L,"q-a","a".repeat(64),"c".repeat(64),
+            Map.of("active_template_id","q-a","question_templates",List.of(Map.of("id","q-a","name","A","question_flow",flow))),a.locationTree(),a.presetDefinitions());
+        doReturn(a).when(runtime).selectQuestionnaire(channel,catalog,7L);
+        chooseA();rebuild();receive(3,"North");rebuild();receive(4,"Kitchen");
+        var capture=org.mockito.ArgumentCaptor.forClass(ConversationTicketCreationCommand.class);verify(tickets).createConversationTicket(capture.capture());
+        assertThat(capture.getValue().answers()).containsExactlyInAnyOrderEntriesOf(Map.of("city_answer","North","team","Kitchen"));
+        assertThat(capture.getValue().attributes()).extracting(TicketService.TicketAttributeInput::questionId).containsExactly("city-q","team");
+        verifyNoInteractions(local,feedback);
+    }
+
 }

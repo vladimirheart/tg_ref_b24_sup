@@ -121,6 +121,7 @@ public class SharedGeneralQuestionnaireService {
             var general = binding.get();
             var template = template(general.templateId());
             if (templateReservedElsewhere(general.templateId()) || template.isEmpty()
+                    || (withResources && !QuestionnaireFlowContract.supports(template.get()))
                     || !general.templateSha256().equals(fingerprint(template.get())) || choices.size() >= 100)
                 return Optional.empty();
             choices.add(new Choice("GENERAL", null, "GENERAL", "Без бизнеса", general.templateId(), general.templateSha256(),withResources?BusinessQuestionnaireResourcesService.resourceSha256(Map.of(),Map.of()):null));
