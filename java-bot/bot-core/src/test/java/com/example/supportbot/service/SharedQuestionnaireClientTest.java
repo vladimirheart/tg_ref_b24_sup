@@ -18,7 +18,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class SharedQuestionnaireClientTest {
     private String lastStartPath;
-    private String writerVersion="1",mediaVersion="1";
+    private String writerVersion="1",mediaVersion="1",vkMediaVersion="1";
     private HttpServer server;
     private PanelRuntimeConfigClient client;
     private final ObjectMapper mapper=new ObjectMapper();
@@ -42,6 +42,7 @@ class SharedQuestionnaireClientTest {
             lastStartPath=exchange.getRequestURI().toString();
             if(lastStartPath.contains("forStart=true") && !"missing".equals(writerVersion))
                 exchange.getResponseHeaders().set("X-Iguana-Questionnaire-Writer-Version",writerVersion);
+            if(lastStartPath.contains("forStart=true") && !"missing".equals(vkMediaVersion)) exchange.getResponseHeaders().set("X-Iguana-Questionnaire-VK-Media-Version",vkMediaVersion);
             if(lastStartPath.contains("forStart=true") && !"missing".equals(mediaVersion)) exchange.getResponseHeaders().set("X-Iguana-Questionnaire-Media-Version",mediaVersion);
             requests.incrementAndGet();
             try {
@@ -285,5 +286,19 @@ class SharedQuestionnaireClientTest {
         mediaVersion="1";var catalog=client.choicesV4ForStart(8);mediaVersion=ack;before=requests.get();
         assertThatThrownBy(()->client.selectForStart(catalog,7L)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
         assertThat(requests.get()).isEqualTo(before+1);assertThat(lastStartPath).contains("/v4/selection");
+    }
+    @ParameterizedTest @ValueSource(strings={"missing","0","2","01"})
+    void vkV4RequiresItsOwnCapabilityForNewAndRestoredSelections(String ack) throws Exception {
+        r152Large("BUSINESS",101);vkMediaVersion=ack;
+        assertThatThrownBy(()->client.choicesV4ForStart(8,true)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
+        var menu=client.choicesV4ForStart(8); // Telegram's capability remains compatible with R153.
+        assertThatThrownBy(()->client.selectForStart(menu,7,true)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
+        vkMediaVersion="1";assertThat(client.selectForStart(menu,7,true).businessId()).isEqualTo(7L);
+    }
+    @ParameterizedTest @ValueSource(strings={"missing","0","2","01"})
+    void vkV4GeneralSelectionAlsoRequiresItsOwnCapability(String ack) throws Exception {
+        r152Large("GENERAL",101);var general=client.choicesV4ForStart(8,true);vkMediaVersion=ack;
+        assertThatThrownBy(()->client.selectGeneralForStart(general,true)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
+        vkMediaVersion="1";assertThat(client.selectGeneralForStart(general,true).businessId()).isNull();
     }
 }

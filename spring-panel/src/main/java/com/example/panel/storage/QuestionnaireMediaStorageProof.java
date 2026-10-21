@@ -12,18 +12,20 @@ public final class QuestionnaireMediaStorageProof {
     private QuestionnaireMediaStorageProof() { }
     public static boolean isScoped(String key) {
         if(key==null) return false;
-        return key.strip().replace('\\','/').replaceFirst("^/+","").toLowerCase(Locale.ROOT).startsWith("questionnaires/telegram/");
+        String normalized=key.strip().replace('\\','/').replaceFirst("^/+","").toLowerCase(Locale.ROOT);
+        return normalized.startsWith("questionnaires/telegram/") || normalized.startsWith("questionnaires/vk/");
     }
     public static boolean matches(ResultSet row,String key) throws SQLException {
         Long channel=(Long)row.getObject("proof_channel"),user=(Long)row.getObject("proof_user"),business=(Long)row.getObject("proof_business"),provider=(Long)row.getObject("proof_provider");
         String catalog=row.getString("proof_catalog"),sha=row.getString("content_hash");Long size=(Long)row.getObject("size");
-        if(!"USER_SELECTION".equals(row.getString("proof_source")) || !"telegram".equals(row.getString("proof_platform"))
+        String platform=row.getString("proof_platform");boolean vk="vk".equals(platform);
+        if(!"USER_SELECTION".equals(row.getString("proof_source")) || (!"telegram".equals(platform) && !vk)
                 || channel==null || channel<=0 || user==null || user<=0 || provider==null || provider<=0 || (business!=null && business<=0)
                 || !Objects.equals(channel,row.getObject("proof_history_channel")) || !Objects.equals(channel,row.getObject("proof_metadata_channel"))
                 || catalog==null || !catalog.matches("[a-f0-9]{64}") || sha==null || !sha.matches("[a-f0-9]{64}")
                 || size==null || size<1 || size>MAX_BYTES) return false;
-        String prefix="questionnaires/telegram/"+channel+"/"+(business==null?"general":"business-"+business)+"/"+user+"/"+catalog+"/"+provider+"/";
-        return key!=null && key.startsWith(prefix) && key.substring(prefix.length()).matches(sha+"\\.[a-z0-9]{1,10}");
+        String prefix="questionnaires/"+platform+"/"+channel+"/"+(business==null?"general":"business-"+business)+"/"+user+"/"+catalog+"/"+provider+"/";
+        return key!=null && key.startsWith(prefix) && key.substring(prefix.length()).matches((vk?"(?:[1-9]|10)/":"")+sha+"\\.[a-z0-9]{1,10}");
     }
     public static byte[] read(AttachmentObjectStorageService.StoredBinary binary,String hash,Long size) throws IOException {
         if(hash==null || !hash.matches("[a-f0-9]{64}") || size==null || size<1 || size>MAX_BYTES || binary.size()!=size) throw new IOException("Invalid media size/hash");

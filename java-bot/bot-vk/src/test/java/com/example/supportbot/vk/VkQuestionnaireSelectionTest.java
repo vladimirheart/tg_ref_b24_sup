@@ -29,6 +29,11 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 /** Real bot and Callback with JSON/CAS store and delivery guard; SDK and panel are doubles. */
 class VkQuestionnaireSelectionTest {
+    @org.junit.jupiter.api.io.TempDir java.nio.file.Path mediaRoot;
+    private boolean mediaEnabled;
+    private final java.util.concurrent.atomic.AtomicInteger downloads=new java.util.concurrent.atomic.AtomicInteger();
+    private byte[] mediaBytes="VK owned bytes".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    private int mediaStatus=200;
     private final ObjectMapper mapper=Jackson2ObjectMapperBuilder.json().build();
     private final Channel channel=new Channel();
     private final RuntimeConfigService runtime=mock(RuntimeConfigService.class);
@@ -90,6 +95,22 @@ class VkQuestionnaireSelectionTest {
         ReflectionTestUtils.setField(bot,"vkClient",sdk);
         var http=mock(java.net.http.HttpClient.class);
         ReflectionTestUtils.setField(bot,"httpClient",http);
+        if(mediaEnabled) {
+            try {
+                when(http.send(any(java.net.http.HttpRequest.class),org.mockito.ArgumentMatchers.<java.net.http.HttpResponse.BodyHandler<java.io.InputStream>>any())).thenAnswer(call->{
+                    java.net.http.HttpRequest request=call.getArgument(0);
+                    if("api.vk.com".equals(request.uri().getHost())) {
+                        @SuppressWarnings("unchecked") var profile=(java.net.http.HttpResponse<String>)mock(java.net.http.HttpResponse.class);
+                        when(profile.statusCode()).thenReturn(200);when(profile.body()).thenReturn("{\"response\":[]}");return profile;
+                    }
+                    downloads.incrementAndGet();
+                    @SuppressWarnings("unchecked") var response=(java.net.http.HttpResponse<java.io.InputStream>)mock(java.net.http.HttpResponse.class);
+                    when(response.statusCode()).thenReturn(mediaStatus);
+                    when(response.headers()).thenReturn(java.net.http.HttpHeaders.of(Map.of(),(k,v)->true));
+                    when(response.body()).thenReturn(new java.io.ByteArrayInputStream(mediaBytes));return response;
+                });
+            } catch(Exception ex) {throw new IllegalStateException(ex);}
+        }
         callback=new VkCallbackController(bot,properties,ingress,guard);
     }
     private void resetDeliveryCache() {
@@ -517,4 +538,120 @@ class VkQuestionnaireSelectionTest {
         assertThat(capture.getValue().catalogSha256()).isEqualTo(catalog.catalogSha256());verify(runtime,times(1)).questionnaireChoices(channel);verifyNoInteractions(local,feedback);
     }
 
+    private void mediaMenu(boolean general) throws Exception {
+        mediaEnabled=true;rebuild();
+        var original=selected(7,"q-a","a");
+        var tree=Map.<String,Object>of("businessId",7L,"locations",List.of());
+        var presets=Map.<String,Object>of("businessId",7L,"groups",Map.of());
+        a=new SelectedQuestionnaire(4,55,"BUSINESS","USER_SELECTION",7L,"q-a",original.templateSha256(),original.catalogSha256(),original.botSettings(),tree,presets);
+        var generalPayload=selected(7,"q-general","d");
+        var selectedGeneral=new SelectedQuestionnaire(4,55,"GENERAL","USER_SELECTION",(Long)null,"q-general","d".repeat(64),"c".repeat(64),generalPayload.botSettings(),Map.of(),Map.of());
+        catalog=new ChoiceCatalog(4,55,"c".repeat(64),List.of(
+            new Choice("BUSINESS",7L,"a","Business A","q-a",a.templateSha256(),SelectedQuestionnaireOptions.resourceSha256(tree,presets)),
+            new Choice("GENERAL",(Long)null,"GENERAL","Без бизнеса","q-general","d".repeat(64),SelectedQuestionnaireOptions.resourceSha256(Map.of(),Map.of()))));
+        doReturn(catalog).when(runtime).questionnaireChoices(channel);doReturn(a).when(runtime).selectQuestionnaire(channel,catalog,7L);
+        doReturn(selectedGeneral).when(runtime).selectGeneralQuestionnaire(channel,catalog);
+        var storage=new AttachmentService(mediaRoot,new ObjectStorageProperties());
+        doAnswer(call->storage.storeVkQuestionnaire(call.getArgument(0),call.getArgument(1),call.getArgument(2),call.getArgument(3),call.getArgument(4),call.getArgument(5),call.getArgument(6),call.getArgument(7)))
+            .when(attachments).storeVkQuestionnaire(anyLong(),nullable(Long.class),anyLong(),anyString(),anyLong(),anyInt(),anyString(),any(java.io.InputStream.class));
+    }
+    private void mediaChoose(boolean general) throws Exception {
+        mediaMenu(general);receive(1,"/start");receive(2,general?"/general "+state().at("/selection/nonce").asText():"Business A",general?null:choice(7));
+    }
+    private Message mediaMessage(int id,String text,String... types) {
+        var list=new ArrayList<MessageAttachment>();
+        for(String type:types) {
+            String json=switch(type) {
+                case "photo"->"{\"type\":\"photo\",\"photo\":{\"sizes\":[{\"width\":1,\"height\":1,\"url\":\"https://cdn.userapi.com/small\"},{\"width\":50,\"height\":60,\"url\":\"https://cdn.userapi.com/large\"}]}}";
+                case "document"->"{\"type\":\"doc\",\"doc\":{\"url\":\"https://cdn.userapi.com/file\",\"title\":\"../proof.HTML\",\"ext\":\"HTML\",\"size\":10}}";
+                case "audio_message"->"{\"type\":\"audio_message\",\"audio_message\":{\"link_ogg\":\"https://cdn.vkuseraudio.net/voice.ogg\"}}";
+                default->"{\"type\":\"sticker\"}";
+            };
+            list.add(new com.google.gson.Gson().fromJson(json,MessageAttachment.class));
+        }
+        return message(id,text,null).setDate(1792584000).setAttachments(list);
+    }
+    private long mediaFileCount() throws Exception {try(var files=java.nio.file.Files.walk(mediaRoot)){return files.filter(java.nio.file.Files::isRegularFile).count();}}
+    @ParameterizedTest @ValueSource(booleans={false,true})
+    void v4MediaBatchSurvivesRestartAndDuplicateWithExactProviderNamesTimesAndScope(boolean general) throws Exception {
+        mediaChoose(general);var message=mediaMessage(3,"Caption","photo","document","audio_message");bot.handleIncomingMessage(message);
+        assertThat(state().path("history")).hasSize(3);assertThat(downloads).hasValue(3);assertThat(mediaFileCount()).isEqualTo(3);
+        resetDeliveryCache();rebuild();bot.handleIncomingMessage(message);assertThat(downloads).hasValue(3);receive(4,"Two");
+        var capture=org.mockito.ArgumentCaptor.forClass(ConversationTicketCreationCommand.class);verify(tickets).createConversationTicket(capture.capture());var command=capture.getValue();
+        assertThat(command.businessId()).isEqualTo(general?null:7L);assertThat(command.scopeKind()).isEqualTo(general?"GENERAL":"BUSINESS");
+        assertThat(command.historyEntries()).filteredOn(entry->entry.attachmentPath()!=null).hasSize(3).allSatisfy(entry->{
+            assertThat(entry.providerMessageId()).isEqualTo("3");assertThat(entry.occurredAt()).isEqualTo(java.time.Instant.ofEpochSecond(1792584000).atOffset(java.time.ZoneOffset.UTC));
+            assertThat(entry.attachmentPath()).startsWith("questionnaires/vk/55/"+(general?"general":"business-7")+"/1001/"+catalog.catalogSha256()+"/3/");
+            assertThat(entry.attachmentPath()).doesNotContain("https:");
+        });
+        assertThat(command.historyEntries().get(1).attachmentName()).isEqualTo("proof.HTML");
+        assertThat(command.historyEntries()).extracting(ConversationHistoryEntry::messageType).containsExactly("photo","document","audio_message","text");
+        verify(send,never()).peerId(55L);verifyNoInteractions(local,feedback);
+    }
+    @Test void v4MediaWithoutCaptionAnswersTheFreeQuestionAndNeverInvokesLegacyStorage() throws Exception {
+        mediaChoose(false);bot.handleIncomingMessage(mediaMessage(3,"","document"));assertThat(state().at("/answers/free-first").asText()).isEqualTo("Вложений: 1");
+        verify(attachments,never()).store(anyString(),anyString(),any());assertThat(mediaFileCount()).isEqualTo(1);
+    }
+    @ParameterizedTest @ValueSource(strings={"pending","choice","preset","unsupported","eleven","old-version","stale"})
+    void mediaIsRejectedBeforeAnyDownloadOrAnswerForInvalidScopeStepOrBatch(String kind) throws Exception {
+        if(kind.equals("old-version")){chooseA();}else{mediaMenu(false);if(kind.equals("preset"))r152LargeMenu(false);receive(1,"/start");}
+        var message=mediaMessage(3,"Caption","document");
+        switch(kind) {
+            case "pending"->{ }
+            case "choice"->message.setText("Business A").setPayload(choice(7));
+            case "preset"->receive(2,"Business A",choice(7));
+            case "unsupported"->{receive(2,"Business A",choice(7));message=mediaMessage(3,"Caption","document","sticker");}
+            case "eleven"->{receive(2,"Business A",choice(7));message.setAttachments(java.util.Collections.nCopies(11,message.getAttachments().get(0)));}
+            case "stale"->{receive(2,"Business A",choice(7));doThrow(unavailable()).when(runtime).selectQuestionnaire(channel,catalog,7L);}
+        }
+        bot.handleIncomingMessage(message);
+        if(kind.equals("stale")){verify(send).message(contains("Вопросник недоступен"));verify(runtime,times(2)).selectQuestionnaire(channel,catalog,7L);}
+        assertThat(downloads).hasValue(0);assertThat(state().path("answers")).isEmpty();verifyNoInteractions(attachments);verify(tickets,never()).createConversationTicket(any());
+    }
+    @Test void batchBudgetIsCheckedAcrossAnswersBeforeDownloadingMore() throws Exception {
+        mediaChoose(false);var message=mediaMessage(3,"First","document");message.setAttachments(java.util.Collections.nCopies(10,message.getAttachments().get(0)));bot.handleIncomingMessage(message);
+        assertThat(downloads).hasValue(10);assertThat(state().path("history")).hasSize(10);bot.handleIncomingMessage(mediaMessage(4,"Second","document"));
+        assertThat(downloads).hasValue(10);assertThat(state().path("currentIndex").asInt()).isEqualTo(1);verify(tickets,never()).createConversationTicket(any());
+    }
+    @ParameterizedTest @ValueSource(strings={"download","storage","empty","oversize"})
+    void failedMediaNeverAdvancesOrPublishesAndTheSameProviderMessageCanRetry(String failure) throws Exception {
+        mediaChoose(false);var incoming=mediaMessage(3,"Caption","document");
+        if(failure.equals("download"))mediaStatus=503;
+        if(failure.equals("storage"))doThrow(new java.io.IOException("storage unavailable")).when(attachments).storeVkQuestionnaire(anyLong(),nullable(Long.class),anyLong(),anyString(),anyLong(),anyInt(),anyString(),any());
+        if(failure.equals("empty"))mediaBytes=new byte[0];if(failure.equals("oversize"))mediaBytes=new byte[QuestionnaireMedia.MAX_BYTES+1];
+        if(failure.equals("download")||failure.equals("storage"))assertThatThrownBy(()->bot.handleIncomingMessage(incoming)).hasMessageContaining("media is unavailable");else bot.handleIncomingMessage(incoming);
+        assertThat(state().path("answers")).isEmpty();assertThat(state().path("history")).isEmpty();verify(tickets,never()).createConversationTicket(any());
+        assertThat(mediaFileCount()).isZero();
+        if(failure.equals("download")||failure.equals("storage")){
+            mediaStatus=200;mediaMenu(false);rebuild();bot.handleIncomingMessage(incoming);assertThat(state().path("currentIndex").asInt()).isEqualTo(1);assertThat(mediaFileCount()).isEqualTo(1);
+        }
+    }
+    @Test void promptFailureAndCasConflictKeepOneObjectAndOneAnswer() throws Exception {
+        mediaChoose(false);var incoming=mediaMessage(3,"Caption","document");
+        var conflict=new AtomicBoolean();doAnswer(call->{if(conflict.compareAndSet(false,true))throw new SessionStateConflictException("media CAS");return call.callRealMethod();})
+            .when(store).saveIfUnchanged(eq("vk-questionnaire-v1"),eq(55L),eq(1001L),any(),any());
+        when(send.execute()).thenThrow(new ClientException("required prompt failed")).thenReturn(123);
+        assertThatThrownBy(()->bot.handleIncomingMessage(incoming)).hasMessageContaining("delivery failed");
+        assertThat(state().path("history")).hasSize(1);assertThat(mediaFileCount()).isEqualTo(1);int count=downloads.get();
+        rebuild();bot.handleIncomingMessage(incoming);assertThat(downloads).hasValue(count);assertThat(state().path("history")).hasSize(1);
+    }
+    @Test void finalMediaQueueRetryNeverRecapturesRuntimeOrDownloadsAgain() throws Exception {
+        mediaChoose(false);receive(3,"One");when(tickets.createConversationTicket(any())).thenThrow(new IllegalStateException("media queue failure"))
+            .thenReturn(new TicketService.TicketCreationResult("VK-MEDIA",null,"queued"));
+        assertThatThrownBy(()->bot.handleIncomingMessage(mediaMessage(4,"Caption","photo","document"))).hasMessageContaining("media queue failure");
+        doThrow(unavailable()).when(runtime).selectQuestionnaire(channel,catalog,7L);rebuild();bot.handleIncomingMessage(mediaMessage(4,"Changed retry","audio_message"));
+        var capture=org.mockito.ArgumentCaptor.forClass(ConversationTicketCreationCommand.class);verify(tickets,times(2)).createConversationTicket(capture.capture());
+        assertThat(capture.getAllValues().get(0)).isEqualTo(capture.getAllValues().get(1));assertThat(downloads).hasValue(2);assertThat(mediaFileCount()).isEqualTo(2);
+    }
+    @Test void restoredForeignMediaIsRejectedBeforePublication() throws Exception {
+        mediaChoose(false);bot.handleIncomingMessage(mediaMessage(3,"Caption","document"));ObjectNode saved=(ObjectNode)state();
+        ((ObjectNode)saved.path("history").get(0)).put("attachment",saved.at("/history/0/attachment").asText().replace("business-7","business-8"));
+        store.save("vk-questionnaire-v1",55L,1001L,saved);rebuild();assertThatThrownBy(()->receive(4,"Two")).hasMessageContaining("Invalid saved VK questionnaire media");verify(tickets,never()).createConversationTicket(any());assertThat(downloads).hasValue(1);
+    }
+    @Test void submittedSelectedFlowKeepsMediaFollowupClosed() throws Exception {
+        mediaChoose(false);receive(3,"One");receive(4,"Two");
+        var active=new TicketActive();active.setTicketId("T-VK");
+        when(tickets.findActiveTicketForUser(anyLong(),anyString(),anyLong())).thenReturn(Optional.of(active));
+        bot.handleIncomingMessage(mediaMessage(5,"Later","document"));assertThat(downloads).hasValue(0);verifyNoInteractions(attachments,feedback);
+    }
 }

@@ -11,7 +11,7 @@ import org.springframework.security.core.Authentication;
 
 class QuestionnaireMediaLegacyLookupTest {
     @TempDir Path root;
-    @ParameterizedTest @ValueSource(strings={"questionnaires/telegram/55/general/1/file.bin","/questionnaires/telegram/55/business-7/1/file.html","Questionnaires/Telegram/55/business-7/1/file.html","questionnaires\\telegram\\55\\general\\1\\file.svg","C:\\legacy\\attachments\\questionnaires\\telegram\\55\\general\\1\\file.bin"})
+    @ParameterizedTest @ValueSource(strings={"questionnaires/vk/55/general/1/33/1/file.bin","/questionnaires/vk/55/business-7/1/file.html","Questionnaires/VK/55/business-7/1/file.html","questionnaires\\vk\\55\\general\\1\\file.svg","C:\\legacy\\attachments\\questionnaires\\vk\\55\\general\\1\\file.bin","questionnaires/telegram/55/general/1/file.bin","/questionnaires/telegram/55/business-7/1/file.html","Questionnaires/Telegram/55/business-7/1/file.html","questionnaires\\telegram\\55\\general\\1\\file.svg","C:\\legacy\\attachments\\questionnaires\\telegram\\55\\general\\1\\file.bin"})
     void pageDialogsAndUniqueLegacyOwnerCannotOpenTheNewNamespace(String key) throws Exception {
         var permissions=mock(PermissionService.class);var storage=mock(AttachmentObjectStorageService.class);
         var tickets=mock(LegacyTicketIdJdbcGuard.class);var owner=mock(TicketAttachmentOwnerJdbcGuard.class);var actor=mock(Authentication.class);

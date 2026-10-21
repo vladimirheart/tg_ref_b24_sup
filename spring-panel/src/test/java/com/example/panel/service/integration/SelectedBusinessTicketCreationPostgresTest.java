@@ -615,4 +615,84 @@ class SelectedBusinessTicketCreationPostgresTest {
         }
         assertThat(r153Readable(general,reader)).isFalse();
     }
+    private java.util.List<String> r154Keys;
+    private void r154VkMedia(boolean general) throws Exception {
+        r153MediaEvent(general);jdbc.update("UPDATE channels SET platform='vk' WHERE id=?",channel);
+        event=change(event,event.eventId(),channel,event.userId(),event.businessId(),event.scopeKind(),"USER_SELECTION",event.questionTemplateId(),event.templateSha256(),event.catalogSha256(),"vk");
+        var entries=new java.util.ArrayList<ConversationTicketCreatedEvent.ConversationHistoryEntryPayload>();r154Keys=new java.util.ArrayList<>();
+        for(int slot=1;slot<=3;slot++) {
+            String key=r153Key.replace("/telegram/","/vk/").replace("/33/","/33/"+slot+"/");r153Write(key,R153_BYTES);r154Keys.add(key);
+            entries.add(new ConversationTicketCreatedEvent.ConversationHistoryEntryPayload(901L,"Answer",slot==1?"photo":slot==2?"document":"audio_message",key,"proof.bin","33",event.occurredAt()));
+        }
+        event=r153History(entries);
+    }
+    @ParameterizedTest @ValueSource(booleans={false,true})
+    void vkV4MediaCreatesMetadataAndFrozenReplayForMultipleSlots(boolean general) throws Exception {
+        r154VkMedia(general);ingest(event);
+        assertThat(count("chat_history")).isEqualTo(3);assertThat(count("chat_attachment_metadata")).isEqualTo(3);
+        assertThat(jdbc.queryForList("SELECT storage_key FROM chat_attachment_metadata WHERE ticket_id=?",String.class,event.ticketId())).containsExactlyInAnyOrderElementsOf(r154Keys);
+        assertThat(jdbc.queryForList("SELECT tg_message_id FROM chat_history WHERE ticket_id=?",Long.class,event.ticketId())).containsOnly(33L);
+        assertThat(jdbc.queryForList("SELECT content_hash FROM chat_attachment_metadata WHERE ticket_id=?",String.class,event.ticketId())).containsOnly(r154Keys.get(0).substring(r154Keys.get(0).lastIndexOf('/')+1,r154Keys.get(0).lastIndexOf('.')));
+        assertThat(jdbc.queryForList("SELECT size FROM chat_attachment_metadata WHERE ticket_id=?",Long.class,event.ticketId())).containsOnly((long)R153_BYTES.length);
+        for(String key:r154Keys){int slash=key.lastIndexOf('/');mediaStorage.deleteDialogAttachment(key.substring(0,slash),key.substring(slash+1));}
+        jdbc.update("UPDATE business_channel_bindings SET is_active=FALSE WHERE channel_id=?",channel);
+        ingest(change(event,UUID.randomUUID().toString(),channel,event.userId(),event.businessId(),event.scopeKind(),"USER_SELECTION",event.questionTemplateId(),event.templateSha256(),event.catalogSha256(),"vk"));
+        assertThat(count("chat_history")).isEqualTo(3);assertThat(count("chat_attachment_metadata")).isEqualTo(3);
+    }
+    @ParameterizedTest @ValueSource(strings={"channel","business","general","user","catalog","provider","telegram","external","traversal","slot-zero","slot-eleven","slot-leading-zero","name","history-owner","type","missing","bytes","empty","oversize","duplicate","same-slot","budget","v3"})
+    void vkV4MediaRejectsForeignUnavailableAndAmbiguousBatch(String mutation) throws Exception {
+        r154VkMedia(false);var entry=event.historyEntries().get(0);String key=entry.attachmentPath(),name=entry.attachmentName(),provider=entry.providerMessageId(),type=entry.messageType();Long user=901L;
+        switch(mutation) {
+            case "channel"->key=key.replace("/vk/"+channel+"/","/vk/999999/");
+            case "business"->key=key.replace("/business-"+a+"/","/business-"+b+"/");
+            case "general"->key=key.replace("/business-"+a+"/","/general/");case "user"->key=key.replace("/901/","/999/");
+            case "catalog"->key=key.replace(event.catalogSha256(),"f".repeat(64));case "provider"->provider="34";
+            case "telegram"->key=key.replace("/vk/","/telegram/");case "external"->key="https://cdn.userapi.com/file";
+            case "traversal"->key=key.replace("/33/1/","/33/../1/");case "slot-zero"->key=key.replace("/33/1/","/33/0/");
+            case "slot-eleven"->key=key.replace("/33/1/","/33/11/");case "slot-leading-zero"->key=key.replace("/33/1/","/33/01/");
+            case "name"->name="../proof.bin";case "history-owner"->user=999L;case "type"->type="video";
+            case "missing"->{int slash=key.lastIndexOf('/');mediaStorage.deleteDialogAttachment(key.substring(0,slash),key.substring(slash+1));}
+            case "bytes"->r153Write(key,new byte[]{1,2,3});case "empty"->r153Write(key,new byte[0]);case "oversize"->r153Write(key,new byte[10*1024*1024+1]);
+            case "v3"->{var catalog=sharedQuestionnaires.choicesWithResources(channel).orElseThrow();var selected=sharedQuestionnaires.selectWithResources(channel,"BUSINESS",a,catalog.catalogSha256()).orElseThrow();
+                event=change(event,event.eventId(),channel,event.userId(),a,"BUSINESS","USER_SELECTION",selected.questionTemplateId(),selected.templateSha256(),selected.catalogSha256(),"vk");
+                key=key.replace(entry.attachmentPath().split("/")[5],selected.catalogSha256());r153Write(key,R153_BYTES);}
+        }
+        // These foreign/malformed keys exist and have correct bytes: rejecting a missing object would not prove ownership/slot validation.
+        if(java.util.Set.of("channel","business","general","user","catalog","telegram","slot-zero","slot-eleven","slot-leading-zero").contains(mutation))r153Write(key,R153_BYTES);
+        var entries=new java.util.ArrayList<ConversationTicketCreatedEvent.ConversationHistoryEntryPayload>();
+        entries.add(new ConversationTicketCreatedEvent.ConversationHistoryEntryPayload(user,entry.text(),type,key,name,provider,entry.occurredAt()));
+        if(mutation.equals("duplicate"))entries.add(entries.get(0));
+        if(mutation.equals("same-slot")) {
+            byte[] anotherBytes="different valid bytes in the same VK slot".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            String anotherSha=java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(anotherBytes));
+            String another=key.substring(0,key.lastIndexOf('/')+1)+anotherSha+".bin";r153Write(another,anotherBytes);
+            entries.add(new ConversationTicketCreatedEvent.ConversationHistoryEntryPayload(user,"Answer",type,another,name,provider,entry.occurredAt()));
+        }
+        if(mutation.equals("budget"))for(int index=1;index<=10;index++) {
+            String another=key.replace("/33/1/","/"+(33+index)+"/1/");r153Write(another,R153_BYTES);
+            entries.add(new ConversationTicketCreatedEvent.ConversationHistoryEntryPayload(user,"Answer",type,another,name,Integer.toString(33+index),entry.occurredAt()));
+        }
+        var invalid=r153History(entries);assertThatThrownBy(()->ingest(invalid)).isInstanceOf(IllegalStateException.class);emptyWrites();assertThat(count("chat_attachment_metadata")).isZero();assertThat(inboxStatus(event.eventId())).isEqualTo("failed");
+    }
+    @ParameterizedTest @ValueSource(booleans={false,true})
+    void vkV4MediaReadUsesFrozenProofAndCurrentGrant(boolean general) throws Exception {
+        r154VkMedia(general);ingest(event);long reader=r153Reader(general);assertThat(r153Readable(general,reader)).isTrue();
+        jdbc.update("UPDATE business_channel_bindings SET is_active=FALSE WHERE channel_id=?",channel);assertThat(r153Readable(general,reader)).isTrue();
+        if(general){var ref=generalRead.attachment(reader,r153PublicId(),r153HistoryId()).orElseThrow();assertThat(ref.storageKey()).isEqualTo(r154Keys.get(0));assertThat(ref.sha256()).isNotNull();generalAccess.revokeRead(reader);}
+        else {var ref=businessRead.findAttachmentByPublicId(reader,r153PublicId(),r153HistoryId()).orElseThrow();assertThat(ref.storageKey()).isEqualTo(r154Keys.get(0));assertThat(ref.sha256()).isNotNull();jdbc.update("UPDATE business_access_grants SET is_active=FALSE WHERE user_id=?",reader);}
+        assertThat(r153Readable(general,reader)).isFalse();
+    }
+    @ParameterizedTest @org.junit.jupiter.params.provider.CsvSource({"false,provider","true,provider","false,platform","true,platform","false,hash","true,hash","false,size","true,size","false,duplicate","true,duplicate"})
+    void vkV4MediaReadRejectsDamagedMetadata(boolean general,String mutation) throws Exception {
+        r154VkMedia(general);ingest(event);long reader=r153Reader(general);assertThat(r153Readable(general,reader)).isTrue();
+        switch(mutation) {
+            case "provider"->jdbc.update("UPDATE chat_history SET tg_message_id=34 WHERE id=?",r153HistoryId());
+            case "platform"->jdbc.update("UPDATE channels SET platform='telegram' WHERE id=?",channel);
+            case "hash"->jdbc.update("UPDATE chat_attachment_metadata SET content_hash=? WHERE chat_history_id=?","f".repeat(64),r153HistoryId());
+            case "size"->jdbc.update("UPDATE chat_attachment_metadata SET size=0 WHERE chat_history_id=?",r153HistoryId());
+            case "duplicate"->{String key=r154Keys.get(0);long another=jdbc.queryForObject("INSERT INTO chat_history(user_id,ticket_id,ticket_owner_user_id,sender,message,message_type,attachment,channel_id) VALUES(?,?,?,'client','duplicate','photo',?,?) RETURNING id",Long.class,event.userId(),event.ticketId(),event.userId(),key,channel);
+                jdbc.update("INSERT INTO chat_attachment_metadata(chat_history_id,ticket_id,storage_key,storage_provider,storage_class,normalization_status,availability_status) VALUES(?,?,?,'local_fs','dialog_attachment','normalized','available')",another,event.ticketId(),key);}
+        }
+        assertThat(r153Readable(general,reader)).isFalse();
+    }
 }

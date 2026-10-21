@@ -83,7 +83,15 @@ public class AttachmentService {
     /** A bounded, content-addressed key keeps CAS/queue retries from creating duplicate objects. */
     public StoredAttachment storeQuestionnaire(long channelId,Long businessId,long userId,String catalogSha256,
             long messageId,String extension,InputStream input) throws IOException {
-        String prefix=QuestionnaireMedia.prefix(channelId,businessId,userId,catalogSha256,messageId);
+        return storeQuestionnaireBytes(QuestionnaireMedia.prefix(channelId,businessId,userId,catalogSha256,messageId),extension,input);
+    }
+
+    public StoredAttachment storeVkQuestionnaire(long channelId,Long businessId,long userId,String catalogSha256,
+            long messageId,int slot,String extension,InputStream input) throws IOException {
+        return storeQuestionnaireBytes(QuestionnaireMedia.vkPrefix(channelId,businessId,userId,catalogSha256,messageId,slot),extension,input);
+    }
+
+    private StoredAttachment storeQuestionnaireBytes(String prefix,String extension,InputStream input) throws IOException {
         if(extension==null || !extension.matches("[a-z0-9]{1,10}") || input==null)
             throw new IllegalArgumentException("Invalid questionnaire media payload");
         byte[] bytes;

@@ -20,6 +20,16 @@ public final class QuestionnaireMedia {
         String prefix=prefix(channelId,businessId,userId,catalogSha256,messageId);
         return key!=null && key.startsWith(prefix) && key.substring(prefix.length()).matches("[a-f0-9]{64}\\.[a-z0-9]{1,10}");
     }
+    /** VK's conversation message ID is scoped to the private peer (the user); each item has a stable 1-based slot. */
+    public static String vkPrefix(long channelId,Long businessId,long userId,String catalogSha256,long messageId,int slot) {
+        String telegram=prefix(channelId,businessId,userId,catalogSha256,messageId);
+        if(slot<1 || slot>MAX_FILES) throw new IllegalArgumentException("Invalid VK media slot");
+        return telegram.replace("questionnaires/telegram/","questionnaires/vk/")+slot+"/";
+    }
+    public static boolean matchesVk(String key,long channelId,Long businessId,long userId,String catalogSha256,long messageId) {
+        String prefix=prefix(channelId,businessId,userId,catalogSha256,messageId).replace("questionnaires/telegram/","questionnaires/vk/");
+        return key!=null && key.startsWith(prefix) && key.substring(prefix.length()).matches("(?:[1-9]|10)/[a-f0-9]{64}\\.[a-z0-9]{1,10}");
+    }
     public static String sha256(byte[] bytes) {
         try {return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));}
         catch(java.security.NoSuchAlgorithmException ex) {throw new IllegalStateException(ex);}

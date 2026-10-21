@@ -50,4 +50,13 @@ class RuntimeQuestionnaireStartTest {
         assertThat(service.questionFlow(settings)).extracting(item->item.getText()).containsExactly("Private A");
         verifyNoInteractions(local);
     }
+    @Test void vkV4RequestsItsOwnMediaCapabilityForBothScopes() {
+        var local=mock(SharedConfigService.class);var mode=mock(BotIntegrationTransportMode.class);var client=mock(PanelRuntimeConfigClient.class);
+        when(mode.isRabbitMqMode()).thenReturn(true);when(client.isEnabled()).thenReturn(true);
+        var runtime=new RuntimeConfigService(local,mode,client,new ObjectMapper());var channel=new Channel();channel.setId(55L);channel.setPlatform("vk");
+        var catalog=new PanelRuntimeConfigClient.ChoiceCatalog(4,55,"c".repeat(64),List.of());
+        when(client.choicesV4ForStart(55,true)).thenReturn(catalog);
+        assertThat(runtime.questionnaireChoices(channel)).isSameAs(catalog);runtime.selectQuestionnaire(channel,catalog,7);runtime.selectGeneralQuestionnaire(channel,catalog);
+        verify(client).selectForStart(catalog,7,true);verify(client).selectGeneralForStart(catalog,true);verifyNoInteractions(local);
+    }
 }

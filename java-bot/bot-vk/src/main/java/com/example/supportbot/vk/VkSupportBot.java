@@ -18,6 +18,7 @@ import com.example.supportbot.service.BotIngressCoordinationService;
 import com.example.supportbot.service.BotSessionStoreService;
 import com.example.supportbot.service.BotWebhookDeliveryGuardService;
 import com.example.supportbot.service.QuestionnaireScope;
+import com.example.supportbot.service.QuestionnaireMedia;
 import com.example.supportbot.service.PanelRuntimeConfigClient.ChoiceCatalog;
 import com.example.supportbot.service.PanelRuntimeConfigClient.SelectedQuestionnaire;
 import com.example.supportbot.service.PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException;
@@ -359,7 +360,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         }
         if (session != null && session.awaitingBusinessSelection()) {
             if (hasAttachments(message)) {
-                sendQuestionnaireText(actor, peerId, "В этом вопроснике пока поддерживается только текст. Выберите бизнес без вложений.", null);
+                sendQuestionnaireText(actor, peerId, "Сначала выберите бизнес или «Без бизнеса». Затем отправьте вложения заново.", null);
                 promptCurrentQuestion(actor, session);
                 return;
             }
@@ -421,7 +422,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                 throw new IllegalStateException("VK questionnaire root is not registered yet");
             }
             if (hasAttachments(message)) {
-                sendQuestionnaireText(actor, peerId, "В этом вопроснике пока поддерживается только текст. Отправьте сообщение без вложений.", null);
+                sendQuestionnaireText(actor, peerId, "После регистрации обращения вложения пока недоступны. Отправьте сообщение без вложений.", null);
                 return;
             }
             if (!handleActiveTicketMessage(actor, message, channel, text, clientProfile, session.selection.submittedTicketId()))
@@ -440,19 +441,19 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             saveSession(session);
             if (session.selection != null) {
                 if (hasAttachments(message))
-                    sendQuestionnaireText(actor, peerId, "В этом вопроснике пока поддерживается только текст. Вложения не сохранены.", null);
+                    sendQuestionnaireText(actor, peerId, "Сначала выберите вопросник. Затем отправьте вложения заново.", null);
                 promptCurrentQuestion(actor, session);
             }
             return;
         }
 
-        if (session.selectedBusiness() && hasAttachments(message)) {
-            sendQuestionnaireText(actor, peerId, "В этом вопроснике пока поддерживается только текст. Отправьте ответ без вложений.", null);
-            return;
-        }
         if (session.selectedBusiness() && session.isComplete()) {
             finalizeConversation(actor, session);
             throw new IllegalStateException("Retry the message after VK ticket registration");
+        }
+        if (session.selectedBusiness() && hasAttachments(message)) {
+            acceptQuestionnaireMedia(actor,message,session,eventKey);
+            return;
         }
 
         session.markClientResponseReceived();
@@ -1060,9 +1061,9 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                                         event.text(),
                                         event.messageType(),
                                         event.attachment(),
-                                        null,
-                                        null,
-                                        session.startedAt()
+                                        event.attachmentName(),
+                                        event.providerMessageId(),
+                                        event.occurredAt()!=null?event.occurredAt():session.startedAt()
                                 ))
                                 .toList(),
                         channel,
@@ -1096,6 +1097,67 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                     .replace("{scale}", Integer.toString(scale));
             sendText(actor, session.peerId(), prompt);
         });
+    }
+
+    private void acceptQuestionnaireMedia(GroupActor actor,Message message,ConversationSession session,String eventKey) {
+        var current=session.currentQuestion();
+        if(session.selection.catalog().version()!=4 || current==null || isChoiceQuestion(current) || "select".equalsIgnoreCase(current.getType())) {
+            sendQuestionnaireText(actor,session.peerId(),"На этом шаге вложения недоступны. Отправьте ответ текстом.",null);
+            return;
+        }
+        final List<VkQuestionnaireMedia.Item> items;
+        try {items=VkQuestionnaireMedia.describe(message);}
+        catch(IllegalArgumentException ex) {sendQuestionnaireText(actor,session.peerId(),ex.getMessage(),null);return;}
+        long count=session.history.stream().filter(entry->entry.attachment()!=null).count();
+        if(count+items.size()>QuestionnaireMedia.MAX_FILES) {
+            sendQuestionnaireText(actor,session.peerId(),"К обращению можно приложить не более 10 файлов. Отправьте ответ текстом.",null);
+            return;
+        }
+        Channel channel=getChannel();
+        // Refresh the selected identity and VK media capability before opening any provider URL.
+        var selected="GENERAL".equals(session.scope().scopeKind())?runtimeConfigService.selectGeneralQuestionnaire(channel,session.selection.catalog())
+            :runtimeConfigService.selectQuestionnaire(channel,session.selection.catalog(),session.scope().businessId());
+        if(!session.scope().equals(QuestionnaireScope.fromSelection(selected)))
+            throw new ScopedRuntimeConfigUnavailableException("VK questionnaire identity changed before media");
+        var history=new ArrayList<HistoryEvent>();
+        String answer=message.getText()==null?"":message.getText().strip();
+        if(answer.isEmpty()) answer="Вложений: "+items.size();
+        String provider=message.getConversationMessageId().toString();
+        try {
+            for(var item:items) {
+                try(var input=openQuestionnaireMedia(item.url())) {
+                    var stored=attachmentService.storeVkQuestionnaire(channel.getId(),session.scope().businessId(),session.userId(),
+                        session.scope().catalogSha256(),message.getConversationMessageId(),item.slot(),item.extension(),input);
+                    if(stored==null || !QuestionnaireMedia.matchesVk(stored.storageKey(),channel.getId(),session.scope().businessId(),session.userId(),session.scope().catalogSha256(),message.getConversationMessageId())
+                            || !stored.storageKey().startsWith(QuestionnaireMedia.vkPrefix(channel.getId(),session.scope().businessId(),session.userId(),session.scope().catalogSha256(),message.getConversationMessageId(),item.slot())))
+                        throw new IllegalStateException("VK storage returned foreign questionnaire media");
+                    history.add(new HistoryEvent(session.userId(),answer,item.type(),stored.storageKey(),item.name(),provider,VkQuestionnaireMedia.occurredAt(message)));
+                }
+            }
+        } catch(AttachmentService.MediaSizeException ex) {
+            sendQuestionnaireText(actor,session.peerId(),"Файл должен содержать от 1 байта до 10 МиБ. Отправьте ответ заново.",null);return;
+        } catch(IOException ex) {throw new IllegalStateException("VK questionnaire media is unavailable",ex);}
+        session.recordAnswer(answer);
+        session.history.remove(session.history.size()-1); // Replace the synthetic text entry with the original provider media entries.
+        session.history.addAll(history);
+        session.acceptEvent(eventKey);
+        saveSession(session); // Persist the whole batch and answer before any required delivery or publication.
+        if(session.isComplete()) finalizeConversation(actor,session);else promptCurrentQuestion(actor,session);
+    }
+
+    InputStream openQuestionnaireMedia(URI uri) throws IOException {
+        VkQuestionnaireMedia.url(uri.toString());
+        var request=HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(30)).GET().build();
+        try {
+            var response=httpClient.send(request,HttpResponse.BodyHandlers.ofInputStream());
+            if(response.statusCode()/100!=2) {
+                try(var body=response.body()) {throw new IOException("VK media download failed: "+response.statusCode());}
+            }
+            if(response.headers().firstValueAsLong("Content-Length").orElse(0)>QuestionnaireMedia.MAX_BYTES) {
+                response.body().close();throw new AttachmentService.MediaSizeException();
+            }
+            return response.body(); // The storage reader enforces the byte limit even when headers lie.
+        } catch(InterruptedException ex) {Thread.currentThread().interrupt();throw new IOException("VK media download interrupted",ex);}
     }
 
     private void storeAttachments(Message message, ConversationSession session) {
@@ -1472,7 +1534,8 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         }
     }
 
-    private record HistoryEvent(Long userId, String text, String messageType, String attachment) {
+    private record HistoryEvent(Long userId,String text,String messageType,String attachment,String attachmentName,String providerMessageId,OffsetDateTime occurredAt) {
+        HistoryEvent(Long userId,String text,String messageType,String attachment) {this(userId,text,messageType,attachment,null,null,null);}
     }
 
     private record ConversationSessionState(Long peerId,
@@ -1607,6 +1670,19 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                             || !objectMapper.valueToTree(flow).equals(objectMapper.valueToTree(
                                 GeneralQuestionnaireFlow.from(botSettingsService.questionFlow(settings)))))))
                     throw new IllegalStateException("Saved VK questionnaire does not match its menu");
+                var mediaSlots=new java.util.HashSet<String>();int mediaCount=0;
+                for(var entry:history) {
+                    if(entry==null || !Objects.equals(userId,entry.userId())) throw new IllegalStateException("Invalid saved VK history owner");
+                    if(entry.attachment()==null) continue;
+                    if(scope==null || selection.catalog().version()!=4 || !VkQuestionnaireMedia.TYPES.contains(entry.messageType())
+                            || entry.occurredAt()==null || entry.providerMessageId()==null || !entry.providerMessageId().matches("[1-9][0-9]{0,9}")
+                            || entry.attachmentName()==null || entry.attachmentName().length()>255
+                            || entry.attachmentName().chars().anyMatch(c->c<32 || c==127 || c=='/' || c=='\\')
+                            || !selection.acceptedEventKeys().contains("vk-message:"+userId+":"+entry.providerMessageId())
+                            || !QuestionnaireMedia.matchesVk(entry.attachment(),selection.catalog().channelId(),scope.businessId(),userId,scope.catalogSha256(),Long.parseLong(entry.providerMessageId()))
+                            || !mediaSlots.add(entry.attachment().substring(0,entry.attachment().lastIndexOf('/')+1)) || ++mediaCount>QuestionnaireMedia.MAX_FILES)
+                        throw new IllegalStateException("Invalid saved VK questionnaire media");
+                }
             }
         }
 

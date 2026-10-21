@@ -92,15 +92,17 @@ public class PanelRuntimeConfigClient {
         validateCatalog(channelId,catalog);return catalog;
     }
     /** V4 has a bounded complete catalog, paginated locally from its durable session snapshot. */
-    public ChoiceCatalog choicesV4ForStart(long channelId) {
+    public ChoiceCatalog choicesV4ForStart(long channelId) { return choicesV4ForStart(channelId,false); }
+    public ChoiceCatalog choicesV4ForStart(long channelId,boolean requireVkMedia) {
         requireChannel(channelId);
-        var catalog=fetchTyped("/internal/api/bot/channels/"+channelId+"/questionnaire/v4/choices?forStart=true",ChoiceCatalog.class,4);
+        var catalog=fetchTyped("/internal/api/bot/channels/"+channelId+"/questionnaire/v4/choices?forStart=true",ChoiceCatalog.class,4,requireVkMedia);
         if(catalog==null || catalog.version()!=4) throw unavailable();
         validateCatalog(channelId,catalog);return catalog;
     }
-    public SelectedQuestionnaire selectGeneralForStart(ChoiceCatalog catalog) {
+    public SelectedQuestionnaire selectGeneralForStart(ChoiceCatalog catalog) { return selectGeneralForStart(catalog,false); }
+    public SelectedQuestionnaire selectGeneralForStart(ChoiceCatalog catalog,boolean requireVkMedia) {
         if(catalog==null || (catalog.version()!=2 && catalog.version()!=3 && catalog.version()!=4)) throw unavailable();
-        return select(catalog,"GENERAL",null,true);
+        return select(catalog,"GENERAL",null,true,requireVkMedia);
     }
 
     public SelectedQuestionnaire select(ChoiceCatalog catalog,long businessId) {
@@ -111,17 +113,24 @@ public class PanelRuntimeConfigClient {
         return select(catalog, businessId, true);
     }
 
+    public SelectedQuestionnaire selectForStart(ChoiceCatalog catalog,long businessId,boolean requireVkMedia) {
+        return select(catalog,"BUSINESS",businessId,true,requireVkMedia);
+    }
+
     private SelectedQuestionnaire select(ChoiceCatalog catalog,long businessId,boolean forStart) {
         return select(catalog,"BUSINESS",businessId,forStart);
     }
     private SelectedQuestionnaire select(ChoiceCatalog catalog,String kind,Long businessId,boolean forStart) {
+        return select(catalog,kind,businessId,forStart,false);
+    }
+    private SelectedQuestionnaire select(ChoiceCatalog catalog,String kind,Long businessId,boolean forStart,boolean requireVkMedia) {
         if (catalog==null) throw unavailable();
         requireChannel(catalog.channelId());validateCatalog(catalog.channelId(),catalog);
         Choice choice=catalog.choices().stream().filter(item->kind.equals(item.scopeKind()) && java.util.Objects.equals(item.businessId(),businessId)).findFirst().orElseThrow(PanelRuntimeConfigClient::unavailable);
         SelectedQuestionnaire selected=fetchTyped("/internal/api/bot/channels/"+catalog.channelId()
             +"/questionnaire/"+(catalog.version()>=2?"v"+catalog.version()+"/":"")+"selection?"
             +(catalog.version()>=2?"scopeKind="+kind+"&":"")+(businessId==null?"":"businessId="+businessId+"&")
-            +"catalogSha256="+catalog.catalogSha256()+(forStart ? "&forStart=true" : ""),SelectedQuestionnaire.class,forStart?catalog.version():0);
+            +"catalogSha256="+catalog.catalogSha256()+(forStart ? "&forStart=true" : ""),SelectedQuestionnaire.class,forStart?catalog.version():0,requireVkMedia);
         if (selected==null || selected.version()!=catalog.version() || selected.channelId()!=catalog.channelId() || !java.util.Objects.equals(selected.businessId(),businessId)
                 || !kind.equals(selected.scopeKind()) || !"USER_SELECTION".equals(selected.scopeSelectionSource())
                 || !catalog.catalogSha256().equals(selected.catalogSha256()) || !choice.questionTemplateId().equals(selected.questionTemplateId())
@@ -168,7 +177,8 @@ public class PanelRuntimeConfigClient {
     private <T> T fetchTyped(String path,Class<T> type,boolean requireWriter) {
         return fetchTyped(path,type,requireWriter?1:0);
     }
-    private <T> T fetchTyped(String path,Class<T> type,int writerVersion) {
+    private <T> T fetchTyped(String path,Class<T> type,int writerVersion) { return fetchTyped(path,type,writerVersion,false); }
+    private <T> T fetchTyped(String path,Class<T> type,int writerVersion,boolean requireVkMedia) {
         URI uri = resolve(path);
         HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
             .timeout(properties.getRequestTimeout())
@@ -184,6 +194,7 @@ public class PanelRuntimeConfigClient {
                 throw unavailable();
             }
             if(writerVersion==4 && !"1".equals(response.headers().firstValue("X-Iguana-Questionnaire-Media-Version").orElse(null))) throw unavailable();
+            if(writerVersion==4 && requireVkMedia && !"1".equals(response.headers().firstValue("X-Iguana-Questionnaire-VK-Media-Version").orElse(null))) throw unavailable();
             return objectMapper.readValue(response.body(),type);
         } catch (IOException | InterruptedException ex) {
             if (ex instanceof InterruptedException) {

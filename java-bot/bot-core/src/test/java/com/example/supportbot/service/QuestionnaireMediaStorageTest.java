@@ -43,4 +43,21 @@ class QuestionnaireMediaStorageTest {
         assertThatThrownBy(()->service.storeQuestionnaire(55,7L,1001,"c".repeat(64),33,extension,input)).isInstanceOf(IllegalArgumentException.class);
         org.mockito.Mockito.verifyNoInteractions(input);
     }
+    @ParameterizedTest @ValueSource(booleans={false,true})
+    void vkMultipleSlotsAreStableAndSeparateFromTelegramAndOtherOwners(boolean general) throws Exception {
+        var service=new AttachmentService(root,new ObjectStorageProperties());Long owner=general?null:7L;byte[] bytes={1,2,3};
+        var first=service.storeVkQuestionnaire(55,owner,1001,"c".repeat(64),33,1,"bin",new ByteArrayInputStream(bytes));
+        assertThat(service.storeVkQuestionnaire(55,owner,1001,"c".repeat(64),33,1,"bin",new ByteArrayInputStream(bytes))).isEqualTo(first);
+        var second=service.storeVkQuestionnaire(55,owner,1001,"c".repeat(64),33,2,"bin",new ByteArrayInputStream(bytes));
+        assertThat(first.storageKey()).isNotEqualTo(second.storageKey());assertThat(QuestionnaireMedia.matchesVk(first.storageKey(),55,owner,1001,"c".repeat(64),33)).isTrue();
+        assertThat(QuestionnaireMedia.matches(first.storageKey(),55,owner,1001,"c".repeat(64),33)).isFalse();
+        assertThat(QuestionnaireMedia.matchesVk(first.storageKey(),55,general?7L:null,1001,"c".repeat(64),33)).isFalse();
+        try(var files=Files.walk(root)){assertThat(files.filter(Files::isRegularFile).count()).isEqualTo(2);}
+    }
+    @ParameterizedTest @ValueSource(ints={0,11,-1})
+    void invalidVkSlotsFailBeforeInputIsRead(int slot) {
+        var input=org.mockito.Mockito.mock(InputStream.class);
+        assertThatThrownBy(()->new AttachmentService(root,new ObjectStorageProperties()).storeVkQuestionnaire(55,7L,1001,"c".repeat(64),33,slot,"bin",input)).isInstanceOf(IllegalArgumentException.class);
+        org.mockito.Mockito.verifyNoInteractions(input);
+    }
 }

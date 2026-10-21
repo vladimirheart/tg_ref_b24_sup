@@ -45,7 +45,7 @@ public class RuntimeConfigService {
 
     public PanelRuntimeConfigClient.ChoiceCatalog questionnaireChoices(Channel channel) {
         requireRemoteQuestionnaire(channel);
-        return panelRuntimeConfigClient.choicesV4ForStart(channel.getId());
+        return "vk".equals(channel.getPlatform())?panelRuntimeConfigClient.choicesV4ForStart(channel.getId(),true):panelRuntimeConfigClient.choicesV4ForStart(channel.getId());
     }
 
     public PanelRuntimeConfigClient.SelectedQuestionnaire selectQuestionnaire(Channel channel,
@@ -54,7 +54,7 @@ public class RuntimeConfigService {
         if (catalog == null || catalog.channelId() != channel.getId()) {
             throw new PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException("Questionnaire channel mismatch");
         }
-        return panelRuntimeConfigClient.selectForStart(catalog, businessId);
+        return "vk".equals(channel.getPlatform()) && catalog.version()==4?panelRuntimeConfigClient.selectForStart(catalog,businessId,true):panelRuntimeConfigClient.selectForStart(catalog, businessId);
     }
 
     public PanelRuntimeConfigClient.SelectedQuestionnaire selectGeneralQuestionnaire(Channel channel,
@@ -62,7 +62,7 @@ public class RuntimeConfigService {
         requireRemoteQuestionnaire(channel);
         if(catalog==null || catalog.channelId()!=channel.getId())
             throw new PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException("Questionnaire channel mismatch");
-        return panelRuntimeConfigClient.selectGeneralForStart(catalog);
+        return "vk".equals(channel.getPlatform()) && catalog.version()==4?panelRuntimeConfigClient.selectGeneralForStart(catalog,true):panelRuntimeConfigClient.selectGeneralForStart(catalog);
     }
 
     private void requireRemoteQuestionnaire(Channel channel) {
