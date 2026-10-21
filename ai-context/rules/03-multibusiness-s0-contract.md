@@ -1070,6 +1070,55 @@ frozen root/provider proof, current READ и bytes SHA/size. Legacy URLs не о�
 reconciliation и live Redis/provider/S3/proxy/fleet acceptance. Source minimum V76;
 рабочая migration/flags/restart/deploy этим этапом не разрешаются.
 
+### R156: VK selected followup batch, точный replay и атомарный inbox
+
+Дата: 2026-10-21. Продолжение R155; его запись о закрытом VK followup — история.
+Новые v4 BUSINESS/GENERAL roots с frozen questionnaire_version=4 принимают фото,
+документы и audio_message после регистрации. Исторические NULL/v1–v3 roots не
+получают эту возможность автоматически. SQL minimum остаётся V76, новой migration нет.
+
+- Перед файловым I/O отдельный token/HMAC GET questionnaire-media/vk-batch возвращает
+  capability version=2. Telegram endpoint/version=1 не подменяет VK-допуск. SDK
+  сверяет user/channel/ticket, nullable business/scope, frozen template/catalog и
+  remainingFiles. Текущие bindings/resources не перечитываются для owner admission.
+- 1 байт–10 МиБ/файл и общий бюджет 10 с учётом draft/принятых followup. Бюджет
+  относится к этому client ingress, не ко всем операторским/legacy writers.
+  До скачивания проверяются весь batch, свой active root и доступное число мест.
+  VK CDN/redirect/size правила и owner/provider/slot/content-addressed keys R154
+  сохраняются. Creation history/answers не меняются; raw relay/feedback/AI нет.
+- Один conversation_message_id порождает одно versioned событие
+  client_message.selected_media_batch.v1, не N одиночных событий с конфликтующим ID.
+  UUID привязан к kind/channel/user/length-prefixed opaque ticket/provider.
+  Слот — точный последовательный индекс 1..N; весь batch и профиль/время исходного
+  сообщения сохраняются CAS до enqueue. Pending replay не скачивает файл, не
+  перечитывает вопросник и не заменяет подготовленный payload изменённым retry.
+- Ledger после submitted marker сохраняет новые provider keys, не меняя сам marker.
+  Старый consumer R155 отвергает такой snapshot прежней проверкой «submission — last»;
+  новый проверяет pending owner/slots/provider/time/budget и читает старые snapshots
+  с отсутствующими pending/counter. Legacy sessions без selection сохраняют прежнюю
+  attachment policy. Это source fencing, не доказанная rolling-upgrade приёмка.
+- Backend под legacy-ID guard и root/channel/active locks проверяет frozen root,
+  стабильный event ID, platform/type/name, уникальность provider, quota и реальные
+  bytes/size/SHA всех slots до первого child INSERT. Затем history/metadata/profile/
+  activity и processed inbox marker нового batch коммитятся одной транзакцией.
+  Deferred commit failure не оставляет processed inbox без данных; после такой
+  ошибки processing reclaim использует существующий timeout 15 минут.
+- Outbox/inbox сохраняют полный batch payload; совпадение event ID с другим
+  содержимым — отказ, включая failed/processed replay. Сравниваются JSON trees
+  после одинакового serialize/parse, без различия внутренних IntNode/LongNode.
+  Exact processed replay не читает storage/current flags/каталог. Одиночный selected
+  VK media writer не является обходом нового batch verifier. MAX protocol не менялся.
+- BUSINESS/GENERAL download использует прежние frozen root/provider/slot proof,
+  metadata hash/size, bytes и current READ. Отзыв grant закрывает файл; legacy URLs
+  не открываются. Enqueue не подтверждает backend commit, operator/client delivery.
+- Для выпуска нужны совместимые panel web/worker, core outbox и VK consumer.
+  Старый core outbox не публикует незнакомый event kind; R155 writer отвергает
+  scoped VK вместо частичной записи, но это не разрешает mixed fleet со всеми
+  историческими versions. Admission от нового web не доказывает обновление worker.
+  Shared storage, Redis/Rabbit/VK/proxy, TTL/retention/orphans/DLQ/reconciliation,
+  historical-root policy, scoped edit/feedback и прочие S2B/S3–S6 gates остаются.
+  Рабочие DB/flags/контейнеры, deployment и rollback этим source-пакетом не меняются.
+
 ## Scope guard и API contract
 
 Один сервис `BusinessAccessService` должен предоставлять:

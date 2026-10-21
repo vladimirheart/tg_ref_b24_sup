@@ -54,6 +54,21 @@ public class InboundClientMessagePublisher {
             eventId, command.ticketId(), routingKey);
     }
 
+    public void publishSelectedMediaBatch(ActiveInboundClientMessageCommand command,java.util.List<InboundClientMessageEvent.MediaItem> items) {
+        if(command==null || command.channel()==null || command.channel().getId()==null || command.channel().getId()<=0
+                || !"vk".equals(command.channel().getPlatform()) || command.userId()==null || command.userId()<=0
+                || command.ticketId()==null || command.ticketId().isBlank() || command.providerMessageId()==null || command.providerMessageId()<=0
+                || command.occurredAt()==null || items==null || items.isEmpty() || items.size()>10)
+            throw new IllegalArgumentException("A stable selected VK media batch is required");
+        var first=items.get(0);
+        String provider=command.providerMessageId().toString();
+        var event=new InboundClientMessageEvent(InboundClientMessageEvent.mediaBatchId(command.channel().getId(),command.userId(),command.ticketId(),provider),
+            InboundClientMessageEvent.MEDIA_BATCH_KIND,"vk",command.channel().getId(),command.ticketId(),command.userId(),
+            command.userIdentity(),command.username(),command.clientName(),command.text(),"selected_media_batch.v1",
+            first.attachmentPath(),first.attachmentName(),provider,stringify(command.replyToProviderMessageId()),command.forwardedFrom(),command.occurredAt(),items);
+        integrationTransportOutboxService.enqueueInboundClientMessage(event,rabbitProperties.routingKeyForPlatform("vk"),rabbitProperties);
+    }
+
     private String stringify(Long value) {
         return value == null ? null : value.toString();
     }

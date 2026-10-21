@@ -327,6 +327,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         if (session != null && session.selection != null) {
             if (channel == null || !Objects.equals(channel.getId(), session.selection.catalog().channelId()))
                 throw new IllegalStateException("VK questionnaire channel changed");
+            if(session.pendingMedia!=null) publishFollowupMedia(session);
             if (VkQuestionnaireChoiceSupport.predatesMenu(session.selection.startEventKey(), eventKey)) {
                 if (session.isComplete() && session.selectedBusiness())
                     sendQuestionnaireText(actor, peerId, "Это сообщение относится к предыдущему опросу. Для нового обращения — /start.", null);
@@ -422,7 +423,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                 throw new IllegalStateException("VK questionnaire root is not registered yet");
             }
             if (hasAttachments(message)) {
-                sendQuestionnaireText(actor, peerId, "После регистрации обращения вложения пока недоступны. Отправьте сообщение без вложений.", null);
+                acceptFollowupMedia(actor,message,session,eventKey,clientProfile);
                 return;
             }
             if (!handleActiveTicketMessage(actor, message, channel, text, clientProfile, session.selection.submittedTicketId()))
@@ -1145,6 +1146,59 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         if(session.isComplete()) finalizeConversation(actor,session);else promptCurrentQuestion(actor,session);
     }
 
+    private void acceptFollowupMedia(GroupActor actor,Message message,ConversationSession session,String eventKey,VkClientProfile profile) {
+        var ticket=ticketService.findByTicketId(session.selection.submittedTicketId());
+        if(session.selection.catalog().version()!=4 || ticket.isEmpty()) {
+            sendQuestionnaireText(actor,session.peerId(),"Вложения пока недоступны. Повторите файл после регистрации обращения.",null);return;
+        }
+        if(!Objects.equals(session.userId(),ticket.get().userId()) || isClosedStatus(ticket.get().status()))
+            throw new IllegalStateException("VK selected media root owner or status changed");
+        final List<VkQuestionnaireMedia.Item> items;
+        try {items=VkQuestionnaireMedia.describe(message);}
+        catch(IllegalArgumentException ex) {sendQuestionnaireText(actor,session.peerId(),ex.getMessage(),null);return;}
+        long count=session.history.stream().filter(entry->entry.attachment()!=null).count()+session.followupMediaCount;
+        if(count+items.size()>QuestionnaireMedia.MAX_FILES) {
+            sendQuestionnaireText(actor,session.peerId(),"К обращению можно приложить не более 10 файлов.",null);return;
+        }
+        Channel channel=getChannel();
+        // Frozen root admission, not a recapture of today's mutable questionnaire.
+        var proof=runtimeConfigService.selectedVkMediaAdmission(channel,session.userId(),session.selection.submittedTicketId(),session.selection.selected());
+        if(proof==null) throw new ScopedRuntimeConfigUnavailableException("VK batch media admission is unavailable");
+        if(proof.remainingFiles()<items.size()) {
+            sendQuestionnaireText(actor,session.peerId(),"Недостаточно свободных мест для всех файлов сообщения.",null);return;
+        }
+        String text=message.getText()==null?"":message.getText().strip();
+        if(text.isEmpty()) text="Вложений: "+items.size();
+        var history=new ArrayList<HistoryEvent>();
+        try {
+            for(var item:items) try(var input=openQuestionnaireMedia(item.url())) {
+                var stored=attachmentService.storeVkQuestionnaire(channel.getId(),session.scope().businessId(),session.userId(),
+                    session.scope().catalogSha256(),message.getConversationMessageId(),item.slot(),item.extension(),input);
+                if(stored==null || !QuestionnaireMedia.matchesVk(stored.storageKey(),channel.getId(),session.scope().businessId(),session.userId(),session.scope().catalogSha256(),message.getConversationMessageId())
+                        || !stored.storageKey().startsWith(QuestionnaireMedia.vkPrefix(channel.getId(),session.scope().businessId(),session.userId(),session.scope().catalogSha256(),message.getConversationMessageId(),item.slot())))
+                    throw new IllegalStateException("VK storage returned foreign questionnaire media");
+                history.add(new HistoryEvent(session.userId(),text,item.type(),stored.storageKey(),item.name(),message.getConversationMessageId().toString(),VkQuestionnaireMedia.occurredAt(message)));
+            }
+        } catch(AttachmentService.MediaSizeException ex) {
+            sendQuestionnaireText(actor,session.peerId(),"Файл должен содержать от 1 байта до 10 МиБ. Отправьте сообщение заново.",null);return;
+        } catch(IOException ex) {throw new IllegalStateException("VK questionnaire media is unavailable",ex);}
+        session.pendingMedia=new PendingMedia(eventKey,profile.identity(),profile.username(),profile.clientName(),history);
+        session.acceptEvent(eventKey); // Also fences the previous consumer, which requires submission to be the last accepted event.
+        saveSession(session);
+        publishFollowupMedia(session);
+    }
+
+    private void publishFollowupMedia(ConversationSession session) {
+        var pending=session.pendingMedia;var first=pending.items().get(0);
+        var command=new ActiveInboundClientMessageCommand(session.userId(),pending.userIdentity(),pending.username(),pending.clientName(),
+            getChannel(),session.selection.submittedTicketId(),first.text(),"selected_media_batch.v1",first.attachment(),first.attachmentName(),
+            Long.parseLong(first.providerMessageId()),null,null,first.occurredAt());
+        var items=pending.items().stream().map(item->new com.example.supportbot.service.InboundClientMessageEvent.MediaItem(item.messageType(),item.attachment(),item.attachmentName())).toList();
+        ticketService.recordSelectedMediaBatch(command,items);
+        session.followupMediaCount+=items.size();session.pendingMedia=null;
+        saveSession(session);
+    }
+
     InputStream openQuestionnaireMedia(URI uri) throws IOException {
         VkQuestionnaireMedia.url(uri.toString());
         var request=HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(30)).GET().build();
@@ -1554,7 +1608,18 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                                             boolean firstClientResponseReceived,
                                             boolean reuseDecisionPending,
                                             int currentIndex,
-                                            QuestionnaireSelection selection) {
+                                            QuestionnaireSelection selection,PendingMedia pendingMedia,int followupMediaCount) {
+        ConversationSessionState(Long peerId,Long userId,String username,String clientName,List<QuestionFlowItemDto> flow,BotSettingsDto settings,
+                QuestionnaireScope scope,Map<String,String> answers,List<HistoryEvent> history,List<Integer> visitedQuestionIndexes,
+                OffsetDateTime startedAt,Map<String,String> cachedAnswers,String bootstrapProblemText,boolean firstClientResponseReceived,
+                boolean reuseDecisionPending,int currentIndex,QuestionnaireSelection selection) {
+            this(peerId,userId,username,clientName,flow,settings,scope,answers,history,visitedQuestionIndexes,startedAt,cachedAnswers,
+                bootstrapProblemText,firstClientResponseReceived,reuseDecisionPending,currentIndex,selection,null,0);
+        }
+    }
+
+    private record PendingMedia(String eventKey,String userIdentity,String username,String clientName,List<HistoryEvent> items) {
+        PendingMedia {items=List.copyOf(items);}
     }
 
     private record QuestionnaireSelection(ChoiceCatalog catalog, String nonce, String startEventKey,
@@ -1570,7 +1635,8 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                     || acceptedEventKeys.stream().anyMatch(key -> !StringUtils.hasText(key))
                     || new java.util.HashSet<>(acceptedEventKeys).size() != acceptedEventKeys.size()
                     || page < 0 || page >= VkQuestionnaireChoiceSupport.pageCount(catalog)
-                    || (submissionEventKey != null && (acceptedEventKeys.isEmpty()
+                    || (submissionEventKey!=null && !acceptedEventKeys.contains(submissionEventKey))
+                    || (submissionEventKey != null && submittedTicketId==null && (acceptedEventKeys.isEmpty()
                         || !submissionEventKey.equals(acceptedEventKeys.get(acceptedEventKeys.size() - 1))))
                     || (submittedTicketId != null && (!StringUtils.hasText(submittedTicketId) || !StringUtils.hasText(submissionEventKey))))
                 throw new IllegalStateException("Invalid VK questionnaire event identity");
@@ -1603,6 +1669,8 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         private boolean reuseDecisionPending = false;
         private int currentIndex = 0;
         private QuestionnaireSelection selection;
+        private PendingMedia pendingMedia;
+        private int followupMediaCount;
 
         ConversationSession(Long peerId,
                             Long userId,
@@ -1649,6 +1717,8 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             this.reuseDecisionPending = state.reuseDecisionPending();
             this.currentIndex = Math.max(0, state.currentIndex());
             this.selection = state.selection();
+            this.pendingMedia=state.pendingMedia();
+            this.followupMediaCount=state.followupMediaCount();
             if(selection!=null && scope!=null && selection.catalog().version()>=3) {
                 if(selection.selected()==null || selection.selected().version()<3 || selection.selected().channelId()!=selection.catalog().channelId()
                         || !QuestionnaireScope.fromSelection(selection.selected()).equals(scope))
@@ -1683,6 +1753,50 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                             || !mediaSlots.add(entry.attachment().substring(0,entry.attachment().lastIndexOf('/')+1)) || ++mediaCount>QuestionnaireMedia.MAX_FILES)
                         throw new IllegalStateException("Invalid saved VK questionnaire media");
                 }
+            }
+            validateFollowupMedia();
+        }
+
+        private void validateFollowupMedia() {
+            if(selection==null && pendingMedia==null && followupMediaCount==0) return; // Legacy sessions keep their existing attachment policy.
+            if(followupMediaCount<0 || history.stream().filter(item->item.attachment()!=null).count()+followupMediaCount
+                    +(pendingMedia==null?0:pendingMedia.items().size())>QuestionnaireMedia.MAX_FILES)
+                throw new IllegalStateException("Invalid saved VK follow-up media budget");
+            if(selection!=null && selection.submittedTicketId()!=null) {
+                int submission=selection.acceptedEventKeys().indexOf(selection.submissionEventKey());
+                int later=selection.acceptedEventKeys().size()-submission-1;
+                if(submission<0 || later>followupMediaCount+(pendingMedia==null?0:1)
+                        || (later==0 && (pendingMedia!=null || followupMediaCount!=0)))
+                    throw new IllegalStateException("Invalid saved VK follow-up ledger");
+                for(String key:selection.acceptedEventKeys().subList(submission+1,selection.acceptedEventKeys().size())) {
+                    if(!key.matches("vk-message:"+userId+":[1-9][0-9]{0,9}")
+                            || VkQuestionnaireChoiceSupport.predatesMenu(selection.submissionEventKey(),key) || key.equals(selection.submissionEventKey()))
+                        throw new IllegalStateException("Invalid saved VK follow-up event");
+                }
+            }
+            if(pendingMedia==null && followupMediaCount==0) return;
+            if(selection==null || selection.catalog().version()!=4 || scope==null || selection.submittedTicketId()==null
+                    || !selection.acceptedEventKeys().contains(selection.submissionEventKey())
+                    || selection.submissionEventKey().equals(selection.acceptedEventKeys().get(selection.acceptedEventKeys().size()-1)))
+                throw new IllegalStateException("Invalid saved VK follow-up root");
+            if(pendingMedia==null) return;
+            var items=pendingMedia.items();
+            if(items.isEmpty() || !pendingMedia.eventKey().equals(selection.acceptedEventKeys().get(selection.acceptedEventKeys().size()-1)))
+                throw new IllegalStateException("Invalid saved VK pending batch");
+            var first=items.get(0);int slot=0;
+            for(var item:items) {
+                if(item==null || !Objects.equals(userId,item.userId()) || item.providerMessageId()==null || !item.providerMessageId().matches("[1-9][0-9]{0,9}")
+                        || Long.parseLong(item.providerMessageId())>Integer.MAX_VALUE || item.occurredAt()==null
+                        || !Objects.equals(first.providerMessageId(),item.providerMessageId()) || !Objects.equals(first.occurredAt(),item.occurredAt())
+                        || !Objects.equals(first.text(),item.text()) || !VkQuestionnaireMedia.TYPES.contains(item.messageType())
+                        || item.attachmentName()==null || item.attachmentName().isBlank() || item.attachmentName().length()>255
+                        || item.attachmentName().chars().anyMatch(c->c<32 || c==127 || c=='/' || c=='\\')
+                        || !pendingMedia.eventKey().equals("vk-message:"+userId+":"+item.providerMessageId())
+                        || VkQuestionnaireChoiceSupport.predatesMenu(selection.submissionEventKey(),pendingMedia.eventKey())
+                        || selection.submissionEventKey().equals(pendingMedia.eventKey())
+                        || !QuestionnaireMedia.matchesVk(item.attachment(),selection.catalog().channelId(),scope.businessId(),userId,scope.catalogSha256(),Long.parseLong(item.providerMessageId()))
+                        || !item.attachment().startsWith(QuestionnaireMedia.vkPrefix(selection.catalog().channelId(),scope.businessId(),userId,scope.catalogSha256(),Long.parseLong(item.providerMessageId()),++slot)))
+                    throw new IllegalStateException("Invalid saved VK pending media");
             }
         }
 
@@ -1944,7 +2058,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                     firstClientResponseReceived,
                     reuseDecisionPending,
                     currentIndex,
-                    selection
+                    selection,pendingMedia,followupMediaCount
             );
         }
 

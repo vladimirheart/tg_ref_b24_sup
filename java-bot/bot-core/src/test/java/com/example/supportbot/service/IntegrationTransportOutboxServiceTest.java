@@ -22,6 +22,21 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 class IntegrationTransportOutboxServiceTest {
+    @Test void selectedMediaBatchFreezesTheEntirePayloadAndPublishesAsOneEnvelope() {
+        var items=List.of(new InboundClientMessageEvent.MediaItem("photo","questionnaires/vk/1.jpg","photo.jpg"),
+            new InboundClientMessageEvent.MediaItem("document","questionnaires/vk/2.bin","proof.bin"));
+        var event=new InboundClientMessageEvent("r156-batch",InboundClientMessageEvent.MEDIA_BATCH_KIND,"vk",10L,"T-42",20L,"u20","u20","Client",
+            "Caption","selected_media_batch.v1",items.get(0).attachmentPath(),items.get(0).attachmentName(),"88",null,null,OffsetDateTime.parse("2026-10-21T10:00:00Z"),items);
+        service.enqueueInboundClientMessage(event,"integration.inbound.vk",properties);
+        service.enqueueInboundClientMessage(event,"integration.inbound.vk",properties);
+        var changed=new InboundClientMessageEvent(event.eventId(),event.eventKind(),event.platform(),event.channelId(),event.ticketId(),event.userId(),
+            event.userIdentity(),event.username(),event.clientName(),"Changed",event.messageType(),event.attachmentPath(),event.attachmentName(),
+            event.providerMessageId(),null,null,event.occurredAt(),items);
+        assertThatThrownBy(()->service.enqueueInboundClientMessage(changed,"integration.inbound.vk",properties)).hasMessageContaining("identity mismatch");
+        service.dispatchScheduled();
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM integration_transport_outbox WHERE event_id=?",Integer.class,event.eventId())).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("SELECT status FROM integration_transport_outbox WHERE event_id=?",String.class,event.eventId())).isEqualTo("published");
+    }
 
     @Test
     void selectedBusinessCatalogCannotBeChangedOrDroppedOnOutboxRetry() throws Exception {

@@ -125,6 +125,12 @@ public class TicketService {
     }
 
     @Transactional
+    public void recordSelectedMediaBatch(ActiveInboundClientMessageCommand command,java.util.List<InboundClientMessageEvent.MediaItem> items) {
+        if(!integrationTransportMode.isRabbitMqMode()) throw new IllegalStateException("Selected media batches require the canonical Rabbit writer");
+        inboundClientMessagePublisher.publishSelectedMediaBatch(command,items);
+    }
+
+    @Transactional
     public TicketCreationResult createTicket(long userId,
                                              String username,
                                              Map<String, String> answers,

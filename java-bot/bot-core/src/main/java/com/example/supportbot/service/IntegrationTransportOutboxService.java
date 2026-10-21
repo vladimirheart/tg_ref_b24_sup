@@ -52,7 +52,7 @@ public class IntegrationTransportOutboxService {
     public void enqueueInboundClientMessage(InboundClientMessageEvent event,
                                             String routingKey,
                                             IntegrationRabbitProperties properties) {
-        enqueue(
+        boolean inserted=enqueue(
             event.eventId(),
             "bot.inbound.client-message",
             event.eventKind(),
@@ -64,6 +64,15 @@ public class IntegrationTransportOutboxService {
             event.ticketId(),
             null
         );
+        if(!inserted) {
+            var rows=jdbcTemplate.queryForList("SELECT event_kind,payload_json FROM integration_transport_outbox WHERE event_id=?",event.eventId());
+            try {
+                boolean batch=InboundClientMessageEvent.MEDIA_BATCH_KIND.equals(event.eventKind())
+                    || rows.size()==1 && InboundClientMessageEvent.MEDIA_BATCH_KIND.equals(rows.get(0).get("event_kind"));
+                if(batch && (rows.size()!=1 || !transportObjectMapper.readTree((String)rows.get(0).get("payload_json")).equals(transportObjectMapper.readTree(toJson(event,event.eventId())))))
+                    throw new IllegalStateException("Selected media batch outbox identity mismatch");
+            } catch(JsonProcessingException ex) {throw new IllegalStateException("Invalid stored media batch",ex);}
+        }
     }
 
     public boolean enqueueConversationTicketCreated(ConversationTicketCreatedEvent event,
@@ -260,7 +269,7 @@ public class IntegrationTransportOutboxService {
 
     private void publish(OutboxEntry entry) throws Exception {
         Object payload = switch (normalize(entry.eventKind())) {
-            case "client_message.active_ticket" ->
+            case "client_message.active_ticket", "client_message.selected_media_batch.v1" ->
                 transportObjectMapper.readValue(entry.payloadJson(), InboundClientMessageEvent.class);
             case "ticket.created.initial_contact" ->
                 transportObjectMapper.readValue(entry.payloadJson(), ConversationTicketCreatedEvent.class);

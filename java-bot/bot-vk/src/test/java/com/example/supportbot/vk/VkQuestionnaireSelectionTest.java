@@ -648,10 +648,108 @@ class VkQuestionnaireSelectionTest {
         ((ObjectNode)saved.path("history").get(0)).put("attachment",saved.at("/history/0/attachment").asText().replace("business-7","business-8"));
         store.save("vk-questionnaire-v1",55L,1001L,saved);rebuild();assertThatThrownBy(()->receive(4,"Two")).hasMessageContaining("Invalid saved VK questionnaire media");verify(tickets,never()).createConversationTicket(any());assertThat(downloads).hasValue(1);
     }
-    @Test void submittedSelectedFlowKeepsMediaFollowupClosed() throws Exception {
+    @Test void submittedButUnregisteredSelectedRootKeepsMediaClosedBeforeDownload() throws Exception {
         mediaChoose(false);receive(3,"One");receive(4,"Two");
         var active=new TicketActive();active.setTicketId("T-VK");
         when(tickets.findActiveTicketForUser(anyLong(),anyString(),anyLong())).thenReturn(Optional.of(active));
         bot.handleIncomingMessage(mediaMessage(5,"Later","document"));assertThat(downloads).hasValue(0);verifyNoInteractions(attachments,feedback);
+    }
+
+    @Test void legacySessionsKeepTheirExistingAttachmentPolicyInsteadOfTheNewSelectedBudget() throws Exception {
+        doReturn(Optional.empty()).when(runtime).findChannelConfig(channel);when(local.loadSettings()).thenReturn(Map.of("bot_settings",a.botSettings()));
+        receive(1,"/start");ObjectNode saved=(ObjectNode)state();var history=mapper.createArrayNode();
+        for(int i=0;i<11;i++)history.add(mapper.createObjectNode().put("userId",1001).put("text","legacy").put("messageType","document").put("attachment","legacy/"+i+".bin"));
+        saved.set("history",history);store.save("vk",55L,1001L,saved);rebuild();receive(2,"One");
+        assertThat(state().path("history")).hasSize(12);verify(tickets,never()).recordSelectedMediaBatch(any(),anyList());
+    }
+    @Test void postEnqueueCasConflictReplaysTheSameBatchWithoutAnotherDownloadOrQuotaIncrement() throws Exception {
+        registeredMediaRoot(false);var saves=new java.util.concurrent.atomic.AtomicInteger();
+        doAnswer(call->saves.incrementAndGet()==2?Optional.empty():call.callRealMethod()).when(store)
+            .saveIfUnchanged(eq("vk-questionnaire-v1"),eq(55L),eq(1001L),any(),any());
+        bot.handleIncomingMessage(mediaMessage(5,"Original","photo","document"));
+        var commands=org.mockito.ArgumentCaptor.forClass(ActiveInboundClientMessageCommand.class);
+        verify(tickets,times(2)).recordSelectedMediaBatch(commands.capture(),anyList());
+        assertThat(commands.getAllValues().get(0)).isEqualTo(commands.getAllValues().get(1));
+        assertThat(downloads).hasValue(2);assertThat(state().path("followupMediaCount").asInt()).isEqualTo(2);assertThat(state().path("pendingMedia").isNull()).isTrue();
+    }
+    private void registeredMediaRoot(boolean general) throws Exception {
+        mediaChoose(general);receive(3,"One");receive(4,"Two");
+        var active=new TicketActive();active.setTicketId("T-VK");
+        when(tickets.findActiveTicketForUser(anyLong(),anyString(),anyLong())).thenReturn(Optional.of(active));
+        when(tickets.findByTicketId("T-VK")).thenReturn(Optional.of(new TicketService.TicketWithUser(1001L,"T-VK","open")));
+        when(runtime.selectedVkMediaAdmission(eq(channel),eq(1001L),eq("T-VK"),any())).thenAnswer(call->{
+            SelectedQuestionnaire selected=call.getArgument(3);
+            return new SelectedMediaAdmission(2,55,1001,"T-VK",selected.businessId(),selected.scopeKind(),selected.questionTemplateId(),selected.templateSha256(),selected.catalogSha256(),10);
+        });
+    }
+    @ParameterizedTest @ValueSource(booleans={false,true})
+    void registeredVkBatchUsesOneFrozenCommandAndRestoredDuplicatesNeverDownloadAgain(boolean general) throws Exception {
+        registeredMediaRoot(general);var original=state();resetDeliveryCache();rebuild();
+        doThrow(unavailable()).when(runtime).selectQuestionnaire(any(),any(),anyLong());
+        doThrow(unavailable()).when(runtime).selectGeneralQuestionnaire(any(),any());
+        var incoming=mediaMessage(5,"Later","photo","document","audio_message");bot.handleIncomingMessage(incoming);
+        resetDeliveryCache();rebuild();bot.handleIncomingMessage(incoming);
+        var commands=org.mockito.ArgumentCaptor.forClass(ActiveInboundClientMessageCommand.class);
+        @SuppressWarnings("unchecked") var batches=org.mockito.ArgumentCaptor.forClass((Class<List<InboundClientMessageEvent.MediaItem>>)(Class<?>)List.class);
+        verify(tickets).recordSelectedMediaBatch(commands.capture(),batches.capture());
+        assertThat(commands.getValue().providerMessageId()).isEqualTo(5L);assertThat(commands.getValue().text()).isEqualTo("Later");
+        assertThat(batches.getValue()).extracting(InboundClientMessageEvent.MediaItem::messageType).containsExactly("photo","document","audio_message");
+        assertThat(batches.getValue()).allSatisfy(item->assertThat(item.attachmentPath()).startsWith("questionnaires/vk/55/"+(general?"general":"business-7")+"/1001/"+catalog.catalogSha256()+"/5/"));
+        assertThat(state().path("history")).isEqualTo(original.path("history"));assertThat(state().path("answers")).isEqualTo(original.path("answers"));
+        assertThat(state().path("followupMediaCount").asInt()).isEqualTo(3);assertThat(state().path("pendingMedia").isNull()).isTrue();
+        assertThat(downloads).hasValue(3);assertThat(mediaFileCount()).isEqualTo(3);
+        verify(tickets,never()).recordActiveClientMessage(any());verify(send,never()).peerId(55L);verifyNoInteractions(feedback);
+    }
+    @Test void preparedVkBatchSurvivesQueueFailureAndUsesExactPayloadEvenWhenProviderRetryChanges() throws Exception {
+        registeredMediaRoot(false);doThrow(new IllegalStateException("r156 queue failure")).doNothing().when(tickets).recordSelectedMediaBatch(any(),anyList());
+        assertThatThrownBy(()->bot.handleIncomingMessage(mediaMessage(5,"Original","photo","document"))).hasMessageContaining("r156 queue failure");
+        assertThat(state().path("pendingMedia").path("items")).hasSize(2);
+        // Previous R155 consumer rejects precisely this invariant, rather than silently ignoring the new pending fields.
+        var selection=state().path("selection");var keys=selection.path("acceptedEventKeys");
+        assertThat(keys.get(keys.size()-1).asText()).isNotEqualTo(selection.path("submissionEventKey").asText());
+        doThrow(unavailable()).when(runtime).selectedVkMediaAdmission(any(),anyLong(),anyString(),any());
+        resetDeliveryCache();rebuild();bot.handleIncomingMessage(mediaMessage(5,"Edited retry","audio_message"));
+        var commands=org.mockito.ArgumentCaptor.forClass(ActiveInboundClientMessageCommand.class);
+        @SuppressWarnings("unchecked") var batches=org.mockito.ArgumentCaptor.forClass((Class<List<InboundClientMessageEvent.MediaItem>>)(Class<?>)List.class);
+        verify(tickets,times(2)).recordSelectedMediaBatch(commands.capture(),batches.capture());
+        assertThat(commands.getAllValues().get(0)).isEqualTo(commands.getAllValues().get(1));
+        assertThat(batches.getAllValues().get(0)).isEqualTo(batches.getAllValues().get(1));
+        assertThat(downloads).hasValue(2);assertThat(state().path("followupMediaCount").asInt()).isEqualTo(2);
+    }
+    @ParameterizedTest @ValueSource(strings={"closed","foreign","different-active","admission","quota","unsupported"})
+    void registeredVkMediaDenialsNeverDownloadOrEnqueue(String reason) throws Exception {
+        registeredMediaRoot(false);var incoming=mediaMessage(5,"Later","document");
+        switch(reason) {
+            case "closed"->when(tickets.findByTicketId("T-VK")).thenReturn(Optional.of(new TicketService.TicketWithUser(1001L,"T-VK","closed")));
+            case "foreign"->when(tickets.findByTicketId("T-VK")).thenReturn(Optional.of(new TicketService.TicketWithUser(1002L,"T-VK","open")));
+            case "different-active"->{var other=new TicketActive();other.setTicketId("OTHER");when(tickets.findActiveTicketForUser(anyLong(),anyString(),anyLong())).thenReturn(Optional.of(other));}
+            case "admission"->doThrow(unavailable()).when(runtime).selectedVkMediaAdmission(any(),anyLong(),anyString(),any());
+            case "quota"->{doReturn(new SelectedMediaAdmission(2,55,1001,"T-VK",7L,"BUSINESS","q-a",a.templateSha256(),a.catalogSha256(),1)).when(runtime).selectedVkMediaAdmission(any(),anyLong(),anyString(),any());incoming=mediaMessage(5,"Later","document","photo");}
+            case "unsupported"->incoming=mediaMessage(5,"Later","document","sticker");
+        }
+        if(Set.of("closed","foreign","different-active").contains(reason)){var rejected=incoming;assertThatThrownBy(()->bot.handleIncomingMessage(rejected)).isInstanceOf(IllegalStateException.class);}
+        else bot.handleIncomingMessage(incoming);
+        assertThat(downloads).hasValue(0);assertThat(state().path("pendingMedia").isNull()).isTrue();verify(tickets,never()).recordSelectedMediaBatch(any(),anyList());
+    }
+    @Test void registeredVkQuotaPersistsAcrossRestoreAndNeverAcceptsEleventhFile() throws Exception {
+        registeredMediaRoot(false);
+        var message=mediaMessage(5,"Ten","document");message.setAttachments(Collections.nCopies(10,message.getAttachments().get(0)));
+        bot.handleIncomingMessage(message);rebuild();bot.handleIncomingMessage(mediaMessage(6,"Eleven","photo"));
+        assertThat(downloads).hasValue(10);assertThat(state().path("followupMediaCount").asInt()).isEqualTo(10);verify(tickets,times(1)).recordSelectedMediaBatch(any(),anyList());
+    }
+    @ParameterizedTest @ValueSource(strings={"owner","slot","provider","counter"})
+    void corruptedPreparedVkBatchCannotBeReplayed(String mutation) throws Exception {
+        registeredMediaRoot(false);doThrow(new IllegalStateException("r156 queue failure")).when(tickets).recordSelectedMediaBatch(any(),anyList());
+        assertThatThrownBy(()->bot.handleIncomingMessage(mediaMessage(5,"Original","photo","document"))).hasMessageContaining("r156 queue failure");
+        ObjectNode json=(ObjectNode)state();ObjectNode item=(ObjectNode)json.path("pendingMedia").path("items").get(1);
+        switch(mutation) {
+            case "owner"->item.put("attachment",item.path("attachment").asText().replace("business-7","business-8"));
+            case "slot"->item.put("attachment",item.path("attachment").asText().replace("/5/2/","/5/1/"));
+            case "provider"->item.put("providerMessageId","6");
+            case "counter"->json.put("followupMediaCount",10);
+        }
+        store.save("vk-questionnaire-v1",55L,1001L,json);resetDeliveryCache();rebuild();clearInvocations(tickets);
+        assertThatThrownBy(()->receive(5,"Retry")).hasMessageContaining("Invalid saved VK");
+        assertThat(downloads).hasValue(2);verify(tickets,never()).recordSelectedMediaBatch(any(),anyList());
     }
 }

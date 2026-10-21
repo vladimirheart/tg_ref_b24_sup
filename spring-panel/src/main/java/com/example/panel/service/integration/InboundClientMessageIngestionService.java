@@ -70,7 +70,8 @@ public class InboundClientMessageIngestionService {
         }
         try {
             processEvent(event);
-            inboxService.markProcessed(event.eventId());
+            if(InboundClientMessageEvent.MEDIA_BATCH_KIND.equals(event.eventKind())) inboxService.markProcessedWithWrites(event.eventId());
+            else inboxService.markProcessed(event.eventId());
         } catch (Exception ex) {
             inboxService.markFailed(event.eventId(), ex);
             throw ex;
@@ -94,14 +95,35 @@ public class InboundClientMessageIngestionService {
         }
 
         OffsetDateTime occurredAt = event.occurredAt() != null ? event.occurredAt() : OffsetDateTime.now();
+        if(InboundClientMessageEvent.MEDIA_BATCH_KIND.equals(event.eventKind())) {
+            if(selectedMedia==null) throw new IllegalStateException("Selected follow-up media verifier is unavailable");
+            var proof=selectedMedia.verifyVkBatch(event);
+            for(var item:event.mediaBatch()) {
+                var entry=new InboundClientMessageEvent(event.eventId(),event.eventKind(),event.platform(),event.channelId(),event.ticketId(),
+                    event.userId(),event.userIdentity(),event.username(),event.clientName(),event.text(),item.messageType(),item.attachmentPath(),
+                    item.attachmentName(),event.providerMessageId(),event.replyToProviderMessageId(),event.forwardedFrom(),event.occurredAt());
+                storeHistory(entry,channel,ticket,occurredAt,proof.get(item.attachmentPath()));
+            }
+            messageRepository.findFirstByTicketId(event.ticketId()).ifPresent(message -> syncClientProfile(message,event,occurredAt));
+            upsertTicketActivity(event,occurredAt);
+            return;
+        }
+        if(event.mediaBatch()!=null) throw new IllegalStateException("A batch requires its versioned event kind");
         boolean selectedRoot=ticket.getQuestionnaireCatalogSha256()!=null;
         boolean media=event.attachmentPath()!=null || !"text".equals(event.messageType());
         SelectedQuestionnaireMediaValidator.Verified verified=null;
-        if((selectedRoot && media && "telegram".equals(channel.getPlatform()))
+        if((selectedRoot && media && ("telegram".equals(channel.getPlatform()) || "vk".equals(channel.getPlatform())))
                 || com.example.panel.storage.QuestionnaireMediaStorageProof.isScoped(event.attachmentPath())) {
             if(selectedMedia==null) throw new IllegalStateException("Selected follow-up media verifier is unavailable");
             verified=selectedMedia.verify(event);
         }
+        storeHistory(event,channel,ticket,occurredAt,verified);
+        messageRepository.findFirstByTicketId(event.ticketId()).ifPresent(message -> syncClientProfile(message, event, occurredAt));
+        upsertTicketActivity(event, occurredAt);
+    }
+
+    private void storeHistory(InboundClientMessageEvent event,Channel channel,Ticket ticket,OffsetDateTime occurredAt,
+            SelectedQuestionnaireMediaValidator.Verified verified) {
         ChatHistory history = new ChatHistory();
         history.setUserId(event.userId());
         history.setSender("client");
@@ -131,8 +153,6 @@ public class InboundClientMessageIngestionService {
             event.messageType()
         );
 
-        messageRepository.findFirstByTicketId(event.ticketId()).ifPresent(message -> syncClientProfile(message, event, occurredAt));
-        upsertTicketActivity(event, occurredAt);
     }
 
     private void syncClientProfile(Message message, InboundClientMessageEvent event, OffsetDateTime occurredAt) {

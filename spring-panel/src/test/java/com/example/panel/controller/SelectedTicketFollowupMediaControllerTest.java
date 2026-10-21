@@ -53,4 +53,18 @@ class SelectedTicketFollowupMediaControllerTest {
         String signature=HexFormat.of().formatHex(mac.doFinal(("GET\n"+target+"\n"+time+"\n"+sha).getBytes(StandardCharsets.UTF_8)));
         return get(target).header("X-Iguana-Bot-Api-Token","test-token").header("X-Iguana-Request-Timestamp",time).header("X-Iguana-Request-Signature",signature);
     }
+    @Test void vkBatchProofHasADistinctSignedPathAndProtocol() throws Exception {
+        String target=path.replace("questionnaire-media?","questionnaire-media/vk-batch?");
+        when(service.vkBatchAdmission(8,901,"T-TG")).thenReturn(new SelectedTicketFollowupMediaService.Admission(2,8,901,"T-TG",null,"GENERAL","q-general","a".repeat(64),"c".repeat(64),7));
+        mvc.perform(get(target)).andExpect(status().isUnauthorized()).andExpect(header().string("Cache-Control","no-store"));
+        mvc.perform(signed(target).queryParam("ticketId","FOREIGN")).andExpect(status().isUnauthorized());
+        verify(service,never()).vkBatchAdmission(anyLong(),anyLong(),anyString());
+        mvc.perform(signed(target)).andExpect(status().isOk()).andExpect(jsonPath("$.version").value(2))
+            .andExpect(jsonPath("$.remainingFiles").value(7)).andExpect(jsonPath("$.businessId").isEmpty()).andExpect(header().string("Cache-Control","no-store"));
+    }
+    @Test void deniedVkBatchCannotReuseTheTelegramProof() throws Exception {
+        when(service.vkBatchAdmission(8,901,"T-TG")).thenThrow(new IllegalStateException("Unavailable"));
+        mvc.perform(signed(path.replace("questionnaire-media?","questionnaire-media/vk-batch?"))).andExpect(status().isConflict());
+        verify(service,never()).admission(anyLong(),anyLong(),anyString());
+    }
 }

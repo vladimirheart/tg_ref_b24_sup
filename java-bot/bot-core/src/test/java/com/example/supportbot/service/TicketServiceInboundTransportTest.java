@@ -26,6 +26,21 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;
 
 class TicketServiceInboundTransportTest {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"rabbitmq","jdbc"})
+    void selectedMediaBatchNeverUsesLegacySingleOrDirectWriters(String mode) {
+        var messages=mock(TicketMessageRepository.class);var active=mock(TicketActiveRepository.class);
+        var history=mock(ChatHistoryService.class);var publisher=mock(InboundClientMessagePublisher.class);
+        var service=createService(messages,active,history,publisher,mock(ConversationTicketCreatedPublisher.class),
+            mock(PanelTicketReadClient.class),mock(PanelTicketWriteClient.class),new MockEnvironment().withProperty("app.integration.transport.mode",mode));
+        var channel=new Channel();channel.setId(55L);channel.setPlatform("vk");
+        var command=new ActiveInboundClientMessageCommand(901L,"u901","client","Client",channel,"T-VK","Caption",
+            "selected_media_batch.v1","key","proof.bin",88L,null,null,OffsetDateTime.parse("2026-10-21T10:00:00Z"));
+        var items=java.util.List.of(new InboundClientMessageEvent.MediaItem("document","key","proof.bin"));
+        if(mode.equals("rabbitmq")) {service.recordSelectedMediaBatch(command,items);verify(publisher).publishSelectedMediaBatch(command,items);}
+        else assertThatThrownBy(()->service.recordSelectedMediaBatch(command,items)).hasMessageContaining("canonical Rabbit writer");
+        verify(publisher,never()).publish(any());org.mockito.Mockito.verifyNoInteractions(history,messages,active);
+    }
 
     @Test
     void recordActiveClientMessagePublishesToRabbitWithoutDirectBusinessWrites() {

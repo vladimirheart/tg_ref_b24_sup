@@ -324,6 +324,118 @@ class SelectedBusinessTicketCreationPostgresTest {
         for(var row:upgraded){assertThat(row).containsEntry("questionnaire_version",null);row.remove("questionnaire_version");}
         assertThat(upgraded).isEqualTo(original);
     }
+    private InboundClientMessageEvent r156Batch(long provider,int size) throws Exception {
+        var items=new java.util.ArrayList<InboundClientMessageEvent.MediaItem>();
+        for(int slot=1;slot<=size;slot++) {
+            String key=r154Keys.get(0).replace("/33/1/","/"+provider+"/"+slot+"/");r153Write(key,R153_BYTES);
+            items.add(new InboundClientMessageEvent.MediaItem(slot%3==1?"photo":slot%3==2?"document":"audio_message",key,"proof.bin"));
+        }
+        String id=InboundClientMessageEvent.mediaBatchId(channel,901,event.ticketId(),Long.toString(provider));
+        return new InboundClientMessageEvent(id,InboundClientMessageEvent.MEDIA_BATCH_KIND,"vk",channel,event.ticketId(),901L,
+            event.userIdentity(),"r156-client","R156 Client","Batch caption","selected_media_batch.v1",items.get(0).attachmentPath(),
+            items.get(0).attachmentName(),Long.toString(provider),null,null,event.occurredAt().plusSeconds(10),items);
+    }
+    private InboundClientMessageEvent r156Change(InboundClientMessageEvent input,java.util.function.Consumer<com.fasterxml.jackson.databind.node.ObjectNode> change) throws Exception {
+        com.fasterxml.jackson.databind.node.ObjectNode json=mapper.valueToTree(input);change.accept(json);
+        return mapper.treeToValue(json,InboundClientMessageEvent.class);
+    }
+    private void r156Ingest(InboundClientMessageEvent input) {followupIngestion.ingest(input,"integration.ticket.vk");}
+
+    @ParameterizedTest @ValueSource(booleans={false,true})
+    void vkFollowupBatchRetainsFrozenOwnerReadProofAndExactReplay(boolean general) throws Exception {
+        r154VkMedia(general);ingest(event);var input=r156Batch(88,3);
+        jdbc.update("UPDATE business_channel_bindings SET is_active=FALSE WHERE channel_id=?",channel);
+        settings.saveSettings(Map.of("bot_settings",Map.of("question_templates",List.of(template("r156-changed","Changed")))));
+        assertThat(followupMedia.vkBatchAdmission(channel,901,event.ticketId()).version()).isEqualTo(2);
+        assertThat(followupMedia.vkBatchAdmission(channel,901,event.ticketId()).remainingFiles()).isEqualTo(7);
+        assertThatThrownBy(()->followupMedia.admission(channel,901,event.ticketId())).isInstanceOf(IllegalStateException.class);
+        r156Ingest(input);assertThat(count("chat_history")).isEqualTo(6);assertThat(count("chat_attachment_metadata")).isEqualTo(6);
+        var ids=jdbc.queryForList("SELECT id FROM chat_history WHERE ticket_id=? AND tg_message_id=88 ORDER BY id",Long.class,event.ticketId());assertThat(ids).hasSize(3);
+        long reader=r153Reader(general);
+        for(int slot=0;slot<3;slot++) {
+            String key=input.mediaBatch().get(slot).attachmentPath();
+            if(general) assertThat(generalRead.attachment(reader,r153PublicId(),ids.get(slot)).orElseThrow().storageKey()).isEqualTo(key);
+            else assertThat(businessRead.findAttachmentByPublicId(reader,r153PublicId(),ids.get(slot)).orElseThrow().storageKey()).isEqualTo(key);
+            var metadata=jdbc.queryForMap("SELECT size,content_hash FROM chat_attachment_metadata WHERE chat_history_id=?",ids.get(slot));
+            assertThat(((Number)metadata.get("size")).longValue()).isEqualTo(R153_BYTES.length);assertThat(metadata.get("content_hash")).isNotNull();
+        }
+        if(general){generalAccess.revokeRead(reader);assertThat(generalRead.attachment(reader,r153PublicId(),ids.get(0))).isEmpty();}
+        else{jdbc.update("UPDATE business_access_grants SET is_active=FALSE WHERE user_id=?",reader);assertThat(businessRead.findAttachmentByPublicId(reader,r153PublicId(),ids.get(0))).isEmpty();}
+        jdbc.update("UPDATE tickets SET status='closed' WHERE ticket_id=?",event.ticketId());flags.setTicketWriteRequiresBusiness(false);
+        for(var item:input.mediaBatch())r153Write(item.attachmentPath(),new byte[]{1,2});
+        r156Ingest(input);assertThat(count("chat_history")).isEqualTo(6);assertThat(inboxStatus(input.eventId())).isEqualTo("processed");
+        var changed=r156Change(input,node->node.put("text","Changed replay"));
+        assertThatThrownBy(()->r156Ingest(changed)).hasMessageContaining("identity mismatch");assertThat(count("chat_history")).isEqualTo(6);
+    }
+
+    @ParameterizedTest @ValueSource(strings={"owner","channel-key","user-key","catalog","provider-key","slot","slot-order","duplicate-slot","legacy","type","name","top-key","provider","event-id","kind","platform","closed","inactive","strict","general-flag","bytes","missing","oversize","quota","provider-reuse"})
+    void invalidVkFollowupBatchNeverWritesAPartialMessageOrMetadata(String mutation) throws Exception {
+        r154VkMedia(mutation.equals("general-flag"));ingest(event);var input=r156Batch(mutation.equals("provider-reuse")?33:88,mutation.equals("quota")?8:3);
+        var json=(com.fasterxml.jackson.databind.node.ObjectNode)mapper.valueToTree(input);
+        var item=(com.fasterxml.jackson.databind.node.ObjectNode)json.path("mediaBatch").get(1);String key=item.path("attachmentPath").asText();
+        switch(mutation) {
+            case "owner"->key=key.replace("/business-"+a+"/","/business-"+b+"/");
+            case "channel-key"->key=key.replace("/vk/"+channel+"/","/vk/999999/");
+            case "user-key"->key=key.replace("/901/","/902/");
+            case "catalog"->key=key.replace(event.catalogSha256(),"f".repeat(64));
+            case "provider-key"->key=key.replace("/88/2/","/89/2/");
+            case "slot"->key=key.replace("/88/2/","/88/11/");
+            case "slot-order"->key=key.replace("/88/2/","/88/3/");
+            case "duplicate-slot"->key=json.at("/mediaBatch/0/attachmentPath").asText();
+            case "legacy"->key=event.ticketId()+"/proof.bin";
+            case "type"->item.put("messageType","html");
+            case "name"->item.put("attachmentName","../unsafe");
+            case "top-key"->json.put("attachmentPath",key);
+            case "provider"->json.put("providerMessageId","0");
+            case "event-id"->json.put("eventId",UUID.randomUUID().toString());
+            case "kind"->json.put("eventKind","client_message.active_ticket");
+            case "platform"->json.put("platform","telegram");
+            case "closed"->jdbc.update("UPDATE tickets SET status='closed' WHERE ticket_id=?",event.ticketId());
+            case "inactive"->jdbc.update("DELETE FROM ticket_active WHERE ticket_id=?",event.ticketId());
+            case "strict"->flags.setTicketWriteRequiresBusiness(false);
+            case "general-flag"->flags.setGeneralChannelResolution(false);
+        }
+        item.put("attachmentPath",key);
+        if(!mutation.equals("missing"))r153Write(key,mutation.equals("bytes")?new byte[]{1,2}:mutation.equals("oversize")?new byte[10*1024*1024+1]:R153_BYTES);
+        else {int slash=key.lastIndexOf('/');mediaStorage.deleteDialogAttachment(key.substring(0,slash),key.substring(slash+1));}
+        var rejected=mapper.treeToValue(json,InboundClientMessageEvent.class);
+        var profile=jdbc.queryForMap("SELECT username,client_name,updated_at FROM messages WHERE ticket_id=?",event.ticketId());
+        assertThatThrownBy(()->r156Ingest(rejected)).isInstanceOf(RuntimeException.class);
+        assertThat(count("chat_history")).isEqualTo(3);assertThat(count("chat_attachment_metadata")).isEqualTo(3);
+        assertThat(jdbc.queryForMap("SELECT username,client_name,updated_at FROM messages WHERE ticket_id=?",event.ticketId())).isEqualTo(profile);
+        assertThat(inboxStatus(rejected.eventId())).isEqualTo("failed");
+    }
+
+    @Test void vkBatchQuotaIncludesDraftAndAllowsOnlyAnExactProcessedReplayAtTen() throws Exception {
+        r154VkMedia(false);ingest(event);var input=r156Batch(88,7);r156Ingest(input);
+        assertThat(count("chat_history")).isEqualTo(10);r156Ingest(input);assertThat(count("chat_history")).isEqualTo(10);
+        assertThatThrownBy(()->followupMedia.vkBatchAdmission(channel,901,event.ticketId())).isInstanceOf(IllegalStateException.class);
+        var next=r156Batch(89,1);assertThatThrownBy(()->r156Ingest(next)).isInstanceOf(IllegalStateException.class);assertThat(count("chat_history")).isEqualTo(10);
+    }
+    @Test void vkBatchSecondMetadataFailureRollsBackAllFilesAndRetriesOnlyTheIdenticalPayload() throws Exception {
+        r154VkMedia(false);ingest(event);var input=r156Batch(88,3);
+        jdbc.execute("CREATE FUNCTION reject_r156_metadata() RETURNS TRIGGER LANGUAGE plpgsql AS $$ BEGIN IF NEW.storage_key LIKE '%/88/2/%' THEN RAISE EXCEPTION 'synthetic r156 metadata failure'; END IF; RETURN NEW; END; $$");
+        jdbc.execute("CREATE TRIGGER reject_r156_metadata BEFORE INSERT ON chat_attachment_metadata FOR EACH ROW EXECUTE FUNCTION reject_r156_metadata()");
+        try {assertThatThrownBy(()->r156Ingest(input)).isInstanceOf(RuntimeException.class);assertThat(count("chat_history")).isEqualTo(3);assertThat(count("chat_attachment_metadata")).isEqualTo(3);}
+        finally {jdbc.execute("DROP TRIGGER reject_r156_metadata ON chat_attachment_metadata");jdbc.execute("DROP FUNCTION reject_r156_metadata()");}
+        var changed=r156Change(input,node->((com.fasterxml.jackson.databind.node.ObjectNode)node.path("mediaBatch").get(2)).put("attachmentName","changed.bin"));
+        assertThatThrownBy(()->r156Ingest(changed)).hasMessageContaining("identity mismatch");
+        r156Ingest(input);assertThat(count("chat_history")).isEqualTo(6);assertThat(count("chat_attachment_metadata")).isEqualTo(6);
+    }
+
+    @Test void vkBatchCommitFailureCannotLeaveAnAlreadyProcessedInboxWithMissingFiles() throws Exception {
+        r154VkMedia(false);ingest(event);var input=r156Batch(88,3);
+        jdbc.execute("CREATE FUNCTION reject_r156_commit() RETURNS TRIGGER LANGUAGE plpgsql AS $$ BEGIN IF NEW.tg_message_id=88 THEN RAISE EXCEPTION 'synthetic r156 deferred failure'; END IF; RETURN NEW; END; $$");
+        jdbc.execute("CREATE CONSTRAINT TRIGGER reject_r156_commit AFTER INSERT ON chat_history DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION reject_r156_commit()");
+        try {
+            assertThatThrownBy(()->r156Ingest(input)).isInstanceOf(RuntimeException.class);
+            assertThat(count("chat_history")).isEqualTo(3);assertThat(count("chat_attachment_metadata")).isEqualTo(3);
+            assertThat(inboxStatus(input.eventId())).isEqualTo("processing");
+        } finally {jdbc.execute("DROP TRIGGER reject_r156_commit ON chat_history");jdbc.execute("DROP FUNCTION reject_r156_commit()");}
+        jdbc.update("UPDATE integration_inbound_event_inbox SET processing_started_at=CURRENT_TIMESTAMP-INTERVAL '16 minutes' WHERE event_id=?",input.eventId());
+        r156Ingest(input);assertThat(count("chat_history")).isEqualTo(6);assertThat(inboxStatus(input.eventId())).isEqualTo("processed");
+    }
+
     private InboundClientMessageEvent r155Followup(long provider,String key) {
         return new InboundClientMessageEvent("r155-"+UUID.randomUUID(),"client_message.active_ticket","telegram",channel,event.ticketId(),901L,
             event.userIdentity(),event.username(),event.clientName(),"Follow-up","document",key,"followup.bin",Long.toString(provider),null,null,event.occurredAt().plusSeconds(5));

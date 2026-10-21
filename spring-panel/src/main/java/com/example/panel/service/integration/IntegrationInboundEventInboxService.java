@@ -77,6 +77,16 @@ public class IntegrationInboundEventInboxService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markProcessed(String eventId) {
+        complete(eventId);
+    }
+
+    /** Versioned batches commit their inbox result together with every history/metadata row. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void markProcessedWithWrites(String eventId) {
+        complete(eventId);
+    }
+
+    private void complete(String eventId) {
         jdbcTemplate.update("""
                 UPDATE integration_inbound_event_inbox
                    SET status = ?,
@@ -108,6 +118,13 @@ public class IntegrationInboundEventInboxService {
         }
         if (payload instanceof ConversationTicketCreatedEvent ticketEvent) {
             requireMatchingTicketCreationIdentity(record, ticketEvent);
+        }
+        if(InboundClientMessageEvent.MEDIA_BATCH_KIND.equals(record.eventKind())
+                || payload instanceof InboundClientMessageEvent input && InboundClientMessageEvent.MEDIA_BATCH_KIND.equals(input.eventKind())) {
+            try {
+                if(!objectMapper.readTree(record.payloadJson()).equals(objectMapper.readTree(serialize(payload))))
+                    throw new IllegalStateException("Selected media batch inbox identity mismatch");
+            } catch(JsonProcessingException ex) {throw new IllegalStateException("Invalid stored media batch",ex);}
         }
         if ("processed".equalsIgnoreCase(record.status())) {
             return false;

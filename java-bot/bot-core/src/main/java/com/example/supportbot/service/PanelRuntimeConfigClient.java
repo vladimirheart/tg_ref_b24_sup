@@ -172,13 +172,19 @@ public class PanelRuntimeConfigClient {
         return new ScopedRuntimeConfigUnavailableException("Verified questionnaire runtime is unavailable");
     }
     public SelectedMediaAdmission selectedMediaAdmission(long channelId,long userId,String ticketId,SelectedQuestionnaire selected) {
+        return selectedMediaAdmission(channelId,userId,ticketId,selected,false);
+    }
+    public SelectedMediaAdmission selectedVkMediaAdmission(long channelId,long userId,String ticketId,SelectedQuestionnaire selected) {
+        return selectedMediaAdmission(channelId,userId,ticketId,selected,true);
+    }
+    private SelectedMediaAdmission selectedMediaAdmission(long channelId,long userId,String ticketId,SelectedQuestionnaire selected,boolean vkBatch) {
         requireChannel(channelId);
         if(userId<=0 || ticketId==null || ticketId.isBlank() || ticketId.length()>512 || selected==null
                 || selected.version()!=4 || selected.channelId()!=channelId) throw unavailable();
-        String path="/internal/api/bot/channels/"+channelId+"/questionnaire-media?userId="+userId+"&ticketId="
+        String path="/internal/api/bot/channels/"+channelId+"/questionnaire-media"+(vkBatch?"/vk-batch":"")+"?userId="+userId+"&ticketId="
             +java.net.URLEncoder.encode(ticketId,StandardCharsets.UTF_8);
         var proof=fetchTyped(path,SelectedMediaAdmission.class);
-        if(proof==null || proof.version()!=1 || proof.channelId()!=channelId || proof.userId()!=userId
+        if(proof==null || proof.version()!=(vkBatch?2:1) || proof.channelId()!=channelId || proof.userId()!=userId
                 || !ticketId.equals(proof.ticketId()) || !java.util.Objects.equals(selected.businessId(),proof.businessId())
                 || !selected.scopeKind().equals(proof.scopeKind()) || !selected.questionTemplateId().equals(proof.questionTemplateId())
                 || !selected.templateSha256().equals(proof.templateSha256()) || !selected.catalogSha256().equals(proof.catalogSha256())
