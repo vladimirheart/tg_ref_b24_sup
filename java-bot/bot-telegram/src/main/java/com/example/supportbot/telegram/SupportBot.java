@@ -258,7 +258,10 @@ public class SupportBot extends TelegramLongPollingBot {
                 && questionnaireHandler.handle(update, getChannel(), request -> {
                     try { execute(request); }
                     catch (TelegramApiException ex) { throw new IllegalStateException("Telegram questionnaire delivery failed", ex); }
-                }, privateMessage.getFrom() == null || !conversations.containsKey(privateMessage.getFrom().getId()))) {
+                }, privateMessage.getFrom() == null || !conversations.containsKey(privateMessage.getFrom().getId()), fileId -> {
+                    try { return fetchFile(fileId); }
+                    catch (TelegramApiException ex) { throw new IllegalStateException("Telegram questionnaire media download failed", ex); }
+                })) {
             if (privateMessage.getFrom() != null) conversations.remove(privateMessage.getFrom().getId());
             return;
         }
@@ -1239,7 +1242,7 @@ public class SupportBot extends TelegramLongPollingBot {
         }
     }
 
-    private InputStream fetchFile(String fileId) throws TelegramApiException {
+    InputStream fetchFile(String fileId) throws TelegramApiException {
         GetFile request = new GetFile(fileId);
         org.telegram.telegrambots.meta.api.objects.File file = execute(request);
         String filePath = file != null ? file.getFilePath() : null;

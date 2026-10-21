@@ -80,6 +80,36 @@ public class AttachmentService {
         return new StoredAttachment(storageKey, "s3", null);
     }
 
+    /** A bounded, content-addressed key keeps CAS/queue retries from creating duplicate objects. */
+    public StoredAttachment storeQuestionnaire(long channelId,Long businessId,long userId,String catalogSha256,
+            long messageId,String extension,InputStream input) throws IOException {
+        String prefix=QuestionnaireMedia.prefix(channelId,businessId,userId,catalogSha256,messageId);
+        if(extension==null || !extension.matches("[a-z0-9]{1,10}") || input==null)
+            throw new IllegalArgumentException("Invalid questionnaire media payload");
+        byte[] bytes;
+        try(InputStream stream=input) {bytes=stream.readNBytes(QuestionnaireMedia.MAX_BYTES+1);}
+        if(bytes.length==0 || bytes.length>QuestionnaireMedia.MAX_BYTES) throw new MediaSizeException();
+        String key=prefix+QuestionnaireMedia.sha256(bytes)+"."+extension;
+        if(!objectStorageProperties.isS3Mode()) {
+            Path target=attachmentsRoot.toAbsolutePath().normalize().resolve(key).normalize();
+            if(!target.startsWith(attachmentsRoot.toAbsolutePath().normalize())) throw new IllegalArgumentException("Invalid media key");
+            Files.createDirectories(target.getParent());
+            // Publish a complete file; concurrent retries contain the same SHA-bound bytes.
+            Path temporary=Files.createTempFile(target.getParent(),"questionnaire-",".part");
+            try {
+                Files.write(temporary,bytes);
+                Files.move(temporary,target,StandardCopyOption.REPLACE_EXISTING);
+            } finally {Files.deleteIfExists(temporary);}
+            return new StoredAttachment(key,"local_fs",target);
+        }
+        s3Client().putObject(PutObjectRequest.builder().bucket(requiredBucket()).key(objectKey("attachments",key)).build(),RequestBody.fromBytes(bytes));
+        return new StoredAttachment(key,"s3",null);
+    }
+
+    public static final class MediaSizeException extends IOException {
+        public MediaSizeException() {super("Questionnaire media must contain 1 to 10 MiB");}
+    }
+
     public Path materialize(String storageKey) throws IOException {
         if (!StringUtils.hasText(storageKey)) {
             throw new IllegalArgumentException("Attachment key is empty");

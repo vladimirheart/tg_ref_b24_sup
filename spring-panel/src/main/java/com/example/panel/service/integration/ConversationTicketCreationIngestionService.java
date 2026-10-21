@@ -44,6 +44,7 @@ public class ConversationTicketCreationIngestionService {
     private final ChatHistoryRepository chatHistoryRepository;
     private final ChatAttachmentMetadataService chatAttachmentMetadataService;
     private final JdbcTemplate jdbcTemplate;
+    private final SelectedQuestionnaireMediaValidator mediaValidator;
     private final MultibusinessFeatureFlags multibusinessFeatureFlags;
     private final BusinessTicketWriteScopeResolver businessTicketWriteScopeResolver;
     private final GeneralChannelQuestionTemplateService generalChannelQuestionTemplateService;
@@ -64,7 +65,7 @@ public class ConversationTicketCreationIngestionService {
                                                       BusinessTicketWriteScopeResolver businessTicketWriteScopeResolver,
                                                       GeneralChannelQuestionTemplateService generalChannelQuestionTemplateService,
                                                       BusinessQuestionTemplateRegistryService businessTemplates,
-                                                      com.example.panel.service.SharedGeneralQuestionnaireService sharedQuestionnaires) {
+                                                      com.example.panel.service.SharedGeneralQuestionnaireService sharedQuestionnaires, SelectedQuestionnaireMediaValidator mediaValidator) {
         this.inboxService = inboxService;
         this.legacyTicketIdConcurrencyGuard = legacyTicketIdConcurrencyGuard;
         this.channelRepository = channelRepository;
@@ -80,6 +81,7 @@ public class ConversationTicketCreationIngestionService {
         this.generalChannelQuestionTemplateService = generalChannelQuestionTemplateService;
         this.businessTemplates = businessTemplates;
         this.sharedQuestionnaires = sharedQuestionnaires;
+        this.mediaValidator = mediaValidator;
     }
 
     @Transactional
@@ -191,6 +193,7 @@ public class ConversationTicketCreationIngestionService {
             throw new IllegalStateException("General-only channel requires a verified general questionnaire scope");
         }
 
+        int selectedVersion=0;
         Long businessId = null;
         boolean general = false;
         if (strictBusinessWrite) {
@@ -201,7 +204,7 @@ public class ConversationTicketCreationIngestionService {
                 if (generalChannel) {
                     requireMatchingGeneralQuestionnaire(event);
                 } else if (selectedGeneral) {
-                    requireSharedSelection(event);
+                    selectedVersion=requireSharedSelection(event);
                 }
                 general = true;
             } else {
@@ -222,7 +225,8 @@ public class ConversationTicketCreationIngestionService {
                         if (!Objects.equals(legacy.get().questionTemplateId(), event.questionTemplateId())
                                 || !Objects.equals(legacy.get().templateSha256(), event.templateSha256()))
                             throw new IllegalStateException("Business questionnaire version mismatch; restart questionnaire");
-                    } else requireSharedSelection(event);
+                        selectedVersion=1;
+                    } else selectedVersion=requireSharedSelection(event);
                     businessId = event.businessId();
                 } else if (event.scopeSelectionSource() != null) {
                     throw new IllegalStateException("Unexpected business scope selection source");
@@ -234,6 +238,7 @@ public class ConversationTicketCreationIngestionService {
         }
 
         OffsetDateTime occurredAt = event.occurredAt() != null ? event.occurredAt() : OffsetDateTime.now();
+        var verifiedMedia=(selectedBusiness || selectedGeneral)?mediaValidator.validate(event,selectedVersion):java.util.Map.<String,SelectedQuestionnaireMediaValidator.Verified>of();
         long groupMessageId = nextGroupMessageId();
 
         Message message = buildRootMessage(event, channel, occurredAt, groupMessageId, general);
@@ -255,7 +260,7 @@ public class ConversationTicketCreationIngestionService {
         ticketActiveRepository.save(active);
 
         replaceTicketAttributes(event.ticketId(), event.attributes(), occurredAt);
-        storeConversationHistory(event, channel, occurredAt);
+        storeConversationHistory(event, channel, occurredAt,verifiedMedia);
     }
 
     private Message buildRootMessage(ConversationTicketCreatedEvent event,
@@ -321,7 +326,7 @@ public class ConversationTicketCreationIngestionService {
         }
     }
 
-    private void requireSharedSelection(ConversationTicketCreatedEvent event) {
+    private int requireSharedSelection(ConversationTicketCreatedEvent event) {
         if (event.platform() == null || !List.of("telegram", "vk", "max").contains(event.platform())
                 || !Objects.equals(channelRepository.findById(event.channelId()).orElseThrow().getPlatform(), event.platform()))
             throw new IllegalStateException("Shared questionnaire channel platform mismatch");
@@ -333,6 +338,7 @@ public class ConversationTicketCreationIngestionService {
                 || !Objects.equals(selected.templateSha256(), event.templateSha256()))
             throw new IllegalStateException("Shared questionnaire version mismatch; restart questionnaire");
         if(selected.version()>=3) QuestionnaireResourceAnswerValidator.requireValid(selected,event);
+        return selected.version();
     }
 
     private void requireMatchingGeneralQuestionnaire(ConversationTicketCreatedEvent event) {
@@ -411,7 +417,7 @@ public class ConversationTicketCreationIngestionService {
 
     private void storeConversationHistory(ConversationTicketCreatedEvent event,
                                           Channel channel,
-                                          OffsetDateTime occurredAt) {
+                                          OffsetDateTime occurredAt,java.util.Map<String,SelectedQuestionnaireMediaValidator.Verified> verifiedMedia) {
         List<ConversationTicketCreatedEvent.ConversationHistoryEntryPayload> historyEntries = event.historyEntries();
         if (historyEntries == null || historyEntries.isEmpty()) {
             return;
@@ -435,15 +441,18 @@ public class ConversationTicketCreationIngestionService {
             history.setChannel(channel);
             history.setTgMessageId(parseLong(entry.providerMessageId()));
             ChatHistory saved = chatHistoryRepository.save(history);
-            chatAttachmentMetadataService.upsertForChatHistory(
+            var proof=entry.attachmentPath()==null?null:verifiedMedia.get(entry.attachmentPath());
+            if(proof==null) chatAttachmentMetadataService.upsertForChatHistory(saved.getId(),event.ticketId(),channel.getId(),entry.attachmentPath(),entry.attachmentName(),null,null,entry.messageType());
+            else chatAttachmentMetadataService.upsertForChatHistory(
                 saved.getId(),
                 event.ticketId(),
                 channel.getId(),
                 entry.attachmentPath(),
                 entry.attachmentName(),
                 null,
-                null,
-                entry.messageType()
+                proof==null?null:proof.size(),
+                entry.messageType(),
+                proof==null?null:proof.sha256()
             );
         }
     }

@@ -43,6 +43,8 @@ class TelegramQuestionnaireSelectionTest {
     private TelegramQuestionnaireHandler handler;
     private SupportBot bot;
     private BotProperties properties;
+    @org.junit.jupiter.api.io.TempDir java.nio.file.Path mediaRoot;
+    private byte[] mediaBytes="R153 owned attachment".getBytes(java.nio.charset.StandardCharsets.UTF_8);
     private ChoiceCatalog catalog;
     private SelectedQuestionnaire a,b;
     @BeforeEach void setup() throws Exception {
@@ -74,10 +76,13 @@ class TelegramQuestionnaireSelectionTest {
                 Map.of("active_template_id",id,"question_templates",List.of(Map.of("id",id,"name",id,"question_flow",flow))),Map.of(),Map.of());
     }
     private void rebuild() throws Exception {
-        handler=new TelegramQuestionnaireHandler(runtime,settings,store,tickets,blacklist);
+        handler=new TelegramQuestionnaireHandler(runtime,settings,store,tickets,blacklist,attachments);
         bot=spy(new SupportBot(properties,blacklist,mock(UnblockRequestService.class),attachments,channels,settings,tickets,
                 mock(ChatHistoryService.class),feedback,mock(BotIngressCoordinationService.class),guard,runtime,handler,mapper));
         doAnswer(call->{sent.add(call.getArgument(0));return new Message();}).when(bot).execute(any(SendMessage.class));
+        doAnswer(call->new java.io.ByteArrayInputStream(mediaBytes)).when(bot).fetchFile(anyString());
+        doAnswer(call->new AttachmentService(mediaRoot,new ObjectStorageProperties()).storeQuestionnaire(call.getArgument(0),call.getArgument(1),call.getArgument(2),call.getArgument(3),call.getArgument(4),call.getArgument(5),call.getArgument(6)))
+            .when(attachments).storeQuestionnaire(anyLong(),nullable(Long.class),anyLong(),anyString(),anyLong(),anyString(),any(java.io.InputStream.class));
     }
     private void resetDeliveryCache() {
         var config=new BotIngressCoordinationProperties();config.setMode("direct");
@@ -430,4 +435,101 @@ class TelegramQuestionnaireSelectionTest {
         assertThat(capture.getValue().catalogSha256()).isEqualTo(catalog.catalogSha256());verify(runtime,times(1)).questionnaireChoices(channel);verifyNoInteractions(local,feedback);
     }
 
+
+    private void r153Menu(boolean general,boolean branching) {
+        var payload=selected(7L,general?"q-general":"q-a",general?"d":"a",branching);
+        var tree=Map.<String,Object>of("businessId",7L,"locations",List.of());var presets=Map.<String,Object>of("businessId",7L,"groups",Map.of());
+        a=new SelectedQuestionnaire(4,55,general?"GENERAL":"BUSINESS","USER_SELECTION",general?null:7L,payload.questionTemplateId(),payload.templateSha256(),payload.catalogSha256(),payload.botSettings(),general?Map.of():tree,general?Map.of():presets);
+        var choices=new ArrayList<Choice>();
+        if(general) choices.add(new Choice("BUSINESS",8L,"b","Business B","q-b","b".repeat(64),"b".repeat(64)));
+        choices.add(new Choice(a.scopeKind(),a.businessId(),general?"GENERAL":"a",general?"Без бизнеса":"Business A",a.questionTemplateId(),a.templateSha256(),SelectedQuestionnaireOptions.resourceSha256(a.locationTree(),a.presetDefinitions())));
+        catalog=new ChoiceCatalog(4,55,"c".repeat(64),choices);doReturn(catalog).when(runtime).questionnaireChoices(channel);
+        if(general)doReturn(a).when(runtime).selectGeneralQuestionnaire(channel,catalog);else doReturn(a).when(runtime).selectQuestionnaire(channel,catalog,7L);
+    }
+    private void r153Choose(boolean general,boolean branching) {r153Menu(general,branching);receive(1,"/start");receive(2,choice(general?1:0));}
+    private Update r153Media(int id,String type,String caption) {
+        var update=update(id,null);var tree=(ObjectNode)mapper.valueToTree(update.getMessage());
+        var media=mapper.createObjectNode().put("file_id","r153-file").put("file_unique_id","r153-unique").put("file_size",mediaBytes.length);
+        if(Set.of("document","audio","video","animation").contains(type))media.put("file_name","../../receipt.TXT");
+        tree.set(type,type.equals("photo")?mapper.valueToTree(List.of(media.deepCopy().put("file_id","small").put("file_size",1),media)):media);
+        if(caption!=null)tree.put("caption",caption);
+        update.setMessage(mapper.convertValue(tree,Message.class));return update;
+    }
+    @ParameterizedTest @ValueSource(strings={"document","photo","video","voice","audio","animation","sticker","video_note"})
+    void v4MediaFreeAnswerStoresOneOwnedObjectAndSurvivesJsonRestore(String type) throws Exception {
+        r153Choose(false,false);bot.onUpdateReceived(r153Media(3,type,"Caption for A"));
+        var saved=state();assertThat(saved.answers).containsEntry("free-first","Caption for A");assertThat(saved.history).hasSize(1);
+        var media=saved.history.get(0);assertThat(media.messageType()).isEqualTo(type);assertThat(media.providerMessageId()).isEqualTo("3");
+        assertThat(QuestionnaireMedia.matches(media.attachmentPath(),55,7L,1001,catalog.catalogSha256(),3)).isTrue();
+        assertThat(java.nio.file.Files.readAllBytes(mediaRoot.resolve(media.attachmentPath()))).isEqualTo(mediaBytes);
+        resetDeliveryCache();rebuild();bot.onUpdateReceived(r153Media(3,type,"Changed duplicate"));assertThat(state().history).hasSize(1);
+        receive(4,"Final answer");var capture=org.mockito.ArgumentCaptor.forClass(ConversationTicketCreationCommand.class);verify(tickets).createConversationTicket(capture.capture());
+        assertThat(capture.getValue().historyEntries()).containsExactly(media, new ConversationHistoryEntry(1001L,"Final answer","text",null,null,"4",media.occurredAt()));
+        assertThat(capture.getValue().businessId()).isEqualTo(7L);verify(attachments,times(1)).storeQuestionnaire(anyLong(),nullable(Long.class),anyLong(),anyString(),anyLong(),anyString(),any(java.io.InputStream.class));
+        verifyNoInteractions(local,feedback);assertThat(sent).allMatch(request->request.getChatId().equals("1001"));
+    }
+    @Test void generalMediaHasNoBusinessNamespaceOrBusinessResources() throws Exception {
+        r153Choose(true,false);bot.onUpdateReceived(r153Media(3,"document",null));rebuild();receive(4,"Last");
+        var capture=org.mockito.ArgumentCaptor.forClass(ConversationTicketCreationCommand.class);verify(tickets).createConversationTicket(capture.capture());
+        assertThat(capture.getValue().businessId()).isNull();assertThat(capture.getValue().scopeKind()).isEqualTo("GENERAL");
+        assertThat(capture.getValue().historyEntries().get(0).attachmentPath()).contains("/general/1001/");
+        assertThat(capture.getValue().answers()).containsEntry("free-first","Клиент приложил документ");verifyNoInteractions(local,feedback);
+    }
+    @Test void pendingMenuAndChoiceQuestionCannotDownloadOrStoreMedia() throws Exception {
+        r153Menu(false,true);receive(1,"/start");bot.onUpdateReceived(r153Media(2,"photo","Да"));
+        receive(3,choice(0));bot.onUpdateReceived(r153Media(4,"document","Да"));
+        assertThat(state().answers).isEmpty();verify(bot,never()).fetchFile(anyString());verifyNoInteractions(attachments);verify(tickets,never()).createConversationTicket(any());
+    }
+    @Test void staleSelectedCatalogFailsBeforeDownloadingMedia() throws Exception {
+        r153Choose(false,false);doThrow(unavailable()).when(runtime).selectQuestionnaire(channel,catalog,7L);
+        bot.onUpdateReceived(r153Media(3,"photo","Private"));assertThat(state().answers).isEmpty();verify(bot,never()).fetchFile(anyString());verifyNoInteractions(attachments);
+    }
+    @Test void mediaQueueRetryUsesIdenticalCommandAndNeverDownloadsAgain() throws Exception {
+        r153Choose(false,false);receive(3,"One");when(tickets.createConversationTicket(any())).thenThrow(new IllegalStateException("R153 queue failure")).thenReturn(new TicketService.TicketCreationResult("T-TG",null,"queued"));
+        assertThatThrownBy(()->bot.onUpdateReceived(r153Media(4,"document","Frozen caption"))).hasMessageContaining("R153 queue failure");
+        doThrow(unavailable()).when(runtime).selectQuestionnaire(channel,catalog,7L);rebuild();bot.onUpdateReceived(r153Media(4,"document","Changed retry"));
+        var capture=org.mockito.ArgumentCaptor.forClass(ConversationTicketCreationCommand.class);verify(tickets,times(2)).createConversationTicket(capture.capture());
+        assertThat(capture.getAllValues().get(0)).isEqualTo(capture.getAllValues().get(1));
+        assertThat(capture.getValue().historyEntries().get(1).text()).isEqualTo("Frozen caption");verify(attachments,times(1)).storeQuestionnaire(anyLong(),nullable(Long.class),anyLong(),anyString(),anyLong(),anyString(),any(java.io.InputStream.class));
+    }
+    @ParameterizedTest @ValueSource(strings={"download","storage"})
+    void fileFailureReleasesDeliveryWithoutAdvancingAnswerAndRetrySucceeds(String boundary) throws Exception {
+        r153Choose(false,false);
+        if(boundary.equals("download")) doThrow(new TelegramApiException("R153 download failure")).when(bot).fetchFile(anyString());
+        else doThrow(new java.io.IOException("R153 storage failure")).when(attachments).storeQuestionnaire(anyLong(),nullable(Long.class),anyLong(),anyString(),anyLong(),anyString(),any(java.io.InputStream.class));
+        assertThatThrownBy(()->bot.onUpdateReceived(r153Media(3,"document","One"))).isInstanceOf(IllegalStateException.class);
+        assertThat(state().answers).isEmpty();assertThat(state().accepted).doesNotContain(3L);verify(guard,atLeastOnce()).release(any());
+        rebuild();bot.onUpdateReceived(r153Media(3,"document","One"));assertThat(state().answers).containsEntry("free-first","One");
+    }
+    @Test void oversizeStreamCannotAdvanceAnswersOrLeaveAnAttachment() throws Exception {
+        r153Choose(false,false);mediaBytes=new byte[QuestionnaireMedia.MAX_BYTES+1];
+        var update=r153Media(3,"document","Too big");update.getMessage().getDocument().setFileSize(1L);bot.onUpdateReceived(update);
+        assertThat(state().answers).isEmpty();assertThat(state().history).isEmpty();
+        try(var files=java.nio.file.Files.walk(mediaRoot)){assertThat(files.filter(java.nio.file.Files::isRegularFile).count()).isZero();}
+    }
+    @Test void completedFlowDoesNotSendMediaThroughUnscopedFollowupOrRawOperatorChat() throws Exception {
+        r153Choose(false,false);receive(3,"One");receive(4,"Two");bot.onUpdateReceived(r153Media(5,"photo","More"));
+        verify(bot,never()).fetchFile(anyString());verifyNoInteractions(attachments);verify(tickets,never()).recordActiveClientMessage(any());
+    }
+    @Test void foreignMediaKeyInRestoredStateFailsBeforeAnyWriter() throws Exception {
+        r153Choose(false,false);bot.onUpdateReceived(r153Media(3,"document","One"));var tree=(ObjectNode)mapper.valueToTree(state());
+        ((ObjectNode)tree.path("history").get(0)).put("attachmentPath",state().history.get(0).attachmentPath().replace("/business-7/","/business-8/"));
+        store.save(TelegramQuestionnaireHandler.SESSION_PLATFORM,55L,1001L,tree);rebuild();assertThatThrownBy(()->receive(4,"Two")).hasMessageContaining("identity");
+        verify(tickets,never()).createConversationTicket(any());verify(tickets,never()).recordActiveClientMessage(any());
+    }
+
+    @Test void failedPromptDeliveryKeepsTheStoredMediaAndAnswerBeforeRetry() throws Exception {
+        r153Choose(false,false);doThrow(new TelegramApiException("R153 prompt failure")).when(bot).execute(any(SendMessage.class));
+        assertThatThrownBy(()->bot.onUpdateReceived(r153Media(3,"document","One"))).hasMessageContaining("delivery failed");
+        assertThat(state().answers).containsEntry("free-first","One");String key=state().history.get(0).attachmentPath();
+        rebuild();bot.onUpdateReceived(r153Media(3,"document","Changed retry"));assertThat(state().history).hasSize(1);
+        assertThat(state().history.get(0).attachmentPath()).isEqualTo(key);verify(attachments,times(1)).storeQuestionnaire(anyLong(),nullable(Long.class),anyLong(),anyString(),anyLong(),anyString(),any(java.io.InputStream.class));
+    }
+    @Test void sessionCasRetryReusesOneCompleteFileAndOneAcceptedAnswer() throws Exception {
+        r153Choose(false,false);doReturn(Optional.empty()).doCallRealMethod().when(store).saveIfUnchanged(anyString(),anyLong(),anyLong(),any(),any());
+        bot.onUpdateReceived(r153Media(3,"document","One"));assertThat(state().history).hasSize(1);assertThat(state().answers).containsEntry("free-first","One");
+        assertThat(state().accepted).containsOnlyOnce(3L);
+        try(var files=java.nio.file.Files.walk(mediaRoot)){assertThat(files.filter(java.nio.file.Files::isRegularFile).count()).isEqualTo(1);}
+        verify(attachments,times(2)).storeQuestionnaire(anyLong(),nullable(Long.class),anyLong(),anyString(),anyLong(),anyString(),any(java.io.InputStream.class));
+    }
 }

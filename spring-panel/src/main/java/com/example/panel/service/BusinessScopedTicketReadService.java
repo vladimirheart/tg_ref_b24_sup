@@ -646,10 +646,16 @@ public class BusinessScopedTicketReadService {
         if (ids.isEmpty()) {
             return Optional.empty();
         }
+        return attachmentRows(userId,publicId,historyId,ids,true)
+            .or(()->attachmentRows(userId,publicId,historyId,ids,false));
+    }
+
+    private Optional<AttachmentReference> attachmentRows(Long userId,String publicId,long historyId,Set<Long> ids,boolean withProof) {
+        try {
         List<AttachmentReference> rows = namedJdbcTemplate.query("""
                 SELECT ticket.ticket_id, history.attachment, metadata.storage_key,
-                       metadata.original_name
-                  FROM tickets ticket
+                       metadata.original_name%s
+                  FROM tickets ticket%s
                   JOIN businesses business ON business.id = ticket.business_id
                   JOIN chat_history history ON history.id = :historyId
                        AND history.ticket_owner_user_id = ticket.user_id
@@ -684,7 +690,7 @@ public class BusinessScopedTicketReadService {
                           AND access_grant.grant_scope = 'ALL_BUSINESSES'
                           AND access_grant.is_active = TRUE
                    ))
-                """, new MapSqlParameterSource()
+                """.formatted(withProof?", metadata.content_hash, metadata.size,\n                       ticket.user_id AS proof_user, ticket.business_id AS proof_business,\n                       ticket.channel_id AS proof_channel, ticket.questionnaire_catalog_sha256 AS proof_catalog,\n                       COALESCE(ticket.business_selection_source,ticket.general_selection_source) AS proof_source,\n                       proof_channel.platform AS proof_platform, history.channel_id AS proof_history_channel,\n                       metadata.channel_id AS proof_metadata_channel, history.tg_message_id AS proof_provider":"",withProof?" LEFT JOIN channels proof_channel ON proof_channel.id=ticket.channel_id":""), new MapSqlParameterSource()
                         .addValue("historyId", historyId)
                         .addValue("publicId", publicId)
                         .addValue("businessIds", ids)
@@ -693,6 +699,11 @@ public class BusinessScopedTicketReadService {
                     String ticketId = rs.getString("ticket_id");
                     String rawReference = rs.getString("attachment");
                     String storageKey = rs.getString("storage_key");
+                    if(com.example.panel.storage.QuestionnaireMediaStorageProof.isScoped(storageKey)) {
+                        if(!withProof || !java.util.Objects.equals(rawReference,storageKey) || !com.example.panel.storage.QuestionnaireMediaStorageProof.matches(rs,storageKey)) return null;
+                        return new AttachmentReference(storageKey,rs.getString("original_name"),rs.getString("content_hash"),(Long)rs.getObject("size"));
+                    }
+                    if(withProof) return null;
                     String expected = AttachmentStorageKeyResolver.normalizeStorageKey(ticketId, rawReference);
                     if (expected == null || !expected.equals(storageKey)
                             || !safeStorageKey(ticketId, storageKey)) {
@@ -703,6 +714,10 @@ public class BusinessScopedTicketReadService {
                     return new AttachmentReference(storageKey, originalName);
                 });
         return rows.stream().filter(java.util.Objects::nonNull).findFirst();
+        } catch(org.springframework.dao.DataAccessException ex) {
+            if(withProof) return Optional.empty(); // A legacy schema cannot authorize the new namespace.
+            throw ex;
+        }
     }
 
     private boolean safeStorageKey(String ticketId, String storageKey) {
@@ -824,6 +839,7 @@ public class BusinessScopedTicketReadService {
                                 boolean hasMore, Long nextBeforeId) {
     }
 
-    public record AttachmentReference(String storageKey, String originalName) {
+    public record AttachmentReference(String storageKey, String originalName,String sha256,Long size) {
+        public AttachmentReference(String storageKey,String originalName){this(storageKey,originalName,null,null);}
     }
 }

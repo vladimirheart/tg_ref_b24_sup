@@ -261,6 +261,15 @@ public class BusinessScopeReadController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
         String filename = safeDownloadName(reference.originalName());
+        if(reference.sha256()!=null) {
+            byte[] bytes;
+            try(binary) {bytes=com.example.panel.storage.QuestionnaireMediaStorageProof.read(binary,reference.sha256(),reference.size());}
+            catch(IOException ex) {throw new ResponseStatusException(HttpStatus.NOT_FOUND);}
+            if(readService.findAttachmentByPublicId(userId,publicId,id).filter(reference::equals).isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+            return ResponseEntity.ok().header(HttpHeaders.CONTENT_DISPOSITION,ContentDisposition.attachment().filename(filename,StandardCharsets.UTF_8).build().toString())
+                .header(HttpHeaders.CACHE_CONTROL,"no-store").header("X-Content-Type-Options","nosniff")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM).contentLength(bytes.length).body(new org.springframework.core.io.ByteArrayResource(bytes));
+        }
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
                         .filename(filename, StandardCharsets.UTF_8).build().toString())

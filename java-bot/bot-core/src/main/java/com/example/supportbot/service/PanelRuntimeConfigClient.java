@@ -183,6 +183,7 @@ public class PanelRuntimeConfigClient {
             if(writerVersion>0 && !Integer.toString(writerVersion).equals(response.headers().firstValue("X-Iguana-Questionnaire-Writer-Version").orElse(null))) {
                 throw unavailable();
             }
+            if(writerVersion==4 && !"1".equals(response.headers().firstValue("X-Iguana-Questionnaire-Media-Version").orElse(null))) throw unavailable();
             return objectMapper.readValue(response.body(),type);
         } catch (IOException | InterruptedException ex) {
             if (ex instanceof InterruptedException) {

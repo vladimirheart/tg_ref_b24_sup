@@ -60,7 +60,7 @@ public class AttachmentService {
                                                              String filename,
                                                              String rangeHeader) throws IOException {
         requireAuthority(authentication, "PAGE_DIALOGS");
-        if (!legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId) || !attachmentOwnerGuard.hasDirectOwner(ticketId, filename)) {
+        if (QuestionnaireMediaStorageProof.isScoped(ticketId+"/"+filename) || !legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId) || !attachmentOwnerGuard.hasDirectOwner(ticketId, filename)) {
             return ResponseEntity.notFound().build();
         }
         AttachmentObjectStorageService.StoredBinary binary = objectStorageService.openDialogAttachment(ticketId, filename);
@@ -76,7 +76,7 @@ public class AttachmentService {
                                                                    String rangeHeader) throws IOException {
         requireAuthority(authentication, "PAGE_DIALOGS");
         String storageKey = AttachmentStorageKeyResolver.extractAttachmentsSuffix(path);
-        if (!hasNonGeneralTicketForStorageKey(StringUtils.hasText(storageKey) ? storageKey : path)) {
+        if (QuestionnaireMediaStorageProof.isScoped(StringUtils.hasText(storageKey)?storageKey:path) || !hasNonGeneralTicketForStorageKey(StringUtils.hasText(storageKey) ? storageKey : path)) {
             return ResponseEntity.notFound().build();
         }
         AttachmentObjectStorageService.StoredBinary binary = openByStoredPath(path);
@@ -93,7 +93,7 @@ public class AttachmentService {
                                                                          String storageKey,
                                                                          String rangeHeader) throws IOException {
         requireAuthority(authentication, "PAGE_DIALOGS");
-        if (!hasNonGeneralTicketForStorageKey(storageKey)) {
+        if (QuestionnaireMediaStorageProof.isScoped(storageKey) || !hasNonGeneralTicketForStorageKey(storageKey)) {
             return ResponseEntity.notFound().build();
         }
         AttachmentObjectStorageService.StoredBinary binary = objectStorageService.openDialogAttachmentByStorageKey(storageKey);

@@ -132,6 +132,8 @@ public class GeneralTicketReadService {
         try {
         var document=documentAttachment(userId,publicId,historyId);
         if(document.isPresent())return document;
+        var questionnaire=questionnaireAttachment(userId,publicId,historyId);
+        if(questionnaire.isPresent())return questionnaire;
         List<AttachmentReference> rows = jdbc.query(ONE_TICKET + """
             SELECT ticket.ticket_id, history.attachment, metadata.storage_key, metadata.original_name
               FROM authorized_ticket ticket
@@ -154,13 +156,52 @@ public class GeneralTicketReadService {
                 String ticketId = rs.getString("ticket_id");
                 String raw = rs.getString("attachment");
                 String key = rs.getString("storage_key");
-                if (!safeStorageKey(ticketId, key)
+                if (com.example.panel.storage.QuestionnaireMediaStorageProof.isScoped(key) || !safeStorageKey(ticketId, key)
                         || !key.equals(AttachmentStorageKeyResolver.normalizeStorageKey(ticketId, raw))) return null;
                 return new AttachmentReference(key,
                     AttachmentStorageKeyResolver.resolveOriginalName(rs.getString("original_name"), raw, key));
             });
         return rows.stream().filter(java.util.Objects::nonNull).findFirst();
         } catch(org.springframework.dao.DataAccessException ex) { return Optional.empty(); }
+    }
+
+    private Optional<AttachmentReference> questionnaireAttachment(long userId,String publicId,long historyId) {
+        try {
+        List<AttachmentReference> rows = jdbc.query(ONE_TICKET + """
+            SELECT ticket.ticket_id, history.attachment, metadata.storage_key, metadata.original_name, metadata.content_hash, metadata.size,
+                       canonical.user_id AS proof_user, canonical.business_id AS proof_business,
+                       canonical.channel_id AS proof_channel, canonical.questionnaire_catalog_sha256 AS proof_catalog,
+                       COALESCE(canonical.business_selection_source,canonical.general_selection_source) AS proof_source,
+                       proof_channel.platform AS proof_platform, history.channel_id AS proof_history_channel,
+                       metadata.channel_id AS proof_metadata_channel, history.tg_message_id AS proof_provider
+               FROM authorized_ticket ticket
+               JOIN tickets canonical ON canonical.ticket_public_id=ticket.ticket_public_id
+               LEFT JOIN channels proof_channel ON proof_channel.id=canonical.channel_id
+              JOIN chat_history history ON history.id = :historyId
+                   AND history.ticket_owner_user_id = ticket.user_id AND history.ticket_id = ticket.ticket_id
+                   AND history.deleted_at IS NULL
+                   AND history.message_type IS DISTINCT FROM 'general_operator_document'
+                   AND NOT EXISTS(SELECT 1 FROM general_ticket_document_replies document WHERE document.chat_history_id=history.id)
+                   AND (history.ticket_public_id IS NULL OR history.ticket_public_id=ticket.ticket_public_id)
+              JOIN chat_attachment_metadata metadata ON metadata.chat_history_id = history.id
+                   AND metadata.ticket_id = ticket.ticket_id
+                   AND metadata.deleted_at IS NULL AND metadata.archived_at IS NULL
+                   AND metadata.storage_class = 'dialog_attachment' AND metadata.normalization_status = 'normalized'
+                   AND metadata.availability_status = 'available' AND metadata.storage_provider IN ('local_fs', 's3')
+                   AND metadata.storage_key IS NOT NULL
+             WHERE ticket.relation_verified AND NOT EXISTS (
+                 SELECT 1 FROM chat_attachment_metadata other
+                  WHERE other.storage_key = metadata.storage_key AND other.id <> metadata.id)
+            """, params(userId, publicId).addValue("historyId", historyId), (rs, row) -> {
+                String ticketId = rs.getString("ticket_id");
+                String raw = rs.getString("attachment");
+                String key = rs.getString("storage_key");
+                if(!com.example.panel.storage.QuestionnaireMediaStorageProof.isScoped(key) || !java.util.Objects.equals(raw,key)
+                        || !com.example.panel.storage.QuestionnaireMediaStorageProof.matches(rs,key)) return null;
+                return new AttachmentReference(key,rs.getString("original_name"),rs.getString("content_hash"),(Long)rs.getObject("size"));
+            });
+        return rows.stream().filter(java.util.Objects::nonNull).findFirst();
+        } catch(org.springframework.dao.DataAccessException ex) {return Optional.empty();}
     }
 
     private Optional<AttachmentReference> documentAttachment(long userId,String publicId,long historyId) {

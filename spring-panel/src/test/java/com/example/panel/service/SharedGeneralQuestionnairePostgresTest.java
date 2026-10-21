@@ -504,7 +504,7 @@ class SharedGeneralQuestionnairePostgresTest {
         var mvc=MockMvcBuilders.standaloneSetup(new SharedExpandedQuestionnaireRuntimeController(shared,guard,flags)).build();
         String path="/internal/api/bot/channels/10/questionnaire/v4/choices?forStart=true";
         mvc.perform(signed(path)).andExpect(status().isOk()).andExpect(header().string("X-Iguana-Questionnaire-Writer-Version","4"))
-            .andExpect(header().string("Cache-Control","no-store")).andExpect(jsonPath("$.version").value(4));
+            .andExpect(header().string("Cache-Control","no-store")).andExpect(header().string("X-Iguana-Questionnaire-Media-Version","1")).andExpect(jsonPath("$.version").value(4));
         var catalog=shared.choicesExpanded(10).orElseThrow();String selection="/internal/api/bot/channels/10/questionnaire/v4/selection?scopeKind=GENERAL&catalogSha256="+catalog.catalogSha256()+"&forStart=true";
         mvc.perform(signed(selection)).andExpect(status().isOk()).andExpect(header().string("X-Iguana-Questionnaire-Writer-Version","4")).andExpect(jsonPath("$.businessId").doesNotExist());
         mvc.perform(get(path).header("X-Iguana-Bot-Api-Token","test-token")).andExpect(status().isUnauthorized());

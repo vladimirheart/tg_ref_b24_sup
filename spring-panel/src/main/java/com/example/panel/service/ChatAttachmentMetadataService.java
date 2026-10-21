@@ -83,6 +83,15 @@ public class ChatAttachmentMetadataService {
         );
     }
 
+    /** The ingestion transaction supplies a hash only after verifying the owned object bytes. */
+    public void upsertForChatHistory(Long chatHistoryId,String ticketId,Long channelId,String rawAttachment,
+            String originalName,String mimeType,Long size,String messageType,String contentHash) {
+        if(contentHash==null || !contentHash.matches("[a-f0-9]{64}")) throw new IllegalArgumentException("Invalid attachment hash");
+        upsertForChatHistory(chatHistoryId,ticketId,channelId,rawAttachment,originalName,mimeType,size,messageType);
+        if(jdbcTemplate.update("UPDATE chat_attachment_metadata SET content_hash=? WHERE chat_history_id=?",contentHash,chatHistoryId)!=1)
+            throw new IllegalStateException("Verified attachment metadata is missing");
+    }
+
     // Ticket IDs are opaque legacy identities, not free-form text to sanitize.
     private String exactTicketIdOrNull(String ticketId) {
         return StringUtils.hasText(ticketId) ? ticketId : null;

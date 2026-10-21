@@ -8,6 +8,9 @@ import com.example.supportbot.settings.dto.*;
 import java.time.*;
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.io.InputStream;
+import java.io.IOException;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Message;
@@ -23,10 +26,11 @@ public class TelegramQuestionnaireHandler {
     private final BotSessionStoreService store;
     private final TicketService tickets;
     private final BlacklistService blacklist;
+    private final AttachmentService attachments;
 
     public TelegramQuestionnaireHandler(RuntimeConfigService runtime,BotSettingsService settings,BotSessionStoreService store,
-                                        TicketService tickets,BlacklistService blacklist) {
-        this.runtime=runtime;this.settings=settings;this.store=store;this.tickets=tickets;this.blacklist=blacklist;
+                                        TicketService tickets,BlacklistService blacklist,AttachmentService attachments) {
+        this.runtime=runtime;this.settings=settings;this.store=store;this.tickets=tickets;this.blacklist=blacklist;this.attachments=attachments;
     }
 
     /** true means the legacy writer/media/operator path must not process this update. */
@@ -34,6 +38,9 @@ public class TelegramQuestionnaireHandler {
         return handle(update,channel,sender,true);
     }
     public boolean handle(Update update,Channel channel,Consumer<SendMessage> sender,boolean captureBootstrap) {
+        return handle(update,channel,sender,captureBootstrap,fileId->{throw new IllegalStateException("Telegram file source is unavailable");});
+    }
+    public boolean handle(Update update,Channel channel,Consumer<SendMessage> sender,boolean captureBootstrap,Function<String,InputStream> fileSource) {
         Message message=update.getMessage()!=null?update.getMessage():update.getEditedMessage();
         if(message==null || message.getChat()==null || !message.getChat().isUserChat()) return false;
         if(message.getFrom()==null || message.getFrom().getId()==null || message.getFrom().getId()<=0
@@ -41,7 +48,7 @@ public class TelegramQuestionnaireHandler {
                 || !channel.isActive() || !"telegram".equalsIgnoreCase(channel.getPlatform()))
             throw new IllegalStateException("Invalid Telegram questionnaire owner/channel");
         for(int attempt=0;attempt<3;attempt++) {
-            try {return process(update,message,channel,sender,captureBootstrap);}
+            try {return process(update,message,channel,sender,captureBootstrap,fileSource);}
             catch(ScopedRuntimeConfigUnavailableException ex) {
                 send(sender,message.getChatId(),"Вопросник недоступен или изменился. Для нового выбора отправьте /start.");return true;
             } catch(SessionStateConflictException ex) {if(attempt==2) throw ex;}
@@ -49,7 +56,7 @@ public class TelegramQuestionnaireHandler {
         throw new IllegalStateException("Unreachable questionnaire retry");
     }
 
-    private boolean process(Update update,Message message,Channel channel,Consumer<SendMessage> sender,boolean captureBootstrap) {
+    private boolean process(Update update,Message message,Channel channel,Consumer<SendMessage> sender,boolean captureBootstrap,Function<String,InputStream> fileSource) {
         var stored=store.load(SESSION_PLATFORM,channel.getId(),message.getFrom().getId(),State.class);
         Session session=stored.map(saved->new Session(saved.payload(),saved.rawPayload(),channel,message)).orElse(null);
         boolean shared=session!=null;
@@ -99,10 +106,11 @@ public class TelegramQuestionnaireHandler {
             state.catalog=runtime.questionnaireChoices(channel);state.nonce=UUID.randomUUID().toString().replace("-","").substring(0,12);
             if(captureBootstrap && !text.isBlank() && !text.startsWith("/")) {state.bootstrap=text;state.history.add(history(message,text,state.startedAt));}
             session=new Session(state,null,channel,message);save(session);
-            if(!message.hasText() || hasMedia(message)) send(sender,message.getChatId(),"В этом опросе пока поддерживается только текст; вложения не сохранены.");
+            if(!message.hasText() || hasMedia(message)) send(sender,message.getChatId(),"Сначала выберите вопросник. Вложение ещё не сохранено; отправьте его повторно вместе со свободным ответом.");
             prompt(sender,session);return true;
         }
-        if(!message.hasText() || hasMedia(message)) {send(sender,message.getChatId(),"В этом опросе пока поддерживается только текст. Отправьте сообщение без вложений.");return true;}
+        if(hasMedia(message)) {acceptMedia(sender,session,channel,message,fileSource);return true;}
+        if(!message.hasText()) {send(sender,message.getChatId(),"Отправьте текст или поддерживаемое вложение.");return true;}
         if(session.state.selected==null) {
             var action=TelegramQuestionnaireMenu.resolve(session.state.catalog,session.state.nonce,text);
             if(action.isPresent()) {
@@ -147,6 +155,41 @@ public class TelegramQuestionnaireHandler {
         save(session);
         if(session.complete()) submit(sender,session,channel);else prompt(sender,session);
         return true;
+    }
+
+    private void acceptMedia(Consumer<SendMessage> sender,Session session,Channel channel,Message message,Function<String,InputStream> fileSource) {
+        var state=session.state;
+        if(state.selected==null) {send(sender,state.chatId,"Сначала выберите вопросник, затем отправьте вложение повторно.");prompt(sender,session);return;}
+        if(state.selected.version()!=4) {send(sender,state.chatId,"В этом сохранённом опросе поддерживается только текст. Для нового опроса — /start.");return;}
+        if(session.complete() || state.submittedTicketId!=null) {send(sender,state.chatId,"Вложения доступны во время опроса. Для нового обращения — /start.");return;}
+        var question=session.flow.get(state.index);
+        if(SelectedQuestionnaireOptions.preset(question) || !session.options(question).isEmpty()) {
+            send(sender,state.chatId,"Выберите вариант текстом. Вложение можно отправить со свободным ответом.");prompt(sender,session);return;
+        }
+        if(state.history.stream().filter(e->e.attachmentPath()!=null).count()>=QuestionnaireMedia.MAX_FILES) {
+            send(sender,state.chatId,"К одному обращению можно приложить до 10 файлов. Продолжите текстом.");return;
+        }
+        TelegramQuestionnaireMedia.Item item;
+        try {item=TelegramQuestionnaireMedia.describe(message);}
+        catch(IllegalArgumentException ex) {send(sender,state.chatId,"Не удалось принять вложение. Отправьте файл размером от 1 байта до 10 МиБ.");return;}
+        // Recheck the selected catalog and media writer handshake before downloading any bytes.
+        var current="GENERAL".equals(state.selected.scopeKind())?runtime.selectGeneralQuestionnaire(channel,state.catalog)
+            :runtime.selectQuestionnaire(channel,state.catalog,state.selected.businessId());
+        if(!QuestionnaireScope.fromSelection(current).equals(QuestionnaireScope.fromSelection(state.selected)))
+            throw new ScopedRuntimeConfigUnavailableException("Selected Telegram questionnaire changed");
+        AttachmentService.StoredAttachment stored;
+        try(InputStream input=fileSource.apply(item.fileId())) {
+            stored=attachments.storeQuestionnaire(state.channelId,state.selected.businessId(),state.userId,state.catalog.catalogSha256(),message.getMessageId().longValue(),item.extension(),input);
+        } catch(AttachmentService.MediaSizeException ex) {send(sender,state.chatId,"Файл должен содержать от 1 байта до 10 МиБ. Отправьте другой файл или текст.");return;}
+        catch(IOException ex) {throw new IllegalStateException("Telegram questionnaire media storage failed",ex);}
+        if(stored==null || !QuestionnaireMedia.matches(stored.storageKey(),state.channelId,state.selected.businessId(),state.userId,state.catalog.catalogSha256(),message.getMessageId().longValue()))
+            throw new IllegalStateException("Telegram media storage returned a foreign key");
+        String answer=message.getCaption()!=null && !message.getCaption().isBlank()?message.getCaption().strip():item.fallback();
+        String answerKey=key(question);
+        state.answers.put(answerKey,"problem".equals(answerKey)?ConversationProblemTextSupport.mergeProblemText(state.bootstrap,answer):answer);
+        state.history.add(new ConversationHistoryEntry(state.userId,answer,item.type(),stored.storageKey(),item.name(),message.getMessageId().toString(),occurredAt(message,state.startedAt)));
+        session.accept(message.getMessageId().longValue());state.visited.add(state.index);state.index=session.next(question,answer);save(session);
+        if(session.complete()) submit(sender,session,channel);else prompt(sender,session);
     }
 
     private void submit(Consumer<SendMessage> sender,Session session,Channel channel) {
@@ -202,6 +245,7 @@ public class TelegramQuestionnaireHandler {
         var options=session.options(question);for(int index=0;index<options.size();index++) text.append('\n').append(index+1).append(". ").append(options.get(index));
         if(options.isEmpty() && com.example.supportbot.service.SelectedQuestionnaireOptions.preset(question)) text.append("\nСейчас нет доступных вариантов. Вернитесь к предыдущему вопросу или начните новый опрос.");
         if(options.isEmpty() && !com.example.supportbot.service.SelectedQuestionnaireOptions.preset(question) && !question.isRequiredAnswer()) text.append("\nМожно пропустить: Пропустить.");
+        if(state.selected.version()==4 && options.isEmpty() && !SelectedQuestionnaireOptions.preset(question)) text.append("\nМожно приложить файл до 10 МиБ, до 10 файлов за опрос.");
         if(!state.visited.isEmpty()) text.append("\nНазад — к предыдущему вопросу.");
         send(sender,state.chatId,text.toString());
     }
@@ -255,9 +299,8 @@ public class TelegramQuestionnaireHandler {
                     || state.catalog==null || state.catalog.channelId()!=state.channelId || state.answers==null || state.visited==null
                     || state.history==null || state.accepted==null || state.accepted.size()>4096 || state.accepted.stream().anyMatch(id->id==null || id<=0)
                     || new HashSet<>(state.accepted).size()!=state.accepted.size()
-                    || state.history.stream().anyMatch(entry->entry==null || !Objects.equals(entry.userId(),state.userId)
-                        || !"text".equals(entry.messageType()) || entry.attachmentPath()!=null || entry.attachmentName()!=null
-                        || entry.providerMessageId()==null || !entry.providerMessageId().matches("[1-9][0-9]*") || entry.occurredAt()==null))
+                    || state.history.size()>4096 || state.history.stream().anyMatch(entry->!TelegramQuestionnaireMedia.validHistory(state,entry))
+                    || state.history.stream().filter(entry->entry.attachmentPath()!=null).count()>QuestionnaireMedia.MAX_FILES)
                 throw new IllegalStateException("Invalid saved Telegram questionnaire identity");
             TelegramQuestionnaireMenu.validate(state.catalog,state.nonce);
             if(state.page<0 || state.page>=TelegramQuestionnaireMenu.pages(state.catalog)) throw new IllegalStateException("Invalid Telegram menu page");

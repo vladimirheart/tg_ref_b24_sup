@@ -49,6 +49,9 @@ public class SharedExpandedQuestionnaireRuntimeController {
                     .filter(SharedGeneralQuestionnaireService.Binding::active).isPresent()))
                 || (forStart && !flags.isTicketWriteRequiresBusiness()))
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-        if (forStart) response.setHeader("X-Iguana-Questionnaire-Writer-Version", "4");
+        if (forStart) {
+            response.setHeader("X-Iguana-Questionnaire-Writer-Version", "4");
+            response.setHeader("X-Iguana-Questionnaire-Media-Version", "1");
+        }
     }
 }

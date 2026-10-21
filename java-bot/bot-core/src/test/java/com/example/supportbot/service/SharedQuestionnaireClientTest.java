@@ -18,7 +18,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class SharedQuestionnaireClientTest {
     private String lastStartPath;
-    private String writerVersion="1";
+    private String writerVersion="1",mediaVersion="1";
     private HttpServer server;
     private PanelRuntimeConfigClient client;
     private final ObjectMapper mapper=new ObjectMapper();
@@ -42,6 +42,7 @@ class SharedQuestionnaireClientTest {
             lastStartPath=exchange.getRequestURI().toString();
             if(lastStartPath.contains("forStart=true") && !"missing".equals(writerVersion))
                 exchange.getResponseHeaders().set("X-Iguana-Questionnaire-Writer-Version",writerVersion);
+            if(lastStartPath.contains("forStart=true") && !"missing".equals(mediaVersion)) exchange.getResponseHeaders().set("X-Iguana-Questionnaire-Media-Version",mediaVersion);
             requests.incrementAndGet();
             try {
                 String time=exchange.getRequestHeaders().getFirst("X-Iguana-Request-Timestamp");
@@ -275,4 +276,14 @@ class SharedQuestionnaireClientTest {
         assertThatThrownBy(()->client.selectForStart(menu,7)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
     }
 
+
+    @ParameterizedTest @ValueSource(strings={"missing","0","2","01"})
+    void v4RequiresTheMediaWriterCapabilityOnCatalogAndRestoredSelection(String ack) throws Exception {
+        r152Large("BUSINESS",101);mediaVersion=ack;int before=requests.get();
+        assertThatThrownBy(()->client.choicesV4ForStart(8)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
+        assertThat(requests.get()).isEqualTo(before+1);assertThat(lastStartPath).contains("/v4/choices");
+        mediaVersion="1";var catalog=client.choicesV4ForStart(8);mediaVersion=ack;before=requests.get();
+        assertThatThrownBy(()->client.selectForStart(catalog,7L)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
+        assertThat(requests.get()).isEqualTo(before+1);assertThat(lastStartPath).contains("/v4/selection");
+    }
 }
