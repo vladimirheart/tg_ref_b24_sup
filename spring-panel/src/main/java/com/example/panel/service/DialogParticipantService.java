@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.model.dialog.DialogOperatorOption;
 import com.example.panel.model.dialog.DialogParticipantDto;
 import com.example.panel.support.JdbcSchemaInspector;
@@ -31,13 +32,22 @@ public class DialogParticipantService {
     private final JdbcTemplate jdbcTemplate;
     private final JdbcTemplate usersJdbcTemplate;
     private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
+    private final MultibusinessFeatureFlags flags;
 
     public DialogParticipantService(JdbcTemplate jdbcTemplate,
                                     @Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate,
                                     LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
+        this(jdbcTemplate,usersJdbcTemplate,legacyTicketIdJdbcGuard,null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public DialogParticipantService(JdbcTemplate jdbcTemplate,
+                                    @Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate,
+                                    LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard,MultibusinessFeatureFlags flags) {
         this.jdbcTemplate = jdbcTemplate;
         this.usersJdbcTemplate = usersJdbcTemplate;
         this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
+        this.flags=flags;
     }
 
     public boolean ticketExists(String ticketId) {
@@ -149,7 +159,7 @@ public class DialogParticipantService {
         String normalizedTicketId = StringUtils.hasText(ticketId) ? ticketId : null;
         String normalizedUsername = normalizeIdentity(username);
         String actor = normalizeIdentity(addedBy);
-        if (normalizedTicketId == null || normalizedUsername == null
+        if (strictParticipantWrites() || normalizedTicketId == null || normalizedUsername == null
                 || !legacyTicketIdJdbcGuard.hasUniqueTicket(normalizedTicketId)) {
             return false;
         }
@@ -168,12 +178,16 @@ public class DialogParticipantService {
                        AND 1 = (SELECT COUNT(*)
                                   FROM tickets unique_ticket
                                  WHERE unique_ticket.ticket_id = participant.ticket_id)
+                       AND EXISTS (SELECT 1 FROM tickets owner WHERE owner.ticket_id=participant.ticket_id
+                                   AND owner.business_id IS NULL AND owner.is_general=FALSE)
+                       AND ? = FALSE
                     """,
                     normalizedTicketId,
                     normalizedUsername,
                     actor,
                     normalizedTicketId,
-                    normalizedUsername
+                    normalizedUsername,
+                    strictParticipantWrites()
             ) > 0;
         } catch (DuplicateKeyException ex) {
             return false;
@@ -186,7 +200,7 @@ public class DialogParticipantService {
     public boolean removeParticipant(String ticketId, String username) {
         String normalizedTicketId = StringUtils.hasText(ticketId) ? ticketId : null;
         String normalizedUsername = normalizeIdentity(username);
-        if (normalizedTicketId == null || normalizedUsername == null
+        if (strictParticipantWrites() || normalizedTicketId == null || normalizedUsername == null
                 || !legacyTicketIdJdbcGuard.hasUniqueTicket(normalizedTicketId)) {
             return false;
         }
@@ -198,14 +212,22 @@ public class DialogParticipantService {
                        AND 1 = (SELECT COUNT(*)
                                   FROM tickets unique_ticket
                                  WHERE unique_ticket.ticket_id = ticket_participants.ticket_id)
+                       AND EXISTS (SELECT 1 FROM tickets owner WHERE owner.ticket_id=ticket_participants.ticket_id
+                                   AND owner.business_id IS NULL AND owner.is_general=FALSE)
+                       AND ? = FALSE
                     """,
                     normalizedTicketId,
-                    normalizedUsername
+                    normalizedUsername,
+                    strictParticipantWrites()
             ) > 0;
         } catch (DataAccessException ex) {
             log.warn("Unable to remove participant {} from ticket {}: {}", normalizedUsername, normalizedTicketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
             return false;
         }
+    }
+
+    private boolean strictParticipantWrites() {
+        return flags!=null && flags.isStrictReadScope();
     }
 
     private Map<String, DialogOperatorOption> loadOperatorDirectory(Set<String> usernames) {

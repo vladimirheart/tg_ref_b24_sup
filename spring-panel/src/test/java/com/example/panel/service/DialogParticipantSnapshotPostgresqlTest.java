@@ -48,6 +48,7 @@ class DialogParticipantSnapshotPostgresqlTest {
         }
         JdbcTemplate users = spy(new JdbcTemplate(jdbc.getDataSource()));
         jdbc.execute("ALTER TABLE tickets ADD COLUMN is_general BOOLEAN NOT NULL DEFAULT FALSE");
+        jdbc.execute("ALTER TABLE tickets ADD COLUMN business_id BIGINT");
         var guard = spy(new LegacyTicketIdJdbcGuard(jdbc));
         return new Fixture(jdbc, users, guard, new DialogParticipantService(jdbc, users, guard));
     }

@@ -801,6 +801,29 @@ R162 проверен изолированно: 176 Java / 3 XML GREEN, без f
 Scoped participant audit/workflow, historical attribution и live acceptance
 остаются отдельными gates; рабочие Docker/проект находятся на другой машине.
 
+R163 закрывает обе bare-ID participant mutation SQL: addParticipant и
+removeParticipant допускают только один текущий UNRESOLVED/non-GENERAL root
+до strictReadScope. INSERT и DELETE повторяют business_id IS NULL,
+is_general=FALSE и count всех raw-ID roots=1. Strict проверяется до guard/JDBC
+и повторно при формировании SQL arguments; BUSINESS/GENERAL запрещены независимо
+от foundation flag. NULL marker/неизвестная namespace schema/child schema дают
+отказ без legacy SQL fallback. Успешный ранний unique proof не заменяет final SQL.
+
+Сохранены opaque IDs без trim, username/added_by normalization, timestamps,
+duplicate/no-op/catch semantics и отсутствие directory требования для legacy
+mutation. Старые SQL rows и соседний trim-ID не переписываются. Новый scoped
+BUSINESS/GENERAL participant UI/API не добавлен; recipient/current READ policy,
+generation freezing/attribution и остальные legacy paths остаются gates.
+In-memory strict после формирования arguments не блокируется до commit; это
+тот же ограниченный sampling contract R161/R162, не serializable flag lock.
+
+Baseline R163 отдельно воспроизводит stale R118 GENERAL-test: он ожидал bare-ID
+назначение GENERAL, уже запрещённое R160. В новой проверке актуальные canonical
+root fields заполнены, обе participant mutations и assignment отвергаются,
+старые child rows сверены без изменений. UNRESOLVED golden assertions сохранены.
+Source minimum V78; новой migration/backfill нет. Текущее размещение runtime
+и разрешение restart приведены в актуальной сводке R163, не в истории R160–R162.
+
 Scoped auto-close callback передаёт исходный V61 scope и channel ID события
 в DialogNotificationService.notifyScopedSupportChat. Один SQL capture требует
 полного expected owner, unique raw ID/non-GENERAL, совпадения canonical

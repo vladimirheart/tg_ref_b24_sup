@@ -135,12 +135,20 @@ class LegacyGeneralTicketBoundaryPostgresIntegrationTest {
     }
 
     @Test
-    void trustedAssignmentAndParticipantWritesStillUseIdentityGuardForGeneral() {
+    void bareIdAssignmentAndParticipantWritesCannotMutateGeneral() {
+        jdbc.execute("ALTER TABLE tickets ADD COLUMN ticket_public_id TEXT DEFAULT '"+ "a".repeat(32)+"',"
+            +"ADD COLUMN channel_id BIGINT,ADD COLUMN responsibility_revision BIGINT DEFAULT 0,ADD COLUMN status TEXT DEFAULT 'open'");
+        jdbc.update("INSERT INTO ticket_responsibles(ticket_id,responsible) VALUES('GENERAL','untouched')");
+        jdbc.update("INSERT INTO ticket_participants(ticket_id,username) VALUES('GENERAL','untouched')");
+        var responsibilities=jdbc.queryForList("SELECT * FROM ticket_responsibles");
+        var participants=jdbc.queryForList("SELECT * FROM ticket_participants");
         assertThat(guard.hasUniqueTicket("GENERAL")).isTrue();
         var responsibility = new DialogResponsibilityService(jdbc, guard);
-        assertThat(responsibility.assignResponsibleIfMissing("GENERAL", "operator")).isEqualTo("operator");
-        assertThat(new DialogParticipantService(jdbc, mock(JdbcTemplate.class), guard)
-                .addParticipant("GENERAL", "operator", "bot")).isTrue();
-        assertThat(jdbc.queryForObject("SELECT username FROM ticket_participants", String.class)).isEqualTo("operator");
+        assertThat(responsibility.assignResponsibleIfMissing("GENERAL", "operator")).isNull();
+        var service=new DialogParticipantService(jdbc,mock(JdbcTemplate.class),guard);
+        assertThat(service.addParticipant("GENERAL","operator","bot")).isFalse();
+        assertThat(service.removeParticipant("GENERAL","untouched")).isFalse();
+        assertThat(jdbc.queryForList("SELECT * FROM ticket_responsibles")).isEqualTo(responsibilities);
+        assertThat(jdbc.queryForList("SELECT * FROM ticket_participants")).isEqualTo(participants);
     }
 }

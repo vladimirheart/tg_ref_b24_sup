@@ -56,6 +56,7 @@ class DialogParticipantLegacyTicketGuardTest {
                 added_by TEXT, PRIMARY KEY(ticket_id, username))
             """);
         jdbcTemplate.update("INSERT INTO tickets VALUES (1, ' T-EXACT '), (2, 'T-EXACT')");
+        jdbcTemplate.execute("ALTER TABLE tickets ADD COLUMN business_id BIGINT, ADD COLUMN is_general BOOLEAN DEFAULT FALSE");
         jdbcTemplate.update("""
             INSERT INTO ticket_participants(ticket_id, username) VALUES ('T-EXACT', 'operator')
             """);

@@ -253,6 +253,30 @@ class BusinessTicketAssignmentHttpPostgresTest {
         assertThat(jdbc.queryForObject("SELECT count(*) FROM dialog_action_audit WHERE ticket_id=?",Long.class,raw)).isZero();
         assertThat(events()).isZero();assertThat(outbox()).isZero();assertThat(revision()).isZero();
     }
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"business,add,path","business,add,query","business,remove,path","business,remove,query",
+        "general,add,path","general,add,query","general,remove,path","general,remove,query",
+        "strict,add,path","strict,add,query","strict,remove,path","strict,remove,query"})
+    void rawParticipantRoutesCannotMutateScopedOrStrictRoot(String kind,String action,String route) throws Exception {
+        flags.setStrictReadScope(false);
+        if(route.equals("path")){String safe="r163-"+publicId;jdbc.update("UPDATE tickets SET ticket_id=? WHERE ticket_id=?",safe,raw);raw=safe;}
+        if(kind.equals("business"))flags.getFoundation().setEnabled(false);
+        if(kind.equals("general"))jdbc.update("UPDATE tickets SET business_id=NULL,is_general=TRUE,general_selection_source='MANUAL' WHERE ticket_id=?",raw);
+        if(kind.equals("strict")){jdbc.update("UPDATE tickets SET business_id=NULL WHERE ticket_id=?",raw);flags.setStrictReadScope(true);}
+        jdbc.update("INSERT INTO ticket_participants(ticket_id,username,added_by) VALUES(?,?,'original')",raw,target);
+        var before=jdbc.queryForList("SELECT * FROM ticket_participants WHERE ticket_id=?",raw);
+        MockHttpServletRequestBuilder request;
+        if(action.equals("add")){
+            request=route.equals("path")?post("/api/dialogs/{id}/participants",raw):post("/api/dialog-ticket/participants").param("ticketId",raw);
+            request.contentType("application/json").content("{\"username\":\"fresh-member\"}");
+        }else request=route.equals("path")?delete("/api/dialogs/{id}/participants/{username}",raw,target)
+            :delete("/api/dialog-ticket/participants").param("ticketId",raw).param("username",target);
+        mvc.perform(auth(request,actor,"PAGE_DIALOGS","ROLE_ADMIN").with(csrf())).andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false));
+        assertThat(jdbc.queryForList("SELECT * FROM ticket_participants WHERE ticket_id=?",raw)).isEqualTo(before);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM dialog_action_audit WHERE ticket_id=?",Long.class,raw)).isZero();
+        assertThat(events()).isZero();assertThat(outbox()).isZero();assertThat(revision()).isZero();
+    }
+
     @Test void rawCapabilityCannotBeReusedAfterTheRootBecomesBusiness() throws Exception {
         flags.setStrictReadScope(false);jdbc.update("UPDATE tickets SET business_id=NULL WHERE ticket_id=?",raw);
         var once=new java.util.concurrent.atomic.AtomicBoolean();
