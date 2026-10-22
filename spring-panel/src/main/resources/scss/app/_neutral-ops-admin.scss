@@ -1,0 +1,100 @@
+/* 01-281 R2: Neutral Ops for admin directory, business administration and UI Kit. */
+body[data-ui-page='channels'],
+body[data-ui-page='users'] {
+  .admin-directory-shell {
+    gap: 0.8rem;
+  }
+
+  .admin-directory-header {
+    padding: 0 0 0.8rem;
+    border: 0;
+    border-bottom: 1px solid var(--color-border);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .admin-table-card {
+    border-color: var(--color-border);
+    border-radius: var(--ui-panel-radius);
+    background: var(--surface-card);
+    box-shadow: none;
+  }
+
+  .admin-table thead th {
+    padding: 0.68rem 0.85rem;
+    background: var(--surface-soft);
+    color: var(--color-text-muted);
+    font-size: 0.68rem;
+    letter-spacing: 0.055em;
+  }
+
+  .admin-table tbody td {
+    padding: 0.7rem 0.85rem;
+    border-color: var(--color-border);
+  }
+
+  .admin-platform-label,
+  .admin-status-badge {
+    border-radius: var(--control-radius);
+  }
+
+  .admin-table tbody tr:hover > * {
+    background: var(--surface-interactive);
+  }
+}
+
+body[data-ui-page='settings'] [data-business-admin] {
+  .page-header-card {
+    padding: 0 0 0.8rem;
+    border: 0;
+    border-bottom: 1px solid var(--color-border);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .card {
+    border: 1px solid var(--color-border);
+    border-radius: var(--ui-panel-radius);
+    background: var(--surface-card);
+    box-shadow: none;
+  }
+
+  .table thead th {
+    border-bottom-color: var(--color-border);
+    background: var(--surface-soft);
+    color: var(--color-text-muted);
+    font-size: 0.73rem;
+  }
+
+  .table tbody td {
+    border-bottom-color: var(--color-border);
+  }
+
+  .form-control,
+  .form-select {
+    border-color: var(--color-border);
+    border-radius: var(--control-radius);
+    background: var(--surface-card);
+    color: var(--color-text);
+  }
+}
+
+body[data-ui-page='ui-kit'] {
+  .ui-kit-toolbar,
+  .ui-kit-section {
+    border-color: var(--color-border);
+    border-radius: var(--ui-panel-radius);
+    background: var(--surface-card);
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .ui-kit-token-card,
+  .ui-kit-surface {
+    border-color: var(--color-border);
+    border-radius: var(--control-radius);
+    box-shadow: none;
+  }
+}

@@ -1,0 +1,97 @@
+/* 01-281 R2: Neutral Ops sidebar shell; visual-only, preserve navigation mechanics. */
+body.with-sidebar[data-ui-page] {
+  .sidebar {
+    background: var(--surface-card);
+    border-right-color: var(--color-border);
+    box-shadow: none;
+  }
+
+  .sidebar::before {
+    opacity: 0;
+  }
+
+  .sidebar-header {
+    border-color: var(--color-border);
+    border-radius: var(--ui-panel-radius);
+    background: var(--surface-card);
+    box-shadow: none;
+  }
+
+  .sidebar-runtime-strip {
+    border-color: var(--color-border);
+    border-radius: var(--control-radius);
+    background: var(--surface-soft);
+    box-shadow: none;
+  }
+
+  .sidebar-section-label {
+    color: var(--color-text-muted);
+    letter-spacing: 0.09em;
+  }
+
+  .sidebar-nav .nav-link {
+    border-color: transparent;
+    border-radius: var(--control-radius);
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .sidebar-nav .nav-link:hover,
+  .sidebar-nav .nav-link:focus-visible {
+    border-color: var(--color-border);
+    background: var(--surface-interactive);
+  }
+
+  .sidebar-nav .nav-link.active {
+    border-color: color-mix(in srgb, var(--primary) 28%, var(--color-border));
+    background: var(--surface-selected);
+    box-shadow: inset 2px 0 0 var(--primary);
+  }
+
+  .sidebar .nav-link .icon {
+    border-color: var(--color-border);
+    border-radius: var(--control-radius);
+    background: var(--surface-soft);
+  }
+
+  .sidebar-nav .nav-link.active .icon {
+    border-color: color-mix(in srgb, var(--primary) 28%, var(--color-border));
+    background: var(--surface-selected);
+    color: var(--primary);
+  }
+
+  .sidebar-overview,
+  .sidebar-user-card,
+  .sidebar-action-menu-list {
+    border-color: var(--color-border);
+    border-radius: var(--ui-panel-radius);
+    background: var(--surface-card);
+    box-shadow: none;
+  }
+
+  .notify-dropdown {
+    border-color: var(--color-border);
+    border-radius: var(--ui-panel-radius);
+    background: var(--surface-card);
+    backdrop-filter: none;
+    box-shadow: 0 0.8rem 1.8rem color-mix(in srgb, var(--shadow-color) 13%, transparent);
+  }
+
+  .notify-dropdown .notif-item {
+    border-radius: var(--control-radius);
+  }
+
+  .sidebar-mobile-toggle {
+    border-color: var(--color-border);
+    border-radius: var(--control-radius);
+    background: var(--surface-card);
+    color: var(--color-text);
+    box-shadow: none;
+  }
+
+  .sidebar-mobile-toggle:focus-visible,
+  .sidebar-nav .nav-link:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}

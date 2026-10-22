@@ -16134,3 +16134,94 @@ body[data-ui-page=public].auth-wrapper .auth-card {
 body[data-ui-page=public].auth-wrapper .auth-particles {
   opacity: 0.12;
 }
+
+/* 01-281 R2: Neutral Ops for admin directory, business administration and UI Kit. */
+body[data-ui-page=channels] .admin-directory-shell,
+body[data-ui-page=users] .admin-directory-shell {
+  gap: 0.8rem;
+}
+body[data-ui-page=channels] .admin-directory-header,
+body[data-ui-page=users] .admin-directory-header {
+  padding: 0 0 0.8rem;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+body[data-ui-page=channels] .admin-table-card,
+body[data-ui-page=users] .admin-table-card {
+  border-color: var(--color-border);
+  border-radius: var(--ui-panel-radius);
+  background: var(--surface-card);
+  box-shadow: none;
+}
+body[data-ui-page=channels] .admin-table thead th,
+body[data-ui-page=users] .admin-table thead th {
+  padding: 0.68rem 0.85rem;
+  background: var(--surface-soft);
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+  letter-spacing: 0.055em;
+}
+body[data-ui-page=channels] .admin-table tbody td,
+body[data-ui-page=users] .admin-table tbody td {
+  padding: 0.7rem 0.85rem;
+  border-color: var(--color-border);
+}
+body[data-ui-page=channels] .admin-platform-label,
+body[data-ui-page=channels] .admin-status-badge,
+body[data-ui-page=users] .admin-platform-label,
+body[data-ui-page=users] .admin-status-badge {
+  border-radius: var(--control-radius);
+}
+body[data-ui-page=channels] .admin-table tbody tr:hover > *,
+body[data-ui-page=users] .admin-table tbody tr:hover > * {
+  background: var(--surface-interactive);
+}
+
+body[data-ui-page=settings] [data-business-admin] .page-header-card {
+  padding: 0 0 0.8rem;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+body[data-ui-page=settings] [data-business-admin] .card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--ui-panel-radius);
+  background: var(--surface-card);
+  box-shadow: none;
+}
+body[data-ui-page=settings] [data-business-admin] .table thead th {
+  border-bottom-color: var(--color-border);
+  background: var(--surface-soft);
+  color: var(--color-text-muted);
+  font-size: 0.73rem;
+}
+body[data-ui-page=settings] [data-business-admin] .table tbody td {
+  border-bottom-color: var(--color-border);
+}
+body[data-ui-page=settings] [data-business-admin] .form-control,
+body[data-ui-page=settings] [data-business-admin] .form-select {
+  border-color: var(--color-border);
+  border-radius: var(--control-radius);
+  background: var(--surface-card);
+  color: var(--color-text);
+}
+
+body[data-ui-page=ui-kit] .ui-kit-toolbar,
+body[data-ui-page=ui-kit] .ui-kit-section {
+  border-color: var(--color-border);
+  border-radius: var(--ui-panel-radius);
+  background: var(--surface-card);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+body[data-ui-page=ui-kit] .ui-kit-token-card,
+body[data-ui-page=ui-kit] .ui-kit-surface {
+  border-color: var(--color-border);
+  border-radius: var(--control-radius);
+  box-shadow: none;
+}
