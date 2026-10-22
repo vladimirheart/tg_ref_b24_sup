@@ -178,8 +178,10 @@ public class DialogResponsibilityService {
         return legacyWriter.execute(ticketId,responsible,actor,true,after);
     }
 
+    /** Bare-ID read marks are compatibility writes for UNRESOLVED before strict scope. */
     public void markDialogAsRead(String ticketId, String operator) {
-        if (!legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId) || !StringUtils.hasText(operator)) {
+        if ((flags != null && flags.isStrictReadScope())
+                || !legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId) || !StringUtils.hasText(operator)) {
             return;
         }
         try {
@@ -192,12 +194,14 @@ public class DialogResponsibilityService {
                             + "WHERE ticket_id = ? AND responsible = ? "
                             + "AND EXISTS (SELECT 1 FROM tickets panel_ticket "
                             + "WHERE panel_ticket.ticket_id = ticket_responsibles.ticket_id "
-                            + "AND panel_ticket.is_general = FALSE) "
+                            + "AND panel_ticket.is_general = FALSE AND panel_ticket.business_id IS NULL) "
                             + "AND 1 = (SELECT COUNT(*) FROM tickets unique_ticket "
-                            + "WHERE unique_ticket.ticket_id = ticket_responsibles.ticket_id)",
+                            + "WHERE unique_ticket.ticket_id = ticket_responsibles.ticket_id) "
+                            + "AND ? = FALSE",
                     ticketId,
                     ticketId,
-                    operator
+                    operator,
+                    flags != null && flags.isStrictReadScope()
             );
         } catch (DataAccessException ex) {
             log.warn("Unable to mark dialog {} as read for {}: {}", ticketId, operator, DialogDataAccessSupport.summarizeDataAccessException(ex));

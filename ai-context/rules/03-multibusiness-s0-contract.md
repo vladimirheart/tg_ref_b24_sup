@@ -769,6 +769,21 @@ Assignment boundary не приписывает прошлым child rows busine
 суммарно: 13 классов broad v3 и 7 классов / 320 tests corrected v4.
 Новые миграции/рабочий rollout отсутствуют.
 
+R161: узкий пакет одного legacy writer — markDialogAsRead. Bare-ID read mark
+пишется только в UNRESOLVED/non-GENERAL до strictReadScope, для точного stored
+responsible. При strict ранний lookup не выполняется; UPDATE повторяет namespace,
+unique root и получает актуальное strict значение при формировании аргументов.
+BUSINESS/GENERAL, collision, missing root/schema не меняют last_read_at. Расчёт
+MAX(chat_history.timestamp) / CURRENT_TIMESTAMP, точные ID, actor matching,
+assignment fields и прежняя обработка закрытых legacy roots сохранены.
+Это не новый scoped BUSINESS/GENERAL read-mark API, не исправление всей legacy
+read authorization и не historical business/generation attribution child rows.
+Source minimum остаётся V78; SQL migration и рабочие изменения отсутствуют.
+
+Проверки R161: 169 Java / 3 XML GREEN (24 новых PostgreSQL boundary,
+139 прежних responsibility snapshots и 6 service tests), без failures/errors/skips.
+Это один legacy write path; остальные raw read/write gates сохраняются.
+
 Scoped auto-close callback передаёт исходный V61 scope и channel ID события
 в DialogNotificationService.notifyScopedSupportChat. Один SQL capture требует
 полного expected owner, unique raw ID/non-GENERAL, совпадения canonical
