@@ -1,10 +1,10 @@
 /*
- * Neutral Ops is deliberately scoped to the two operational workspaces.
- * It keeps the existing DOM and runtime contracts untouched while removing
- * decorative treatment that competes with queue state and real-time data.
+ * Neutral Ops shared foundation for Iguana's rendered web UI.
+ * The original dialogs/dashboard rules remain page-specific. Cross-page
+ * rules below affect visual treatment only, not DOM or runtime behaviour.
  */
 
-body[data-ui-visual='neutral-ops'] {
+body[data-ui-page] {
   --ui-panel-radius: 0.72rem;
   --ui-panel-padding: 0.9rem;
   --ui-panel-padding-lg: 1rem;
@@ -388,5 +388,41 @@ body[data-ui-page='dashboard'][data-ui-visual='neutral-ops'] {
     .metrics-grid {
       grid-template-columns: 1fr;
     }
+  }
+}
+/* 01-281 R1: cross-page neutral surface baseline; no DOM or runtime change. */
+body[data-ui-page] {
+  .card {
+    border-radius: var(--ui-panel-radius);
+    box-shadow: none;
+  }
+
+  .modal-content,
+  .offcanvas {
+    border-color: var(--color-border);
+    background: var(--surface-card);
+    color: var(--color-text);
+  }
+
+  .dropdown-menu {
+    --bs-dropdown-bg: var(--surface-card);
+    --bs-dropdown-border-color: var(--color-border);
+    --bs-dropdown-border-radius: var(--control-radius);
+  }
+}
+
+/* Login and error pages share app.css but are outside the sidebar shell. */
+body[data-ui-page='public'].auth-wrapper {
+  background: var(--color-bg);
+
+  .auth-card {
+    background: var(--surface-card);
+    border-color: var(--color-border);
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .auth-particles {
+    opacity: 0.12;
   }
 }

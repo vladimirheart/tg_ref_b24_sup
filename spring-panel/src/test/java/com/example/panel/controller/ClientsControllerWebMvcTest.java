@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
+import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.repository.PanelUserRepository;
 import com.example.panel.service.ClientsService;
 import com.example.panel.service.NavigationService;
@@ -51,6 +52,9 @@ class ClientsControllerWebMvcTest {
 
     @MockBean
     private PanelUserPhotoService panelUserPhotoService;
+
+    @MockBean
+    private MultibusinessFeatureFlags multibusinessFlags;
 
     @Test
     void clientsPageIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {

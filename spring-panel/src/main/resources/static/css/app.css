@@ -15770,11 +15770,11 @@ details.ui-disclosure-native .dialog-details-disclosure-caret {
   }
 }
 /*
- * Neutral Ops is deliberately scoped to the two operational workspaces.
- * It keeps the existing DOM and runtime contracts untouched while removing
- * decorative treatment that competes with queue state and real-time data.
+ * Neutral Ops shared foundation for Iguana's rendered web UI.
+ * The original dialogs/dashboard rules remain page-specific. Cross-page
+ * rules below affect visual treatment only, not DOM or runtime behaviour.
  */
-body[data-ui-visual=neutral-ops] {
+body[data-ui-page] {
   --ui-panel-radius: 0.72rem;
   --ui-panel-padding: 0.9rem;
   --ui-panel-padding-lg: 1rem;
@@ -15787,52 +15787,52 @@ body[data-ui-visual=neutral-ops] {
   --surface-interactive: color-mix(in srgb, var(--primary) 5%, var(--surface-card));
   --surface-selected: color-mix(in srgb, var(--primary) 11%, var(--surface-card));
 }
-body[data-ui-visual=neutral-ops] .page-kicker,
-body[data-ui-visual=neutral-ops] .section-kicker {
+body[data-ui-page] .page-kicker,
+body[data-ui-page] .section-kicker {
   padding: 0;
   background: transparent;
   color: var(--color-text-muted);
   font-size: 0.66rem;
   letter-spacing: 0.1em;
 }
-body[data-ui-visual=neutral-ops] .page-header-card,
-body[data-ui-visual=neutral-ops] .dialogs-toolbar-card,
-body[data-ui-visual=neutral-ops] .dialogs-table-card,
-body[data-ui-visual=neutral-ops] .workspace-shell-card,
-body[data-ui-visual=neutral-ops] .reports-page-header,
-body[data-ui-visual=neutral-ops] .filter-panel,
-body[data-ui-visual=neutral-ops] .metrics-panel,
-body[data-ui-visual=neutral-ops] .chart-panel {
+body[data-ui-page] .page-header-card,
+body[data-ui-page] .dialogs-toolbar-card,
+body[data-ui-page] .dialogs-table-card,
+body[data-ui-page] .workspace-shell-card,
+body[data-ui-page] .reports-page-header,
+body[data-ui-page] .filter-panel,
+body[data-ui-page] .metrics-panel,
+body[data-ui-page] .chart-panel {
   border: 1px solid var(--color-border);
   border-radius: var(--ui-panel-radius);
   background: var(--surface-card);
   box-shadow: none;
 }
-body[data-ui-visual=neutral-ops] .gradient-border-hover::before,
-body[data-ui-visual=neutral-ops] .filter-panel::before,
-body[data-ui-visual=neutral-ops] .metrics-panel::before,
-body[data-ui-visual=neutral-ops] .chart-panel::before {
+body[data-ui-page] .gradient-border-hover::before,
+body[data-ui-page] .filter-panel::before,
+body[data-ui-page] .metrics-panel::before,
+body[data-ui-page] .chart-panel::before {
   display: none;
 }
-body[data-ui-visual=neutral-ops] .page-title,
-body[data-ui-visual=neutral-ops] .panel-head h3,
-body[data-ui-visual=neutral-ops] .chart-panel-title,
-body[data-ui-visual=neutral-ops] .dialogs-title {
+body[data-ui-page] .page-title,
+body[data-ui-page] .panel-head h3,
+body[data-ui-page] .chart-panel-title,
+body[data-ui-page] .dialogs-title {
   letter-spacing: -0.025em;
 }
-body[data-ui-visual=neutral-ops] .btn,
-body[data-ui-visual=neutral-ops] .form-control,
-body[data-ui-visual=neutral-ops] .form-select,
-body[data-ui-visual=neutral-ops] .select2-container--default .select2-selection--multiple {
+body[data-ui-page] .btn,
+body[data-ui-page] .form-control,
+body[data-ui-page] .form-select,
+body[data-ui-page] .select2-container--default .select2-selection--multiple {
   border-radius: var(--control-radius);
   box-shadow: none;
 }
-body[data-ui-visual=neutral-ops] .btn-primary {
+body[data-ui-page] .btn-primary {
   border-color: var(--primary);
   background: var(--primary);
 }
-body[data-ui-visual=neutral-ops] .btn-primary:hover,
-body[data-ui-visual=neutral-ops] .btn-primary:focus-visible {
+body[data-ui-page] .btn-primary:hover,
+body[data-ui-page] .btn-primary:focus-visible {
   border-color: var(--color-accent-strong);
   background: var(--color-accent-strong);
   box-shadow: none;
@@ -16102,4 +16102,35 @@ body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .manager-table-shell {
   body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .metrics-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* 01-281 R1: cross-page neutral surface baseline; no DOM or runtime change. */
+body[data-ui-page] .card {
+  border-radius: var(--ui-panel-radius);
+  box-shadow: none;
+}
+body[data-ui-page] .modal-content,
+body[data-ui-page] .offcanvas {
+  border-color: var(--color-border);
+  background: var(--surface-card);
+  color: var(--color-text);
+}
+body[data-ui-page] .dropdown-menu {
+  --bs-dropdown-bg: var(--surface-card);
+  --bs-dropdown-border-color: var(--color-border);
+  --bs-dropdown-border-radius: var(--control-radius);
+}
+
+/* Login and error pages share app.css but are outside the sidebar shell. */
+body[data-ui-page=public].auth-wrapper {
+  background: var(--color-bg);
+}
+body[data-ui-page=public].auth-wrapper .auth-card {
+  background: var(--surface-card);
+  border-color: var(--color-border);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+body[data-ui-page=public].auth-wrapper .auth-particles {
+  opacity: 0.12;
 }
