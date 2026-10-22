@@ -530,7 +530,7 @@ public class BusinessScopedTicketReadService {
                 });
     }
 
-    /** Categories belong to the canonical root; remaining legacy workspace rows need a unique raw ID. */
+    /** Canonical categories and legacy responsible only; roster data has its own full-owner API. */
     public Optional<TicketWorkspace> findWorkspaceByPublicId(Long userId, String publicId) {
         if (publicId == null || !PUBLIC_ID.matcher(publicId).matches()) {
             return Optional.empty();
@@ -575,25 +575,16 @@ public class BusinessScopedTicketReadService {
                       SELECT 'responsible' AS entry_kind, left(r.responsible, 200) AS entry_value
                         FROM ticket_responsibles r
                        WHERE r.ticket_id = ticket.ticket_id AND ticket.relation_verified
-                      UNION ALL
-                      SELECT 'participant', p.username
-                        FROM (
-                            SELECT username FROM ticket_participants
-                             WHERE ticket_id = ticket.ticket_id AND ticket.relation_verified
-                             ORDER BY username LIMIT :workspaceLimit
-                        ) p
                   ) item ON TRUE
                  ORDER BY item.entry_kind, item.entry_value
                 """, new MapSqlParameterSource()
                         .addValue("publicId", publicId)
                         .addValue("businessIds", ids)
-                        .addValue("userId", userId)
-                        .addValue("workspaceLimit", MAX_WORKSPACE_ITEMS + 1),
+                        .addValue("userId", userId),
                 rs -> {
                     TicketRow ticket = null;
                     boolean relationVerified = false;
                     String responsible = null;
-                    List<String> participants = new ArrayList<>();
                     while (rs.next()) {
                         if (ticket == null) {
                             ticket = ticketRow(rs);
@@ -602,18 +593,13 @@ public class BusinessScopedTicketReadService {
                         String kind = rs.getString("entry_kind");
                         if ("responsible".equals(kind)) {
                             responsible = rs.getString("entry_value");
-                        } else if ("participant".equals(kind)) {
-                            participants.add(rs.getString("entry_value"));
                         }
                     }
                     if (ticket == null) {
                         return Optional.<TicketWorkspace>empty();
                     }
-                    if (participants.size() > MAX_WORKSPACE_ITEMS) {
-                        throw new WorkspaceLimitExceededException();
-                    }
                     return Optional.of(new TicketWorkspace(ticket, relationVerified, responsible,
-                            ticket.categories(), List.copyOf(participants)));
+                            ticket.categories(), List.of()));
                 });
     }
 

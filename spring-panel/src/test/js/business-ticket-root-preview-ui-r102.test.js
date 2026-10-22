@@ -87,6 +87,7 @@ async function main() {
     currentTicket: null, clearCard() { card.hidden = true; },
     getJson: async () => snapshot, loadAnswers: () => { answersLoaded++; },
     loadWorkspace: () => { workspaceLoaded++; },
+    loadParticipants: () => {},
     loadSpans: () => { spansLoaded++; },
     statusLabel: value => value, ticketTime, announce: message => cardMessages.push(message),
     document: { createElement: () => new Element() }, encodeURIComponent

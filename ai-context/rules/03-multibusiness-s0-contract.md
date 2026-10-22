@@ -14,7 +14,7 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R168 (2026-10-22): рабочий экземпляр и Docker находятся
+Актуальное уточнение R168–R169 (2026-10-22): рабочий экземпляр и Docker находятся
 на другой машине и в другой сессии относительно этой source/test-сессии.
 Здесь разрешён только изолированный Testcontainers; рабочие stack/revision/
 DB migrations/flags не проверялись и не менялись. Одинаковый путь checkout
@@ -1064,6 +1064,43 @@ PAGE_DIALOGS/foundation сохраняются. Чтение категорий 
 полные category arrays и прежнюю границу 1000 tickets; category summary может
 вернуть 413 независимо от размера ticket export. Историческая принадлежность
 прочих legacy children и live provider delivery этим не подтверждаются.
+
+### BUSINESS roster и immutable history READ — R169
+
+R169: отдельный full-owner BUSINESS roster READ и paged immutable history
+через /api/business-scope/tickets/{publicId}/participants[/history]. Один SQL
+связывает user/raw/public/business текущего root со строками V79; canonical
+данные читаются при raw collision и closed/resolved без OPERATE. PAGE_DIALOGS,
+foundation и current unique enabled/unblocked READ активного бизнеса обязательны;
+GENERAL/UNRESOLVED, чужой scope и неоднозначный public locator закрыты.
+Principal lower-case без trim; бизнес не берётся из browser context или raw ID.
+200 members либо явный 413; история newest-first, по 1–100 событий, strict
+before-revision cursor и limit+1/hasMore. Default cursor допускает Long.MAX_VALUE.
+Owner IDs, member/actor IDs, revisions/cursors передаются JSON strings без
+потери BIGINT в браузере. Reader и member eligibility проверяются внутри SQL
+по прежнему current READ predicate; VIEWER допустим, участие не выдаёт доступ.
+Numeric member ID сохраняет snapshot при rename/delete/reuse имени; недоступный
+member остаётся видимым с eligible=false, история не меняет account/grants.
+Недоступная V79 schema даёт 503, а не пустой список или legacy fallback.
+Main card показывает новый roster/history с pagination и textContent, проверкой
+полного owner и равенства revision ответов; stale owner/revision/generation,
+смена бизнеса и отказ доступа очищают панель. Cursor остаётся строкой.
+Workspace больше не читает raw ticket_participants; compatibility participants
+возвращается [] и не выдаётся за новый список. Старые rows не импортируются и
+не меняются; remaining relationVerified/legacy projection относится только к
+ответственному. Write/notification/provider workflows не менялись.
+Source minimum остаётся V81, без новой migration/feature flags. Историческая
+attribution legacy responsible/active/spans и external recipient policy,
+S2B, scoped feedback/delivery и рабочая приёмка остаются gates.
+
+Новые reads не вызывают write service и не строят owner через предварительный
+raw lookup. Roster и current revision, history page и current revision получены
+каждые одним statement snapshot; UI не смешивает ответы разных revisions.
+Удаление участника не отзывает его business membership; READ определяется
+только действующими account/grants. Наличие roster не меняет ответственного,
+уведомления, status/work revision и права. Snapshot имён — audit, не authority.
+Legacy compatibility workspace participants=[]; raw таблица не переписывается.
+GENERAL roster API и остальные legacy read paths этим не объявляются закрытыми.
 
 ### Scoped auto-close и внешняя доставка
 

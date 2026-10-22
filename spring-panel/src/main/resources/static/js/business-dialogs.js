@@ -41,6 +41,10 @@
   let currentTicket = null;
   let olderLoading = false;
   let exporting = false;
+  let participantTicket = null;
+  let participantRevision = null;
+  let participantBefore = null;
+  let participantLoading = false;
 
   function clearCard() {
     card.hidden = true;
@@ -65,6 +69,20 @@
     currentTicketPublicId = null;
     currentTicket = null;
     olderLoading = false;
+    clearParticipants();
+  }
+
+  function clearParticipants(message = '') {
+    card.querySelector('[data-ticket-participants]').replaceChildren();
+    card.querySelector('[data-ticket-participant-events]').replaceChildren();
+    card.querySelector('[data-ticket-participants-status]').textContent = message;
+    const button = card.querySelector('[data-ticket-participants-older]');
+    button.hidden = true;
+    button.disabled = false;
+    participantTicket = null;
+    participantRevision = null;
+    participantBefore = null;
+    participantLoading = false;
   }
 
   function announce(message, error = false) {
@@ -263,8 +281,7 @@
       }
       workspaceStatus.textContent = 'Рабочие данные по уникальному raw ID; историческая принадлежность legacy-связей не подтверждена.';
       for (const [label, value] of [
-        ['Ответственный', snapshot.responsible || 'Не назначен'],
-        ['Участники (legacy-проекция; не новый список)', snapshot.participants.length ? snapshot.participants.join(', ') : 'Нет']
+        ['Ответственный (прежние данные)', snapshot.responsible || 'Не назначен']
       ]) {
         const item = document.createElement('li');
         item.className = 'list-group-item';
@@ -277,6 +294,76 @@
         workspace.replaceChildren();
         workspaceStatus.textContent = 'Рабочие данные недоступны. Проверьте доступ и обновите карточку.';
       }
+    }
+  }
+
+  function participantOwnerMatches(owner, ticket) {
+    return owner && owner.ticketPublicId === ticket.ticketPublicId && owner.ticketId === ticket.ticketId &&
+      owner.userId === String(ticket.userId) && owner.businessId === String(ticket.businessId);
+  }
+
+  function participantEventItem(entry) {
+    const item = document.createElement('li');
+    item.className = 'list-group-item text-break';
+    const action = entry.action === 'add' ? 'Добавлен' : 'Удалён';
+    item.textContent = `${entry.revision} · ${action}: ${entry.member} (ID ${entry.memberId}) · ${entry.actor} · ${ticketTime(entry.createdAt)}`;
+    return item;
+  }
+
+  async function loadParticipants(ticket, expectedGeneration, request) {
+    clearParticipants('Загрузка участников…');
+    try {
+      const path = `/api/business-scope/tickets/${encodeURIComponent(ticket.ticketPublicId)}/participants`;
+      const [roster, events] = await Promise.all([getJson(path), getJson(`${path}/history?limit=50`)]);
+      if (expectedGeneration !== generation || request !== cardRequest || currentTicketPublicId !== ticket.ticketPublicId) return;
+      if (!participantOwnerMatches(roster.owner, ticket) || !participantOwnerMatches(events.owner, ticket) ||
+          typeof roster.revision !== 'string' || roster.revision !== events.revision) {
+        clearParticipants('Список участников изменился. Обновите карточку.');
+        return;
+      }
+      const list = card.querySelector('[data-ticket-participants]');
+      for (const member of roster.members) {
+        const item = document.createElement('li');
+        item.className = 'list-group-item text-break';
+        item.textContent = `${member.username || member.snapshot} (ID ${member.id})${member.eligible ? '' : ' · нет текущего доступа'}`;
+        list.appendChild(item);
+      }
+      card.querySelector('[data-ticket-participants-status]').textContent = roster.members.length
+        ? `Участников: ${roster.members.length}. Участие не предоставляет доступ к бизнесу.` : 'Участники пока не добавлены.';
+      const history = card.querySelector('[data-ticket-participant-events]');
+      history.append(...events.events.map(participantEventItem));
+      participantTicket = ticket;
+      participantRevision = roster.revision;
+      participantBefore = events.nextBeforeRevision;
+      card.querySelector('[data-ticket-participants-older]').hidden = !events.hasMore;
+    } catch (error) {
+      if (expectedGeneration === generation && request === cardRequest && currentTicketPublicId === ticket.ticketPublicId)
+        clearParticipants('Участники недоступны. Проверьте доступ и обновите карточку.');
+    }
+  }
+
+  async function loadOlderParticipants() {
+    if (participantLoading || !participantTicket || participantBefore === null) return;
+    const ticket = participantTicket, expectedGeneration = generation, request = cardRequest;
+    const revision = participantRevision, before = participantBefore;
+    const button = card.querySelector('[data-ticket-participants-older]');
+    participantLoading = true;
+    button.disabled = true;
+    try {
+      const page = await getJson(`/api/business-scope/tickets/${encodeURIComponent(ticket.ticketPublicId)}/participants/history?limit=50&before=${encodeURIComponent(before)}`);
+      if (expectedGeneration !== generation || request !== cardRequest || participantTicket !== ticket) return;
+      if (!participantOwnerMatches(page.owner, ticket) || page.revision !== revision) {
+        clearParticipants('Список участников изменился. Обновите карточку.');
+        return;
+      }
+      card.querySelector('[data-ticket-participant-events]').append(...page.events.map(participantEventItem));
+      participantBefore = page.nextBeforeRevision;
+      button.hidden = !page.hasMore;
+    } catch (error) {
+      if (expectedGeneration === generation && request === cardRequest && participantTicket === ticket)
+        clearParticipants('История участников недоступна. Обновите карточку.');
+    } finally {
+      if (expectedGeneration === generation && request === cardRequest) { participantLoading = false; button.disabled = false; }
     }
   }
 
@@ -368,6 +455,7 @@
       card.hidden = false;
       loadAnswers(detail, expectedGeneration, request);
       loadWorkspace(detail, expectedGeneration, request);
+      loadParticipants(detail, expectedGeneration, request);
       loadSpans(detail, expectedGeneration, request);
     } catch (error) {
       if (expectedGeneration !== generation || request !== cardRequest) return;
@@ -510,6 +598,7 @@
     loadTickets();
   });
   older.addEventListener('click', loadOlderHistory);
+  card.querySelector('[data-ticket-participants-older]').addEventListener('click', loadOlderParticipants);
   exportButton.addEventListener('click', exportTickets);
 
   if (manualForm) {

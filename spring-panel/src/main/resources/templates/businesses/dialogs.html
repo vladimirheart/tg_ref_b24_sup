@@ -114,7 +114,14 @@
             <h3 class="h6 mt-3">Ответы на вопросы</h3>
             <p class="small text-muted" aria-live="polite" data-ticket-answers-status></p>
             <ol class="list-group list-group-numbered mb-3" data-ticket-answers></ol>
-            <h3 class="h6 mt-3">Рабочие данные</h3>
+            <h3 class="h6 mt-3">Участники обращения</h3>
+            <p class="small text-muted" aria-live="polite" data-ticket-participants-status></p>
+            <ul class="list-group mb-3" data-ticket-participants></ul>
+            <details class="mb-3"><summary>История участников</summary>
+                <ol class="list-group mt-2" data-ticket-participant-events></ol>
+                <button class="btn btn-outline-secondary btn-sm mt-2" type="button" data-ticket-participants-older hidden>Более ранние изменения</button>
+            </details>
+            <h3 class="h6 mt-3">Прежние рабочие данные</h3>
             <p class="small text-muted" aria-live="polite" data-ticket-workspace-status></p>
             <ul class="list-group mb-3" data-ticket-workspace></ul>
             <h3 class="h6 mt-3">Интервалы работы</h3>
@@ -128,6 +135,6 @@
     </section>
 </main>
 <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js"></script>
-<script th:src="@{/js/business-dialogs.js(v='20261022-r168')}"></script>
+<script th:src="@{/js/business-dialogs.js(v='20261022-r169')}"></script>
 </body>
 </html>

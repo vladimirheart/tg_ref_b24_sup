@@ -32,6 +32,60 @@ import org.springframework.web.util.HtmlUtils;
 
 @SpringBootTest @AutoConfigureMockMvc
 class BusinessTicketAssignmentHttpPostgresTest {
+    @Test void persistedParticipantRosterAndHistoryReachReadOnlyCardApisWithoutLegacyFallback() throws Exception {
+        jdbc.update("INSERT INTO ticket_participants(ticket_id,username,added_by) VALUES(?,'Legacy secret','old')",raw);
+        var old=jdbc.queryForList("SELECT * FROM ticket_participants WHERE ticket_id=?",raw);
+        mvc.perform(auth(memberCommand("add","0",viewerId),actor,"PAGE_DIALOGS").with(csrf())).andExpect(status().is3xxRedirection());
+        String path="/api/business-scope/tickets/"+publicId+"/participants";
+        mvc.perform(auth(get(path),viewer,"PAGE_DIALOGS"))
+            .andExpect(status().isOk()).andExpect(header().string("Cache-Control","no-store"))
+            .andExpect(jsonPath("$.owner.userId").value("901")).andExpect(jsonPath("$.owner.ticketId").value(raw))
+            .andExpect(jsonPath("$.revision").value("1")).andExpect(jsonPath("$.members",hasSize(1)))
+            .andExpect(jsonPath("$.members[0].id").value(Long.toString(viewerId)))
+            .andExpect(jsonPath("$.members[0].username").value(viewer)).andExpect(jsonPath("$.members[0].eligible").value(true));
+        mvc.perform(auth(get("/api/business-scope/tickets/"+publicId+"/workspace"),viewer,"PAGE_DIALOGS"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.participants",hasSize(0)));
+        mvc.perform(auth(memberCommand("remove","1",viewerId),actor,"PAGE_DIALOGS").with(csrf())).andExpect(status().is3xxRedirection());
+        mvc.perform(auth(get(path+"/history").param("limit","1"),viewer,"PAGE_DIALOGS"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.revision").value("2"))
+            .andExpect(jsonPath("$.events[0].action").value("remove")).andExpect(jsonPath("$.nextBeforeRevision").value("2"));
+        mvc.perform(auth(get(path+"/history").param("before","2").param("limit","1"),viewer,"PAGE_DIALOGS"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.events[0].action").value("add"))
+            .andExpect(jsonPath("$.hasMore").value(false));
+        assertThat(jdbc.queryForList("SELECT * FROM ticket_participants WHERE ticket_id=?",raw)).isEqualTo(old);
+    }
+    @Test void participantReadSurvivesRawCollisionButCannotFollowABusinessTransfer() throws Exception {
+        assertThat(participants.change(scope,actor,0,targetId,true)).isTrue();
+        jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,business_id) VALUES(902,?,?,?)",raw,UUID.randomUUID().toString().replace("-",""),other);
+        String path="/api/business-scope/tickets/"+publicId+"/participants";
+        mvc.perform(auth(get(path),viewer,"PAGE_DIALOGS")).andExpect(status().isOk()).andExpect(jsonPath("$.members",hasSize(1)));
+        mvc.perform(auth(get(path+"/history"),viewer,"PAGE_DIALOGS")).andExpect(status().isOk()).andExpect(jsonPath("$.events",hasSize(1)));
+        jdbc.update("UPDATE tickets SET business_id=? WHERE user_id=901 AND ticket_id=?",other,raw);
+        mvc.perform(auth(get(path),viewer,"PAGE_DIALOGS")).andExpect(status().isNotFound());
+        mvc.perform(auth(get(path),foreign,"PAGE_DIALOGS")).andExpect(status().isOk()).andExpect(jsonPath("$.members",hasSize(0)));
+        mvc.perform(auth(get(path+"/history"),foreign,"PAGE_DIALOGS")).andExpect(status().isOk()).andExpect(jsonPath("$.events",hasSize(0)));
+    }
+    @Test void participantReadUsesNumericMemberAfterRenameAndCurrentReaderGrant() throws Exception {
+        assertThat(participants.change(scope,actor,0,targetId,true)).isTrue();
+        jdbc.update("UPDATE users SET username=? WHERE id=?","<script>"+target+"</script>",targetId);
+        jdbc.update("UPDATE business_memberships SET is_active=FALSE WHERE user_id=?",targetId);
+        String path="/api/business-scope/tickets/"+publicId+"/participants";
+        mvc.perform(auth(get(path),viewer,"PAGE_DIALOGS"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.members[0].snapshot").value(target))
+            .andExpect(jsonPath("$.members[0].username").value("<script>"+target+"</script>"))
+            .andExpect(jsonPath("$.members[0].eligible").value(false));
+        jdbc.update("UPDATE business_memberships SET is_active=FALSE WHERE user_id=?",viewerId);
+        mvc.perform(auth(get(path),viewer,"PAGE_DIALOGS")).andExpect(status().isNotFound());
+        mvc.perform(auth(get(path+"/history"),viewer,"PAGE_DIALOGS")).andExpect(status().isNotFound());
+    }
+    @Test void participantApiRequiresPageAndFoundationAndValidatesCursor() throws Exception {
+        String path="/api/business-scope/tickets/"+publicId+"/participants";
+        mvc.perform(auth(get(path),viewer,"PAGE_SETTINGS")).andExpect(status().isForbidden());
+        mvc.perform(auth(get(path+"/history").param("before","0"),viewer,"PAGE_DIALOGS")).andExpect(status().isBadRequest());
+        mvc.perform(auth(get(path+"/history").param("limit","101"),viewer,"PAGE_DIALOGS")).andExpect(status().isBadRequest());
+        flags.getFoundation().setEnabled(false);
+        mvc.perform(auth(get(path),viewer,"PAGE_DIALOGS")).andExpect(status().isNotFound());
+    }
     @Test void savedCategoriesReachListCardNestedReadsSearchExportAndCategorySummary() throws Exception {
         jdbc.update("INSERT INTO ticket_categories(ticket_id,category) VALUES(?,'Legacy secret')",raw);
         mvc.perform(auth(workCommand("categories",0,"open"," Delivery \nDelivery\n<script>Category</script>"),actor,"PAGE_DIALOGS").with(csrf()))

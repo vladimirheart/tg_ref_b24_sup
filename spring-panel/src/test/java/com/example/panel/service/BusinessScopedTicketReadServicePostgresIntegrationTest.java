@@ -351,7 +351,9 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         assertThat(workspace.categories()).isEmpty();
         assertThat(jdbc.queryForList("SELECT category FROM ticket_categories WHERE ticket_id='sushi-raw' ORDER BY category", String.class))
                 .containsExactly("Доставка", "Качество");
-        assertThat(workspace.participants()).containsExactly("alice", "bob");
+        assertThat(workspace.participants()).isEmpty();
+        assertThat(jdbc.queryForList("SELECT username FROM ticket_participants WHERE ticket_id='sushi-raw' ORDER BY username",String.class))
+                .containsExactly("alice","bob");
         assertThat(service.findWorkspaceByPublicId(1L, otherPublicId)).isEmpty();
         assertThat(service.findWorkspaceByPublicId(2L, otherPublicId).orElseThrow().responsible())
                 .isEqualTo("operator-b");
@@ -367,8 +369,10 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
             jdbc.update("INSERT INTO ticket_participants(ticket_id, username) VALUES ('sushi-raw', ?)",
                     "extra-" + i);
         }
-        assertThatThrownBy(() -> service.findWorkspaceByPublicId(1L, publicId))
-                .isInstanceOf(BusinessScopedTicketReadService.WorkspaceLimitExceededException.class);
+        assertThat(service.findWorkspaceByPublicId(1L, publicId).orElseThrow().participants()).isEmpty();
+        assertThat(service.findWorkspaceByPublicId(1L, publicId).orElseThrow().responsible()).isEqualTo("operator-a");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM ticket_participants WHERE ticket_id='sushi-raw'",Integer.class))
+                .isGreaterThan(BusinessScopedTicketReadService.MAX_WORKSPACE_ITEMS);
         BusinessAccessService staleAccess = mock(BusinessAccessService.class);
         when(staleAccess.resolveAccessibleBusinessIds(1L)).thenReturn(Set.of(sushi));
         BusinessScopedTicketReadService staleService = new BusinessScopedTicketReadService(jdbc, staleAccess);
