@@ -39,9 +39,10 @@
 		  rel="stylesheet">
 
 	<link rel="stylesheet" th:href="@{/css/style.css(v='20261022-neutral-ops-r7')}">
-	<link rel="stylesheet" th:href="@{/css/app.css(v='20261022-neutral-ops-r7')}">
+	<link rel="stylesheet" th:href="@{/css/app.css(v='20261022-neutral-ops-r8')}">
 	<link rel="stylesheet" th:href="@{/css/sidebar.css(v='20261022-neutral-ops-r7')}">
   <script src="/vendor/chart.js/4.5.1/chart.umd.min.js"></script>
+  <script th:src="@{/js/dashboard-activity-trend.js(v='20261022-neutral-ops-r8')}"></script>
   <script src="/vendor/jquery/3.6.0/jquery.min.js"></script>
   <script src="/vendor/select2/4.1.0-rc.0/select2.min.js"></script>
   <script src="/vendor/flatpickr/4.6.13/flatpickr.min.js"></script>
@@ -181,6 +182,20 @@
         </div>
 
         <section class="dashboard-grid">
+          <article class="chart-panel chart-panel--wide chart-panel--trend data-panel ops-panel" data-panel-id="activity-trend">
+            <div class="chart-panel-head">
+              <div>
+                <span class="section-kicker">Поток обращений</span>
+                <h3 class="chart-panel-title">Нагрузка по дням недели</h3>
+                <p class="chart-panel-description">Суммарно за выбранный период · все обращения и обращения в рабочее время.</p>
+              </div>
+            </div>
+            <div class="chart-container">
+              <canvas id="activityTrendChart" role="img" aria-label="Количество обращений по дням недели: всего и в рабочее время"></canvas>
+              <div class="text-center text-muted py-5" data-trend-empty hidden>Нет данных за выбранный период</div>
+            </div>
+          </article>
+
           <article class="chart-panel chart-panel--wide data-panel dashboard-team-panel ops-panel" data-panel-id="staff-time">
             <div class="chart-panel-head">
               <div>
@@ -709,7 +724,7 @@
     }
 
     function buildChartFills(canvas, colors, direction = 'vertical') {
-      return colors.map((color) => buildCanvasGradient(canvas, color, direction));
+      return colors;
     }
 
     function getChartPalette(variant = 'default') {
@@ -816,7 +831,7 @@
           bodyColor: theme.tooltipText,
           displayColors: true,
           padding: 12,
-          cornerRadius: 14
+          cornerRadius: 6
         }
       };
     }
@@ -1919,6 +1934,7 @@ async function loadDashboardData() {
     dashboardRenderCache.activityStats = data.activity_stats || null;
     updateStaffWorkloadChart(data.staff_time_stats);
     renderActivityHeatmap(data.activity_stats);
+    updateActivityTrend(data.activity_stats);
 
     // Обновляем графики
     dashboardRenderCache.chartData = data.charts || {};
@@ -1946,6 +1962,7 @@ function rerenderDashboardCharts() {
   if (dashboardRenderCache.activityStats) {
     renderActivityHeatmap(dashboardRenderCache.activityStats);
   }
+  updateActivityTrend(dashboardRenderCache.activityStats);
   if (dashboardRenderCache.chartData && Object.keys(dashboardRenderCache.chartData).length) {
     updateCharts(dashboardRenderCache.chartData);
   }
@@ -2019,6 +2036,19 @@ function updateStats(stats, timeStats, activityStats) {
       hourlyLoadFoot.textContent = 'Нет данных по активности за выбранный период.';
     }
   }
+}
+
+function updateActivityTrend(activityStats) {
+  const theme = getChartTheme();
+  charts.activityTrend = window.IguanaActivityTrend.update(charts.activityTrend,
+    document.getElementById('activityTrendChart'), activityStats, {
+      ...theme,
+      primary: getChartCssColor('--primary'),
+      secondary: (document.documentElement.dataset.themePalette || 'neo') === 'neo'
+        ? (document.documentElement.dataset.theme === 'dark' ? '#86adf4' : '#2864b5')
+        : getChartCssColor('--chart-2'),
+      fill: withAlpha(getChartCssColor('--primary'), 0.10)
+    });
 }
 
 function renderActivityHeatmap(activityStats) {
@@ -2394,9 +2424,9 @@ function updatePieChartWithLegend(canvasId, legendId, data, colors) {
         data: values,
         backgroundColor: colors,
         borderColor: theme.border,
-        borderWidth: 3,
-        spacing: 4,
-        hoverOffset: 10
+        borderWidth: 2,
+        spacing: 1,
+        hoverOffset: 4
       }]
     },
     options: {
@@ -2555,15 +2585,15 @@ function updateChart(canvasId, type, data, backgroundColor, showValues = false, 
       labels: limitedLabels,
       datasets: [{
         data: limitedValues,
-        borderRadius: isBar ? (isHorizontalBar ? 16 : 18) : 0,
+        borderRadius: isBar ? 4 : 0,
         borderSkipped: false,
-        maxBarThickness: isHorizontalBar ? 28 : 42,
+        maxBarThickness: isHorizontalBar ? 18 : 26,
         categoryPercentage: isHorizontalBar ? 0.8 : 0.68,
         barPercentage: isHorizontalBar ? 0.9 : 0.82,
         backgroundColor: isBar ? fills : baseColors,
         hoverBackgroundColor: isBar ? fills : baseColors,
         borderColor: baseColors.map((color) => withAlpha(color, 0.92)),
-        borderWidth: isBar ? 1.5 : 2
+        borderWidth: 0
       }]
     },
     options: {
@@ -2645,9 +2675,9 @@ function updateStaffWorkloadChart(staffStats) {
           backgroundColor: barFills,
           borderColor: barBaseColors.map((color) => withAlpha(color, 0.94)),
           borderWidth: 1,
-          borderRadius: 16,
+          borderRadius: 4,
           borderSkipped: false,
-          maxBarThickness: 34,
+          maxBarThickness: 24,
           yAxisID: 'y'
         },
         {
@@ -2659,9 +2689,9 @@ function updateStaffWorkloadChart(staffStats) {
           pointBackgroundColor: profile.lineColor,
           pointBorderColor: profile.pointBorder,
           pointBorderWidth: 2,
-          pointRadius: 4.5,
+          pointRadius: 0,
           pointHoverRadius: 5.5,
-          borderWidth: 3,
+          borderWidth: 2,
           fill: true,
           tension: 0.36,
           yAxisID: 'y1'

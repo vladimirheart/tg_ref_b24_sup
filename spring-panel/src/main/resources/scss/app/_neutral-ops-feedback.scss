@@ -1,0 +1,129 @@
+/* 01-281: правки по приёмке на заполненных экранах, а не только на empty states. */
+body[data-ui-page='settings'] #locationsModal .location-tree-toggle,
+body[data-ui-page='dialogs'] .dialog-table .dialog-actions-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 24px;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+  line-height: 1;
+  border-radius: 5px;
+}
+
+body[data-ui-page='dialogs'] #dialogDetailsModal {
+  .modal-dialog {
+    width: min(1600px, calc(100vw - 48px));
+    max-width: calc(100vw - 48px);
+    min-width: 0;
+    height: calc(100dvh - 48px);
+    min-height: 0;
+    margin: 24px auto;
+  }
+
+  .modal-content { background: var(--surface-card); border-radius: 10px; }
+  .modal-header { align-items: center; padding: 12px 16px; gap: 12px; }
+  .dialog-details-header { flex: 1 1 320px; min-width: 0; gap: 10px; }
+  .dialog-details-avatar { width: 36px; height: 36px; flex-basis: 36px; }
+  .dialog-details-client-row { font-size: 0.85rem; gap: 4px 10px; }
+  .dialog-details-title-row { font-size: 0.72rem; }
+  .dialog-details-location { margin: 0; }
+  .dialog-details-header-actions { align-items: center; gap: 5px; }
+  .dialog-details-action-icon, .dialog-font-toggle { width: 30px; min-width: 30px; height: 30px; min-height: 30px; padding: 0; }
+  .modal-body { padding: 0; background: var(--surface-card); }
+  .dialog-details-layout { gap: 0; }
+  .dialog-details-sidebar { flex-basis: 260px; background: var(--surface-soft); border-right: 1px solid var(--color-border); }
+  .dialog-details-sidebar-scroll { gap: 0; padding: 0; }
+  .dialog-details-section { padding: 14px; border: 0; border-bottom: 1px solid var(--color-border); border-radius: 0; background: transparent; }
+  .dialog-details-disclosure > summary { padding: 0; background: transparent; }
+  .dialog-details-disclosure-body { padding: 10px 0 0; }
+  .dialog-details-problem { padding: 10px; border-left-width: 2px; font-size: 0.85rem; background: var(--surface-card); }
+  .dialog-details-main { flex: 1 1 0; }
+  .dialog-details-history-card { border: 0; border-radius: 0; background: var(--surface-card); }
+  .dialog-details-history-card > .card-body { gap: 0; padding: 0; }
+  .dialog-details-rail { flex: 0 0 220px; min-width: 180px; border-left: 1px solid var(--color-border); background: var(--surface-soft); }
+  .dialog-details-rail-scroll { padding: 0; }
+  #dialogDetailsHistory {
+    padding: 20px clamp(16px, 3vw, 40px);
+    background: linear-gradient(var(--surface-card), var(--surface-soft));
+  }
+  #dialogDetailsHistory .chat-message-row { width: 100%; gap: 8px; margin-bottom: 14px; }
+  #dialogDetailsHistory .chat-message-row + .chat-message-row { margin-top: 0; }
+  #dialogDetailsHistory .chat-message-avatar { width: 28px; height: 28px; flex-basis: 28px; }
+  #dialogDetailsHistory .chat-message-stack { max-width: min(86%, 590px); }
+  #dialogDetailsHistory .chat-message-meta-line { font-size: 0.68rem; font-weight: 400; }
+  #dialogDetailsHistory .chat-message { padding: 10px 12px; border: 1px solid var(--color-border); border-radius: 4px 10px 10px 10px; background: var(--surface-card); color: var(--color-text); font-weight: 400; line-height: 1.5; box-shadow: none; }
+  #dialogDetailsHistory .chat-message-row.support { flex-direction: row-reverse; }
+  #dialogDetailsHistory .support > .chat-message-avatar { display: none; }
+  #dialogDetailsHistory .support .chat-message-stack { align-items: flex-end; }
+  #dialogDetailsHistory .support .chat-message-meta-line { justify-content: flex-end; }
+  #dialogDetailsHistory .support .chat-message-bubble-line { flex-direction: row-reverse; }
+  #dialogDetailsHistory .support .chat-message-bubble-line > .chat-message { margin-left: auto; margin-right: 0; }
+  #dialogDetailsHistory .chat-message.support { border-color: transparent; border-radius: 10px 4px 10px 10px; background: var(--primary); color: var(--primary-foreground); }
+  #dialogDetailsHistory .chat-message.support a { color: inherit; text-decoration: underline; }
+  #dialogDetailsHistory .chat-message.support .text-muted { color: inherit !important; }
+  #dialogDetailsHistory .chat-message.support .chat-message-reply-source { background: color-mix(in srgb, var(--primary-foreground) 12%, transparent); border-color: currentColor; font-weight: 400; text-align: start; }
+  #dialogDetailsHistory .chat-message-row.system { justify-content: center; }
+  #dialogDetailsHistory .system .chat-message-avatar { display: none; }
+  #dialogDetailsHistory .system .chat-message-stack { align-items: center; max-width: 90%; }
+  #dialogDetailsHistory .system .chat-message-meta-line { justify-content: center; }
+  #dialogDetailsHistory .system .chat-message-meta-sender { color: var(--color-text-muted); font-weight: 400; }
+  #dialogDetailsHistory .chat-message.system { padding: 5px 10px; border-radius: 7px; background: transparent; color: var(--color-text-muted); font-size: 0.75em; text-align: center; }
+  .dialog-history-load-previous { min-height: 28px; padding: 4px 10px; font-size: 0.75rem; background: var(--surface-card); box-shadow: none; backdrop-filter: none; }
+  .dialog-details-composer { margin-top: 0 !important; padding: 12px 16px; border-top: 1px solid var(--color-border); background: var(--surface-card); }
+  .dialog-composer-input { align-items: flex-end; gap: 8px; }
+  .dialog-composer-textarea { min-width: 0; }
+  .dialog-composer-textarea textarea { min-height: 90px; padding: 10px 12px 44px; border-radius: 8px; background: var(--surface-soft); font-size: inherit; }
+  .dialog-composer-overlay { top: auto; bottom: 6px; right: 6px; gap: 4px; }
+  .dialog-template-icon { width: 28px; height: 28px; background: transparent; border-color: transparent; opacity: 1; }
+  .dialog-reply-send-icon { width: 36px; min-width: 36px; min-height: 36px; height: 36px; margin-bottom: 1px; padding: 0; }
+  .dialog-details-composer .form-text { margin-top: 6px; font-size: 0.68rem; }
+
+  @media (max-width: 1199.98px) and (min-width: 992px) {
+    .dialog-details-sidebar { flex-basis: 220px; }
+    .dialog-details-rail { flex-basis: 180px; min-width: 160px; }
+    .modal-header { flex-wrap: wrap; }
+  }
+  @media (max-width: 991.98px) {
+    .modal-dialog { width: calc(100vw - 16px); max-width: calc(100vw - 16px); height: calc(100dvh - 16px); margin: 8px auto; resize: none; }
+    .modal-header { flex-wrap: wrap; padding: 10px; }
+    .dialog-details-header { flex-basis: 100%; }
+    .dialog-details-header-actions { justify-content: flex-start; }
+    .modal-body { overflow-y: auto; }
+    .dialog-details-layout { height: auto; flex: 0 0 auto; }
+    .dialog-details-sidebar, .dialog-details-rail { flex: 0 0 auto; min-width: 0; border-inline: 0; }
+    .dialog-details-sidebar-scroll { max-height: 240px; overflow-y: auto; }
+    .dialog-details-main { flex: 0 0 auto; min-height: 560px; }
+    #dialogDetailsHistory { max-height: 50dvh; min-height: 280px; }
+  }
+  @media (max-width: 575.98px) {
+    .dialog-composer-input { flex-wrap: wrap; justify-content: flex-end; }
+    .dialog-composer-textarea { flex: 0 0 100%; }
+    .dialog-composer-textarea textarea { min-height: 120px; }
+  }
+}
+
+/* На touch compact-иконки не должны терять доступную область нажатия. */
+@media (pointer: coarse) {
+  body[data-ui-page='settings'] #locationsModal .location-tree-toggle,
+  body[data-ui-page='dialogs'] .dialog-table .dialog-actions-toggle,
+  body[data-ui-page='dialogs'] #dialogDetailsModal :is(.dialog-details-action-icon, .dialog-font-toggle, .dialog-template-icon, .dialog-reply-send-icon) {
+    width: 44px; min-width: 44px; height: 44px; min-height: 44px; flex-basis: 44px;
+  }
+  body[data-ui-page='dialogs'] .dialog-table :is(.dialog-actions, .dialog-actions-head) { width: 52px; min-width: 52px; max-width: 52px; }
+  body[data-ui-page='dialogs'] #dialogDetailsModal .dialog-composer-textarea textarea { padding-bottom: 58px; }
+}
+
+body[data-ui-page='dashboard'][data-ui-visual='neutral-ops'] {
+  .chart-container { height: 240px; min-height: 240px; padding: 6px 0 0; border: 0; border-radius: 0; background: transparent; }
+  .chart-panel--trend { grid-column: 1 / -1; }
+  .chart-panel--trend .chart-container { height: 270px; min-height: 270px; }
+  .chart-panel-description { margin: 4px 0 0; color: var(--color-text-muted); font-size: 0.75rem; }
+  .chart-panel-head { padding-bottom: 8px; }
+  .pie-chart-wrapper { max-width: 210px; }
+  .pie-chart-legend-item { border-radius: 5px; box-shadow: none; }
+  .pie-chart-legend-color { width: 8px; height: 8px; border-radius: 50%; }
+}
