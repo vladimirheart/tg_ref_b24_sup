@@ -42,6 +42,7 @@ class DialogResponsibilitySnapshotPostgresqlTest {
             responsible(jdbc, owner.trim(), "Sibling", "sibling lead");
         }
         jdbc.execute("ALTER TABLE tickets ADD COLUMN is_general BOOLEAN NOT NULL DEFAULT FALSE");
+        jdbc.execute("ALTER TABLE tickets ADD COLUMN business_id BIGINT, ADD COLUMN ticket_public_id TEXT NOT NULL DEFAULT md5(random()::text), ADD COLUMN responsibility_revision BIGINT NOT NULL DEFAULT 0, ADD COLUMN status TEXT");
         var guard = spy(new LegacyTicketIdJdbcGuard(jdbc));
         return new Fixture(jdbc, guard, new DialogResponsibilityService(jdbc, guard));
     }

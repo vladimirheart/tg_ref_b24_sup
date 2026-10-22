@@ -58,6 +58,7 @@ class BusinessTicketAssignmentHttpPostgresTest {
     @Autowired MultibusinessFeatureFlags flags;
     @SpyBean BusinessTicketAssignmentService service;
     @Autowired ScopedSlaAssignmentService sla;
+    @SpyBean DialogResponsibilityService legacyAssignments;
     private long business,other,actorId,targetId,viewerId,foreignId;
     private String actor,target,viewer,foreign,raw,publicId,url;
     private UiEventTicketScope scope;
@@ -235,5 +236,39 @@ class BusinessTicketAssignmentHttpPostgresTest {
         mvc.perform(auth(request,actor,"PAGE_DIALOGS").with(csrf()))
             .andExpect(value.equals("-1")?status().isConflict():status().isBadRequest());
         assertThat(events()).isZero();assertThat(outbox()).isZero();assertThat(revision()).isZero();
+    }
+    @ParameterizedTest @org.junit.jupiter.params.provider.CsvSource({"business,take,path","business,take,query","business,reassign,path","business,reassign,query",
+        "general,take,path","general,take,query","general,reassign,path","general,reassign,query",
+        "strict,take,path","strict,take,query","strict,reassign,path","strict,reassign,query"})
+    void rawAssignmentRoutesCannotBypassScopedWorkflowEvenWithPageAndSystemAdmin(String kind,String action,String route) throws Exception {
+        flags.setStrictReadScope(false);
+        if(route.equals("path")){String safe="r160-"+publicId;jdbc.update("UPDATE tickets SET ticket_id=? WHERE ticket_id=?",safe,raw);raw=safe;}
+        if(kind.equals("business"))flags.getFoundation().setEnabled(false); // Disabling the foundation cannot authorize a raw BUSINESS writer.
+        if(kind.equals("general"))jdbc.update("UPDATE tickets SET business_id=NULL,is_general=TRUE,general_selection_source='MANUAL' WHERE ticket_id=?",raw);
+        if(kind.equals("strict")){jdbc.update("UPDATE tickets SET business_id=NULL WHERE ticket_id=?",raw);flags.setStrictReadScope(true);}
+        var request=route.equals("path")?post("/api/dialogs/{id}/"+action,raw):post("/api/dialog-ticket/"+action).param("ticketId",raw);
+        mvc.perform(auth(request,actor,"PAGE_DIALOGS","ROLE_ADMIN").with(csrf()).contentType("application/json").content("{\"username\":\""+target+"\"}"))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false));
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM ticket_responsibles WHERE ticket_id=?",Long.class,raw)).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM dialog_action_audit WHERE ticket_id=?",Long.class,raw)).isZero();
+        assertThat(events()).isZero();assertThat(outbox()).isZero();assertThat(revision()).isZero();
+    }
+    @Test void rawCapabilityCannotBeReusedAfterTheRootBecomesBusiness() throws Exception {
+        flags.setStrictReadScope(false);jdbc.update("UPDATE tickets SET business_id=NULL WHERE ticket_id=?",raw);
+        var once=new java.util.concurrent.atomic.AtomicBoolean();
+        doAnswer(call->{boolean allowed=(boolean)call.callRealMethod();if(allowed&&once.compareAndSet(false,true))jdbc.update("UPDATE tickets SET business_id=? WHERE ticket_id=?",business,raw);return allowed;})
+            .when(legacyAssignments).canAssignLegacyResponsible(raw);
+        mvc.perform(auth(post("/api/dialog-ticket/take").param("ticketId",raw),actor,"PAGE_DIALOGS").with(csrf()))
+            .andExpect(status().isNotFound());
+        assertThat(once).isTrue();assertThat(revision()).isZero();assertThat(events()).isZero();assertThat(outbox()).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM dialog_action_audit WHERE ticket_id=?",Long.class,raw)).isZero();
+    }
+    @Test void rawLegacyTakeRemainsAvailableBeforeStrictAndUsesTheSharedRevision() throws Exception {
+        flags.setStrictReadScope(false);jdbc.update("UPDATE tickets SET business_id=NULL WHERE ticket_id=?",raw);
+        mvc.perform(auth(post("/api/dialog-ticket/take").param("ticketId",raw),actor,"PAGE_DIALOGS").with(csrf()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true)).andExpect(jsonPath("$.changed").value(true));
+        assertThat(jdbc.queryForObject("SELECT responsible FROM ticket_responsibles WHERE ticket_id=?",String.class,raw)).isEqualTo(actor);
+        assertThat(revision()).isEqualTo(1);assertThat(events()).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM dialog_action_audit WHERE ticket_id=? AND action='take' AND result='success'",Long.class,raw)).isEqualTo(1);
     }
 }

@@ -125,6 +125,11 @@ class DialogResponsibilityServiceTest {
         jdbcTemplate.execute("""
                 CREATE TABLE tickets (
                     is_general BOOLEAN NOT NULL DEFAULT FALSE,
+                    business_id BIGINT,
+                    ticket_public_id TEXT NOT NULL DEFAULT md5(random()::text),
+                    channel_id BIGINT,
+                    responsibility_revision BIGINT NOT NULL DEFAULT 0,
+                    status TEXT,
                     user_id BIGINT,
                     ticket_id TEXT,
                     PRIMARY KEY (user_id, ticket_id)

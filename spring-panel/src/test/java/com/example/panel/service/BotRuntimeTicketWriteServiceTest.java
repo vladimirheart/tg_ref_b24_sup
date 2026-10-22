@@ -762,6 +762,10 @@ class BotRuntimeTicketWriteServiceTest {
                 CREATE TABLE tickets (
                     ticket_id TEXT,
                     status TEXT,
+                    ticket_public_id TEXT NOT NULL DEFAULT md5(random()::text),
+                    is_general BOOLEAN NOT NULL DEFAULT FALSE,
+                    business_id BIGINT,
+                    responsibility_revision BIGINT NOT NULL DEFAULT 0,
                     resolved_at TIMESTAMP WITH TIME ZONE,
                     resolved_by TEXT,
                     user_id BIGINT,
@@ -818,7 +822,11 @@ class BotRuntimeTicketWriteServiceTest {
                     message_type TEXT,
                     attachment TEXT,
                     rating INTEGER,
-                    created_at TIMESTAMP WITH TIME ZONE NOT NULL
+                    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                    ticket_user_id BIGINT,
+                    ticket_public_id TEXT,
+                    ticket_scope_kind TEXT,
+                    ticket_business_id BIGINT
                 )
                 """);
         jdbcTemplate.execute("""

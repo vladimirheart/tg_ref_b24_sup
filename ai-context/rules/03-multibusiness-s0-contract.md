@@ -14,16 +14,18 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R155 (2026-10-21): пользователь подтвердил рабочий экземпляр
-на машине текущей сессии. Заново проверены Docker Server 29.7.2 и healthy
-panel-web/bot-runner/ops-worker/panel-direct, PostgreSQL/RabbitMQ/Redis. Рабочие
-revision/DB migrations/flags/acceptance не подтверждены; рабочие изменения,
-deploy/restart/backfill/config/flags не выполнялись. Уточнение R149–R154 о другой
-машине относится к другой сессии и не определяет текущую среду.
+Актуальное уточнение R160 (2026-10-22): рабочие Docker и проект находятся на
+другой локальной машине, в другой сессии агента; здесь source/test checkout.
+Наблюдения R143/R155–R159 о машине/health относятся к их runtime-сессии и не
+переносятся сюда. Рабочие revision/DB migrations/flags/acceptance здесь неизвестны.
+Рабочий stack не инспектируется и не изменяется; Docker допустим только для
+изолированных Testcontainers. Одинаковый путь checkout не идентифицирует машину.
 
-Историческое разрешение commit/push R149–R154 было ограничено датой/сессией;
-оно не переносится в текущую сессию только по тексту документа. R155 не выполняет
-staging/commit/push, не предлагает ручные команды фиксации и не разрешает rollout.
+Пользователь R160 явно разрешил commit/push без повторного подтверждения только
+2026-10-22 Europe/Moscow: expiry 2026-10-23 00:00 +03 (2026-10-22 21:00 UTC).
+Новый grant текущей сессии не наследуется из прошлых записей. Source apply и Git
+publisher разделены; publisher проверяет срок и exact file/content set. Разрешение
+не включает рабочий deploy/restart/migration/backfill/config/flags.
 
 Историческое уточнение другой сессии:
 
@@ -743,6 +745,29 @@ full owner/revision формы. Старые raw take/reassign/reply/bot APIs н
 на новый workflow этим пакетом. Участники/AI control, снятие ответственного,
 историческая attribution, retention, старые writers и external recipient policy
 остаются отдельными gates. V78/readiness — source-only, без рабочего rollout.
+
+R160: bare-ID take/reassign и implicit assignment допускаются только для одного
+текущего UNRESOLVED/non-GENERAL root до strictReadScope. BUSINESS использует
+scoped R159, GENERAL — собственный workflow. Capability не является authority:
+writer повторяет owner/public/channel/revision/namespace/open proof под общим
+advisory и root lock; zero-row/SQL failure не запускает success cleanup/AI/
+уведомления. Callback выполняется под root lock и общим panel transaction manager,
+совместимым с JPA-уведомлениями. Прежний V61 scoped callback берёт тот же advisory
+lock перед root/child, сохраняя final owner/current OPERATE SQL. Raw take/reassign
+audit не пишется в BUSINESS/GENERAL или при strict. Reply/edit/delete/reopen/bot
+relay больше не назначают scoped root через общий raw writer; сами legacy
+delivery/lifecycle/participant/read APIs и historical attribution этим не закрыты.
+Закрытый legacy root может вернуть существующего ответственного без новой записи;
+redirect запрещён. Прежний bot relay contract сохранён.
+Новая SQL migration не добавлена; source minimum V78.
+
+В R160 compatibility IDs/actors и legacy redirect quirks сохранены; read marks не
+меняются. Успешный workflow callback и назначение откатываются вместе при ошибке;
+уведомления/SSE legacy остаются best-effort, без новой scoped outbox гарантии.
+Assignment boundary не приписывает прошлым child rows business/generation и не
+заменяет авторизацию остальных legacy операций. Все 956 Java / 20 XML GREEN
+суммарно: 13 классов broad v3 и 7 классов / 320 tests corrected v4.
+Новые миграции/рабочий rollout отсутствуют.
 
 Scoped auto-close callback передаёт исходный V61 scope и channel ID события
 в DialogNotificationService.notifyScopedSupportChat. Один SQL capture требует

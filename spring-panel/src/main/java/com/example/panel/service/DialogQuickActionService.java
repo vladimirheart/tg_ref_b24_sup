@@ -371,6 +371,7 @@ public class DialogQuickActionService {
     }
 
     public DialogTakeResult takeTicket(String ticketId, String operator) {
+        if(!dialogResponsibilityService.canAssignLegacyResponsible(ticketId))return new DialogTakeResult(false,false,null,null);
         Optional<DialogListItem> dialog = dialogLookupReadService.findDialog(ticketId, operator);
         if (dialog.isEmpty()) {
             return new DialogTakeResult(false, false, null, null);
@@ -393,7 +394,9 @@ public class DialogQuickActionService {
                     : operator;
             return new DialogTakeResult(true, false, responsible, null);
         }
-        dialogResponsibilityService.assignResponsibleIfMissingOrRedirected(ticketId, operator, operator);
+        return dialogResponsibilityService.withLegacyRedirect(ticketId,operator,operator,assignment->{
+        if(!assignment.allowed())return new DialogTakeResult(false,false,null,null);
+        if(!assignment.changed())return new DialogTakeResult(true,false,assignment.responsible(),null);
         dialogParticipantService.removeParticipant(ticketId, operator);
         dialogAiAssistantService.clearProcessing(ticketId, "operator_take", null);
         Optional<DialogListItem> updated = dialogLookupReadService.findDialog(ticketId, operator);
@@ -406,6 +409,7 @@ public class DialogQuickActionService {
         );
         publishDialogsChanged(ticketId, "dialog_taken");
         return new DialogTakeResult(true, true, responsible != null && !responsible.isBlank() ? responsible : operator, null);
+        });
     }
 
     public DialogParticipantMutationResult addParticipant(String ticketId,
@@ -466,6 +470,7 @@ public class DialogQuickActionService {
     public DialogReassignResult reassignTicket(String ticketId,
                                                String username,
                                                String operator) {
+        if(!dialogResponsibilityService.canAssignLegacyResponsible(ticketId))return new DialogReassignResult(false,"Диалог не найден",null,null,null,List.of());
         Optional<DialogListItem> dialog = dialogLookupReadService.findDialog(ticketId, operator);
         if (dialog.isEmpty()) {
             return new DialogReassignResult(false, "Диалог не найден", null, null, null, List.of());
@@ -481,7 +486,9 @@ public class DialogQuickActionService {
         if (sameIdentity(currentResponsible, targetOperator.get().username())) {
             return new DialogReassignResult(true, "Диалог уже назначен на этого пользователя", currentResponsible, dialog.get().responsible(), dialog.get().responsibleAvatarUrl(), dialogParticipantService.loadParticipants(ticketId));
         }
-        dialogResponsibilityService.assignResponsibleIfMissingOrRedirected(ticketId, targetOperator.get().username(), operator);
+        return dialogResponsibilityService.withLegacyRedirect(ticketId,targetOperator.get().username(),operator,assignment->{
+        if(!assignment.allowed())return new DialogReassignResult(false,"Диалог не найден",null,null,null,List.of());
+        if(!assignment.changed())return new DialogReassignResult(true,"Диалог уже назначен на этого пользователя",assignment.responsible(),null,null,List.of());
         dialogParticipantService.removeParticipant(ticketId, targetOperator.get().username());
         dialogAiAssistantService.clearProcessing(ticketId, "operator_reassign", null);
         List<DialogParticipantDto> participants = dialogParticipantService.loadParticipants(ticketId);
@@ -500,6 +507,7 @@ public class DialogQuickActionService {
                 targetOperator.get().avatarUrl(),
                 participants
         );
+        });
     }
 
     private void notifyDialogParticipantsSafely(String ticketId,

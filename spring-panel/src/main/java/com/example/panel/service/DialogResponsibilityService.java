@@ -4,6 +4,11 @@ import com.example.panel.config.MultibusinessFeatureFlags;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import com.example.panel.service.integration.LegacyTicketIdConcurrencyGuard;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -52,19 +57,30 @@ public class DialogResponsibilityService {
     private final JdbcTemplate jdbcTemplate;
     private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
     private final MultibusinessFeatureFlags flags;
+    private final LegacyDialogAssignmentWriter legacyWriter;
+    private final PlatformTransactionManager transactions;
 
     public DialogResponsibilityService(JdbcTemplate jdbcTemplate,
                                        LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
         this(jdbcTemplate, legacyTicketIdJdbcGuard, null);
     }
 
-    @Autowired
     public DialogResponsibilityService(JdbcTemplate jdbcTemplate,
                                        LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard,
                                        MultibusinessFeatureFlags flags) {
+        this(jdbcTemplate, legacyTicketIdJdbcGuard, flags, null);
+    }
+
+    @Autowired
+    public DialogResponsibilityService(JdbcTemplate jdbcTemplate,
+                                       LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard,
+                                       MultibusinessFeatureFlags flags,
+                                       @Qualifier("transactionManager") PlatformTransactionManager transactions) {
         this.jdbcTemplate = jdbcTemplate;
         this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
         this.flags = flags;
+        this.transactions = transactions;
+        this.legacyWriter = new LegacyDialogAssignmentWriter(jdbcTemplate,flags,transactions);
     }
 
     /** V61 callbacks must carry their original owner all the way to the assignment statement. */
@@ -77,8 +93,17 @@ public class DialogResponsibilityService {
         if (normalizedUsername == null || AI_AGENT_USERNAME.equalsIgnoreCase(normalizedUsername)) {
             return loadScopedResponsible(scope);
         }
+        PlatformTransactionManager manager = transactions;
+        if (manager == null && jdbcTemplate.getDataSource() != null)
+            manager = new DataSourceTransactionManager(jdbcTemplate.getDataSource());
+        if (manager == null) return null;
         try {
-            jdbcTemplate.update(
+            return new TransactionTemplate(manager).execute(status -> {
+                // Match manual/SLA/legacy writers: advisory raw-ID lock, root, then responsibility.
+                new LegacyTicketIdConcurrencyGuard(jdbcTemplate).acquire(scope.ticketId());
+                jdbcTemplate.query("SELECT user_id FROM tickets WHERE ticket_id = ? FOR UPDATE",
+                        (rs, row) -> rs.getLong("user_id"), scope.ticketId());
+                jdbcTemplate.update(
                     """
                     INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by)
                     SELECT assignment.*
@@ -100,12 +125,13 @@ public class DialogResponsibilityService {
                     scope.ticketUserId(), scope.ticketId(), scope.ticketPublicId(), scope.businessId(),
                     scope.scopeKind(), flags.isStrictReadScope()
             );
+                return loadScopedResponsible(scope);
+            });
         } catch (DataAccessException ex) {
             log.warn("Unable to assign scoped responsible for ticket {}: {}", scope.ticketId(),
                     DialogDataAccessSupport.summarizeDataAccessException(ex));
             return null;
         }
-        return loadScopedResponsible(scope);
     }
 
     private String loadScopedResponsible(UiEventTicketScope scope) {
@@ -133,36 +159,23 @@ public class DialogResponsibilityService {
         return assignResponsibleIfMissing(ticketId, username, username);
     }
 
-    public String assignResponsibleIfMissing(String ticketId, String username, String assignedBy) {
-        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId) || !StringUtils.hasText(username)) {
-            return loadResponsible(ticketId);
-        }
-        String normalizedUsername = trimToNull(username);
-        String actor = trimToNull(assignedBy);
-        if (normalizedUsername == null || AI_AGENT_USERNAME.equalsIgnoreCase(normalizedUsername)) {
-            return loadResponsible(ticketId);
-        }
-        try {
-            jdbcTemplate.update(
-                    """
-                    INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by)
-                    SELECT assignment.*
-                      FROM (VALUES (?::text, ?::text, ?::text))
-                        AS assignment(ticket_id, responsible, assigned_by)
-                     WHERE NOT EXISTS (
-                         SELECT 1 FROM ticket_responsibles WHERE ticket_id = ?
-                     )
-                       AND 1 = (
-                           SELECT COUNT(*) FROM tickets unique_ticket
-                            WHERE unique_ticket.ticket_id = assignment.ticket_id
-                       )
-                    """,
-                    ticketId, normalizedUsername, actor != null ? actor : normalizedUsername, ticketId
-            );
-        } catch (DataAccessException ex) {
-            log.warn("Unable to assign responsible for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
-        }
-        return loadResponsible(ticketId);
+    /** Only a current unambiguous UNRESOLVED owner may use bare-ID assignment before strict scope. */
+    public String assignResponsibleIfMissing(String ticketId,String username,String assignedBy) {
+        if(!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId))return null;
+        String target=trimToNull(username),actor=trimToNull(assignedBy);
+        return legacyWriter.execute(ticketId,target,actor!=null?actor:target,false,LegacyAssignment::responsible);
+    }
+
+    public boolean canAssignLegacyResponsible(String ticketId) {return legacyWriter.allowed(ticketId);}
+
+    public record LegacyAssignment(boolean allowed,boolean changed,String responsible) { }
+
+    /** The accepted callback runs while the canonical root lock is held. A denied outcome must have no side effects. */
+    public <T> T withLegacyRedirect(String ticketId,String responsible,String assignedBy,java.util.function.Function<LegacyAssignment,T> after) {
+        if(!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)||!StringUtils.hasText(responsible))
+            return after.apply(new LegacyAssignment(false,false,null));
+        String actor=StringUtils.hasText(assignedBy)?assignedBy:responsible;
+        return legacyWriter.execute(ticketId,responsible,actor,true,after);
     }
 
     public void markDialogAsRead(String ticketId, String operator) {
@@ -191,39 +204,8 @@ public class DialogResponsibilityService {
         }
     }
 
-    public void assignResponsibleIfMissingOrRedirected(String ticketId, String newResponsible, String assignedBy) {
-        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId) || !StringUtils.hasText(newResponsible)) {
-            return;
-        }
-        String actor = StringUtils.hasText(assignedBy) ? assignedBy : newResponsible;
-        try {
-            int inserted = jdbcTemplate.update(
-                    """
-                    INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by)
-                    SELECT assignment.*
-                      FROM (VALUES (?::text, ?::text, ?::text))
-                        AS assignment(ticket_id, responsible, assigned_by)
-                     WHERE NOT EXISTS (
-                         SELECT 1 FROM ticket_responsibles WHERE ticket_id = ?
-                     )
-                       AND 1 = (
-                           SELECT COUNT(*) FROM tickets unique_ticket
-                            WHERE unique_ticket.ticket_id = assignment.ticket_id
-                       )
-                    """,
-                    ticketId, newResponsible, actor, ticketId
-            );
-            if (inserted == 0) {
-                jdbcTemplate.update(
-                        "UPDATE ticket_responsibles SET responsible = ?, assigned_by = ? WHERE ticket_id = ? "
-                                + "AND 1 = (SELECT COUNT(*) FROM tickets unique_ticket "
-                                + "WHERE unique_ticket.ticket_id = ticket_responsibles.ticket_id)",
-                        newResponsible, actor, ticketId
-                );
-            }
-        } catch (DataAccessException ex) {
-            log.warn("Unable to update responsible for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
-        }
+    public boolean assignResponsibleIfMissingOrRedirected(String ticketId,String responsible,String assignedBy) {
+        return withLegacyRedirect(ticketId,responsible,assignedBy,result->result.allowed()&&result.changed());
     }
 
     public String loadResponsible(String ticketId) {

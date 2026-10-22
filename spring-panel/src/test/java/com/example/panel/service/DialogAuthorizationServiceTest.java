@@ -94,4 +94,18 @@ class DialogAuthorizationServiceTest {
                 "Недостаточно прав: can_reply"
         );
     }
+    @Test void rawAssignmentRequiresTheLegacyNamespaceBeforeAnyActionOrRawAudit() {
+        var responsibility=mock(DialogResponsibilityService.class);
+        var scoped=new DialogAuthorizationService(permissionService,dialogAuditService,legacyTicketIdJdbcGuard,responsibility);
+        assertThat(scoped.requirePermission(authentication,"can_assign","take","BUSINESS").getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        verify(responsibility).canAssignLegacyResponsible("BUSINESS");verifyNoInteractions(legacyTicketIdJdbcGuard,dialogAuditService);
+        when(responsibility.canAssignLegacyResponsible("OLD")).thenReturn(true);when(legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket("OLD")).thenReturn(true);
+        assertThat(scoped.requirePermission(authentication,"can_assign","take","OLD")).isNull();
+    }
+    @Test void missingPageCannotUseAssignmentToProbeOrWriteAnUnscopedAudit() {
+        var responsibility=mock(DialogResponsibilityService.class);
+        var scoped=new DialogAuthorizationService(permissionService,dialogAuditService,legacyTicketIdJdbcGuard,responsibility);
+        assertThat(scoped.requirePermission(mock(Authentication.class),"can_assign","reassign","SCOPED").getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        verifyNoInteractions(responsibility,legacyTicketIdJdbcGuard,dialogAuditService);
+    }
 }

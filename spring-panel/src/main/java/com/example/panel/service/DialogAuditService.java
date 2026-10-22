@@ -17,8 +17,15 @@ public class DialogAuditService {
 
     private final JdbcTemplate jdbcTemplate;
     private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
+    private final com.example.panel.config.MultibusinessFeatureFlags flags;
 
     public DialogAuditService(JdbcTemplate jdbcTemplate, LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
+        this(jdbcTemplate,legacyTicketIdJdbcGuard,null);
+    }
+    @org.springframework.beans.factory.annotation.Autowired
+    public DialogAuditService(JdbcTemplate jdbcTemplate,LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard,
+            com.example.panel.config.MultibusinessFeatureFlags flags) {
+        this.flags=flags;
         this.jdbcTemplate = jdbcTemplate;
         this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
     }
@@ -27,6 +34,8 @@ public class DialogAuditService {
         if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(action)) {
             return;
         }
+        boolean assignment=java.util.Set.of("take","reassign").contains(action.trim());
+        if(assignment&&flags!=null&&flags.isStrictReadScope())return;
         try {
             if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
                 return;
@@ -40,7 +49,8 @@ public class DialogAuditService {
                      WHERE 1 = (SELECT COUNT(*)
                                   FROM tickets unique_ticket
                                  WHERE unique_ticket.ticket_id = audit_row.ticket_id)
-                    """,
+                    %s
+                    """.formatted(assignment?"AND EXISTS(SELECT 1 FROM tickets legacy_owner WHERE legacy_owner.ticket_id=audit_row.ticket_id AND legacy_owner.is_general=FALSE AND legacy_owner.business_id IS NULL)":""),
                     ticketId,
                     StringUtils.hasText(actor) ? actor.trim() : "anonymous",
                     action.trim(),

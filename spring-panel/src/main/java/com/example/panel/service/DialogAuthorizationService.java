@@ -17,10 +17,18 @@ public class DialogAuthorizationService {
     private final PermissionService permissionService;
     private final DialogAuditService dialogAuditService;
     private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
+    private final DialogResponsibilityService responsibility;
 
     public DialogAuthorizationService(PermissionService permissionService,
                                       DialogAuditService dialogAuditService,
                                       LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
+        this(permissionService,dialogAuditService,legacyTicketIdJdbcGuard,null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public DialogAuthorizationService(PermissionService permissionService,DialogAuditService dialogAuditService,
+            LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard,DialogResponsibilityService responsibility) {
+        this.responsibility=responsibility;
         this.permissionService = permissionService;
         this.dialogAuditService = dialogAuditService;
         this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
@@ -46,6 +54,9 @@ public class DialogAuthorizationService {
         Map<String, Object> permissions = resolveWorkspacePermissions(authentication);
         boolean allowed = Boolean.TRUE.equals(permissions.get(permission));
         if (allowed) {
+            if("can_assign".equals(permission)&&ticketId!=null
+                    &&(responsibility==null||!responsibility.canAssignLegacyResponsible(ticketId)))
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("success",false,"error","Диалог не найден"));
             if (ticketId == null || legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)) {
                 return null;
             }
@@ -53,7 +64,7 @@ public class DialogAuthorizationService {
                     .body(Map.of("success", false, "error", "Диалог не найден"));
         }
         String operator = authentication != null ? authentication.getName() : null;
-        logDialogAction(operator, ticketId, action, "forbidden", "Недостаточно прав: " + permission);
+        logDialogAction(operator, "can_assign".equals(permission)?null:ticketId, action, "forbidden", "Недостаточно прав: " + permission);
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(Map.of("success", false, "error", "Недостаточно прав для выполнения действия"));
     }
