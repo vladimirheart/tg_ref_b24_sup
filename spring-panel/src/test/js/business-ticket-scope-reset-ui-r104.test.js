@@ -14,6 +14,7 @@ class Element {
   }
   replaceChildren() { this.children = []; }
   prepend(...items) { this.children.unshift(...items); }
+  removeAttribute(name) { delete this[name]; }
 }
 
 async function main() {
@@ -82,6 +83,11 @@ async function main() {
   card.querySelector('[data-ticket-client]').textContent = 'старый клиент';
   card.querySelector('[data-ticket-resolved-by]').textContent = 'старый оператор';
   card.querySelector('[data-ticket-resolved-at]').textContent = 'старое время';
+  for (const selector of ['[data-ticket-ai]', '[data-ticket-assignment]']) {
+    const link = card.querySelector(selector);
+    link.href = '/stale-target';
+    link.hidden = false;
+  }
   const mismatch = loadOlderHistory();
   pending.shift()({ ticket: { ...ticket, userId: 22 }, entries: [{ id: 4 }],
     nextBeforeId: 4, hasMore: false });
@@ -96,6 +102,10 @@ async function main() {
   assert.equal(fields.get('[data-ticket-client]').textContent, '');
   assert.equal(fields.get('[data-ticket-resolved-by]').textContent, '');
   assert.equal(fields.get('[data-ticket-resolved-at]').textContent, '');
+  for (const selector of ['[data-ticket-ai]', '[data-ticket-assignment]']) {
+    assert.equal(fields.get(selector).hidden, true);
+    assert.equal(fields.get(selector).href, undefined);
+  }
   assert.equal(context.currentTicket, null);
   assert.equal(context.currentTicketPublicId, null);
   assert.match(messages.at(-1), /История недоступна/);

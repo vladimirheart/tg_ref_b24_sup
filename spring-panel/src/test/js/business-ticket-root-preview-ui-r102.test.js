@@ -101,6 +101,8 @@ async function main() {
   assert.equal(answersLoaded, 1);
   assert.equal(workspaceLoaded, 1);
   assert.equal(spansLoaded, 1);
+  assert.equal(fields.get('[data-ticket-assignment]').href, '/business-dialog-assignment/' + publicId);
+  assert.equal(fields.get('[data-ticket-assignment]').hidden, false);
 
   snapshot = { ...snapshot, ticket: { ...ticket, userId: 99 } };
   await openCard(ticket, 4);

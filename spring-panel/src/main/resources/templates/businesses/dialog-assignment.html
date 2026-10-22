@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ответственный обращения — iguana</title>
+    <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
+    <link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css">
+    <link rel="stylesheet" href="/css/app.css"><link rel="stylesheet" href="/css/sidebar.css">
+</head>
+<body class="with-sidebar sidebar-pinned" data-ui-page="dialogs">
+<div th:replace="~{fragments/navbar :: navbar('dialogs')}"></div>
+<main class="main-content container-fluid py-4" data-business-assignment>
+    <a href="/business-dialogs">← Обращения</a>
+    <h1 class="h3 mt-3">Ответственный обращения</h1>
+    <p>Бизнес: <span th:text="${state.scope.businessId}"></span>. Ревизия: <span th:text="${state.revision}"></span>.</p>
+    <p>Текущая проекция ответственного: <span th:text="${state.responsible ?: 'Не назначен'}"></span>.</p>
+    <p>Это не подтверждает историческую принадлежность старых назначений. Ниже показаны только новые ручные действия этого владельца.</p>
+    <p>Назначение не выдаёт доступ к бизнесу и не отправляет сообщений клиенту. Участники и AI не меняются.</p>
+    <p th:if="${!state.canOperate}" class="alert alert-info">Только чтение. Изменение требует OPERATE активного бизнеса и открытого обращения.</p>
+    <form th:if="${state.canOperate}" method="post" th:action="@{/business-dialog-assignment/{id}/assign(id=${state.scope.ticketPublicId})}" class="card card-body mb-3">
+        <input type="hidden" name="ownerId" th:value="${state.scope.ticketUserId}">
+        <input type="hidden" name="rawId" th:value="${state.scope.ticketId}">
+        <input type="hidden" name="businessId" th:value="${state.scope.businessId}">
+        <input type="hidden" name="revision" th:value="${state.revision}">
+        <label for="assignmentTarget">Оператор с текущим OPERATE этого бизнеса (до 200 записей)</label>
+        <select id="assignmentTarget" name="targetId" class="form-select">
+            <option th:each="candidate : ${candidates}" th:value="${candidate.id}" th:text="${candidate.username}"></option>
+        </select>
+        <button class="btn btn-primary mt-2" type="submit" th:disabled="${#lists.isEmpty(candidates)}">Назначить / переадресовать</button>
+        <button class="btn btn-outline-primary mt-2" type="submit" th:formaction="@{/business-dialog-assignment/{id}/take(id=${state.scope.ticketPublicId})}">Взять себе</button>
+    </form>
+    <section class="card card-body">
+        <h2 class="h5">Последние ручные назначения</h2>
+        <p th:if="${#lists.isEmpty(events)}">Новых ручных назначений пока нет.</p>
+        <ul><li th:each="event : ${events}" th:text="${event.revision + ' · ' + event.action + ' · ' + event.actor + ' → ' + event.assignee + ' · ' + event.createdAt}"></li></ul>
+    </section>
+</main>
+</body>
+</html>

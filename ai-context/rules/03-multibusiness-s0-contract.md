@@ -708,6 +708,42 @@ scoped UI/read и retention нового audit, live/fleet acceptance остаю
 не сериализуется во внешний decision payload. V77 — source-only migration с
 readiness probe, без рабочего migration/flags/rollout.
 
+R159: отдельный BUSINESS manual assignment workbench по public ID, ссылка из
+scoped карточки. Нужны PAGE_DIALOGS + current canonical READ/OPERATE + CSRF.
+Полный expected user/raw/public/business и responsibility_revision формы
+проверяются с текущим корнем и повторно SQL перед записью; raw ID непрозрачен
+и не trim'ится. Инициатор и target — unique enabled/unblocked accounts с business
+OPERATOR/MANAGER/ADMIN membership либо ALL_BUSINESSES OPERATE; ROLE_ADMIN сам
+по себе не обходит эту проверку. Candidate pool доступен только OPERATE;
+READ-only видит проекцию и последние 10 новых событий, но не список кандидатов.
+Назначение само не выдаёт page authority, membership или READ.
+
+Take всегда назначает аутентифицированного actor, не submitted target. Assign
+использует canonical numeric user ID; foreign/VIEWER/disabled/blocked/duplicate/
+ai_agent не допускаются. Root lock + advisory legacy-ID guard + общая V77
+revision/CAS не дают stale/ABA или SLA/manual решению перезаписать другое.
+Accounts/business и qualifying memberships/ALL grants удерживаются FOR SHARE;
+после блокировки grants финальный SQL заново проверяет права. Закрытый root,
+GENERAL/UNRESOLVED, collision, owner/generation mismatch, no-op дают отказ.
+Канал может отсутствовать: это локальная операция, не доставка клиенту.
+
+Projection ticket_responsibles, immutable frozen audit V78 с actor/assignee IDs
+и снимками имён, а также business_assignment_changed outbox commit атомарно.
+Failure любого шага откатывает всё. Новый callback лишь инвалидирует metadata
+по сохранённому BUSINESS owner через existing current READ SSE/Redis path:
+без позднего raw capture, bell, очереди, AI, участников и support-chat/provider.
+Смена owner/generation не открывает старую историю; new audit читается с exact
+owner + current READ до limit. Старый responsible показан как legacy-проекция,
+не доказательство historical attribution. V77→V78 сохраняет все старые root/
+assignment поля и не создаёт прошлых событий.
+
+Новый экран и ссылка скрываются при недоступном scope, старый URL очищается
+при смене карточки/ошибке. Страница имеет no-store, POST требует CSRF и проверяет
+full owner/revision формы. Старые raw take/reassign/reply/bot APIs не переводятся
+на новый workflow этим пакетом. Участники/AI control, снятие ответственного,
+историческая attribution, retention, старые writers и external recipient policy
+остаются отдельными gates. V78/readiness — source-only, без рабочего rollout.
+
 Scoped auto-close callback передаёт исходный V61 scope и channel ID события
 в DialogNotificationService.notifyScopedSupportChat. Один SQL capture требует
 полного expected owner, unique raw ID/non-GENERAL, совпадения canonical

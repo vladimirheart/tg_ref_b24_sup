@@ -170,7 +170,7 @@ class UiEventOutboxFrozenDeliveryPostgresTest {
         routing = mock(ChannelAssignmentRoutingService.class);
         when(routing.resolveRecipients(any(), any(), anyString())).thenReturn(ChannelAssignmentRoutingService.ResolvedAssignmentRouting.disabled());
         when(routing.resolveScoped(any(),any(),any())).thenReturn(ChannelAssignmentRoutingService.ResolvedAssignmentRouting.disabled());
-        queue = new AlertQueueService(jdbc, notices, new ObjectMapper(), routing, guard);
+        queue = spy(new AlertQueueService(jdbc, notices, new ObjectMapper(), routing, guard));
         ai = mock(DialogAiAssistantService.class);
         responsibility = spy(new DialogResponsibilityService(observed, guard, flags));
         supportAccess = spy(new SupportChatDeliveryAccessService(jdbc, flags));
@@ -241,6 +241,27 @@ class UiEventOutboxFrozenDeliveryPostgresTest {
         }
         else verifyNoInteractions(ai);
         verifyNoInteractions(repository);
+        assertCursorAdvanced();
+    }
+
+    @Test void businessAssignmentInvalidatesOnlyItsFrozenScopeWithoutLegacyCallbacks() throws Exception {
+        dispatch("business_assignment_changed");
+        assertThat(count()).isZero();
+        verify(publisher).publish(isNull(),eq("dialogs_changed"),anyMap(),eq(scope));
+        verify(reader).send(any(SseEmitter.SseEventBuilder.class));
+        verify(access,never()).captureScope(anyString());
+        verifyNoInteractions(ai,supportChat,responsibility,routing,queue,channels);
+        assertCursorAdvanced();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings={"business","recreated","tuple","general","missing","collision"})
+    void assignmentInvalidationCannotFollowAChangedOwner(String mutation) {
+        writer.append("business_assignment_changed",RAW,9L,"old payload","photo","private/key",5);
+        mutate(mutation);
+        watcher.watch();
+        assertNoDelivery();
+        verifyNoInteractions(ai,supportChat,responsibility,routing,queue,channels);
         assertCursorAdvanced();
     }
 

@@ -28,6 +28,14 @@ class PostgresRuntimeReadinessVerifierTest {
         assertThatThrownBy(()->verifier.onApplicationEvent(null)).isInstanceOf(IllegalStateException.class).hasRootCauseMessage("V77 is missing");
     }
 
+    @Test void missingBusinessManualAssignmentSchemaCannotReportReady() {
+        JdbcTemplate jdbc=mock(JdbcTemplate.class);when(jdbc.queryForList(anyString())).thenReturn(List.of());
+        when(jdbc.queryForList(contains("FROM business_ticket_assignment_events"))).thenThrow(new IllegalStateException("V78 is missing"));
+        var verifier=new PostgresRuntimeReadinessVerifier(jdbc,new MockEnvironment().withProperty("app.datasource.mode","postgresql"),
+            mock(com.example.panel.service.RuntimeCoordinationService.class),mock(com.example.panel.storage.AttachmentObjectStorageService.class));
+        assertThatThrownBy(()->verifier.onApplicationEvent(null)).isInstanceOf(IllegalStateException.class).hasRootCauseMessage("V78 is missing");
+    }
+
     @Test void missingFrozenQuestionnaireVersionCannotReportReady() {
         var jdbc=mock(JdbcTemplate.class);
         when(jdbc.queryForList(anyString())).thenReturn(List.of());

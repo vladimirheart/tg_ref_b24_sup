@@ -43,6 +43,8 @@
     card.hidden = true;
     const ai = card.querySelector('[data-ticket-ai]');
     if (ai) { ai.hidden = true; ai.removeAttribute('href'); }
+    const assignment = card.querySelector('[data-ticket-assignment]');
+    if (assignment) { assignment.hidden = true; assignment.removeAttribute('href'); }
     older.hidden = true;
     older.disabled = false;
     history.replaceChildren();
@@ -308,6 +310,11 @@
       if (ai) {
         ai.href = '/business-dialog-ai/' + encodeURIComponent(detail.ticketPublicId);
         ai.hidden = false;
+      }
+      const assignment = card.querySelector('[data-ticket-assignment]');
+      if (assignment) {
+        assignment.href = '/business-dialog-assignment/' + encodeURIComponent(detail.ticketPublicId);
+        assignment.hidden = false;
       }
       card.querySelector('[data-ticket-status]').textContent = statusLabel(detail.status);
       card.querySelector('[data-ticket-created]').textContent = ticketTime(detail.createdAt);
