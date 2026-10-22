@@ -2,7 +2,7 @@
 <html lang="ru" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Ответственный обращения — iguana</title>
+    <title>Ответственный и участники обращения — iguana</title>
     <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
     <link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css">
     <link rel="stylesheet" href="/css/app.css"><link rel="stylesheet" href="/css/sidebar.css">
@@ -11,7 +11,7 @@
 <div th:replace="~{fragments/navbar :: navbar('dialogs')}"></div>
 <main class="main-content container-fluid py-4" data-business-assignment>
     <a href="/business-dialogs">← Обращения</a>
-    <h1 class="h3 mt-3">Ответственный обращения</h1>
+    <h1 class="h3 mt-3">Ответственный и участники обращения</h1>
     <p>Бизнес: <span th:text="${state.scope.businessId}"></span>. Ревизия: <span th:text="${state.revision}"></span>.</p>
     <p>Текущая проекция ответственного: <span th:text="${state.responsible ?: 'Не назначен'}"></span>.</p>
     <p>Это не подтверждает историческую принадлежность старых назначений. Ниже показаны только новые ручные действия этого владельца.</p>
@@ -33,6 +33,41 @@
         <h2 class="h5">Последние ручные назначения</h2>
         <p th:if="${#lists.isEmpty(events)}">Новых ручных назначений пока нет.</p>
         <ul><li th:each="event : ${events}" th:text="${event.revision + ' · ' + event.action + ' · ' + event.actor + ' → ' + event.assignee + ' · ' + event.createdAt}"></li></ul>
+    </section>
+    <section class="card card-body mt-3" data-business-participants>
+        <h2 class="h5">Участники бизнеса</h2>
+        <p>Только новые связи этого владельца. Старый список автоматически не переносится.
+            Участие не выдаёт доступ к бизнесу; для уведомлений нужен текущий READ. VIEWER может быть участником.
+            Изменение списка не меняет ответственного и AI и не отправляет сообщений клиенту.</p>
+        <p th:if="${participantRevision == null}" class="alert alert-warning">Список недоступен. Проверьте готовность схемы данных.</p>
+        <p th:if="${participantRevision != null}">Ревизия списка: <span th:text="${participantRevision}"></span>. Не более 200 участников.</p>
+        <ul><li th:each="member : ${members}" class="mb-2">
+            <span th:text="${member.username ?: member.snapshot}"></span>
+            <span th:if="${!member.eligible}">(нет текущего READ; уведомления недоступны)</span>
+            <form th:if="${state.canOperate and participantRevision != null}" method="post" class="d-inline"
+                  th:action="@{/business-dialog-assignment/{id}/participants/remove(id=${state.scope.ticketPublicId})}">
+                <input type="hidden" name="ownerId" th:value="${state.scope.ticketUserId}">
+                <input type="hidden" name="rawId" th:value="${state.scope.ticketId}">
+                <input type="hidden" name="businessId" th:value="${state.scope.businessId}">
+                <input type="hidden" name="participantRevision" th:value="${participantRevision}">
+                <input type="hidden" name="memberId" th:value="${member.id}">
+                <button class="btn btn-outline-danger btn-sm" type="submit">Удалить</button>
+            </form>
+        </li></ul>
+        <form th:if="${state.canOperate and participantRevision != null}" method="post"
+              th:action="@{/business-dialog-assignment/{id}/participants/add(id=${state.scope.ticketPublicId})}">
+            <input type="hidden" name="ownerId" th:value="${state.scope.ticketUserId}">
+            <input type="hidden" name="rawId" th:value="${state.scope.ticketId}">
+            <input type="hidden" name="businessId" th:value="${state.scope.businessId}">
+            <input type="hidden" name="participantRevision" th:value="${participantRevision}">
+            <label for="participantTarget">Пользователь с текущим READ бизнеса (до 200 кандидатов)</label>
+            <select id="participantTarget" name="memberId" class="form-select">
+                <option th:each="candidate : ${memberCandidates}" th:value="${candidate.id}" th:text="${candidate.username}"></option>
+            </select>
+            <button class="btn btn-outline-primary mt-2" type="submit" th:disabled="${#lists.isEmpty(memberCandidates)}">Добавить участника</button>
+        </form>
+        <h3 class="h6 mt-3">Последние изменения списка</h3>
+        <ul><li th:each="event : ${participantEvents}" th:text="${event.revision + ' · ' + event.action + ' · ' + event.actor + ' → ' + event.member + ' · ' + event.createdAt}"></li></ul>
     </section>
 </main>
 </body>

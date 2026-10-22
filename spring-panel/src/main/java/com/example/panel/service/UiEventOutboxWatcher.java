@@ -167,6 +167,7 @@ public class UiEventOutboxWatcher {
             case "ticket_closed" -> dialogRealtimeEventService.handleScopedTicketClosed(scope, channelId);
             case "ticket_reopened" -> dialogRealtimeEventService.handleScopedTicketReopened(scope, channelId);
             case "business_assignment_changed" -> dialogRealtimeEventService.handleScopedAssignmentChanged(scope);
+            case "business_participants_changed" -> dialogRealtimeEventService.handleScopedParticipantsChanged(scope);
             default -> {
                 // ignore unknown event types
             }

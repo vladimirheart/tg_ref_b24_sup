@@ -42,7 +42,8 @@ async function main() {
   assert.equal(workspace.children.length, 3);
   assert.equal(workspace.children[0].textContent, 'Ответственный: <script>operator</script>');
   assert.equal(workspace.children[1].textContent, 'Категории: Доставка');
-  assert.equal(workspace.children[2].textContent, 'Участники: alice');
+  assert.equal(workspace.children[2].textContent, 'Участники (legacy-проекция; не новый список): alice');
+  assert.match(workspaceStatus.textContent, /историческая принадлежность legacy-связей не подтверждена/);
 
   const stale = loadWorkspace(ticket, 1, 7);
   context.generation = 2;

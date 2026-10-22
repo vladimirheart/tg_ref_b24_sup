@@ -7,7 +7,7 @@ const vm = require('node:vm');
 
 async function main() {
   const source = fs.readFileSync(path.resolve(__dirname,
-    '../../main/resources/static/js/business-dialogs.js'), 'utf8');
+    '../../main/resources/static/js/business-dialogs.js'), 'utf8').replace(/\r\n?/g, '\n');
   const start = source.indexOf('  if (manualForm) {\n    manualForm.addEventListener');
   const end = source.indexOf("  getJson('/api/business-scope/businesses')", start);
   assert.ok(start >= 0 && end > start, 'manual ticket form handler not found');

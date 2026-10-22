@@ -197,6 +197,31 @@ class UiEventOutboxFrozenDeliveryPostgresTest {
         clearInvocations(access, observed);
     }
 
+    @ParameterizedTest @ValueSource(strings={"none","removed","revoked","disabled","renamed","username-reused","owner"})
+    void rosterDeliveryRechecksFrozenMembershipAndAccountAtTheNotificationInsert(String mutation) {
+        jdbc.execute("CREATE TABLE business_ticket_participants(ticket_user_id BIGINT,ticket_id TEXT,ticket_public_id TEXT,business_id BIGINT,member_user_id BIGINT)");
+        jdbc.update("DELETE FROM ticket_responsibles WHERE ticket_id=?",RAW);
+        jdbc.update("INSERT INTO business_ticket_participants VALUES(10,?,?,1,1)",RAW,PUBLIC);
+        assertThat(notices.findScopedDialogRecipients(scope)).containsExactly("all-reader");
+        beforeInsert=()->{
+            switch(mutation) {
+                case "removed"->jdbc.update("DELETE FROM business_ticket_participants");
+                case "revoked"->jdbc.update("DELETE FROM business_access_grants");
+                case "disabled"->jdbc.update("UPDATE users SET enabled=FALSE WHERE id=1");
+                case "renamed"->jdbc.update("UPDATE users SET username='new-reader' WHERE id=1");
+                case "username-reused"->{
+                    jdbc.update("UPDATE users SET username='new-reader' WHERE id=1");
+                    jdbc.update("INSERT INTO users VALUES(3,'all-reader',TRUE,FALSE)");
+                    jdbc.update("INSERT INTO business_access_grants VALUES(3,'ALL_BUSINESSES','VIEWER',TRUE)");
+                }
+                case "owner"->mutate("business");
+            }
+        };
+        notices.notifyScopedDialogParticipants(scope,"roster payload","/business-dialogs",null);
+        assertThat(count()).isEqualTo(mutation.equals("none")?1:0);
+        verifyNoInteractions(ai,supportChat,responsibility,routing,queue,channels);
+    }
+
     static Stream<Arguments> lateInserts() {
         return Stream.of("ticket_created", "client_message_created", "feedback_created", "ticket_closed_auto")
             .flatMap(event -> Stream.of("business", "recreated", "tuple", "general", "missing", "collision")
@@ -244,8 +269,9 @@ class UiEventOutboxFrozenDeliveryPostgresTest {
         assertCursorAdvanced();
     }
 
-    @Test void businessAssignmentInvalidatesOnlyItsFrozenScopeWithoutLegacyCallbacks() throws Exception {
-        dispatch("business_assignment_changed");
+    @ParameterizedTest @ValueSource(strings={"business_assignment_changed","business_participants_changed"})
+    void businessChangesInvalidateOnlyTheirFrozenScopeWithoutLegacyCallbacks(String event) throws Exception {
+        dispatch(event);
         assertThat(count()).isZero();
         verify(publisher).publish(isNull(),eq("dialogs_changed"),anyMap(),eq(scope));
         verify(reader).send(any(SseEmitter.SseEventBuilder.class));
@@ -261,6 +287,14 @@ class UiEventOutboxFrozenDeliveryPostgresTest {
         mutate(mutation);
         watcher.watch();
         assertNoDelivery();
+        verifyNoInteractions(ai,supportChat,responsibility,routing,queue,channels);
+        assertCursorAdvanced();
+    }
+
+    @ParameterizedTest @ValueSource(strings={"business","recreated","tuple","general","missing","collision"})
+    void participantInvalidationCannotFollowAChangedOwner(String mutation) {
+        writer.append("business_participants_changed",RAW,9L,"old payload","photo","private/key",5);
+        mutate(mutation);watcher.watch();assertNoDelivery();
         verifyNoInteractions(ai,supportChat,responsibility,routing,queue,channels);
         assertCursorAdvanced();
     }

@@ -18,8 +18,9 @@ import org.springframework.web.servlet.view.RedirectView;
 public class BusinessTicketAssignmentController {
     private final BusinessTicketAssignmentService service;
     private final NavigationService navigation;
-    public BusinessTicketAssignmentController(BusinessTicketAssignmentService service,NavigationService navigation){
-        this.service=service;this.navigation=navigation;
+    private final BusinessTicketParticipantService participants;
+    public BusinessTicketAssignmentController(BusinessTicketAssignmentService service,NavigationService navigation,BusinessTicketParticipantService participants){
+        this.service=service;this.navigation=navigation;this.participants=participants;
     }
     @GetMapping
     public String view(@PathVariable String publicId,Authentication auth,Model model,HttpServletResponse response){
@@ -27,6 +28,10 @@ public class BusinessTicketAssignmentController {
         model.addAttribute("state",state);
         model.addAttribute("candidates",state.canOperate()?service.candidates(state.scope(),auth.getName()):java.util.List.of());
         model.addAttribute("events",service.recent(state.scope(),auth.getName()));
+        model.addAttribute("participantRevision",participants.revision(state.scope(),auth.getName()).orElse(null));
+        model.addAttribute("members",participants.members(state.scope(),auth.getName()));
+        model.addAttribute("memberCandidates",state.canOperate()?participants.candidates(state.scope(),auth.getName()):java.util.List.of());
+        model.addAttribute("participantEvents",participants.recent(state.scope(),auth.getName()));
         navigation.enrich(model,auth);
         return "businesses/dialog-assignment";
     }
@@ -40,6 +45,18 @@ public class BusinessTicketAssignmentController {
         if(!state.scope().equals(expected)||state.revision()!=revision
                 ||!service.change(expected,auth.getName(),revision,targetId,action.equals("take")))
             throw new ResponseStatusException(HttpStatus.CONFLICT,"Данные или права изменились. Обновите страницу.");
+        var redirect=new RedirectView("/business-dialog-assignment/"+publicId,true);
+        redirect.setExposeModelAttributes(false);return redirect;
+    }
+    @PostMapping("/participants/{action:add|remove}")
+    public RedirectView participants(@PathVariable String publicId,@PathVariable String action,Authentication auth,HttpServletResponse response,
+            @RequestParam Long ownerId,@RequestParam String rawId,@RequestParam Long businessId,
+            @RequestParam long participantRevision,@RequestParam Long memberId){
+        var state=find(publicId,auth,response);
+        if(!state.canOperate())throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        var expected=new UiEventTicketScope(ownerId,rawId,publicId,"BUSINESS",businessId);
+        if(!state.scope().equals(expected)||!participants.change(expected,auth.getName(),participantRevision,memberId,action.equals("add")))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Список или права изменились. Обновите страницу.");
         var redirect=new RedirectView("/business-dialog-assignment/"+publicId,true);
         redirect.setExposeModelAttributes(false);return redirect;
     }

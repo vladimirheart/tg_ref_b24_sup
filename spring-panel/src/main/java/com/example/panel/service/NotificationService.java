@@ -360,25 +360,64 @@ public class NotificationService {
         if (!isCurrentNotificationScope(scope)) {
             return Set.of();
         }
+        Set<String> recipients = scopedAssignedAndActiveRecipients(scope);
+        if ("BUSINESS".equals(scope.scopeKind())) {
+            collectBusinessParticipants(scope, recipients);
+        } else {
+            collectScopedDialogRecipients("SELECT username FROM ticket_participants WHERE ticket_id = ?",
+                "username", scope, recipients);
+        }
+        return isCurrentNotificationScope(scope) ? recipients : Set.of();
+    }
+
+    private Set<String> scopedAssignedAndActiveRecipients(UiEventTicketScope scope) {
         Set<String> recipients = new LinkedHashSet<>();
         collectScopedDialogRecipients("SELECT responsible FROM ticket_responsibles WHERE ticket_id = ?",
             "responsible", scope, recipients);
         collectScopedDialogRecipients("SELECT user_identity FROM ticket_active WHERE ticket_id = ?",
             "user_identity", scope, recipients);
-        collectScopedDialogRecipients("SELECT username FROM ticket_participants WHERE ticket_id = ?",
-            "username", scope, recipients);
-        return isCurrentNotificationScope(scope) ? recipients : Set.of();
+        return recipients;
+    }
+
+    private void collectBusinessParticipants(UiEventTicketScope scope, Set<String> recipients) {
+        // Numeric identity and the entire frozen owner, never the historical username or raw participant table.
+        try {
+            jdbcTemplate.query("SELECT candidate.username FROM tickets owner"
+                +" JOIN business_ticket_participants entry ON ROW(entry.ticket_user_id,entry.ticket_id,entry.ticket_public_id,entry.business_id)"
+                +"=ROW(owner.user_id,owner.ticket_id,owner.ticket_public_id,owner.business_id)"
+                +" JOIN users candidate ON candidate.id=entry.member_user_id WHERE "+EXPECTED_OWNER_SQL
+                +" AND lower(btrim(candidate.username))<>'ai_agent' AND ("
+                +com.example.panel.repository.NotificationBusinessAccessSql.CAN_READ_OWNER_BUSINESS
+                    .replace("n.user_identity","lower(candidate.username)")+")",
+                rs->{
+                    String identity=normalizeRecipient(rs.getString("username"));
+                    if(StringUtils.hasText(identity))recipients.add(identity);
+                },scopeArguments(scope).toArray());
+        } catch (org.springframework.dao.DataAccessException ex) {
+            // Missing new schema is not permission to fall back to raw legacy participants.
+        }
     }
 
     public void notifyScopedDialogParticipants(UiEventTicketScope scope, String text, String url, String excludedIdentity) {
         if (!isCurrentNotificationScope(scope)) {
             return;
         }
+        if ("BUSINESS".equals(scope.scopeKind())) {
+            Set<String> assignedAndActive = scopedAssignedAndActiveRecipients(scope);
+            Set<String> members = new LinkedHashSet<>();
+            collectBusinessParticipants(scope, members);
+            if (!isCurrentNotificationScope(scope)) return;
+            notifyDialogUsersExcluding(scope.ticketId(), assignedAndActive, excludedIdentity, text, url, scope);
+            members.removeAll(assignedAndActive);
+            // A removed/renamed/reused account must not inherit an in-flight roster delivery.
+            notifyDialogUsersExcluding(scope.ticketId(), members, excludedIdentity, text, url, scope, false, true);
+            return;
+        }
         Set<String> recipients = findScopedDialogRecipients(scope);
         if (!isCurrentNotificationScope(scope)) {
             return;
         }
-        if (recipients.isEmpty()) {
+        if (recipients.isEmpty() && !"BUSINESS".equals(scope.scopeKind())) {
             recipients = findAllOperatorRecipients();
         }
         notifyDialogUsersExcluding(scope.ticketId(), recipients, excludedIdentity, text, url, scope);
@@ -417,6 +456,12 @@ public class NotificationService {
     private Set<String> notifyDialogUsersExcluding(String ticketId, Set<String> userIdentities,
                                                   String excludedIdentity, String text, String url,
                                                   UiEventTicketScope expectedScope, boolean scopedAi) {
+        return notifyDialogUsersExcluding(ticketId,userIdentities,excludedIdentity,text,url,expectedScope,scopedAi,false);
+    }
+
+    private Set<String> notifyDialogUsersExcluding(String ticketId, Set<String> userIdentities,
+                                                  String excludedIdentity, String text, String url,
+                                                  UiEventTicketScope expectedScope, boolean scopedAi, boolean rosterDelivery) {
         if (!StringUtils.hasText(text) || userIdentities == null || userIdentities.isEmpty()
                 || !legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)) {
             return Set.of();
@@ -450,6 +495,12 @@ public class NotificationService {
             }
             if (scopedAi) {
                 sql += " AND (" + ScopedAiSql.CAN_ESCALATE + ")";
+            }
+            if (rosterDelivery) {
+                sql += " AND EXISTS(SELECT 1 FROM business_ticket_participants entry JOIN users member ON member.id=entry.member_user_id"
+                    +" WHERE ROW(entry.ticket_user_id,entry.ticket_id,entry.ticket_public_id,entry.business_id)"
+                    +"=ROW(owner.user_id,owner.ticket_id,owner.ticket_public_id,owner.business_id)"
+                    +" AND lower(member.username)=n.user_identity AND lower(btrim(member.username))<>'ai_agent')";
             }
             int inserted = jdbcTemplate.update(sql, arguments.toArray());
             if (inserted == 1) {

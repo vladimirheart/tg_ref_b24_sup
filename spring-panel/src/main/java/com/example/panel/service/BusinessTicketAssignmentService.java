@@ -17,20 +17,21 @@ import org.springframework.transaction.support.TransactionTemplate;
 /** Human BUSINESS assignment only. No legacy workflow, provider, AI or participant side effects. */
 @Service
 public class BusinessTicketAssignmentService {
-    private static final String ACTOR=" CROSS JOIN (SELECT CAST(:identity AS TEXT) AS user_identity) n "
+    static final String ACTOR=" CROSS JOIN (SELECT CAST(:identity AS TEXT) AS user_identity) n "
         +" JOIN users actor ON lower(actor.username)=n.user_identity ";
-    private static final String READ=" AND ("+NotificationBusinessAccessSql.CAN_READ_OWNER_BUSINESS+")";
-    private static final String UNIQUE_ROOT=" owner.is_general=FALSE AND owner.business_id IS NOT NULL "
+    static final String READ=" AND ("+NotificationBusinessAccessSql.CAN_READ_OWNER_BUSINESS+")";
+    static final String UNIQUE_ROOT=" owner.is_general=FALSE AND owner.business_id IS NOT NULL "
         +" AND 1=(SELECT count(*) FROM tickets collision WHERE collision.ticket_id=owner.ticket_id) ";
-    private static final String OWNER=" owner.user_id=:owner AND owner.ticket_id=:raw AND owner.ticket_public_id=:public "
+    static final String OWNER=" owner.user_id=:owner AND owner.ticket_id=:raw AND owner.ticket_public_id=:public "
         +" AND owner.business_id=:business AND "+UNIQUE_ROOT;
-    private static final String OPEN=" position('closed' IN lower(COALESCE(owner.status,'')))=0 "
+    static final String OPEN=" position('closed' IN lower(COALESCE(owner.status,'')))=0 "
         +" AND position('resolved' IN lower(COALESCE(owner.status,'')))=0 ";
     private static String operates(String alias) {
         return " lower(btrim("+alias+".username))<>'ai_agent' AND ("
             +DialogResponsibilityService.ASSIGNEE_CAN_OPERATE_SQL.replace("assignment.responsible",alias+".username")+")";
     }
-    private static final String OPERATOR=operates("actor"),TARGET=operates("candidate");
+    static final String OPERATOR=operates("actor");
+    private static final String TARGET=operates("candidate");
     private final NamedParameterJdbcTemplate jdbc;
     private final MultibusinessFeatureFlags flags;
     private final UiEventOutboxAppendService ids;

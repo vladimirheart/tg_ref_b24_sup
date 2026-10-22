@@ -228,11 +228,11 @@
         workspaceStatus.textContent = 'Рабочие данные недоступны: legacy ID обращения не имеет однозначной связи с ними.';
         return;
       }
-      workspaceStatus.textContent = 'Подтверждённые рабочие данные обращения.';
+      workspaceStatus.textContent = 'Рабочие данные по уникальному raw ID; историческая принадлежность legacy-связей не подтверждена.';
       for (const [label, value] of [
         ['Ответственный', snapshot.responsible || 'Не назначен'],
         ['Категории', snapshot.categories.length ? snapshot.categories.join(', ') : 'Нет'],
-        ['Участники', snapshot.participants.length ? snapshot.participants.join(', ') : 'Нет']
+        ['Участники (legacy-проекция; не новый список)', snapshot.participants.length ? snapshot.participants.join(', ') : 'Нет']
       ]) {
         const item = document.createElement('li');
         item.className = 'list-group-item';

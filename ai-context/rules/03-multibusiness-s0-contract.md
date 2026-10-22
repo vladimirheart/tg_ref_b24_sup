@@ -14,7 +14,15 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R160 (2026-10-22): рабочие Docker и проект находятся на
+Актуальное уточнение R163–R164 (2026-10-22): рабочий проект и Docker находятся
+на машине текущей сессии; пользователь разрешил restart Docker/контейнеров.
+В R164 заново проверены Docker Server 29.7.2 и healthy web/bot/worker/direct/
+PostgreSQL/RabbitMQ/Redis. Это health, не функциональная приёмка и не проверка
+рабочих revision/DB migrations/flags. Restart/rebuild/deploy/migration/backfill/
+config/flags не выполнялись. Restart не разрешает migration при startup.
+Git grant R160 из другой сессии не наследуется: staging/commit/push отсутствуют.
+
+Историческое уточнение R160 (2026-10-22): рабочие Docker и проект находятся на
 другой локальной машине, в другой сессии агента; здесь source/test checkout.
 Наблюдения R143/R155–R159 о машине/health относятся к их runtime-сессии и не
 переносятся сюда. Рабочие revision/DB migrations/flags/acceptance здесь неизвестны.
@@ -821,8 +829,58 @@ Baseline R163 отдельно воспроизводит stale R118 GENERAL-tes
 назначение GENERAL, уже запрещённое R160. В новой проверке актуальные canonical
 root fields заполнены, обе participant mutations и assignment отвергаются,
 старые child rows сверены без изменений. UNRESOLVED golden assertions сохранены.
-Source minimum V78; новой migration/backfill нет. Текущее размещение runtime
-и разрешение restart приведены в актуальной сводке R163, не в истории R160–R162.
+Source minimum R163 — V78; новой migration/backfill в R163 нет.
+Текущее размещение runtime и разрешение restart приведены в актуальной сводке,
+не в истории R160–R162.
+
+### Новый BUSINESS roster участников — R164
+
+V79 создаёт business_ticket_participants и append-only
+business_ticket_participant_events. Только новые явные действия; никаких
+INSERT SELECT из legacy participants, классификации или перепривязки старых
+данных. Каждая связь/история содержит ticket_user_id, непреобразованный ticket_id,
+ticket_public_id, business_id, member_user_id и actor_user_id со снимками имён.
+Числовой users.id — идентичность участника; смена имени не переносит участие
+новому аккаунту. UPDATE roster identity запрещён; event UPDATE/DELETE запрещены.
+Удаление root не каскадирует аудит на другую генерацию.
+
+GET/POST на странице business-dialog-assignment используют public locator,
+PAGE_DIALOGS, no-store, CSRF и сверку full owner. Actor — текущий OPERATE
+активного бизнеса и открытого обращения; member — текущий уникальный enabled/
+unblocked READ этого бизнеса, включая VIEWER и ALL_BUSINESSES VIEWER. AI_AGENT
+не допускается. Это не grant и не system-admin bypass. Удалять из roster можно
+и участника с отозванным доступом, отключённым или удалённым аккаунтом.
+READ history/list не требует OPERATE; candidate/forms недоступны read-only actor.
+
+Независимая ревизия roster = max event revision данного полного owner (начало 0).
+Она не меняет responsibility_revision. Shared advisory/raw-ID lock → root
+FOR UPDATE → account/business/grants locks → повторная проверка current rights/
+revision → roster и immutable event → frozen metadata outbox, всё в одной JDBC
+транзакции. Предел 200 active members. Конкурентные/старые/ABA формы и no-op
+отвергаются, ошибки event/outbox откатывают все записи; legacy callbacks,
+assignment/AI и отправка клиенту не вызываются. Flags проверяются до входа и
+после lock; это не serializable lock in-memory конфигурации.
+
+Scoped BUSINESS recipient discovery использует full-owner roster и numeric
+account join с current READ; raw ticket_participants и empty→all fallback для
+этого entrypoint отсутствуют. Финальный notification INSERT повторяет full owner,
+current READ и существование numeric roster/member username, чтобы удаление
+участника/rename/username reuse до INSERT не наследовали старую доставку.
+Ранее созданное уведомление удалением из roster не отменяется. Responsible/active
+и explicit/channel recipient workflows сохраняют отдельную политику; их historical
+attribution и внешние destinations остаются gates. UNRESOLVED legacy policy
+не меняется; GENERAL participant workflow этим пакетом не добавлен.
+
+business_participants_changed использует frozen outbox owner и current READ
+для metadata-only dialogs_changed; нет raw recapture, bell, queue, AI или provider
+callbacks при mutation. Source minimum V79, readiness проверяет обе таблицы.
+Рабочая migration/flags/rollout не выполнены и требуют отдельного этапа.
+
+Карточка маркирует старые workspace participants как legacy-проекцию, не новый
+roster, и не утверждает historical attribution по одному unique raw ID.
+Ссылка управления ответственным/участниками ведёт на отдельный scoped экран.
+R164 проверен 567 Java tests / 15 XML (302 regression + 265 final) и 18 Node
+tests; это sandbox evidence, не рабочая приёмка. Предыдущий статус S2B не меняется.
 
 Scoped auto-close callback передаёт исходный V61 scope и channel ID события
 в DialogNotificationService.notifyScopedSupportChat. Один SQL capture требует
