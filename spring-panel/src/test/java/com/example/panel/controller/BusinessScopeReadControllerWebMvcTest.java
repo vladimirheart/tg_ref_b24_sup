@@ -30,6 +30,47 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import(BusinessScopeReadControllerWebMvcTest.MethodSecurity.class)
 class BusinessScopeReadControllerWebMvcTest {
 
+    @Test void categorySummaryIsPrivateBoundedAndRequiresPageFoundationAndBusinessScope() throws Exception {
+        when(flags.isFoundationEnabled()).thenReturn(true);
+        when(service.requireAuthenticatedUserId("operator")).thenReturn(1L);
+        var context=new BusinessAccessService.OneBusiness(2L);
+        when(service.summarizeCategories(1L,context)).thenReturn(List.of(
+            new BusinessScopedTicketReadService.CategoryCount(2L,"sushi","Суши","Delivery",3)));
+        String path="/api/business-scope/tickets/categories";
+        mvc.perform(get(path).param("business_id","2").with(user("operator").authorities(()->"PAGE_DIALOGS")))
+            .andExpect(status().isOk()).andExpect(header().string("Cache-Control","no-store"))
+            .andExpect(header().string("X-Content-Type-Options","nosniff"))
+            .andExpect(jsonPath("$[0].category").value("Delivery")).andExpect(jsonPath("$[0].total").value(3));
+        when(service.summarizeCategories(1L,context)).thenThrow(new BusinessScopedTicketReadService.CategorySummaryTooLargeException());
+        mvc.perform(get(path).param("business_id","2").with(user("operator").authorities(()->"PAGE_DIALOGS"))).andExpect(status().isPayloadTooLarge());
+        mvc.perform(get(path).param("business_id","bad").with(user("operator").authorities(()->"PAGE_DIALOGS"))).andExpect(status().isForbidden());
+        mvc.perform(get(path).param("business_id","2").with(user("operator").authorities(()->"PAGE_SETTINGS"))).andExpect(status().isForbidden());
+        when(flags.isFoundationEnabled()).thenReturn(false);
+        mvc.perform(get(path).param("business_id","2").with(user("operator").authorities(()->"PAGE_DIALOGS"))).andExpect(status().isNotFound());
+    }
+
+    @Test void categoriesFilterIsForwardedLiterallyAndInvalidValuesAreRejectedBeforeMockedReads() throws Exception {
+        when(flags.isFoundationEnabled()).thenReturn(true);
+        when(service.requireAuthenticatedUserId("operator")).thenReturn(1L);
+        String category="A%_'😀";
+        var context=new BusinessAccessService.OneBusiness(2L);
+        when(service.listTickets(1L,context,50,0,null,null,null,category)).thenReturn(List.of());
+        when(service.pageTickets(1L,context,50,0,null,null,null,category))
+            .thenReturn(new BusinessScopedTicketReadService.TicketPage(List.of(),false));
+        when(service.exportTickets(1L,context,null,null,null,category)).thenReturn(List.of());
+        for(String suffix:List.of("","/page","/export")) {
+            String path="/api/business-scope/tickets"+suffix;
+            mvc.perform(get(path).param("business_id","2").param("category",category)
+                .with(user("operator").authorities(()->"PAGE_DIALOGS"))).andExpect(status().isOk());
+            for(String invalid:List.of("","  ","bad\n","x".repeat(161),"😀".repeat(161)))
+                mvc.perform(get(path).param("business_id","2").param("category",invalid)
+                    .with(user("operator").authorities(()->"PAGE_DIALOGS"))).andExpect(status().isBadRequest());
+        }
+        org.mockito.Mockito.verify(service).listTickets(1L,context,50,0,null,null,null,category);
+        org.mockito.Mockito.verify(service).pageTickets(1L,context,50,0,null,null,null,category);
+        org.mockito.Mockito.verify(service).exportTickets(1L,context,null,null,null,category);
+    }
+
     private static final String PUBLIC_ID = "0123456789abcdef0123456789abcdef";
     private static final OffsetDateTime CREATED_AT = OffsetDateTime.parse("2026-10-15T10:15:30Z");
 
@@ -318,7 +359,7 @@ class BusinessScopeReadControllerWebMvcTest {
                 8L, "raw-ticket", PUBLIC_ID, 2L, "sushi", "Суши", "open",
                 CREATED_AT, "Иван", "Нет света");
         when(service.listTickets(1L, new BusinessAccessService.OneBusiness(2L),
-                50, 0, "open", PUBLIC_ID, null)).thenReturn(List.of(ticket));
+                50, 0, "open", PUBLIC_ID, null, null)).thenReturn(List.of(ticket));
         String path = "/api/business-scope/tickets";
         mvc.perform(get(path).param("business_id", "2").param("status", "open")
                 .param("ticket", PUBLIC_ID).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
@@ -348,7 +389,7 @@ class BusinessScopeReadControllerWebMvcTest {
 
         String pagePath = path + "/page";
         when(service.pageTickets(1L, new BusinessAccessService.OneBusiness(2L),
-                50, 0, "open", PUBLIC_ID, null)).thenReturn(
+                50, 0, "open", PUBLIC_ID, null, null)).thenReturn(
                 new BusinessScopedTicketReadService.TicketPage(List.of(ticket), false));
         mvc.perform(get(pagePath).param("business_id", "2").param("status", "open")
                 .param("ticket", PUBLIC_ID).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
@@ -359,7 +400,7 @@ class BusinessScopeReadControllerWebMvcTest {
                 .andExpect(jsonPath("$.tickets[0].clientName").value("Иван"))
                 .andExpect(jsonPath("$.hasMore").value(false));
         when(service.pageTickets(1L, new BusinessAccessService.OneBusiness(2L),
-                50, 0, "open", null, "проблема")).thenReturn(
+                50, 0, "open", null, "проблема", null)).thenReturn(
                 new BusinessScopedTicketReadService.TicketPage(List.of(ticket), false));
         mvc.perform(get(pagePath).param("business_id", "2").param("status", "open")
                 .param("q", "проблема").with(user("operator").authorities(() -> "PAGE_DIALOGS")))
@@ -395,7 +436,7 @@ class BusinessScopeReadControllerWebMvcTest {
         var ticket = new BusinessScopedTicketReadService.TicketRow(
                 8L, "raw-ticket", PUBLIC_ID, 2L, "sushi", "Суши", "open",
                 CREATED_AT, "Иван", "Нет света");
-        when(service.exportTickets(1L, context, "open", null, "Иван"))
+        when(service.exportTickets(1L, context, "open", null, "Иван", null))
                 .thenReturn(List.of(ticket));
         mvc.perform(get(path).param("business_id", "2").param("status", "open")
                 .param("q", "Иван").with(user("operator").authorities(() -> "PAGE_DIALOGS")))
@@ -415,7 +456,7 @@ class BusinessScopeReadControllerWebMvcTest {
         mvc.perform(get(path).param("business_id", "2").param("status", "bad")
                 .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isBadRequest());
-        when(service.exportTickets(1L, context, null, null, null))
+        when(service.exportTickets(1L, context, null, null, null, null))
                 .thenThrow(new BusinessScopedTicketReadService.ExportTooLargeException());
         mvc.perform(get(path).param("business_id", "2")
                 .with(user("operator").authorities(() -> "PAGE_DIALOGS")))

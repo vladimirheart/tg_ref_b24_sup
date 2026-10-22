@@ -347,7 +347,10 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         var workspace = service.findWorkspaceByPublicId(1L, publicId).orElseThrow();
         assertThat(workspace.relationVerified()).isTrue();
         assertThat(workspace.responsible()).isEqualTo("operator-a");
-        assertThat(workspace.categories()).containsExactly("Доставка", "Качество");
+        // V81 canonical categories start empty; raw categories are never imported by reads.
+        assertThat(workspace.categories()).isEmpty();
+        assertThat(jdbc.queryForList("SELECT category FROM ticket_categories WHERE ticket_id='sushi-raw' ORDER BY category", String.class))
+                .containsExactly("Доставка", "Качество");
         assertThat(workspace.participants()).containsExactly("alice", "bob");
         assertThat(service.findWorkspaceByPublicId(1L, otherPublicId)).isEmpty();
         assertThat(service.findWorkspaceByPublicId(2L, otherPublicId).orElseThrow().responsible())
@@ -781,6 +784,7 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         jdbc.execute("CREATE TABLE channels (id BIGINT PRIMARY KEY)");
         jdbc.execute("CREATE TABLE tickets (user_id BIGINT NOT NULL, ticket_id TEXT NOT NULL, "
                 + "group_msg_id BIGINT, status TEXT DEFAULT 'pending', "
+                + "business_categories JSONB NOT NULL DEFAULT '[]', "
                 + "resolved_at TIMESTAMP WITH TIME ZONE, resolved_by TEXT, "
                 + "created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT '2026-01-01T00:00:00Z', "
                 + "PRIMARY KEY (user_id, ticket_id))");

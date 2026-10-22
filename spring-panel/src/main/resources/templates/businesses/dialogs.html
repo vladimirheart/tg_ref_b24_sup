@@ -54,6 +54,13 @@
             <tbody id="businessTicketSummaryRows"></tbody>
         </table></div>
     </div></section>
+    <details class="card mb-4"><summary class="card-header">Категории обращений</summary><div class="card-body">
+        <p class="small text-muted" aria-live="polite" data-business-category-status>Загрузка категорий…</p>
+        <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+            <thead><tr><th scope="col">Бизнес</th><th scope="col">Категория</th><th scope="col">Обращений</th></tr></thead>
+            <tbody id="businessCategorySummaryRows"></tbody>
+        </table></div>
+    </div></details>
     <form id="businessTicketFilterForm" class="card mb-4"><div class="card-body d-flex flex-wrap align-items-end gap-3">
         <div><label class="form-label" for="businessTicketStatusFilter">Статус</label>
             <select class="form-select" id="businessTicketStatusFilter">
@@ -64,9 +71,12 @@
         <div><label class="form-label" for="businessTicketIdFilter">Точный ID обращения</label>
             <input class="form-control" id="businessTicketIdFilter" maxlength="255" autocomplete="off"
                    placeholder="Внутренний или публичный ID"></div>
-        <div><label class="form-label" for="businessTicketTextFilter">Клиент или проблема</label>
+        <div><label class="form-label" for="businessTicketTextFilter">Клиент, проблема или категория</label>
             <input class="form-control" id="businessTicketTextFilter" maxlength="100" autocomplete="off"
-                   placeholder="По корневому сообщению"></div>
+                   placeholder="Поиск по тексту"></div>
+        <div><label class="form-label" for="businessTicketCategoryFilter">Точная категория</label>
+            <input class="form-control" id="businessTicketCategoryFilter" autocomplete="off"
+                   placeholder="Полное название, с учётом регистра"></div>
         <button class="btn btn-outline-primary" type="submit">Найти</button>
         <button class="btn btn-outline-secondary" id="businessTicketsExport" type="button">Скачать JSON (до 1000)</button>
         <span class="small text-muted">Выгрузка применяет текущие фильтры ко всем страницам. Если найдено больше 1000 обращений, уточните фильтр.</span>
@@ -74,7 +84,7 @@
     <div class="alert alert-info" role="status" aria-live="polite" data-business-dialogs-status>Загрузка…</div>
     <div class="card mb-4"><div class="card-body">
         <div class="table-responsive"><table class="table table-sm align-middle">
-            <thead><tr><th scope="col">Бизнес</th><th scope="col">Обращение</th><th scope="col">Клиент</th><th scope="col">Проблема</th><th scope="col">Создано</th><th scope="col">Статус</th><th scope="col"></th></tr></thead>
+            <thead><tr><th scope="col">Бизнес</th><th scope="col">Обращение</th><th scope="col">Клиент</th><th scope="col">Проблема</th><th scope="col">Создано</th><th scope="col">Статус</th><th scope="col">Категории</th><th scope="col"></th></tr></thead>
             <tbody id="businessTicketRows"></tbody>
         </table></div>
         <div class="d-flex gap-2 align-items-center">
@@ -96,6 +106,7 @@
                 <dt class="col-sm-3">Проблема (начало)</dt><dd class="col-sm-9 text-break" data-ticket-problem></dd>
                 <dt class="col-sm-3">Публичный ID</dt><dd class="col-sm-9" data-ticket-public></dd>
                 <dt class="col-sm-3">Статус</dt><dd class="col-sm-9" data-ticket-status></dd>
+                <dt class="col-sm-3">Категории</dt><dd class="col-sm-9 text-break" data-ticket-categories></dd>
                 <dt class="col-sm-3">Создано</dt><dd class="col-sm-9" data-ticket-created></dd>
                 <dt class="col-sm-3">Завершено</dt><dd class="col-sm-9" data-ticket-resolved-at></dd>
                 <dt class="col-sm-3">Завершил</dt><dd class="col-sm-9" data-ticket-resolved-by></dd>
@@ -117,6 +128,6 @@
     </section>
 </main>
 <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js"></script>
-<script th:src="@{/js/business-dialogs.js(v='20261022-r164')}"></script>
+<script th:src="@{/js/business-dialogs.js(v='20261022-r168')}"></script>
 </body>
 </html>

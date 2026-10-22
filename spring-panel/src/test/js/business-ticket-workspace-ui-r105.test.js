@@ -39,10 +39,9 @@ async function main() {
   pending.shift().resolve({ ticket, relationVerified: true,
     responsible: '<script>operator</script>', categories: ['Доставка'], participants: ['alice'] });
   await first;
-  assert.equal(workspace.children.length, 3);
+  assert.equal(workspace.children.length, 2);
   assert.equal(workspace.children[0].textContent, 'Ответственный: <script>operator</script>');
-  assert.equal(workspace.children[1].textContent, 'Категории: Доставка');
-  assert.equal(workspace.children[2].textContent, 'Участники (legacy-проекция; не новый список): alice');
+  assert.equal(workspace.children[1].textContent, 'Участники (legacy-проекция; не новый список): alice');
   assert.match(workspaceStatus.textContent, /историческая принадлежность legacy-связей не подтверждена/);
 
   const stale = loadWorkspace(ticket, 1, 7);

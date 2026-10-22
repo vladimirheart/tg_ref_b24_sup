@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 public class BusinessScopedTicketReadService {
 
     public static final int MAX_EXPORT_TICKETS = 1000;
+    public static final int MAX_CATEGORY_SUMMARY = 1000;
     public static final int MAX_TICKET_ANSWERS = 100;
     public static final int MAX_WORKSPACE_ITEMS = 100;
     public static final int MAX_TICKET_SPANS = 100;
@@ -125,6 +126,40 @@ public class BusinessScopedTicketReadService {
         return new TicketSummary(total, pending, open, resolved, closed, other, businesses);
     }
 
+    /** One count per canonical owner/category; never joins legacy ticket_categories. */
+    public List<CategoryCount> summarizeCategories(Long userId,
+            BusinessAccessService.RequestedBusinessContext context) {
+        Set<Long> ids = accessService.requireSelectedBusiness(userId, context).businessIds();
+        if (ids.isEmpty()) return List.of();
+        List<CategoryCount> result = namedJdbcTemplate.query("""
+                SELECT business.id AS business_id, business.code AS business_code,
+                       business.display_name AS business_name, category.value AS category,
+                       COUNT(DISTINCT (ticket.user_id, ticket.ticket_id)) AS total
+                  FROM tickets ticket
+                  JOIN businesses business ON business.id = ticket.business_id
+                  CROSS JOIN LATERAL jsonb_array_elements_text(ticket.business_categories) category(value)
+                 WHERE ticket.business_id IN (:businessIds) AND business.status = 'active'
+                   AND (EXISTS (
+                       SELECT 1 FROM business_memberships membership
+                        WHERE membership.business_id = business.id
+                          AND membership.user_id = :userId AND membership.is_active = TRUE
+                   ) OR EXISTS (
+                       SELECT 1 FROM business_access_grants access_grant
+                        WHERE access_grant.user_id = :userId
+                          AND access_grant.grant_scope = 'ALL_BUSINESSES'
+                          AND access_grant.is_active = TRUE
+                   ))
+                 GROUP BY business.id, business.code, business.display_name, category.value
+                 ORDER BY business.id, category.value COLLATE "C"
+                 LIMIT :summaryLimit
+                """, new MapSqlParameterSource().addValue("businessIds", ids).addValue("userId", userId)
+                        .addValue("summaryLimit", MAX_CATEGORY_SUMMARY + 1),
+                (rs, rowNum) -> new CategoryCount(rs.getLong("business_id"), rs.getString("business_code"),
+                        rs.getString("business_name"), rs.getString("category"), rs.getLong("total")));
+        if (result.size() > MAX_CATEGORY_SUMMARY) throw new CategorySummaryTooLargeException();
+        return result;
+    }
+
     public List<TicketRow> listTickets(Long userId,
                                        BusinessAccessService.RequestedBusinessContext context,
                                        int limit,
@@ -141,9 +176,16 @@ public class BusinessScopedTicketReadService {
     public List<TicketRow> listTickets(Long userId,
                                        BusinessAccessService.RequestedBusinessContext context,
                                        int limit, int offset, String status, String ticketId, String query) {
+        return listTickets(userId, context, limit, offset, status, ticketId, query, null);
+    }
+
+    public List<TicketRow> listTickets(Long userId,
+            BusinessAccessService.RequestedBusinessContext context,
+            int limit, int offset, String status, String ticketId, String query, String category) {
         validateTicketPage(limit, offset, status, ticketId, query);
+        validateCategory(category);
         Set<Long> ids = accessService.requireSelectedBusiness(userId, context).businessIds();
-        return queryTickets(userId, ids, limit, offset, status, ticketId, query);
+        return queryTickets(userId, ids, limit, offset, status, ticketId, query, category);
     }
 
     public TicketPage pageTickets(Long userId,
@@ -155,9 +197,16 @@ public class BusinessScopedTicketReadService {
     public TicketPage pageTickets(Long userId,
                                   BusinessAccessService.RequestedBusinessContext context,
                                   int limit, int offset, String status, String ticketId, String query) {
+        return pageTickets(userId, context, limit, offset, status, ticketId, query, null);
+    }
+
+    public TicketPage pageTickets(Long userId,
+            BusinessAccessService.RequestedBusinessContext context,
+            int limit, int offset, String status, String ticketId, String query, String category) {
         validateTicketPage(limit, offset, status, ticketId, query);
+        validateCategory(category);
         Set<Long> ids = accessService.requireSelectedBusiness(userId, context).businessIds();
-        List<TicketRow> rows = queryTickets(userId, ids, limit + 1, offset, status, ticketId, query);
+        List<TicketRow> rows = queryTickets(userId, ids, limit + 1, offset, status, ticketId, query, category);
         boolean hasMore = rows.size() > limit;
         return new TicketPage(hasMore ? List.copyOf(rows.subList(0, limit)) : rows, hasMore);
     }
@@ -166,10 +215,17 @@ public class BusinessScopedTicketReadService {
     public List<TicketRow> exportTickets(Long userId,
                                          BusinessAccessService.RequestedBusinessContext context,
                                          String status, String ticketId, String query) {
+        return exportTickets(userId, context, status, ticketId, query, null);
+    }
+
+    public List<TicketRow> exportTickets(Long userId,
+            BusinessAccessService.RequestedBusinessContext context,
+            String status, String ticketId, String query, String category) {
         validateTicketFilters(status, ticketId, query);
+        validateCategory(category);
         Set<Long> ids = accessService.requireSelectedBusiness(userId, context).businessIds();
         List<TicketRow> rows = queryTickets(userId, ids, MAX_EXPORT_TICKETS + 1, 0,
-                status, ticketId, query);
+                status, ticketId, query, category);
         if (rows.size() > MAX_EXPORT_TICKETS) {
             throw new ExportTooLargeException();
         }
@@ -197,14 +253,22 @@ public class BusinessScopedTicketReadService {
         }
     }
 
+    public static void validateCategory(String category) {
+        if (category != null && (category.isBlank() || category.codePointCount(0, category.length()) > 160
+                || category.codePoints().anyMatch(Character::isISOControl))) {
+            throw new IllegalArgumentException("Invalid ticket category");
+        }
+    }
+
     private List<TicketRow> queryTickets(Long userId, Set<Long> ids,
-                                         int limit, int offset, String status, String ticketId, String query) {
+            int limit, int offset, String status, String ticketId, String query, String category) {
         if (ids.isEmpty()) {
             return List.of();
         }
         String sql = """
                 SELECT ticket.user_id, ticket.ticket_id, ticket.ticket_public_id, ticket.status,
                        ticket.created_at, ticket.resolved_at,
+                       ARRAY(SELECT jsonb_array_elements_text(ticket.business_categories)) AS canonical_categories,
                        left(ticket.resolved_by, 200) AS resolved_by,
                        business.id AS business_id, business.code AS business_code,
                        business.display_name AS business_name,
@@ -229,9 +293,12 @@ public class BusinessScopedTicketReadService {
                 """
                 + (status == null ? "" : " AND ticket.status = :status\n")
                 + (ticketId == null ? "" : " AND (ticket.ticket_id = :ticketId OR ticket.ticket_public_id = :ticketId)\n")
+                + (category == null ? "" : " AND ticket.business_categories @> jsonb_build_array(CAST(:category AS TEXT))\n")
                 + (query == null ? "" : """
                    AND (strpos(lower(coalesce(root.client_name, '')), lower(:query)) > 0
-                        OR strpos(lower(coalesce(root.problem, '')), lower(:query)) > 0)
+                        OR strpos(lower(coalesce(root.problem, '')), lower(:query)) > 0
+                         OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(ticket.business_categories) c(value)
+                                     WHERE strpos(lower(c.value), lower(:query)) > 0))
                    """)
                 + """
                  ORDER BY ticket.created_at DESC, ticket.business_id, ticket.user_id, ticket.ticket_id
@@ -243,6 +310,7 @@ public class BusinessScopedTicketReadService {
                         .addValue("status", status)
                         .addValue("ticketId", ticketId)
                         .addValue("query", query == null ? null : query.strip())
+                        .addValue("category", category)
                         .addValue("limit", limit)
                         .addValue("offset", offset),
                 (rs, rowNum) -> ticketRow(rs));
@@ -259,6 +327,7 @@ public class BusinessScopedTicketReadService {
         List<TicketRow> rows = namedJdbcTemplate.query("""
                 SELECT ticket.user_id, ticket.ticket_id, ticket.ticket_public_id, ticket.status,
                        ticket.created_at, ticket.resolved_at,
+                       ARRAY(SELECT jsonb_array_elements_text(ticket.business_categories)) AS canonical_categories,
                        left(ticket.resolved_by, 200) AS resolved_by,
                        business.id AS business_id, business.code AS business_code,
                        business.display_name AS business_name,
@@ -308,6 +377,7 @@ public class BusinessScopedTicketReadService {
         return namedJdbcTemplate.query("""
                 SELECT ticket.user_id, ticket.ticket_id, ticket.ticket_public_id, ticket.status,
                        ticket.created_at, ticket.resolved_at,
+                       ARRAY(SELECT jsonb_array_elements_text(ticket.business_categories)) AS canonical_categories,
                        left(ticket.resolved_by, 200) AS resolved_by,
                        business.id AS business_id, business.code AS business_code,
                        business.display_name AS business_name,
@@ -390,6 +460,7 @@ public class BusinessScopedTicketReadService {
                 WITH authorized_ticket AS (
                     SELECT ticket.user_id, ticket.ticket_id, ticket.ticket_public_id, ticket.status,
                            ticket.created_at, ticket.resolved_at,
+                       ARRAY(SELECT jsonb_array_elements_text(ticket.business_categories)) AS canonical_categories,
                            left(ticket.resolved_by, 200) AS resolved_by,
                            business.id AS business_id, business.code AS business_code,
                            business.display_name AS business_name,
@@ -459,7 +530,7 @@ public class BusinessScopedTicketReadService {
                 });
     }
 
-    /** Legacy workspace rows have only a raw ticket ID and require its globally unique owner. */
+    /** Categories belong to the canonical root; remaining legacy workspace rows need a unique raw ID. */
     public Optional<TicketWorkspace> findWorkspaceByPublicId(Long userId, String publicId) {
         if (publicId == null || !PUBLIC_ID.matcher(publicId).matches()) {
             return Optional.empty();
@@ -472,6 +543,7 @@ public class BusinessScopedTicketReadService {
                 WITH authorized_ticket AS (
                     SELECT ticket.user_id, ticket.ticket_id, ticket.ticket_public_id, ticket.status,
                            ticket.created_at, ticket.resolved_at,
+                       ARRAY(SELECT jsonb_array_elements_text(ticket.business_categories)) AS canonical_categories,
                            left(ticket.resolved_by, 200) AS resolved_by,
                            business.id AS business_id, business.code AS business_code,
                            business.display_name AS business_name,
@@ -504,13 +576,6 @@ public class BusinessScopedTicketReadService {
                         FROM ticket_responsibles r
                        WHERE r.ticket_id = ticket.ticket_id AND ticket.relation_verified
                       UNION ALL
-                      SELECT 'category', left(c.category, 200)
-                        FROM (
-                            SELECT category FROM ticket_categories
-                             WHERE ticket_id = ticket.ticket_id AND ticket.relation_verified
-                             ORDER BY category LIMIT :workspaceLimit
-                        ) c
-                      UNION ALL
                       SELECT 'participant', p.username
                         FROM (
                             SELECT username FROM ticket_participants
@@ -528,7 +593,6 @@ public class BusinessScopedTicketReadService {
                     TicketRow ticket = null;
                     boolean relationVerified = false;
                     String responsible = null;
-                    List<String> categories = new ArrayList<>();
                     List<String> participants = new ArrayList<>();
                     while (rs.next()) {
                         if (ticket == null) {
@@ -538,8 +602,6 @@ public class BusinessScopedTicketReadService {
                         String kind = rs.getString("entry_kind");
                         if ("responsible".equals(kind)) {
                             responsible = rs.getString("entry_value");
-                        } else if ("category".equals(kind)) {
-                            categories.add(rs.getString("entry_value"));
                         } else if ("participant".equals(kind)) {
                             participants.add(rs.getString("entry_value"));
                         }
@@ -547,11 +609,11 @@ public class BusinessScopedTicketReadService {
                     if (ticket == null) {
                         return Optional.<TicketWorkspace>empty();
                     }
-                    if (categories.size() > MAX_WORKSPACE_ITEMS || participants.size() > MAX_WORKSPACE_ITEMS) {
+                    if (participants.size() > MAX_WORKSPACE_ITEMS) {
                         throw new WorkspaceLimitExceededException();
                     }
                     return Optional.of(new TicketWorkspace(ticket, relationVerified, responsible,
-                            List.copyOf(categories), List.copyOf(participants)));
+                            ticket.categories(), List.copyOf(participants)));
                 });
     }
 
@@ -568,6 +630,7 @@ public class BusinessScopedTicketReadService {
                 WITH authorized_ticket AS (
                     SELECT ticket.user_id, ticket.ticket_id, ticket.ticket_public_id, ticket.status,
                            ticket.created_at, ticket.resolved_at,
+                       ARRAY(SELECT jsonb_array_elements_text(ticket.business_categories)) AS canonical_categories,
                            left(ticket.resolved_by, 200) AS resolved_by,
                            business.id AS business_id, business.code AS business_code,
                            business.display_name AS business_name,
@@ -744,7 +807,26 @@ public class BusinessScopedTicketReadService {
                 status, rs.getObject("created_at", OffsetDateTime.class),
                 resolved ? rs.getObject("resolved_at", OffsetDateTime.class) : null,
                 resolved ? rs.getString("resolved_by") : null,
-                rs.getString("client_name"), rs.getString("problem_preview"));
+                rs.getString("client_name"), rs.getString("problem_preview"), canonicalCategories(rs));
+    }
+
+    private List<String> canonicalCategories(ResultSet rs) throws SQLException {
+        java.sql.Array values = rs.getArray("canonical_categories");
+        try {
+            return List.of((String[]) values.getArray());
+        } finally {
+            values.free();
+        }
+    }
+
+    public record CategoryCount(long businessId, String businessCode, String businessName,
+                                String category, long total) {
+    }
+
+    public static class CategorySummaryTooLargeException extends RuntimeException {
+        public CategorySummaryTooLargeException() {
+            super("Category summary exceeds " + MAX_CATEGORY_SUMMARY + " rows; select a business");
+        }
     }
 
     public record BusinessOption(long id, String code, String displayName) {
@@ -763,7 +845,19 @@ public class BusinessScopedTicketReadService {
                             long businessId, String businessCode, String businessName,
                             String status, OffsetDateTime createdAt,
                             OffsetDateTime resolvedAt, String resolvedBy,
-                            String clientName, String problemPreview) {
+                            String clientName, String problemPreview, List<String> categories) {
+        public TicketRow {
+            categories = List.copyOf(categories);
+        }
+
+        public TicketRow(long userId, String ticketId, String ticketPublicId,
+                         long businessId, String businessCode, String businessName,
+                         String status, OffsetDateTime createdAt, OffsetDateTime resolvedAt, String resolvedBy,
+                         String clientName, String problemPreview) {
+            this(userId, ticketId, ticketPublicId, businessId, businessCode, businessName,
+                    status, createdAt, resolvedAt, resolvedBy, clientName, problemPreview, List.of());
+        }
+
         public TicketRow(long userId, String ticketId, String ticketPublicId,
                          long businessId, String businessCode, String businessName,
                          String status, OffsetDateTime createdAt,

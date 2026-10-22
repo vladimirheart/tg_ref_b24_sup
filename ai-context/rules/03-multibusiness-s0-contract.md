@@ -14,7 +14,16 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R163–R167 (2026-10-22): рабочий проект и Docker находятся
+Актуальное уточнение R168 (2026-10-22): рабочий экземпляр и Docker находятся
+на другой машине и в другой сессии относительно этой source/test-сессии.
+Здесь разрешён только изолированный Testcontainers; рабочие stack/revision/
+DB migrations/flags не проверялись и не менялись. Одинаковый путь checkout
+не идентифицирует машину. Новый явный grant текущего пользователя разрешает
+commit/push только 2026-10-22 Europe/Moscow, до 2026-10-22 21:00 UTC;
+не включает рабочие restart/deploy/migration/backfill/config/flags.
+Source apply и Git publisher разделены, с exact content/file и expiry guards.
+
+Историческое уточнение runtime-сессии R163–R167: рабочий проект и Docker находятся
 на машине текущей сессии; пользователь разрешил restart Docker/контейнеров.
 В R167 заново проверены Docker Server 29.7.2 и healthy web/bot/worker/direct/
 PostgreSQL/RabbitMQ/Redis. Это health, не функциональная приёмка и не проверка
@@ -1019,10 +1028,42 @@ Flags foundation/uiSelector проверяются до/внутри/после 
 
 Source minimum V81; readiness проверяет новые root поля и event schema.
 Рабочая migration/backfill/flags/restart/deploy не выполнены. Отдельными gates
-остаются policy смены business и reconciliation/retention, отображение canonical
-категорий в остальных read/analytics/export путях, scoped feedback/providers/AI,
+остаются policy смены business и reconciliation/retention, оставшиеся global/legacy
+read/analytics/export projections (новые BUSINESS пути закрыты R168), scoped feedback/providers/AI,
 global blacklist, historical attribution legacy children и live acceptance.
 Общий статус 01-278 остаётся 🟡.
+
+### Canonical BUSINESS категории в чтении, поиске, экспорте и сводке — R168
+
+R168: canonical категории V81 проведены через BUSINESS list/page/public card,
+вложенные ticket snapshots history/answers/workspace/spans и JSON export.
+Workspace больше не читает raw ticket_categories: categories всегда относятся
+к текущему canonical root, даже при коллизии raw ID; relationVerified продолжает
+защищать только оставшиеся legacy responsible/participants. Старые rows не
+переписываются. Фильтр category — точное case-sensitive значение до 160 Unicode
+code points, без trim/LIKE/JSON эвристик; blank/control/oversize дают 400.
+List/page/export используют один SQL и одинаковые status/ticket/q/category
+фильтры; q дополнительно ищет literal case-insensitive substring в canonical
+категориях. Полные массивы категорий входят в JSON, порядок V81 сохраняется.
+Новый private /api/business-scope/tickets/categories даёт отдельные counts
+по business ID/category, один ticket на category, без объединения одинаковых
+business labels. Более 1000 групп — 413, не частичная аналитика. Все новые
+чтения повторяют active business/current membership либо ALL_BUSINESSES grant
+в SQL и не открывают GENERAL/UNRESOLVED. UI показывает категории в списке и
+карточке, общий фильтр экспорта и сводку; textContent и generation guards
+защищают markup и поздние ответы после переключения контекста.
+Source minimum остаётся V81; новой migration/flags нет. Scoped feedback/client
+delivery, blacklist, остальные writers/legacy projections, S2B и live acceptance
+не закрываются этим read-пакетом.
+
+PAGE_DIALOGS/foundation сохраняются. Чтение категорий не требует OPERATE и
+не выдаёт дополнительных прав. Optional category одинаков для list/page/export;
+пустое либо некорректное значение не превращается в отсутствие фильтра.
+Сводка имеет собственную границу 1000 business/category групп; не зависит от
+фильтров списка и не является global analytics. UI JSON export сохраняет
+полные category arrays и прежнюю границу 1000 tickets; category summary может
+вернуть 413 независимо от размера ticket export. Историческая принадлежность
+прочих legacy children и live provider delivery этим не подтверждаются.
 
 ### Scoped auto-close и внешняя доставка
 

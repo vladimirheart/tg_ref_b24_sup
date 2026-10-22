@@ -21,6 +21,7 @@ async function main() {
     URLSearchParams, generation: 1, select, exportButton,
     statusFilter: { value: 'open' }, ticketFilter: { value: 'raw-id' },
     textFilter: { value: '  Иван  ' },
+    categoryFilter: { value: 'A%_\'😀' },
     announce: (message, error) => messages.push({ message, error: !!error }),
     fetch: (url, options) => new Promise(resolve => pending.push({ url, options, resolve })),
     URL: {
@@ -47,6 +48,7 @@ async function main() {
   assert.equal(params.get('status'), 'open');
   assert.equal(params.get('ticket'), 'raw-id');
   assert.equal(params.get('q'), 'Иван');
+  assert.equal(params.get('category'), 'A%_\'😀');
   assert.equal(params.has('limit'), false);
   assert.equal(request.options.credentials, 'same-origin');
   assert.equal(request.options.cache, 'no-store');

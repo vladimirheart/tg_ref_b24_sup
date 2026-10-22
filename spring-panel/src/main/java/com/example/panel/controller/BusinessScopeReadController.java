@@ -58,6 +58,18 @@ public class BusinessScopeReadController {
         return privateRead(readService.summarizeTickets(userId, requestedContext(businessId)));
     }
 
+    @GetMapping("/tickets/categories")
+    public ResponseEntity<List<BusinessScopedTicketReadService.CategoryCount>> categorySummary(
+            Authentication authentication, @RequestParam("business_id") String businessId) {
+        requireFoundation();
+        Long userId = readService.requireAuthenticatedUserId(username(authentication));
+        try {
+            return privateRead(readService.summarizeCategories(userId, requestedContext(businessId)));
+        } catch (BusinessScopedTicketReadService.CategorySummaryTooLargeException ex) {
+            throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, ex.getMessage(), ex);
+        }
+    }
+
     @GetMapping("/tickets")
     public ResponseEntity<List<BusinessScopedTicketReadService.TicketRow>> tickets(
             Authentication authentication,
@@ -66,13 +78,15 @@ public class BusinessScopeReadController {
             @RequestParam(defaultValue = "0") String offset,
             @RequestParam(required = false) String status,
             @RequestParam(name = "ticket", required = false) String ticketId,
-            @RequestParam(name = "q", required = false) String queryText) {
+            @RequestParam(name = "q", required = false) String queryText,
+            @RequestParam(required = false) String category) {
         requireFoundation();
         TicketQuery query = ticketQuery(limit, offset, status, ticketId, queryText);
         Long userId = readService.requireAuthenticatedUserId(username(authentication));
         try {
+            BusinessScopedTicketReadService.validateCategory(category);
             return privateRead(readService.listTickets(userId, requestedContext(businessId),
-                    query.limit(), query.offset(), query.status(), query.ticketId(), query.queryText()));
+                    query.limit(), query.offset(), query.status(), query.ticketId(), query.queryText(), category));
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
         }
@@ -86,13 +100,15 @@ public class BusinessScopeReadController {
             @RequestParam(defaultValue = "0") String offset,
             @RequestParam(required = false) String status,
             @RequestParam(name = "ticket", required = false) String ticketId,
-            @RequestParam(name = "q", required = false) String queryText) {
+            @RequestParam(name = "q", required = false) String queryText,
+            @RequestParam(required = false) String category) {
         requireFoundation();
         TicketQuery query = ticketQuery(limit, offset, status, ticketId, queryText);
         Long userId = readService.requireAuthenticatedUserId(username(authentication));
         try {
+            BusinessScopedTicketReadService.validateCategory(category);
             return privateRead(readService.pageTickets(userId, requestedContext(businessId),
-                    query.limit(), query.offset(), query.status(), query.ticketId(), query.queryText()));
+                    query.limit(), query.offset(), query.status(), query.ticketId(), query.queryText(), category));
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
         }
@@ -104,13 +120,15 @@ public class BusinessScopeReadController {
             @RequestParam("business_id") String businessId,
             @RequestParam(required = false) String status,
             @RequestParam(name = "ticket", required = false) String ticketId,
-            @RequestParam(name = "q", required = false) String queryText) {
+            @RequestParam(name = "q", required = false) String queryText,
+            @RequestParam(required = false) String category) {
         requireFoundation();
         validateTicketFilters(status, ticketId, queryText);
         Long userId = readService.requireAuthenticatedUserId(username(authentication));
         try {
+            BusinessScopedTicketReadService.validateCategory(category);
             List<BusinessScopedTicketReadService.TicketRow> rows = readService.exportTickets(
-                    userId, requestedContext(businessId), status, ticketId, queryText);
+                    userId, requestedContext(businessId), status, ticketId, queryText, category);
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION,
                             ContentDisposition.attachment().filename("business-tickets.json").build().toString())

@@ -44,7 +44,8 @@ async function main() {
   const ticket = { userId: 11, ticketId: 'raw', ticketPublicId: publicId, businessId: 2,
     businessName: 'Суши', clientName: '<script>Иван</script>',
     problemPreview: 'П'.repeat(121), status: 'resolved', createdAt: '2026-10-15T10:15:30Z',
-    resolvedAt: '2026-10-15T12:00:00Z', resolvedBy: '<script>Оператор</script>' };
+    resolvedAt: '2026-10-15T12:00:00Z', resolvedBy: '<script>Оператор</script>',
+    categories: ['<img src=x onerror=alert(1)>', 'Доставка'] };
   const expectedTime = new Date(ticket.createdAt).toLocaleString('ru-RU');
   const rows = new Element();
   const listContext = {
@@ -55,7 +56,7 @@ async function main() {
     getJson: async url => url.includes('/summary?') ? { total: 2, businesses: [] }
       : { tickets: [ticket, { ...ticket, ticketId: 'empty', ticketPublicId: null,
         clientName: null, problemPreview: null }], hasMore: false },
-    renderSummary() {}, announce() {}, statusLabel: value => value,
+    renderSummary() {}, loadCategorySummary() {}, announce() {}, statusLabel: value => value,
     document: { createElement: () => new Element() }, cell, ticketTime, openCard() {},
     clearCard() { listContext.card.hidden = true; }
   };
@@ -65,6 +66,7 @@ async function main() {
   assert.equal(rows.children[0].children[2].textContent, '<script>Иван</script>');
   assert.equal(rows.children[0].children[3].textContent, `${'П'.repeat(120)}…`);
   assert.equal(rows.children[0].children[4].textContent, expectedTime);
+  assert.equal(rows.children[0].children[6].textContent, '<img src=x onerror=alert(1)>, Доставка');
   assert.equal(rows.children[1].children[2].textContent, 'ID 11');
   assert.equal(rows.children[1].children[3].textContent, '—');
 
@@ -98,6 +100,7 @@ async function main() {
   assert.equal(fields.get('[data-ticket-resolved-at]').textContent,
     new Date(ticket.resolvedAt).toLocaleString('ru-RU'));
   assert.equal(fields.get('[data-ticket-resolved-by]').textContent, '<script>Оператор</script>');
+  assert.equal(fields.get('[data-ticket-categories]').textContent, '<img src=x onerror=alert(1)>, Доставка');
   assert.equal(answersLoaded, 1);
   assert.equal(workspaceLoaded, 1);
   assert.equal(spansLoaded, 1);

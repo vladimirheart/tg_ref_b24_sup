@@ -110,6 +110,7 @@ class ManualBusinessTicketCreationServicePostgresIntegrationTest {
                     user_id BIGINT NOT NULL, ticket_id TEXT NOT NULL, group_msg_id BIGINT,
                     ticket_public_id VARCHAR(32), status TEXT, channel_id BIGINT REFERENCES channels(id),
                     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    business_categories JSONB NOT NULL DEFAULT '[]',
                     reopen_count INTEGER, closed_count INTEGER, work_time_total_sec BIGINT,
                     last_reopen_at TIMESTAMP WITH TIME ZONE,
                     resolved_at TIMESTAMP WITH TIME ZONE, resolved_by TEXT,

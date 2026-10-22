@@ -8,9 +8,12 @@
   const statusFilter = page.querySelector('#businessTicketStatusFilter');
   const ticketFilter = page.querySelector('#businessTicketIdFilter');
   const textFilter = page.querySelector('#businessTicketTextFilter');
+  const categoryFilter = page.querySelector('#businessTicketCategoryFilter');
   const status = page.querySelector('[data-business-dialogs-status]');
   const summaryStatus = page.querySelector('[data-business-summary-status]');
   const summaryRows = page.querySelector('#businessTicketSummaryRows');
+  const categoryRows = page.querySelector('#businessCategorySummaryRows');
+  const categoryStatus = page.querySelector('[data-business-category-status]');
   const rows = page.querySelector('#businessTicketRows');
   const card = page.querySelector('#businessTicketCard');
   const history = card.querySelector('[data-ticket-history]');
@@ -55,7 +58,7 @@
     spans.replaceChildren();
     spansStatus.textContent = '';
     for (const field of ['business', 'id', 'user', 'client', 'problem', 'public',
-      'status', 'created', 'resolved-at', 'resolved-by']) {
+      'status', 'created', 'resolved-at', 'resolved-by', 'categories']) {
       card.querySelector(`[data-ticket-${field}]`).textContent = '';
     }
     historyBefore = null;
@@ -101,6 +104,7 @@
     if (statusFilter.value) params.set('status', statusFilter.value);
     if (ticketFilter.value) params.set('ticket', ticketFilter.value);
     if (textFilter.value.trim()) params.set('q', textFilter.value.trim());
+    if (categoryFilter.value) params.set('category', categoryFilter.value);
     return params;
   }
 
@@ -163,6 +167,35 @@
         cell(row, business[key]);
       }
       summaryRows.appendChild(row);
+    }
+  }
+
+  async function loadCategorySummary(businessId, expectedGeneration) {
+    categoryRows.replaceChildren();
+    categoryStatus.textContent = 'Загрузка категорий…';
+    try {
+      const response = await fetch(`/api/business-scope/tickets/categories?business_id=${encodeURIComponent(businessId)}`,
+        { credentials: 'same-origin', cache: 'no-store' });
+      if (!response.ok) throw new Error(response.status === 413
+        ? 'Слишком много категорий для сводки. Выберите отдельный бизнес.' : 'Сводка категорий недоступна.');
+      const counts = await response.json();
+      if (expectedGeneration !== generation || businessId !== select.value) return;
+      categoryStatus.textContent = counts.length
+        ? 'Число обращений по категориям. Одно обращение может входить в несколько категорий. Сводка не зависит от фильтров списка.'
+        : 'В выбранном контексте категории пока не заданы.';
+      for (const count of counts) {
+        const row = document.createElement('tr');
+        cell(row, count.businessName);
+        const name = cell(row, count.category);
+        name.className = 'text-break';
+        cell(row, count.total);
+        categoryRows.appendChild(row);
+      }
+    } catch (error) {
+      if (expectedGeneration === generation && businessId === select.value) {
+        categoryRows.replaceChildren();
+        categoryStatus.textContent = error.message || 'Сводка категорий недоступна.';
+      }
     }
   }
 
@@ -231,7 +264,6 @@
       workspaceStatus.textContent = 'Рабочие данные по уникальному raw ID; историческая принадлежность legacy-связей не подтверждена.';
       for (const [label, value] of [
         ['Ответственный', snapshot.responsible || 'Не назначен'],
-        ['Категории', snapshot.categories.length ? snapshot.categories.join(', ') : 'Нет'],
         ['Участники (legacy-проекция; не новый список)', snapshot.participants.length ? snapshot.participants.join(', ') : 'Нет']
       ]) {
         const item = document.createElement('li');
@@ -317,6 +349,7 @@
         assignment.hidden = false;
       }
       card.querySelector('[data-ticket-status]').textContent = statusLabel(detail.status);
+      card.querySelector('[data-ticket-categories]').textContent = detail.categories?.join(', ') || 'Нет';
       card.querySelector('[data-ticket-created]').textContent = ticketTime(detail.createdAt);
       card.querySelector('[data-ticket-resolved-at]').textContent = ticketTime(detail.resolvedAt);
       card.querySelector('[data-ticket-resolved-by]').textContent = detail.resolvedBy || '—';
@@ -404,6 +437,7 @@
     rows.replaceChildren();
     summaryRows.replaceChildren();
     summaryStatus.textContent = 'Загрузка сводки…';
+    loadCategorySummary(businessId, current);
     announce('Загрузка обращений…');
     getJson(`/api/business-scope/tickets/summary?business_id=${encodeURIComponent(businessId)}`)
       .then((snapshot) => {
@@ -428,6 +462,8 @@
         problem.className = 'small text-break';
         cell(row, ticketTime(ticket.createdAt));
         cell(row, statusLabel(ticket.status));
+        const categories = cell(row, ticket.categories?.join(', ') || 'Нет');
+        categories.className = 'small text-break';
         const action = cell(row, '');
         if (ticket.ticketPublicId) {
           const button = document.createElement('button');

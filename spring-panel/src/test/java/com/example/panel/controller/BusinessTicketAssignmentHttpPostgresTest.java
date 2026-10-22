@@ -32,6 +32,66 @@ import org.springframework.web.util.HtmlUtils;
 
 @SpringBootTest @AutoConfigureMockMvc
 class BusinessTicketAssignmentHttpPostgresTest {
+    @Test void savedCategoriesReachListCardNestedReadsSearchExportAndCategorySummary() throws Exception {
+        jdbc.update("INSERT INTO ticket_categories(ticket_id,category) VALUES(?,'Legacy secret')",raw);
+        mvc.perform(auth(workCommand("categories",0,"open"," Delivery \nDelivery\n<script>Category</script>"),actor,"PAGE_DIALOGS").with(csrf()))
+            .andExpect(status().is3xxRedirection());
+        for(String suffix:List.of("","/history","/answers","/workspace","/spans")) {
+            String jsonPath=suffix.isEmpty()?"$.categories":"$.ticket.categories";
+            mvc.perform(auth(get("/api/business-scope/tickets/"+publicId+suffix),viewer,"PAGE_DIALOGS"))
+                .andExpect(status().isOk()).andExpect(header().string("Cache-Control","no-store"))
+                .andExpect(jsonPath(jsonPath,contains("Delivery","<script>Category</script>")));
+        }
+        for(String suffix:List.of("","/page","/export")) {
+            mvc.perform(auth(get("/api/business-scope/tickets"+suffix).param("business_id",Long.toString(business))
+                .param("category","Delivery").param("q","category"),viewer,"PAGE_DIALOGS"))
+                .andExpect(status().isOk()).andExpect(jsonPath(suffix.equals("/page")?"$.tickets[0].categories":"$[0].categories",
+                    contains("Delivery","<script>Category</script>")));
+            mvc.perform(auth(get("/api/business-scope/tickets"+suffix).param("business_id",Long.toString(business))
+                .param("category","Legacy secret"),viewer,"PAGE_DIALOGS"))
+                .andExpect(status().isOk()).andExpect(jsonPath(suffix.equals("/page")?"$.tickets":"$",hasSize(0)));
+        }
+        mvc.perform(auth(get("/api/business-scope/tickets/categories").param("business_id",Long.toString(business)),viewer,"PAGE_DIALOGS"))
+            .andExpect(status().isOk()).andExpect(header().string("Cache-Control","no-store"))
+            .andExpect(jsonPath("$",hasSize(2))).andExpect(jsonPath("$[1].category").value("Delivery"))
+            .andExpect(jsonPath("$[1].total").value(1));
+        assertThat(jdbc.queryForList("SELECT category FROM ticket_categories WHERE ticket_id=?",String.class,raw)).containsExactly("Legacy secret");
+    }
+    @Test void collidingRawIdStillReadsOnlyCanonicalCategoriesThroughHttp() throws Exception {
+        assertThat(work.change(scope,actor,0,"open","categories",List.of("Own"))).isTrue();
+        jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,business_id,business_categories) VALUES(902,?,?,?,'[\"Foreign\"]')",
+            raw,UUID.randomUUID().toString().replace("-",""),other);
+        mvc.perform(auth(get("/api/business-scope/tickets/"+publicId+"/workspace"),viewer,"PAGE_DIALOGS"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.relationVerified").value(false))
+            .andExpect(jsonPath("$.categories",org.hamcrest.Matchers.contains("Own"))).andExpect(jsonPath("$.participants",hasSize(0)));
+        mvc.perform(auth(get("/api/business-scope/tickets/export").param("business_id",Long.toString(business)),viewer,"PAGE_DIALOGS"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$",hasSize(1))).andExpect(jsonPath("$[0].categories",org.hamcrest.Matchers.contains("Own")));
+    }
+    @Test void categoryReadsAndSummaryRecheckCurrentBusinessAfterOwnerTransfer() throws Exception {
+        assertThat(work.change(scope,actor,0,"open","categories",List.of("Old owner"))).isTrue();
+        jdbc.update("UPDATE tickets SET business_id=? WHERE ticket_id=?",other,raw);
+        mvc.perform(auth(get("/api/business-scope/tickets/"+publicId),viewer,"PAGE_DIALOGS")).andExpect(status().isNotFound());
+        mvc.perform(auth(get("/api/business-scope/tickets/"+publicId),foreign,"PAGE_DIALOGS"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.categories",hasSize(0)));
+        mvc.perform(auth(get("/api/business-scope/tickets/categories").param("business_id",Long.toString(other)),foreign,"PAGE_DIALOGS"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$",hasSize(0)));
+    }
+    @Test void revokedBusinessReaderCannotKeepCategoryReadsThroughAnOldSession() throws Exception {
+        assertThat(work.change(scope,actor,0,"open","categories",List.of("Private"))).isTrue();
+        jdbc.update("UPDATE business_memberships SET is_active=FALSE WHERE user_id=?",viewerId);
+        mvc.perform(auth(get("/api/business-scope/tickets/"+publicId),viewer,"PAGE_DIALOGS")).andExpect(status().isNotFound());
+        for(String suffix:List.of("","/page","/export","/categories"))
+            mvc.perform(auth(get("/api/business-scope/tickets"+suffix).param("business_id",Long.toString(business)),viewer,"PAGE_DIALOGS"))
+                .andExpect(status().isForbidden());
+        mvc.perform(auth(get("/api/business-scope/tickets/categories").param("business_id","all"),viewer,"PAGE_DIALOGS"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$",hasSize(0)));
+    }
+    @ParameterizedTest @ValueSource(strings={""," ","bad\n","bad\u0001"})
+    void invalidCategoryFilterCannotBecomeAnUnfilteredRead(String invalid) throws Exception {
+        for(String suffix:List.of("","/page","/export"))
+            mvc.perform(auth(get("/api/business-scope/tickets"+suffix).param("business_id",Long.toString(business))
+                .param("category",invalid),viewer,"PAGE_DIALOGS")).andExpect(status().isBadRequest());
+    }
     @SpyBean BusinessTicketWorkService work;
     private MockHttpServletRequestBuilder workCommand(String action,long revision,String status,String categories) {
         return post(url+"/lifecycle/"+action).param("ownerId","901").param("rawId",raw).param("businessId",Long.toString(business))
