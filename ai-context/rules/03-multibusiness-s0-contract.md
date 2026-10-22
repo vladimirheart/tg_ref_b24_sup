@@ -14,9 +14,9 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R163–R165 (2026-10-22): рабочий проект и Docker находятся
+Актуальное уточнение R163–R166 (2026-10-22): рабочий проект и Docker находятся
 на машине текущей сессии; пользователь разрешил restart Docker/контейнеров.
-В R165 заново проверены Docker Server 29.7.2 и healthy web/bot/worker/direct/
+В R166 заново проверены Docker Server 29.7.2 и healthy web/bot/worker/direct/
 PostgreSQL/RabbitMQ/Redis. Это health, не функциональная приёмка и не проверка
 рабочих revision/DB migrations/flags. Restart/rebuild/deploy/migration/backfill/
 config/flags не выполнялись. Restart не разрешает migration при startup.
@@ -925,6 +925,47 @@ owner и current READ. Старые consumers, не знающие reason, тр�
 R165: 526 Java / 8 XML и 2 GENERAL Node tests GREEN изолированно. Проверены
 реальные grant/root lock waits и повторная current proof, final SQL injections,
 CSRF/CAS/rollback/200-bound и сохранность legacy/BUSINESS/grant rows V79→V80.
+
+### Граница bare-ID lifecycle и категорий — R166
+
+DialogTicketLifecycleService не предоставляет authority для BUSINESS/GENERAL.
+Resolve/reopen/categories и activity/feedback followups допускаются только для
+текущего unique UNRESOLVED: business_id IS NULL, is_general=FALSE, strict выключен.
+NULL marker/недоступная namespace schema дают отказ, ID не trim-ится.
+Предварительная уникальность не заменяет namespace: все 13 существующих SQL
+повторяют unique raw root и UNRESOLVED predicate; strict заново читается при
+binding каждого statement. До входа и после eligibility probe strict также
+проверяется. Reopen assignment callback требует повторной eligibility;
+сам assignment writer сохраняет собственный R160 full-owner lock/proof.
+Root status UPDATE проверяет namespace непосредственно в обновляемой строке,
+не только во вложенном SELECT: после ожидания concurrent root lock PostgreSQL
+повторно проверяет committed BUSINESS/GENERAL. Это покрывается четырьмя
+реальными lock-wait cases, но не делает дочернюю цепочку транзакционной.
+
+Quick actions после lifecycle повторяют допуск до success AI/notification/SSE/
+provider callbacks; категории — до и после void writer, spam — до глобального
+blockClient и после категорий. Ранний namespace/strict отказ не вызывает
+блокировку или success callbacks. Это не транзакция с blacklist: если namespace
+меняется после уже разрешённой блокировки, она не откатывается. Глобальные
+client blacklist и внешняя recipient policy требуют отдельного решения.
+
+Bare-ID audit quick_close/resolve/reopen/categories/mark_spam включён в набор
+защищённых mutation actions R160/R162: strict до/после unique lookup,
+UNRESOLVED/unique predicate в INSERT. Это sampled strict, не SQL/config lock.
+Unrelated action/telemetry и read lookup audit не получают нового namespace
+контракта. Не объявляется полная business/generation attribution старого audit.
+
+Legacy нормализация status/categories/actor, timestamps/counters и best-effort
+семантика followups сохраняются; новый общий transaction/rollback не вводится.
+Перестановка/пересоздание UNRESOLVED root (ABA), частичный lifecycle и смена
+флага после binding остаются gates. Проверки не замораживают user/public/channel
+generation на всю цепочку и не сериализуют in-memory flags.
+
+GENERAL manual lifecycle R137 остаётся отдельным scoped workflow. Для BUSINESS
+нужны новые close/reopen/categories с полным owner/current OPERATE/CAS и atomic
+audit/outbox: raw endpoint не должен временно заменять их даже для ROLE_ADMIN.
+R166 source-only, source minimum V80 без новой migration; рабочие DB/flags/
+restart/deploy не менялись. Общий статус 01-278 — 🟡.
 Golden R139 V68→V69 сохранён; новые nullable/default поля V79 не смешиваются
 с утратой старых значений при сравнении SELECT *. Это не live acceptance.
 

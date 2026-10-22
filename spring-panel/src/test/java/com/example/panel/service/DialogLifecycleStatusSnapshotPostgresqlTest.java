@@ -39,7 +39,7 @@ class DialogLifecycleStatusSnapshotPostgresqlTest {
         jdbc.execute("""
                 CREATE TABLE tickets(user_id BIGINT,ticket_id TEXT,status TEXT,resolved_at TIMESTAMPTZ,
                     resolved_by TEXT,channel_id BIGINT,closed_count INTEGER,reopen_count INTEGER,
-                    last_reopen_at TIMESTAMPTZ,PRIMARY KEY(user_id,ticket_id))
+                    last_reopen_at TIMESTAMPTZ,business_id BIGINT,is_general BOOLEAN DEFAULT FALSE,PRIMARY KEY(user_id,ticket_id))
                 """);
         jdbc.execute("""
                 CREATE TABLE IF NOT EXISTS ticket_categories (
@@ -129,16 +129,14 @@ class DialogLifecycleStatusSnapshotPostgresqlTest {
         String status = "resolve".equals(action) ? "closed" : "resolved";
         Fixture fixture = fixture(owner, status, false);
         var before = childrenSnapshot(fixture);
-        doAnswer(call -> {
-            boolean unique = (boolean) call.callRealMethod();
-            if (unique) invalidate(fixture, owner, condition, status);
-            return unique;
-        }).when(fixture.guard()).hasUniqueTicket(owner);
         JdbcTemplate intercepted = spy(fixture.jdbc());
         var reads = new ArrayList<String>();
         doAnswer(call -> {
-            Object result = call.callRealMethod();
             String sql = call.getArgument(0);
+            // R166 adds an earlier namespace proof. Still exercise the final status SELECT,
+            // after both eligibility checks, rather than stopping at the earlier denial.
+            if (sql.stripLeading().startsWith("SELECT status")) invalidate(fixture, owner, condition, status);
+            Object result = call.callRealMethod();
             if (sql.stripLeading().startsWith("SELECT status")) reads.add((String) result);
             return result;
         }).when(intercepted).query(anyString(), any(ResultSetExtractor.class), any(Object[].class));

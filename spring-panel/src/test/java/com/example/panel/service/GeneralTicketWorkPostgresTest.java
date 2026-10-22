@@ -177,8 +177,10 @@ class GeneralTicketWorkPostgresTest {
         upgrade.update("INSERT INTO general_ticket_work_events(ticket_user_id,ticket_id,ticket_public_id,revision,from_status,to_status,actor_user_id,actor) VALUES(901,'general-prior',?,1,'pending','open',1,'prior')",PUBLIC);
         var tickets=upgrade.queryForList("SELECT * FROM tickets");
         var events=upgrade.queryForList("SELECT * FROM general_ticket_work_events");
-        org.flywaydb.core.Flyway.configure().dataSource(upgrade.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").load().migrate();
+        org.flywaydb.core.Flyway.configure().dataSource(upgrade.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").target("67").load().migrate();
         assertThat(upgrade.queryForList("SELECT * FROM tickets")).isEqualTo(tickets);
+        assertThat(upgrade.queryForList("SELECT * FROM general_ticket_work_events")).isEqualTo(events);
+        assertLaterRootMigrationsPreserveData(upgrade,tickets);
         assertThat(upgrade.queryForList("SELECT * FROM general_ticket_work_events")).isEqualTo(events);
         assertThat(upgrade.queryForObject("SELECT COUNT(*) FROM general_ticket_operate_grants",Integer.class)).isZero();
         for (String from:java.util.List.of("pending","open","closed","resolved","unknown")) {
@@ -359,13 +361,34 @@ class GeneralTicketWorkPostgresTest {
         upgrade.update("INSERT INTO general_ticket_work_events(ticket_user_id,ticket_id,ticket_public_id,revision,from_status,to_status,actor_user_id,actor) VALUES(901,'prior-time',?,1,'pending','open',1,'prior')",PUBLIC);
         var root=upgrade.queryForList("SELECT * FROM tickets");var spans=upgrade.queryForList("SELECT * FROM ticket_spans");
         var active=upgrade.queryForList("SELECT * FROM ticket_active");var events=upgrade.queryForList("SELECT * FROM general_ticket_work_events");
-        org.flywaydb.core.Flyway.configure().dataSource(upgrade.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").load().migrate();
+        org.flywaydb.core.Flyway.configure().dataSource(upgrade.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").target("68").load().migrate();
         assertThat(upgrade.queryForList("SELECT * FROM tickets")).isEqualTo(root);
+        assertThat(upgrade.queryForList("SELECT * FROM ticket_spans")).isEqualTo(spans);
+        assertThat(upgrade.queryForList("SELECT * FROM ticket_active")).isEqualTo(active);
+        assertThat(upgrade.queryForList("SELECT * FROM general_ticket_work_events")).isEqualTo(events);
+        assertLaterRootMigrationsPreserveData(upgrade,root);
         assertThat(upgrade.queryForList("SELECT * FROM ticket_spans")).isEqualTo(spans);
         assertThat(upgrade.queryForList("SELECT * FROM ticket_active")).isEqualTo(active);
         assertThat(upgrade.queryForList("SELECT * FROM general_ticket_work_events")).isEqualTo(events);
         assertThat(upgrade.queryForObject("SELECT COUNT(*) FROM general_ticket_work_intervals",Integer.class)).isZero();
         assertThat(upgrade.queryForObject("SELECT COUNT(*) FROM general_ticket_operate_grants",Integer.class)).isZero();
+    }
+    private void assertLaterRootMigrationsPreserveData(JdbcTemplate upgrade,java.util.List<java.util.Map<String,Object>> oldRoots) {
+        // Preserve the exact V66->V67 / V67->V68 goldens above. Later additive migrations
+        // legitimately add root columns; check old values and every new default separately.
+        String oldColumns=oldRoots.get(0).keySet().stream().map(column->"\""+column.replace("\"","\"\"")+"\"")
+            .collect(java.util.stream.Collectors.joining(","));
+        org.flywaydb.core.Flyway.configure().dataSource(upgrade.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").target("79").load().migrate();
+        assertThat(upgrade.queryForList("SELECT "+oldColumns+" FROM tickets")).isEqualTo(oldRoots);
+        assertThat(upgrade.queryForMap("SELECT responsibility_revision,business_selection_source,questionnaire_catalog_sha256,questionnaire_version FROM tickets"))
+            .containsEntry("responsibility_revision",0L).containsEntry("business_selection_source",null)
+            .containsEntry("questionnaire_catalog_sha256",null).containsEntry("questionnaire_version",null);
+        var v79Roots=upgrade.queryForList("SELECT * FROM tickets");
+        assertThat(v79Roots).isNotEqualTo(oldRoots); // Reproduces the stale SELECT * mismatch before V80/R166.
+        org.flywaydb.core.Flyway.configure().dataSource(upgrade.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").load().migrate();
+        assertThat(upgrade.queryForList("SELECT * FROM tickets")).isEqualTo(v79Roots);
+        for(String table:java.util.List.of("general_ticket_participants","general_ticket_participant_events"))
+            assertThat(upgrade.queryForObject("SELECT count(*) FROM "+table,Integer.class)).isZero();
     }
     @Test void missingIntervalSchemaDeniesMutationAndReadWithoutLegacyFallback() {
         jdbc.execute("DROP TABLE general_ticket_work_intervals");

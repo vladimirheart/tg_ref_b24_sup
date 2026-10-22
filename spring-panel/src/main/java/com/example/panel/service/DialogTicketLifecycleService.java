@@ -1,7 +1,9 @@
 package com.example.panel.service;
 
+import com.example.panel.config.MultibusinessFeatureFlags;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -20,17 +22,27 @@ public class DialogTicketLifecycleService {
     private final JdbcTemplate jdbcTemplate;
     private final DialogResponsibilityService dialogResponsibilityService;
     private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
+    private final MultibusinessFeatureFlags flags;
 
     public DialogTicketLifecycleService(JdbcTemplate jdbcTemplate,
                                         DialogResponsibilityService dialogResponsibilityService,
                                         LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
+        this(jdbcTemplate, dialogResponsibilityService, legacyTicketIdJdbcGuard, null);
+    }
+
+    @Autowired
+    public DialogTicketLifecycleService(JdbcTemplate jdbcTemplate,
+                                        DialogResponsibilityService dialogResponsibilityService,
+                                        LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard,
+                                        MultibusinessFeatureFlags flags) {
+        this.flags = flags;
         this.jdbcTemplate = jdbcTemplate;
         this.dialogResponsibilityService = dialogResponsibilityService;
         this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
     }
 
     public void setTicketCategories(String ticketId, List<String> categories) {
-        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+        if (!canMutateLegacyTicket(ticketId)) {
             return;
         }
         List<String> normalized = normalizeCategories(categories);
@@ -41,7 +53,8 @@ public class DialogTicketLifecycleService {
                        AND 1 = (SELECT COUNT(*)
                                   FROM tickets unique_ticket
                                  WHERE unique_ticket.ticket_id = ticket_categories.ticket_id)
-                    """, ticketId);
+                    %s
+                    """.formatted(legacyClause("ticket_categories.ticket_id")), ticketId, strictLegacy());
             for (String category : normalized) {
                 jdbcTemplate.update(
                         """
@@ -51,9 +64,11 @@ public class DialogTicketLifecycleService {
                          WHERE 1 = (SELECT COUNT(*)
                                       FROM tickets unique_ticket
                                      WHERE unique_ticket.ticket_id = category_row.ticket_id)
-                        """,
+                        %s
+                        """.formatted(legacyClause("category_row.ticket_id")),
                         ticketId,
-                        category
+                        category,
+                        strictLegacy()
                 );
             }
         } catch (DataAccessException ex) {
@@ -62,7 +77,7 @@ public class DialogTicketLifecycleService {
     }
 
     public DialogResolveResult resolveTicket(String ticketId, String operator, List<String> categories) {
-        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+        if (!canMutateLegacyTicket(ticketId)) {
             return new DialogResolveResult(false, false, null);
         }
         try {
@@ -74,9 +89,11 @@ public class DialogTicketLifecycleService {
                        AND 1 = (SELECT COUNT(*)
                                   FROM tickets unique_ticket
                                  WHERE unique_ticket.ticket_id = tickets.ticket_id)
-                    """,
+                    %s
+                    """.formatted(legacyClause("tickets.ticket_id")),
                     rs -> rs.next() ? trimToNull(rs.getString("status")) : null,
-                    ticketId
+                    ticketId,
+                    strictLegacy()
             );
             if (isClosedStatus(currentStatus)) {
                 return new DialogResolveResult(false, true, "already_closed");
@@ -89,9 +106,11 @@ public class DialogTicketLifecycleService {
                     "UPDATE tickets SET status = 'resolved', resolved_at = CURRENT_TIMESTAMP, "
                             + "resolved_by = ?, closed_count = COALESCE(closed_count, 0) + 1 "
                             + "WHERE ticket_id = ? AND (status IS NULL OR lower(status) NOT IN ('resolved', 'closed')) "
-                            + "AND 1 = (SELECT COUNT(*) FROM tickets unique_ticket WHERE unique_ticket.ticket_id = tickets.ticket_id)",
+                            + "AND 1 = (SELECT COUNT(*) FROM tickets unique_ticket WHERE unique_ticket.ticket_id = tickets.ticket_id)"
+                            + legacyClause("tickets.ticket_id"),
                     resolvedBy,
-                    ticketId
+                    ticketId,
+                    strictLegacy()
             );
             if (updated > 0) {
                 clearTicketActivity(ticketId);
@@ -106,7 +125,7 @@ public class DialogTicketLifecycleService {
     }
 
     public DialogResolveResult reopenTicket(String ticketId, String operator) {
-        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+        if (!canMutateLegacyTicket(ticketId)) {
             return new DialogResolveResult(false, false, null);
         }
         try {
@@ -117,9 +136,11 @@ public class DialogTicketLifecycleService {
                        AND 1 = (SELECT COUNT(*)
                                   FROM tickets unique_ticket
                                  WHERE unique_ticket.ticket_id = tickets.ticket_id)
-                    """,
+                    %s
+                    """.formatted(legacyClause("tickets.ticket_id")),
                     rs -> rs.next() ? trimToNull(rs.getString("status")) : null,
-                    ticketId
+                    ticketId,
+                    strictLegacy()
             );
             if (!isClosedStatus(currentStatus)) {
                 return new DialogResolveResult(false, true, "not_closed");
@@ -129,12 +150,14 @@ public class DialogTicketLifecycleService {
                             + "reopen_count = COALESCE(reopen_count, 0) + 1, "
                             + "last_reopen_at = CURRENT_TIMESTAMP "
                             + "WHERE ticket_id = ? AND lower(COALESCE(status, '')) IN ('resolved', 'closed') "
-                            + "AND 1 = (SELECT COUNT(*) FROM tickets unique_ticket WHERE unique_ticket.ticket_id = tickets.ticket_id)",
-                    ticketId
+                            + "AND 1 = (SELECT COUNT(*) FROM tickets unique_ticket WHERE unique_ticket.ticket_id = tickets.ticket_id)"
+                            + legacyClause("tickets.ticket_id"),
+                    ticketId,
+                    strictLegacy()
             );
             if (updated > 0) {
                 restoreTicketActivity(ticketId);
-                if (StringUtils.hasText(operator)) {
+                if (StringUtils.hasText(operator) && legacyOwnerCurrent(ticketId)) {
                     dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
                 }
             }
@@ -146,7 +169,7 @@ public class DialogTicketLifecycleService {
     }
 
     private void ensurePendingFeedbackRequest(String ticketId, String resolvedBy) {
-        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+        if (!canMutateLegacyTicket(ticketId)) {
             return;
         }
         String source = isAutoCloseResolvedBy(resolvedBy) ? "auto_close" : "operator_close";
@@ -158,10 +181,12 @@ public class DialogTicketLifecycleService {
                             + "SET expires_at = ?, source = ? "
                             + "WHERE ticket_id = ? "
                             + "AND 1 = (SELECT COUNT(*) FROM tickets unique_ticket "
-                            + "WHERE unique_ticket.ticket_id = pending_feedback_requests.ticket_id)",
+                            + "WHERE unique_ticket.ticket_id = pending_feedback_requests.ticket_id)"
+                            + legacyClause("pending_feedback_requests.ticket_id"),
                     expiresAt,
                     source,
-                    ticketId
+                    ticketId,
+                    strictLegacy()
             );
             if (updated > 0) {
                 return;
@@ -173,11 +198,13 @@ public class DialogTicketLifecycleService {
                        AND 1 = (SELECT COUNT(*)
                                   FROM tickets unique_ticket
                                  WHERE unique_ticket.ticket_id = tickets.ticket_id)
-                    """,
+                    %s
+                    """.formatted(legacyClause("tickets.ticket_id")),
                     rs -> rs.next()
                             ? new TicketOwner(rs.getLong("user_id"), rs.getLong("channel_id"))
                             : null,
-                    ticketId
+                    ticketId,
+                    strictLegacy()
             );
             if (owner == null) {
                 return;
@@ -193,13 +220,15 @@ public class DialogTicketLifecycleService {
                      WHERE 1 = (SELECT COUNT(*)
                                   FROM tickets unique_ticket
                                  WHERE unique_ticket.ticket_id = feedback_row.ticket_id)
-                    """,
+                    %s
+                    """.formatted(legacyClause("feedback_row.ticket_id")),
                     owner.userId,
                     owner.channelId,
                     ticketId,
                     source,
                     createdAt,
-                    expiresAt
+                    expiresAt,
+                    strictLegacy()
             );
         } catch (DataAccessException ex) {
             log.warn("Unable to ensure pending feedback request for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
@@ -207,7 +236,7 @@ public class DialogTicketLifecycleService {
     }
 
     private void clearTicketActivity(String ticketId) {
-        if (!StringUtils.hasText(ticketId)) {
+        if (!legacyOwnerCurrent(ticketId)) {
             return;
         }
         try {
@@ -217,14 +246,15 @@ public class DialogTicketLifecycleService {
                        AND 1 = (SELECT COUNT(*)
                                   FROM tickets unique_ticket
                                  WHERE unique_ticket.ticket_id = ticket_active.ticket_id)
-                    """, ticketId);
+                    %s
+                    """.formatted(legacyClause("ticket_active.ticket_id")), ticketId, strictLegacy());
         } catch (DataAccessException ex) {
             log.warn("Unable to clear ticket_active for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
         }
     }
 
     private void restoreTicketActivity(String ticketId) {
-        if (!StringUtils.hasText(ticketId)) {
+        if (!legacyOwnerCurrent(ticketId)) {
             return;
         }
         try {
@@ -235,9 +265,11 @@ public class DialogTicketLifecycleService {
                        AND 1 = (SELECT COUNT(*)
                                   FROM tickets unique_ticket
                                  WHERE unique_ticket.ticket_id = tickets.ticket_id)
-                    """,
+                    %s
+                    """.formatted(legacyClause("tickets.ticket_id")),
                     rs -> rs.next() ? trimToNull(rs.getString("user_id")) : null,
-                    ticketId
+                    ticketId,
+                    strictLegacy()
             );
             if (!StringUtils.hasText(identity)) {
                 return;
@@ -253,9 +285,11 @@ public class DialogTicketLifecycleService {
                        AND 1 = (SELECT COUNT(*)
                                   FROM tickets unique_ticket
                                  WHERE unique_ticket.ticket_id = ticket_active.ticket_id)
-                    """,
+                    %s
+                    """.formatted(legacyClause("ticket_active.ticket_id")),
                     identity,
-                    ticketId
+                    ticketId,
+                    strictLegacy()
             );
             if (updated == 0) {
                 jdbcTemplate.update(
@@ -266,14 +300,53 @@ public class DialogTicketLifecycleService {
                          WHERE 1 = (SELECT COUNT(*)
                                       FROM tickets unique_ticket
                                      WHERE unique_ticket.ticket_id = active_row.ticket_id)
-                        """,
+                        %s
+                        """.formatted(legacyClause("active_row.ticket_id")),
                         ticketId,
-                        identity
+                        identity,
+                        strictLegacy()
                 );
             }
         } catch (DataAccessException ex) {
             log.warn("Unable to restore ticket_active for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
         }
+    }
+
+    /** Bare-ID mutations have authority only in the legacy UNRESOLVED namespace before strict. */
+    public boolean canMutateLegacyTicket(String ticketId) {
+        return !strictLegacy() && StringUtils.hasText(ticketId)
+            && legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId) && legacyOwnerCurrent(ticketId);
+    }
+
+    private boolean legacyOwnerCurrent(String ticketId) {
+        if (strictLegacy() || !StringUtils.hasText(ticketId)) {
+            return false;
+        }
+        try {
+            boolean current = Boolean.TRUE.equals(jdbcTemplate.queryForObject(
+                    "SELECT EXISTS(SELECT 1 FROM tickets owner WHERE owner.ticket_id = ?"
+                            + " AND owner.business_id IS NULL AND owner.is_general = FALSE"
+                            + " AND 1 = (SELECT count(*) FROM tickets collision WHERE collision.ticket_id = owner.ticket_id)"
+                            + " AND ? = FALSE)",
+                    Boolean.class, ticketId, strictLegacy()));
+            return current && !strictLegacy();
+        } catch (DataAccessException ex) {
+            return false;
+        }
+    }
+
+    private String legacyClause(String reference) {
+        if ("tickets.ticket_id".equals(reference)) {
+            // Root UPDATE must recheck the current row after waiting on a concurrent owner change,
+            // rather than authorizing it through an older subquery snapshot.
+            return " AND tickets.business_id IS NULL AND tickets.is_general = FALSE AND ? = FALSE ";
+        }
+        return " AND EXISTS(SELECT 1 FROM tickets legacy_owner WHERE legacy_owner.ticket_id = " + reference
+                + " AND legacy_owner.business_id IS NULL AND legacy_owner.is_general = FALSE) AND ? = FALSE ";
+    }
+
+    private boolean strictLegacy() {
+        return flags != null && flags.isStrictReadScope();
     }
 
     private boolean isAutoCloseResolvedBy(String resolvedBy) {

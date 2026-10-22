@@ -24,8 +24,8 @@ class DialogAuditServiceTest {
     void setUp() {
         jdbcTemplate = PostgresqlJdbcTestSupport.freshJdbcTemplate("dialog_audit");
         createSchema();
-        jdbcTemplate.execute("CREATE TABLE tickets(user_id BIGINT, ticket_id TEXT, PRIMARY KEY(user_id, ticket_id))");
-        jdbcTemplate.update("INSERT INTO tickets VALUES (1, 'T-100'), (2, 'T-200')");
+        jdbcTemplate.execute("CREATE TABLE tickets(user_id BIGINT, ticket_id TEXT, business_id BIGINT,is_general BOOLEAN DEFAULT FALSE,PRIMARY KEY(user_id, ticket_id))");
+        jdbcTemplate.update("INSERT INTO tickets(user_id,ticket_id) VALUES (1, 'T-100'), (2, 'T-200')");
         service = new DialogAuditService(jdbcTemplate, new LegacyTicketIdJdbcGuard(jdbcTemplate));
     }
 

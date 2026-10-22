@@ -31,7 +31,7 @@ class DialogCategorySnapshotPostgresqlTest {
 
     private Fixture fixture(String owner, boolean existing) {
         JdbcTemplate jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType("category_snapshot");
-        jdbc.execute("CREATE TABLE tickets(user_id BIGINT,ticket_id TEXT,PRIMARY KEY(user_id,ticket_id))");
+        jdbc.execute("CREATE TABLE tickets(user_id BIGINT,ticket_id TEXT,business_id BIGINT,is_general BOOLEAN DEFAULT FALSE,PRIMARY KEY(user_id,ticket_id))");
         jdbc.execute("""
                 CREATE TABLE IF NOT EXISTS ticket_categories (
                     id BIGSERIAL PRIMARY KEY,

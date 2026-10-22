@@ -28,7 +28,7 @@ class DialogQuickActionServiceTest {
 
     @Test
     void sendReplyRegistersLearningAndParticipantNotificationOnSuccess() {
-        DialogTicketLifecycleService dialogTicketLifecycleService = mock(DialogTicketLifecycleService.class);
+        DialogTicketLifecycleService dialogTicketLifecycleService = legacyLifecycle();
         DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
         DialogResponsibilityService dialogResponsibilityService = legacyResponsibility();
         DialogReplyService dialogReplyService = mock(DialogReplyService.class);
@@ -73,7 +73,7 @@ class DialogQuickActionServiceTest {
         NotificationService notificationService = mock(NotificationService.class);
 
         DialogQuickActionService service = new DialogQuickActionService(
-                mock(DialogTicketLifecycleService.class),
+                legacyLifecycle(),
                 mock(DialogLookupReadService.class),
                 legacyResponsibility(),
                 mock(DialogParticipantService.class),
@@ -101,7 +101,7 @@ class DialogQuickActionServiceTest {
         NotificationService notificationService = mock(NotificationService.class);
 
         DialogQuickActionService service = new DialogQuickActionService(
-                mock(DialogTicketLifecycleService.class),
+                legacyLifecycle(),
                 mock(DialogLookupReadService.class),
                 legacyResponsibility(),
                 mock(DialogParticipantService.class),
@@ -134,7 +134,7 @@ class DialogQuickActionServiceTest {
         NotificationService notificationService = mock(NotificationService.class);
 
         DialogQuickActionService service = new DialogQuickActionService(
-                mock(DialogTicketLifecycleService.class),
+                legacyLifecycle(),
                 mock(DialogLookupReadService.class),
                 legacyResponsibility(),
                 mock(DialogParticipantService.class),
@@ -161,7 +161,7 @@ class DialogQuickActionServiceTest {
         NotificationService notificationService = mock(NotificationService.class);
 
         DialogQuickActionService service = new DialogQuickActionService(
-                mock(DialogTicketLifecycleService.class),
+                legacyLifecycle(),
                 mock(DialogLookupReadService.class),
                 legacyResponsibility(),
                 mock(DialogParticipantService.class),
@@ -194,7 +194,7 @@ class DialogQuickActionServiceTest {
         NotificationService notificationService = mock(NotificationService.class);
 
         DialogQuickActionService service = new DialogQuickActionService(
-                mock(DialogTicketLifecycleService.class),
+                legacyLifecycle(),
                 mock(DialogLookupReadService.class),
                 legacyResponsibility(),
                 mock(DialogParticipantService.class),
@@ -217,7 +217,7 @@ class DialogQuickActionServiceTest {
 
     @Test
     void resolveTicketNotifiesResolvedLifecycleWhenUpdated() {
-        DialogTicketLifecycleService dialogTicketLifecycleService = mock(DialogTicketLifecycleService.class);
+        DialogTicketLifecycleService dialogTicketLifecycleService = legacyLifecycle();
         DialogNotificationService dialogNotificationService = mock(DialogNotificationService.class);
         DialogAiAssistantService dialogAiAssistantService = mock(DialogAiAssistantService.class);
         NotificationService notificationService = mock(NotificationService.class);
@@ -253,7 +253,7 @@ class DialogQuickActionServiceTest {
 
     @Test
     void reopenTicketNotifiesReopenedLifecycleWhenUpdated() {
-        DialogTicketLifecycleService dialogTicketLifecycleService = mock(DialogTicketLifecycleService.class);
+        DialogTicketLifecycleService dialogTicketLifecycleService = legacyLifecycle();
         DialogNotificationService dialogNotificationService = mock(DialogNotificationService.class);
         DialogAiAssistantService dialogAiAssistantService = mock(DialogAiAssistantService.class);
         NotificationService notificationService = mock(NotificationService.class);
@@ -295,7 +295,7 @@ class DialogQuickActionServiceTest {
         NotificationService notificationService = mock(NotificationService.class);
 
         DialogQuickActionService service = new DialogQuickActionService(
-                mock(DialogTicketLifecycleService.class),
+                legacyLifecycle(),
                 dialogLookupReadService,
                 dialogResponsibilityService,
                 mock(DialogParticipantService.class),
@@ -334,7 +334,7 @@ class DialogQuickActionServiceTest {
         NotificationService notificationService = mock(NotificationService.class);
 
         DialogQuickActionService service = new DialogQuickActionService(
-                mock(DialogTicketLifecycleService.class),
+                legacyLifecycle(),
                 dialogLookupReadService,
                 dialogResponsibilityService,
                 mock(DialogParticipantService.class),
@@ -368,7 +368,7 @@ class DialogQuickActionServiceTest {
         NotificationService notificationService = mock(NotificationService.class);
 
         DialogQuickActionService service = new DialogQuickActionService(
-                mock(DialogTicketLifecycleService.class),
+                legacyLifecycle(),
                 dialogLookupReadService,
                 dialogResponsibilityService,
                 mock(DialogParticipantService.class),
@@ -401,7 +401,7 @@ class DialogQuickActionServiceTest {
         NotificationService notificationService = mock(NotificationService.class);
 
         DialogQuickActionService service = new DialogQuickActionService(
-                mock(DialogTicketLifecycleService.class),
+                legacyLifecycle(),
                 dialogLookupReadService,
                 dialogResponsibilityService,
                 mock(DialogParticipantService.class),
@@ -433,7 +433,7 @@ class DialogQuickActionServiceTest {
         AttachmentService attachmentService = mock(AttachmentService.class);
 
         DialogQuickActionService service = new DialogQuickActionService(
-                mock(DialogTicketLifecycleService.class),
+                legacyLifecycle(),
                 mock(DialogLookupReadService.class),
                 legacyResponsibility(),
                 mock(DialogParticipantService.class),
@@ -517,7 +517,7 @@ class DialogQuickActionServiceTest {
         AttachmentService attachmentService = mock(AttachmentService.class);
 
         DialogQuickActionService service = new DialogQuickActionService(
-                mock(DialogTicketLifecycleService.class),
+                legacyLifecycle(),
                 mock(DialogLookupReadService.class),
                 legacyResponsibility(),
                 mock(DialogParticipantService.class),
@@ -590,7 +590,7 @@ class DialogQuickActionServiceTest {
         AttachmentService attachmentService = mock(AttachmentService.class);
 
         DialogQuickActionService service = new DialogQuickActionService(
-                mock(DialogTicketLifecycleService.class),
+                legacyLifecycle(),
                 mock(DialogLookupReadService.class),
                 legacyResponsibility(),
                 mock(DialogParticipantService.class),
@@ -714,7 +714,7 @@ class DialogQuickActionServiceTest {
 
     @Test
     void updateCategoriesNotifiesParticipantsThroughDialogRoute() {
-        DialogTicketLifecycleService dialogTicketLifecycleService = mock(DialogTicketLifecycleService.class);
+        DialogTicketLifecycleService dialogTicketLifecycleService = legacyLifecycle();
         DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
         NotificationService notificationService = mock(NotificationService.class);
 
@@ -753,7 +753,7 @@ class DialogQuickActionServiceTest {
         NotificationService notificationService = mock(NotificationService.class);
 
         DialogQuickActionService service = new DialogQuickActionService(
-                mock(DialogTicketLifecycleService.class),
+                legacyLifecycle(),
                 dialogLookupReadService,
                 legacyResponsibility(),
                 mock(DialogParticipantService.class),
@@ -777,7 +777,7 @@ class DialogQuickActionServiceTest {
     @Test
     void markClientAsSpamBlocksClientAndAddsSpamCategory() {
         DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
-        DialogTicketLifecycleService dialogTicketLifecycleService = mock(DialogTicketLifecycleService.class);
+        DialogTicketLifecycleService dialogTicketLifecycleService = legacyLifecycle();
         NotificationService notificationService = mock(NotificationService.class);
         ClientBlacklistService clientBlacklistService = mock(ClientBlacklistService.class);
 
@@ -848,7 +848,7 @@ class DialogQuickActionServiceTest {
     @Test
     void markClientAsSpamDoesNotNotifyParticipantsWhenBlacklistFails() {
         DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
-        DialogTicketLifecycleService dialogTicketLifecycleService = mock(DialogTicketLifecycleService.class);
+        DialogTicketLifecycleService dialogTicketLifecycleService = legacyLifecycle();
         NotificationService notificationService = mock(NotificationService.class);
         ClientBlacklistService clientBlacklistService = mock(ClientBlacklistService.class);
 
@@ -912,7 +912,7 @@ class DialogQuickActionServiceTest {
         DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
 
         DialogQuickActionService service = new DialogQuickActionService(
-                mock(DialogTicketLifecycleService.class),
+                legacyLifecycle(),
                 dialogLookupReadService,
                 legacyResponsibility(),
                 mock(DialogParticipantService.class),
@@ -937,7 +937,7 @@ class DialogQuickActionServiceTest {
         DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
 
         DialogQuickActionService service = new DialogQuickActionService(
-                mock(DialogTicketLifecycleService.class),
+                legacyLifecycle(),
                 dialogLookupReadService,
                 legacyResponsibility(),
                 mock(DialogParticipantService.class),
@@ -963,7 +963,7 @@ class DialogQuickActionServiceTest {
         DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
 
         DialogQuickActionService service = new DialogQuickActionService(
-                mock(DialogTicketLifecycleService.class),
+                legacyLifecycle(),
                 dialogLookupReadService,
                 legacyResponsibility(),
                 mock(DialogParticipantService.class),
@@ -991,7 +991,7 @@ class DialogQuickActionServiceTest {
         NotificationService notificationService = mock(NotificationService.class);
 
         DialogQuickActionService service = new DialogQuickActionService(
-                mock(DialogTicketLifecycleService.class),
+                legacyLifecycle(),
                 dialogLookupReadService,
                 dialogResponsibilityService,
                 dialogParticipantService,
@@ -1035,7 +1035,7 @@ class DialogQuickActionServiceTest {
         NotificationService notificationService = mock(NotificationService.class);
 
         DialogQuickActionService service = new DialogQuickActionService(
-                mock(DialogTicketLifecycleService.class),
+                legacyLifecycle(),
                 dialogLookupReadService,
                 dialogResponsibilityService,
                 dialogParticipantService,
@@ -1067,7 +1067,7 @@ class DialogQuickActionServiceTest {
         NotificationService notificationService = mock(NotificationService.class);
 
         DialogQuickActionService service = new DialogQuickActionService(
-                mock(DialogTicketLifecycleService.class),
+                legacyLifecycle(),
                 dialogLookupReadService,
                 legacyResponsibility(),
                 dialogParticipantService,
@@ -1097,7 +1097,7 @@ class DialogQuickActionServiceTest {
         NotificationService notificationService = mock(NotificationService.class);
 
         DialogQuickActionService service = new DialogQuickActionService(
-                mock(DialogTicketLifecycleService.class),
+                legacyLifecycle(),
                 dialogLookupReadService,
                 legacyResponsibility(),
                 dialogParticipantService,
@@ -1132,7 +1132,7 @@ class DialogQuickActionServiceTest {
         NotificationService notificationService = mock(NotificationService.class);
 
         DialogQuickActionService service = new DialogQuickActionService(
-                mock(DialogTicketLifecycleService.class),
+                legacyLifecycle(),
                 dialogLookupReadService,
                 legacyResponsibility(),
                 dialogParticipantService,
@@ -1173,7 +1173,7 @@ class DialogQuickActionServiceTest {
         NotificationService notificationService = mock(NotificationService.class);
 
         DialogQuickActionService service = new DialogQuickActionService(
-                mock(DialogTicketLifecycleService.class),
+                legacyLifecycle(),
                 dialogLookupReadService,
                 legacyResponsibility(),
                 dialogParticipantService,
@@ -1210,7 +1210,7 @@ class DialogQuickActionServiceTest {
         NotificationService notificationService = mock(NotificationService.class);
 
         DialogQuickActionService service = new DialogQuickActionService(
-                mock(DialogTicketLifecycleService.class),
+                legacyLifecycle(),
                 dialogLookupReadService,
                 dialogResponsibilityService,
                 dialogParticipantService,
@@ -1259,7 +1259,7 @@ class DialogQuickActionServiceTest {
         NotificationService notificationService = mock(NotificationService.class);
 
         DialogQuickActionService service = new DialogQuickActionService(
-                mock(DialogTicketLifecycleService.class),
+                legacyLifecycle(),
                 dialogLookupReadService,
                 dialogResponsibilityService,
                 dialogParticipantService,
@@ -1295,7 +1295,7 @@ class DialogQuickActionServiceTest {
         NotificationService notificationService = mock(NotificationService.class);
 
         DialogQuickActionService service = new DialogQuickActionService(
-                mock(DialogTicketLifecycleService.class),
+                legacyLifecycle(),
                 dialogLookupReadService,
                 legacyResponsibility(),
                 dialogParticipantService,
@@ -1326,7 +1326,7 @@ class DialogQuickActionServiceTest {
         NotificationService notificationService = mock(NotificationService.class);
 
         DialogQuickActionService service = new DialogQuickActionService(
-                mock(DialogTicketLifecycleService.class),
+                legacyLifecycle(),
                 dialogLookupReadService,
                 legacyResponsibility(),
                 dialogParticipantService,
@@ -1357,7 +1357,7 @@ class DialogQuickActionServiceTest {
     void rejectedOrNoopAssignmentCannotRunParticipantAiNotificationOrSuccessWorkflow(String boundary) {
         var lookup=mock(DialogLookupReadService.class);var assignment=legacyResponsibility();var participants=mock(DialogParticipantService.class);
         var ai=mock(DialogAiAssistantService.class);var notifications=mock(NotificationService.class);var events=mock(UiEventStreamService.class);
-        var service=new DialogQuickActionService(mock(DialogTicketLifecycleService.class),lookup,assignment,participants,mock(DialogReplyService.class),
+        var service=new DialogQuickActionService(legacyLifecycle(),lookup,assignment,participants,mock(DialogReplyService.class),
             mock(DialogNotificationService.class),ai,notifications,events,mock(AttachmentService.class));
         if(boundary.equals("early"))when(assignment.canAssignLegacyResponsible("SCOPED")).thenReturn(false);
         else {
@@ -1372,6 +1372,13 @@ class DialogQuickActionServiceTest {
         if(boundary.equals("early"))org.mockito.Mockito.verifyNoInteractions(lookup,participants);
         else verify(participants,never()).removeParticipant(org.mockito.ArgumentMatchers.anyString(),org.mockito.ArgumentMatchers.anyString());
         org.mockito.Mockito.verifyNoInteractions(ai,notifications,events);
+    }
+
+    private DialogTicketLifecycleService legacyLifecycle() {
+        var lifecycle=mock(DialogTicketLifecycleService.class);
+        // These unit fixtures exercise an already admitted UNRESOLVED/pre-strict command.
+        when(lifecycle.canMutateLegacyTicket(org.mockito.ArgumentMatchers.anyString())).thenReturn(true);
+        return lifecycle;
     }
 
     private DialogResponsibilityService legacyResponsibility() {

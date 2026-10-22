@@ -211,15 +211,19 @@ class DialogTicketLifecycleServiceTest {
     private void createSchema() {
         jdbcTemplate.execute("""
                 CREATE TABLE tickets (
-                    user_id INTEGER,
+                    user_id BIGINT,
                     ticket_id TEXT,
                     status TEXT,
                     resolved_at TIMESTAMPTZ,
                     resolved_by TEXT,
-                    channel_id INTEGER,
+                    channel_id BIGINT,
                     closed_count INTEGER,
                     reopen_count INTEGER,
                     last_reopen_at TIMESTAMPTZ,
+                    business_id BIGINT,
+                    is_general BOOLEAN DEFAULT FALSE,
+                    ticket_public_id TEXT DEFAULT md5(random()::text),
+                    responsibility_revision BIGINT DEFAULT 0,
                     PRIMARY KEY (user_id, ticket_id)
                 )
                 """);

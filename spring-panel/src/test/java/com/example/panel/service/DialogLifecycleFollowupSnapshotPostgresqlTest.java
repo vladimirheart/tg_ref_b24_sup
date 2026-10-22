@@ -55,7 +55,7 @@ class DialogLifecycleFollowupSnapshotPostgresqlTest {
                 CREATE TABLE tickets(user_id BIGINT NOT NULL,ticket_id VARCHAR(255) NOT NULL,
                     status TEXT DEFAULT 'pending',resolved_at TIMESTAMPTZ,resolved_by TEXT,channel_id BIGINT,
                     closed_count INTEGER DEFAULT 0,reopen_count INTEGER DEFAULT 0,last_reopen_at TIMESTAMPTZ,
-                    PRIMARY KEY(user_id,ticket_id),UNIQUE(ticket_id,channel_id))
+                    business_id BIGINT,is_general BOOLEAN DEFAULT FALSE,PRIMARY KEY(user_id,ticket_id),UNIQUE(ticket_id,channel_id))
                 """);
         jdbc.execute("""
                 CREATE TABLE ticket_categories(id BIGSERIAL PRIMARY KEY,ticket_id TEXT NOT NULL,
@@ -159,7 +159,8 @@ class DialogLifecycleFollowupSnapshotPostgresqlTest {
             if (!site.read() && site.matches(sql)) {
                 hits.incrementAndGet();
                 Object[] args = (Object[]) call.getRawArguments()[1];
-                assertThat(args).hasSize(site.bindings).contains(id);
+                assertThat(args).hasSize(site.bindings+1).contains(id);
+                assertThat(args[args.length-1]).isEqualTo(false);
                 invalidate.run();
                 Object count = call.callRealMethod();
                 result.set(count);
@@ -172,7 +173,7 @@ class DialogLifecycleFollowupSnapshotPostgresqlTest {
             if (site.read() && site.matches(sql)) {
                 hits.incrementAndGet();
                 Object[] args = (Object[]) call.getRawArguments()[2];
-                assertThat(args).containsExactly(id);
+                assertThat(args).containsExactly(id,false);
                 invalidate.run();
                 Object value = call.callRealMethod();
                 result.set(value);

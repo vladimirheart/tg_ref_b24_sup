@@ -268,6 +268,9 @@ public class DialogQuickActionService {
                                              String operator,
                                              List<String> categories) {
         DialogResolveResult result = dialogTicketLifecycleService.resolveTicket(ticketId, operator, categories);
+        if (result.exists() && !dialogTicketLifecycleService.canMutateLegacyTicket(ticketId)) {
+            return new DialogResolveResult(false, false, null);
+        }
         if (result.updated()) {
             dialogAiAssistantService.clearProcessing(ticketId, "resolved", null);
             dialogNotificationService.notifyResolved(ticketId);
@@ -284,6 +287,9 @@ public class DialogQuickActionService {
 
     public DialogResolveResult reopenTicket(String ticketId, String operator) {
         DialogResolveResult result = dialogTicketLifecycleService.reopenTicket(ticketId, operator);
+        if (result.exists() && !dialogTicketLifecycleService.canMutateLegacyTicket(ticketId)) {
+            return new DialogResolveResult(false, false, null);
+        }
         if (result.updated()) {
             dialogAiAssistantService.clearProcessing(ticketId, "reopened", null);
             dialogNotificationService.notifyReopened(ticketId);
@@ -306,7 +312,13 @@ public class DialogQuickActionService {
             return new DialogCategoryUpdateResult(false, List.of());
         }
         List<String> normalizedCategories = normalizeCategories(categories);
+        if (!dialogTicketLifecycleService.canMutateLegacyTicket(ticketId)) {
+            return new DialogCategoryUpdateResult(false, List.of());
+        }
         dialogTicketLifecycleService.setTicketCategories(ticketId, normalizedCategories);
+        if (!dialogTicketLifecycleService.canMutateLegacyTicket(ticketId)) {
+            return new DialogCategoryUpdateResult(false, List.of());
+        }
         notifyDialogParticipantsSafely(
                 ticketId,
                 "В обращении " + ticketId + " обновлены категории",
@@ -323,6 +335,9 @@ public class DialogQuickActionService {
         Optional<DialogListItem> dialog = dialogLookupReadService.findDialog(ticketId, operator);
         if (dialog.isEmpty()) {
             return new DialogSpamResult(false, false, "Диалог не найден", null, List.of());
+        }
+        if (!dialogTicketLifecycleService.canMutateLegacyTicket(ticketId)) {
+            return new DialogSpamResult(false, false, "Диалог недоступен", null, List.of());
         }
         String userId = dialog.get().userId() != null ? String.valueOf(dialog.get().userId()) : null;
         if (!StringUtils.hasText(userId)) {
@@ -347,6 +362,9 @@ public class DialogQuickActionService {
 
         List<String> categories = mergeCategoriesWithSpam(dialog.get().categories());
         dialogTicketLifecycleService.setTicketCategories(ticketId, categories);
+        if (!dialogTicketLifecycleService.canMutateLegacyTicket(ticketId)) {
+            return new DialogSpamResult(false, false, "Диалог недоступен", null, List.of());
+        }
         notifyDialogParticipantsSafely(
                 ticketId,
                 "Обращение " + ticketId + " помечено как спам",

@@ -27,7 +27,7 @@ class DialogAuditSnapshotPostgresqlTest {
 
     private Fixture fixture(String owner) {
         JdbcTemplate jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType("audit_snapshot");
-        jdbc.execute("CREATE TABLE tickets(user_id BIGINT,ticket_id TEXT,PRIMARY KEY(user_id,ticket_id))");
+        jdbc.execute("CREATE TABLE tickets(user_id BIGINT,ticket_id TEXT,business_id BIGINT,is_general BOOLEAN DEFAULT FALSE,PRIMARY KEY(user_id,ticket_id))");
         jdbc.execute("""
                 CREATE TABLE IF NOT EXISTS dialog_action_audit (
                     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -60,9 +60,9 @@ class DialogAuditSnapshotPostgresqlTest {
                     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                 );
                 """);
-        jdbc.update("INSERT INTO tickets VALUES (42,?)", owner);
+        jdbc.update("INSERT INTO tickets(user_id,ticket_id) VALUES (42,?)", owner);
         if (!owner.equals(owner.trim())) {
-            jdbc.update("INSERT INTO tickets VALUES (88,?)", owner.trim());
+            jdbc.update("INSERT INTO tickets(user_id,ticket_id) VALUES (88,?)", owner.trim());
             seedAction(jdbc, owner.trim(), "resolve", "success");
             seedTelemetry(jdbc, owner.trim());
         }
@@ -89,7 +89,7 @@ class DialogAuditSnapshotPostgresqlTest {
             if (unique && proofs.incrementAndGet() == 1) {
                 // Изменение родителя фиксируется до следующего audit SQL.
                 if ("duplicate".equals(condition)) {
-                    fixture.jdbc().update("INSERT INTO tickets VALUES (99,?)", owner);
+                    fixture.jdbc().update("INSERT INTO tickets(user_id,ticket_id) VALUES (99,?)", owner);
                 } else if ("missing".equals(condition)) {
                     fixture.jdbc().update("DELETE FROM tickets WHERE ticket_id=?", owner);
                 } else {
@@ -275,7 +275,7 @@ class DialogAuditSnapshotPostgresqlTest {
     @ValueSource(strings = {" ", "missing", " T ", "duplicate"})
     void unresolvedExactIdCannotAppendActionOrReadExistingOrphanAudit(String requested) {
         Fixture fixture = fixture("T");
-        fixture.jdbc().update("INSERT INTO tickets VALUES (98,'duplicate'),(99,'duplicate')");
+        fixture.jdbc().update("INSERT INTO tickets(user_id,ticket_id) VALUES (98,'duplicate'),(99,'duplicate')");
         if (requested != null && !requested.isBlank()) seedAction(fixture.jdbc(), requested, "resolve", "success");
         var before = fixture.jdbc().queryForList("SELECT * FROM dialog_action_audit ORDER BY id");
 

@@ -529,6 +529,29 @@ class BusinessTicketAssignmentHttpPostgresTest {
         assertThat(events()).isZero();assertThat(outbox()).isZero();assertThat(revision()).isZero();
     }
 
+    static java.util.stream.Stream<org.junit.jupiter.params.provider.Arguments> legacyLifecycleRoutes() {
+        return java.util.stream.Stream.of("business","general","strict").flatMap(kind->
+            java.util.stream.Stream.of("resolve","reopen","categories","spam").flatMap(action->
+                java.util.stream.Stream.of("path","query").map(route->org.junit.jupiter.params.provider.Arguments.of(kind,action,route))));
+    }
+    @ParameterizedTest @org.junit.jupiter.params.provider.MethodSource("legacyLifecycleRoutes")
+    void rawLifecycleRoutesCannotMutateScopedOrStrictRootEvenForSystemAdmin(String kind,String action,String route) throws Exception {
+        flags.setStrictReadScope(false);
+        if(route.equals("path")){String safe="r166-"+publicId;jdbc.update("UPDATE tickets SET ticket_id=? WHERE ticket_id=?",safe,raw);raw=safe;}
+        if(kind.equals("business"))flags.getFoundation().setEnabled(false);
+        if(kind.equals("general"))jdbc.update("UPDATE tickets SET business_id=NULL,is_general=TRUE,general_selection_source='MANUAL' WHERE ticket_id=?",raw);
+        if(kind.equals("strict")){jdbc.update("UPDATE tickets SET business_id=NULL WHERE ticket_id=?",raw);flags.setStrictReadScope(true);}
+        jdbc.update("UPDATE tickets SET status=? WHERE ticket_id=?",action.equals("reopen")?"closed":"pending",raw);
+        jdbc.update("INSERT INTO ticket_categories(ticket_id,category) VALUES(?,'Original')",raw);
+        var tables=List.of("tickets","ticket_categories","ticket_active","pending_feedback_requests","ticket_responsibles","dialog_action_audit","notifications","ui_event_outbox");
+        var before=new LinkedHashMap<String,List<Map<String,Object>>>();
+        for(String table:tables)before.put(table,jdbc.queryForList("SELECT * FROM "+table+" WHERE ticket_id=?",raw));
+        var request=route.equals("path")?post("/api/dialogs/{id}/"+action,raw):post("/api/dialog-ticket/"+action).param("ticketId",raw);
+        mvc.perform(auth(request,actor,"PAGE_DIALOGS","ROLE_ADMIN").with(csrf()).contentType("application/json").content("{\"categories\":[\"New\"],\"reason\":\"Spam\"}"))
+            .andExpect(status().isNotFound()).andExpect(jsonPath("$.success").value(false));
+        for(String table:tables)assertThat(jdbc.queryForList("SELECT * FROM "+table+" WHERE ticket_id=?",raw)).as(table).isEqualTo(before.get(table));
+        assertThat(memberEvents()).isZero();assertThat(events()).isZero();assertThat(outbox()).isZero();assertThat(revision()).isZero();
+    }
     @Test void rawCapabilityCannotBeReusedAfterTheRootBecomesBusiness() throws Exception {
         flags.setStrictReadScope(false);jdbc.update("UPDATE tickets SET business_id=NULL WHERE ticket_id=?",raw);
         var once=new java.util.concurrent.atomic.AtomicBoolean();

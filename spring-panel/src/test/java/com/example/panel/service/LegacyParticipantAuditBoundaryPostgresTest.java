@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 import com.example.panel.config.MultibusinessFeatureFlags;
+import org.junit.jupiter.api.Test;
 import com.example.panel.support.PostgresqlJdbcTestSupport;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
@@ -129,7 +130,8 @@ class LegacyParticipantAuditBoundaryPostgresTest {
         verifyNoInteractions(jdbc, guard);
     }
 
-    @ParameterizedTest @ValueSource(strings = {"resolve", "first_response_overdue_notification"})
+    // R166 explicitly protects resolve; an unrelated reply action keeps this generic audit contract.
+    @ParameterizedTest @ValueSource(strings = {"operator_reply", "first_response_overdue_notification"})
     void unrelatedAuditAndSuccessfulLookupKeepTheirExistingContract(String action) {
         var f = fixture();
         mutate(f, "business");
@@ -137,5 +139,16 @@ class LegacyParticipantAuditBoundaryPostgresTest {
         f.service.logDialogActionAudit(RAW, "actor", action, "success", "unchanged");
         assertThat(f.service.hasSuccessfulDialogAction(RAW, action)).isTrue();
         assertThat(f.jdbc.queryForObject("SELECT count(*) FROM dialog_action_audit WHERE ticket_id=? AND action=?", Long.class, RAW, action)).isEqualTo(1L);
+    }
+
+    @Test void historicalResolveAuditRemainsReadableButCannotBeAppendedForBusinessOrStrict() {
+        var f = fixture();
+        f.jdbc.update("INSERT INTO dialog_action_audit(ticket_id,actor,action,result,detail,created_at) VALUES (?,'old','resolve','success','historical',CURRENT_TIMESTAMP)", RAW);
+        var before = f.jdbc.queryForList("SELECT * FROM dialog_action_audit ORDER BY id");
+        mutate(f, "business");
+        mutate(f, "strict");
+        f.service.logDialogActionAudit(RAW, "actor", "resolve", "success", "must not append");
+        assertThat(f.service.hasSuccessfulDialogAction(RAW, "resolve")).isTrue();
+        assertThat(f.jdbc.queryForList("SELECT * FROM dialog_action_audit ORDER BY id")).isEqualTo(before);
     }
 }

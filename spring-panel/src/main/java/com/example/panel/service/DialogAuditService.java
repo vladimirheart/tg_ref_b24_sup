@@ -15,9 +15,10 @@ import java.util.stream.Collectors;
 public class DialogAuditService {
 
     private static final Logger log = LoggerFactory.getLogger(DialogAuditService.class);
-    // Legacy assignment and participant actions share this raw-audit namespace boundary.
-    private static final Set<String> LEGACY_ASSIGNMENT_ACTIONS = Set.of(
-            "take", "reassign", "participants_add", "participants_remove");
+    // Bare-ID assignment, participant and lifecycle actions share the legacy namespace boundary.
+    private static final Set<String> LEGACY_MUTATION_ACTIONS = Set.of(
+            "take", "reassign", "participants_add", "participants_remove",
+            "quick_close", "resolve", "reopen", "categories", "mark_spam");
 
     private final JdbcTemplate jdbcTemplate;
     private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
@@ -38,14 +39,14 @@ public class DialogAuditService {
         if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(action)) {
             return;
         }
-        boolean assignment = LEGACY_ASSIGNMENT_ACTIONS.contains(action.trim());
-        if(assignment&&flags!=null&&flags.isStrictReadScope())return;
+        boolean legacyMutation = LEGACY_MUTATION_ACTIONS.contains(action.trim());
+        if(legacyMutation&&flags!=null&&flags.isStrictReadScope())return;
         try {
             if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
                 return;
             }
             // The feature flag may have changed during the legacy owner probe.
-            if (assignment && flags != null && flags.isStrictReadScope()) return;
+            if (legacyMutation && flags != null && flags.isStrictReadScope()) return;
             jdbcTemplate.update("""
                     INSERT INTO dialog_action_audit (ticket_id, actor, action, result, detail, created_at)
                     SELECT audit_row.ticket_id, audit_row.actor, audit_row.action, audit_row.result,
@@ -56,7 +57,7 @@ public class DialogAuditService {
                                   FROM tickets unique_ticket
                                  WHERE unique_ticket.ticket_id = audit_row.ticket_id)
                     %s
-                    """.formatted(assignment?"AND EXISTS(SELECT 1 FROM tickets legacy_owner WHERE legacy_owner.ticket_id=audit_row.ticket_id AND legacy_owner.is_general=FALSE AND legacy_owner.business_id IS NULL)":""),
+                    """.formatted(legacyMutation?"AND EXISTS(SELECT 1 FROM tickets legacy_owner WHERE legacy_owner.ticket_id=audit_row.ticket_id AND legacy_owner.is_general=FALSE AND legacy_owner.business_id IS NULL)":""),
                     ticketId,
                     StringUtils.hasText(actor) ? actor.trim() : "anonymous",
                     action.trim(),
