@@ -67,7 +67,7 @@ async function main() {
           if (new URL(route.request().url()).pathname === '/api/dashboard/data') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
             available_restaurants: ['Центральный', 'Северный'], stats: { current: { total: 128 }, previous: { total: 112 } },
             time_stats: { formatted_total: '24 ч 15 мин', formatted_avg: '11 мин', resolved_count: 116 },
-            staff_time_stats: [], activity_stats: null,
+            staff_time_stats: [{ name: 'Оператор 1', total_minutes: 120, resolved_count: 12, formatted_total: '2 ч', formatted_avg: '10 мин', formatted_avg_response: '3 мин' }, { name: 'Оператор 2', total_minutes: 90, resolved_count: 9, formatted_total: '1 ч 30 мин', formatted_avg: '10 мин', formatted_avg_response: '4 мин' }], activity_stats: null,
             charts: { channel: { Telegram: 72, VK: 36, MAX: 20 }, business: { Поддержка: 86, Доставка: 42 }, network: { Центральный: 78, Северный: 50 }, category: { 'Техническая поддержка': 62, 'Вопрос по заказу': 40, Прочее: 26 }, bot_product: { Панель: 72, Приложение: 56 }, city: { Москва: 86, Казань: 42 }, restaurant: { Центральный: 78, Северный: 50 } }
           }) });
           if (!['GET', 'HEAD'].includes(route.request().method())) return route.fulfill({ status: 409, contentType: 'application/json', body: '{}' });
@@ -100,7 +100,14 @@ async function main() {
               viewportOverflow: document.documentElement.scrollWidth > innerWidth + 1,
               smallTouchTargets: matchMedia('(pointer: coarse)').matches ? [...document.querySelectorAll('.btn:not(.btn-link), .form-control:not(textarea), .form-select')].filter(el => el.checkVisibility() && el.getBoundingClientRect().height < 43.5).map(el => el.className) : [],
               mainOutsideViewport: rect ? rect.right > innerWidth + 1 || rect.left < -1 : false,
-              contrast: labels };
+              contrast: labels,
+              visualOverrides: [...document.querySelectorAll('[class*="card"], [class*="panel"], [class*="toolbar"], [class*="surface"], [class*="shell"], .staff-time-item, .staff-time-avatar, .staff-time-detail')].filter(el => el.checkVisibility() && getComputedStyle(el).visibility !== 'hidden' && getComputedStyle(el).opacity !== '0').flatMap(el => {
+                const style = getComputedStyle(el);
+                const gradient = /gradient\(/.test(style.backgroundImage);
+                const shadow = style.boxShadow !== 'none' && !el.closest('.modal, .dropdown-menu, .popover, .offcanvas') && !el.contains(document.activeElement);
+                const blur = style.backdropFilter !== 'none';
+                return gradient || shadow || blur ? [{ tag: el.tagName, class: el.className, id: el.id, gradient: gradient ? style.backgroundImage : null, shadow: shadow ? style.boxShadow : null, blur: blur ? style.backdropFilter : null }] : [];
+              }) };
           });
           await page.screenshot({ path: path.join(output, label + '.png'), fullPage: false });
           if (statesOnly) {
@@ -161,6 +168,7 @@ async function main() {
     missingTokens: report.filter(r => !r.surfaceSoft).map(r => r.view),
     lowContrast: report.flatMap(r => r.contrast.filter(c => c.ratio < 4.5).map(c => ({ view:r.view, theme:r.theme, text:c.text, ratio:c.ratio }))) }, null, 2));
   assert(report.every(r => !r.viewportOverflow && !r.mainOutsideViewport && r.surfaceSoft), 'Не должно быть viewport overflow и отсутствующих токенов');
+  assert(report.every(r => !r.visualOverrides.length), 'Карточки и панели не должны сохранять отдельные градиенты, blur и тени вне overlay/focus состояний');
   assert(report.every(r => !r.smallTouchTargets.length), 'Сенсорные контролы должны быть не ниже 44px');
   assert(report.every(r => r.contrast.every(c => c.ratio >= 4.5)), 'Контраст заголовков и KPI должен быть не ниже 4.5:1');
   assert(modalReport.every(r => r.visible && r.focusWithin), 'Модальные окна открываются и удерживают клавиатурный фокус');

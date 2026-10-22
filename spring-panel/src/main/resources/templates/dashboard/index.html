@@ -39,10 +39,11 @@
 		  rel="stylesheet">
 
 	<link rel="stylesheet" th:href="@{/css/style.css(v='20261022-neutral-ops-r7')}">
-	<link rel="stylesheet" th:href="@{/css/app.css(v='20261022-neutral-ops-r8')}">
+	<link rel="stylesheet" th:href="@{/css/app.css(v='20261022-neutral-ops-r9')}">
 	<link rel="stylesheet" th:href="@{/css/sidebar.css(v='20261022-neutral-ops-r7')}">
   <script src="/vendor/chart.js/4.5.1/chart.umd.min.js"></script>
   <script th:src="@{/js/dashboard-activity-trend.js(v='20261022-neutral-ops-r8')}"></script>
+  <script th:src="@{/js/dashboard-chart-presentation.js(v='20261022-neutral-ops-r9')}"></script>
   <script src="/vendor/jquery/3.6.0/jquery.min.js"></script>
   <script src="/vendor/select2/4.1.0-rc.0/select2.min.js"></script>
   <script src="/vendor/flatpickr/4.6.13/flatpickr.min.js"></script>
@@ -283,14 +284,15 @@
                   <h3 class="chart-panel-title">Нагрузка по сотрудникам</h3>
                   <button type="button" class="panel-info-button" aria-label="Описание блока нагрузки по сотрудникам">
                     i
-                    <span class="panel-info-tooltip">Сравнение трудозатрат и количества закрытых заявок по команде в одном графике.</span>
+                    <span class="panel-info-tooltip">Сравнение времени от создания до закрытия и количества закрытых обращений. Учитываются записи с обеими датами.</span>
                   </button>
                 </div>
               </div>
             </div>
             <div class="chart-container">
-              <canvas id="staffWorkloadChart"></canvas>
+              <canvas id="staffWorkloadChart" role="img" aria-label="Минуты обработки и количество закрытых обращений по сотрудникам"></canvas>
             </div>
+            <p class="chart-panel-description">Учитываются обращения с датами создания и закрытия. Слева — минуты, справа — закрытые обращения.</p>
           </article>
 
           <article class="chart-panel data-panel ops-panel" data-panel-id="business-chart">
@@ -733,16 +735,13 @@
 		getChartCssColor('--chart-2'),
 		getChartCssColor('--chart-3'),
 		getChartCssColor('--chart-4'),
-		getChartCssColor('--chart-5'),
-		getChartCssColor('--color-secondary'),
-		getChartCssColor('--color-accent'),
-		getChartCssColor('--color-primary')
+		getChartCssColor('--chart-5')
 	  ];
       if (variant === 'warm') {
-        return [base[2], base[6], base[3], base[7], base[0], base[4], base[1], base[5]];
+        return [base[2], base[0], base[3], base[1], base[4]];
       }
       if (variant === 'cool') {
-        return [base[1], base[5], base[0], base[4], base[7], base[2], base[3], base[6]];
+        return [base[1], base[0], base[4], base[3], base[2]];
       }
       return base;
     }
@@ -790,7 +789,14 @@
             y: {
               grid: { display: false, drawBorder: false },
               border: { display: false },
-              ticks: { color: theme.text }
+              ticks: {
+                color: theme.text,
+                callback: function(value) {
+                  const label = this.getLabelForValue(value);
+                  const limit = this.chart.width < 520 ? 12 : 32;
+                  return label.length > limit ? label.slice(0, limit - 1) + '…' : label;
+                }
+              }
             }
           }
         : {
@@ -2233,58 +2239,6 @@ function updateStaffTimeStats(staffStats) {
     }
 
     // Пплагин подписей для H-bar
-    const BarValueLabels = {
-      id: 'BarValueLabels',
-      afterDatasetsDraw(chart) {
-        const {ctx, chartArea} = chart;
-        const ds = chart.data.datasets[0];
-        if (!ds) return;
-        const meta = chart.getDatasetMeta(0);
-        const data = ds.data || [];
-
-        const visibleTotal = data.reduce((sum, value) => sum + (Number(value) || 0), 0);
-
-        ctx.save();
-        ctx.font = '600 12px "DM Sans", sans-serif';
-        ctx.fillStyle = getChartTheme().text;
-
-        meta.data.forEach((barEl, i) => {
-          if (!barEl) return;
-          const val = data[i] ?? 0;
-          const pct = visibleTotal > 0 ? ((val / visibleTotal) * 100).toFixed(1) : '0.0';
-          const text = `${val} (${pct}%)`;
-          const isHorizontal = chart.options.indexAxis === 'y';
-          const pad = 6;
-          const tw = ctx.measureText(text).width;
-
-          if (isHorizontal) {
-            ctx.textBaseline = 'middle';
-            ctx.textAlign = 'left';
-            let x = barEl.base + pad;
-            const y = barEl.y;
-            const maxX = chartArea.right - pad;
-            if (x + tw > maxX) x = Math.max(barEl.x - tw - pad, chartArea.left + pad);
-            if (x < chartArea.left + pad) x = chartArea.left + pad;
-            if (x + tw > chartArea.right - pad) x = chartArea.right - pad - tw;
-            ctx.fillText(text, x, y);
-            return;
-          }
-
-          ctx.textBaseline = 'bottom';
-          ctx.textAlign = 'center';
-          const x = barEl.x;
-          let y = barEl.y - 8;
-          if (y < chartArea.top + 12) {
-            y = Math.min(barEl.base - 12, chartArea.bottom - 8);
-          }
-          ctx.fillText(text, x, y);
-        });
-
-        ctx.restore();
-      }
-    };
-
-    // Обновление всех графиков
     function updateCharts(chartData) {
         if (!chartData) {
             console.error('Нет данных для графиков');
@@ -2323,7 +2277,7 @@ function updateStaffTimeStats(staffStats) {
         });
         updateChart('restaurantChart', 'bar', chartData.restaurant, getChartPalette('warm'), true, {
           horizontal: true,
-          maxBars: 7
+          maxBars: 10
         });
     }
 
@@ -2574,8 +2528,13 @@ function updateChart(canvasId, type, data, backgroundColor, showValues = false, 
   const baseColors = limitedLabels.map((_, idx) => palette[idx % palette.length]);
   const chartType = type === 'pie' ? 'doughnut' : type;
   const isBar = chartType === 'bar';
-  const isHorizontalBar = isBar ? options.horizontal !== false : false;
+  const isHorizontalBar = isBar && (options.horizontal !== false || (limitedLabels.length > 4 && canvas.parentElement.clientWidth < 520));
   const theme = getChartTheme();
+  const chartFontFamily = getComputedStyle(document.body).fontFamily;
+  canvas.parentElement.style.setProperty('--chart-min-height', `${isHorizontalBar ? Math.max(240, limitedLabels.length * 30 + 40) : 240}px`);
+  const valuePadding = showValues && isBar
+    ? window.IguanaChartPresentation.labelPadding(canvas.getContext('2d'), limitedValues, isHorizontalBar, chartFontFamily)
+    : { top: 8, right: 12, bottom: 8, left: 8 };
   const fills = buildChartFills(canvas, baseColors, isHorizontalBar ? 'horizontal' : 'vertical');
   canvas.onclick = null;
 
@@ -2601,7 +2560,7 @@ function updateChart(canvasId, type, data, backgroundColor, showValues = false, 
       responsive: true,
       maintainAspectRatio: false,
       layout: {
-        padding: { top: 6, right: 12, bottom: 6, left: 6 }
+        padding: valuePadding
       },
       scales: isBar ? buildAxisOptions(isHorizontalBar) : undefined,
       interaction: {
@@ -2626,7 +2585,7 @@ function updateChart(canvasId, type, data, backgroundColor, showValues = false, 
       },
       animation: false
     },
-    plugins: (showValues && isBar) ? [BarValueLabels] : []
+    plugins: (showValues && isBar) ? [window.IguanaChartPresentation.valueLabelsPlugin(getChartTheme, chartFontFamily)] : []
   });
 }
 
@@ -2640,14 +2599,9 @@ function updateStaffWorkloadChart(staffStats) {
   }
 
   const parent = canvas.parentElement;
-  if (!staffStats || !Array.isArray(staffStats) || !staffStats.length) {
-    canvas.style.display = 'none';
-    if (parent && !parent.querySelector('.no-data-message')) {
-      const messageDiv = document.createElement('div');
-      messageDiv.className = 'text-center text-muted py-5 no-data-message';
-      messageDiv.textContent = 'Нет данных для отображения';
-      parent.appendChild(messageDiv);
-    }
+  if (!Array.isArray(staffStats) || !staffStats.some(staff => Number(staff.total_minutes) > 0 || Number(staff.resolved_count) > 0)) {
+    window.IguanaChartPresentation.showEmpty(canvas, 'Нет данных по сотрудникам за период',
+      'Для этого графика нужны обращения с датами создания и закрытия. Незакрытые обращения и записи без дат сюда не входят.');
     return;
   }
 
@@ -2689,10 +2643,10 @@ function updateStaffWorkloadChart(staffStats) {
           pointBackgroundColor: profile.lineColor,
           pointBorderColor: profile.pointBorder,
           pointBorderWidth: 2,
-          pointRadius: 0,
+          pointRadius: 4,
           pointHoverRadius: 5.5,
           borderWidth: 2,
-          fill: true,
+          fill: false,
           tension: 0.36,
           yAxisID: 'y1'
         }
@@ -2718,14 +2672,16 @@ function updateStaffWorkloadChart(staffStats) {
           beginAtZero: true,
           grid: { color: theme.grid, drawBorder: false },
           border: { display: false },
-          ticks: { color: theme.muted }
+          ticks: { color: theme.muted },
+          title: { display: true, text: 'Минуты', color: theme.muted }
         },
         y1: {
           beginAtZero: true,
           position: 'right',
           grid: { display: false, drawBorder: false },
           border: { display: false },
-          ticks: { color: theme.muted }
+          ticks: { color: theme.muted, precision: 0 },
+          title: { display: true, text: 'Закрыто', color: theme.muted }
         }
       },
       plugins: {

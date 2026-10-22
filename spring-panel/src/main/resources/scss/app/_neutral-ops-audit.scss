@@ -1,0 +1,38 @@
+/* 01-281 R9: остаточные оформления, найденные computed-style аудитом всего web UI. */
+body[data-ui-page] {
+  /* Bootstrap utilities используют !important и иначе перекрывают общий card contract. */
+  .card.shadow, .card.shadow-sm, .card.shadow-lg { box-shadow: none !important; }
+
+  /* Общий EditGuard раньше внедрял собственную светлую тему из JavaScript. */
+  .edit-guard-overlay { position: absolute; inset: 0; display: none; align-items: flex-start; justify-content: flex-end; padding: 1rem; background: transparent; pointer-events: none; z-index: 20; }
+  .edit-guard-overlay__message { font-size: 0.95rem; color: var(--color-text); text-align: left; background: var(--surface-card); border: 1px solid var(--color-border); border-radius: var(--control-radius); padding: 0.75rem 1rem; max-width: 18rem; }
+  .edit-guard-block[data-edit-locked='true'] .edit-guard-overlay { display: flex; pointer-events: auto; }
+  .edit-guard-block.edit-guard-dirty .edit-guard-toggle { border-color: var(--state-danger) !important; color: var(--state-danger) !important; }
+  .edit-guard-block[data-edit-locked='true'] [data-edit-guard-edit-visible] { display: none !important; }
+  .edit-guard-block.is-editing [data-edit-guard-edit-visible] { display: inline-flex !important; }
+}
+
+body[data-ui-page='public'].auth-wrapper .auth-card { box-shadow: none; }
+
+body[data-ui-page='dialogs'] .dialogs-toolbar-card > .card-body {
+  background: var(--surface-card);
+}
+
+body[data-ui-page='knowledge'] .kb-markdown-editor-toolbar {
+  background: var(--surface-soft);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+body[data-ui-page='dashboard'][data-ui-visual='neutral-ops'] {
+  .pie-chart-container { min-height: 240px; align-items: center; }
+  .pie-chart-wrapper { height: 240px; min-height: 240px; padding: 0; border: 0; border-radius: 0; background: transparent; }
+  .pie-chart-legend-item { margin: 0; padding: 9px 0; border: 0; border-bottom: 1px solid var(--color-border); border-radius: 0; background: transparent; }
+  .pie-chart-legend-item:hover { transform: none; background: var(--surface-interactive); }
+  .pie-chart-legend-label { flex-wrap: wrap; gap: 3px 10px; }
+  .pie-chart-legend-color { flex: 0 0 8px; }
+  .staff-time-stats { padding: 0; border: 0; border-radius: 0; background: transparent; }
+  .staff-time-item { border-radius: var(--control-radius); background: var(--surface-card); box-shadow: none; }
+  .staff-time-avatar { border-radius: var(--control-radius); background: var(--surface-selected); }
+  .staff-time-detail { border-radius: var(--control-radius); background: var(--surface-soft); }
+}

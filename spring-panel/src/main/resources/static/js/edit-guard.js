@@ -7,57 +7,10 @@
 
   const ACTIVE_BLOCKS = new Set();
   let globalDirty = false;
-  let styleInjected = false;
   let modalInstance = null;
   let modalElement = null;
   let pendingResolver = null;
   let pendingBlock = null;
-
-  function injectStyles() {
-    if (styleInjected) return;
-    styleInjected = true;
-    const style = document.createElement('style');
-    style.id = 'edit-guard-style';
-    style.textContent = `
-      .edit-guard-overlay {
-        position: absolute;
-        inset: 0;
-        display: none;
-        align-items: flex-start;
-        justify-content: flex-end;
-        padding: 1rem;
-        background: transparent;
-        pointer-events: none;
-        z-index: 20;
-      }
-      .edit-guard-overlay__message {
-        font-size: 0.95rem;
-        color: #495057;
-        text-align: left;
-        background: rgba(255, 255, 255, 0.95);
-        border: 1px solid rgba(222, 226, 230, 0.9);
-        border-radius: 0.75rem;
-        padding: 0.75rem 1rem;
-        box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.08);
-        max-width: 18rem;
-      }
-      .edit-guard-block[data-edit-locked="true"] .edit-guard-overlay {
-        display: flex;
-        pointer-events: auto;
-      }
-      .edit-guard-block.edit-guard-dirty .edit-guard-toggle {
-        border-color: rgba(220, 53, 69, 0.45) !important;
-        color: #dc3545 !important;
-      }
-      .edit-guard-block[data-edit-locked="true"] [data-edit-guard-edit-visible] {
-        display: none !important;
-      }
-      .edit-guard-block.is-editing [data-edit-guard-edit-visible] {
-        display: inline-flex !important;
-      }
-    `;
-    document.head.appendChild(style);
-  }
 
   function ensureModal() {
     if (modalElement) {
@@ -156,7 +109,6 @@
       if (!(this.element instanceof HTMLElement)) {
         return;
       }
-      injectStyles();
       this.element.classList.add('edit-guard-block');
       this.element.setAttribute('data-edit-locked', 'true');
       this.header = this.element.querySelector('.card-header, [data-edit-guard-header]') || this.element;

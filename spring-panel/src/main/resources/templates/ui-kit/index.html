@@ -27,7 +27,7 @@
       rel="stylesheet">
 
   <link th:href="@{/css/style.css(v='20261022-neutral-ops-r7')}" rel="stylesheet" />
-  <link th:href="@{/css/app.css(v='20261022-neutral-ops-r7')}" rel="stylesheet" />
+  <link th:href="@{/css/app.css(v='20261022-neutral-ops-r9')}" rel="stylesheet" />
   <link th:href="@{/css/sidebar.css(v='20261022-neutral-ops-r7')}" rel="stylesheet" />
 
   <script th:src="@{/js/common.js}"></script>
@@ -377,23 +377,23 @@
       </div>
 
       <div class="ui-kit-demo-row">
-        <span class="ui-kit-status" style="--status-color: #3a87a6">
+        <span class="ui-kit-status" style="--status-color: var(--chart-1)">
           Сотрудник локации
         </span>
 
-        <span class="ui-kit-status" style="--status-color: #6d6aae">
+        <span class="ui-kit-status" style="--status-color: var(--state-ai)">
           Менеджер
         </span>
 
-        <span class="ui-kit-status" style="--status-color: #e6a23c">
+        <span class="ui-kit-status" style="--status-color: var(--state-warning)">
           VIP
         </span>
 
-        <span class="ui-kit-status" style="--status-color: #2d8b69">
+        <span class="ui-kit-status" style="--status-color: var(--state-success)">
           Постоянный клиент
         </span>
 
-        <span class="ui-kit-status" style="--status-color: #c85d58">
+        <span class="ui-kit-status" style="--status-color: var(--state-danger)">
           Проблемный клиент
         </span>
       </div>

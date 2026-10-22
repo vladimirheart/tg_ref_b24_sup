@@ -518,7 +518,11 @@ public class DashboardAnalyticsService {
             // try offset datetime format
         }
         try {
-            return java.time.OffsetDateTime.parse(normalized).atZoneSameInstant(DEFAULT_ZONE).toLocalDateTime();
+            // PostgreSQL JDBC returns timestamptz with a space, fractional seconds and +HH / +HHMM.
+            String offsetDateTime = normalized.replace(' ', 'T')
+                    .replaceFirst("([+-]\\d{2})$", "$1:00")
+                    .replaceFirst("([+-]\\d{2})(\\d{2})$", "$1:$2");
+            return java.time.OffsetDateTime.parse(offsetDateTime).atZoneSameInstant(DEFAULT_ZONE).toLocalDateTime();
         } catch (DateTimeParseException ignored) {
             return null;
         }

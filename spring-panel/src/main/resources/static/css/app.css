@@ -1760,8 +1760,6 @@ body[data-ui-page=dialogs] .dialog-open-btn {
 /* 01-272 dialogs corrective S2 */
 body[data-ui-page=dialogs] .dialog-open-icon {
   padding: 0 !important;
-  border: 0 !important;
-  background: transparent !important;
   color: var(--primary) !important;
   box-shadow: none !important;
 }
@@ -16965,6 +16963,7 @@ body[data-ui-page=workforce] .shift-check-in-value {
 
 /* 01-281: правки по приёмке на заполненных экранах, а не только на empty states. */
 body[data-ui-page=settings] #locationsModal .location-tree-toggle,
+body[data-ui-page=dialogs] .dialog-table .dialog-open-icon,
 body[data-ui-page=dialogs] .dialog-table .dialog-actions-toggle {
   display: inline-flex;
   align-items: center;
@@ -16977,6 +16976,12 @@ body[data-ui-page=dialogs] .dialog-table .dialog-actions-toggle {
   padding: 0;
   line-height: 1;
   border-radius: 5px;
+}
+
+/* Одинаковый видимый контур, а не только одинаковый bounding box. */
+body[data-ui-page=dialogs] .dialog-table :is(.dialog-open-icon, .dialog-actions-toggle) {
+  border: 1px solid var(--color-border);
+  background: var(--surface-card);
 }
 
 body[data-ui-page=dialogs] #dialogDetailsModal .modal-dialog {
@@ -17119,27 +17124,23 @@ body[data-ui-page=dialogs] #dialogDetailsModal #dialogDetailsHistory .chat-messa
   box-shadow: none;
 }
 body[data-ui-page=dialogs] #dialogDetailsModal #dialogDetailsHistory .chat-message-row.support {
-  flex-direction: row-reverse;
-}
-body[data-ui-page=dialogs] #dialogDetailsModal #dialogDetailsHistory .support > .chat-message-avatar {
-  display: none;
+  flex-direction: row;
 }
 body[data-ui-page=dialogs] #dialogDetailsModal #dialogDetailsHistory .support .chat-message-stack {
-  align-items: flex-end;
+  align-items: flex-start;
 }
 body[data-ui-page=dialogs] #dialogDetailsModal #dialogDetailsHistory .support .chat-message-meta-line {
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 body[data-ui-page=dialogs] #dialogDetailsModal #dialogDetailsHistory .support .chat-message-bubble-line {
-  flex-direction: row-reverse;
+  flex-direction: row;
 }
 body[data-ui-page=dialogs] #dialogDetailsModal #dialogDetailsHistory .support .chat-message-bubble-line > .chat-message {
-  margin-left: auto;
-  margin-right: 0;
+  margin-left: 0;
+  margin-right: auto;
 }
 body[data-ui-page=dialogs] #dialogDetailsModal #dialogDetailsHistory .chat-message.support {
   border-color: transparent;
-  border-radius: 10px 4px 10px 10px;
   background: var(--primary);
   color: var(--primary-foreground);
 }
@@ -17152,22 +17153,26 @@ body[data-ui-page=dialogs] #dialogDetailsModal #dialogDetailsHistory .chat-messa
 }
 body[data-ui-page=dialogs] #dialogDetailsModal #dialogDetailsHistory .chat-message.support .chat-message-reply-source {
   background: color-mix(in srgb, var(--primary-foreground) 12%, transparent);
-  border-color: currentColor;
+  border: 0;
+  border-left: 2px solid currentColor !important;
+  border-radius: 3px;
+  padding: 4px 8px;
   font-weight: 400;
   text-align: start;
 }
 body[data-ui-page=dialogs] #dialogDetailsModal #dialogDetailsHistory .chat-message-row.system {
-  justify-content: center;
+  justify-content: flex-start;
+  padding-left: 36px;
 }
 body[data-ui-page=dialogs] #dialogDetailsModal #dialogDetailsHistory .system .chat-message-avatar {
   display: none;
 }
 body[data-ui-page=dialogs] #dialogDetailsModal #dialogDetailsHistory .system .chat-message-stack {
-  align-items: center;
+  align-items: flex-start;
   max-width: 90%;
 }
 body[data-ui-page=dialogs] #dialogDetailsModal #dialogDetailsHistory .system .chat-message-meta-line {
-  justify-content: center;
+  justify-content: flex-start;
 }
 body[data-ui-page=dialogs] #dialogDetailsModal #dialogDetailsHistory .system .chat-message-meta-sender {
   color: var(--color-text-muted);
@@ -17179,7 +17184,7 @@ body[data-ui-page=dialogs] #dialogDetailsModal #dialogDetailsHistory .chat-messa
   background: transparent;
   color: var(--color-text-muted);
   font-size: 0.75em;
-  text-align: center;
+  text-align: start;
 }
 body[data-ui-page=dialogs] #dialogDetailsModal .dialog-history-load-previous {
   min-height: 28px;
@@ -17305,6 +17310,7 @@ body[data-ui-page=dialogs] #dialogDetailsModal .dialog-details-composer .form-te
 /* На touch compact-иконки не должны терять доступную область нажатия. */
 @media (pointer: coarse) {
   body[data-ui-page=settings] #locationsModal .location-tree-toggle,
+  body[data-ui-page=dialogs] .dialog-table .dialog-open-icon,
   body[data-ui-page=dialogs] .dialog-table .dialog-actions-toggle,
   body[data-ui-page=dialogs] #dialogDetailsModal :is(.dialog-details-action-icon, .dialog-font-toggle, .dialog-template-icon, .dialog-reply-send-icon) {
     width: 44px;
@@ -17323,12 +17329,30 @@ body[data-ui-page=dialogs] #dialogDetailsModal .dialog-details-composer .form-te
   }
 }
 body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .chart-container {
-  height: 240px;
-  min-height: 240px;
+  height: var(--chart-min-height, 240px);
+  min-height: var(--chart-min-height, 240px);
   padding: 6px 0 0;
   border: 0;
   border-radius: 0;
   background: transparent;
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .chart-empty-state {
+  min-height: 200px;
+  display: grid;
+  place-content: center;
+  gap: 8px;
+  padding: 24px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .chart-empty-state strong {
+  color: var(--color-text);
+  font-size: 0.9rem;
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .chart-empty-state p {
+  margin: 0;
+  max-width: 48ch;
+  font-size: 0.8rem;
 }
 body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .chart-panel--trend {
   grid-column: 1/-1;
@@ -17356,6 +17380,115 @@ body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .pie-chart-legend-color
   width: 8px;
   height: 8px;
   border-radius: 50%;
+}
+
+/* 01-281 R9: остаточные оформления, найденные computed-style аудитом всего web UI. */
+body[data-ui-page] {
+  /* Bootstrap utilities используют !important и иначе перекрывают общий card contract. */
+  /* Общий EditGuard раньше внедрял собственную светлую тему из JavaScript. */
+}
+body[data-ui-page] .card.shadow, body[data-ui-page] .card.shadow-sm, body[data-ui-page] .card.shadow-lg {
+  box-shadow: none !important;
+}
+body[data-ui-page] .edit-guard-overlay {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 1rem;
+  background: transparent;
+  pointer-events: none;
+  z-index: 20;
+}
+body[data-ui-page] .edit-guard-overlay__message {
+  font-size: 0.95rem;
+  color: var(--color-text);
+  text-align: left;
+  background: var(--surface-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--control-radius);
+  padding: 0.75rem 1rem;
+  max-width: 18rem;
+}
+body[data-ui-page] .edit-guard-block[data-edit-locked=true] .edit-guard-overlay {
+  display: flex;
+  pointer-events: auto;
+}
+body[data-ui-page] .edit-guard-block.edit-guard-dirty .edit-guard-toggle {
+  border-color: var(--state-danger) !important;
+  color: var(--state-danger) !important;
+}
+body[data-ui-page] .edit-guard-block[data-edit-locked=true] [data-edit-guard-edit-visible] {
+  display: none !important;
+}
+body[data-ui-page] .edit-guard-block.is-editing [data-edit-guard-edit-visible] {
+  display: inline-flex !important;
+}
+
+body[data-ui-page=public].auth-wrapper .auth-card {
+  box-shadow: none;
+}
+
+body[data-ui-page=dialogs] .dialogs-toolbar-card > .card-body {
+  background: var(--surface-card);
+}
+
+body[data-ui-page=knowledge] .kb-markdown-editor-toolbar {
+  background: var(--surface-soft);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .pie-chart-container {
+  min-height: 240px;
+  align-items: center;
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .pie-chart-wrapper {
+  height: 240px;
+  min-height: 240px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .pie-chart-legend-item {
+  margin: 0;
+  padding: 9px 0;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .pie-chart-legend-item:hover {
+  transform: none;
+  background: var(--surface-interactive);
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .pie-chart-legend-label {
+  flex-wrap: wrap;
+  gap: 3px 10px;
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .pie-chart-legend-color {
+  flex: 0 0 8px;
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .staff-time-stats {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .staff-time-item {
+  border-radius: var(--control-radius);
+  background: var(--surface-card);
+  box-shadow: none;
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .staff-time-avatar {
+  border-radius: var(--control-radius);
+  background: var(--surface-selected);
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .staff-time-detail {
+  border-radius: var(--control-radius);
+  background: var(--surface-soft);
 }
 
 /* Canonical project disclosure language.
