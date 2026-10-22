@@ -64,6 +64,38 @@
             <p th:text="${event.assignee == null ? 'Назначение снято' : 'Назначен: ' + event.assignee}"></p>
         </article>
     </section>
+    <section class="mt-4" data-general-participants>
+        <h2 class="h4">Участники обращения без бизнеса</h2>
+        <p>Только новые связи этого обращения, без переноса старого списка. Участие не выдаёт доступ:
+            нужен отдельный GENERAL READ, для управления — GENERAL OPERATE. Бизнес-права и системный администратор их не заменяют.
+            Для открытия карточки также нужна страница «Диалоги».
+            Список не меняет ответственного, AI и отправки клиенту. Не более 200 участников.</p>
+        <p th:if="${participantRevision == null}" class="alert alert-info">Список сейчас недоступен. Проверьте готовность схемы данных.</p>
+        <p th:if="${participantRevision != null}">Ревизия списка: <span th:text="${participantRevision}"></span>.</p>
+        <ul><li th:each="member : ${participants}" class="mb-2">
+            <span th:text="${member.username ?: member.snapshot}"></span>
+            <span th:if="${!member.eligible}">(нет действующего GENERAL READ)</span>
+            <form th:if="${canOperate and (status == 'pending' or status == 'open') and participantRevision != null}" method="post" class="d-inline"
+                  th:action="@{/general-dialog-work/{id}/participants/remove(id=${publicId})}">
+                <input type="hidden" name="revision" th:value="${revision}">
+                <input type="hidden" name="participantRevision" th:value="${participantRevision}">
+                <input type="hidden" name="memberId" th:value="${member.id}">
+                <button class="btn btn-outline-danger btn-sm" type="submit">Удалить участника</button>
+            </form>
+        </li></ul>
+        <form th:if="${canOperate and (status == 'pending' or status == 'open') and participantRevision != null}" method="post"
+              th:action="@{/general-dialog-work/{id}/participants/add(id=${publicId})}" class="card card-body">
+            <input type="hidden" name="revision" th:value="${revision}">
+            <input type="hidden" name="participantRevision" th:value="${participantRevision}">
+            <label for="generalParticipant">Сотрудник с действующим GENERAL READ (первые 200 кандидатов)</label>
+            <select id="generalParticipant" name="memberId" class="form-select">
+                <option th:each="candidate : ${participantCandidates}" th:value="${candidate.id}" th:text="${candidate.username}"></option>
+            </select>
+            <button type="submit" class="btn btn-outline-primary mt-2" th:disabled="${#lists.isEmpty(participantCandidates)}">Добавить участника</button>
+        </form>
+        <h3 class="h5 mt-3">Последние 10 изменений списка</h3>
+        <ul><li th:each="event : ${participantEvents}" th:text="${event.revision + ' · ' + event.action + ' · ' + event.actor + ' → ' + event.member + ' · ' + event.createdAt}"></li></ul>
+    </section>
     <section class="mt-4" data-general-work-time>
         <h2 class="h4">Время в работе</h2>
         <p>Учитываются новые интервалы от перевода в работу до ожидания или закрытия.

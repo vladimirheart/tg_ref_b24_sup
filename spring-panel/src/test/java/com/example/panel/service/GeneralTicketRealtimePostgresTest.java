@@ -61,7 +61,7 @@ class GeneralTicketRealtimePostgresTest {
         var emitter=mock(SseEmitter.class);
         map.computeIfAbsent(actor,k->new CopyOnWriteArraySet<>()).add(emitter);return emitter;
     }
-    @ParameterizedTest @ValueSource(strings={"ticket_created","client_message_created","client_message_edited","operator_message_edited","feedback_created","ticket_closed_auto","ticket_closed","ticket_reopened","ticket_status_changed","operator_reply_changed","assignment_changed"})
+    @ParameterizedTest @ValueSource(strings={"ticket_created","client_message_created","client_message_edited","operator_message_edited","feedback_created","ticket_closed_auto","ticket_closed","ticket_reopened","ticket_status_changed","operator_reply_changed","assignment_changed","participants_changed"})
     void onlyExplicitGeneralReaderReceivesEachWhitelistedEvent(String event) throws Exception {
         var reader=register("reader");var all=register("other");
         service.publish(captured(),event);
@@ -126,20 +126,21 @@ class GeneralTicketRealtimePostgresTest {
         assertThatThrownBy(()->service.connect(" reader ")).isInstanceOf(AccessDeniedException.class);
         assertThat(service.canRead("reader",scope)).isTrue();
     }
-    @Test void browserReceivesOnlyPublicInvalidationAndNoRawOwnerOrText() throws Exception {
+    @ParameterizedTest @ValueSource(strings={"feedback_created","participants_changed"})
+    void browserReceivesOnlyPublicInvalidationAndNoRawOwnerOrText(String eventType) throws Exception {
         var reader=register("reader");
         doAnswer(call->{
             SseEmitter.SseEventBuilder builder=call.getArgument(0);
             var data=builder.build();
             String serialized=data.stream().map(item->String.valueOf(item.getData())).reduce("",String::concat);
-            assertThat(serialized).contains("general_tickets_changed",PUBLIC,"feedback_created")
+            assertThat(serialized).contains("general_tickets_changed",PUBLIC,eventType)
                 .doesNotContain(RAW,"ticketUserId","ticketId=","private","attachment");
             return null;
         }).when(reader).send(any(SseEmitter.SseEventBuilder.class));
-        service.publish(captured(),"feedback_created");
+        service.publish(captured(),eventType);
         verify(reader).send(any(SseEmitter.SseEventBuilder.class));
     }
-    @ParameterizedTest @ValueSource(strings={"ticket_created","assignment_changed"})
+    @ParameterizedTest @ValueSource(strings={"ticket_created","assignment_changed","participants_changed"})
     void separateRedisTopicPreservesFrozenScopeAndConsumerReprovesAccess(String eventType) throws Exception {
         fanout.setMode("redis");var reader=register("reader");
         service.publish(captured(),eventType);
@@ -189,11 +190,37 @@ class GeneralTicketRealtimePostgresTest {
         writer.append("ticket_created",RAW,9L,"private client text","photo","private/key",null);
         writer.append("client_message_created",RAW,9L,"private second message","text",null,null);
         writer.append("assignment_changed",RAW,9L,null,null,null,null);
+        writer.append("participants_changed",RAW,9L,null,null,null,null);
         jdbc.update("INSERT INTO ui_event_outbox(id,event_type,ticket_id) VALUES(1,'ticket_created','unclassified')");
         watcher.watch();
-        verify(reader,times(3)).send(any(SseEmitter.SseEventBuilder.class));verifyNoInteractions(callbacks);
+        verify(reader,times(4)).send(any(SseEmitter.SseEventBuilder.class));verifyNoInteractions(callbacks);
         long maximum=jdbc.queryForObject("SELECT MAX(id) FROM ui_event_outbox",Long.class);
         verify(checkpoint).saveLongCursor("ui-event-outbox-watch",maximum);
+    }
+    @ParameterizedTest @ValueSource(strings={"owner","generation","scope","collision","read","disabled","blocked","duplicate","flag"})
+    void participantOutboxCannotFollowChangedOwnerOrReader(String mutation) {
+        var callbacks=mock(DialogRealtimeEventService.class);var checkpoint=mock(RuntimeWorkerCheckpointService.class);
+        when(checkpoint.readLongCursor(anyString())).thenReturn(Optional.of(0L));
+        var coordination=mock(RuntimeCoordinationService.class);
+        doAnswer(call->{call.getArgument(2,Runnable.class).run();return null;})
+            .when(coordination).runWithLease(anyString(),any(Duration.class),any(Runnable.class));
+        var guard=new LegacyTicketIdJdbcGuard(jdbc);
+        new UiEventOutboxAppendService(jdbc,guard).append("participants_changed",RAW,9L,null,null,null,null);
+        var reader=register("reader");
+        switch(mutation) {
+            case "owner"->jdbc.update("UPDATE tickets SET user_id=11 WHERE user_id=10");
+            case "generation"->jdbc.update("UPDATE tickets SET ticket_public_id=? WHERE user_id=10","c".repeat(32));
+            case "scope"->jdbc.update("UPDATE tickets SET is_general=FALSE WHERE user_id=10");
+            case "collision"->jdbc.update("INSERT INTO tickets VALUES(99,?,?,FALSE,1)",RAW,"c".repeat(32));
+            case "read"->jdbc.update("UPDATE general_ticket_read_grants SET is_active=FALSE");
+            case "disabled"->jdbc.update("UPDATE users SET enabled=FALSE WHERE id=1");
+            case "blocked"->jdbc.update("UPDATE users SET is_blocked=TRUE WHERE id=1");
+            case "duplicate"->jdbc.update("INSERT INTO users VALUES(3,'READER',TRUE,FALSE)");
+            case "flag"->flags.setGeneralTicketQueue(false);
+        }
+        new UiEventOutboxWatcher(jdbc,callbacks,coordination,checkpoint,guard,new UiEventTicketAccessService(jdbc,flags),service).watch();
+        verifyNoInteractions(reader,callbacks,redis);
+        verify(checkpoint).saveLongCursor("ui-event-outbox-watch",jdbc.queryForObject("SELECT max(id) FROM ui_event_outbox",Long.class));
     }
     @Test void disconnectedEmitterDoesNotStarveOtherConnections() throws Exception {
         var broken=register("reader");var healthy=register("reader");

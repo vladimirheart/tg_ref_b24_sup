@@ -14,9 +14,9 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R163–R164 (2026-10-22): рабочий проект и Docker находятся
+Актуальное уточнение R163–R165 (2026-10-22): рабочий проект и Docker находятся
 на машине текущей сессии; пользователь разрешил restart Docker/контейнеров.
-В R164 заново проверены Docker Server 29.7.2 и healthy web/bot/worker/direct/
+В R165 заново проверены Docker Server 29.7.2 и healthy web/bot/worker/direct/
 PostgreSQL/RabbitMQ/Redis. Это health, не функциональная приёмка и не проверка
 рабочих revision/DB migrations/flags. Restart/rebuild/deploy/migration/backfill/
 config/flags не выполнялись. Restart не разрешает migration при startup.
@@ -881,6 +881,54 @@ roster, и не утверждает historical attribution по одному un
 Ссылка управления ответственным/участниками ведёт на отдельный scoped экран.
 R164 проверен 567 Java tests / 15 XML (302 regression + 265 final) и 18 Node
 tests; это sandbox evidence, не рабочая приёмка. Предыдущий статус S2B не меняется.
+
+### Отдельный GENERAL roster участников — R165
+
+V80 создаёт general_ticket_participants и immutable append-only
+general_ticket_participant_events. Только новые явные add/remove; нет
+классификации/копирования старых participants, BUSINESS roster или выдачи grants.
+Идентичность GENERAL — exact ticket_user_id/ticket_id/ticket_public_id при
+текущих is_general=TRUE/business_id IS NULL и unique raw ID. Участник и actor
+фиксируются по numeric users.id со снимками имён; UPDATE roster identity и
+UPDATE/DELETE event запрещены. Root/account deletion не каскадирует историю.
+
+Страница general-dialog-work/{publicId} требует PAGE_DIALOGS/current GENERAL
+READ, mutation также GENERAL OPERATE и pending/open. MEMBER достаточно READ,
+включая read-only сотрудника; уникальная enabled/unblocked non-AI учётная запись.
+ROLE_ADMIN и ALL_BUSINESSES не заменяют GENERAL grants, участие не выдаёт прав.
+Формы передают CSRF/work revision/list revision/member ID, но не raw owner.
+Сервер разрешает полный owner из public locator; V65 work revision отвергает
+старую форму после смены статуса или владельца. Principal не trim-ится:
+строка с добавленными пробелами не заимствует grant другой учётной записи.
+
+Ревизия списка — max immutable event revision полного owner (начало 0), отдельно
+от assignment/work revision. Shared advisory/raw-ID lock → root FOR UPDATE →
+actor account/READ/OPERATE locks и target account/READ locks для ADD → final
+INSERT SELECT/DELETE с повтором owner/unique namespace/current rights/обеих
+revisions. ADD проверяет target READ и 200-bound; REMOVE не требует member READ,
+чтобы отозванного/отключённого/удалённого участника можно было убрать.
+Roster/event/frozen outbox коммитятся одной JDBC transaction; stale/ABA/no-op/
+конкурентная форма отвергается без success, ошибка audit/outbox откатывает всё.
+Flags foundation/generalTicketQueue проверяются до SQL и после lock, не являются
+serializable lock конфигурации. Status/work intervals/assignment/AI не меняются.
+
+participants_changed разрешён только как metadata reason отдельного GENERAL
+realtime: frozen GENERAL outbox не проходит legacy callbacks, bell, provider,
+AI или BUSINESS fanout. На browser — только public ID/reason/time. Сохранена
+прежняя аудитория всех current GENERAL READ connections, а не roster-only;
+членство не ограничивает чтение и не определяет новую bell/client policy.
+Redis uses existing separate GENERAL topic; consumer/emitter повторяет current
+owner и current READ. Старые consumers, не знающие reason, требуют совместимого
+выпуска до включения потока. Source minimum V80, readiness проверяет обе таблицы.
+Рабочие migration/backfill/flags/deploy не выполнялись; S2B остаётся PENDING.
+
+R165: 526 Java / 8 XML и 2 GENERAL Node tests GREEN изолированно. Проверены
+реальные grant/root lock waits и повторная current proof, final SQL injections,
+CSRF/CAS/rollback/200-bound и сохранность legacy/BUSINESS/grant rows V79→V80.
+Golden R139 V68→V69 сохранён; новые nullable/default поля V79 не смешиваются
+с утратой старых значений при сравнении SELECT *. Это не live acceptance.
+
+### Scoped auto-close и внешняя доставка
 
 Scoped auto-close callback передаёт исходный V61 scope и channel ID события
 в DialogNotificationService.notifyScopedSupportChat. Один SQL capture требует

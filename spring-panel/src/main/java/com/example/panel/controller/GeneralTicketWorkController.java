@@ -7,6 +7,7 @@ import com.example.panel.service.GeneralTicketDocumentReplyService;
 import org.springframework.web.multipart.MultipartFile;
 import com.example.panel.service.GeneralTicketWorkTimeService;
 import com.example.panel.service.GeneralTicketAssignmentService;
+import com.example.panel.service.GeneralTicketParticipantService;
 import com.example.panel.service.NavigationService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
@@ -29,9 +30,12 @@ public class GeneralTicketWorkController {
     private final GeneralTicketAssignmentService assignments;
     private final GeneralTicketReplyChangeService changes;
     private final GeneralTicketDocumentReplyService documents;
+    private final GeneralTicketParticipantService participants;
     public GeneralTicketWorkController(GeneralTicketWorkService work,NavigationService navigation,GeneralTicketReplyService replies,
-            GeneralTicketWorkTimeService time,GeneralTicketAssignmentService assignments,GeneralTicketReplyChangeService changes,GeneralTicketDocumentReplyService documents) {
+            GeneralTicketWorkTimeService time,GeneralTicketAssignmentService assignments,GeneralTicketReplyChangeService changes,GeneralTicketDocumentReplyService documents,
+            GeneralTicketParticipantService participants) {
         this.work=work;this.navigation=navigation;this.replies=replies;this.time=time;this.assignments=assignments;this.changes=changes;this.documents=documents;
+        this.participants=participants;
     }
     @GetMapping
     public String view(@PathVariable String publicId,Authentication auth,Model model,HttpServletResponse response) {
@@ -52,6 +56,10 @@ public class GeneralTicketWorkController {
         model.addAttribute("assignment",assignments.current(state.scope(),auth.getName()).orElse(null));
         model.addAttribute("assignmentCandidates",assignments.candidates(state.scope(),auth.getName()));
         model.addAttribute("assignmentEvents",assignments.recent(state.scope(),auth.getName()));
+        model.addAttribute("participantRevision",participants.revision(state.scope(),auth.getName()).orElse(null));
+        model.addAttribute("participants",participants.members(state.scope(),auth.getName()));
+        model.addAttribute("participantCandidates",participants.candidates(state.scope(),auth.getName(),state.revision()));
+        model.addAttribute("participantEvents",participants.recent(state.scope(),auth.getName()));
         navigation.enrich(model,auth);return "general/work";
     }
     @PostMapping("/status")
@@ -105,6 +113,15 @@ public class GeneralTicketWorkController {
         long target=version(assigneeId);
         if(!assignments.assign(state.scope(),auth.getName(),version(revision),version(assignmentRevision),target==0?null:target))
             throw new ResponseStatusException(HttpStatus.CONFLICT,"Назначение, данные или права изменились. Обновите страницу.");
+        var redirect=new RedirectView("/general-dialog-work/"+publicId,true);redirect.setExposeModelAttributes(false);return redirect;
+    }
+    @PostMapping("/participants/{action:add|remove}")
+    public RedirectView participants(@PathVariable String publicId,@PathVariable String action,Authentication auth,HttpServletResponse response,
+            @RequestParam String revision,@RequestParam String participantRevision,@RequestParam String memberId) {
+        var state=find(publicId,auth,response);
+        if(!state.canOperate())throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        if(!participants.change(state.scope(),auth.getName(),version(revision),version(participantRevision),version(memberId),action.equals("add")))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Список, данные или права изменились. Обновите страницу.");
         var redirect=new RedirectView("/general-dialog-work/"+publicId,true);redirect.setExposeModelAttributes(false);return redirect;
     }
     private long version(String revision) {

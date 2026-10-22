@@ -226,11 +226,27 @@ class GeneralTicketAssignmentPostgresTest {
         upgrade.update("INSERT INTO ticket_responsibles(ticket_id,responsible,assigned_by) VALUES('prior-owner','legacy-staff','prior')");
         var roots=upgrade.queryForList("SELECT * FROM tickets");var legacy=upgrade.queryForList("SELECT * FROM ticket_responsibles");
         var grants=upgrade.queryForList("SELECT * FROM general_ticket_read_grants");
-        org.flywaydb.core.Flyway.configure().dataSource(upgrade.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").load().migrate();
+        org.flywaydb.core.Flyway.configure().dataSource(upgrade.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").target("69").load().migrate();
         assertThat(upgrade.queryForList("SELECT * FROM tickets")).isEqualTo(roots);
         assertThat(upgrade.queryForList("SELECT * FROM ticket_responsibles")).isEqualTo(legacy);
         assertThat(upgrade.queryForList("SELECT * FROM general_ticket_read_grants")).isEqualTo(grants);
         assertThat(upgrade.queryForObject("SELECT COUNT(*) FROM general_ticket_assignment_events",Integer.class)).isZero();
         assertThat(upgrade.queryForObject("SELECT COUNT(*) FROM general_ticket_operate_grants",Integer.class)).isZero();
+        // Keep the exact V68 -> V69 golden above. Later migrations legitimately add root columns.
+        String oldColumns=roots.get(0).keySet().stream().map(column->"\""+column.replace("\"","\"\"")+"\"")
+            .collect(java.util.stream.Collectors.joining(","));
+        org.flywaydb.core.Flyway.configure().dataSource(upgrade.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").target("79").load().migrate();
+        assertThat(upgrade.queryForList("SELECT "+oldColumns+" FROM tickets")).isEqualTo(roots);
+        assertThat(upgrade.queryForMap("SELECT responsibility_revision,business_selection_source,questionnaire_catalog_sha256,questionnaire_version FROM tickets"))
+            .containsEntry("responsibility_revision",0L).containsEntry("business_selection_source",null)
+            .containsEntry("questionnaire_catalog_sha256",null).containsEntry("questionnaire_version",null);
+        var v79Roots=upgrade.queryForList("SELECT * FROM tickets");
+        assertThat(v79Roots).isNotEqualTo(roots); // The original SELECT * comparison already fails at V79, before this feature.
+        org.flywaydb.core.Flyway.configure().dataSource(upgrade.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").load().migrate();
+        assertThat(upgrade.queryForList("SELECT * FROM tickets")).isEqualTo(v79Roots);
+        assertThat(upgrade.queryForList("SELECT * FROM ticket_responsibles")).isEqualTo(legacy);
+        assertThat(upgrade.queryForList("SELECT * FROM general_ticket_read_grants")).isEqualTo(grants);
+        for(String table:new String[]{"general_ticket_assignment_events","general_ticket_operate_grants","general_ticket_participants","general_ticket_participant_events"})
+            assertThat(upgrade.queryForObject("SELECT count(*) FROM "+table,Integer.class)).isZero();
     }
 }

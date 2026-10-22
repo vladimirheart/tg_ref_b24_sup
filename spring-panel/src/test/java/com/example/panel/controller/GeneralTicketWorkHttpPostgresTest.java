@@ -64,6 +64,8 @@ class GeneralTicketWorkHttpPostgresTest {
     @SpyBean GeneralTicketReplyChangeService changes;
     @SpyBean GeneralTicketDocumentReplyService documents;
     @SpyBean GeneralTicketAssignmentService assignments;
+    @SpyBean GeneralTicketParticipantService participants;
+    @Autowired UiEventOutboxAppendService participantOutboxIds;
     @SpyBean GeneralManualTicketCreationService manual;
     private String worker,reader,admin,publicId,root,raw;
     private long workerId,readerId,owner;
@@ -441,6 +443,259 @@ class GeneralTicketWorkHttpPostgresTest {
             assertThat(((java.util.function.BooleanSupplier)call.getArgument(4)).getAsBoolean()).isTrue();
             return DialogReplyTransportService.DialogReplyTransportResult.success(201L,1L);
         });
+    }
+    private GeneralTicketEventScope participantScope(){return new GeneralTicketEventScope(owner,raw,publicId);}
+    private MockHttpServletRequestBuilder participantCommand(String action,String revision,String listRevision,String memberId) {
+        return post(root+"/participants/"+action).param("revision",revision).param("participantRevision",listRevision).param("memberId",memberId);
+    }
+    private long participantEvents(){return jdbc.queryForObject("SELECT count(*) FROM general_ticket_participant_events WHERE ticket_public_id=?",Long.class,publicId);}
+    private long participantOutbox(){return jdbc.queryForObject("SELECT count(*) FROM ui_event_outbox WHERE ticket_public_id=?",Long.class,publicId);}
+    @Test void realCsrfAddsReadOnlyGeneralMemberAndReloadsHistoryWithoutExposingRawOwner() throws Exception {
+        jdbc.update("INSERT INTO ticket_participants(ticket_id,username,added_by) VALUES(?,?,'legacy')",raw,worker);
+        var legacyRows=jdbc.queryForList("SELECT * FROM ticket_participants WHERE ticket_id=?",raw);
+        var opened=mvc.perform(actor(get(root),worker,"PAGE_DIALOGS")).andExpect(status().isOk()).andReturn();
+        String html=opened.getResponse().getContentAsString();
+        assertThat(html).contains("data-general-participants","id=\"generalParticipant\"").doesNotContain(raw,"name=\"ownerId\"","name=\"rawId\"");
+        assertThat(participants.members(participantScope(),worker)).isEmpty();
+        mvc.perform(actor(participantCommand("add",hidden(html,"revision"),hidden(html,"participantRevision"),Long.toString(readerId))
+            .param("_csrf",hidden(html,"_csrf")).cookie(opened.getResponse().getCookies()),worker,"PAGE_DIALOGS")).andExpect(redirectedUrl(root));
+        assertThat(participants.members(participantScope(),reader)).singleElement().satisfies(m->{assertThat(m.id()).isEqualTo(readerId);assertThat(m.eligible()).isTrue();});
+        assertThat(access.canOperate(readerId)).isFalse();
+        var read=mvc.perform(actor(get(root),reader,"PAGE_DIALOGS")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(read).contains(reader).doesNotContain("id=\"generalParticipant\"","/participants/remove",raw);
+        assertThat(jdbc.queryForMap("SELECT * FROM general_ticket_participant_events WHERE ticket_public_id=?",publicId))
+            .containsEntry("ticket_user_id",owner).containsEntry("ticket_id",raw).containsEntry("member_user_id",readerId)
+            .containsEntry("actor_user_id",workerId).containsEntry("revision",1L).containsEntry("owner_revision",0L).containsEntry("action","add");
+        assertThat(jdbc.queryForMap("SELECT * FROM ui_event_outbox WHERE ticket_public_id=?",publicId))
+            .containsEntry("event_type","participants_changed").containsEntry("ticket_scope_kind","GENERAL").containsEntry("ticket_business_id",null)
+            .containsEntry("ticket_user_id",owner).containsEntry("ticket_public_id",publicId);
+        mvc.perform(actor(participantCommand("remove","0","1",Long.toString(readerId)),worker,"PAGE_DIALOGS").with(csrf())).andExpect(redirectedUrl(root));
+        assertThat(participants.members(participantScope(),worker)).isEmpty();
+        assertThat(participants.revision(participantScope(),worker)).contains(2L);
+        assertThat(jdbc.queryForList("SELECT * FROM ticket_participants WHERE ticket_id=?",raw)).isEqualTo(legacyRows);
+        assertThat(work.find(publicId,worker).orElseThrow().revision()).isZero();
+        for(String table:new String[]{"ticket_responsibles","general_ticket_assignment_events","general_ticket_work_events","dialog_action_audit"})
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM "+table+" WHERE "+(table.startsWith("general_")?"ticket_public_id":"ticket_id")+"=?",Long.class,table.startsWith("general_")?publicId:raw)).isZero();
+        verifyNoInteractions(replyTransport);verify(documents,never()).submit(any(),anyString(),anyLong(),anyString(),anyString(),any(),anyString());
+    }
+    @Test void participantPageCsrfReadAndOperateAreIndependent() throws Exception {
+        mvc.perform(actor(participantCommand("add","0","0",Long.toString(readerId)),worker,"PAGE_DIALOGS")).andExpect(redirectedUrl("/error/403"));
+        mvc.perform(actor(participantCommand("add","0","0",Long.toString(readerId)),worker,"ROLE_ADMIN").with(csrf())).andExpect(status().isForbidden());
+        mvc.perform(actor(participantCommand("add","0","0",Long.toString(readerId)),reader,"PAGE_DIALOGS","ROLE_ADMIN").with(csrf())).andExpect(status().isForbidden());
+        mvc.perform(actor(participantCommand("add","0","0",Long.toString(readerId)),admin,"PAGE_DIALOGS","ROLE_ADMIN").with(csrf())).andExpect(status().isNotFound());
+        assertThat(participantEvents()).isZero();assertThat(participantOutbox()).isZero();
+    }
+    @ParameterizedTest @CsvSource({"revision,bad","revision,-1","participantRevision,9223372036854775808","participantRevision,01","memberId,bad"})
+    void malformedParticipantParametersNeverWrite(String field,String value)throws Exception {
+        var request=post(root+"/participants/add").param("revision",field.equals("revision")?value:"0")
+            .param("participantRevision",field.equals("participantRevision")?value:"0").param("memberId",field.equals("memberId")?value:Long.toString(readerId));
+        mvc.perform(actor(request,worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isBadRequest());
+        assertThat(participantEvents()).isZero();assertThat(participantOutbox()).isZero();
+    }
+    @ParameterizedTest @ValueSource(strings={"member-read","member-disabled","member-blocked","member-duplicate","member-business-only","member-ai",
+        "actor-read","actor-operate","actor-disabled","actor-blocked","actor-duplicate","actor-business-only","actor-ai","padded-principal",
+        "owner","scope","generation","collision","closed","revision","flag","foundation"})
+    void participantMutationsRequireCurrentGeneralOwnerAndIndependentGrants(String mutation) {
+        var expected=participantScope();String identity=worker;
+        switch(mutation){
+            case "member-read"->access.revokeRead(readerId);
+            case "member-disabled"->jdbc.update("UPDATE users SET enabled=FALSE WHERE id=?",readerId);
+            case "member-blocked"->jdbc.update("UPDATE users SET is_blocked=TRUE WHERE id=?",readerId);
+            case "member-duplicate"->account(reader.toUpperCase(java.util.Locale.ROOT));
+            case "member-business-only"->{access.revokeRead(readerId);jdbc.update("INSERT INTO business_access_grants(user_id,grant_scope,role_code) VALUES(?,'ALL_BUSINESSES','ADMIN')",readerId);}
+            case "member-ai"->jdbc.update("UPDATE users SET username=' AI_AGENT ' WHERE id=?",readerId);
+            case "actor-read"->access.revokeRead(workerId);
+            case "actor-operate"->access.revokeOperate(workerId);
+            case "actor-disabled"->jdbc.update("UPDATE users SET enabled=FALSE WHERE id=?",workerId);
+            case "actor-blocked"->jdbc.update("UPDATE users SET is_blocked=TRUE WHERE id=?",workerId);
+            case "actor-duplicate"->account(worker.toUpperCase(java.util.Locale.ROOT));
+            case "actor-business-only"->{access.revokeRead(workerId);jdbc.update("INSERT INTO business_access_grants(user_id,grant_scope,role_code) VALUES(?,'ALL_BUSINESSES','ADMIN')",workerId);}
+            case "actor-ai"->{identity=" AI_AGENT  ";jdbc.update("UPDATE users SET username=? WHERE id=?",identity,workerId);}
+            case "padded-principal"->identity=" "+worker+" ";
+            case "owner"->jdbc.update("UPDATE tickets SET user_id=? WHERE ticket_public_id=?",owner+1000000,publicId);
+            case "scope"->jdbc.update("UPDATE tickets SET is_general=FALSE,general_selection_source=NULL WHERE ticket_public_id=?",publicId);
+            case "generation"->{jdbc.update("DELETE FROM tickets WHERE ticket_public_id=?",publicId);jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,is_general,general_selection_source,status) VALUES(?,?,?,TRUE,'GENERAL_CHANNEL','pending')",owner,raw,UUID.randomUUID().toString().replace("-",""));}
+            case "collision"->jdbc.update("INSERT INTO tickets(user_id,ticket_id,status) VALUES(?,?,'open')",owner+1,raw);
+            case "closed"->jdbc.update("UPDATE tickets SET status='closed' WHERE ticket_public_id=?",publicId);
+            case "revision"->jdbc.update("UPDATE tickets SET status='open' WHERE ticket_public_id=?",publicId);
+            case "flag"->flags.setGeneralTicketQueue(false);
+            case "foundation"->flags.getFoundation().setEnabled(false);
+        }
+        assertThat(participants.change(expected,identity,0,0,readerId,true)).isFalse();
+        assertThat(participantEvents()).isZero();assertThat(participantOutbox()).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM general_ticket_participants WHERE ticket_public_id=?",Long.class,publicId)).isZero();
+    }
+    @ParameterizedTest @ValueSource(strings={"read","operate","member-read","revision"})
+    void participantControllerReadIsNotFinalAuthority(String mutation)throws Exception {
+        doAnswer(call->{switch(mutation){
+            case "read"->access.revokeRead(workerId);case "operate"->access.revokeOperate(workerId);
+            case "member-read"->access.revokeRead(readerId);case "revision"->jdbc.update("UPDATE tickets SET status='open' WHERE ticket_public_id=?",publicId);
+        }return call.callRealMethod();}).when(participants).change(eq(participantScope()),eq(worker),eq(0L),eq(0L),eq(readerId),eq(true));
+        mvc.perform(actor(participantCommand("add","0","0",Long.toString(readerId)),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
+        assertThat(participantEvents()).isZero();assertThat(participantOutbox()).isZero();
+    }
+    @ParameterizedTest @CsvSource({"add,actor","add,member","add,owner","add,collision","remove,actor","remove,owner","remove,collision"})
+    void finalParticipantSqlRepeatsProofAtTheJdbcBoundary(String action,String mutation) {
+        boolean add=action.equals("add");
+        if(!add)assertThat(participants.change(participantScope(),worker,0,0,readerId,true)).isTrue();
+        var before=jdbc.queryForList("SELECT * FROM general_ticket_participants WHERE ticket_public_id=?",publicId);
+        var observed=spy(jdbc);var injected=new java.util.concurrent.atomic.AtomicBoolean();
+        doAnswer(call->{
+            var creator=call.getArgument(0,org.springframework.jdbc.core.PreparedStatementCreator.class);
+            String sql=((org.springframework.jdbc.core.SqlProvider)creator).getSql();
+            if((sql.startsWith("INSERT INTO general_ticket_participants")||sql.startsWith("DELETE FROM general_ticket_participants"))&&injected.compareAndSet(false,true)){
+                // Same test transaction: deterministic final-statement injection, not a grant lock bypass.
+                if(mutation.equals("actor"))access.revokeOperate(workerId);
+                if(mutation.equals("member"))access.revokeRead(readerId);
+                if(mutation.equals("owner"))jdbc.update("UPDATE tickets SET user_id=? WHERE ticket_public_id=?",owner+1000000,publicId);
+                if(mutation.equals("collision"))jdbc.update("INSERT INTO tickets(user_id,ticket_id,status) VALUES(?,?,'open')",owner+1,raw);
+            }
+            return call.callRealMethod();
+        }).when(observed).update(org.mockito.ArgumentMatchers.any(org.springframework.jdbc.core.PreparedStatementCreator.class));
+        var writer=new GeneralTicketParticipantService(observed,flags,participantOutboxIds);
+        assertThat(writer.change(participantScope(),worker,0,add?0:1,readerId,add)).isFalse();assertThat(injected).isTrue();
+        assertThat(jdbc.queryForList("SELECT * FROM general_ticket_participants WHERE ticket_public_id=?",publicId)).isEqualTo(before);
+        assertThat(participantEvents()).isEqualTo(add?0:1);assertThat(participantOutbox()).isEqualTo(add?0:1);
+    }
+    @ParameterizedTest @ValueSource(strings={"actor-read","actor-operate","target-read","target-account","root"})
+    void waitingParticipantWriterRechecksACommittedRevocationOrRootChange(String mutation)throws Exception {
+        var pool=java.util.concurrent.Executors.newSingleThreadExecutor();
+        try(var connection=jdbc.getDataSource().getConnection()) {
+            connection.setAutoCommit(false);
+            String sql=switch(mutation) {
+                case "actor-read","target-read"->"UPDATE general_ticket_read_grants SET is_active=FALSE WHERE user_id=?";
+                case "actor-operate"->"UPDATE general_ticket_operate_grants SET is_active=FALSE WHERE user_id=?";
+                case "target-account"->"UPDATE users SET enabled=FALSE WHERE id=?";
+                default->"UPDATE tickets SET status='closed' WHERE ticket_public_id=?";
+            };
+            try(var update=connection.prepareStatement(sql)) {
+                if(mutation.equals("root"))update.setString(1,publicId);
+                else update.setLong(1,mutation.startsWith("actor")?workerId:readerId);
+                update.executeUpdate();
+            }
+            var started=new java.util.concurrent.CountDownLatch(1);
+            var pending=pool.submit(()->{started.countDown();return participants.change(participantScope(),worker,0,0,readerId,true);});
+            assertThat(started.await(5,java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+            assertThatThrownBy(()->pending.get(150,java.util.concurrent.TimeUnit.MILLISECONDS)).isInstanceOf(java.util.concurrent.TimeoutException.class);
+            connection.commit();assertThat(pending.get(10,java.util.concurrent.TimeUnit.SECONDS)).isFalse();
+            assertThat(participantEvents()).isZero();assertThat(participantOutbox()).isZero();
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM general_ticket_participants WHERE ticket_public_id=?",Long.class,publicId)).isZero();
+        }finally{pool.shutdownNow();}
+    }
+    @Test void concurrentParticipantFormsHaveOneWinnerAndAbaNeverReusesARevision()throws Exception {
+        var start=new java.util.concurrent.CountDownLatch(1);
+        java.util.function.Supplier<Boolean> attempt=()->{try{start.await();}catch(InterruptedException ex){throw new IllegalStateException(ex);}return participants.change(participantScope(),worker,0,0,readerId,true);};
+        var a=java.util.concurrent.CompletableFuture.supplyAsync(attempt);var b=java.util.concurrent.CompletableFuture.supplyAsync(attempt);start.countDown();
+        assertThat(java.util.List.of(a.get(15,java.util.concurrent.TimeUnit.SECONDS),b.get(15,java.util.concurrent.TimeUnit.SECONDS))).containsExactlyInAnyOrder(true,false);
+        assertThat(participants.change(participantScope(),worker,0,1,readerId,true)).isFalse();
+        assertThat(participants.change(participantScope(),worker,0,1,workerId,false)).isFalse();
+        assertThat(participants.change(participantScope(),worker,0,1,readerId,false)).isTrue();
+        assertThat(participants.change(participantScope(),worker,0,0,readerId,true)).isFalse();
+        assertThat(participants.change(participantScope(),worker,0,2,readerId,true)).isTrue();
+        assertThat(participantEvents()).isEqualTo(3);assertThat(participantOutbox()).isEqualTo(3);
+    }
+    @ParameterizedTest @ValueSource(strings={"audit","outbox"})
+    void failedParticipantAuditOrOutboxRollsBackAddAndRemove(String failure) {
+        assertThat(participants.change(participantScope(),worker,0,0,readerId,true)).isTrue();
+        String table=failure.equals("audit")?"general_ticket_participant_events":"ui_event_outbox";
+        jdbc.execute("CREATE FUNCTION fail_r165_insert() RETURNS TRIGGER LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'synthetic R165 failure'; END; $$");
+        jdbc.execute("CREATE TRIGGER fail_r165_insert BEFORE INSERT ON "+table+" FOR EACH ROW EXECUTE FUNCTION fail_r165_insert()");
+        try {
+            assertThat(participants.change(participantScope(),worker,0,1,workerId,true)).isFalse();
+            assertThat(participants.change(participantScope(),worker,0,1,readerId,false)).isFalse();
+            assertThat(participants.members(participantScope(),worker)).extracting(GeneralTicketParticipantService.Member::id).containsExactly(readerId);
+            assertThat(participants.revision(participantScope(),worker)).contains(1L);
+            assertThat(participantEvents()).isEqualTo(1);assertThat(participantOutbox()).isEqualTo(1);
+        }finally{jdbc.execute("DROP TRIGGER fail_r165_insert ON "+table);jdbc.execute("DROP FUNCTION fail_r165_insert()");}
+        assertThat(participants.change(participantScope(),worker,0,1,readerId,false)).isTrue();
+    }
+    @ParameterizedTest @ValueSource(strings={"read","disabled","deleted"})
+    void operatorCanRemoveAnInaccessibleOrDeletedGeneralMember(String kind) {
+        assertThat(participants.change(participantScope(),worker,0,0,readerId,true)).isTrue();
+        if(kind.equals("read"))access.revokeRead(readerId);
+        if(kind.equals("disabled"))jdbc.update("UPDATE users SET enabled=FALSE WHERE id=?",readerId);
+        if(kind.equals("deleted"))jdbc.update("DELETE FROM users WHERE id=?",readerId);
+        assertThat(participants.members(participantScope(),worker)).singleElement().satisfies(m->assertThat(m.eligible()).isFalse());
+        assertThat(participants.change(participantScope(),worker,0,1,readerId,false)).isTrue();
+        assertThat(participants.members(participantScope(),worker)).isEmpty();
+    }
+    @Test void numericMembershipDoesNotTransferOnRenameOrReusedUsername() {
+        assertThat(participants.change(participantScope(),worker,0,0,readerId,true)).isTrue();
+        String renamed=reader+" renamed";jdbc.update("UPDATE users SET username=? WHERE id=?",renamed,readerId);
+        long reused=account(reader);access.grantRead(reused);
+        assertThat(participants.members(participantScope(),worker)).singleElement().satisfies(m->{assertThat(m.id()).isEqualTo(readerId);assertThat(m.username()).isEqualTo(renamed);});
+        assertThat(participants.candidates(participantScope(),worker,0)).extracting(GeneralTicketParticipantService.Candidate::id).contains(reused).doesNotContain(readerId);
+    }
+    @Test void participantHistoryIdentityAndGenerationAreIsolated() {
+        assertThat(participants.change(participantScope(),worker,0,0,readerId,true)).isTrue();
+        assertThatThrownBy(()->jdbc.update("UPDATE general_ticket_participants SET member_user_id=? WHERE ticket_public_id=?",workerId,publicId)).isInstanceOf(RuntimeException.class);
+        assertThatThrownBy(()->jdbc.update("UPDATE general_ticket_participant_events SET actor='changed' WHERE ticket_public_id=?",publicId)).isInstanceOf(RuntimeException.class);
+        assertThatThrownBy(()->jdbc.update("DELETE FROM general_ticket_participant_events WHERE ticket_public_id=?",publicId)).isInstanceOf(RuntimeException.class);
+        jdbc.update("DELETE FROM tickets WHERE ticket_public_id=?",publicId);
+        String next=UUID.randomUUID().toString().replace("-","");
+        jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,is_general,general_selection_source,status) VALUES(?,?,?,TRUE,'GENERAL_CHANNEL','pending')",owner,raw,next);
+        var newScope=new GeneralTicketEventScope(owner,raw,next);
+        assertThat(participants.members(newScope,worker)).isEmpty();assertThat(participants.recent(newScope,worker)).isEmpty();
+        assertThat(participants.revision(newScope,worker)).contains(0L);assertThat(participants.revision(participantScope(),worker)).isEmpty();
+    }
+    @Test void statusAndAssignmentRevisionsRemainIndependentOfTheRoster()throws Exception {
+        assertThat(assignments.assign(participantScope(),worker,0,0,workerId)).isTrue();
+        assertThat(participants.change(participantScope(),worker,0,0,readerId,true)).isTrue();
+        assertThat(work.transition(participantScope(),worker,0,"pending","open")).isTrue();
+        assertThat(participants.change(participantScope(),worker,0,1,readerId,false)).isFalse();
+        assertThat(participants.change(participantScope(),worker,1,1,readerId,false)).isTrue();
+        assertThat(assignments.current(participantScope(),worker).orElseThrow().revision()).isEqualTo(1);
+        assertThat(work.find(publicId,worker).orElseThrow().revision()).isEqualTo(1);
+        assertThat(participants.revision(participantScope(),worker)).contains(2L);
+        jdbc.update("UPDATE tickets SET status='closed' WHERE ticket_public_id=?",publicId);
+        var html=mvc.perform(actor(get(root),worker,"PAGE_DIALOGS")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(html).doesNotContain("id=\"generalParticipant\"","/participants/remove");
+    }
+    @Test void generalRosterBoundIsEnforcedAndRemovalFreesCapacity() {
+        jdbc.update("INSERT INTO users(username,password) SELECT ?||generate_series(1,200),'unused'",worker+"-bound-");
+        jdbc.update("INSERT INTO general_ticket_read_grants(user_id,is_active) SELECT id,TRUE FROM users WHERE username LIKE ?",worker+"-bound-%");
+        jdbc.update("INSERT INTO general_ticket_participants(ticket_user_id,ticket_id,ticket_public_id,member_user_id,member,actor_user_id,actor,revision,owner_revision)"
+            +" SELECT ?,?,?,id,username,?,?,row_number() OVER(ORDER BY id),0 FROM users WHERE username LIKE ?",owner,raw,publicId,workerId,worker,worker+"-bound-%");
+        jdbc.update("INSERT INTO general_ticket_participant_events(ticket_user_id,ticket_id,ticket_public_id,revision,owner_revision,member_user_id,member,actor_user_id,actor,action)"
+            +" SELECT ticket_user_id,ticket_id,ticket_public_id,revision,owner_revision,member_user_id,member,actor_user_id,actor,'add' FROM general_ticket_participants WHERE ticket_public_id=?",publicId);
+        assertThat(participants.members(participantScope(),worker)).hasSize(200);
+        assertThat(participants.change(participantScope(),worker,0,200,readerId,true)).isFalse();
+        assertThat(participants.change(participantScope(),worker,0,200,participants.members(participantScope(),worker).get(0).id(),false)).isTrue();
+        assertThat(participants.change(participantScope(),worker,0,201,readerId,true)).isTrue();
+        assertThat(participants.members(participantScope(),worker)).hasSize(200);
+    }
+    @ParameterizedTest @ValueSource(strings={"roster","events"})
+    void missingGeneralParticipantSchemaCannotWriteOrAdoptLegacyRows(String kind) {
+        jdbc.update("INSERT INTO ticket_participants(ticket_id,username,added_by) VALUES(?,?,'legacy')",raw,reader);
+        String table=kind.equals("roster")?"general_ticket_participants":"general_ticket_participant_events";
+        jdbc.execute("ALTER TABLE "+table+" RENAME TO r165_hidden_participants");
+        try {
+            assertThat(participants.change(participantScope(),worker,0,0,readerId,true)).isFalse();
+            assertThat(participantOutbox()).isZero();
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM ticket_participants WHERE ticket_id=?",Long.class,raw)).isEqualTo(1);
+        }finally{jdbc.execute("ALTER TABLE r165_hidden_participants RENAME TO "+table);}
+        assertThat(participantEvents()).isZero();
+    }
+    @Test void v79UpgradePreservesRootsLegacyAndBusinessRosterWithoutCreatingGeneralMembership() {
+        var old=PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType("r165_upgrade");
+        org.flywaydb.core.Flyway.configure().dataSource(old.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").target("79").load().migrate();
+        long business=old.queryForObject("INSERT INTO businesses(code,display_name) VALUES('upgrade','Upgrade') RETURNING id",Long.class);
+        long user=old.queryForObject("INSERT INTO users(username,password) VALUES('old-member','unused') RETURNING id",Long.class);
+        String businessPublic=UUID.randomUUID().toString().replace("-",""),generalPublic=UUID.randomUUID().toString().replace("-","");
+        old.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,business_id,status) VALUES(700,'old-business',?,?,'open')",businessPublic,business);
+        old.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,is_general,general_selection_source,status) VALUES(701,'old-general',?,TRUE,'GENERAL_CHANNEL','pending')",generalPublic);
+        old.update("INSERT INTO ticket_participants(ticket_id,username,added_by) VALUES('old-general','legacy-member','legacy')");
+        old.update("INSERT INTO business_ticket_participants(ticket_user_id,ticket_id,ticket_public_id,business_id,member_user_id,member,actor_user_id,actor,revision)"
+            +" VALUES(700,'old-business',?,?,?,'old-member',?,'old-actor',1)",businessPublic,business,user,user);
+        old.update("INSERT INTO business_ticket_participant_events(ticket_user_id,ticket_id,ticket_public_id,business_id,member_user_id,member,actor_user_id,actor,revision,action)"
+            +" VALUES(700,'old-business',?,?,?,'old-member',?,'old-actor',1,'add')",businessPublic,business,user,user);
+        var before=new LinkedHashMap<String,java.util.List<Map<String,Object>>>();
+        for(String table:new String[]{"tickets","ticket_participants","business_ticket_participants","business_ticket_participant_events","general_ticket_read_grants","general_ticket_operate_grants"})
+            before.put(table,old.queryForList("SELECT * FROM "+table));
+        org.flywaydb.core.Flyway.configure().dataSource(old.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").load().migrate();
+        before.forEach((table,rows)->assertThat(old.queryForList("SELECT * FROM "+table)).isEqualTo(rows));
+        assertThat(old.queryForObject("SELECT count(*) FROM general_ticket_participants",Long.class)).isZero();
+        assertThat(old.queryForObject("SELECT count(*) FROM general_ticket_participant_events",Long.class)).isZero();
     }
     private long account(String name) {return jdbc.queryForObject("INSERT INTO users(username,password,enabled) VALUES(?,'unused',TRUE) RETURNING id",Long.class,name);}
     private MockHttpServletRequestBuilder actor(MockHttpServletRequestBuilder request,String name,String...authorities) {
