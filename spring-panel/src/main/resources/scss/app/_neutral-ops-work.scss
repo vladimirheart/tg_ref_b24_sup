@@ -1,0 +1,63 @@
+/* Рабочие объекты: редакторы, Kanban, проекты, паспорта и оборудование. */
+body[data-ui-page='knowledge'] {
+  .kb-index-card, .kb-import-card, .kb-editor-main, .kb-editor-side,
+  .kb-article-surface, .kb-article-content-card, .kb-source-panel,
+  .kb-notion-sync-card, .kb-editor-meta-card, .kb-edit-source-card,
+  .kb-markdown-editor-surface, .kb-notion-preview {
+    border-color: var(--color-border);
+    border-radius: var(--ui-panel-radius);
+    background: var(--surface-card);
+    box-shadow: none;
+  }
+  .kb-markdown-editor-toolbar, .kb-editor-side__header { background: var(--surface-soft); border-color: var(--color-border); }
+  .kb-editor-tool, .kb-editor-block-select, .kb-settings-action { border-radius: var(--control-radius); }
+  .kb-markdown-editor, [contenteditable='true'] { color: var(--color-text); caret-color: var(--primary); }
+  .kb-editor-slash-menu, .kb-editor-bubble { background: var(--surface-card); border-color: var(--color-border); }
+  .kb-article-heading { min-width: 0; flex-wrap: wrap; }
+  @media (max-width: 575.98px) {
+    .kb-markdown-editor-toolbar { flex-wrap: wrap; }
+    .kb-notion-status-grid { grid-template-columns: 1fr; }
+    .kb-notion-status-card + .kb-notion-status-card { border-left: 0; border-top: 1px solid var(--color-border); }
+  }
+}
+
+body[data-ui-page='tasks'], body[data-ui-page='projects'] {
+  .tasks-sticky-bar, .tasks-board-toolbar, .tasks-editor-panel,
+  .tasks-history-panel, .tasks-analytics-panel, .tasks-analytics-metric,
+  .projects-toolbar, .project-card, .tasks-kanban-card {
+    border-color: var(--color-border);
+    border-radius: var(--ui-panel-radius);
+    background: var(--surface-card);
+    box-shadow: none;
+  }
+  .tasks-kanban-column { border-radius: var(--ui-panel-radius); background: var(--surface-soft); }
+  .tasks-kanban-card { border: 1px solid var(--color-border); }
+  .tasks-kanban-card:hover, .project-card:hover { border-color: var(--primary); }
+  .work-management-tab, .tasks-view-item, .tasks-scope-btn,
+  .projects-metric-chip, .tasks-view-switch { border-radius: var(--control-radius); }
+  .tasks-metrics, .projects-metrics-row { font-variant-numeric: tabular-nums; }
+  @media (max-width: 575.98px) {
+    .projects-grid { grid-template-columns: minmax(0, 1fr); }
+    .projects-toolbar, .projects-header-row { flex-wrap: wrap; }
+    .tasks-header-row, .tasks-toolbar-row, .tasks-metrics-row { flex-wrap: wrap; }
+    .tasks-page-actions, .tasks-toolbar-left { min-width: 0; flex-wrap: wrap; }
+  }
+}
+
+body[data-ui-page='passports'] {
+  .passport-card, .passport-section, .passport-workspace-panel,
+  .passport-detail-card, .passport-edit-panel, .passport-edit-equipment-card,
+  .passport-summary-panel, .passport-table-card, .passport-asset-card, .passport-record-card {
+    border-color: var(--color-border);
+    border-radius: var(--ui-panel-radius);
+    background: var(--surface-card);
+    box-shadow: none;
+  }
+  .passports-page-header { flex-wrap: wrap; }
+  .passport-section-heading { border-color: var(--color-border); }
+  .passport-photo, .passport-detail-photo { border-radius: var(--control-radius); }
+  @media (max-width: 575.98px) {
+    .passports-page-actions { justify-content: flex-start; }
+    .passport-workspace-shell { min-width: 0; }
+  }
+}

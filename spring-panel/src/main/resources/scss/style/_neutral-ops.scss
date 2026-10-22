@@ -1,0 +1,52 @@
+/* Нейтральные поверхности базовой палитры. Пользовательские палитры и масштаб сохраняются. */
+:root:not([data-theme-palette]),
+:root[data-theme-palette='neo'] {
+  --background: #f5f7f8;
+  --card: #ffffff;
+  --popover: #ffffff;
+  --sidebar: #ffffff;
+  --foreground: #172126;
+  --card-foreground: #172126;
+  --popover-foreground: #172126;
+  --sidebar-foreground: #172126;
+  --muted: #edf1f3;
+  --muted-foreground: #596971;
+  --border: #dce3e6;
+  --sidebar-border: #dce3e6;
+  --input: #b9c6cc;
+  --primary: #176b5b;
+  --sidebar-primary: #176b5b;
+  --ring: #176b5b;
+  --primary-foreground: #ffffff;
+  --color-accent-strong: #115447;
+  --color-bg-muted: #edf1f3;
+  --color-surface-soft: #f8fafb;
+}
+
+:root[data-theme='dark']:not([data-theme-palette]),
+:root.dark:not([data-theme-palette]),
+:root[data-theme='dark'][data-theme-palette='neo'],
+:root.dark[data-theme-palette='neo'],
+[data-theme='dark'][data-theme-palette='neo'],
+.dark[data-theme-palette='neo'] {
+  --background: #111619;
+  --card: #171e22;
+  --popover: #171e22;
+  --sidebar: #171e22;
+  --foreground: #edf3f1;
+  --card-foreground: #edf3f1;
+  --popover-foreground: #edf3f1;
+  --sidebar-foreground: #edf3f1;
+  --muted: #20292e;
+  --muted-foreground: #a8b5b8;
+  --border: #2a353a;
+  --sidebar-border: #2a353a;
+  --input: #52626b;
+  --primary: #53b7a4;
+  --sidebar-primary: #53b7a4;
+  --ring: #85d5c7;
+  --primary-foreground: #102a24;
+  --color-accent-strong: #85d5c7;
+  --color-bg-muted: #20292e;
+  --color-surface-soft: #141a1e;
+}

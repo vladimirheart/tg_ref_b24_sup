@@ -1,0 +1,51 @@
+/* Единые графические и табличные поверхности dashboard и всех monitoring-экранов. */
+body[data-ui-page='dashboard'] {
+  /* Первоначальный слой убрал тёмный фон, но оставил светлый текст spotlight-KPI. */
+  .metrics-panel .metric-card,
+  .metrics-panel .metric-card--spotlight,
+  .metrics-panel .metric-value,
+  .metrics-panel .metric-mini-value { color: var(--color-text); }
+
+  .metrics-headline__chip {
+    border: 1px solid var(--color-border);
+    background: var(--surface-soft);
+    color: var(--color-text-muted);
+    border-radius: var(--control-radius);
+    font-size: 0.78rem;
+  }
+
+  .metrics-panel .metric-label, .metrics-panel .metric-mini-label { font-size: 0.78rem; }
+  .metrics-panel .metric-value { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .filter-panel, .metrics-panel, .chart-panel { min-width: 0; }
+  .reports-tab-nav { flex-wrap: wrap; }
+  .chart-panel-title { font-weight: 650; }
+  .chart-panel .chart-wrap { min-width: 0; }
+
+  @media (max-width: 1100px) and (min-width: 681px) {
+    .filter-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+}
+
+body[data-ui-page='analytics'] {
+  .analytics-section-card,
+  .analytics-monitor-overview-panel,
+  .analytics-metric-card,
+  .analytics-table-shell {
+    border-color: var(--color-border);
+    border-radius: var(--ui-panel-radius);
+    background: var(--surface-card);
+    box-shadow: none;
+  }
+
+  .analytics-metric-card, .analytics-monitor-overview-panel { background: var(--surface-soft); }
+  .analytics-section-header { background: var(--surface-soft) !important; }
+  .analytics-section-card { border-radius: var(--ui-panel-radius) !important; }
+  .analytics-page-header, .analytics-page-actions { min-width: 0; flex-wrap: wrap; }
+  .analytics-page-header .page-title { overflow-wrap: anywhere; }
+  .analytics-metric-card :is(.h2, .h5) { font-variant-numeric: tabular-nums; }
+  .analytics-metric-card .text-muted { font-size: 0.85rem; }
+  .analytics-table-shell thead th { background: var(--surface-soft) !important; }
+  .overview-filter-button { border-radius: var(--control-radius); box-shadow: none; }
+  .overview-filter-button.active { background: var(--surface-selected); color: var(--primary); }
+  .monitor-overview-chip, .rms-overview-chip { border-radius: var(--control-radius); }
+}

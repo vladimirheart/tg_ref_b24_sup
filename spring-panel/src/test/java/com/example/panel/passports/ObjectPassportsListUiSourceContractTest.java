@@ -32,7 +32,7 @@ class ObjectPassportsListUiSourceContractTest {
         assertTrue(html.contains("visibilityRows.length"));
         assertTrue(html.contains("passportsTableTopScroll"));
         assertTrue(html.contains("bindTableHorizontalScroll"));
-        assertTrue(html.contains("@{/css/app.css(v='20260908-01-259-r4-1')}"));
+        assertTrue(html.contains("@{/css/app.css(v='20261022-neutral-ops-r7')}"));
         assertTrue(html.contains("new ResizeObserver(updateTableHorizontalScroll)"));
         assertTrue(html.contains("tableShell.scrollLeft = tableTopScroll.scrollLeft"));
     }

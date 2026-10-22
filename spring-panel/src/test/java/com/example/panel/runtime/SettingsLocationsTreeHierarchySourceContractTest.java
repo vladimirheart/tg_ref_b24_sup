@@ -38,7 +38,7 @@ class SettingsLocationsTreeHierarchySourceContractTest {
             .contains("location-closed-filter");
 
         assertThat(settingsTemplate)
-            .contains("/css/settings.css?v=20261007-locations-tree-r32")
+            .contains("/css/settings.css(v='20261022-neutral-ops-r7')")
             .contains("/js/settings-locations-tree-runtime.js?v=20261007-closed-filter-r32");
 
         assertThat(calm)

@@ -1,0 +1,151 @@
+/* Общий контракт поверхностей; без изменений позиционирования, scroll и z-index. */
+body[data-ui-page] {
+  --surface-soft: var(--color-surface-soft);
+  --ui-panel-bg: var(--surface-card);
+  --ui-panel-border: var(--color-border);
+  --ui-form-border: var(--input);
+  --ui-form-focus-border: var(--ring);
+  --radius-xs: 0.3rem;
+  --radius-sm: 0.45rem;
+  --radius-md: 0.6rem;
+  --radius-lg: 0.72rem;
+  --radius-xl: 0.9rem;
+  --bs-body-color: var(--color-text);
+  --bs-body-bg: var(--color-bg);
+  --bs-secondary-color: var(--color-text-muted);
+  --bs-tertiary-bg: var(--surface-soft);
+  --bs-border-color: var(--color-border);
+  --bs-emphasis-color: var(--color-text);
+  --bs-secondary-bg: var(--surface-soft);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 1.0625rem;
+  -webkit-font-smoothing: antialiased;
+
+  .main-content { min-width: 0; }
+
+  .page-header-card {
+    padding: 0.5rem 0 0.9rem;
+    border: 0;
+    border-bottom: 1px solid var(--color-border);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .page-title { font-size: 1.5rem; font-weight: 700; }
+  .page-subtitle { color: var(--color-text-muted); }
+  .page-kicker, .section-kicker { min-height: 0; font-size: 0.78rem; letter-spacing: 0.075em; }
+  .page-section-kicker { background: transparent; color: var(--color-text-muted); padding-inline: 0; }
+
+  .card { --bs-card-bg: var(--surface-card); --bs-card-color: var(--color-text); --bs-card-border-color: var(--color-border); }
+  .card-header, .card-footer { border-color: var(--color-border); background: var(--surface-soft); }
+
+  .btn, .form-control, .form-select, .input-group-text {
+    min-height: 32px;
+    font-size: 0.9375rem;
+  }
+
+  .btn-link { min-height: 0; }
+  .btn:disabled, .btn.disabled { opacity: 0.55; }
+  .btn-primary { color: var(--primary-foreground); }
+  .btn-primary:hover, .btn-primary:focus-visible { color: var(--primary-foreground); }
+
+  .form-control, .form-select, .input-group-text {
+    border-color: var(--input);
+    background-color: var(--surface-card);
+    color: var(--color-text);
+  }
+
+  .form-control::placeholder { color: var(--color-text-muted); opacity: 0.85; }
+  .form-control:disabled, .form-select:disabled { background-color: var(--surface-soft); }
+  .form-control:focus, .form-select:focus { border-color: var(--ring); }
+  .form-control.is-invalid, .form-select.is-invalid { --ui-form-border: var(--state-danger); --ui-form-focus-border: var(--state-danger); }
+  .form-control.is-valid, .form-select.is-valid { --ui-form-border: var(--state-success); --ui-form-focus-border: var(--state-success); }
+  .form-check-input { border-color: var(--input); background-color: var(--surface-card); }
+  .form-check-input:checked { border-color: var(--primary); background-color: var(--primary); }
+  .form-label { font-size: 0.9375rem; font-weight: 600; }
+
+  :is(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+  }
+
+  .table {
+    --bs-table-bg: var(--surface-card);
+    --bs-table-color: var(--color-text);
+    --bs-table-border-color: var(--color-border);
+    --bs-table-striped-bg: var(--surface-soft);
+    --bs-table-striped-color: var(--color-text);
+    --bs-table-hover-bg: var(--surface-interactive);
+    --bs-table-hover-color: var(--color-text);
+    --bs-table-active-bg: var(--surface-selected);
+    --bs-table-active-color: var(--color-text);
+    font-size: 0.9375rem;
+    vertical-align: middle;
+  }
+
+  .table > thead > tr > th {
+    background: var(--surface-soft);
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+    font-weight: 650;
+    letter-spacing: 0.035em;
+  }
+
+  .table > :not(caption) > * > * { background-color: var(--bs-table-bg); }
+
+  .table-responsive { border-radius: var(--control-radius); }
+  .table.table-danger, .table .table-danger { --bs-table-bg: var(--state-danger-bg); --bs-table-color: var(--state-danger-text); }
+  .table.table-warning, .table .table-warning { --bs-table-bg: var(--state-warning-bg); --bs-table-color: var(--state-warning-text); }
+  .table.table-success, .table .table-success { --bs-table-bg: var(--state-success-bg); --bs-table-color: var(--state-success-text); }
+  .table.table-info, .table .table-info { --bs-table-bg: var(--state-info-bg); --bs-table-color: var(--state-info-text); }
+  .table.table-primary, .table .table-primary { --bs-table-bg: var(--surface-selected); --bs-table-color: var(--primary); }
+  .breadcrumb { font-size: 0.9rem; --bs-breadcrumb-divider-color: var(--color-text-muted); }
+  .breadcrumb-item.active { color: var(--color-text-muted); }
+  .modal-header, .modal-footer { border-color: var(--color-border); }
+  .modal-content, .offcanvas, .dropdown-menu, .popover {
+    color: var(--color-text);
+    border-color: var(--color-border);
+    background: var(--surface-card);
+    border-radius: var(--ui-panel-radius);
+  }
+
+  .modal-content { box-shadow: 0 18px 50px rgb(0 0 0 / 0.18); }
+  .dropdown-item { color: var(--color-text); }
+  .dropdown-item:hover, .dropdown-item:focus { color: var(--color-text); background: var(--surface-interactive); }
+  .dropdown-item.active, .dropdown-item:active { color: var(--primary-foreground); background: var(--primary); }
+  .popover { --bs-popover-body-color: var(--color-text); --bs-popover-header-bg: var(--surface-soft); --bs-popover-header-color: var(--color-text); }
+  .accordion { --bs-accordion-bg: var(--surface-card); --bs-accordion-color: var(--color-text); --bs-accordion-border-color: var(--color-border); --bs-accordion-btn-color: var(--color-text); --bs-accordion-active-bg: var(--surface-selected); --bs-accordion-active-color: var(--primary); }
+  .list-group { --bs-list-group-bg: var(--surface-card); --bs-list-group-color: var(--color-text); --bs-list-group-border-color: var(--color-border); }
+  .nav-tabs { --bs-nav-tabs-border-color: var(--color-border); --bs-nav-tabs-link-active-bg: var(--surface-card); --bs-nav-tabs-link-active-color: var(--primary); --bs-nav-tabs-link-active-border-color: var(--color-border) var(--color-border) var(--surface-card); }
+  .pagination { --bs-pagination-bg: var(--surface-card); --bs-pagination-color: var(--primary); --bs-pagination-border-color: var(--color-border); --bs-pagination-hover-bg: var(--surface-interactive); --bs-pagination-focus-bg: var(--surface-interactive); --bs-pagination-disabled-bg: var(--surface-soft); --bs-pagination-disabled-color: var(--color-text-muted); --bs-pagination-disabled-border-color: var(--color-border); --bs-pagination-active-bg: var(--primary); --bs-pagination-active-border-color: var(--primary); --bs-pagination-active-color: var(--primary-foreground); }
+
+  @media (pointer: coarse) {
+    /* Touch-target важнее фиксированной высоты compact-контролов отдельных страниц. */
+    .btn:not(.btn-link), .form-control:not(textarea), .form-select, .dropdown-item { min-height: 44px !important; }
+  }
+  @media (max-width: 575.98px) {
+    --ui-page-padding-x: 0.8rem;
+    --ui-page-padding-y: 0.8rem;
+    .page-title { font-size: 1.35rem; overflow-wrap: anywhere; }
+    .modal-dialog { margin: 0.5rem; }
+  }
+}
+
+:root[data-theme='dark'] body[data-ui-page] .btn-close,
+:root.dark body[data-ui-page] .btn-close { filter: invert(1) grayscale(1) brightness(1.8); }
+
+:root[data-theme='dark'] body[data-ui-page] .form-check:not(.form-switch) .form-check-input[type='checkbox']:checked,
+:root.dark body[data-ui-page] .form-check:not(.form-switch) .form-check-input[type='checkbox']:checked {
+  --bs-form-check-bg-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23102622' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e");
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-ui-page] *, body[data-ui-page] *::before, body[data-ui-page] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

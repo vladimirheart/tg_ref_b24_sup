@@ -1,0 +1,38 @@
+/* Вход, ошибки и автономное подтверждение смены. */
+body[data-ui-page='public'].auth-wrapper,
+body[data-ui-page='workforce'] {
+  background: var(--color-bg);
+  .auth-card, .shift-check-in-card {
+    border: 1px solid var(--color-border);
+    border-radius: var(--ui-panel-radius);
+    background: var(--surface-card);
+    color: var(--color-text);
+    box-shadow: 0 10px 28px rgb(28 47 56 / 0.05);
+    backdrop-filter: none;
+  }
+  .auth-logo { max-width: 72px; max-height: 72px; object-fit: contain; }
+  .auth-particles { opacity: 0.05; pointer-events: none; }
+  .auth-password-toggle { min-width: 44px; min-height: 32px; border-radius: var(--control-radius); color: var(--primary); }
+  .auth-actions { flex-wrap: wrap; gap: 0.75rem; }
+  .error-status-mark { box-shadow: none; border-radius: var(--ui-panel-radius); }
+  .shift-check-in-value { min-width: 0; overflow-wrap: anywhere; }
+}
+
+body[data-ui-page='workforce'] {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  .shift-check-in-card { width: min(560px, 100%); min-width: 0; }
+  .shift-check-in-meta { display: grid; gap: 0.9rem; }
+  .shift-check-in-row { display: flex; justify-content: space-between; gap: 1.2rem; padding-bottom: 0.8rem; border-bottom: 1px solid var(--color-border); }
+  .shift-check-in-row:last-child { border-bottom: 0; padding-bottom: 0; }
+  .shift-check-in-label { color: var(--color-text-muted); }
+  .shift-check-in-value { text-align: right; font-weight: 600; }
+  @media (max-width: 360px) {
+    padding: 0.75rem;
+    .shift-check-in-row { flex-direction: column; gap: 0.25rem; }
+    .shift-check-in-value { text-align: left; }
+  }
+}

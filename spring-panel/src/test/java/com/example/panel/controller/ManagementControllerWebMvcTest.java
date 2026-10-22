@@ -1,5 +1,7 @@
 package com.example.panel.controller;
 
+import com.example.panel.config.MultibusinessFeatureFlags;
+
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -109,6 +111,9 @@ class ManagementControllerWebMvcTest {
 
     @MockBean
     private PanelUserPhotoService panelUserPhotoService;
+
+    @MockBean
+    private MultibusinessFeatureFlags multibusinessFlags;
 
     @Test
     void settingsPageIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {

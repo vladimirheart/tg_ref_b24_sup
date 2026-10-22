@@ -1,0 +1,62 @@
+/* Очереди, AI, клиенты и инциденты. Семантические статусы и механика workspace сохраняются. */
+body[data-ui-page='dialogs'],
+body[data-ui-page='ai-ops'],
+body[data-ui-page='ai-sources'],
+body[data-ui-page='clients'],
+body[data-ui-page='incidents'] {
+  .dialogs-toolbar-card, .dialogs-table-card, .workspace-shell-card,
+  .aiops-section-card, .aiops-automation-card, .aiops-subpanel,
+  .client-profile-main-card, .client-profile-stat, .client-period-comparison,
+  .incident-kpi-card, .incident-metadata-card, .incident-signal-context-card {
+    border: 1px solid var(--color-border);
+    border-radius: var(--ui-panel-radius);
+    background: var(--surface-card);
+    color: var(--color-text);
+    box-shadow: none;
+  }
+
+  .dialog-table { font-size: 0.9375rem; }
+  .dialog-table thead th { font-size: 0.78rem; letter-spacing: 0.045em; }
+  .workspace-panel-block { border-color: var(--color-border); border-radius: var(--ui-panel-radius); box-shadow: none; }
+  .dialog-details-disclosure > summary { background: var(--surface-soft); }
+  .dialog-details-section { background: var(--surface-card); box-shadow: none; }
+  .client-profile-stats-grid { gap: 0.65rem; }
+  .client-profile-stat { padding: 0.8rem; background: var(--surface-soft); }
+  .client-profile-stat__value { font-variant-numeric: tabular-nums; }
+  .aiops-tab-nav { background: var(--surface-card); border-radius: var(--control-radius); }
+  .aiops-tab-nav .nav-link { border-radius: var(--control-radius); }
+
+  /* Новые scoped-формы не используют page-shell, ограничиваем лишь текстовую область. */
+  .main-content:has(> [data-general-create-form]),
+  .main-content[data-general-work],
+  .main-content[data-business-assignment],
+  .main-content[data-scoped-dialog-ai] {
+    max-width: 1500px;
+    padding-inline: 1.2rem;
+  }
+
+  [data-general-dialogs], [data-business-dialogs],
+  [data-ai-source-catalog], [data-ai-source-editor] {
+    .card { background: var(--surface-card); }
+    h1 { font-size: 1.5rem; font-weight: 700; }
+    .table-responsive { border: 1px solid var(--color-border); }
+  }
+
+  .main-content[data-general-work],
+  .main-content[data-business-assignment],
+  .main-content[data-scoped-dialog-ai] {
+    > section { padding-block: 0.9rem; border-top: 1px solid var(--color-border); }
+    > h1 { font-size: 1.5rem; }
+    > p { max-width: 80ch; color: var(--color-text-muted); }
+    .card-body { gap: 0.6rem; }
+    :is(p, li, label, .card) { overflow-wrap: anywhere; }
+  }
+
+  @media (max-width: 575.98px) {
+    .client-profile-page-header-row, .client-profile-overview-row { min-width: 0; }
+    .client-profile-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .client-profile-primary-fields { min-width: 0; }
+    .client-profile-field { overflow-wrap: anywhere; }
+    .aiops-tab-nav { max-width: 100%; flex-wrap: wrap; }
+  }
+}

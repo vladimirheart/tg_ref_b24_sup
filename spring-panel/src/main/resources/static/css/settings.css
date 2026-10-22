@@ -4247,6 +4247,113 @@
     overflow: auto;
   }
 }
+/* 01-281 R2: Settings and its nested workspaces; visual-only overrides. */
+body[data-ui-page=settings] .settings-surface .settings-page-hero {
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+body[data-ui-page=settings] .settings-surface .settings-tiles {
+  --bs-gutter-x: 0.85rem;
+  --bs-gutter-y: 0.85rem;
+}
+body[data-ui-page=settings] .settings-surface .settings-tile {
+  border: 1px solid var(--color-border);
+  border-radius: var(--ui-panel-radius);
+  background: var(--surface-card);
+  box-shadow: none;
+}
+body[data-ui-page=settings] .settings-surface .settings-tile .card-body {
+  padding: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+body[data-ui-page=settings] .settings-tile__head, body[data-ui-page=settings] .settings-tile__lead {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+body[data-ui-page=settings] .settings-tile__head {
+  justify-content: space-between;
+}
+body[data-ui-page=settings] .settings-tile__lead {
+  flex: 1;
+}
+body[data-ui-page=settings] .settings-tile__open {
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
+}
+body[data-ui-page=settings] .settings-tile .card-title {
+  margin: 0;
+  font-size: 1.08rem;
+  line-height: 1.4;
+}
+body[data-ui-page=settings] .settings-tile .card-text {
+  margin: 0;
+  font-size: 0.96rem;
+  line-height: 1.55;
+}
+body[data-ui-page=settings] .settings-surface .settings-tile:hover {
+  border-color: var(--primary);
+}
+body[data-ui-page=settings] .settings-surface .settings-page-hero {
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+body[data-ui-page=settings] .settings-surface .settings-tile .tile-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  font-size: 1.15rem;
+  border-radius: var(--control-radius);
+  background: var(--surface-soft);
+  box-shadow: none;
+}
+body[data-ui-page=settings] .settings-surface .settings-tile:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+body[data-ui-page=settings] .settings-primary-modal .modal-content,
+body[data-ui-page=settings] .settings-child-modal .modal-content {
+  border: 1px solid var(--color-border);
+  border-radius: var(--ui-panel-radius);
+  background: var(--surface-card);
+  color: var(--color-text);
+  box-shadow: none;
+}
+body[data-ui-page=settings] .settings-primary-modal .modal-header,
+body[data-ui-page=settings] .settings-primary-modal .modal-footer {
+  border-color: var(--color-border);
+  background: var(--surface-card);
+}
+body[data-ui-page=settings] .settings-workspace-nav.settings-menu-tabs .nav-link {
+  border-radius: var(--control-radius);
+  box-shadow: none;
+}
+body[data-ui-page=settings] .settings-workspace-nav.settings-menu-tabs .nav-link.active {
+  background: var(--surface-selected);
+  color: var(--primary);
+}
+body[data-ui-page=settings] .settings-workspace-content.settings-tab-content,
+body[data-ui-page=settings] .settings-workspace-host {
+  background: var(--surface-card);
+}
+body[data-ui-page=settings] .settings-surface .table-responsive,
+body[data-ui-page=settings] .settings-primary-modal .table-responsive {
+  border-color: var(--color-border);
+  box-shadow: none;
+}
+body[data-ui-page=settings] .settings-primary-modal .accordion-button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
 /* Settings last-cascade compatibility for the canonical disclosure language.
  * Do not edit generated static/css/settings.css directly.
  */
@@ -4306,69 +4413,4 @@
   border-top: 1px solid var(--color-border) !important;
   background: var(--surface-card) !important;
   color: var(--color-text) !important;
-}
-
-/* 01-281 R2: Settings and its nested workspaces; visual-only overrides. */
-body[data-ui-page=settings] .settings-surface .settings-page-hero {
-  border: 0;
-  border-bottom: 1px solid var(--color-border);
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
-body[data-ui-page=settings] .settings-surface .settings-tiles {
-  --bs-gutter-x: 0.85rem;
-  --bs-gutter-y: 0.85rem;
-}
-body[data-ui-page=settings] .settings-surface .settings-tile {
-  border: 1px solid var(--color-border);
-  border-radius: var(--ui-panel-radius);
-  background: var(--surface-card);
-  box-shadow: none;
-}
-body[data-ui-page=settings] .settings-surface .settings-tile .card-body {
-  padding: 0.9rem;
-}
-body[data-ui-page=settings] .settings-surface .settings-tile .tile-icon {
-  border-radius: var(--control-radius);
-  background: var(--surface-soft);
-  box-shadow: none;
-}
-body[data-ui-page=settings] .settings-surface .settings-tile:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-}
-body[data-ui-page=settings] .settings-primary-modal .modal-content,
-body[data-ui-page=settings] .settings-child-modal .modal-content {
-  border: 1px solid var(--color-border);
-  border-radius: var(--ui-panel-radius);
-  background: var(--surface-card);
-  color: var(--color-text);
-  box-shadow: none;
-}
-body[data-ui-page=settings] .settings-primary-modal .modal-header,
-body[data-ui-page=settings] .settings-primary-modal .modal-footer {
-  border-color: var(--color-border);
-  background: var(--surface-card);
-}
-body[data-ui-page=settings] .settings-workspace-nav.settings-menu-tabs .nav-link {
-  border-radius: var(--control-radius);
-  box-shadow: none;
-}
-body[data-ui-page=settings] .settings-workspace-nav.settings-menu-tabs .nav-link.active {
-  background: var(--surface-selected);
-  color: var(--primary);
-}
-body[data-ui-page=settings] .settings-workspace-content.settings-tab-content,
-body[data-ui-page=settings] .settings-workspace-host {
-  background: var(--surface-card);
-}
-body[data-ui-page=settings] .settings-surface .table-responsive,
-body[data-ui-page=settings] .settings-primary-modal .table-responsive {
-  border-color: var(--color-border);
-  box-shadow: none;
-}
-body[data-ui-page=settings] .settings-primary-modal .accordion-button:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: -2px;
 }
