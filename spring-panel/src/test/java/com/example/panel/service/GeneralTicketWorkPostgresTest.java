@@ -385,8 +385,14 @@ class GeneralTicketWorkPostgresTest {
             .containsEntry("questionnaire_catalog_sha256",null).containsEntry("questionnaire_version",null);
         var v79Roots=upgrade.queryForList("SELECT * FROM tickets");
         assertThat(v79Roots).isNotEqualTo(oldRoots); // Reproduces the stale SELECT * mismatch before V80/R166.
-        org.flywaydb.core.Flyway.configure().dataSource(upgrade.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").load().migrate();
+        org.flywaydb.core.Flyway.configure().dataSource(upgrade.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").target("80").load().migrate();
         assertThat(upgrade.queryForList("SELECT * FROM tickets")).isEqualTo(v79Roots);
+        String v80Columns=v79Roots.get(0).keySet().stream().map(column->"\""+column.replace("\"","\"\"")+"\"").collect(java.util.stream.Collectors.joining(","));
+        org.flywaydb.core.Flyway.configure().dataSource(upgrade.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").load().migrate();
+        assertThat(upgrade.queryForList("SELECT "+v80Columns+" FROM tickets")).isEqualTo(v79Roots);
+        assertThat(upgrade.queryForMap("SELECT business_work_revision,business_categories::text AS categories FROM tickets"))
+            .containsEntry("business_work_revision",0L).containsEntry("categories","[]");
+        assertThat(upgrade.queryForObject("SELECT count(*) FROM business_ticket_work_events",Integer.class)).isZero();
         for(String table:java.util.List.of("general_ticket_participants","general_ticket_participant_events"))
             assertThat(upgrade.queryForObject("SELECT count(*) FROM "+table,Integer.class)).isZero();
     }

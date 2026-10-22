@@ -692,10 +692,18 @@ class GeneralTicketWorkHttpPostgresTest {
         var before=new LinkedHashMap<String,java.util.List<Map<String,Object>>>();
         for(String table:new String[]{"tickets","ticket_participants","business_ticket_participants","business_ticket_participant_events","general_ticket_read_grants","general_ticket_operate_grants"})
             before.put(table,old.queryForList("SELECT * FROM "+table));
-        org.flywaydb.core.Flyway.configure().dataSource(old.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").load().migrate();
+        org.flywaydb.core.Flyway.configure().dataSource(old.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").target("80").load().migrate();
         before.forEach((table,rows)->assertThat(old.queryForList("SELECT * FROM "+table)).isEqualTo(rows));
         assertThat(old.queryForObject("SELECT count(*) FROM general_ticket_participants",Long.class)).isZero();
         assertThat(old.queryForObject("SELECT count(*) FROM general_ticket_participant_events",Long.class)).isZero();
+        String oldColumns=before.get("tickets").get(0).keySet().stream().map(column->"\""+column.replace("\"","\"\"")+"\"").collect(java.util.stream.Collectors.joining(","));
+        org.flywaydb.core.Flyway.configure().dataSource(old.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").load().migrate();
+        assertThat(old.queryForList("SELECT "+oldColumns+" FROM tickets")).isEqualTo(before.get("tickets"));
+        before.forEach((table,rows)->{if(!table.equals("tickets"))assertThat(old.queryForList("SELECT * FROM "+table)).isEqualTo(rows);});
+        assertThat(old.queryForList("SELECT business_work_revision,business_categories::text AS categories FROM tickets"))
+            .allSatisfy(row->assertThat(row).containsEntry("business_work_revision",0L).containsEntry("categories","[]"));
+        for(String table:java.util.List.of("general_ticket_participants","general_ticket_participant_events","business_ticket_work_events"))
+            assertThat(old.queryForObject("SELECT count(*) FROM "+table,Long.class)).isZero();
     }
     private long account(String name) {return jdbc.queryForObject("INSERT INTO users(username,password,enabled) VALUES(?,'unused',TRUE) RETURNING id",Long.class,name);}
     private MockHttpServletRequestBuilder actor(MockHttpServletRequestBuilder request,String name,String...authorities) {

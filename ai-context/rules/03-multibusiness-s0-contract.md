@@ -14,9 +14,9 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R163–R166 (2026-10-22): рабочий проект и Docker находятся
+Актуальное уточнение R163–R167 (2026-10-22): рабочий проект и Docker находятся
 на машине текущей сессии; пользователь разрешил restart Docker/контейнеров.
-В R166 заново проверены Docker Server 29.7.2 и healthy web/bot/worker/direct/
+В R167 заново проверены Docker Server 29.7.2 и healthy web/bot/worker/direct/
 PostgreSQL/RabbitMQ/Redis. Это health, не функциональная приёмка и не проверка
 рабочих revision/DB migrations/flags. Restart/rebuild/deploy/migration/backfill/
 config/flags не выполнялись. Restart не разрешает migration при startup.
@@ -968,6 +968,61 @@ R166 source-only, source minimum V80 без новой migration; рабочие
 restart/deploy не менялись. Общий статус 01-278 — 🟡.
 Golden R139 V68→V69 сохранён; новые nullable/default поля V79 не смешиваются
 с утратой старых значений при сравнении SELECT *. Это не live acceptance.
+
+### Ручной BUSINESS lifecycle и категории — R167
+
+V81 добавляет в canonical tickets business_work_revision и business_categories
+(JSON array, default []). Это новые категории текущего полного owner, не импорт
+и не fallback из raw ticket_categories. Старые поля/категории/назначения,
+GENERAL и UNRESOLVED не классифицируются. Новый immutable
+business_ticket_work_events хранит full user/raw/public/business, revision,
+action, from/to status, previous/current categories и numeric actor со snapshot.
+История не следует за другим business/tuple/generation; нет каскадного удаления.
+
+Локальный BUSINESS workflow на существующем business-dialog-assignment требует
+PAGE_DIALOGS, current READ и OPERATOR/MANAGER/ADMIN membership либо ALL_BUSINESSES
+OPERATE активного бизнеса. ROLE_ADMIN, VIEWER и GENERAL grants не заменяют OPERATE.
+Principal не trim-ится к чужому имени; account должен быть unique case-insensitive,
+enabled/unblocked/non-AI. Полный posted owner, exact status и work revision
+сверяются с current public lookup и повторяются в final UPDATE. GET не смешивает
+work/assignment views разных owners между последовательными lookups.
+POST с CSRF; чужой scope — 404, READ-only — 403, stale/no-op/invalid state — 409.
+HTML CSRF denial сохраняет общий redirect /error/403; page/OPERATE denial — 403.
+Это прежняя security policy, не изменение общих обработчиков.
+
+Из pending/open закрытие переводит в resolved и требует 1–50 новых категорий;
+из closed/resolved повторное открытие переводит в pending, сохраняя категории.
+Сохранение/очистка категорий — только pending/open, no-op отвергается.
+Категории trim/dedup, case-sensitive, до 160 Unicode code points каждая;
+null/control/oversize и более 50 входных строк не принимаются.
+Формы используют строки textarea, категории/history экранируются Thymeleaf.
+Root counters/resolved_at/by/last_reopen_at изменяются только соответствующей
+командой. Новое открытие не назначает ответственного автоматически.
+
+Общий raw-ID advisory → root FOR UPDATE → actor/business FOR SHARE → qualifying
+membership/ALL-grant FOR SHARE → final current rights/full owner/unique raw ID/
+revision/status/categories/channel UPDATE. Root trigger увеличивает work revision
+при статусе/категориях/owner/channel, включая внешние SQL writers; прямой revision
+override запрещён. Статус/category ABA не оживляют старую форму. Assignment и
+roster revisions не меняются. При смене full owner новая category projection
+сбрасывается в [], не наследуется другим scope; значения, записанные этим
+workflow, сохраняются в immutable истории исходного owner. Произвольный direct
+SQL сам обязан обеспечивать свой audit; trigger не создаёт историю за него.
+
+Root/categories, immutable event и frozen business_work_changed outbox атомарны
+в отдельной JDBC transaction. Ошибка любого шага, недоступный revision trigger,
+поздний owner/grant отказ либо неподтверждённый final state откатывают изменения.
+Metadata-only watcher/current READ SSE не вызывает legacy lifecycle/feedback,
+activity/spans, assignment/participants, AI, bell или client/support provider.
+Flags foundation/uiSelector проверяются до/внутри/после mutation; in-memory
+конфигурация не блокируется до commit. Это не полный внешний delivery workflow.
+
+Source minimum V81; readiness проверяет новые root поля и event schema.
+Рабочая migration/backfill/flags/restart/deploy не выполнены. Отдельными gates
+остаются policy смены business и reconciliation/retention, отображение canonical
+категорий в остальных read/analytics/export путях, scoped feedback/providers/AI,
+global blacklist, historical attribution legacy children и live acceptance.
+Общий статус 01-278 остаётся 🟡.
 
 ### Scoped auto-close и внешняя доставка
 

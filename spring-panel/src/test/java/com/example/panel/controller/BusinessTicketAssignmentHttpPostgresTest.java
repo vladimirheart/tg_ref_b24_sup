@@ -32,6 +32,133 @@ import org.springframework.web.util.HtmlUtils;
 
 @SpringBootTest @AutoConfigureMockMvc
 class BusinessTicketAssignmentHttpPostgresTest {
+    @SpyBean BusinessTicketWorkService work;
+    private MockHttpServletRequestBuilder workCommand(String action,long revision,String status,String categories) {
+        return post(url+"/lifecycle/"+action).param("ownerId","901").param("rawId",raw).param("businessId",Long.toString(business))
+            .param("workRevision",Long.toString(revision)).param("expectedStatus",status).param("categoryText",categories);
+    }
+    @Test void renderedWorkFormsSaveCloseReopenReloadAndPreserveLegacyChildren() throws Exception {
+        jdbc.update("INSERT INTO ticket_categories(ticket_id,category) VALUES(?,'Legacy untouched')",raw);
+        jdbc.update("INSERT INTO ticket_active(ticket_id,user_identity) VALUES(?,'original')",raw);
+        var legacy=jdbc.queryForList("SELECT * FROM ticket_categories WHERE ticket_id=?",raw);
+        var active=jdbc.queryForList("SELECT * FROM ticket_active WHERE ticket_id=?",raw);
+        var opened=mvc.perform(auth(get(url),actor,"PAGE_DIALOGS")).andExpect(status().isOk()).andReturn();
+        String html=opened.getResponse().getContentAsString();
+        assertThat(hidden(html,"workRevision")).isEqualTo("0");
+        assertThat(html).contains("businessCategories","lifecycle/close","lifecycle/categories");
+        mvc.perform(auth(post(url+"/lifecycle/categories").param("ownerId",hidden(html,"ownerId")).param("rawId",hidden(html,"rawId"))
+            .param("businessId",hidden(html,"businessId")).param("workRevision",hidden(html,"workRevision")).param("expectedStatus",hidden(html,"expectedStatus"))
+            .param("categoryText"," Billing \nBilling\nPayment").param("_csrf",hidden(html,"_csrf")).cookie(opened.getResponse().getCookies()),actor,"PAGE_DIALOGS"))
+            .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl(url));
+        assertThat(work.find(publicId,actor).orElseThrow().categories()).containsExactly("Billing","Payment");
+        mvc.perform(auth(workCommand("close",1,"open","Billing\nPayment"),actor,"PAGE_DIALOGS").with(csrf())).andExpect(status().is3xxRedirection());
+        var closed=mvc.perform(auth(get(url),actor,"PAGE_DIALOGS")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(closed).contains("lifecycle/reopen").doesNotContain("name=\"categoryText\"");
+        mvc.perform(auth(workCommand("reopen",2,"resolved",""),actor,"PAGE_DIALOGS").with(csrf())).andExpect(status().is3xxRedirection());
+        var view=work.find(publicId,actor).orElseThrow();assertThat(view.status()).isEqualTo("pending");assertThat(view.revision()).isEqualTo(3);
+        assertThat(view.categories()).containsExactly("Billing","Payment");
+        assertThat(work.recent(scope,viewer)).extracting(BusinessTicketWorkService.Event::action).containsExactly("reopen","close","categories");
+        assertThat(jdbc.queryForList("SELECT * FROM ticket_categories WHERE ticket_id=?",raw)).isEqualTo(legacy);
+        assertThat(jdbc.queryForList("SELECT * FROM ticket_active WHERE ticket_id=?",raw)).isEqualTo(active);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM pending_feedback_requests WHERE ticket_id=?",Long.class,raw)).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM ticket_responsibles WHERE ticket_id=?",Long.class,raw)).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM dialog_action_audit WHERE ticket_id=?",Long.class,raw)).isZero();
+        assertThat(events()).isZero();assertThat(memberEvents()).isZero();assertThat(revision()).isZero();assertThat(outbox()).isEqualTo(3);
+    }
+    @ParameterizedTest @ValueSource(strings={"close","reopen","categories"})
+    void lifecycleRequiresCsrfAndPageAndCurrentBusinessOperate(String action) throws Exception {
+        String status=action.equals("reopen")?"resolved":"open";
+        jdbc.update("UPDATE tickets SET status=? WHERE ticket_id=?",status,raw);
+        long rev=work.find(publicId,actor).orElseThrow().revision();
+        mvc.perform(auth(workCommand(action,rev,status,action.equals("reopen")?"":"New"),actor,"PAGE_DIALOGS"))
+            .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/error/403"));
+        mvc.perform(auth(workCommand(action,rev,status,action.equals("reopen")?"":"New"),actor,"ROLE_ADMIN").with(csrf()))
+            .andExpect(status().isForbidden());
+        mvc.perform(auth(workCommand(action,rev,status,action.equals("reopen")?"":"New"),viewer,"PAGE_DIALOGS","ROLE_ADMIN").with(csrf())).andExpect(status().isForbidden());
+        mvc.perform(auth(workCommand(action,rev,status,action.equals("reopen")?"":"New"),foreign,"PAGE_DIALOGS","ROLE_ADMIN").with(csrf())).andExpect(status().isNotFound());
+        var read=mvc.perform(auth(get(url),viewer,"PAGE_DIALOGS")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(read).doesNotContain("name=\"workRevision\"");
+        assertThat(work.recent(scope,actor)).isEmpty();assertThat(outbox()).isZero();
+    }
+    @ParameterizedTest @ValueSource(strings={"owner","raw","business","revision","status"})
+    void forgedLifecycleFormCannotRetargetOrUseAnOldState(String field) throws Exception {
+        var command=post(url+"/lifecycle/close").param("ownerId",field.equals("owner")?"902":"901")
+            .param("rawId",field.equals("raw")?raw.trim():raw).param("businessId",Long.toString(field.equals("business")?other:business))
+            .param("workRevision",field.equals("revision")?"1":"0").param("expectedStatus",field.equals("status")?"pending":"open").param("categoryText","New");
+        mvc.perform(auth(command,actor,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
+        assertThat(work.recent(scope,actor)).isEmpty();assertThat(outbox()).isZero();
+    }
+    @ParameterizedTest @ValueSource(strings={"bad","9223372036854775808","-1"})
+    void malformedWorkRevisionCannotWrite(String revision) throws Exception {
+        var command=post(url+"/lifecycle/close").param("ownerId","901").param("rawId",raw).param("businessId",Long.toString(business))
+            .param("workRevision",revision).param("expectedStatus","open").param("categoryText","New");
+        mvc.perform(auth(command,actor,"PAGE_DIALOGS").with(csrf()))
+            .andExpect(revision.equals("-1")?status().isConflict():status().isBadRequest());
+        assertThat(work.recent(scope,actor)).isEmpty();assertThat(outbox()).isZero();
+    }
+    @ParameterizedTest @ValueSource(strings={"revoke","viewer","disabled","blocked","archived","owner","collision","general","unresolved","status","category","flag"})
+    void lifecycleServiceRechecksAFormAuthorizedEarlierInTheController(String mutation) throws Exception {
+        var once=new java.util.concurrent.atomic.AtomicBoolean();
+        doAnswer(call->{
+            if(once.compareAndSet(false,true))switch(mutation) {
+                case "revoke"->jdbc.update("DELETE FROM business_memberships WHERE user_id=?",actorId);
+                case "viewer"->jdbc.update("UPDATE business_memberships SET role_code='VIEWER' WHERE user_id=?",actorId);
+                case "disabled"->jdbc.update("UPDATE users SET enabled=FALSE WHERE id=?",actorId);
+                case "blocked"->jdbc.update("UPDATE users SET is_blocked=TRUE WHERE id=?",actorId);
+                case "archived"->jdbc.update("UPDATE businesses SET status='archived' WHERE id=?",business);
+                case "owner"->jdbc.update("UPDATE tickets SET business_id=? WHERE ticket_id=?",other,raw);
+                case "collision"->jdbc.update("INSERT INTO tickets(user_id,ticket_id,business_id) VALUES(902,?,?)",raw,other);
+                case "general"->jdbc.update("UPDATE tickets SET business_id=NULL,is_general=TRUE,general_selection_source='MANUAL' WHERE ticket_id=?",raw);
+                case "unresolved"->jdbc.update("UPDATE tickets SET business_id=NULL WHERE ticket_id=?",raw);
+                case "status"->jdbc.update("UPDATE tickets SET status='pending' WHERE ticket_id=?",raw);
+                case "category"->jdbc.update("UPDATE tickets SET business_categories='[\"changed\"]' WHERE ticket_id=?",raw);
+                case "flag"->flags.setUiSelector(false);
+            }
+            return call.callRealMethod();
+        }).when(work).change(org.mockito.ArgumentMatchers.any(UiEventTicketScope.class),anyString(),anyLong(),anyString(),anyString(),anyList());
+        mvc.perform(auth(workCommand("close",0,"open","New"),actor,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
+        assertThat(once).isTrue();assertThat(jdbc.queryForObject("SELECT count(*) FROM business_ticket_work_events WHERE ticket_id=?",Long.class,raw)).isZero();
+        assertThat(outbox()).isZero();
+    }
+    @Test void categoryMarkupIsEscapedOnReloadAndUnicodeLengthUsesCodePoints() throws Exception {
+        String markup="<img src=x onerror=alert(1)>";
+        String unicode="😀".repeat(160);
+        assertThat(work.change(scope,actor,0,"open","categories",List.of(markup,unicode))).isTrue();
+        String html=mvc.perform(auth(get(url),viewer,"PAGE_DIALOGS")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(html).contains("&lt;img").doesNotContain(markup);
+        assertThat(work.find(publicId,viewer).orElseThrow().categories()).containsExactly(markup,unicode);
+    }
+    @ParameterizedTest @ValueSource(strings={"empty","too-long","too-many","closed-categories"})
+    void invalidWorkCategoryFormCannotWrite(String invalid) throws Exception {
+        String values=invalid.equals("too-long")?"a".repeat(161):invalid.equals("too-many")?String.join("\n",java.util.stream.IntStream.range(0,51).mapToObj(i->"Category "+i).toList()):"";
+        String action="close",status="open";long rev=0;
+        if(invalid.equals("closed-categories")){jdbc.update("UPDATE tickets SET status='closed' WHERE ticket_id=?",raw);action="categories";status="closed";rev=work.find(publicId,actor).orElseThrow().revision();}
+        mvc.perform(auth(workCommand(action,rev,status,values),actor,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
+        assertThat(work.recent(scope,actor)).isEmpty();assertThat(outbox()).isZero();
+    }
+    @Test void workViewCannotMixTwoBusinessOwnersAcrossSequentialLookups() throws Exception {
+        jdbc.update("INSERT INTO business_memberships(user_id,business_id,role_code) VALUES(?,?,'VIEWER')",actorId,other);
+        var once=new java.util.concurrent.atomic.AtomicBoolean();
+        doAnswer(call->{Object result=call.callRealMethod();if(once.compareAndSet(false,true))jdbc.update("UPDATE tickets SET business_id=? WHERE ticket_id=?",other,raw);return result;})
+            .when(service).find(publicId,actor);
+        String html=mvc.perform(auth(get(url),actor,"PAGE_DIALOGS")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(once).isTrue();assertThat(html).contains("Операции недоступны").doesNotContain("name=\"workRevision\"");
+        assertThat(outbox()).isZero();
+    }
+    @Test void workHistoryDoesNotFollowBusinessOrNewGenerationAndDoesNotGrantRights() {
+        assertThat(work.change(scope,actor,0,"open","close",List.of("New"))).isTrue();
+        assertThat(work.recent(scope,viewer)).hasSize(1);
+        jdbc.update("UPDATE tickets SET business_id=? WHERE ticket_id=?",other,raw);
+        assertThat(work.find(publicId,foreign).orElseThrow().categories()).isEmpty();
+        assertThat(work.recent(new UiEventTicketScope(901L,raw,publicId,"BUSINESS",other),foreign)).isEmpty();
+        assertThat(work.recent(scope,actor)).isEmpty();
+        jdbc.update("UPDATE tickets SET business_id=? WHERE ticket_id=?",business,raw);
+        jdbc.update("DELETE FROM tickets WHERE ticket_id=?",raw);
+        String recreated=UUID.randomUUID().toString().replace("-","");
+        jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,business_id,status) VALUES(901,?,?,?,'open')",raw,recreated,business);
+        assertThat(work.recent(new UiEventTicketScope(901L,raw,recreated,"BUSINESS",business),actor)).isEmpty();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM business_ticket_work_events WHERE ticket_id=?",Long.class,raw)).isEqualTo(1);
+    }
     @MockBean BotProcessService botProcessService;
     @MockBean(name="taskScheduler") TaskScheduler taskScheduler;
     @DynamicPropertySource static void postgres(DynamicPropertyRegistry registry) throws Exception {
@@ -319,11 +446,21 @@ class BusinessTicketAssignmentHttpPostgresTest {
         old.update("INSERT INTO tickets(user_id,ticket_id,status) VALUES(809,'old-member','open')");
         old.update("INSERT INTO ticket_participants(ticket_id,username,added_by) VALUES('old-member',' Old Member ','human')");
         var roots=old.queryForList("SELECT * FROM tickets");var members=old.queryForList("SELECT * FROM ticket_participants");
-        org.flywaydb.core.Flyway.configure().dataSource(old.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").load().migrate();
+        org.flywaydb.core.Flyway.configure().dataSource(old.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").target("79").load().migrate();
         assertThat(old.queryForList("SELECT * FROM tickets")).isEqualTo(roots);
         assertThat(old.queryForList("SELECT * FROM ticket_participants")).isEqualTo(members);
         assertThat(old.queryForObject("SELECT count(*) FROM business_ticket_participants",Long.class)).isZero();
         assertThat(old.queryForObject("SELECT count(*) FROM business_ticket_participant_events",Long.class)).isZero();
+        org.flywaydb.core.Flyway.configure().dataSource(old.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").target("80").load().migrate();
+        assertThat(old.queryForList("SELECT * FROM tickets")).isEqualTo(roots);
+        String oldColumns=roots.get(0).keySet().stream().map(column->"\""+column.replace("\"","\"\"")+"\"").collect(java.util.stream.Collectors.joining(","));
+        org.flywaydb.core.Flyway.configure().dataSource(old.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").load().migrate();
+        assertThat(old.queryForList("SELECT "+oldColumns+" FROM tickets")).isEqualTo(roots);
+        assertThat(old.queryForMap("SELECT business_work_revision,business_categories::text AS categories FROM tickets"))
+            .containsEntry("business_work_revision",0L).containsEntry("categories","[]");
+        assertThat(old.queryForList("SELECT * FROM ticket_participants")).isEqualTo(members);
+        for(String table:List.of("business_ticket_participants","business_ticket_participant_events","business_ticket_work_events"))
+            assertThat(old.queryForObject("SELECT count(*) FROM "+table,Long.class)).isZero();
     }
     private long account(String name){return jdbc.queryForObject("INSERT INTO users(username,password) VALUES(?,'unused') RETURNING id",Long.class,name);}
     private MockHttpServletRequestBuilder auth(MockHttpServletRequestBuilder request,String identity,String... authorities){
@@ -476,10 +613,20 @@ class BusinessTicketAssignmentHttpPostgresTest {
         old.update("INSERT INTO tickets(user_id,ticket_id,status) VALUES(808,'old-manual','open')");
         old.update("INSERT INTO ticket_responsibles(ticket_id,responsible,assigned_by,last_read_at) VALUES('old-manual',' Original ','human',CURRENT_TIMESTAMP)");
         var roots=old.queryForList("SELECT * FROM tickets");var assignments=old.queryForList("SELECT * FROM ticket_responsibles");
-        org.flywaydb.core.Flyway.configure().dataSource(old.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").load().migrate();
+        org.flywaydb.core.Flyway.configure().dataSource(old.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").target("78").load().migrate();
         assertThat(old.queryForList("SELECT * FROM tickets")).isEqualTo(roots);
         assertThat(old.queryForList("SELECT * FROM ticket_responsibles")).isEqualTo(assignments);
         assertThat(old.queryForObject("SELECT count(*) FROM business_ticket_assignment_events",Long.class)).isZero();
+        org.flywaydb.core.Flyway.configure().dataSource(old.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").target("80").load().migrate();
+        assertThat(old.queryForList("SELECT * FROM tickets")).isEqualTo(roots);
+        String oldColumns=roots.get(0).keySet().stream().map(column->"\""+column.replace("\"","\"\"")+"\"").collect(java.util.stream.Collectors.joining(","));
+        org.flywaydb.core.Flyway.configure().dataSource(old.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").load().migrate();
+        assertThat(old.queryForList("SELECT "+oldColumns+" FROM tickets")).isEqualTo(roots);
+        assertThat(old.queryForMap("SELECT business_work_revision,business_categories::text AS categories FROM tickets"))
+            .containsEntry("business_work_revision",0L).containsEntry("categories","[]");
+        assertThat(old.queryForList("SELECT * FROM ticket_responsibles")).isEqualTo(assignments);
+        assertThat(old.queryForObject("SELECT count(*) FROM business_ticket_assignment_events",Long.class)).isZero();
+        assertThat(old.queryForObject("SELECT count(*) FROM business_ticket_work_events",Long.class)).isZero();
     }
     @ParameterizedTest @ValueSource(strings={"bad","9223372036854775808","-1"})
     void malformedOrNegativeRevisionCannotWrite(String value) throws Exception {

@@ -19,8 +19,10 @@ public class BusinessTicketAssignmentController {
     private final BusinessTicketAssignmentService service;
     private final NavigationService navigation;
     private final BusinessTicketParticipantService participants;
-    public BusinessTicketAssignmentController(BusinessTicketAssignmentService service,NavigationService navigation,BusinessTicketParticipantService participants){
-        this.service=service;this.navigation=navigation;this.participants=participants;
+    private final BusinessTicketWorkService work;
+    public BusinessTicketAssignmentController(BusinessTicketAssignmentService service,NavigationService navigation,
+            BusinessTicketParticipantService participants,BusinessTicketWorkService work){
+        this.service=service;this.navigation=navigation;this.participants=participants;this.work=work;
     }
     @GetMapping
     public String view(@PathVariable String publicId,Authentication auth,Model model,HttpServletResponse response){
@@ -32,6 +34,11 @@ public class BusinessTicketAssignmentController {
         model.addAttribute("members",participants.members(state.scope(),auth.getName()));
         model.addAttribute("memberCandidates",state.canOperate()?participants.candidates(state.scope(),auth.getName()):java.util.List.of());
         model.addAttribute("participantEvents",participants.recent(state.scope(),auth.getName()));
+        var workState=work.find(publicId,auth.getName()).orElse(null);
+        if(workState!=null&&!state.scope().equals(workState.scope()))workState=null;
+        model.addAttribute("work",workState);
+        model.addAttribute("workCategoryText",workState==null?"":String.join("\n",workState.categories()));
+        model.addAttribute("workEvents",workState==null?java.util.List.of():work.recent(workState.scope(),auth.getName()));
         navigation.enrich(model,auth);
         return "businesses/dialog-assignment";
     }
@@ -57,6 +64,22 @@ public class BusinessTicketAssignmentController {
         var expected=new UiEventTicketScope(ownerId,rawId,publicId,"BUSINESS",businessId);
         if(!state.scope().equals(expected)||!participants.change(expected,auth.getName(),participantRevision,memberId,action.equals("add")))
             throw new ResponseStatusException(HttpStatus.CONFLICT,"Список или права изменились. Обновите страницу.");
+        var redirect=new RedirectView("/business-dialog-assignment/"+publicId,true);
+        redirect.setExposeModelAttributes(false);return redirect;
+    }
+    @PostMapping("/lifecycle/{action:close|reopen|categories}")
+    public RedirectView lifecycle(@PathVariable String publicId,@PathVariable String action,Authentication auth,HttpServletResponse response,
+            @RequestParam Long ownerId,@RequestParam String rawId,@RequestParam Long businessId,
+            @RequestParam long workRevision,@RequestParam String expectedStatus,@RequestParam(defaultValue="") String categoryText) {
+        response.setHeader("Cache-Control","no-store");
+        if(auth==null||!auth.isAuthenticated())throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        var current=work.find(publicId,auth.getName()).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND));
+        if(!current.canOperate())throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        if(categoryText.length()>20000)throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        var expected=new UiEventTicketScope(ownerId,rawId,publicId,"BUSINESS",businessId);
+        if(!current.scope().equals(expected)||current.revision()!=workRevision||!java.util.Objects.equals(current.status(),expectedStatus)
+                ||!work.change(expected,auth.getName(),workRevision,expectedStatus,action,categoryText.lines().toList()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Данные или права изменились. Обновите страницу.");
         var redirect=new RedirectView("/business-dialog-assignment/"+publicId,true);
         redirect.setExposeModelAttributes(false);return redirect;
     }

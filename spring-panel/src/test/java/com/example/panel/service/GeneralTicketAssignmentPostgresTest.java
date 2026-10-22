@@ -242,8 +242,14 @@ class GeneralTicketAssignmentPostgresTest {
             .containsEntry("questionnaire_catalog_sha256",null).containsEntry("questionnaire_version",null);
         var v79Roots=upgrade.queryForList("SELECT * FROM tickets");
         assertThat(v79Roots).isNotEqualTo(roots); // The original SELECT * comparison already fails at V79, before this feature.
-        org.flywaydb.core.Flyway.configure().dataSource(upgrade.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").load().migrate();
+        org.flywaydb.core.Flyway.configure().dataSource(upgrade.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").target("80").load().migrate();
         assertThat(upgrade.queryForList("SELECT * FROM tickets")).isEqualTo(v79Roots);
+        String v80Columns=v79Roots.get(0).keySet().stream().map(column->"\""+column.replace("\"","\"\"")+"\"").collect(java.util.stream.Collectors.joining(","));
+        org.flywaydb.core.Flyway.configure().dataSource(upgrade.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").load().migrate();
+        assertThat(upgrade.queryForList("SELECT "+v80Columns+" FROM tickets")).isEqualTo(v79Roots);
+        assertThat(upgrade.queryForMap("SELECT business_work_revision,business_categories::text AS categories FROM tickets"))
+            .containsEntry("business_work_revision",0L).containsEntry("categories","[]");
+        assertThat(upgrade.queryForObject("SELECT count(*) FROM business_ticket_work_events",Integer.class)).isZero();
         assertThat(upgrade.queryForList("SELECT * FROM ticket_responsibles")).isEqualTo(legacy);
         assertThat(upgrade.queryForList("SELECT * FROM general_ticket_read_grants")).isEqualTo(grants);
         for(String table:new String[]{"general_ticket_assignment_events","general_ticket_operate_grants","general_ticket_participants","general_ticket_participant_events"})

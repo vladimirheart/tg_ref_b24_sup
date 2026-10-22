@@ -2,7 +2,7 @@
 <html lang="ru" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Ответственный и участники обращения — iguana</title>
+    <title>Управление бизнес-обращением — iguana</title>
     <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
     <link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css">
     <link rel="stylesheet" href="/css/app.css"><link rel="stylesheet" href="/css/sidebar.css">
@@ -11,12 +11,50 @@
 <div th:replace="~{fragments/navbar :: navbar('dialogs')}"></div>
 <main class="main-content container-fluid py-4" data-business-assignment>
     <a href="/business-dialogs">← Обращения</a>
-    <h1 class="h3 mt-3">Ответственный и участники обращения</h1>
+    <h1 class="h3 mt-3">Управление бизнес-обращением</h1>
+    <section class="card card-body mb-3" data-business-work>
+        <h2 class="h5">Статус и категории BUSINESS</h2>
+        <p>Локальные операции без отправки клиенту, feedback, изменения ответственного, участников и AI.
+            Новые категории принадлежат этому владельцу; старые raw-категории автоматически не переносятся.</p>
+        <p th:if="${work == null}" class="alert alert-warning">Операции недоступны. Проверьте готовность схемы и права.</p>
+        <th:block th:if="${work != null}">
+            <p>Статус: <span data-work-status th:text="${work.status}"></span>.
+                Ревизия: <span th:text="${work.revision}"></span>.</p>
+            <ul><li th:each="category : ${work.categories}" th:text="${category}"></li></ul>
+            <p th:if="${!work.canOperate}" class="alert alert-info">Только чтение. Для изменения нужен текущий OPERATE этого бизнеса.</p>
+            <form th:if="${work.canOperate and (work.status == 'pending' or work.status == 'open')}" method="post"
+                  th:action="@{/business-dialog-assignment/{id}/lifecycle/categories(id=${work.scope.ticketPublicId})}">
+                <input type="hidden" name="ownerId" th:value="${work.scope.ticketUserId}">
+                <input type="hidden" name="rawId" th:value="${work.scope.ticketId}">
+                <input type="hidden" name="businessId" th:value="${work.scope.businessId}">
+                <input type="hidden" name="workRevision" th:value="${work.revision}">
+                <input type="hidden" name="expectedStatus" th:value="${work.status}">
+                <label for="businessCategories">Категории — по одной на строку, до 50, до 160 символов каждая</label>
+                <textarea id="businessCategories" name="categoryText" class="form-control" rows="4" maxlength="20000" th:text="${workCategoryText}"></textarea>
+                <p>Закрытие требует хотя бы одну категорию. Пустой список можно сохранить отдельно.</p>
+                <button class="btn btn-outline-primary mt-2" type="submit">Сохранить категории</button>
+                <button class="btn btn-primary mt-2" type="submit"
+                        th:formaction="@{/business-dialog-assignment/{id}/lifecycle/close(id=${work.scope.ticketPublicId})}">Закрыть обращение</button>
+            </form>
+            <form th:if="${work.canOperate and (work.status == 'closed' or work.status == 'resolved')}" method="post"
+                  th:action="@{/business-dialog-assignment/{id}/lifecycle/reopen(id=${work.scope.ticketPublicId})}">
+                <input type="hidden" name="ownerId" th:value="${work.scope.ticketUserId}">
+                <input type="hidden" name="rawId" th:value="${work.scope.ticketId}">
+                <input type="hidden" name="businessId" th:value="${work.scope.businessId}">
+                <input type="hidden" name="workRevision" th:value="${work.revision}">
+                <input type="hidden" name="expectedStatus" th:value="${work.status}">
+                <button class="btn btn-outline-primary" type="submit">Открыть повторно</button>
+            </form>
+        </th:block>
+        <h3 class="h6 mt-3">Последние изменения статуса и категорий</h3>
+        <p th:if="${#lists.isEmpty(workEvents)}">Новых действий пока нет.</p>
+        <ul><li th:each="event : ${workEvents}" th:text="${event.revision + ' · ' + event.action + ' · ' + event.fromStatus + ' → ' + event.toStatus + ' · ' + event.actor + ' · ' + event.categories + ' · ' + event.createdAt}"></li></ul>
+    </section>
     <p>Бизнес: <span th:text="${state.scope.businessId}"></span>. Ревизия: <span th:text="${state.revision}"></span>.</p>
     <p>Текущая проекция ответственного: <span th:text="${state.responsible ?: 'Не назначен'}"></span>.</p>
     <p>Это не подтверждает историческую принадлежность старых назначений. Ниже показаны только новые ручные действия этого владельца.</p>
     <p>Назначение не выдаёт доступ к бизнесу и не отправляет сообщений клиенту. Участники и AI не меняются.</p>
-    <p th:if="${!state.canOperate}" class="alert alert-info">Только чтение. Изменение требует OPERATE активного бизнеса и открытого обращения.</p>
+    <p th:if="${!state.canOperate}" class="alert alert-info">Назначение и участники: только чтение. Изменение требует OPERATE активного бизнеса и открытого обращения.</p>
     <form th:if="${state.canOperate}" method="post" th:action="@{/business-dialog-assignment/{id}/assign(id=${state.scope.ticketPublicId})}" class="card card-body mb-3">
         <input type="hidden" name="ownerId" th:value="${state.scope.ticketUserId}">
         <input type="hidden" name="rawId" th:value="${state.scope.ticketId}">

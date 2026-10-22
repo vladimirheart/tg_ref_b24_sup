@@ -269,7 +269,7 @@ class UiEventOutboxFrozenDeliveryPostgresTest {
         assertCursorAdvanced();
     }
 
-    @ParameterizedTest @ValueSource(strings={"business_assignment_changed","business_participants_changed"})
+    @ParameterizedTest @ValueSource(strings={"business_assignment_changed","business_participants_changed","business_work_changed"})
     void businessChangesInvalidateOnlyTheirFrozenScopeWithoutLegacyCallbacks(String event) throws Exception {
         dispatch(event);
         assertThat(count()).isZero();
@@ -299,6 +299,13 @@ class UiEventOutboxFrozenDeliveryPostgresTest {
         assertCursorAdvanced();
     }
 
+    @ParameterizedTest @ValueSource(strings={"business","recreated","tuple","general","missing","collision"})
+    void businessWorkInvalidationCannotFollowAChangedOwner(String mutation) {
+        writer.append("business_work_changed",RAW,9L,"old payload","photo","private/key",5);
+        mutate(mutation);watcher.watch();assertNoDelivery();
+        verifyNoInteractions(ai,supportChat,responsibility,routing,queue,channels);
+        assertCursorAdvanced();
+    }
     static Stream<Arguments> midCallbackCases() {
         return Stream.of("ticket_created", "client_message_created")
             .flatMap(event -> Stream.of("business", "recreated").map(mutation -> Arguments.of(event, mutation)));
