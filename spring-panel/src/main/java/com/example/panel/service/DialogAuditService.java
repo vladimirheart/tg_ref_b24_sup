@@ -8,12 +8,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 public class DialogAuditService {
 
     private static final Logger log = LoggerFactory.getLogger(DialogAuditService.class);
+    // Legacy assignment and participant actions share this raw-audit namespace boundary.
+    private static final Set<String> LEGACY_ASSIGNMENT_ACTIONS = Set.of(
+            "take", "reassign", "participants_add", "participants_remove");
 
     private final JdbcTemplate jdbcTemplate;
     private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
@@ -34,12 +38,14 @@ public class DialogAuditService {
         if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(action)) {
             return;
         }
-        boolean assignment=java.util.Set.of("take","reassign").contains(action.trim());
+        boolean assignment = LEGACY_ASSIGNMENT_ACTIONS.contains(action.trim());
         if(assignment&&flags!=null&&flags.isStrictReadScope())return;
         try {
             if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
                 return;
             }
+            // The feature flag may have changed during the legacy owner probe.
+            if (assignment && flags != null && flags.isStrictReadScope()) return;
             jdbcTemplate.update("""
                     INSERT INTO dialog_action_audit (ticket_id, actor, action, result, detail, created_at)
                     SELECT audit_row.ticket_id, audit_row.actor, audit_row.action, audit_row.result,

@@ -784,6 +784,23 @@ Source minimum остаётся V78; SQL migration и рабочие измен�
 139 прежних responsibility snapshots и 6 service tests), без failures/errors/skips.
 Это один legacy write path; остальные raw read/write gates сохраняются.
 
+R162: узкий пакет одного audit writer. Raw participants_add/participants_remove
+получили ту же UNRESOLVED/non-GENERAL/unique-root границу INSERT, что take/reassign.
+Для всех четырёх action codes strict проверяется до lookup и повторно после него.
+Поздний business/GENERAL/collision/missing proof не добавляет новый raw audit,
+включая result=success/error/not_found. Исторические строки остаются без изменений;
+opaque ticket ID, case/trim/default actor/result/detail и timestamp сохранены.
+Другие audit actions, successful-action lookup и telemetry сохраняют прежний
+контракт. Это не current READ для raw audit и не business/generation attribution.
+Операции с участниками, их final writer/recipient policy этим не закрыты;
+strict resampling не сериализует in-memory flag после второй проверки.
+Минимальная source-схема V78; новых migrations и рабочих изменений нет.
+
+R162 проверен изолированно: 176 Java / 3 XML GREEN, без failures/errors/skips;
+50 новых boundary cases, 117 прежних audit snapshots и 9 service tests.
+Scoped participant audit/workflow, historical attribution и live acceptance
+остаются отдельными gates; рабочие Docker/проект находятся на другой машине.
+
 Scoped auto-close callback передаёт исходный V61 scope и channel ID события
 в DialogNotificationService.notifyScopedSupportChat. Один SQL capture требует
 полного expected owner, unique raw ID/non-GENERAL, совпадения canonical
