@@ -14,7 +14,7 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R168–R169 (2026-10-22): рабочий экземпляр и Docker находятся
+Актуальное уточнение R168–R170 (2026-10-22): рабочий экземпляр и Docker находятся
 на другой машине и в другой сессии относительно этой source/test-сессии.
 Здесь разрешён только изолированный Testcontainers; рабочие stack/revision/
 DB migrations/flags не проверялись и не менялись. Одинаковый путь checkout
@@ -1101,6 +1101,39 @@ raw lookup. Roster и current revision, history page и current revision пол�
 уведомления, status/work revision и права. Snapshot имён — audit, не authority.
 Legacy compatibility workspace participants=[]; raw таблица не переписывается.
 GENERAL roster API и остальные legacy read paths этим не объявляются закрытыми.
+
+### BUSINESS manual/SLA assignment history READ — R170
+
+R170: единый read-only BUSINESS audit ручных V78 и SLA V77 назначений через
+/api/business-scope/tickets/{publicId}/assignments/history. Один SQL повторяет
+current unique enabled/unblocked READ активного бизнеса (membership либо
+ALL_BUSINESSES с допустимой ролью), foundation и PAGE_DIALOGS на HTTP-границе.
+Principal lower-case без trim. GENERAL/UNRESOLVED и ambiguous public locator
+не допускаются. Каждое событие связано с текущим полным user/raw/public/business;
+raw collision и closed/resolved не мешают чтению подтверждённого audit.
+События newest-first, по 1–100 на страницу; strict before-revision cursor,
+limit+1/hasMore, default cursor включает Long.MAX_VALUE. Duplicate revision
+между источниками в странице/дополнительной строке даёт 503: tied event не
+пропускается курсором. Нет fallback на raw audit или молчаливой пустоты при
+недоступной canonical schema. Success JSON private no-store/nosniff.
+Owner IDs, numeric manual assignee/actor IDs, revisions и cursors — JSON strings.
+SLA имена остаются историческими snapshots, numeric IDs для них не выводятся
+по текущему username. SLA source/route и previous_responsible не выбираются
+и не публикуются. История не устанавливает текущего responsible и не выдаёт
+участникам либо назначенному новые grants.
+Main card: отдельная раскрываемая история ручных/SLA назначений, textContent,
+постраничная загрузка без повторного клика. Full owner и две версии — текущая
+responsibility_revision и latestEventRevision scoped audit — защищают смешение
+страниц; stale owner/version/generation, смена карточки/бизнеса и отказ доступа
+очищают панель. Neutral Ops UI r9 и native disclosure сохранены.
+Source minimum остаётся V81: новой migration/flags нет. Writer/notification/
+provider paths не менялись. Legacy responsible/active/spans attribution,
+retention/reconciliation, external SLA destination policy, S2B, scoped feedback/
+client delivery и рабочая приёмка остаются gates.
+
+Один statement snapshot возвращает owner, root revision, последнюю scoped audit
+revision и страницу обоих источников. Audit не предоставляет authority текущего
+назначения; raw legacy snapshot отдельно и не импортируется. Retention не менялась.
 
 ### Scoped auto-close и внешняя доставка
 

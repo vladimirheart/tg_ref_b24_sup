@@ -32,6 +32,38 @@ import org.springframework.web.util.HtmlUtils;
 
 @SpringBootTest @AutoConfigureMockMvc
 class BusinessTicketAssignmentHttpPostgresTest {
+    @Test void manualAndSlaWritersReachPrivatePagedReadWithoutInternalRouteOrLegacySnapshots() throws Exception {
+        mvc.perform(auth(command("take",0),actor,"PAGE_DIALOGS").with(csrf())).andExpect(status().is3xxRedirection());
+        long channel=jdbc.queryForObject("INSERT INTO channels(token,channel_name,platform) VALUES(?,'Telegram','telegram') RETURNING id",Long.class,UUID.randomUUID().toString());
+        jdbc.update("UPDATE tickets SET channel_id=? WHERE user_id=901 AND ticket_id=?",channel,raw);
+        assertThat(sla.assign(new DialogLookupReadService.ScopedSlaDialog(null,scope,channel,1,actor),target,"scheduler","Secret source","Secret route")).isTrue();
+        String path="/api/business-scope/tickets/"+publicId+"/assignments/history";
+        var first=mvc.perform(auth(get(path).param("limit","1"),viewer,"PAGE_DIALOGS"))
+            .andExpect(status().isOk()).andExpect(header().string("Cache-Control","no-store"))
+            .andExpect(header().string("X-Content-Type-Options","nosniff"))
+            .andExpect(jsonPath("$.owner.ticketId").value(raw)).andExpect(jsonPath("$.owner.userId").value("901"))
+            .andExpect(jsonPath("$.revision").value("2")).andExpect(jsonPath("$.latestEventRevision").value("2"))
+            .andExpect(jsonPath("$.events[0].origin").value("SLA")).andExpect(jsonPath("$.events[0].assignee").value(target))
+            .andExpect(jsonPath("$.events[0].assigneeId").isEmpty()).andExpect(jsonPath("$.nextBeforeRevision").value("2"))
+            .andReturn().getResponse().getContentAsString();
+        assertThat(first).doesNotContain("Secret source","Secret route","previousResponsible","source","route");
+        mvc.perform(auth(get(path).param("before","2").param("limit","1"),viewer,"PAGE_DIALOGS"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.events[0].origin").value("MANUAL"))
+            .andExpect(jsonPath("$.events[0].action").value("take")).andExpect(jsonPath("$.events[0].actorId").value(Long.toString(actorId)))
+            .andExpect(jsonPath("$.hasMore").value(false));
+        assertThat(revision()).isEqualTo(2);assertThat(events()).isEqualTo(1);assertThat(outbox()).isEqualTo(1);
+        jdbc.update("UPDATE business_memberships SET is_active=FALSE WHERE user_id=?",viewerId);
+        mvc.perform(auth(get(path),viewer,"PAGE_DIALOGS")).andExpect(status().isNotFound());
+    }
+    @Test void assignmentAuditReadSurvivesRawCollisionAndCannotFollowOwnerTransfer() throws Exception {
+        assertThat(service.change(scope,actor,0,targetId,false)).isTrue();
+        jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,business_id) VALUES(902,?,?,?)",raw,UUID.randomUUID().toString().replace("-",""),other);
+        String path="/api/business-scope/tickets/"+publicId+"/assignments/history";
+        mvc.perform(auth(get(path),viewer,"PAGE_DIALOGS")).andExpect(status().isOk()).andExpect(jsonPath("$.events",hasSize(1)));
+        jdbc.update("UPDATE tickets SET business_id=? WHERE user_id=901 AND ticket_id=?",other,raw);
+        mvc.perform(auth(get(path),viewer,"PAGE_DIALOGS")).andExpect(status().isNotFound());
+        mvc.perform(auth(get(path),foreign,"PAGE_DIALOGS")).andExpect(status().isOk()).andExpect(jsonPath("$.events",hasSize(0)));
+    }
     @Test void persistedParticipantRosterAndHistoryReachReadOnlyCardApisWithoutLegacyFallback() throws Exception {
         jdbc.update("INSERT INTO ticket_participants(ticket_id,username,added_by) VALUES(?,'Legacy secret','old')",raw);
         var old=jdbc.queryForList("SELECT * FROM ticket_participants WHERE ticket_id=?",raw);

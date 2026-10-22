@@ -45,6 +45,11 @@
   let participantRevision = null;
   let participantBefore = null;
   let participantLoading = false;
+  let assignmentTicket = null;
+  let assignmentRevision = null;
+  let assignmentLatest = null;
+  let assignmentBefore = null;
+  let assignmentLoading = false;
 
   function clearCard() {
     card.hidden = true;
@@ -70,6 +75,7 @@
     currentTicket = null;
     olderLoading = false;
     clearParticipants();
+    clearAssignmentHistory();
   }
 
   function clearParticipants(message = '') {
@@ -83,6 +89,19 @@
     participantRevision = null;
     participantBefore = null;
     participantLoading = false;
+  }
+
+  function clearAssignmentHistory(message = '') {
+    card.querySelector('[data-ticket-assignment-events]').replaceChildren();
+    card.querySelector('[data-ticket-assignment-status]').textContent = message;
+    const button = card.querySelector('[data-ticket-assignment-older]');
+    button.hidden = true;
+    button.disabled = false;
+    assignmentTicket = null;
+    assignmentRevision = null;
+    assignmentLatest = null;
+    assignmentBefore = null;
+    assignmentLoading = false;
   }
 
   function announce(message, error = false) {
@@ -367,6 +386,70 @@
     }
   }
 
+  function assignmentOwnerMatches(owner, ticket) {
+    return owner && owner.ticketPublicId === ticket.ticketPublicId && owner.ticketId === ticket.ticketId &&
+      owner.userId === String(ticket.userId) && owner.businessId === String(ticket.businessId);
+  }
+
+  function assignmentEventItem(event) {
+    const item = document.createElement('li');
+    item.className = 'list-group-item text-break';
+    const origin = event.origin === 'SLA' ? 'SLA' : 'Вручную';
+    const action = event.action === 'take' ? 'взял в работу' : 'назначил';
+    item.textContent = `${ticketTime(event.createdAt)} · ${origin} · ревизия ${event.revision} · ` +
+      `${event.actor}: ${action} → ${event.assignee}`;
+    return item;
+  }
+
+  async function loadAssignmentHistory(ticket, expectedGeneration, request) {
+    clearAssignmentHistory('Загрузка истории назначений…');
+    try {
+      const page = await getJson(`/api/business-scope/tickets/${encodeURIComponent(ticket.ticketPublicId)}/assignments/history?limit=50`);
+      if (expectedGeneration !== generation || request !== cardRequest || currentTicketPublicId !== ticket.ticketPublicId) return;
+      if (!assignmentOwnerMatches(page.owner, ticket) || typeof page.revision !== 'string' || typeof page.latestEventRevision !== 'string') {
+        clearAssignmentHistory('История назначений изменилась. Обновите карточку.');
+        return;
+      }
+      card.querySelector('[data-ticket-assignment-events]').append(...page.events.map(assignmentEventItem));
+      card.querySelector('[data-ticket-assignment-status]').textContent = page.events.length
+        ? 'Ручные и SLA-назначения. События показывают историю, а не текущего ответственного.'
+        : 'Сохранённых назначений в этом бизнесе пока нет.';
+      assignmentTicket = ticket;
+      assignmentRevision = page.revision;
+      assignmentLatest = page.latestEventRevision;
+      assignmentBefore = page.nextBeforeRevision;
+      card.querySelector('[data-ticket-assignment-older]').hidden = !page.hasMore;
+    } catch (error) {
+      if (expectedGeneration === generation && request === cardRequest && currentTicketPublicId === ticket.ticketPublicId)
+        clearAssignmentHistory('История назначений недоступна. Проверьте доступ и обновите карточку.');
+    }
+  }
+
+  async function loadOlderAssignments() {
+    if (assignmentLoading || !assignmentTicket || assignmentBefore === null) return;
+    const ticket = assignmentTicket, expectedGeneration = generation, request = cardRequest;
+    const revision = assignmentRevision, latest = assignmentLatest, before = assignmentBefore;
+    const button = card.querySelector('[data-ticket-assignment-older]');
+    assignmentLoading = true;
+    button.disabled = true;
+    try {
+      const page = await getJson(`/api/business-scope/tickets/${encodeURIComponent(ticket.ticketPublicId)}/assignments/history?limit=50&before=${encodeURIComponent(before)}`);
+      if (expectedGeneration !== generation || request !== cardRequest || assignmentTicket !== ticket) return;
+      if (!assignmentOwnerMatches(page.owner, ticket) || page.revision !== revision || page.latestEventRevision !== latest) {
+        clearAssignmentHistory('История назначений изменилась. Обновите карточку.');
+        return;
+      }
+      card.querySelector('[data-ticket-assignment-events]').append(...page.events.map(assignmentEventItem));
+      assignmentBefore = page.nextBeforeRevision;
+      button.hidden = !page.hasMore;
+    } catch (error) {
+      if (expectedGeneration === generation && request === cardRequest && assignmentTicket === ticket)
+        clearAssignmentHistory('История назначений недоступна. Обновите карточку.');
+    } finally {
+      if (expectedGeneration === generation && request === cardRequest) { assignmentLoading = false; button.disabled = false; }
+    }
+  }
+
   async function loadSpans(ticket, expectedGeneration, request) {
     spans.replaceChildren();
     spansStatus.textContent = 'Загрузка интервалов работы…';
@@ -456,6 +539,7 @@
       loadAnswers(detail, expectedGeneration, request);
       loadWorkspace(detail, expectedGeneration, request);
       loadParticipants(detail, expectedGeneration, request);
+      loadAssignmentHistory(detail, expectedGeneration, request);
       loadSpans(detail, expectedGeneration, request);
     } catch (error) {
       if (expectedGeneration !== generation || request !== cardRequest) return;
@@ -599,6 +683,7 @@
   });
   older.addEventListener('click', loadOlderHistory);
   card.querySelector('[data-ticket-participants-older]').addEventListener('click', loadOlderParticipants);
+  card.querySelector('[data-ticket-assignment-older]').addEventListener('click', loadOlderAssignments);
   exportButton.addEventListener('click', exportTickets);
 
   if (manualForm) {
