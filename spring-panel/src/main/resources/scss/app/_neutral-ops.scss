@@ -1,0 +1,392 @@
+/*
+ * Neutral Ops is deliberately scoped to the two operational workspaces.
+ * It keeps the existing DOM and runtime contracts untouched while removing
+ * decorative treatment that competes with queue state and real-time data.
+ */
+
+body[data-ui-visual='neutral-ops'] {
+  --ui-panel-radius: 0.72rem;
+  --ui-panel-padding: 0.9rem;
+  --ui-panel-padding-lg: 1rem;
+  --ui-panel-shadow: none;
+  --radius: 0.72rem;
+  --radius-lg: 0.72rem;
+  --radius-xl: 0.9rem;
+  --control-radius: 0.52rem;
+  --surface-raised: var(--surface-card);
+  --surface-interactive: color-mix(in srgb, var(--primary) 5%, var(--surface-card));
+  --surface-selected: color-mix(in srgb, var(--primary) 11%, var(--surface-card));
+
+  .page-kicker,
+  .section-kicker {
+    padding: 0;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 0.66rem;
+    letter-spacing: 0.1em;
+  }
+
+  .page-header-card,
+  .dialogs-toolbar-card,
+  .dialogs-table-card,
+  .workspace-shell-card,
+  .reports-page-header,
+  .filter-panel,
+  .metrics-panel,
+  .chart-panel {
+    border: 1px solid var(--color-border);
+    border-radius: var(--ui-panel-radius);
+    background: var(--surface-card);
+    box-shadow: none;
+  }
+
+  .gradient-border-hover::before,
+  .filter-panel::before,
+  .metrics-panel::before,
+  .chart-panel::before {
+    display: none;
+  }
+
+  .page-title,
+  .panel-head h3,
+  .chart-panel-title,
+  .dialogs-title {
+    letter-spacing: -0.025em;
+  }
+
+  .btn,
+  .form-control,
+  .form-select,
+  .select2-container--default .select2-selection--multiple {
+    border-radius: var(--control-radius);
+    box-shadow: none;
+  }
+
+  .btn-primary {
+    border-color: var(--primary);
+    background: var(--primary);
+  }
+
+  .btn-primary:hover,
+  .btn-primary:focus-visible {
+    border-color: var(--color-accent-strong);
+    background: var(--color-accent-strong);
+    box-shadow: none;
+  }
+}
+
+body[data-ui-page='dialogs'][data-ui-visual='neutral-ops'] {
+  background: var(--color-bg);
+
+  .page-shell--dialogs {
+    max-width: 1780px;
+    padding-top: 1rem;
+    padding-bottom: 1.5rem;
+  }
+
+  .dialogs-hero {
+    min-height: 0;
+    padding: 0 0 0.75rem;
+    border: 0;
+    background: transparent;
+  }
+
+  .dialogs-hero .page-subtitle {
+    max-width: 48rem;
+    color: var(--color-text-muted);
+  }
+
+  .dialogs-toolbar-card .card-body {
+    gap: 0.65rem;
+    padding: 0.82rem;
+  }
+
+  .dialogs-toolbar-card .btn,
+  .dialog-status-group .btn {
+    min-height: 2rem;
+    border-color: var(--color-border);
+    background: var(--surface-card);
+    color: var(--color-text-muted);
+  }
+
+  .dialogs-toolbar-card .btn:hover,
+  .dialog-status-group .btn:hover {
+    border-color: color-mix(in srgb, var(--primary) 35%, var(--color-border));
+    background: var(--surface-interactive);
+    color: var(--color-text);
+  }
+
+  .dialog-status-group .btn {
+    border-radius: var(--control-radius);
+  }
+
+  .dialog-status-group .btn.active {
+    border-color: color-mix(in srgb, var(--primary) 44%, var(--color-border));
+    background: var(--surface-selected);
+    color: var(--primary);
+  }
+
+  .dialog-toolbar-search {
+    min-height: 2.3rem;
+    border-color: var(--color-border);
+    background: var(--surface-soft);
+  }
+
+  .dialogs-table-card .card-body {
+    padding: 0;
+  }
+
+  .dialog-list-head {
+    margin: 0;
+    padding: 0.85rem 0.9rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .dialog-table {
+    font-size: 0.84rem;
+  }
+
+  .dialog-table thead th {
+    border-bottom-color: var(--color-border);
+    background: var(--surface-soft);
+    color: var(--color-text-muted);
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .dialog-table tbody tr {
+    transition: background-color 0.15s ease;
+  }
+
+  .dialog-table tbody tr:hover {
+    background: var(--surface-interactive);
+  }
+
+  .dialog-table > :not(caption) > * > * {
+    border-bottom-color: var(--color-border);
+  }
+
+  .dialog-channel-pill,
+  .dialog-business-pill,
+  .dialog-sla-badge,
+  .dialog-status-badge {
+    border-radius: 0.38rem;
+  }
+
+  .workspace-shell-card .card-body {
+    padding: 0.9rem;
+  }
+
+  .workspace-shell-card .row {
+    --bs-gutter-x: 0.9rem;
+    --bs-gutter-y: 0.9rem;
+  }
+
+  .workspace-panel-block {
+    border: 1px solid var(--color-border);
+    border-radius: var(--ui-panel-radius);
+    background: var(--surface-card);
+  }
+
+  #workspaceMessagesBlock {
+    background: var(--surface-soft);
+  }
+
+  #workspaceComposerBlock {
+    padding: 0.8rem;
+  }
+
+  .workspace-ai-panel {
+    border-color: color-mix(in srgb, var(--state-ai) 30%, var(--color-border));
+    background: var(--state-ai-bg);
+  }
+
+  .dialog-details-section,
+  .dialog-details-disclosure {
+    border-color: var(--color-border);
+    border-radius: var(--control-radius);
+    background: var(--surface-card);
+    box-shadow: none;
+  }
+}
+
+body[data-ui-page='dashboard'][data-ui-visual='neutral-ops'] {
+  .main-content {
+    background: var(--color-bg);
+  }
+
+  .reports-shell {
+    max-width: 1780px;
+    padding-top: 1rem;
+    padding-bottom: 1.5rem;
+  }
+
+  .reports-page-header {
+    padding: 0 0 0.75rem;
+    border: 0;
+    background: transparent;
+  }
+
+  .reports-tab-nav {
+    gap: 0;
+    margin-bottom: 1rem;
+    padding: 0;
+    border: 0;
+    border-bottom: 1px solid var(--color-border);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .reports-tab-nav .nav-link {
+    margin-bottom: -1px;
+    padding: 0.6rem 0.85rem;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+  }
+
+  .reports-tab-nav .nav-link.active {
+    border-bottom-color: var(--primary);
+    background: transparent;
+    color: var(--primary);
+  }
+
+  .dashboard-overview-grid {
+    grid-template-areas: 'metrics filters';
+    grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.55fr);
+    gap: 0.8rem;
+  }
+
+  .filter-panel { grid-area: filters; }
+  .metrics-panel { grid-area: metrics; }
+
+  .filter-panel,
+  .metrics-panel,
+  .chart-panel {
+    padding: 0.9rem;
+  }
+
+  .metrics-panel {
+    color: var(--color-text);
+  }
+
+  .metrics-panel .panel-head p,
+  .metrics-panel .section-kicker,
+  .metrics-panel .metric-label,
+  .metrics-panel .metric-foot,
+  .metrics-panel .metric-mini-label,
+  .metrics-panel .metric-note-text,
+  .metrics-headline__meta {
+    color: var(--color-text-muted);
+  }
+
+  .metrics-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
+
+  .metric-card,
+  .metric-card--primary,
+  .metric-card--spotlight,
+  .metric-card--note {
+    min-height: 112px;
+    padding: 0.78rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--control-radius);
+    background: var(--surface-soft);
+    box-shadow: none;
+  }
+
+  .metric-value {
+    font-family: var(--font-sans);
+  }
+
+  .filter-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+  }
+
+  .filter-block--restaurants {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .filter-buttons {
+    justify-content: flex-start;
+  }
+
+  .period-preset-btn,
+  .filter-buttons .btn {
+    border-radius: var(--control-radius);
+    box-shadow: none;
+  }
+
+  .period-preset-btn.active {
+    border-color: var(--primary);
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+
+  .dashboard-grid {
+    gap: 0.8rem;
+  }
+
+  .chart-panel {
+    min-height: 0;
+  }
+
+  .panel-head {
+    margin-bottom: 0.7rem;
+  }
+
+  .panel-head h3 {
+    font-size: 0.96rem;
+  }
+
+  .panel-info-button {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: transparent;
+  }
+
+  .dashboard-layout-toolbar {
+    margin: 0 0 0.7rem;
+  }
+
+  .dashboard-layout-reset,
+  .dashboard-hidden-panel-chip {
+    border-radius: var(--control-radius);
+    box-shadow: none;
+  }
+
+  .reports-table-shell,
+  .reports-subpanel,
+  .manager-table-shell {
+    border-color: var(--color-border);
+    border-radius: var(--ui-panel-radius);
+    background: var(--surface-card);
+    box-shadow: none;
+  }
+
+  @media (max-width: 1100px) {
+    .dashboard-overview-grid {
+      grid-template-areas: 'metrics' 'filters';
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 680px) {
+    .metrics-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+}

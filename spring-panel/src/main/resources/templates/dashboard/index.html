@@ -39,7 +39,7 @@
 		  rel="stylesheet">
 
 	<link rel="stylesheet" th:href="@{/css/style.css}">
-	<link rel="stylesheet" th:href="@{/css/app.css}">
+	<link rel="stylesheet" th:href="@{/css/app.css(v='20261022-01-281-neutral-ops')}">
 	<link rel="stylesheet" th:href="@{/css/sidebar.css(v='2')}">	
   <script src="/vendor/chart.js/4.5.1/chart.umd.min.js"></script>
   <script src="/vendor/jquery/3.6.0/jquery.min.js"></script>
@@ -48,7 +48,7 @@
   <script src="/vendor/flatpickr/4.6.13/l10n/ru.js"></script>
   <script th:src="@{/js/common.js}"></script>
 </head>
-<body class="with-sidebar sidebar-pinned" data-ui-page="dashboard" data-ui-density="compact">
+<body class="with-sidebar sidebar-pinned" data-ui-page="dashboard" data-ui-density="compact" data-ui-visual="neutral-ops">
   <div th:replace="~{fragments/navbar :: navbar(${activePage})}"></div>
   <main class="main-content container-fluid">
 	  <div class="reports-shell page-shell page-shell--dashboard ops-page-shell">
