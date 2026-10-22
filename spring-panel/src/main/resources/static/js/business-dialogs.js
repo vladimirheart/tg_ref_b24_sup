@@ -50,6 +50,11 @@
   let assignmentLatest = null;
   let assignmentBefore = null;
   let assignmentLoading = false;
+  let workTicket = null;
+  let workRevision = null;
+  let workLatest = null;
+  let workBefore = null;
+  let workLoading = false;
 
   function clearCard() {
     card.hidden = true;
@@ -76,6 +81,7 @@
     olderLoading = false;
     clearParticipants();
     clearAssignmentHistory();
+    clearWorkHistory();
   }
 
   function clearParticipants(message = '') {
@@ -102,6 +108,19 @@
     assignmentLatest = null;
     assignmentBefore = null;
     assignmentLoading = false;
+  }
+
+  function clearWorkHistory(message = '') {
+    card.querySelector('[data-ticket-work-events]').replaceChildren();
+    card.querySelector('[data-ticket-work-status]').textContent = message;
+    const button = card.querySelector('[data-ticket-work-older]');
+    button.hidden = true;
+    button.disabled = false;
+    workTicket = null;
+    workRevision = null;
+    workLatest = null;
+    workBefore = null;
+    workLoading = false;
   }
 
   function announce(message, error = false) {
@@ -450,6 +469,70 @@
     }
   }
 
+  function workOwnerMatches(owner, ticket) {
+    return owner && owner.ticketPublicId === ticket.ticketPublicId && owner.ticketId === ticket.ticketId &&
+      owner.userId === String(ticket.userId) && owner.businessId === String(ticket.businessId);
+  }
+
+  function workEventItem(event) {
+    const item = document.createElement('li');
+    item.className = 'list-group-item text-break';
+    const action = ({ close: 'Закрыл', reopen: 'Открыл повторно', categories: 'Изменил категории' })[event.action] || event.action;
+    item.textContent = `${ticketTime(event.createdAt)} · ревизия ${event.revision} · ${event.actor}: ${action}; ` +
+      `${statusLabel(event.fromStatus)} → ${statusLabel(event.toStatus)}; категории: ` +
+      `${event.previousCategories.join(', ') || 'нет'} → ${event.categories.join(', ') || 'нет'}`;
+    return item;
+  }
+
+  async function loadWorkHistory(ticket, expectedGeneration, request) {
+    clearWorkHistory('Загрузка истории статуса и категорий…');
+    try {
+      const page = await getJson(`/api/business-scope/tickets/${encodeURIComponent(ticket.ticketPublicId)}/work/history?limit=50`);
+      if (expectedGeneration !== generation || request !== cardRequest || currentTicketPublicId !== ticket.ticketPublicId) return;
+      if (!workOwnerMatches(page.owner, ticket) || typeof page.revision !== 'string' || typeof page.latestEventRevision !== 'string') {
+        clearWorkHistory('История статуса и категорий изменилась. Обновите карточку.');
+        return;
+      }
+      card.querySelector('[data-ticket-work-events]').append(...page.events.map(workEventItem));
+      card.querySelector('[data-ticket-work-status]').textContent = page.events.length
+        ? 'Закрытия, повторные открытия и изменения категорий в этом бизнесе.'
+        : 'Сохранённых изменений статуса и категорий в этом бизнесе пока нет.';
+      workTicket = ticket;
+      workRevision = page.revision;
+      workLatest = page.latestEventRevision;
+      workBefore = page.nextBeforeRevision;
+      card.querySelector('[data-ticket-work-older]').hidden = !page.hasMore;
+    } catch (error) {
+      if (expectedGeneration === generation && request === cardRequest && currentTicketPublicId === ticket.ticketPublicId)
+        clearWorkHistory('История статуса и категорий недоступна. Проверьте доступ и обновите карточку.');
+    }
+  }
+
+  async function loadOlderWorkEvents() {
+    if (workLoading || !workTicket || workBefore === null) return;
+    const ticket = workTicket, expectedGeneration = generation, request = cardRequest;
+    const revision = workRevision, latest = workLatest, before = workBefore;
+    const button = card.querySelector('[data-ticket-work-older]');
+    workLoading = true;
+    button.disabled = true;
+    try {
+      const page = await getJson(`/api/business-scope/tickets/${encodeURIComponent(ticket.ticketPublicId)}/work/history?limit=50&before=${encodeURIComponent(before)}`);
+      if (expectedGeneration !== generation || request !== cardRequest || workTicket !== ticket) return;
+      if (!workOwnerMatches(page.owner, ticket) || page.revision !== revision || page.latestEventRevision !== latest) {
+        clearWorkHistory('История статуса и категорий изменилась. Обновите карточку.');
+        return;
+      }
+      card.querySelector('[data-ticket-work-events]').append(...page.events.map(workEventItem));
+      workBefore = page.nextBeforeRevision;
+      button.hidden = !page.hasMore;
+    } catch (error) {
+      if (expectedGeneration === generation && request === cardRequest && workTicket === ticket)
+        clearWorkHistory('История статуса и категорий недоступна. Обновите карточку.');
+    } finally {
+      if (expectedGeneration === generation && request === cardRequest) { workLoading = false; button.disabled = false; }
+    }
+  }
+
   async function loadSpans(ticket, expectedGeneration, request) {
     spans.replaceChildren();
     spansStatus.textContent = 'Загрузка интервалов работы…';
@@ -540,6 +623,7 @@
       loadWorkspace(detail, expectedGeneration, request);
       loadParticipants(detail, expectedGeneration, request);
       loadAssignmentHistory(detail, expectedGeneration, request);
+      loadWorkHistory(detail, expectedGeneration, request);
       loadSpans(detail, expectedGeneration, request);
     } catch (error) {
       if (expectedGeneration !== generation || request !== cardRequest) return;
@@ -684,6 +768,7 @@
   older.addEventListener('click', loadOlderHistory);
   card.querySelector('[data-ticket-participants-older]').addEventListener('click', loadOlderParticipants);
   card.querySelector('[data-ticket-assignment-older]').addEventListener('click', loadOlderAssignments);
+  card.querySelector('[data-ticket-work-older]').addEventListener('click', loadOlderWorkEvents);
   exportButton.addEventListener('click', exportTickets);
 
   if (manualForm) {

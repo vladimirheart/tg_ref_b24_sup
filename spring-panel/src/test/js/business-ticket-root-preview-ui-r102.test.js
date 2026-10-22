@@ -90,6 +90,7 @@ async function main() {
     loadParticipants: () => {},
     loadSpans: () => { spansLoaded++; },
     loadAssignmentHistory: () => {},
+    loadWorkHistory: () => {},
     statusLabel: value => value, ticketTime, announce: message => cardMessages.push(message),
     document: { createElement: () => new Element() }, encodeURIComponent
   };

@@ -126,6 +126,11 @@
                 <ol class="list-group mt-2" data-ticket-assignment-events></ol>
                 <button class="btn btn-outline-secondary btn-sm mt-2" type="button" data-ticket-assignment-older hidden>Более ранние назначения</button>
             </details>
+            <details class="mb-3 ui-disclosure-native"><summary>История статуса и категорий</summary>
+                <p class="small text-muted mt-2" aria-live="polite" data-ticket-work-status></p>
+                <ol class="list-group mt-2" data-ticket-work-events></ol>
+                <button class="btn btn-outline-secondary btn-sm mt-2" type="button" data-ticket-work-older hidden>Более ранние изменения</button>
+            </details>
             <h3 class="h6 mt-3">Прежние рабочие данные</h3>
             <p class="small text-muted" aria-live="polite" data-ticket-workspace-status></p>
             <ul class="list-group mb-3" data-ticket-workspace></ul>
@@ -140,6 +145,6 @@
     </section>
 </main>
 <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js"></script>
-<script th:src="@{/js/business-dialogs.js(v='20261022-r170')}"></script>
+<script th:src="@{/js/business-dialogs.js(v='20261022-r171')}"></script>
 </body>
 </html>

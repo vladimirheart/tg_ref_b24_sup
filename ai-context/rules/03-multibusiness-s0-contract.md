@@ -14,7 +14,7 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R168–R170 (2026-10-22): рабочий экземпляр и Docker находятся
+Актуальное уточнение R168–R171 (2026-10-22): рабочий экземпляр и Docker находятся
 на другой машине и в другой сессии относительно этой source/test-сессии.
 Здесь разрешён только изолированный Testcontainers; рабочие stack/revision/
 DB migrations/flags не проверялись и не менялись. Одинаковый путь checkout
@@ -1134,6 +1134,41 @@ client delivery и рабочая приёмка остаются gates.
 Один statement snapshot возвращает owner, root revision, последнюю scoped audit
 revision и страницу обоих источников. Audit не предоставляет authority текущего
 назначения; raw legacy snapshot отдельно и не импортируется. Retention не менялась.
+
+### BUSINESS lifecycle/category history READ — R171
+
+R171: paged immutable BUSINESS lifecycle/category history через новый
+/api/business-scope/tickets/{publicId}/work/history и отдельную панель main card.
+Читаются только V81 business_ticket_work_events текущего полного user/raw/public/
+business. Отдельный READ service не вызывает writer и не использует raw child
+tables; raw collision, closed/resolved допустимы. PAGE_DIALOGS/foundation на
+HTTP-границе, current unique enabled/unblocked READ активного бизнеса внутри
+одного SQL: membership либо ALL_BUSINESSES с допустимой ролью, без OPERATE.
+Principal lower-case без trim; GENERAL/UNRESOLVED/foreign и ambiguous public
+locator закрыты. История не предоставляет authority текущего статуса/автора
+и не восстанавливает чужие права.
+События close/reopen/categories содержат frozen actor ID/name, from/to status,
+previous/current ordered category arrays и timestamp. Категории не подменяются
+текущим root или raw ticket_categories; clear сохраняет пустой after-snapshot.
+JSON snapshots читаются как массивы строк без scalar/number/null coercion.
+Повреждённый snapshot либо недоступная canonical schema дают 503, не пустую
+историю и не legacy fallback. Success JSON private no-store/nosniff.
+Newest-first, 1–100 entries/page, strict before-revision cursor, limit+1/hasMore;
+default cursor включает Long.MAX_VALUE. Owner/actor IDs и revisions/cursors —
+JSON strings. Один statement snapshot возвращает owner, root work revision,
+latest scoped event revision и страницу; gaps после owner/channel/status writes
+не объявляются потерянными событиями. UI проверяет обе версии и полный owner,
+очищает stale/denied panel и игнорирует late responses после смены контекста.
+TextContent защищает frozen actor/categories; повторный click во время загрузки
+не создаёт второй запрос. Native disclosure и Neutral Ops r9 сохранены.
+Source minimum остаётся V81, новой migration/flags нет. Write/feedback/provider/
+assignment/participant workflows не менялись. Историческая attribution legacy
+responsible/active/spans, retention/reconciliation, external recipient policy,
+scoped feedback/client delivery, S2B и live acceptance остаются gates.
+
+V81 snapshots не переинтерпретируются при изменении текущих категорий или имени
+автора. Пагинация не заменяет current scope proof; каждая страница повторяет READ.
+Retention, immutable-table maintenance и рабочая приёмка остаются отдельными gates.
 
 ### Scoped auto-close и внешняя доставка
 

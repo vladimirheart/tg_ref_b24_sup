@@ -32,6 +32,45 @@ import org.springframework.web.util.HtmlUtils;
 
 @SpringBootTest @AutoConfigureMockMvc
 class BusinessTicketAssignmentHttpPostgresTest {
+    @Test void savedCloseReopenAndCategoryClearReachPagedHistoryWithImmutableSnapshots() throws Exception {
+        jdbc.update("INSERT INTO ticket_categories(ticket_id,category) VALUES(?,'Legacy secret')",raw);
+        var old=jdbc.queryForList("SELECT * FROM ticket_categories WHERE ticket_id=?",raw);
+        mvc.perform(auth(workCommand("categories",0,"open","Old"),actor,"PAGE_DIALOGS").with(csrf())).andExpect(status().is3xxRedirection());
+        mvc.perform(auth(workCommand("close",1,"open","Billing\n<script>Category</script>"),actor,"PAGE_DIALOGS").with(csrf())).andExpect(status().is3xxRedirection());
+        mvc.perform(auth(workCommand("reopen",2,"resolved",""),actor,"PAGE_DIALOGS").with(csrf())).andExpect(status().is3xxRedirection());
+        mvc.perform(auth(workCommand("categories",3,"pending",""),actor,"PAGE_DIALOGS").with(csrf())).andExpect(status().is3xxRedirection());
+        String path="/api/business-scope/tickets/"+publicId+"/work/history";
+        var response=mvc.perform(auth(get(path).param("limit","2"),viewer,"PAGE_DIALOGS"))
+            .andExpect(status().isOk()).andExpect(header().string("Cache-Control","no-store"))
+            .andExpect(header().string("X-Content-Type-Options","nosniff"))
+            .andExpect(jsonPath("$.owner.ticketId").value(raw)).andExpect(jsonPath("$.owner.userId").value("901"))
+            .andExpect(jsonPath("$.revision").value("4")).andExpect(jsonPath("$.latestEventRevision").value("4"))
+            .andExpect(jsonPath("$.events[0].action").value("categories")).andExpect(jsonPath("$.events[0].categories",hasSize(0)))
+            .andExpect(jsonPath("$.events[0].previousCategories",contains("Billing","<script>Category</script>")))
+            .andExpect(jsonPath("$.events[1].action").value("reopen")).andExpect(jsonPath("$.events[1].fromStatus").value("resolved"))
+            .andExpect(jsonPath("$.events[1].toStatus").value("pending")).andExpect(jsonPath("$.nextBeforeRevision").value("3"))
+            .andReturn().getResponse().getContentAsString();
+        assertThat(response).doesNotContain("Legacy secret");
+        mvc.perform(auth(get(path).param("before","3").param("limit","2"),viewer,"PAGE_DIALOGS"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.events[0].action").value("close"))
+            .andExpect(jsonPath("$.events[0].previousCategories",org.hamcrest.Matchers.contains("Old")))
+            .andExpect(jsonPath("$.events[0].categories",contains("Billing","<script>Category</script>")))
+            .andExpect(jsonPath("$.events[0].actorId").value(Long.toString(actorId)))
+            .andExpect(jsonPath("$.events[1].action").value("categories")).andExpect(jsonPath("$.hasMore").value(false));
+        assertThat(jdbc.queryForList("SELECT * FROM ticket_categories WHERE ticket_id=?",raw)).isEqualTo(old);
+        assertThat(revision()).isZero();assertThat(events()).isZero();assertThat(memberEvents()).isZero();assertThat(outbox()).isEqualTo(4);
+        jdbc.update("UPDATE business_memberships SET is_active=FALSE WHERE user_id=?",viewerId);
+        mvc.perform(auth(get(path),viewer,"PAGE_DIALOGS")).andExpect(status().isNotFound());
+    }
+    @Test void workHistoryReadSurvivesRawCollisionAndDoesNotFollowBusinessTransfer() throws Exception {
+        assertThat(work.change(scope,actor,0,"open","categories",List.of("Own"))).isTrue();
+        jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,business_id) VALUES(902,?,?,?)",raw,UUID.randomUUID().toString().replace("-",""),other);
+        String path="/api/business-scope/tickets/"+publicId+"/work/history";
+        mvc.perform(auth(get(path),viewer,"PAGE_DIALOGS")).andExpect(status().isOk()).andExpect(jsonPath("$.events",hasSize(1)));
+        jdbc.update("UPDATE tickets SET business_id=? WHERE user_id=901 AND ticket_id=?",other,raw);
+        mvc.perform(auth(get(path),viewer,"PAGE_DIALOGS")).andExpect(status().isNotFound());
+        mvc.perform(auth(get(path),foreign,"PAGE_DIALOGS")).andExpect(status().isOk()).andExpect(jsonPath("$.events",hasSize(0)));
+    }
     @Test void manualAndSlaWritersReachPrivatePagedReadWithoutInternalRouteOrLegacySnapshots() throws Exception {
         mvc.perform(auth(command("take",0),actor,"PAGE_DIALOGS").with(csrf())).andExpect(status().is3xxRedirection());
         long channel=jdbc.queryForObject("INSERT INTO channels(token,channel_name,platform) VALUES(?,'Telegram','telegram') RETURNING id",Long.class,UUID.randomUUID().toString());
