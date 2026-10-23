@@ -14,11 +14,22 @@
           crossorigin="anonymous">
     <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
     <link rel="stylesheet" th:href="@{/css/style.css(v='20261022-neutral-ops-r7')}">
-    <link rel="stylesheet" th:href="@{/css/app.css(v='20261022-neutral-ops-r9')}">
+    <link rel="stylesheet" th:href="@{/css/app.css(v='20261023-neutral-ops-r11')}">
     <link rel="stylesheet" th:href="@{/css/sidebar.css(v='20261022-neutral-ops-r7')}">
 </head>
 <body class="with-sidebar sidebar-pinned" data-ui-page="incidents" data-ui-density="compact">
 <div th:replace="~{fragments/navbar :: navbar('incidents')}"></div>
+
+<div class="incident-notifications" data-incident-notifications>
+    <div class="incident-notification-item">
+        <div class="alert alert-danger d-none" id="incidentWorkbenchError" role="alert" aria-atomic="true"></div>
+        <button class="btn-close" type="button" data-incident-notice-close="incidentWorkbenchError" aria-label="Закрыть сообщение об ошибке"></button>
+    </div>
+    <div class="incident-notification-item">
+        <div class="alert alert-success d-none" id="incidentWorkbenchSuccess" role="status" aria-atomic="true"></div>
+        <button class="btn-close" type="button" data-incident-notice-close="incidentWorkbenchSuccess" aria-label="Закрыть уведомление"></button>
+    </div>
+</div>
 
 <main class="main-content container-fluid py-4 page-shell incident-shell ops-page-shell">
     <div class="page-header-card page-header-card--compact ops-page-header">
@@ -28,9 +39,6 @@
             Очередь событий, которые требуют реакции оператора: оцените приоритет, назначьте ответственного, зафиксируйте решение и при необходимости повторите доставку.
         </p>
     </div>
-
-    <div class="alert alert-danger d-none" id="incidentWorkbenchError" role="alert"></div>
-    <div class="alert alert-success d-none" id="incidentWorkbenchSuccess" role="status"></div>
 
     <ul class="nav nav-tabs" id="incidentWorkbenchTabs" role="tablist">
         <li class="nav-item" role="presentation">
@@ -401,6 +409,7 @@
 </div>
 
 <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script th:src="@{/js/incident-notifications.js(v='20261023-neutral-ops-r11')}"></script>
 <script th:src="@{/js/incidents-workbench.js}"></script>
 <script th:src="@{/js/incident-escalation-controls.js}"></script>
 <script th:src="@{/js/incident-route-delivery-health.js}"></script>

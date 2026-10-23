@@ -17,7 +17,8 @@ const rows = templates.map(file => {
   if (standalone) {
     assert(source.includes('data-ui-page='), relative + ': missing page scope');
     const version = ['templates/home/index.html', 'templates/dialogs/index.html', 'templates/knowledge/note-editor.html'].includes(relative)
-      ? '20261023-neutral-ops-r10' : '20261022-neutral-ops-r9';
+      ? '20261023-neutral-ops-r10' : relative === 'templates/incidents/index.html'
+        ? '20261023-neutral-ops-r11' : '20261022-neutral-ops-r9';
     assert(source.includes(`app.css(v='${version}')`), relative + ': stale stylesheet version');
     assert(source.includes('/css/style.css'), relative + ': missing theme');
   }

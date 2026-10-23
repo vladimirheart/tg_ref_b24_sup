@@ -16961,6 +16961,78 @@ body[data-ui-page=workforce] .shift-check-in-value {
   }
 }
 
+/* Уведомления инцидентов находятся вне потока и не двигают рабочую область. */
+body[data-ui-page=incidents] .incident-notifications {
+  position: fixed;
+  top: calc(16px + env(safe-area-inset-top, 0px));
+  right: max(16px, env(safe-area-inset-right, 0px));
+  z-index: 1085;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(420px, 100vw - 32px);
+  max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px));
+  pointer-events: none;
+}
+body[data-ui-page=incidents] .incident-notification-item {
+  display: none;
+  position: relative;
+  min-width: 0;
+  pointer-events: auto;
+}
+body[data-ui-page=incidents] .incident-notification-item:has(> .alert:not(.d-none)) {
+  display: block;
+  animation: incident-notification-enter 180ms ease-out;
+}
+body[data-ui-page=incidents] .incident-notification-item > .alert {
+  margin: 0;
+  padding: 14px 52px 14px 16px;
+  max-height: min(40dvh, 320px);
+  overflow: auto;
+  overflow-wrap: anywhere;
+  overscroll-behavior: contain;
+  border-radius: var(--control-radius);
+  box-shadow: var(--ui-panel-shadow);
+  line-height: 1.5;
+}
+body[data-ui-page=incidents] .incident-notification-item > .btn-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: var(--control-radius);
+}
+@media (max-width: 767.98px) {
+  body[data-ui-page=incidents] .incident-notifications {
+    top: calc(64px + env(safe-area-inset-top, 0px));
+  }
+}
+@media (pointer: coarse) {
+  body[data-ui-page=incidents] .incident-notification-item > .btn-close {
+    width: 44px;
+    height: 44px;
+    top: 2px;
+    right: 2px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  body[data-ui-page=incidents] .incident-notification-item:has(> .alert:not(.d-none)) {
+    animation: none;
+  }
+}
+
+@keyframes incident-notification-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 /* 01-281: правки по приёмке на заполненных экранах, а не только на empty states. */
 body[data-ui-page=settings] #locationsModal .location-tree-toggle,
 body[data-ui-page=dialogs] .dialog-table .dialog-open-icon,
