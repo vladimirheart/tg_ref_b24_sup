@@ -399,7 +399,8 @@ public class NotificationRoutingService {
             return List.of();
         }
         for (String chunk : text.split("[,;\\n]+")) {
-            String value = normalizeIdentity(chunk);
+            // Delimited text is the legacy human-entered format; array entries are exact account keys.
+            String value = normalizeIdentity(chunk.trim());
             if (value != null) {
                 values.add(value);
             }
@@ -456,8 +457,8 @@ public class NotificationRoutingService {
         if (raw == null) {
             return null;
         }
-        String value = String.valueOf(raw).trim().toLowerCase(Locale.ROOT);
-        return value.isEmpty() ? null : value;
+        String value = String.valueOf(raw).toLowerCase(Locale.ROOT);
+        return StringUtils.hasText(value) ? value : null;
     }
 
     private static NotificationRouteConfig defaultRoute() {
