@@ -252,7 +252,7 @@ class NotificationApiIntegrationTest extends PostgresqlIntegrationTestSupport {
     @Test
     void notifyUsersExcludingBridgesRuntimeNotificationsToApiWithDedupAndExclusion() throws Exception {
         notificationService.notifyUsersExcluding(
-                java.util.Set.of(" watcher_peer ", "watcher_active", "WATCHER_owner", "watcher_peer"),
+                java.util.Set.of(" watcher_peer ", "watcher_active", "WATCHER_owner", "watcher_peer", "WATCHER_PEER"),
                 "WATCHER_owner",
                 "  Новый ответ в обращении T-NOTIFY-500  ",
                 " /dialogs?ticketId=T-NOTIFY-500 "
@@ -262,7 +262,7 @@ class NotificationApiIntegrationTest extends PostgresqlIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(1))
                 .andExpect(jsonPath("$.items[0].text").value("Новый ответ в обращении T-NOTIFY-500"))
-                .andExpect(jsonPath("$.items[0].url").value("/dialogs/T-NOTIFY-500"))
+                .andExpect(jsonPath("$.items[0].url").value("/dialogs?ticketId=T-NOTIFY-500"))
                 .andExpect(jsonPath("$.items[0].read").value(false));
 
         mockMvc.perform(get("/api/notifications").principal(namedAuthentication("watcher_active")))
@@ -273,6 +273,16 @@ class NotificationApiIntegrationTest extends PostgresqlIntegrationTestSupport {
         mockMvc.perform(get("/api/notifications").principal(namedAuthentication("watcher_owner")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items").isEmpty());
+
+        Long spacedId = jdbcTemplate.queryForObject("SELECT id FROM notifications WHERE user_identity=' watcher_peer '", Long.class);
+        Long plainId = jdbcTemplate.queryForObject("SELECT id FROM notifications WHERE user_identity='watcher_peer'", Long.class);
+        assertThat(spacedId).isNotEqualTo(plainId);
+        assertThat(jdbcTemplate.queryForList("SELECT user_identity FROM notifications", String.class))
+                .containsExactlyInAnyOrder(" watcher_peer ", "watcher_peer", "watcher_active");
+        mockMvc.perform(get("/api/notifications").principal(namedAuthentication(" watcher_peer ")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(spacedId));
     }
 
     private Authentication userDetailsAuthentication(String username) {

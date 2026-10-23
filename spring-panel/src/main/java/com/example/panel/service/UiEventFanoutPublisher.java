@@ -5,6 +5,7 @@ import com.example.panel.runtime.UiEventFanoutMode;
 import com.example.panel.runtime.UiEventFanoutProperties;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -51,7 +52,7 @@ public class UiEventFanoutPublisher {
         UiEventFanoutEnvelope envelope = new UiEventFanoutEnvelope(
             UUID.randomUUID().toString(),
             runtimeProperties.resolvedInstanceId(),
-            StringUtils.hasText(targetUser) ? targetUser.trim().toLowerCase() : null,
+            StringUtils.hasText(targetUser) ? targetUser.toLowerCase(Locale.ROOT) : null,
             eventName.trim(),
             payload,
             ticketScope

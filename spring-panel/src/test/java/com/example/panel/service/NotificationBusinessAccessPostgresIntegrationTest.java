@@ -71,7 +71,7 @@ class NotificationBusinessAccessPostgresIntegrationTest extends PostgresqlIntegr
     void deliveryAndEveryReadSurfaceRequireTheRecipientsBusinessRead() {
         Owner allowed = owner(businessA, false);
         Owner foreign = owner(businessB, false);
-        assertThat(service.notifyDialogUsers(allowed.ticketId(), Set.of(" " + viewer.toUpperCase(Locale.ROOT) + " ", administrator),
+        assertThat(service.notifyDialogUsers(allowed.ticketId(), Set.of(viewer.toUpperCase(Locale.ROOT), administrator),
             "allowed notice", "/dialogs")).containsExactly(viewer);
         long visible = repository.findAll().get(0).getId();
         clearInvocations(stream);

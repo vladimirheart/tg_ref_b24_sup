@@ -42,22 +42,22 @@ class GeneralNotificationBoundaryPostgresIntegrationTest {
     }
 
     @Test
-    void exactTicketAndNormalizedRecipientsArePersistedWithDefaultJdbcTypes() {
+    void exactTicketAndRecipientWhitespaceArePersistedWithDefaultJdbcTypes() {
         Fixture f = new Fixture();
         String id = " T/точный?% ";
         f.jdbc.update("INSERT INTO tickets VALUES (1, ?, FALSE), (2, ?, TRUE)", id, id.trim());
         String url = f.service.buildDialogUrl(id);
 
-        Set<String> delivered = f.service.notifyDialogUsers(id, Set.of(" Operator ", "operator", " BACKUP "),
+        Set<String> delivered = f.service.notifyDialogUsers(id, Set.of(" Operator ", "operator", "OPERATOR", " BACKUP "),
             "private payload", url);
 
-        assertThat(delivered).containsExactlyInAnyOrder("operator", "backup");
+        assertThat(delivered).containsExactlyInAnyOrder(" operator ", "operator", " backup ");
         assertThat(f.jdbc.queryForList("SELECT user_identity FROM notifications", String.class))
-            .containsExactlyInAnyOrder("operator", "backup");
+            .containsExactlyInAnyOrder(" operator ", "operator", " backup ");
         assertThat(f.jdbc.queryForList("SELECT url FROM notifications", String.class)).containsOnly(url);
         assertThat(f.jdbc.queryForList("SELECT text FROM notifications", String.class)).containsOnly("private payload");
         assertThat(f.jdbc.queryForObject("SELECT COUNT(*) FROM notifications WHERE is_read = FALSE AND created_at IS NOT NULL", Long.class))
-            .isEqualTo(2L);
+            .isEqualTo(3L);
         verifyNoInteractions(f.repository);
     }
 

@@ -225,7 +225,7 @@ public class UiEventStreamService {
 
     private String normalizeIdentity(String userIdentity) {
         return StringUtils.hasText(userIdentity)
-            ? userIdentity.trim().toLowerCase(Locale.ROOT)
+            ? userIdentity.toLowerCase(Locale.ROOT)
             : "anonymous";
     }
 

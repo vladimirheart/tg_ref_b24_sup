@@ -88,7 +88,7 @@ public class UiEventTicketAccessService {
         try {
             // The queued owner must still match; broad grants cannot authorize an obsolete payload.
             return Boolean.TRUE.equals(jdbcTemplate.queryForObject(CAN_READ_TICKET, Boolean.class,
-                userIdentity.trim().toLowerCase(Locale.ROOT), scope.ticketUserId(), scope.ticketId(),
+                userIdentity.toLowerCase(Locale.ROOT), scope.ticketUserId(), scope.ticketId(),
                 scope.ticketPublicId(), scope.businessId(), scope.scopeKind(), scope.ticketId(), flags.isStrictReadScope()));
         } catch (DataAccessException ex) {
             return false;

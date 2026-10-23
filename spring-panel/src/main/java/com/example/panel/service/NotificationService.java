@@ -616,7 +616,7 @@ public class NotificationService {
 
     private String normalizeIdentity(String userIdentity) {
         return StringUtils.hasText(userIdentity)
-                ? userIdentity.trim().toLowerCase(Locale.ROOT)
+                ? userIdentity.toLowerCase(Locale.ROOT)
                 : "all";
     }
 
@@ -624,7 +624,7 @@ public class NotificationService {
         if (!StringUtils.hasText(value)) {
             return null;
         }
-        return value.trim().toLowerCase(Locale.ROOT);
+        return value.toLowerCase(Locale.ROOT);
     }
 
     private Set<String> splitIdentities(String raw) {

@@ -65,7 +65,7 @@ class UiEventTicketScopePostgresIntegrationTest {
     void queuedSnapshotCannotFollowChangedOwnerEvenForAllBusinesses(String mutation, String delivery) {
         SseEmitter reader = register();
         UiEventTicketScope scope = access.captureScope("T-A").orElseThrow();
-        String target = delivery.equals("targeted") ? " ALL-READER " : null;
+        String target = delivery.equals("targeted") ? "ALL-READER" : null;
         String name = target == null ? "dialogs_changed" : "dialog_history_changed";
         UiEventFanoutEnvelope queued = envelope(target, name, "T-A", scope);
 
@@ -114,7 +114,7 @@ class UiEventTicketScopePostgresIntegrationTest {
         properties.setMode("redis");
         properties.setChannel("test:frozen-scope");
         UiEventFanoutPublisher realPublisher = new UiEventFanoutPublisher(redis, mapper, properties, new RuntimeRoleProperties());
-        String target = delivery.equals("targeted") ? " ALL-READER " : null;
+        String target = delivery.equals("targeted") ? "ALL-READER" : null;
         Map<String, Object> payload = Map.of("ticketId", "T-A", "preview", "private old payload");
         UiEventTicketScope scope = access.captureScope("T-A").orElseThrow();
         assertThat(realPublisher.publish(target, "dialogs_changed", payload, scope)).isTrue();

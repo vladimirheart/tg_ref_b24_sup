@@ -42,7 +42,7 @@ class UiEventStreamFanoutTest {
     }
 
     @Test
-    void targetedNotificationsNormalizeIdentityBeforeFanout() {
+    void targetedNotificationsPreserveWhitespaceWhileFoldingCaseBeforeFanout() {
         UiEventFanoutPublisher publisher = mock(UiEventFanoutPublisher.class);
         when(publisher.publish(any(), any(), any())).thenReturn(true);
 
@@ -51,7 +51,7 @@ class UiEventStreamFanoutTest {
         service.publishNotificationsChanged(" Operator@Example.COM ", "notification_created");
 
         verify(publisher).publish(
-            eq("operator@example.com"),
+            eq(" operator@example.com "),
             eq("notifications_changed"),
             any()
         );

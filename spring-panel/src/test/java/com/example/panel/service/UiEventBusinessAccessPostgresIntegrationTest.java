@@ -64,7 +64,7 @@ class UiEventBusinessAccessPostgresIntegrationTest {
         SseEmitter reader = register("reader@example.com");
         SseEmitter other = register("other");
         SseEmitter admin = register("admin");
-        String target = "targeted".equals(delivery) ? " READER@EXAMPLE.COM " : null;
+        String target = "targeted".equals(delivery) ? "READER@EXAMPLE.COM" : null;
 
         deliver(target, name, "T-B");
         verifyNoInteractions(reader, admin);
@@ -89,7 +89,8 @@ class UiEventBusinessAccessPostgresIntegrationTest {
         stream.publishDialogHistoryChanged("T-A", 9L, "edited");
 
         verify(reader, times(2)).send(any(SseEmitter.SseEventBuilder.class));
-        assertThat(canRead(" READER@EXAMPLE.COM ", "T-A")).isTrue();
+        assertThat(canRead("READER@EXAMPLE.COM", "T-A")).isTrue();
+        assertThat(canRead(" READER@EXAMPLE.COM ", "T-A")).isFalse();
     }
 
     @ParameterizedTest
