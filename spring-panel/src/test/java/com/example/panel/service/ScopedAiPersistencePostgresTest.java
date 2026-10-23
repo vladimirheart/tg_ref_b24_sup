@@ -68,10 +68,10 @@ class ScopedAiPersistencePostgresTest {
         assertThat(service.recordHandoff(scope)).isTrue();
         boolean read = !role.equals("UNKNOWN");
         boolean operate = read && !role.equals("VIEWER");
-        assertThat(service.findControl(scope," OPERATOR ").isPresent()).isEqualTo(read);
+        assertThat(service.findControl(scope,"OPERATOR").isPresent()).isEqualTo(read);
         assertThat(service.findState(scope,"operator").isPresent()).isEqualTo(read);
         assertThat(service.findEvents(scope,"operator",1)).hasSize(read ? 1 : 0);
-        assertThat(service.setControl(scope," OPERATOR ",true,true," reason ")).isEqualTo(operate);
+        assertThat(service.setControl(scope,"OPERATOR",true,true," reason ")).isEqualTo(operate);
         if (operate) {
             assertThat(service.findControl(scope,"operator").orElseThrow())
                 .extracting(ScopedDialogAiPersistenceService.Control::aiDisabled,
@@ -81,6 +81,11 @@ class ScopedAiPersistencePostgresTest {
                 .containsExactly(true,true,"reason","operator");
             assertThat(jdbc.queryForObject("SELECT updated_by_user_id FROM ticket_ai_scoped_control",Long.class)).isEqualTo(1L);
         }
+        var beforeDenied=jdbc.queryForList("SELECT * FROM ticket_ai_scoped_control");
+        assertThat(service.findControl(scope," OPERATOR ")).isEmpty();
+        assertThat(service.setControl(scope," OPERATOR ",false,false,"must not overwrite")).isFalse();
+        assertThat(jdbc.queryForList("SELECT * FROM ticket_ai_scoped_control")).isEqualTo(beforeDenied);
+
     }
 
     @ParameterizedTest

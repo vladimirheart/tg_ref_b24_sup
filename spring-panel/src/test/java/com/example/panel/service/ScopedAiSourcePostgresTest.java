@@ -84,9 +84,9 @@ class ScopedAiSourcePostgresTest {
         if (grant.equals("membership")) jdbc.update("INSERT INTO business_memberships VALUES(2,1,?,TRUE)",role);
         else jdbc.update("INSERT INTO business_access_grants VALUES(2,'ALL_BUSINESSES',?,TRUE)",role);
         boolean read=!role.equals("UNKNOWN"),configure=role.equals("ADMIN");
-        assertThat(service.availableBusinesses(" OPERATOR ")).hasSize(read ? (grant.equals("all") ? 2 : 1) : 0);
+        assertThat(service.availableBusinesses("OPERATOR")).hasSize(read ? (grant.equals("all") ? 2 : 1) : 0);
         assertThat(service.canConfigure(1L,"operator")).isEqualTo(configure);
-        assertThat(service.find(1L," OPERATOR ",KNOWLEDGE,source.key()).isPresent()).isEqualTo(read);
+        assertThat(service.find(1L,"OPERATOR",KNOWLEDGE,source.key()).isPresent()).isEqualTo(read);
         assertThat(service.history(1L,"operator",KNOWLEDGE,source.key(),1)).hasSize(read?1:0);
         assertThat(service.retrieve(scope,"operator","решения",1)).hasSize(read?1:0);
         assertThat(service.isCurrentCandidate(scope,"operator",source)).isEqualTo(read);
@@ -94,6 +94,11 @@ class ScopedAiSourcePostgresTest {
         assertThat(service.createMemory(origin,"operator","memory","Title",BODY)).isEqualTo(configure);
         assertThat(service.revise(1L,"operator",KNOWLEDGE,source.key(),2,"Changed",BODY,APPROVED)).isEqualTo(configure);
         if (configure) assertThat(jdbc.queryForObject("SELECT updated_by_user_id FROM ai_scoped_sources WHERE source_key=?",Long.class,source.key())).isEqualTo(2L);
+        assertThat(service.availableBusinesses(" OPERATOR ")).isEmpty();
+        assertThat(service.find(1L," OPERATOR ",KNOWLEDGE,source.key())).isEmpty();
+        assertThat(service.canConfigure(1L," OPERATOR ")).isFalse();
+        assertThat(service.createKnowledge(1L," OPERATOR ","principal-role-denied","Title",BODY)).isFalse();
+
     }
 
     @ParameterizedTest @ValueSource(strings={"foreign","global-admin","missing",""," "})

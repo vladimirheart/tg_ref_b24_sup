@@ -121,7 +121,7 @@ public class BusinessTicketAssignmentService {
     }
     private boolean enabled(String identity){return flags.isFoundationEnabled()&&flags.isUiSelector()&&identity!=null&&!identity.isBlank();}
     private boolean valid(UiEventTicketScope scope,String identity){return enabled(identity)&&scope!=null&&scope.isValid()&&"BUSINESS".equals(scope.scopeKind());}
-    private String normalize(String identity){return identity.trim().toLowerCase(Locale.ROOT);}
+    private String normalize(String identity){return identity.toLowerCase(Locale.ROOT);}
     private MapSqlParameterSource args(UiEventTicketScope scope,String identity){
         return new MapSqlParameterSource("owner",scope.ticketUserId()).addValue("raw",scope.ticketId()).addValue("public",scope.ticketPublicId())
             .addValue("business",scope.businessId()).addValue("identity",normalize(identity));

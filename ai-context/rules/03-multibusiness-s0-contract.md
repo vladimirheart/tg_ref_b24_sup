@@ -14,7 +14,15 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R168–R171 (2026-10-22): рабочий экземпляр и Docker находятся
+Актуальное уточнение R172 (2026-10-23): рабочий экземпляр и Docker остаются на
+другой машине/в другой сессии; здесь source/test checkout и только изолированные
+Testcontainers. Пользователь явно продлил commit/push на 2026-10-23 Moscow,
+expiry 2026-10-24 00:00 +03 (2026-10-23 21:00 UTC). Source apply и Git publisher
+разделены с exact baseline/content/files/remote и expiry guards. Это разрешение
+не включает рабочие restart/deploy/migration/backfill/config/flags.
+
+
+Историческое уточнение R168–R171 (2026-10-22): рабочий экземпляр и Docker находятся
 на другой машине и в другой сессии относительно этой source/test-сессии.
 Здесь разрешён только изолированный Testcontainers; рабочие stack/revision/
 DB migrations/flags не проверялись и не менялись. Одинаковый путь checkout
@@ -1169,6 +1177,37 @@ scoped feedback/client delivery, S2B и live acceptance остаются gates.
 V81 snapshots не переинтерпретируются при изменении текущих категорий или имени
 автора. Пагинация не заменяет current scope proof; каждая страница повторяет READ.
 Retention, immutable-table maintenance и рабочая приёмка остаются отдельными gates.
+
+### Authenticated BUSINESS principal без trim aliases — R172
+
+R172: authenticated BUSINESS principal сохраняется при привязке к SQL без
+trim: допускается прежний lower-case Locale.ROOT, пробелы/табуляция не удаляются.
+Исправлены BusinessTicketAssignmentService, BusinessTicketParticipantService,
+ScopedDialogAiWorkbenchService, ScopedDialogAiPersistenceService,
+ScopedAiSourceService и ScopedAiHandoffKnowledgeService — семь bindings в шести
+сервисах. Authenticated account key не является display name/recipient config.
+Прежний trim позволял principal другого/отсутствующего account стать именем
+действующего ADMIN/OPERATOR и пройти current READ/OPERATE/CONFIGURE чужого бизнеса.
+Теперь find/candidates/recent, assignment take/assign, participant add/remove,
+AI owner/messages/state/events/control/CAS, source catalog/body/history/create/
+revise/approval/retrieval/current-candidate proof, curated MEMORY и handoff
+evidence проверяют именно переданный principal с сохранением whitespace.
+Literal spaced account не запрещён: его собственные numeric ID и текущие grants
+проверяются отдельно от похожего имени без пробелов. Upper/mixed case прежнего
+canonical account допустимы; current uniqueness/enabled/unblocked, business
+active, membership/ALL_BUSINESSES и разница READ/OPERATE/CONFIGURE сохранены.
+В присвоенных записях/audit остаются ID и имя фактического account, не его соседа.
+Тексты, reasons, raw/public IDs, source keys, candidate/ai_agent правила, lock/CAS,
+scope proof, retention и grant policy не менялись. Source minimum V81; новой SQL
+migration/flags нет. Это исправление конкретных BUSINESS actor/reader paths,
+не полный аудит остальных authentication/notification/realtime identity paths.
+SSE/bell identity normalization, global/system/PermissionService policy,
+external recipients, legacy child attribution, S2B и live acceptance ещё gates.
+
+Case folding не заменяет проверку numeric account/grants. Для principal нельзя
+использовать normalization свободного текста, alias display names или списка
+получателей. Новый scope не меняет authentication/login/account creation policy;
+остальные legacy/SSE/bell/global identity boundaries проверяются отдельно.
 
 ### Scoped auto-close и внешняя доставка
 

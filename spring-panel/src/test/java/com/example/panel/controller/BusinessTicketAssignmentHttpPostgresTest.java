@@ -32,6 +32,39 @@ import org.springframework.web.util.HtmlUtils;
 
 @SpringBootTest @AutoConfigureMockMvc
 class BusinessTicketAssignmentHttpPostgresTest {
+
+    @ParameterizedTest @ValueSource(strings={"prefix","suffix","both","tab"})
+    void spacedPrincipalCannotUseAnotherOperatorWorkbenchOrCommands(String variant) throws Exception {
+        String forged=switch(variant){case "prefix"->" "+actor;case "suffix"->actor+" ";case "tab"->"\t"+actor+"\t";default->" "+actor+" ";};
+        if(variant.equals("both"))jdbc.update("INSERT INTO business_memberships(user_id,business_id,role_code) VALUES(?,?,'ADMIN')",account(forged),other);
+        assertThat(service.change(scope,actor,0,targetId,false)).isTrue();
+        assertThat(participants.change(scope,actor,0,viewerId,true)).isTrue();
+        var assignment=jdbc.queryForList("SELECT * FROM ticket_responsibles WHERE ticket_id=?",raw);
+        var roster=jdbc.queryForList("SELECT * FROM business_ticket_participants WHERE ticket_id=?",raw);
+        mvc.perform(auth(get(url),forged,"PAGE_DIALOGS","ROLE_ADMIN")).andExpect(status().isNotFound());
+        for(String action:List.of("take","assign"))
+            mvc.perform(auth(command(action,1),forged,"PAGE_DIALOGS","ROLE_ADMIN").with(csrf())).andExpect(status().isNotFound());
+        for(String action:List.of("add","remove"))
+            mvc.perform(auth(memberCommand(action,"1",viewerId),forged,"PAGE_DIALOGS","ROLE_ADMIN").with(csrf())).andExpect(status().isNotFound());
+        for(String suffix:List.of("/participants","/assignments/history","/work/history"))
+            mvc.perform(auth(get("/api/business-scope/tickets/"+publicId+suffix),forged,"PAGE_DIALOGS")).andExpect(status().isNotFound());
+        assertThat(jdbc.queryForList("SELECT * FROM ticket_responsibles WHERE ticket_id=?",raw)).isEqualTo(assignment);
+        assertThat(jdbc.queryForList("SELECT * FROM business_ticket_participants WHERE ticket_id=?",raw)).isEqualTo(roster);
+        assertThat(events()).isEqualTo(1);assertThat(memberEvents()).isEqualTo(1);assertThat(revision()).isEqualTo(1);assertThat(outbox()).isEqualTo(2);
+    }
+    @Test void literalSpacedPrincipalKeepsOwnBusinessFormsAndNumericActorAudit() throws Exception {
+        String original=actor,spaced=" "+actor+" ";jdbc.update("UPDATE users SET username=? WHERE id=?",spaced,actorId);
+        long decoy=account(original);jdbc.update("INSERT INTO business_memberships(user_id,business_id,role_code) VALUES(?,?,'ADMIN')",decoy,other);
+        mvc.perform(auth(get(url),spaced,"PAGE_DIALOGS")).andExpect(status().isOk());
+        mvc.perform(auth(get(url),original,"PAGE_DIALOGS")).andExpect(status().isNotFound());
+        mvc.perform(auth(command("take",0),spaced,"PAGE_DIALOGS").with(csrf())).andExpect(status().is3xxRedirection());
+        mvc.perform(auth(memberCommand("add","0",viewerId),spaced,"PAGE_DIALOGS").with(csrf())).andExpect(status().is3xxRedirection());
+        assertThat(jdbc.queryForMap("SELECT actor_user_id,assignee_user_id,actor,assignee FROM business_ticket_assignment_events WHERE ticket_id=?",raw))
+            .containsEntry("actor_user_id",actorId).containsEntry("assignee_user_id",actorId).containsEntry("actor",spaced).containsEntry("assignee",spaced);
+        assertThat(jdbc.queryForMap("SELECT actor_user_id,actor FROM business_ticket_participant_events WHERE ticket_id=?",raw))
+            .containsEntry("actor_user_id",actorId).containsEntry("actor",spaced);
+    }
+
     @Test void savedCloseReopenAndCategoryClearReachPagedHistoryWithImmutableSnapshots() throws Exception {
         jdbc.update("INSERT INTO ticket_categories(ticket_id,category) VALUES(?,'Legacy secret')",raw);
         var old=jdbc.queryForList("SELECT * FROM ticket_categories WHERE ticket_id=?",raw);

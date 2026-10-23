@@ -55,6 +55,31 @@ import org.springframework.web.util.HtmlUtils;
 @SpringBootTest
 @AutoConfigureMockMvc
 class ScopedAiSourceHttpPostgresTest extends PostgresqlIntegrationTestSupport {
+
+    @ParameterizedTest @ValueSource(strings={"prefix","suffix","both","tab"})
+    void spacedPrincipalCannotReadApproveOrCreateInAnotherBusiness(String variant) throws Exception {
+        String forged=switch(variant){case "prefix"->" "+admin;case "suffix"->admin+" ";case "tab"->"\t"+admin+"\t";default->" "+admin+" ";};
+        if(variant.equals("both"))membership(account(forged),businessB,"ADMIN");
+        mvc.perform(auth(get(ROOT).param("businessId",Long.toString(businessA)),forged)).andExpect(status().isForbidden());
+        mvc.perform(auth(edit(sourceA),forged)).andExpect(status().isForbidden());
+        mvc.perform(auth(create("principal-denied"),forged).with(csrf())).andExpect(status().isForbidden());
+        mvc.perform(auth(revise(sourceA),forged).with(csrf())).andExpect(status().isForbidden());
+        assertUnchanged(sourceA);
+        assertThat(sources.find(businessA,admin,KNOWLEDGE,"principal-denied")).isEmpty();
+    }
+    @Test void literalSpacedPrincipalCanReviewOnlyItsOwnBusinessSources() throws Exception {
+        String original=admin,spaced=" "+admin+" ";jdbc.update("UPDATE users SET username=? WHERE id=?",spaced,adminId);
+        membership(account(original),businessB,"ADMIN");
+        mvc.perform(auth(edit(sourceA),spaced)).andExpect(status().isOk());
+        mvc.perform(auth(edit(sourceA),original)).andExpect(status().isForbidden());
+        mvc.perform(auth(create("literal-spaced"),spaced).with(csrf())).andExpect(status().is3xxRedirection());
+        mvc.perform(auth(revise(sourceA),spaced).with(csrf())).andExpect(status().is3xxRedirection());
+        assertThat(sources.find(businessA,spaced,KNOWLEDGE,KEY).orElseThrow().revision()).isEqualTo(2);
+        assertThat(jdbc.queryForMap("SELECT updated_by_user_id,updated_by FROM ai_scoped_sources WHERE id=?",sourceA.id()))
+            .containsEntry("updated_by_user_id",adminId).containsEntry("updated_by",spaced);
+        assertThat(sources.find(businessA,spaced,KNOWLEDGE,"literal-spaced")).isPresent();
+    }
+
     private static final AtomicLong IDS=new AtomicLong(9320000);
     private static final String ROOT="/business-ai-sources";
     private static final String KEY=" opaque/Ю?%#&=+ ";

@@ -39,7 +39,7 @@ public class ScopedDialogAiWorkbenchService {
             var rows=jdbc.query("SELECT owner.* FROM tickets owner"+ACTOR
                 +" WHERE owner.ticket_public_id=:publicId AND owner.business_id IS NOT NULL AND owner.is_general=FALSE"
                 +" AND 1=(SELECT COUNT(*) FROM tickets c WHERE c.ticket_id=owner.ticket_id)"+READ,
-                new MapSqlParameterSource("publicId",publicId).addValue("identity",identity.trim().toLowerCase(Locale.ROOT)),
+                new MapSqlParameterSource("publicId",publicId).addValue("identity",identity.toLowerCase(Locale.ROOT)),
                 (rs,row)->new UiEventTicketScope(rs.getLong("user_id"),rs.getString("ticket_id"),rs.getString("ticket_public_id"),"BUSINESS",rs.getLong("business_id")));
             return rows.size()==1 ? Optional.of(rows.get(0)) : Optional.empty();
         } catch (DataAccessException ex) { return Optional.empty(); }
@@ -95,7 +95,7 @@ public class ScopedDialogAiWorkbenchService {
         return new MapSqlParameterSource().addValue("ticketUserId",s.ticketUserId(),Types.BIGINT)
             .addValue("ticketId",s.ticketId(),Types.VARCHAR).addValue("publicId",s.ticketPublicId(),Types.VARCHAR)
             .addValue("scopeKind",s.scopeKind(),Types.VARCHAR).addValue("businessId",s.businessId(),Types.BIGINT)
-            .addValue("strict",false,Types.BOOLEAN).addValue("identity",actor.trim().toLowerCase(Locale.ROOT),Types.VARCHAR);
+            .addValue("strict",false,Types.BOOLEAN).addValue("identity",actor.toLowerCase(Locale.ROOT),Types.VARCHAR);
     }
     public record Message(long id,String sender,String preview,String fingerprint) {
         @Override public String toString() { return "CurationMessage[id="+id+"]"; }

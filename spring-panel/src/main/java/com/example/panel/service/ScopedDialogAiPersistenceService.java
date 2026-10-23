@@ -186,7 +186,7 @@ public class ScopedDialogAiPersistenceService {
             .addValue("ticketId",scope.ticketId(),Types.VARCHAR).addValue("publicId",scope.ticketPublicId(),Types.VARCHAR)
             .addValue("businessId",scope.businessId(),Types.BIGINT).addValue("scopeKind",scope.scopeKind(),Types.VARCHAR)
             .addValue("strict",flags.isStrictReadScope(),Types.BOOLEAN)
-            .addValue("identity",StringUtils.hasText(identity) ? identity.trim().toLowerCase(Locale.ROOT) : null,Types.VARCHAR);
+            .addValue("identity",StringUtils.hasText(identity) ? identity.toLowerCase(Locale.ROOT) : null,Types.VARCHAR);
     }
 
     private String cut(String value) {

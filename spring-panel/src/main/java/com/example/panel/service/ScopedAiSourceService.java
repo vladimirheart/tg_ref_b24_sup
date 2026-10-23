@@ -253,7 +253,7 @@ public class ScopedAiSourceService {
 
     private MapSqlParameterSource parameters(Long businessId,String identity,Kind kind,String key) {
         return new MapSqlParameterSource().addValue("businessId",businessId,Types.BIGINT)
-            .addValue("identity",identity.trim().toLowerCase(Locale.ROOT),Types.VARCHAR)
+            .addValue("identity",identity.toLowerCase(Locale.ROOT),Types.VARCHAR)
             .addValue("kind",kind==null?null:kind.name(),Types.VARCHAR).addValue("key",key,Types.VARCHAR);
     }
 

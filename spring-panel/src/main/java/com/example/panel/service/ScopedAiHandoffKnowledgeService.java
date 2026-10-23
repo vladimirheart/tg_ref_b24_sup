@@ -85,7 +85,7 @@ public class ScopedAiHandoffKnowledgeService {
             ORDER BY source.id DESC LIMIT 3
             """;
         try {
-            return jdbc.query(sql,args(scope).addValue("identity",identity.trim().toLowerCase(Locale.ROOT),Types.VARCHAR),
+            return jdbc.query(sql,args(scope).addValue("identity",identity.toLowerCase(Locale.ROOT),Types.VARCHAR),
                 (rs,row)->new ScopedAiSourceService.Summary(rs.getLong("id"),ScopedAiSourceService.Kind.valueOf(rs.getString("source_kind")),
                     rs.getString("source_key"),rs.getString("title"),ScopedAiSourceService.Status.valueOf(rs.getString("status")),rs.getLong("revision")));
         } catch (DataAccessException ex) { return List.of(); }

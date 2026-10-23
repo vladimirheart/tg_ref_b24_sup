@@ -130,7 +130,7 @@ public class BusinessTicketParticipantService {
     }
     private MapSqlParameterSource args(UiEventTicketScope scope,String identity) {
         return new MapSqlParameterSource("owner",scope.ticketUserId()).addValue("raw",scope.ticketId()).addValue("public",scope.ticketPublicId())
-            .addValue("business",scope.businessId()).addValue("identity",identity.trim().toLowerCase(Locale.ROOT));
+            .addValue("business",scope.businessId()).addValue("identity",identity.toLowerCase(Locale.ROOT));
     }
     public record Candidate(long id,String username){}
     public record Member(long id,String snapshot,String username,boolean eligible){}

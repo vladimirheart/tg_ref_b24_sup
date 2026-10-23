@@ -38,6 +38,35 @@ import org.springframework.web.util.HtmlUtils;
 
 @SpringBootTest @AutoConfigureMockMvc
 class ScopedDialogAiHttpPostgresTest {
+
+    @ParameterizedTest @ValueSource(strings={"prefix","suffix","both","tab"})
+    void spacedPrincipalCannotReadCurateOrControlAnotherBusinessDialog(String variant) throws Exception {
+        String forged=switch(variant){case "prefix"->" "+admin;case "suffix"->admin+" ";case "tab"->"\t"+admin+"\t";default->" "+admin+" ";};
+        if(variant.equals("both"))jdbc.update("INSERT INTO business_memberships(user_id,business_id,role_code) VALUES(?,?,'ADMIN')",account(forged),other);
+        assertThat(sources.createKnowledge(business,admin,"principal-proof","refund","private refund knowledge")).isTrue();
+        assertThat(sources.revise(business,admin,ScopedAiSourceService.Kind.KNOWLEDGE,"principal-proof",1,"refund","private refund knowledge",ScopedAiSourceService.Status.APPROVED)).isTrue();
+        assertThat(knowledge.record(scope,"refund")).isTrue();
+        mvc.perform(auth(get(root),forged,true)).andExpect(status().isNotFound());
+        mvc.perform(auth(control(""),forged,true).with(csrf())).andExpect(status().isNotFound());
+        mvc.perform(auth(memory(UUID.randomUUID().toString()),forged,true).with(csrf())).andExpect(status().isNotFound());
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM ticket_ai_scoped_control WHERE ticket_public_id=?",Long.class,publicId)).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM ai_scoped_sources WHERE business_id=?",Long.class,business)).isEqualTo(1);
+        assertThat(sources.find(business,admin,ScopedAiSourceService.Kind.KNOWLEDGE,"principal-proof").orElseThrow().revision()).isEqualTo(2);
+    }
+    @Test void literalSpacedPrincipalCanControlAndCurateOnlyItsOwnDialog() throws Exception {
+        String original=admin,spaced=" "+admin+" ";jdbc.update("UPDATE users SET username=? WHERE id=?",spaced,adminId);
+        jdbc.update("INSERT INTO business_memberships(user_id,business_id,role_code) VALUES(?,?,'ADMIN')",account(original),other);
+        mvc.perform(auth(get(root),spaced,true)).andExpect(status().isOk());
+        mvc.perform(auth(get(root),original,true)).andExpect(status().isNotFound());
+        mvc.perform(auth(control(""),spaced,true).with(csrf())).andExpect(redirectedUrl(root));
+        String key=UUID.randomUUID().toString();
+        mvc.perform(auth(memory(key),spaced,true).with(csrf())).andExpect(redirectedUrl(root));
+        assertThat(jdbc.queryForMap("SELECT updated_by_user_id,updated_by FROM ticket_ai_scoped_control WHERE ticket_public_id=?",publicId))
+            .containsEntry("updated_by_user_id",adminId).containsEntry("updated_by",spaced);
+        assertThat(jdbc.queryForMap("SELECT updated_by_user_id,updated_by FROM ai_scoped_sources WHERE business_id=? AND source_key=?",business,key))
+            .containsEntry("updated_by_user_id",adminId).containsEntry("updated_by",spaced);
+    }
+
     private static final AtomicLong IDS=new AtomicLong(9433000);
     @MockBean BotProcessService botProcessService;
     @MockBean(name="taskScheduler") TaskScheduler taskScheduler;
