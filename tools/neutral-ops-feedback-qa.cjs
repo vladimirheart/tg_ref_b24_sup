@@ -139,10 +139,10 @@ async function main() {
         const rect = button.getBoundingClientRect(), link = open.getBoundingClientRect(), actionStyle = getComputedStyle(button), openStyle = getComputedStyle(open);
         return { width: rect.width, height: rect.height, openWidth: link.width, openHeight: link.height, border: actionStyle.borderWidth, openBorder: openStyle.borderWidth, background: actionStyle.backgroundColor, openBackground: openStyle.backgroundColor };
       });
-      assert.equal(Math.round(actionSize.height), touch ? 44 : 24);
+      assert.equal(Math.round(actionSize.height), touch ? 44 : 18);
       assert.equal(Math.round(actionSize.width), touch ? 44 : 24);
       assert.equal(actionSize.width, actionSize.openWidth, 'Открытие и действия одной ширины');
-      assert.equal(actionSize.height, actionSize.openHeight, 'Открытие и действия одной высоты');
+      assert.equal(actionSize.openHeight, touch ? 44 : 28, 'Открытие выше меню действий; touch остаётся 44px');
       assert.equal(actionSize.border, actionSize.openBorder, 'Одинаковый видимый контур кнопок');
       assert.equal(actionSize.background, actionSize.openBackground, 'Одинаковая поверхность кнопок');
       await page.evaluate(() => {

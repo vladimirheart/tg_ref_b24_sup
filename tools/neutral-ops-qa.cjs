@@ -22,7 +22,7 @@ const inventory = files(templates).filter(f => f.endsWith('.html')).map(file => 
     rendered: fs.existsSync(path.join(captures, view + '.html')) };
 });
 const pages = inventory.filter(s => s.standalone);
-assert.equal(pages.length, 46, 'Изменился инвентарь самостоятельных страниц');
+assert.equal(pages.length, 47, 'Изменился инвентарь самостоятельных страниц');
 assert(pages.every(s => s.page && s.theme && s.app), 'У каждой страницы должны быть theme tokens и общий CSS');
 fs.mkdirSync(output, { recursive: true });
 fs.writeFileSync(path.join(output, 'inventory.json'), JSON.stringify(inventory, null, 2));
@@ -64,6 +64,12 @@ async function main() {
         }, { theme, palette });
         await context.route('**/*', route => {
           if (!route.request().url().startsWith(origin + '/')) return route.abort();
+          if (new URL(route.request().url()).pathname === '/api/home/pulse') return route.fulfill({ json: {
+            success: true, date: '2026-10-23', zone: 'UTC', generatedAt: '2026-10-23T10:00:00Z',
+            dialogs: { available: true, createdToday: 24, active: 7, hourly: Array.from({ length: 24 }, (_, hour) => hour >= 8 && hour < 20 ? 2 : 0), channels: { Telegram: 16, MAX: 8 } },
+            incidents: { available: true, active_count: 3, critical_active_count: 1, aged_open_count: 1, failed_route_count: 0, created_24h_count: 5, resolved_24h_count: 2 },
+            runtime: { available: true, runningBots: 2, unknownBots: 0, activeChannels: 3, totalChannels: 4 }
+          } });
           if (new URL(route.request().url()).pathname === '/api/dashboard/data') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
             available_restaurants: ['Центральный', 'Северный'], stats: { current: { total: 128 }, previous: { total: 112 } },
             time_stats: { formatted_total: '24 ч 15 мин', formatted_avg: '11 мин', resolved_count: 116 },

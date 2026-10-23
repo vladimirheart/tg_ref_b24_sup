@@ -30,14 +30,15 @@ class NeutralOpsPageFamiliesWebMvcTest {
     private static final List<String> VIEWS = List.of("analytics/iiko-api-monitoring", "businesses/ai-source",
         "businesses/ai-sources", "businesses/dialog-ai", "businesses/dialog-assignment", "clients/profile",
         "clients/unblock_requests", "general/new", "general/work", "incidents/index", "knowledge/editor",
-        "knowledge/note-editor", "knowledge/notes", "ui-kit/index");
+        "knowledge/note-editor", "knowledge/notes", "ui-kit/index", "home/index");
     @Autowired private MockMvc mvc;
 
     @Test void remainingPageFamiliesRenderWithoutWorkingDatabase() throws Exception {
         for (String view : VIEWS) {
             mvc.perform(get("/__visual-family").param("view", view).with(csrf()))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("/css/app.css?v=20261022-neutral-ops-r9")))
+                .andExpect(content().string(containsString("/css/app.css?v=" +
+                    (List.of("knowledge/note-editor", "home/index").contains(view) ? "20261023-neutral-ops-r10" : "20261022-neutral-ops-r9"))))
                 .andExpect(content().string(containsString("data-ui-page=")));
         }
     }
@@ -48,7 +49,7 @@ class NeutralOpsPageFamiliesWebMvcTest {
         @GetMapping("/__visual-family") String render(@RequestParam String view, Model model) {
             if (!VIEWS.contains(view)) throw new IllegalArgumentException("Unknown fixture");
             for (String flag : List.of("canManageTasks", "canViewIncidents", "canViewClients", "canViewPassports",
-                    "canEditKnowledgeBase", "canViewScopedAiSources", "canViewAnalytics", "canViewSettings"))
+                    "canEditKnowledgeBase", "canViewScopedAiSources", "canViewAnalytics", "canViewSettings", "canViewDialogs"))
                 model.addAttribute(flag, true);
             model.addAttribute("sidebarUserDisplayName", "Оператор поддержки");
             model.addAttribute("sidebarUserUsername", "operator");

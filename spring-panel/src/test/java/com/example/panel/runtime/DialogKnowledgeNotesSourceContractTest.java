@@ -60,12 +60,17 @@ class DialogKnowledgeNotesSourceContractTest {
         assertThat(dialogTemplate)
             .contains("id=\"dialogDetailsNotesSection\"")
             .contains("id=\"dialogDetailsNotesList\"")
-            .contains("dialogs-details-runtime.js(v='20261012-01-278-r53')");
+            .contains("dialogs-details-runtime.js(v='20261023-neutral-ops-r10')")
+            .contains("id=\"dialogDetailsNotesSearch\"")
+            .contains("knowledge-note-content.js(v='20261023-neutral-ops-r10')");
 
         assertThat(dialogRuntime)
             .contains("/notes")
             .contains("response.status === 401 || response.status === 403")
-            .contains("note?.locationMatched === true")
+            .contains("note.locationMatched === true")
+            .contains("section.open = false")
+            .contains("content.matches(note, query)")
+            .contains("content.render(body, note.body, 800)")
             .contains("loadDialogNotes(ticketId);");
     }
 }

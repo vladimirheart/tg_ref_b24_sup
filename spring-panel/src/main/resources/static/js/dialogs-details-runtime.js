@@ -19,13 +19,51 @@
 
     const PROBLEM_FOLLOW_UP_PREFIX = 'Уточнение после ответов на вопросы:';
     let notesRequestSerial = 0;
+    let dialogNotes = [];
+
+    function renderDialogNotes() {
+      const state = document.getElementById('dialogDetailsNotesState');
+      const list = document.getElementById('dialogDetailsNotesList');
+      const query = document.getElementById('dialogDetailsNotesSearch')?.value || '';
+      if (!state || !list) return;
+      const content = window.IguanaNoteContent;
+      const notes = dialogNotes.filter(note => content ? content.matches(note, query)
+        : `${note.title || ''} ${note.body || ''}`.toLocaleLowerCase('ru-RU').includes(query.trim().toLocaleLowerCase('ru-RU')));
+      state.textContent = !dialogNotes.length ? 'Заметок нет.' : !notes.length ? 'По этому запросу заметок не найдено.'
+        : query.trim() ? `Найдено: ${notes.length} из ${dialogNotes.length}` : `Всего заметок: ${dialogNotes.length}`;
+      list.replaceChildren();
+      for (const note of notes) {
+        const article = document.createElement('article'); article.className = 'border rounded p-2';
+        const heading = document.createElement('div'); heading.className = 'd-flex justify-content-between align-items-start gap-2';
+        const title = document.createElement('a'); title.className = 'fw-semibold text-decoration-none';
+        const noteId = Number(note.id);
+        title.href = Number.isSafeInteger(noteId) && noteId > 0 ? `/knowledge-base/notes/${noteId}` : '/knowledge-base/notes';
+        title.target = '_blank'; title.rel = 'noopener'; title.textContent = note.title || 'Без названия'; heading.append(title);
+        if (note.locationMatched === true) {
+          const badge = document.createElement('span'); badge.className = 'badge text-bg-primary ms-2'; badge.textContent = 'Локация'; heading.append(badge);
+        }
+        const body = document.createElement('div'); body.className = 'small mt-1 text-break';
+        if (content) content.render(body, note.body, 800);
+        else body.textContent = String(note.body || '').slice(0, 800);
+        article.append(heading, body);
+        if (note.updatedAt) {
+          const date = document.createElement('div'); date.className = 'small text-muted mt-1';
+          date.textContent = options.formatTimestamp?.(note.updatedAt, { includeTime: true }) || String(note.updatedAt); article.append(date);
+        }
+        list.append(article);
+      }
+    }
+    document.getElementById('dialogDetailsNotesSearch')?.addEventListener('input', renderDialogNotes);
 
     function resetDialogNotes() {
       notesRequestSerial += 1;
       const section = document.getElementById('dialogDetailsNotesSection');
       const state = document.getElementById('dialogDetailsNotesState');
       const list = document.getElementById('dialogDetailsNotesList');
-      if (section) section.classList.add('d-none');
+      dialogNotes = [];
+      const search = document.getElementById('dialogDetailsNotesSearch');
+      if (search) search.value = '';
+      if (section) { section.classList.add('d-none'); section.open = false; }
       if (state) state.textContent = 'Загрузка заметок…';
       if (list) list.innerHTML = '';
     }
@@ -50,35 +88,9 @@
           return;
         }
         const payload = await response.json();
-        const notes = Array.isArray(payload?.notes) ? payload.notes : [];
-        if (!notes.length) {
-          state.textContent = 'Заметок нет.';
-          return;
-        }
-        state.textContent = '';
-        list.innerHTML = notes.map((note) => {
-          const title = String(note?.title || 'Без названия');
-          const body = String(note?.body || '').trim();
-          const preview = body.length > 800 ? `${body.slice(0, 800)}…` : body;
-          const noteId = Number(note?.id);
-          const href = Number.isFinite(noteId) ? `/knowledge-base/notes/${encodeURIComponent(noteId)}` : '/knowledge-base/notes';
-          const locationBadge = note?.locationMatched === true
-            ? '<span class="badge text-bg-primary ms-2">Локация</span>'
-            : '';
-          const updated = note?.updatedAt
-            ? (options.formatTimestamp?.(note.updatedAt, { includeTime: true }) || String(note.updatedAt))
-            : '';
-          return `
-            <article class="border rounded p-2">
-              <div class="d-flex justify-content-between align-items-start gap-2">
-                <a class="fw-semibold text-decoration-none" href="${href}" target="_blank" rel="noopener">${escapeHtml(title)}</a>
-                ${locationBadge}
-              </div>
-              ${preview ? `<div class="small mt-1 text-break" style="white-space: pre-wrap;">${escapeHtml(preview)}</div>` : '<div class="small text-muted mt-1">Без текста</div>'}
-              ${updated ? `<div class="small text-muted mt-1">${escapeHtml(updated)}</div>` : ''}
-            </article>
-          `;
-        }).join('');
+        if (requestSerial !== notesRequestSerial || String(getActiveDialogState()?.ticketId || '') !== String(ticketId)) return;
+        dialogNotes = Array.isArray(payload?.notes) ? payload.notes : [];
+        renderDialogNotes();
       } catch (_error) {
         const activeTicketId = String(getActiveDialogState()?.ticketId || '');
         if (requestSerial !== notesRequestSerial || activeTicketId !== String(ticketId)) return;

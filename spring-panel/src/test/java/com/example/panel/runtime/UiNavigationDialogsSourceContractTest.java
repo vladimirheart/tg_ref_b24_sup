@@ -58,9 +58,13 @@ class UiNavigationDialogsSourceContractTest {
         .contains("Просрочен на");
     assertThat(scss)
         .contains("/* 01-272 dialogs corrective S2 */")
-        .contains("background: transparent !important;")
+        .contains("color: var(--primary) !important;")
         .contains(".dialog-sla-status")
         .contains(".dialog-sla-timing");
+    // R9/R10: link and menu now share the visible neutral button surface.
+    assertThat(read("src/main/resources/scss/app/_neutral-ops-feedback.scss"))
+        .contains("border: 1px solid var(--color-border);")
+        .contains("background: var(--surface-card);");
   }
 
   @Test void dialogsDensityKeepsActionsLabelForColumnPickerButHidesTableHeader() throws IOException {

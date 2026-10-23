@@ -75,9 +75,15 @@
         <nav class="sidebar-nav" aria-label="Основная навигация">
             <div class="sidebar-nav-group" data-nav-group="workspace">
                 <div class="sidebar-section-label">Рабочий контур</div>
+                <a class="nav-link" data-page-key="home" data-nav-group="workspace"
+                   th:classappend="${active}=='home' ? ' active'" th:href="@{/}">
+                    <span class="icon" aria-hidden="true">⌂</span>
+                    <span class="label"><span class="nav-label-main">Главная</span>
+                        <span class="nav-label-sub">Быстрый пульс панели</span></span>
+                </a>
                 <a class="nav-link" data-page-key="dialogs" data-nav-group="workspace"
                    th:classappend="${active}=='dialogs' ? ' active'"
-                   th:href="@{/}">
+                   th:href="@{/dialogs}">
                     <span class="icon" aria-hidden="true">💬</span>
                     <span class="label">
                         <span class="nav-label-main">Диалоги</span>

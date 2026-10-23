@@ -39,12 +39,6 @@ public class DialogsController {
         this.multibusinessFlags = multibusinessFlags;
     }
 
-    @GetMapping("/")
-    @PreAuthorize("hasAuthority('PAGE_DIALOGS')")
-    public String dialogs(Authentication authentication, Model model) {
-        return renderDialogsPage(authentication, model, null);
-    }
-
     @GetMapping("/dialogs")
     @PreAuthorize("hasAuthority('PAGE_DIALOGS')")
     public String dialogsList(@RequestParam(name = "ticketId", required = false) String ticketId,

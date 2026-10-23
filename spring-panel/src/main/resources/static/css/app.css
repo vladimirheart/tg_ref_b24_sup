@@ -17491,6 +17491,320 @@ body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .staff-time-detail {
   background: var(--surface-soft);
 }
 
+body[data-ui-page=home] .home-shell {
+  max-width: 1780px;
+  padding-top: 28px;
+  padding-bottom: 36px;
+}
+body[data-ui-page=home] .home-header, body[data-ui-page=home] .home-refresh, body[data-ui-page=home] .home-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+body[data-ui-page=home] .home-header {
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+body[data-ui-page=home] .home-header h1 {
+  margin: 4px 0 8px;
+  font-size: 1.7rem;
+  letter-spacing: -0.04em;
+}
+body[data-ui-page=home] .home-header p {
+  font-size: 0.8rem;
+}
+body[data-ui-page=home] .home-refresh .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+body[data-ui-page=home] .home-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+body[data-ui-page=home] .home-kpi {
+  padding: 18px;
+  gap: 8px;
+  min-width: 0;
+}
+body[data-ui-page=home] .home-kpi-label {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+body[data-ui-page=home] .home-kpi strong {
+  font-size: 2rem;
+  line-height: 1.2;
+  letter-spacing: -0.05em;
+  font-variant-numeric: tabular-nums;
+}
+body[data-ui-page=home] .home-kpi .small {
+  font-size: 0.7rem;
+}
+body[data-ui-page=home] .home-charts {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  gap: 18px;
+}
+body[data-ui-page=home] .home-panel {
+  padding: 20px;
+  min-width: 0;
+}
+body[data-ui-page=home] .home-panel-heading {
+  margin-bottom: 18px;
+}
+body[data-ui-page=home] .home-panel h2, body[data-ui-page=home] .home-section-heading h2 {
+  font-size: 1rem;
+  margin: 4px 0 0;
+  letter-spacing: -0.02em;
+}
+body[data-ui-page=home] .home-panel-heading a, body[data-ui-page=home] .home-panel-link {
+  font-size: 0.75rem;
+  text-decoration: none;
+}
+body[data-ui-page=home] .home-panel-heading > i {
+  color: var(--primary);
+  font-size: 1.3rem;
+}
+body[data-ui-page=home] .home-chart {
+  height: 210px;
+  min-width: 0;
+}
+body[data-ui-page=home] .home-panel-note {
+  margin: 14px 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  line-height: 1.6;
+}
+body[data-ui-page=home] .home-incident-list {
+  display: grid;
+  gap: 4px;
+}
+body[data-ui-page=home] .home-incident-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.8rem;
+}
+body[data-ui-page=home] .home-incident-row strong {
+  font-size: 1.2rem;
+  font-variant-numeric: tabular-nums;
+}
+body[data-ui-page=home] .home-incident-row--danger strong {
+  color: var(--state-danger);
+}
+body[data-ui-page=home] .home-incident-row--warning strong {
+  color: var(--state-warning);
+}
+body[data-ui-page=home] .home-panel-link {
+  margin-top: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+body[data-ui-page=home] .home-channel-panel {
+  grid-column: 1/-1;
+}
+body[data-ui-page=home] .home-channel-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 32px;
+}
+body[data-ui-page=home] .home-channel-row {
+  display: grid;
+  grid-template-columns: minmax(70px, 120px) minmax(0, 1fr) minmax(28px, auto);
+  align-items: center;
+  gap: 12px;
+  font-size: 0.8rem;
+}
+body[data-ui-page=home] .home-channel-row > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body[data-ui-page=home] .home-channel-row strong {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+body[data-ui-page=home] .home-channel-track {
+  height: 7px;
+  background: var(--surface-soft);
+  border-radius: 4px;
+  overflow: hidden;
+}
+body[data-ui-page=home] .home-channel-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--chart-1);
+}
+body[data-ui-page=home] .home-channel-row:nth-child(2n) .home-channel-fill {
+  background: var(--chart-2);
+}
+body[data-ui-page=home] .home-sections {
+  margin-top: 30px;
+}
+body[data-ui-page=home] .home-section-heading {
+  margin-bottom: 16px;
+}
+body[data-ui-page=home] .home-section-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+body[data-ui-page=home] .home-section-link {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--ui-panel-radius);
+  background: var(--surface-card);
+  color: var(--color-text);
+  text-decoration: none;
+}
+body[data-ui-page=home] .home-section-link:hover {
+  background: var(--surface-interactive);
+  border-color: var(--primary);
+  color: var(--color-text);
+}
+body[data-ui-page=home] .home-section-link > i:first-child {
+  display: grid;
+  place-items: center;
+  flex: 0 0 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--surface-selected);
+  color: var(--primary);
+  font-size: 1.15rem;
+}
+body[data-ui-page=home] .home-section-link > i:last-child {
+  margin-left: auto;
+  color: var(--color-text-muted);
+}
+body[data-ui-page=home] .home-section-link span {
+  min-width: 0;
+}
+body[data-ui-page=home] .home-section-link strong {
+  display: block;
+  font-size: 0.85rem;
+}
+body[data-ui-page=home] .home-section-link small {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+}
+@media (max-width: 1199.98px) {
+  body[data-ui-page=home] .home-kpis {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  body[data-ui-page=home] .home-section-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 767.98px) {
+  body[data-ui-page=home] .home-shell {
+    padding-top: 20px;
+  }
+  body[data-ui-page=home] .home-charts {
+    grid-template-columns: 1fr;
+  }
+  body[data-ui-page=home] .home-channel-list {
+    grid-template-columns: 1fr;
+  }
+  body[data-ui-page=home] .home-panel {
+    padding: 16px;
+  }
+  body[data-ui-page=home] .home-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  body[data-ui-page=home] .home-kpi {
+    padding: 14px;
+  }
+  body[data-ui-page=home] .home-refresh {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 479.98px) {
+  body[data-ui-page=home] .home-section-grid {
+    grid-template-columns: 1fr;
+  }
+  body[data-ui-page=home] .home-panel-heading {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  body[data-ui-page=home] .home-kpis {
+    gap: 8px;
+  }
+}
+
+body[data-ui-page] .note-body-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+body[data-ui-page] .note-photo {
+  display: block;
+  max-width: 100%;
+  max-height: 240px;
+  height: auto;
+  object-fit: contain;
+  margin: 8px 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--control-radius);
+  background: var(--surface-soft);
+}
+
+body[data-ui-page] .note-photo-link {
+  display: block;
+}
+
+body[data-ui-page=knowledge] .note-photo-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 8px 0;
+}
+
+body[data-ui-page=knowledge] .note-body-preview {
+  padding: 12px;
+  margin-top: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--control-radius);
+  background: var(--surface-soft);
+}
+
+body[data-ui-page=dialogs] .dialog-table .dialog-actions-inline {
+  flex-direction: column;
+  gap: 2px;
+}
+body[data-ui-page=dialogs] .dialog-table .dialog-open-icon {
+  height: 28px;
+  min-height: 28px;
+  flex-basis: 28px;
+}
+body[data-ui-page=dialogs] .dialog-table .dialog-actions-toggle {
+  height: 18px;
+  min-height: 18px;
+  flex-basis: 18px;
+  font-size: 0.8rem;
+}
+
+@media (pointer: coarse) {
+  body[data-ui-page=dialogs] .dialog-table :is(.dialog-open-icon, .dialog-actions-toggle) {
+    height: 44px;
+    min-height: 44px;
+    flex-basis: 44px;
+  }
+}
 /* Canonical project disclosure language.
  * Visual reference: compact iikoServer source cards in Settings.
  * Do not edit generated static/css/app.css directly.

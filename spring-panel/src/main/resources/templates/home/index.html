@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Главная — iguana</title>
+    <link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css">
+    <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/style.css(v='20261022-neutral-ops-r7')}">
+    <link rel="stylesheet" th:href="@{/css/app.css(v='20261023-neutral-ops-r10')}">
+    <link rel="stylesheet" th:href="@{/css/sidebar.css(v='20261022-neutral-ops-r7')}">
+</head>
+<body class="with-sidebar sidebar-pinned" data-ui-page="home">
+<div th:replace="~{fragments/navbar :: navbar('home')}"></div>
+<main class="main-content container-fluid home-shell" data-home-pulse>
+    <header class="home-header">
+        <div><span class="page-kicker">Обзор · Сегодня</span><h1>Пульс панели</h1>
+            <p class="text-muted mb-0" data-home-period>Загружаем текущий день…</p></div>
+        <div class="home-refresh"><span class="small text-muted" role="status" data-home-updated>Подключаемся…</span>
+            <button type="button" class="btn btn-outline-secondary" data-home-refresh><i class="bi bi-arrow-clockwise" aria-hidden="true"></i><span>Обновить</span></button></div>
+    </header>
+    <section class="home-kpis" aria-label="Ключевые показатели">
+        <article class="card home-kpi"><span class="home-kpi-label">Обращения сегодня</span><strong data-pulse-value="today">—</strong><span class="small text-muted" data-pulse-hint="today">Новые обращения за день</span></article>
+        <article class="card home-kpi"><span class="home-kpi-label">Активная очередь</span><strong data-pulse-value="active">—</strong><span class="small text-muted" data-pulse-hint="active">Все незакрытые обращения</span></article>
+        <article class="card home-kpi"><span class="home-kpi-label">Инциденты</span><strong data-pulse-value="incidents">—</strong><span class="small text-muted" data-pulse-hint="incidents">Активные сейчас</span></article>
+        <article class="card home-kpi"><span class="home-kpi-label">Боты · runtime</span><strong data-pulse-value="bots">—</strong><span class="small text-muted" data-pulse-hint="bots">По последним runtime-сигналам</span></article>
+        <article class="card home-kpi"><span class="home-kpi-label">Подключения</span><strong data-pulse-value="channels">—</strong><span class="small text-muted" data-pulse-hint="channels">Включённые каналы</span></article>
+    </section>
+    <section class="home-charts" aria-label="Нагрузка и инциденты">
+        <article class="card home-panel home-load-panel"><div class="home-panel-heading"><div><span class="section-kicker">Нагрузка</span><h2>Обращения по часам</h2></div><a th:if="${canViewDialogs}" href="/dashboard">Все отчёты <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a></div>
+            <div class="home-chart"><canvas id="homeHourlyChart" role="img" aria-label="Количество новых обращений за каждый час текущего дня"></canvas></div>
+            <p class="home-panel-note" data-home-load-state>Загрузка нагрузки…</p></article>
+        <article class="card home-panel"><div class="home-panel-heading"><div><span class="section-kicker">Внимание</span><h2>Инциденты сейчас</h2></div><i class="bi bi-activity" aria-hidden="true"></i></div>
+            <div class="home-incident-list" data-home-incidents></div><p class="home-panel-note" data-home-incident-state>Загрузка статистики…</p>
+            <a th:if="${canViewIncidents}" class="home-panel-link" href="/incidents">Открыть инциденты <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a></article>
+        <article class="card home-panel home-channel-panel"><div class="home-panel-heading"><div><span class="section-kicker">Каналы</span><h2>Откуда приходят обращения</h2></div><span class="small text-muted">Сегодня</span></div>
+            <div class="home-channel-list" data-home-channels></div><p class="home-panel-note" data-home-channel-state>Загрузка каналов…</p></article>
+    </section>
+    <section class="home-sections" aria-labelledby="homeSectionsTitle"><div class="home-section-heading"><span class="section-kicker">Рабочее пространство</span><h2 id="homeSectionsTitle">Перейти в раздел</h2></div>
+        <nav class="home-section-grid" aria-label="Разделы панели">
+            <a th:if="${canViewDialogs}" class="home-section-link" href="/dialogs"><i class="bi bi-chat-dots" aria-hidden="true"></i><span><strong>Диалоги</strong><small>Обращения и ответы клиентам</small></span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
+            <a th:if="${canViewDialogs}" class="home-section-link" href="/ai-ops"><i class="bi bi-stars" aria-hidden="true"></i><span><strong>AI Ops</strong><small>Автоматизация и подсказки</small></span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
+            <a th:if="${canManageTasks}" class="home-section-link" href="/tasks"><i class="bi bi-check2-square" aria-hidden="true"></i><span><strong>Задачи</strong><small>Операционная работа команды</small></span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
+            <a th:if="${canManageTasks}" class="home-section-link" href="/projects"><i class="bi bi-kanban" aria-hidden="true"></i><span><strong>Проекты</strong><small>Планы и совместная работа</small></span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
+            <a th:if="${canViewIncidents}" class="home-section-link" href="/incidents"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i><span><strong>Инциденты</strong><small>Сигналы и эскалации</small></span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
+            <a th:if="${canViewClients}" class="home-section-link" href="/clients"><i class="bi bi-people" aria-hidden="true"></i><span><strong>Клиенты</strong><small>Профили и история обращений</small></span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
+            <a th:if="${canViewPassports}" class="home-section-link" href="/object-passports"><i class="bi bi-hdd-network" aria-hidden="true"></i><span><strong>Паспорта объектов</strong><small>Локации и оборудование</small></span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
+            <a th:if="${canEditKnowledgeBase}" class="home-section-link" href="/knowledge-base"><i class="bi bi-journal-text" aria-hidden="true"></i><span><strong>База знаний</strong><small>Статьи, заметки и фотографии</small></span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
+            <a th:if="${canViewScopedAiSources}" class="home-section-link" href="/business-ai-sources"><i class="bi bi-book" aria-hidden="true"></i><span><strong>AI-источники</strong><small>Знания и решения по бизнесам</small></span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
+            <a th:if="${canViewDialogs}" class="home-section-link" href="/dashboard"><i class="bi bi-bar-chart" aria-hidden="true"></i><span><strong>Отчёты</strong><small>Графики и аналитические срезы</small></span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
+            <a th:if="${canViewAnalytics}" class="home-section-link" href="/analytics"><i class="bi bi-graph-up" aria-hidden="true"></i><span><strong>Аналитика</strong><small>Мониторинг сервисов и интеграций</small></span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
+            <a th:if="${canViewSettings}" class="home-section-link" href="/settings"><i class="bi bi-sliders" aria-hidden="true"></i><span><strong>Настройки</strong><small>Конфигурация панели и доступов</small></span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
+            <a th:if="${canManageChannels == true and canViewSettings != true}" class="home-section-link" href="/channels"><i class="bi bi-broadcast" aria-hidden="true"></i><span><strong>Каналы</strong><small>Подключения и маршруты</small></span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
+            <a th:if="${canManageUsers == true and canViewSettings != true}" class="home-section-link" href="/users"><i class="bi bi-person-gear" aria-hidden="true"></i><span><strong>Пользователи</strong><small>Роли и профили сотрудников</small></span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
+        </nav>
+    </section>
+</main>
+<script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js"></script>
+<script src="/vendor/chart.js/4.5.1/chart.umd.min.js"></script>
+<script th:src="@{/js/home-pulse.js(v='20261023-neutral-ops-r10')}"></script>
+</body>
+</html>

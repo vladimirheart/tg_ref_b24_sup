@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css">
     <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
     <link rel="stylesheet" th:href="@{/css/style.css(v='20261022-neutral-ops-r7')}">
-    <link rel="stylesheet" th:href="@{/css/app.css(v='20261022-neutral-ops-r9')}">
+    <link rel="stylesheet" th:href="@{/css/app.css(v='20261023-neutral-ops-r10')}">
     <link rel="stylesheet" th:href="@{/css/sidebar.css(v='20261022-neutral-ops-r7')}">
 </head>
 <body class="with-sidebar sidebar-pinned" data-ui-page="knowledge">
@@ -43,8 +43,15 @@
                         <input class="form-control" name="title" maxlength="500" required th:value="${note.title}" placeholder="Короткое название заметки">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Текст</label>
-                        <textarea class="form-control" name="body" rows="14" maxlength="100000" th:text="${note.body}" placeholder="Свободный текст заметки"></textarea>
+                        <label class="form-label" for="noteBody">Текст и фотографии</label>
+                        <div class="note-photo-tools">
+                            <button class="btn btn-sm btn-outline-secondary" type="button" data-note-add-photo><i class="bi bi-image me-1" aria-hidden="true"></i>Добавить фото</button>
+                            <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden data-note-photo-input aria-label="Фотографии заметки">
+                            <span class="small text-muted">PNG, JPEG, GIF, WebP · до 10 МБ на фото. Можно вставить из буфера.</span>
+                        </div>
+                        <div class="small mb-2" role="status" aria-live="polite" data-note-photo-state></div>
+                        <textarea class="form-control" id="noteBody" name="body" rows="10" maxlength="100000" th:text="${note.body}" placeholder="Свободный текст заметки. Фотографии сохраняются ссылками в тексте."></textarea>
+                        <div class="note-body-preview" data-note-body-preview aria-label="Предпросмотр заметки" hidden></div>
                     </div>
 
                     <div class="d-flex justify-content-between align-items-center mb-2">
@@ -108,6 +115,8 @@
         </div>
     </form>
 </main>
-<script th:src="@{/js/knowledge-notes.js(v='20261002-01-278-notes-r13')}"></script>
+<script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js"></script>
+<script th:src="@{/js/knowledge-note-content.js(v='20261023-neutral-ops-r10')}"></script>
+<script th:src="@{/js/knowledge-notes.js(v='20261023-neutral-ops-r10')}"></script>
 </body>
 </html>
