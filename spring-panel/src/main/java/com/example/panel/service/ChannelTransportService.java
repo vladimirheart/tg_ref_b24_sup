@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -902,8 +903,8 @@ public class ChannelTransportService {
         normalized.put("department", stringValue(node.path("department").asText("")));
         normalized.put("targetMode", mode);
         normalized.put("deliveryMode", deliveryMode);
-        normalized.put("employeeUsernames", normalizeStringList(node.path("employeeUsernames")));
-        normalized.put("excludeUsernames", normalizeStringList(node.path("excludeUsernames")));
+        normalized.put("employeeUsernames", normalizeRecipientList(node.path("employeeUsernames")));
+        normalized.put("excludeUsernames", normalizeRecipientList(node.path("excludeUsernames")));
         return normalized;
     }
 
@@ -955,8 +956,8 @@ public class ChannelTransportService {
         normalized.put("department", stringValue(node.path("department").asText("")));
         normalized.put("targetMode", mode);
         normalized.put("deliveryMode", deliveryMode);
-        normalized.put("employeeUsernames", normalizeStringList(node.path("employeeUsernames")));
-        normalized.put("excludeUsernames", normalizeStringList(node.path("excludeUsernames")));
+        normalized.put("employeeUsernames", normalizeRecipientList(node.path("employeeUsernames")));
+        normalized.put("excludeUsernames", normalizeRecipientList(node.path("excludeUsernames")));
         return normalized;
     }
 
@@ -975,6 +976,21 @@ public class ChannelTransportService {
             case "hash_by_ticket", "hash", "ticket_hash" -> "hash_by_ticket";
             default -> "round_robin";
         };
+    }
+
+    // Notification arrays contain exact account keys; freeform labels use stringValue separately.
+    private List<String> normalizeRecipientList(JsonNode node) {
+        if (node == null || !node.isArray()) {
+            return List.of();
+        }
+        Set<String> values = new LinkedHashSet<>();
+        for (JsonNode item : node) {
+            String value = item.asText("");
+            if (!value.isBlank()) {
+                values.add(value.toLowerCase(Locale.ROOT));
+            }
+        }
+        return new ArrayList<>(values);
     }
 
     private List<String> normalizeStringList(JsonNode node) {

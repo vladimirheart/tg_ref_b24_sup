@@ -182,7 +182,7 @@ public class AlertQueueService {
             if (!StringUtils.hasText(value)) {
                 continue;
             }
-            normalized.add(value.trim().toLowerCase(Locale.ROOT));
+            normalized.add(value.toLowerCase(Locale.ROOT));
         }
         return normalized;
     }
@@ -308,7 +308,7 @@ public class AlertQueueService {
                 }
                 String rawActivity = rs.getString("last_portal_activity_at");
                 OffsetDateTime activity = parseDate(rawActivity);
-                return new UserSnapshot(username.trim().toLowerCase(Locale.ROOT), activity);
+                return new UserSnapshot(username.toLowerCase(Locale.ROOT), activity);
             }, args).stream().filter(java.util.Objects::nonNull).toList();
         } catch (DataAccessException ex) {
             log.warn("Unable to resolve alert recipients: {}", ex.getMessage());
@@ -418,7 +418,7 @@ public class AlertQueueService {
         }
         Set<String> values = new LinkedHashSet<>();
         for (JsonNode item : node) {
-            String value = value(item.asText(""));
+            String value = item.asText("");
             if (StringUtils.hasText(value)) {
                 values.add(value.toLowerCase(Locale.ROOT));
             }

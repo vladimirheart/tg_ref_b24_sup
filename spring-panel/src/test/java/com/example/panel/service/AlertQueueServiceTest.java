@@ -155,7 +155,7 @@ class AlertQueueServiceTest {
                             "department": "Support",
                             "targetMode": "employees_only",
                             "deliveryMode": "all",
-                            "employeeUsernames": ["mila", " Sasha ", "mila"]
+                            "employeeUsernames": ["mila", "SASHA", "mila"]
                           }
                         }
                         """),
