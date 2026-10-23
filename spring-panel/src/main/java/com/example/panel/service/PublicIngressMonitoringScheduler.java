@@ -33,6 +33,7 @@ public class PublicIngressMonitoringScheduler {
         fixedDelayString = "${panel.public-ingress.check-interval-ms:600000}"
     )
     public void refreshPublicIngress() {
+        if (monitoringService.isMonitoringPaused()) return;
         runtimeCoordinationService.runWithLease("public-ingress-monitoring", Duration.ofMinutes(20), () -> {
             try {
                 PublicIngressMonitoringService.RefreshSummary summary = monitoringService.refreshAll();

@@ -34,6 +34,18 @@ import java.util.stream.Stream;
 
 @Service
 public class BackupReadinessMonitoringService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private IncidentMonitoringPolicyService incidentMonitoringPolicy;
+
+    public boolean isMonitoringPaused() {
+        return incidentMonitoringPolicy != null && incidentMonitoringPolicy.isSuppressed("backup_readiness");
+    }
+
+    private void requireMonitoringEnabled() {
+        if (incidentMonitoringPolicy != null && incidentMonitoringPolicy.isSuppressed("backup_readiness")) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "Проверки направления приостановлены в настройках мониторинга инцидентов.");
+        }
+    }
 
     private static final Logger log = LoggerFactory.getLogger(BackupReadinessMonitoringService.class);
 
@@ -193,15 +205,18 @@ public class BackupReadinessMonitoringService {
     }
 
     public BackupReadinessMonitor refreshById(long monitorId) {
+        requireMonitoringEnabled();
         BackupReadinessMonitor item = repository.findById(monitorId)
             .orElseThrow(() -> new IllegalArgumentException("Монитор backup readiness не найден"));
         return refreshMonitor(item);
     }
 
     public RefreshSummary refreshAll() {
+        requireMonitoringEnabled();
         List<BackupReadinessMonitor> monitors = repository.findAllByOrderByMonitorNameAscIdAsc();
         int checked = 0;
         for (BackupReadinessMonitor monitor : monitors) {
+            if (isMonitoringPaused()) break;
             refreshMonitor(monitor);
             checked++;
         }
@@ -293,6 +308,7 @@ public class BackupReadinessMonitoringService {
     }
 
     private BackupReadinessMonitor refreshMonitor(BackupReadinessMonitor item) {
+        if (incidentMonitoringPolicy != null && incidentMonitoringPolicy.isSuppressed("backup_readiness")) return item;
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         long startedAtNs = System.nanoTime();
         item.setLastCheckedAt(now);

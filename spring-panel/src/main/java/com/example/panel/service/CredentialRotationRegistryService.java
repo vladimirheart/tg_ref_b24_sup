@@ -33,6 +33,18 @@ import java.util.Optional;
 
 @Service
 public class CredentialRotationRegistryService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private IncidentMonitoringPolicyService incidentMonitoringPolicy;
+
+    public boolean isMonitoringPaused() {
+        return incidentMonitoringPolicy != null && incidentMonitoringPolicy.isSuppressed("credential_rotation");
+    }
+
+    private void requireMonitoringEnabled() {
+        if (incidentMonitoringPolicy != null && incidentMonitoringPolicy.isSuppressed("credential_rotation")) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "Проверки направления приостановлены в настройках мониторинга инцидентов.");
+        }
+    }
 
     public static final String MONITOR_KIND = "credential_rotation";
     public static final String CHECK_KIND = "rotation_registry";
@@ -139,10 +151,12 @@ public class CredentialRotationRegistryService {
     }
 
     public RegistrySnapshot buildSnapshot() {
+        requireMonitoringEnabled();
         return syncRegistry(false);
     }
 
     public RegistrySnapshot refreshAll() {
+        requireMonitoringEnabled();
         return syncRegistry(true);
     }
 

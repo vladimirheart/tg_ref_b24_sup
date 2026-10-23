@@ -73,6 +73,18 @@ import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 public class RmsLicenseMonitoringService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private IncidentMonitoringPolicyService incidentMonitoringPolicy;
+
+    public boolean isMonitoringPaused() {
+        return incidentMonitoringPolicy != null && incidentMonitoringPolicy.isSuppressed("rms");
+    }
+
+    private void requireMonitoringEnabled() {
+        if (incidentMonitoringPolicy != null && incidentMonitoringPolicy.isSuppressed("rms")) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "Проверки направления приостановлены в настройках мониторинга инцидентов.");
+        }
+    }
 
     private static final Logger log = LoggerFactory.getLogger(RmsLicenseMonitoringService.class);
 
@@ -274,19 +286,23 @@ public class RmsLicenseMonitoringService {
     }
 
     public RefreshRequestResult requestLicenseRefresh(boolean withNotifications) {
+        requireMonitoringEnabled();
         return queueLicenseRefresh(null, withNotifications);
     }
 
     public RefreshRequestResult requestLicenseRefreshForMonitor(long id, boolean withNotifications) {
+        requireMonitoringEnabled();
         requireMonitor(id);
         return queueLicenseRefresh(id, withNotifications);
     }
 
     public RefreshRequestResult requestNetworkRefresh() {
+        requireMonitoringEnabled();
         return queueNetworkRefresh(null);
     }
 
     public RefreshRequestResult requestNetworkRefreshForMonitor(long id) {
+        requireMonitoringEnabled();
         requireMonitor(id);
         return queueNetworkRefresh(id);
     }
@@ -788,6 +804,7 @@ public class RmsLicenseMonitoringService {
     }
 
     public Map<String, Object> executeBackendOpsLicenseRefresh(Map<String, Object> payload) {
+        requireMonitoringEnabled();
         Long monitorId = longValue(payload == null ? null : payload.get("monitor_id"));
         boolean withNotifications = booleanValue(
             payload == null ? null : payload.get("with_notifications"),
@@ -824,6 +841,7 @@ public class RmsLicenseMonitoringService {
     }
 
     public Map<String, Object> executeBackendOpsNetworkRefresh(Map<String, Object> payload) {
+        requireMonitoringEnabled();
         Long monitorId = longValue(payload == null ? null : payload.get("monitor_id"));
         reportBackendOpsProgress(5, "starting");
         if (monitorId == null) {
@@ -1132,6 +1150,7 @@ public class RmsLicenseMonitoringService {
         licenseQueueTracker.start(monitors.stream().map(RmsLicenseMonitor::getId).toList());
 
         for (int index = 0; index < monitors.size(); index++) {
+            if (isMonitoringPaused()) break;
             RmsLicenseMonitor monitor = monitors.get(index);
             licenseQueueTracker.markRunning(monitor.getId());
 
@@ -1176,6 +1195,7 @@ public class RmsLicenseMonitoringService {
         networkQueueTracker.start(monitors.stream().map(RmsLicenseMonitor::getId).toList());
 
         for (int index = 0; index < monitors.size(); index++) {
+            if (isMonitoringPaused()) break;
             RmsLicenseMonitor monitor = monitors.get(index);
             networkQueueTracker.markRunning(monitor.getId());
 
@@ -1215,6 +1235,7 @@ public class RmsLicenseMonitoringService {
         }
     }
     private void refreshLicenseState(RmsLicenseMonitor monitor, boolean withNotifications) {
+        if (incidentMonitoringPolicy != null && incidentMonitoringPolicy.isSuppressed("rms")) return;
         if (monitor == null) {
             return;
         }
@@ -1284,6 +1305,7 @@ public class RmsLicenseMonitoringService {
     }
 
     private void refreshNetworkState(RmsLicenseMonitor monitor) {
+        if (incidentMonitoringPolicy != null && incidentMonitoringPolicy.isSuppressed("rms")) return;
         if (monitor == null) {
             return;
         }

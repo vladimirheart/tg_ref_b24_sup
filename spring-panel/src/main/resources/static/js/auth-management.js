@@ -3424,71 +3424,23 @@
 
     populateOrgMembersModal(node) {
       const list = this.elements.orgMembersList;
-      if (!list) {
-        return;
-      }
-      list.innerHTML = '';
+      if (!list) return;
+      list.replaceChildren();
       const membersSet = new Set(Array.isArray(node.members) ? node.members : []);
-      const users = (this.state.users || []).slice();
-      const collator = new Intl.Collator('ru', { sensitivity: 'base' });
-      users.sort((a, b) => collator.compare(a.username || '', b.username || ''));
-
-      if (!users.length) {
-        if (this.elements.orgMembersEmpty) {
-          this.elements.orgMembersEmpty.classList.remove('d-none');
-        }
-        return;
-      }
-
-      if (this.elements.orgMembersEmpty) {
-        this.elements.orgMembersEmpty.classList.add('d-none');
-      }
-
-      users.forEach((user) => {
-        if (user?.id == null) {
-          return;
-        }
-        const numericId = Number(user.id);
-        if (!Number.isInteger(numericId)) {
-          return;
-        }
-        const wrapper = document.createElement('div');
-        wrapper.className = 'form-check';
-
-        const input = document.createElement('input');
-        input.type = 'checkbox';
-        input.className = 'form-check-input';
-        input.name = 'memberIds';
-        input.value = String(numericId);
-        const inputId = `org-member-${node.id}-${numericId}`;
-        input.id = inputId;
-        input.checked = membersSet.has(numericId);
-
-        const label = document.createElement('label');
-        label.className = 'form-check-label';
-        label.setAttribute('for', inputId);
-        const username = user.username || `ID ${numericId}`;
-        label.textContent = username;
-
-        if (user.department || user.role) {
-          const meta = document.createElement('div');
-          meta.className = 'small text-muted';
-          const parts = [];
-          if (user.role) {
-            parts.push(user.role);
-          }
-          if (user.department) {
-            parts.push(user.department);
-          }
-          meta.textContent = parts.join(' • ');
-          label.appendChild(document.createElement('br'));
-          label.appendChild(meta);
-        }
-
-        wrapper.appendChild(input);
-        wrapper.appendChild(label);
-        list.appendChild(wrapper);
+      const users = (this.state.users || []).slice().sort((a, b) => new Intl.Collator('ru', { sensitivity: 'base' }).compare(a.username || '', b.username || ''));
+      this.elements.orgMembersEmpty?.classList.toggle('d-none', users.length > 0);
+      if (!users.length) return;
+      const select = document.createElement('select');
+      select.multiple = true; select.name = 'memberIds'; select.className = 'form-select';
+      select.dataset.employeePicker = 'true'; select.setAttribute('aria-label', 'Сотрудники ветки');
+      users.forEach(user => {
+        const numericId = Number(user?.id);
+        if (user?.id == null || !Number.isInteger(numericId)) return;
+        const label = [user.full_name || user.username || 'ID ' + numericId, user.full_name ? user.username : null, user.department, user.role].filter(Boolean).join(' · ');
+        const option = new Option(label, String(numericId)); option.selected = membersSet.has(numericId); select.add(option);
       });
+      list.append(select);
+      window.EmployeePicker?.refresh();
     }
 
     handleOrgMembersSubmit(event) {

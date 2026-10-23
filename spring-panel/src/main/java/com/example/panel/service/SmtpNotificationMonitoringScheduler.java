@@ -33,6 +33,7 @@ public class SmtpNotificationMonitoringScheduler {
         fixedDelayString = "${panel.smtp-notifications.check-interval-ms:600000}"
     )
     public void refreshSmtpNotifications() {
+        if (monitoringService.isMonitoringPaused()) return;
         runtimeCoordinationService.runWithLease("smtp-notification-monitoring", Duration.ofMinutes(20), () -> {
             try {
                 SmtpNotificationMonitoringService.RefreshSummary summary = monitoringService.refreshAll();

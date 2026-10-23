@@ -39,6 +39,16 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class IncidentService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private IncidentMonitoringPolicyService monitoringPolicy;
+
+    private String requireResolutionComment(Object raw) {
+        if (!(raw instanceof String text) || text.length() > 5000
+            || text.codePoints().noneMatch(cp -> !Character.isWhitespace(cp) && !Character.isSpaceChar(cp))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Для решения или закрытия инцидента обязателен комментарий: что конкретно сделано (до 5000 символов).");
+        }
+        return ((String) raw).strip();
+    }
 
     private static final Logger log = LoggerFactory.getLogger(IncidentService.class);
     private static final Set<String> STATUSES = Set.of("open", "acknowledged", "investigating", "resolved", "closed");
@@ -188,6 +198,7 @@ public class IncidentService {
         incident.setSummary(normalizeNullableText(payload.get("summary")));
         incident.setDescription(normalizeNullableText(payload.get("description")));
         incident.setStatus(normalizeStatus(payload.get("status"), "open"));
+        if (isResolvedStatus(incident.getStatus())) requireResolutionComment(payload.get("resolution_comment"));
         incident.setSeverity(normalizeSeverity(payload.get("severity"), "medium"));
         incident.setSource(normalizeNullableText(payload.get("source")));
         incident.setSignalType(normalizeNullableText(payload.get("signal_type")));
@@ -211,6 +222,10 @@ public class IncidentService {
         syncWatchers(incident, extractWatchers(payload), actor);
         syncRoutes(incident, extractRoutes(payload), now);
         appendEvent(incident, "created", "Incident создан", payload, actor, now);
+        if (isResolvedStatus(incident.getStatus())) {
+            appendEvent(incident, "resolution", requireResolutionComment(payload.get("resolution_comment")),
+                Map.of("status", incident.getStatus()), actor, now);
+        }
         notifyIncidentParticipants(incident, "incident_created", "Создан incident " + incident.getIncidentKey() + ": " + incident.getTitle(), actor);
         incidentRouteDeliveryOutboxService.enqueueIncidentRoutes(incident, "incident_created", "Incident создан", payload, actor);
         log.info(
@@ -230,6 +245,11 @@ public class IncidentService {
     @Transactional
     public Map<String, Object> updateIncident(Long id, Map<String, Object> payload, String actor) {
         Incident incident = requireIncident(id);
+        String nextStatus = payload.containsKey("status") ? normalizeStatus(payload.get("status"), incident.getStatus()) : incident.getStatus();
+        String resolutionComment = null;
+        if (!Objects.equals(nextStatus, incident.getStatus()) && isResolvedStatus(nextStatus)) {
+            resolutionComment = requireResolutionComment(payload.get("resolution_comment"));
+        }
         OffsetDateTime now = OffsetDateTime.now();
         List<String> changes = new ArrayList<>();
 
@@ -328,6 +348,10 @@ public class IncidentService {
         if (!changes.isEmpty()) {
             incident.setUpdatedAt(now);
             incidentRepository.save(incident);
+            if (resolutionComment != null) {
+                appendEvent(incident, "resolution", resolutionComment,
+                    Map.of("status", nextStatus, "resolution_comment", resolutionComment), actor, now);
+            }
             appendEvent(
                 incident,
                 "updated",
@@ -367,7 +391,7 @@ public class IncidentService {
                                     Map<String, Object> details,
                                     String actor) {
         Incident incident = requireIncident(id);
-        if (isResolvedStatus(incident.getStatus())) {
+        if (isResolvedStatus(incident.getStatus()) || (monitoringPolicy != null && monitoringPolicy.isSuppressed(incident.getSignalType()))) {
             return false;
         }
 
@@ -503,6 +527,9 @@ public class IncidentService {
                                                            List<Map<String, Object>> initialRoutes) {
         String normalizedSignalType = requiredText(signalType, "Укажите signal type incident.");
         String normalizedSignalKey = requiredText(signalKey, "Укажите signal key incident.");
+        if (monitoringPolicy != null && monitoringPolicy.isSuppressed(normalizedSignalType)) {
+            return Map.of("success", true, "suppressed", true);
+        }
         OffsetDateTime now = OffsetDateTime.now();
         Incident incident = incidentRepository.findBySignalTypeAndSignalKeyOrderByUpdatedAtDescIdDesc(
                 normalizedSignalType,
@@ -1358,6 +1385,7 @@ public class IncidentService {
     }
 
     private void notifyIncidentParticipants(Incident incident, String event, String text, String actor) {
+        if (monitoringPolicy != null && monitoringPolicy.isSuppressed(incident.getSignalType())) return;
         Set<String> recipients = new LinkedHashSet<>();
         if (StringUtils.hasText(incident.getOwner())) {
             recipients.add(incident.getOwner().trim().toLowerCase(Locale.ROOT));

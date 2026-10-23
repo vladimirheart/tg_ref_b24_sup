@@ -1,0 +1,17 @@
+.employee-picker {
+  position: relative; min-width: 0; flex: 1 1 180px;
+  [data-employee-source] { display: none !important; }
+  &__trigger { text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; }
+  &__menu {
+    position: absolute; top: calc(100% + 4px); left: 0; z-index: 1050;
+    width: min(360px, 100%); min-width: min(240px, 100%);
+    background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border);
+    border-radius: var(--control-radius); padding: 10px; box-shadow: var(--ui-panel-shadow);
+  }
+  &__menu[hidden] { display: none; }
+  &__list { display: grid; gap: 3px; max-height: 210px; overflow: auto; margin: 8px 0; overscroll-behavior: contain; }
+  &__option { background: transparent; color: var(--color-text); border: 0; border-radius: var(--control-radius); text-align: left; padding: 8px; overflow-wrap: anywhere; }
+  &__option:hover, &__option[aria-pressed='true'] { background: var(--color-border); }
+  &__option:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+  @media (pointer: coarse) { &__option { min-height: 44px; } }
+}

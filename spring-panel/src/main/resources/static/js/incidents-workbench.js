@@ -1270,7 +1270,7 @@ function restoreIncidentDetailFocus(
 			</span>
 		  </button>
 		</td>
-        <td><span class="badge ${badgeClass(item.severity)}">${escapeHtml(item.severity || '—')}</span></td>
+        <td><span class="badge ${badgeClass(item.severity)}">${escapeHtml(incidentSeverityLabel(item.severity))}</span></td>
         <td><span class="badge ${badgeClass(item.status)}">${escapeHtml(incidentStatusLabel(item.status))}</span></td>
         <td class="small text-muted">${escapeHtml(formatDate(item.updated_at))}</td>
       </tr>
@@ -1346,6 +1346,8 @@ function restoreIncidentDetailFocus(
         'true'
     );
 
+    // Во время запроса короткий loading placeholder не должен обрезать scrollHeight страницы.
+    detailNode.style.minHeight = `${Math.ceil(detailNode.getBoundingClientRect().height)}px`;
     detailNode.innerHTML =
         '<div class="text-muted" role="status">Загрузка incident...</div>';
 
@@ -1404,6 +1406,9 @@ function restoreIncidentDetailFocus(
                 'aria-busy',
                 'false'
             );
+            window.requestAnimationFrame(() => {
+                if (requestSerial === state.detailRequestSerial) detailNode.style.minHeight = '';
+            });
         }
     }
 }
@@ -1469,6 +1474,10 @@ function restoreIncidentDetailFocus(
     `;
   }
 
+  function incidentSeverityLabel(value) {
+    return ({ critical: 'Критический', high: 'Высокий', medium: 'Средний', low: 'Низкий' })[value] || value || '—';
+  }
+
   function renderIncidentDetail() {
     const incident = state.selectedIncident;
 
@@ -1498,7 +1507,7 @@ function restoreIncidentDetailFocus(
             </select>
           </div>
         </div>
-        <div class="incident-kpi-card"><div class="incident-kpi-label">Приоритет</div><div class="incident-kpi-value">${escapeHtml(incident.severity || '—')}</div></div>
+        <div class="incident-kpi-card"><div class="incident-kpi-label">Приоритет</div><div class="incident-kpi-value">${escapeHtml(incidentSeverityLabel(incident.severity))}</div></div>
         <div class="incident-kpi-card"><div class="incident-kpi-label">Ошибки доставки</div><div class="incident-kpi-value">${escapeHtml(incident.failed_route_count || 0)}</div></div>
       </div>
       ${renderCredentialRotationSignalContext(incident)}
@@ -1525,7 +1534,7 @@ function restoreIncidentDetailFocus(
 				<select class="form-select form-select-sm"
 						id="incidentDetailSeverity"
 						aria-label="Severity incident">
-                  ${['critical', 'high', 'medium', 'low'].map((value) => `<option value="${value}" ${value === incident.severity ? 'selected' : ''}>${value}</option>`).join('')}
+                  ${['critical', 'high', 'medium', 'low'].map((value) => `<option value="${value}" ${value === incident.severity ? 'selected' : ''}>${escapeHtml(incidentSeverityLabel(value))}</option>`).join('')}
                 </select>
                 <input type="text"
 					   class="form-control form-control-sm"
@@ -1554,11 +1563,9 @@ function restoreIncidentDetailFocus(
               ${relations.length ? relations.map((relation) => renderKeyValue(relation.relation_type, `${relation.relation_label || relation.relation_key}${relation.primary ? ' · primary' : ''}`)).join('') : '<div class="text-muted">Связи ещё не добавлены.</div>'}
             </div>
           </section>
-          <section class="card">
-            <div class="card-header d-flex justify-content-between align-items-center gap-2">
-              <strong>Хронология</strong>
-              <button type="button" class="btn btn-sm btn-outline-secondary" id="incidentAddEventButton">Добавить note</button>
-            </div>
+          <details class="card incident-timeline">
+            <summary>Хронология (${events.length})</summary>
+            <div class="px-3"><button type="button" class="btn btn-sm btn-outline-secondary" id="incidentAddEventButton">Добавить комментарий</button></div>
             <div class="card-body">
               <div class="incident-create-grid mb-3">
                 <input type="text"
@@ -1587,11 +1594,11 @@ function restoreIncidentDetailFocus(
                 `).join('') : '<div class="text-muted">История incident пока пуста.</div>'}
               </div>
             </div>
-          </section>
+          </details>
         </div>
         <div class="d-grid gap-3">
           <section class="card incident-metadata-card">
-            <div class="card-header"><strong>Metadata</strong></div>
+            <div class="card-header"><strong>Сведения об источнике</strong></div>
             <div class="card-body incident-metadata-list">
               ${renderMetadataRow('Signal type', incident.signal_type || '\u2014')}
               ${renderMetadataRow('Signal key', incident.signal_key || '\u2014')}
@@ -1608,7 +1615,7 @@ function restoreIncidentDetailFocus(
 					   id="incidentWatcherInput"
 					   placeholder="username"
 					   aria-label="Username нового наблюдателя">
-                <button type="button" class="btn btn-outline-secondary" id="incidentAddWatcherButton">Добавить watcher</button>
+                <button type="button" class="btn btn-outline-secondary" id="incidentAddWatcherButton">Добавить</button>
               </div>
               <div class="incident-watcher-list">
                 ${watchers.length ? watchers.map((watcher) => `
@@ -1619,7 +1626,7 @@ function restoreIncidentDetailFocus(
                     </div>
                     <button type="button" class="btn btn-sm btn-outline-danger" data-incident-remove-watcher="${escapeHtml(watcher.watcher_identity || '')}">Удалить</button>
                   </div>
-                `).join('') : '<div class="text-muted">Watcher-ов пока нет.</div>'}
+                `).join('') : '<div class="text-muted">Наблюдателей пока нет.</div>'}
               </div>
             </div>
           </section>
@@ -1717,6 +1724,15 @@ function restoreIncidentDetailFocus(
     }
 
     const normalizedStatus = String(nextStatus || '').trim();
+    let resolutionComment = null;
+    if (['resolved', 'closed'].includes(normalizedStatus) && normalizedStatus !== incident.status) {
+      resolutionComment = await window.IncidentWorkbenchUi.requestResolution(incident, normalizedStatus);
+      if (resolutionComment == null) {
+        const select = document.getElementById('incidentQuickStatus');
+        if (String(state.selectedIncidentId) === String(incident.id) && select) select.value = incident.status;
+        return;
+      }
+    }
     if (!INCIDENT_STATUS_OPTIONS.some((item) => item.value === normalizedStatus)) {
       throw new Error('Неизвестный статус incident.');
     }
@@ -1729,7 +1745,7 @@ function restoreIncidentDetailFocus(
       {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: normalizedStatus })
+        body: JSON.stringify({ status: normalizedStatus, ...(resolutionComment != null ? { resolution_comment: resolutionComment } : {}) })
       }
     );
 
@@ -1739,11 +1755,12 @@ function restoreIncidentDetailFocus(
       listItem.status = normalizedStatus;
     }
     renderIncidentList();
-    showSuccess(`Статус incident: ${incidentStatusLabel(normalizedStatus)}`);
+    showSuccess(`${incident.incident_key || incident.id}: ${incidentStatusLabel(normalizedStatus)}`);
     await refreshIncidentIfStillSelected(incident.id);
   }
 
   async function createIncident() {
+    if (!document.getElementById('incidentCreateForm')?.reportValidity()) return;
     const title = createNodes.title?.value.trim();
     const relationType = createNodes.relationType?.value || 'ticket';
     const relationKey = relationType === 'ticket'
@@ -1771,7 +1788,8 @@ function restoreIncidentDetailFocus(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    showSuccess('Incident создан');
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('incidentCreateModal')).hide();
+    document.getElementById('incidentCreateForm').reset();
 
 	// До переключения на только что созданный
 	// incident сохраняем несохранённые поля
@@ -1784,6 +1802,7 @@ function restoreIncidentDetailFocus(
 		response?.incident?.id || null;
 
 	await loadIncidents();
+    showSuccess(`Создан инцидент ${response?.incident?.incident_key || response?.incident?.id}`);
   }
 
   async function addIncidentEvent() {
@@ -2166,7 +2185,7 @@ function restoreIncidentDetailFocus(
             <div>${escapeHtml(item.title || '')}</div>
           </div>
           <div class="d-flex gap-2">
-            <span class="badge ${badgeClass(item.severity)}">${escapeHtml(item.severity || '—')}</span>
+            <span class="badge ${badgeClass(item.severity)}">${escapeHtml(incidentSeverityLabel(item.severity))}</span>
             <span class="badge ${badgeClass(item.status)}">${escapeHtml(item.status || '—')}</span>
           </div>
         </div>
@@ -2226,7 +2245,7 @@ function restoreIncidentDetailFocus(
               <div class="incident-surface-item">
                 <div class="d-flex flex-wrap justify-content-between gap-2">
                   <div>${escapeHtml(item.incident_key || '—')}</div>
-                  <span class="badge ${badgeClass(item.severity)}">${escapeHtml(item.severity || '—')}</span>
+                  <span class="badge ${badgeClass(item.severity)}">${escapeHtml(incidentSeverityLabel(item.severity))}</span>
                 </div>
                 <div>${escapeHtml(item.title || '')}</div>
                 <div class="small text-muted">${escapeHtml(item.status || '—')} · updated=${escapeHtml(formatDate(item.updated_at))}</div>

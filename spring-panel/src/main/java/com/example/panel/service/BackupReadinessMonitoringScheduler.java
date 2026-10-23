@@ -33,6 +33,7 @@ public class BackupReadinessMonitoringScheduler {
         fixedDelayString = "${panel.backup-readiness.check-interval-ms:900000}"
     )
     public void refreshBackupReadiness() {
+        if (monitoringService.isMonitoringPaused()) return;
         runtimeCoordinationService.runWithLease("backup-readiness-monitoring", Duration.ofMinutes(20), () -> {
             try {
                 int managedCreated = monitoringService.ensureManagedProductionMonitors();

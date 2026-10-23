@@ -1,0 +1,23 @@
+body[data-ui-page='incidents'] {
+  .incident-shell { max-width: 1800px; }
+  #incidentWorkbenchDetail { transition-property: none; }
+  .incident-filter-grid { margin-bottom: 0; }
+  .ops-section-card > .card-body:has(> #incidentFilters:not(.show):not(.collapsing)) { padding-top: 0; padding-bottom: 0; }
+  .incident-field { min-width: 0; }
+  .incident-field > label, .incident-field-label { display: block; margin-bottom: 6px; font-size: .78rem; color: var(--color-text-muted); }
+  .incident-detail-columns { grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); gap: 18px; }
+  .incident-detail-columns .card-body { padding: 18px; }
+  .incident-detail-columns .card-header { padding: 12px 18px; }
+  .incident-detail-columns .incident-create-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .incident-timeline > summary { cursor: pointer; padding: 14px 18px; font-weight: 600; }
+  .incident-timeline > summary::marker { color: var(--color-text-muted); }
+  #incidentCreateModal .modal-dialog, #incidentResolutionModal .modal-dialog { max-width: 580px; }
+  #incidentCreatePanel { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  #incidentCreatePanel .incident-field:first-child { grid-column: 1 / -1; }
+  .incident-monitoring-list { display: grid; gap: 12px; }
+  .incident-monitoring-row { padding: 14px; border: 1px solid var(--color-border); border-radius: var(--control-radius); display: grid; grid-template-columns: minmax(0, 1fr) minmax(140px, 190px); gap: 12px; align-items: start; }
+  .incident-monitoring-row p { margin: 6px 0; font-size: .78rem; color: var(--color-text-muted); }
+  .incident-monitoring-row select { margin-bottom: 8px; }
+  @media (max-width: 1100px) { .incident-detail-columns { grid-template-columns: minmax(0, 1fr); } }
+  @media (max-width: 575.98px) { #incidentCreatePanel, .incident-monitoring-row, .incident-detail-columns .incident-create-grid { grid-template-columns: minmax(0, 1fr); } }
+}

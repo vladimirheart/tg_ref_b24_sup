@@ -32,6 +32,7 @@ public class SslCertificateMonitoringScheduler {
         fixedDelayString = "${panel.ssl-cert-monitor.check-interval-ms:3600000}"
     )
     public void refreshCertificates() {
+        if (monitoringService.isMonitoringPaused()) return;
         runtimeCoordinationService.runWithLease("ssl-certificate-monitoring", Duration.ofHours(2), () -> {
             try {
                 SslCertificateMonitoringService.RefreshSummary summary = monitoringService.refreshAll(true);

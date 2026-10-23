@@ -32,6 +32,7 @@ public class IikoApiMonitoringScheduler {
         fixedDelayString = "${panel.iiko-api-monitor.check-interval-ms:600000}"
     )
     public void refresh() {
+        if (monitoringService.isMonitoringPaused()) return;
         runtimeCoordinationService.runWithLease("iiko-api-monitoring", Duration.ofMinutes(15), () -> {
             try {
                 monitoringService.requestRefresh();

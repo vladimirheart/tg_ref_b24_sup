@@ -17,6 +17,8 @@ import org.springframework.stereotype.Component;
     replicaPolicy = RuntimeReplicaPolicy.LEASED
 )@Component
 public class IntegrationTransportIncidentMonitor {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.example.panel.service.IncidentMonitoringPolicyService monitoringPolicy;
 
     private static final String SIGNAL_TYPE = "integration_transport";
     private static final String SIGNAL_KEY = "panel-rabbitmq-bridge";
@@ -38,6 +40,7 @@ public class IntegrationTransportIncidentMonitor {
 
     @Scheduled(fixedDelayString = "${panel.integration.transport-incident-monitor.interval-ms:300000}")
     public void monitor() {
+        if (monitoringPolicy != null && monitoringPolicy.isSuppressed(SIGNAL_TYPE)) return;
         runtimeCoordinationService.runWithLease("integration-transport-incident-monitor", Duration.ofMinutes(4), () -> {
             IntegrationTransportOpsService.TransportHealthSnapshot snapshot = transportOpsService.buildHealthSnapshot();
             Map<String, Object> trendSummary = transportOpsService.buildTrendSummary(SUSTAINED_PRESSURE_WINDOW);

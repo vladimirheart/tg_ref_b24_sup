@@ -18,19 +18,27 @@ async function submit(relationType, relationKey) {
     relationKey: { value: relationKey },
   };
   const state = {};
+  let modalHidden = 0, formReset = 0;
+  const document = { getElementById: id => id === 'incidentCreateForm'
+    ? { reportValidity: () => true, reset: () => { formReset++; } }
+    : { id } };
+  const bootstrap = { Modal: { getOrCreateInstance: node => {
+    assert.equal(node.id, 'incidentCreateModal');
+    return { hide: () => { modalHidden++; } };
+  } } };
   const requestJson = async (url, options) => {
     requests.push({ url, options });
     return { incident: { id: 7 } };
   };
   const createIncident = new Function('createNodes', 'requestJson', 'showSuccess',
     'rememberCurrentIncidentDetailDraft', 'state', 'loadIncidents', 'splitCommaList',
-    'exactLegacyTicketId',
+    'exactLegacyTicketId', 'document', 'bootstrap',
     createFunction + '\nreturn createIncident;')(
       createNodes, requestJson, () => {}, () => {}, state, async () => {}, () => [],
-      value => typeof value === 'string' && value.trim() ? value : '');
+      value => typeof value === 'string' && value.trim() ? value : '', document, bootstrap);
   let error = null;
   try { await createIncident(); } catch (caught) { error = caught; }
-  return { requests, error, state };
+  return { requests, error, state, modalHidden, formReset };
 }
 
 (async () => {
@@ -42,11 +50,15 @@ async function submit(relationType, relationKey) {
     assert.equal(result.requests[0].options.method, 'POST');
     assert.equal(JSON.parse(result.requests[0].options.body).relations[0].relation_key, key);
     assert.equal(result.state.selectedIncidentId, 7);
+    assert.equal(result.modalHidden, 1);
+    assert.equal(result.formReset, 1);
   }
   const task = await submit('task', ' 15 ');
   assert.equal(JSON.parse(task.requests[0].options.body).relations[0].relation_key, '15');
   const blank = await submit('ticket', ' \t ');
   assert.equal(blank.requests.length, 0);
+  assert.equal(blank.modalHidden, 0);
+  assert.equal(blank.formReset, 0);
   assert.match(blank.error.message, /relation key/);
   console.log('INCIDENT_CREATE_EXACT_TICKET_ID_R35_GREEN=6');
 })().catch(error => {

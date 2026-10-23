@@ -18061,3 +18061,151 @@ details.ui-disclosure-native .dialog-details-disclosure-caret {
     transition: none;
   }
 }
+.employee-picker {
+  position: relative;
+  min-width: 0;
+  flex: 1 1 180px;
+}
+.employee-picker [data-employee-source] {
+  display: none !important;
+}
+.employee-picker__trigger {
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+.employee-picker__menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 1050;
+  width: min(360px, 100%);
+  min-width: min(240px, 100%);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--control-radius);
+  padding: 10px;
+  box-shadow: var(--ui-panel-shadow);
+}
+.employee-picker__menu[hidden] {
+  display: none;
+}
+.employee-picker__list {
+  display: grid;
+  gap: 3px;
+  max-height: 210px;
+  overflow: auto;
+  margin: 8px 0;
+  overscroll-behavior: contain;
+}
+.employee-picker__option {
+  background: transparent;
+  color: var(--color-text);
+  border: 0;
+  border-radius: var(--control-radius);
+  text-align: left;
+  padding: 8px;
+  overflow-wrap: anywhere;
+}
+.employee-picker__option:hover, .employee-picker__option[aria-pressed=true] {
+  background: var(--color-border);
+}
+.employee-picker__option:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+@media (pointer: coarse) {
+  .employee-picker__option {
+    min-height: 44px;
+  }
+}
+
+body[data-ui-page=incidents] .incident-shell {
+  max-width: 1800px;
+}
+body[data-ui-page=incidents] #incidentWorkbenchDetail {
+  transition-property: none;
+}
+body[data-ui-page=incidents] .incident-filter-grid {
+  margin-bottom: 0;
+}
+body[data-ui-page=incidents] .ops-section-card > .card-body:has(> #incidentFilters:not(.show):not(.collapsing)) {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+body[data-ui-page=incidents] .incident-field {
+  min-width: 0;
+}
+body[data-ui-page=incidents] .incident-field > label, body[data-ui-page=incidents] .incident-field-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+body[data-ui-page=incidents] .incident-detail-columns {
+  grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr);
+  gap: 18px;
+}
+body[data-ui-page=incidents] .incident-detail-columns .card-body {
+  padding: 18px;
+}
+body[data-ui-page=incidents] .incident-detail-columns .card-header {
+  padding: 12px 18px;
+}
+body[data-ui-page=incidents] .incident-detail-columns .incident-create-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+body[data-ui-page=incidents] .incident-timeline > summary {
+  cursor: pointer;
+  padding: 14px 18px;
+  font-weight: 600;
+}
+body[data-ui-page=incidents] .incident-timeline > summary::marker {
+  color: var(--color-text-muted);
+}
+body[data-ui-page=incidents] #incidentCreateModal .modal-dialog, body[data-ui-page=incidents] #incidentResolutionModal .modal-dialog {
+  max-width: 580px;
+}
+body[data-ui-page=incidents] #incidentCreatePanel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+body[data-ui-page=incidents] #incidentCreatePanel .incident-field:first-child {
+  grid-column: 1/-1;
+}
+body[data-ui-page=incidents] .incident-monitoring-list {
+  display: grid;
+  gap: 12px;
+}
+body[data-ui-page=incidents] .incident-monitoring-row {
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--control-radius);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(140px, 190px);
+  gap: 12px;
+  align-items: start;
+}
+body[data-ui-page=incidents] .incident-monitoring-row p {
+  margin: 6px 0;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+body[data-ui-page=incidents] .incident-monitoring-row select {
+  margin-bottom: 8px;
+}
+@media (max-width: 1100px) {
+  body[data-ui-page=incidents] .incident-detail-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 575.98px) {
+  body[data-ui-page=incidents] #incidentCreatePanel, body[data-ui-page=incidents] .incident-monitoring-row, body[data-ui-page=incidents] .incident-detail-columns .incident-create-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

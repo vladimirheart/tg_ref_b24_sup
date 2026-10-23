@@ -25,6 +25,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class AlertmanagerIngestionService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private IncidentMonitoringPolicyService monitoringPolicy;
 
     public static final String SIGNAL_TYPE = "alertmanager";
     public static final String SOURCE = "alertmanager";
@@ -134,6 +136,7 @@ public class AlertmanagerIngestionService {
     }
 
     private TransitionOutcome processTransition(AlertContext context) {
+        if (monitoringPolicy != null && monitoringPolicy.isSuppressed(SIGNAL_TYPE)) return TransitionOutcome.IGNORED;
         boolean activeIncident = hasActiveIncident(context.fingerprint());
 
         if ("firing".equals(context.status())) {

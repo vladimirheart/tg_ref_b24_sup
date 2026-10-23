@@ -24,6 +24,18 @@ import java.util.Set;
 
 @Service
 public class ProviderDeliveryAlertingService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private IncidentMonitoringPolicyService incidentMonitoringPolicy;
+
+    public boolean isMonitoringPaused() {
+        return incidentMonitoringPolicy != null && incidentMonitoringPolicy.isSuppressed("provider_delivery");
+    }
+
+    private void requireMonitoringEnabled() {
+        if (incidentMonitoringPolicy != null && incidentMonitoringPolicy.isSuppressed("provider_delivery")) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "Проверки направления приостановлены в настройках мониторинга инцидентов.");
+        }
+    }
 
     public static final String MONITOR_KIND = "provider_delivery_alerting";
     public static final String CHECK_KIND = "delivery_burn_rate";
@@ -99,6 +111,7 @@ public class ProviderDeliveryAlertingService {
     }
 
     public RefreshSummary refreshAll() {
+        requireMonitoringEnabled();
         OffsetDateTime now = OffsetDateTime.now(clock);
         OverviewSnapshot snapshot = evaluate(now, true);
         return new RefreshSummary(snapshot.items().size(), snapshot.overview().actionableChannels());

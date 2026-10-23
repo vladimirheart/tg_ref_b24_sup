@@ -33,6 +33,7 @@ public class ProviderHealthMonitoringScheduler {
         fixedDelayString = "${panel.provider-health.check-interval-ms:600000}"
     )
     public void refreshProviderHealth() {
+        if (monitoringService.isMonitoringPaused()) return;
         runtimeCoordinationService.runWithLease("provider-health-monitoring", Duration.ofMinutes(20), () -> {
             try {
                 ProviderHealthMonitoringService.RefreshSummary summary = monitoringService.refreshAll();

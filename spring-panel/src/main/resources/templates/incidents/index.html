@@ -14,7 +14,7 @@
           crossorigin="anonymous">
     <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
     <link rel="stylesheet" th:href="@{/css/style.css(v='20261022-neutral-ops-r7')}">
-    <link rel="stylesheet" th:href="@{/css/app.css(v='20261023-neutral-ops-r11')}">
+    <link rel="stylesheet" th:href="@{/css/app.css(v='20261023-incidents-r12')}">
     <link rel="stylesheet" th:href="@{/css/sidebar.css(v='20261022-neutral-ops-r7')}">
 </head>
 <body class="with-sidebar sidebar-pinned" data-ui-page="incidents" data-ui-density="compact">
@@ -101,18 +101,20 @@
                     <div class="d-flex flex-wrap gap-2">
                         <button type="button"
                                 class="btn btn-sm btn-primary"
-                                data-bs-toggle="collapse"
-                                data-bs-target="#incidentCreatePanel"
-                                aria-controls="incidentCreatePanel"
+                                data-bs-toggle="modal"
+                                data-bs-target="#incidentCreateModal"
+                                aria-controls="incidentCreateModal"
                                 aria-expanded="false">
                             <i class="bi bi-plus-lg" aria-hidden="true"></i>
                             Новый инцидент
                         </button>
+<button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#incidentFilters" aria-expanded="false" aria-controls="incidentFilters">Фильтры</button>
+<button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#incidentMonitoringModal">Мониторинг</button>
                         <button type="button" class="btn btn-sm btn-outline-secondary" id="incidentWorkbenchRefresh">Обновить</button>
                     </div>
                 </div>
                 <div class="card-body">
-                    <div class="incident-filter-grid mb-3">
+                    <div class="incident-filter-grid collapse" id="incidentFilters">
 						<input type="text"
 							   class="form-control form-control-sm"
 							   id="incidentWorkbenchQuery"
@@ -145,6 +147,9 @@
 								aria-label="Фильтр incidents по типу сигнала">
 							<option value="">Любой тип сигнала</option>
 							<option value="integration_transport">integration_transport</option>
+                            <option value="provider_delivery">Доставка сообщений</option>
+                            <option value="credential_rotation">Учётные данные</option>
+                            <option value="alertmanager">Инфраструктура (Alertmanager)</option>
 						</select>
 
 						<select class="form-select form-select-sm"
@@ -159,75 +164,6 @@
 								class="btn btn-sm btn-primary"
 								id="incidentWorkbenchApplyFilters">
 							Применить
-						</button>
-					</div>
-
-                    <div class="incident-create-grid collapse mt-3 pt-3 border-top" id="incidentCreatePanel">
-						<input type="text"
-							   class="form-control form-control-sm"
-							   id="incidentCreateTitle"
-							   placeholder="Название инцидента"
-							   aria-label="Название нового incident">
-
-						<input type="text"
-							   class="form-control form-control-sm"
-							   id="incidentCreateSummary"
-							   placeholder="Краткое описание"
-							   aria-label="Краткое описание нового incident">
-
-						<select class="form-select form-select-sm"
-								id="incidentCreateSeverity"
-								aria-label="Severity нового incident">
-							<option value="critical">Критический</option>
-							<option value="high" selected>Высокий</option>
-							<option value="medium">Средний</option>
-							<option value="low">Низкий</option>
-						</select>
-
-						<select class="form-select form-select-sm"
-								id="incidentCreateStatus"
-								aria-label="Статус нового incident">
-							<option value="open" selected>Открыт</option>
-							<option value="acknowledged">Принят</option>
-							<option value="investigating">В работе</option>
-						</select>
-
-						<input type="text"
-							   class="form-control form-control-sm"
-							   id="incidentCreateOwner"
-							   placeholder="Ответственный"
-							   aria-label="Ответственный за incident">
-
-						<input type="text"
-							   class="form-control form-control-sm"
-							   id="incidentCreateSource"
-							   placeholder="Источник"
-							   aria-label="Источник incident">
-
-						<select class="form-select form-select-sm"
-								id="incidentCreateRelationType"
-								aria-label="Тип связи incident">
-							<option value="ticket" selected>ticket</option>
-							<option value="task">task</option>
-							<option value="object_passport">object_passport</option>
-						</select>
-
-						<input type="text"
-							   class="form-control form-control-sm"
-							   id="incidentCreateRelationKey"
-							   placeholder="ID связанного тикета, задачи или паспорта"
-							   aria-label="Идентификатор связанного объекта">
-
-						<input type="text"
-							   class="form-control form-control-sm"
-							   id="incidentCreateWatchers"
-							   placeholder="Наблюдатели через запятую"
-							   aria-label="Наблюдатели incident через запятую">
-
-						<button type="button"
-								class="btn btn-sm btn-primary"
-								id="incidentWorkbenchCreate">
-							Создать инцидент
 						</button>
 					</div>
                 </div>
@@ -408,8 +344,85 @@
     </div>
 </div>
 
+<div class="modal fade" id="incidentCreateModal" tabindex="-1" aria-labelledby="incidentCreateModalLabel" aria-hidden="true">
+ <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><form class="modal-content" id="incidentCreateForm">
+  <div class="modal-header"><h2 class="modal-title fs-5" id="incidentCreateModalLabel">Новый инцидент</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button></div>
+  <div class="modal-body"><div id="incidentCreatePanel">
+						<div class="incident-field"><label for="incidentCreateTitle">Название</label><input required type="text"
+							   class="form-control form-control-sm"
+							   id="incidentCreateTitle"
+							   placeholder="Название инцидента"
+							   aria-label="Название нового incident"></div>
+
+						<div class="incident-field"><label for="incidentCreateSummary">Краткое описание</label><input type="text"
+							   class="form-control form-control-sm"
+							   id="incidentCreateSummary"
+							   placeholder="Краткое описание"
+							   aria-label="Краткое описание нового incident"></div>
+
+						<div class="incident-field"><label for="incidentCreateSeverity">Приоритет</label><select class="form-select form-select-sm"
+								id="incidentCreateSeverity"
+								aria-label="Severity нового incident">
+							<option value="critical">Критический</option>
+							<option value="high" selected>Высокий</option>
+							<option value="medium">Средний</option>
+							<option value="low">Низкий</option>
+						</select></div>
+
+						<div class="incident-field"><label for="incidentCreateStatus">Начальный статус</label><select class="form-select form-select-sm"
+								id="incidentCreateStatus"
+								aria-label="Статус нового incident">
+							<option value="open" selected>Открыт</option>
+							<option value="acknowledged">Принят</option>
+							<option value="investigating">В работе</option>
+						</select></div>
+
+						<div class="incident-field"><label for="incidentCreateOwner">Ответственный</label><input type="text" data-employee-picker
+							   class="form-control form-control-sm"
+							   id="incidentCreateOwner"
+							   placeholder="Ответственный"
+							   aria-label="Ответственный за incident"></div>
+
+						<div class="incident-field"><label for="incidentCreateSource">Источник</label><input type="text"
+							   class="form-control form-control-sm"
+							   id="incidentCreateSource"
+							   placeholder="Источник"
+							   aria-label="Источник incident"></div>
+
+						<div class="incident-field"><label for="incidentCreateRelationType">Связанный объект</label><select class="form-select form-select-sm"
+								id="incidentCreateRelationType"
+								aria-label="Тип связи incident">
+							<option value="ticket" selected>Диалог</option>
+							<option value="task">Задача</option>
+							<option value="object_passport">Паспорт объекта</option>
+						</select></div>
+
+						<div class="incident-field"><label for="incidentCreateRelationKey">Номер связанного объекта</label><input required type="text"
+							   class="form-control form-control-sm"
+							   id="incidentCreateRelationKey"
+							   placeholder="ID связанного тикета, задачи или паспорта"
+							   aria-label="Идентификатор связанного объекта"></div>
+
+						<div class="incident-field"><label for="incidentCreateWatchers">Наблюдатели</label><input type="text" data-employee-picker data-employee-multiple="true"
+							   class="form-control form-control-sm"
+							   id="incidentCreateWatchers"
+							   placeholder="Выберите наблюдателей"
+							   aria-label="Выберите наблюдателей"></div>
+					</div></div>
+  <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button><button type="button" class="btn btn-primary" id="incidentWorkbenchCreate">Создать инцидент</button></div>
+ </form></div>
+</div>
+<div class="modal fade" id="incidentResolutionModal" tabindex="-1" aria-labelledby="incidentResolutionLabel" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><form class="modal-content" id="incidentResolutionForm">
+<div class="modal-header"><h2 class="modal-title fs-5" id="incidentResolutionLabel">Решение инцидента</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Отмена"></button></div>
+<div class="modal-body"><p id="incidentResolutionContext"></p><label class="form-label" for="incidentResolutionComment">Что конкретно сделано *</label><textarea class="form-control" id="incidentResolutionComment" required maxlength="5000" rows="4" placeholder="Опишите выполненные действия и результат"></textarea><p class="form-text">Комментарий сохранится в хронологии вместе со сменой статуса.</p></div>
+<div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button><button class="btn btn-primary" type="submit">Подтвердить</button></div></form></div></div>
+<div class="modal fade" id="incidentMonitoringModal" tabindex="-1" aria-labelledby="incidentMonitoringLabel" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
+<div class="modal-header"><h2 class="modal-title fs-5" id="incidentMonitoringLabel">Направления мониторинга</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button></div>
+<div class="modal-body"><p class="text-muted small">Пауза останавливает проверки направления, новые инциденты и повторы. История сохраняется. Запуск ботов и доставка рабочих сообщений не останавливаются.</p><div id="incidentMonitoringStatus" role="status"></div><div class="incident-monitoring-list" id="incidentMonitoringList"></div></div>
+<div class="modal-footer"><button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Закрыть</button></div></div></div></div>
 <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 <script th:src="@{/js/incident-notifications.js(v='20261023-neutral-ops-r11')}"></script>
+<script th:src="@{/js/incident-workbench-ui.js(v='20261023-incidents-r12')}"></script>
 <script th:src="@{/js/incidents-workbench.js}"></script>
 <script th:src="@{/js/incident-escalation-controls.js}"></script>
 <script th:src="@{/js/incident-route-delivery-health.js}"></script>

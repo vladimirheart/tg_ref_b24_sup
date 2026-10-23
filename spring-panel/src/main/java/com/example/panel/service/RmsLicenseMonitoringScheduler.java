@@ -35,6 +35,7 @@ public class RmsLicenseMonitoringScheduler {
 
     @Scheduled(initialDelayString = "${panel.rms-monitor.dispatch-initial-delay-ms:30000}", fixedDelayString = "${panel.rms-monitor.dispatch-interval-ms:10000}")
     public void refreshLicenses() {
+        if (monitoringService.isMonitoringPaused()) return;
         if (!isDue(lastLicenseRun, scheduleSettingsService.load().licenseIntervalMinutes())) return;
         runtimeCoordinationService.runWithLease("rms-license-monitoring", Duration.ofHours(25), () -> {
             try {
@@ -48,6 +49,7 @@ public class RmsLicenseMonitoringScheduler {
 
     @Scheduled(initialDelayString = "${panel.rms-monitor.network-initial-delay-ms:45000}", fixedDelayString = "${panel.rms-monitor.dispatch-interval-ms:10000}")
     public void refreshNetworkState() {
+        if (monitoringService.isMonitoringPaused()) return;
         if (!isDue(lastNetworkRun, scheduleSettingsService.load().networkIntervalMinutes())) return;
         runtimeCoordinationService.runWithLease("rms-network-monitoring", Duration.ofMinutes(10), () -> {
             try {

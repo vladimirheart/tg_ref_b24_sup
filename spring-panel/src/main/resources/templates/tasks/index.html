@@ -13,12 +13,12 @@
   <link href="/vendor/bootstrap/5.3.3/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
   <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
   <link th:href="@{/css/style.css(v='20261022-neutral-ops-r7')}" rel="stylesheet">
-  <link th:href="@{/css/app.css(v='20261022-neutral-ops-r9')}" rel="stylesheet">
+  <link th:href="@{/css/app.css(v='20261023-incidents-r12')}" rel="stylesheet">
   <link th:href="@{/css/sidebar.css(v='20261022-neutral-ops-r7')}" rel="stylesheet">
 </head>
 <body class="with-sidebar sidebar-pinned" data-ui-page="tasks">
   <div th:replace="~{fragments/navbar :: navbar('tasks')}"></div>
-  <datalist id="usersList"><option th:each="u : ${users}" th:value="${u.username}"></option></datalist>
+  <datalist id="usersList"><option th:each="u : ${users}" th:value="${u.username}" th:label="${u.fullName != null and !#strings.isEmpty(u.fullName) ? u.fullName + ' · ' + u.username : u.username}"></option></datalist>
 
   <main class="main-content container-fluid py-4 page-shell tasks-page-shell ops-page-shell">
     <div class="page-header-card tasks-sticky-bar ops-list-shell">

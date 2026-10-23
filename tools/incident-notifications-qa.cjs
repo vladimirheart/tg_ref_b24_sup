@@ -109,17 +109,17 @@ async function main() {
       assert.equal(await page.locator('#incidentQuickStatus').inputValue(), 'acknowledged');
       await page.screenshot({ path: path.join(output, `error-${theme}-${width}.png`) });
       // Keyboard dismissal restores focus without scrolling and keeps the node reusable.
-      await page.locator('#incidentWorkbenchQuery').evaluate(el => el.focus({ preventScroll: true }));
+      await page.locator('#incidentWorkbenchRefresh').evaluate(el => el.focus({ preventScroll: true }));
       await page.locator('[data-incident-notice-close="incidentWorkbenchError"]').evaluate(el => el.focus({ preventScroll: true }));
       await page.keyboard.press('Enter');
       assert(!await failure.isVisible());
-      assert(await page.locator('#incidentWorkbenchQuery').evaluate(el => el === document.activeElement));
+      assert(await page.locator('#incidentWorkbenchRefresh').evaluate(el => el === document.activeElement));
       stable(beforeStatus, await geometry(page));
       const beforeLong = await geometry(page);
       // Producer-compatible textContent/classList API, long errors and repeated notices.
       await failure.evaluate(el => { el.textContent = 'LongError'.repeat(150); el.classList.remove('d-none'); });
       await page.waitForTimeout(240);
-      assert(await page.locator('#incidentWorkbenchQuery').evaluate(el => el === document.activeElement), 'Appearance must not steal focus');
+      assert(await page.locator('#incidentWorkbenchRefresh').evaluate(el => el === document.activeElement), 'Appearance must not steal focus');
       const long = await failure.evaluate(el => {
         const rect = el.getBoundingClientRect();
         return { inBounds: rect.left >= 0 && rect.right <= innerWidth && rect.top >= 0 && rect.bottom <= innerHeight, wraps: el.scrollWidth <= el.clientWidth + 1, scrollsInside: el.scrollHeight > el.clientHeight };

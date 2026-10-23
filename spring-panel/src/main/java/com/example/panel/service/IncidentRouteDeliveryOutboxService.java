@@ -30,6 +30,8 @@ import org.springframework.util.StringUtils;
 
 @Service
 public class IncidentRouteDeliveryOutboxService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private IncidentMonitoringPolicyService monitoringPolicy;
 
     private static final Logger log = LoggerFactory.getLogger(IncidentRouteDeliveryOutboxService.class);
     private static final Duration DISPATCH_LEASE_TTL = Duration.ofSeconds(45);
@@ -62,6 +64,7 @@ public class IncidentRouteDeliveryOutboxService {
         if (incident == null || incident.getId() == null) {
             return 0;
         }
+        if (monitoringPolicy != null && monitoringPolicy.isSuppressed(incident.getSignalType())) return 0;
         List<IncidentRoute> routes = incidentRouteRepository.findByIncidentIdOrderByCreatedAtAscIdAsc(incident.getId());
         int queued = 0;
         for (IncidentRoute route : routes) {
@@ -162,6 +165,16 @@ public class IncidentRouteDeliveryOutboxService {
             }
             DeliveryEntry entry = load(eventId);
             if (entry == null) {
+                continue;
+            }
+            if (monitoringPolicy != null && monitoringPolicy.isSuppressed(String.valueOf(parsePayload(entry.payloadJson()).get("signal_type")))) {
+                jdbcTemplate.update("""
+                    UPDATE incident_route_delivery_outbox
+                       SET status = 'queued', processing_started_at = NULL,
+                           attempt_count = GREATEST(0, attempt_count - 1),
+                           available_at = CURRENT_TIMESTAMP + INTERVAL '1 minute', updated_at = CURRENT_TIMESTAMP
+                     WHERE event_id = ? AND status = 'processing'
+                    """, entry.eventId());
                 continue;
             }
             try {

@@ -33,6 +33,7 @@ public class ProviderDeliveryAlertingScheduler {
         fixedDelayString = "${panel.provider-delivery-alerting.check-interval-ms:600000}"
     )
     public void refreshProviderDeliveryAlerting() {
+        if (alertingService.isMonitoringPaused()) return;
         runtimeCoordinationService.runWithLease("provider-delivery-alerting", Duration.ofMinutes(20), () -> {
             try {
                 ProviderDeliveryAlertingService.RefreshSummary summary = alertingService.refreshAll();

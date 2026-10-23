@@ -38,6 +38,18 @@ import java.util.stream.Collectors;
 
 @Service
 public class PublicIngressMonitoringService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private IncidentMonitoringPolicyService incidentMonitoringPolicy;
+
+    public boolean isMonitoringPaused() {
+        return incidentMonitoringPolicy != null && incidentMonitoringPolicy.isSuppressed("public_ingress");
+    }
+
+    private void requireMonitoringEnabled() {
+        if (incidentMonitoringPolicy != null && incidentMonitoringPolicy.isSuppressed("public_ingress")) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "Проверки направления приостановлены в настройках мониторинга инцидентов.");
+        }
+    }
 
     private static final Logger log = LoggerFactory.getLogger(PublicIngressMonitoringService.class);
 
@@ -159,15 +171,18 @@ public class PublicIngressMonitoringService {
     }
 
     public PublicIngressMonitor refreshById(long monitorId) {
+        requireMonitoringEnabled();
         PublicIngressMonitor item = repository.findById(monitorId)
             .orElseThrow(() -> new IllegalArgumentException("Public ingress monitor не найден"));
         return refreshMonitor(item);
     }
 
     public RefreshSummary refreshAll() {
+        requireMonitoringEnabled();
         List<PublicIngressMonitor> monitors = repository.findAllByOrderByMonitorNameAscIdAsc();
         int checked = 0;
         for (PublicIngressMonitor monitor : monitors) {
+            if (isMonitoringPaused()) break;
             refreshMonitor(monitor);
             checked++;
         }
@@ -239,6 +254,7 @@ public class PublicIngressMonitoringService {
     }
 
     private PublicIngressMonitor refreshMonitor(PublicIngressMonitor item) {
+        if (incidentMonitoringPolicy != null && incidentMonitoringPolicy.isSuppressed("public_ingress")) return item;
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         long startedAtNs = System.nanoTime();
         item.setLastCheckedAt(now);

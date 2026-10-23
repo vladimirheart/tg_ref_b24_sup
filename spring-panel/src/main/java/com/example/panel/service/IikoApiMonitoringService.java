@@ -46,6 +46,18 @@ import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 public class IikoApiMonitoringService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private IncidentMonitoringPolicyService incidentMonitoringPolicy;
+
+    public boolean isMonitoringPaused() {
+        return incidentMonitoringPolicy != null && incidentMonitoringPolicy.isSuppressed("iiko");
+    }
+
+    private void requireMonitoringEnabled() {
+        if (incidentMonitoringPolicy != null && incidentMonitoringPolicy.isSuppressed("iiko")) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "Проверки направления приостановлены в настройках мониторинга инцидентов.");
+        }
+    }
 
     private static final Logger log = LoggerFactory.getLogger(IikoApiMonitoringService.class);
 
@@ -151,10 +163,12 @@ public class IikoApiMonitoringService {
     }
 
     public RefreshRequestResult requestRefresh() {
+        requireMonitoringEnabled();
         return queueRefresh(null);
     }
 
     public RefreshRequestResult requestRefreshForMonitor(long id) {
+        requireMonitoringEnabled();
         requireMonitor(id);
         return queueRefresh(id);
     }
@@ -338,6 +352,7 @@ public class IikoApiMonitoringService {
     }
 
     public Map<String, Object> executeBackendOpsRefresh(Map<String, Object> payload) {
+        requireMonitoringEnabled();
         Long monitorId = longValue(payload == null ? null : payload.get("monitor_id"));
         if (monitorId == null) {
             refreshAllInternal();
@@ -393,12 +408,14 @@ public class IikoApiMonitoringService {
     private void refreshAllInternal() {
         List<IikoApiMonitor> monitors = repository.findAllByOrderByMonitorNameAscIdAsc();
         for (int index = 0; index < monitors.size(); index++) {
+            if (isMonitoringPaused()) break;
             refreshMonitor(monitors.get(index));
             sleepBetweenQueueItems(index, monitors.size());
         }
     }
 
     private void refreshMonitor(IikoApiMonitor monitor) {
+        if (incidentMonitoringPolicy != null && incidentMonitoringPolicy.isSuppressed("iiko")) return;
         if (monitor == null) {
             return;
         }

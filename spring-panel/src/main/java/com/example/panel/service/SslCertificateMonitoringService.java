@@ -29,6 +29,18 @@ import java.util.Optional;
 
 @Service
 public class SslCertificateMonitoringService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private IncidentMonitoringPolicyService incidentMonitoringPolicy;
+
+    public boolean isMonitoringPaused() {
+        return incidentMonitoringPolicy != null && incidentMonitoringPolicy.isSuppressed("ssl");
+    }
+
+    private void requireMonitoringEnabled() {
+        if (incidentMonitoringPolicy != null && incidentMonitoringPolicy.isSuppressed("ssl")) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "Проверки направления приостановлены в настройках мониторинга инцидентов.");
+        }
+    }
 
     private static final Logger log = LoggerFactory.getLogger(SslCertificateMonitoringService.class);
 
@@ -113,16 +125,19 @@ public class SslCertificateMonitoringService {
     }
 
     public SslCertificateMonitor refreshById(long id, boolean withNotifications) {
+        requireMonitoringEnabled();
         SslCertificateMonitor monitor = repository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Сайт мониторинга не найден"));
         return refreshMonitor(monitor, withNotifications);
     }
 
     public RefreshSummary refreshAll(boolean withNotifications) {
+        requireMonitoringEnabled();
         List<SslCertificateMonitor> monitors = repository.findAllByOrderBySiteNameAscIdAsc();
         int checked = 0;
         int notified = 0;
         for (SslCertificateMonitor monitor : monitors) {
+            if (isMonitoringPaused()) break;
             boolean didNotify = refreshMonitorAndReturnNotifyFlag(monitor, withNotifications);
             checked += 1;
             if (didNotify) {
@@ -194,11 +209,13 @@ public class SslCertificateMonitoringService {
     }
 
     private SslCertificateMonitor refreshMonitor(SslCertificateMonitor monitor, boolean withNotifications) {
+        if (incidentMonitoringPolicy != null && incidentMonitoringPolicy.isSuppressed("ssl")) return monitor;
         refreshMonitorAndReturnNotifyFlag(monitor, withNotifications);
         return monitor;
     }
 
     private boolean refreshMonitorAndReturnNotifyFlag(SslCertificateMonitor monitor, boolean withNotifications) {
+        if (incidentMonitoringPolicy != null && incidentMonitoringPolicy.isSuppressed("ssl")) return false;
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         monitor.setLastCheckedAt(now);
         monitor.setUpdatedAt(now);

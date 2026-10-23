@@ -33,6 +33,7 @@ public class CredentialRotationRegistryScheduler {
         fixedDelayString = "${panel.credential-rotation.refresh-interval-ms:900000}"
     )
     public void refreshRegistry() {
+        if (registryService.isMonitoringPaused()) return;
         runtimeCoordinationService.runWithLease("credential-rotation-registry", Duration.ofMinutes(20), () -> {
             try {
                 CredentialRotationRegistryService.RegistrySnapshot snapshot = registryService.refreshAll();

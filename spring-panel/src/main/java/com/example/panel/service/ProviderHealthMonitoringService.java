@@ -34,6 +34,18 @@ import java.util.Set;
 
 @Service
 public class ProviderHealthMonitoringService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private IncidentMonitoringPolicyService incidentMonitoringPolicy;
+
+    public boolean isMonitoringPaused() {
+        return incidentMonitoringPolicy != null && incidentMonitoringPolicy.isSuppressed("provider_health");
+    }
+
+    private void requireMonitoringEnabled() {
+        if (incidentMonitoringPolicy != null && incidentMonitoringPolicy.isSuppressed("provider_health")) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "Проверки направления приостановлены в настройках мониторинга инцидентов.");
+        }
+    }
 
     public static final String STATUS_OK = "ok";
     public static final String STATUS_WARNING = "warning";
@@ -106,6 +118,7 @@ public class ProviderHealthMonitoringService {
     }
 
     public OverviewSnapshot buildOverview() {
+        requireMonitoringEnabled();
         List<ProviderChannelHealth> items = evaluateChannels(loadMonitoredChannels(), false);
         return new OverviewSnapshot(
             OffsetDateTime.now(clock),
@@ -115,12 +128,14 @@ public class ProviderHealthMonitoringService {
     }
 
     public RefreshSummary refreshAll() {
+        requireMonitoringEnabled();
         List<Channel> channels = loadMonitoredChannels();
         List<ProviderChannelHealth> items = evaluateChannels(channels, true);
         return new RefreshSummary(channels.size(), items.size());
     }
 
     public ProviderChannelHealth refreshById(long channelId) {
+        requireMonitoringEnabled();
         Channel channel = loadMonitoredChannel(channelId);
         return evaluateChannels(List.of(channel), true).stream()
             .findFirst()
@@ -201,6 +216,7 @@ public class ProviderHealthMonitoringService {
         Map<Long, ActivityStats> activityByChannel = loadActivityStats();
         List<ProviderChannelHealth> result = new ArrayList<>();
         for (Channel channel : channels) {
+            if (isMonitoringPaused()) break;
             if (channel == null || channel.getId() == null) {
                 continue;
             }

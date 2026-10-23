@@ -31,6 +31,18 @@ import java.util.Set;
 
 @Service
 public class SmtpNotificationMonitoringService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private IncidentMonitoringPolicyService incidentMonitoringPolicy;
+
+    public boolean isMonitoringPaused() {
+        return incidentMonitoringPolicy != null && incidentMonitoringPolicy.isSuppressed("smtp");
+    }
+
+    private void requireMonitoringEnabled() {
+        if (incidentMonitoringPolicy != null && incidentMonitoringPolicy.isSuppressed("smtp")) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "Проверки направления приостановлены в настройках мониторинга инцидентов.");
+        }
+    }
 
     public static final String STATUS_OK = "ok";
     public static final String STATUS_CRITICAL = "critical";
@@ -130,15 +142,18 @@ public class SmtpNotificationMonitoringService {
     }
 
     public SmtpNotificationMonitor refreshById(long monitorId) {
+        requireMonitoringEnabled();
         SmtpNotificationMonitor item = repository.findById(Long.valueOf(monitorId))
             .orElseThrow(() -> new IllegalArgumentException("SMTP monitor not found"));
         return refreshMonitor(item);
     }
 
     public RefreshSummary refreshAll() {
+        requireMonitoringEnabled();
         List<SmtpNotificationMonitor> monitors = repository.findAllByOrderByMonitorNameAscIdAsc();
         int checked = 0;
         for (SmtpNotificationMonitor monitor : monitors) {
+            if (isMonitoringPaused()) break;
             refreshMonitor(monitor);
             checked++;
         }
@@ -203,6 +218,7 @@ public class SmtpNotificationMonitoringService {
     }
 
     private SmtpNotificationMonitor refreshMonitor(SmtpNotificationMonitor item) {
+        if (incidentMonitoringPolicy != null && incidentMonitoringPolicy.isSuppressed("smtp")) return item;
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         long startedAtNs = System.nanoTime();
         item.setLastCheckedAt(now);
