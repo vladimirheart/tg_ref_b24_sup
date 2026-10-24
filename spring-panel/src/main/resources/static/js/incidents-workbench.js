@@ -33,6 +33,8 @@
     selectedIncidentId: null,
     selectedIncident: null,
     transportOverview: null,
+    transportOverviewLoadedAt: null,
+    transportOverviewFailed: false,
 
     listRequestSerial: 0,
     detailRequestSerial: 0,
@@ -1488,8 +1490,9 @@ function restoreIncidentDetailFocus(
     return `<section class="card mb-3 incident-explanation" aria-label="Понятное описание проблемы">
       <div class="card-header"><strong>${escapeHtml(info.title)}</strong></div>
       <div class="card-body">
-        <p class="small text-muted">${info.historical ? 'Инцидент закрыт или решён. Ниже описана зафиксированная проблема, а не текущее состояние системы.' : incident.signal_type ? 'По последней сохранённой проверке. Это описание наблюдаемой проблемы, не подтверждение её первопричины.' : 'Описание, сохранённое автором инцидента.'}</p>
+        <p class="small text-muted">${info.historical ? 'Инцидент закрыт или решён. Ниже описана зафиксированная проблема, а не текущее состояние системы.' : incident.signal_type ? 'Результат сохранённой проверки.' : 'Описание, сохранённое автором инцидента.'}</p>
         <p class="incident-explanation-summary">${escapeHtml(info.summary)}</p>
+        ${info.meaning?.length ? `<ul class="ps-3">${info.meaning.map(item => `<li class="mb-2">${escapeHtml(item)}</li>`).join('')}</ul>` : ''}
         ${info.impact ? `<div class="mb-3"><strong class="d-block mb-1">На что влияет</strong><p class="mb-0">${escapeHtml(info.impact)}</p></div>` : ''}
         ${info.action ? `<div class="mb-3"><strong class="d-block mb-1">Что проверить</strong><p class="mb-0">${escapeHtml(info.action)}</p></div>` : ''}
         ${info.facts.length ? `<dl class="row mb-0">${info.facts.map(fact => `<dt class="col-sm-7 fw-normal text-muted">${escapeHtml(fact.label)}</dt><dd class="col-sm-5">${escapeHtml(fact.value)}</dd>`).join('')}</dl>` : ''}
@@ -1500,6 +1503,33 @@ function restoreIncidentDetailFocus(
         </details>
       </div>
     </section>`;
+  }
+
+  function renderCurrentIncidentProblems() {
+    const node = document.getElementById('incidentCurrentProblems');
+    if (!node || !transportNodes.pane || state.selectedIncident?.signal_type !== 'integration_transport') return;
+    if (!['panel-rabbitmq-bridge', 'panel-transport-sustained-pressure'].includes(state.selectedIncident.signal_key)) return;
+    if (['closed', 'resolved'].includes(state.selectedIncident.status)) { node.replaceChildren(); return; }
+    const data = window.IncidentDescriptions?.transportDetails?.(state.transportOverview);
+    if (!state.transportOverview || !data) { node.innerHTML = '<p class="small text-muted">Подробности текущих ошибок пока не загружены. Сохранённые результаты проверки показаны выше.</p>'; return; }
+    const button = (target, label) => `<button type="button" class="btn btn-sm btn-outline-secondary mt-2" data-incident-diagnostics-target="${target}">${label}</button>`;
+    const group = (items, total, heading, target) => {
+      if (!items.length && !(total > 0)) return '';
+      const groups = new Map();
+      for (const item of items) { const key = JSON.stringify([item.title, item.explanation]); if (!groups.has(key)) groups.set(key, []); groups.get(key).push(item); }
+      return `<section class="mb-3"><h4 class="fs-6">${heading}</h4>
+        <p class="small text-muted">В подробной выборке: ${items.length}${total == null ? '' : `; записей со статусом ошибки всего: ${escapeHtml(total)}`}. Выборка ограничена последними записями и может включать незавершённые операции.</p>
+        ${Array.from(groups.values()).map(entries => `<div class="border rounded p-3 mb-2"><strong>${escapeHtml(entries[0].title)} — ${entries.length}</strong><p class="my-2">${escapeHtml(entries[0].explanation)}</p>
+          <ul class="small mb-0 ps-3">${entries.map(item => `<li class="text-break">${item.ticket ? `Обращение: ${escapeHtml(item.ticket)}. ` : ''}Запись: ${escapeHtml(item.id || 'без номера')}. Последнее изменение записи: ${escapeHtml(formatDate(item.updatedAt))}.</li>`).join('')}</ul></div>`).join('')}
+        ${!items.length ? '<p>Подробные записи не попали в выборку. По одному счётчику нельзя установить причину.</p>' : ''}${button(target, 'Открыть записи и технические ошибки')}</section>`;
+    };
+    node.innerHTML = `<section class="card mb-3"><div class="card-header"><strong>Какие операции требуют разбора</strong></div><div class="card-body">
+      <p class="small text-muted">${state.transportOverviewFailed ? 'Обновить данные не удалось; ниже — последняя успешная загрузка. ' : ''}Данные загружены: ${escapeHtml(formatDate(state.transportOverviewLoadedAt))}. Это отдельная текущая выборка, а не состав сохранённой проверки выше. Старые записи с ошибкой не означают новые сбои сегодня.</p>
+      ${group(data.inbound, data.inboundFailed, 'Приём данных от ботов и подключений', 'inbound')}
+      ${group(data.outbound, data.outboundFailed, 'Отправка данных из панели', 'outbound')}
+      ${data.tasks.length ? `<section><h4 class="fs-6">Уведомления и обновление экрана</h4>${data.tasks.map(task => `<div class="border rounded p-3 mb-2"><strong>${escapeHtml(task.title)}</strong><p class="my-2">${escapeHtml(task.explanation)}</p><div class="small text-muted">Запись о ходе работы менялась: ${escapeHtml(formatDate(task.updatedAt))}${task.limitMinutes == null ? '' : `. Контрольный срок: ${escapeHtml(task.limitMinutes)} мин`}.</div></div>`).join('')}${button('tasks', 'Открыть диагностику этих задач')}</section>` : ''}
+      ${!data.inbound.length && !data.outbound.length && !data.tasks.length && !(data.inboundFailed > 0) && !(data.outboundFailed > 0) ? '<p>В этой выборке нет подробных проблемных записей. Это не отменяет сохранённую проверку и не подтверждает исправность остальных компонентов.</p>' : ''}
+    </div></section>`;
   }
 
   function renderIncidentDetail() {
@@ -1535,6 +1565,7 @@ function restoreIncidentDetailFocus(
         <div class="incident-kpi-card"><div class="incident-kpi-label">Ошибки доставки</div><div class="incident-kpi-value">${escapeHtml(incident.failed_route_count || 0)}</div></div>
       </div>
       ${renderIncidentExplanation(incident)}
+      <div id="incidentCurrentProblems"></div>
       ${renderCredentialRotationSignalContext(incident)}
       <div class="incident-detail-columns">
         <div class="d-grid gap-3">
@@ -1706,6 +1737,7 @@ function restoreIncidentDetailFocus(
       </div>
     `;
 	state.incidentDetailDirty = false;
+    renderCurrentIncidentProblems();
   }
 
   async function saveIncident() {
@@ -1961,8 +1993,11 @@ function restoreIncidentDetailFocus(
 
         state.transportOverview =
             payload;
+        state.transportOverviewLoadedAt = new Date().toISOString();
+        state.transportOverviewFailed = false;
 
         renderTransportOverview();
+        renderCurrentIncidentProblems();
 
         if (transportNodes.status) {
             transportNodes.status.textContent =
@@ -1980,6 +2015,8 @@ function restoreIncidentDetailFocus(
             transportNodes.status.textContent =
                 'Не удалось обновить данные integration recovery.';
         }
+        state.transportOverviewFailed = true;
+        renderCurrentIncidentProblems();
 
         throw error;
     } finally {
@@ -2474,6 +2511,19 @@ detailNode.addEventListener(
         });
     }
 );
+
+  detailNode.addEventListener('click', event => {
+    const button = event.target.closest('[data-incident-diagnostics-target]');
+    if (!button) return;
+    const targets = { inbound: transportNodes.inboundList, outbound: transportNodes.outboundList, tasks: transportNodes.checkpointList };
+    const key = button.getAttribute('data-incident-diagnostics-target');
+    const target = Object.hasOwn(targets, key) ? targets[key] : null;
+    const tab = document.getElementById('incidentWorkbenchTransportTab');
+    if (!target || !tab || !window.bootstrap?.Tab) return;
+    const focus = () => { target.setAttribute('tabindex', '-1'); target.scrollIntoView({ block: 'start' }); target.focus({ preventScroll: true }); };
+    if (tab.classList.contains('active')) focus();
+    else { tab.addEventListener('shown.bs.tab', focus, { once: true }); bootstrap.Tab.getOrCreateInstance(tab).show(); }
+  });
 
   detailNode.addEventListener(
     'click',

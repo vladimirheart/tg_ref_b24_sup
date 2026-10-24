@@ -84,16 +84,26 @@
         const values = { ...counters(key === 'panel-transport-sustained-pressure' ? payload.latest_summary : incident.summary), ...payload };
         const parts = [];
         for (const [names, phrase, label] of [
-          [['inbound_failed'], 'Часть входящих событий завершилась ошибкой.', 'Ошибок входящей обработки'],
-          [['inbound_stale', 'inbound_stale_processing'], 'Входящие события слишком долго находятся в обработке.', 'Задержавшихся входящих событий'],
-          [['outbound_failed'], 'Часть исходящих событий не удалось отправить.', 'Ошибок исходящей обработки'],
-          [['outbound_stale', 'outbound_stale_processing'], 'Исходящие события слишком долго находятся в обработке.', 'Задержавшихся исходящих событий'],
-          [['outbound_backlog'], 'В очереди накопились события, ожидающие отправки.', 'Событий в очереди на отправку'],
-          [['stale_checkpoints'], 'Нет свежих отметок работы фоновых обработчиков.', 'Обработчиков без свежей отметки'],
-          [['lagging_checkpoints'], 'Фоновые обработчики отстают от новых записей.', 'Обработчиков с отставанием']
-        ]) { const count = names.map(name => number(values[name])).find(n => n !== null); if (count > 0) { parts.push(phrase); fact(label, count); } }
+          [['inbound_failed'], 'Записей с ошибкой обработки входящих данных: {n}.', 'Не завершена обработка входящих данных'],
+          [['inbound_stale', 'inbound_stale_processing'], 'Операций приёма данных, не завершившихся вовремя: {n}.', 'Долго обрабатываются входящие данные'],
+          [['outbound_failed'], 'Записей с ошибкой отправки: {n}.', 'Не завершена отправка'],
+          [['outbound_stale', 'outbound_stale_processing'], 'Операций отправки, не завершившихся вовремя: {n}.', 'Долго выполняется отправка'],
+          [['outbound_backlog'], 'Записей, ожидающих отправки: {n}.', 'Ожидают отправки'],
+          [['stale_checkpoints'], 'Задач без свежего подтверждения работы: {n}.', 'Давно не менялось подтверждение работы задач'],
+          [['lagging_checkpoints'], 'Задач, не дошедших до новых данных: {n}.', 'Есть ещё не обработанные новые данные']
+        ]) { const count = names.map(name => number(values[name])).find(n => n !== null); if (count > 0) { parts.push(phrase.replace('{n}', display(count))); fact(label, count); } }
         Object.assign(result, { known: true, title: key === 'panel-transport-sustained-pressure' ? 'Задержки обработки событий повторяются' : 'Ошибки и задержки обработки событий', summary: parts.join(' ') || 'Проверка зафиксировала проблемы с очередью событий или фоновыми обработчиками; подробные счётчики в этом сигнале не сохранены.', impact: 'Некоторые события интеграций и обновления панели могут обрабатываться позже обычного.', action: 'Откройте мониторинг транспорта: проверьте ошибки, очередь и последние отметки работы обработчиков. Перед повтором события убедитесь, что оно не было выполнено.' });
         fact('Проверок с проблемой подряд', payload.unhealthy_streak);
+        result.meaning = [
+          'Входящие данные — это, например, сообщение клиента или запрос на создание обращения, которые бот передал панели. Ошибка означает, что панель не закончила их обработку.',
+          'Подтверждение работы — служебная запись о том, до какого места задача обновила уведомления или экран панели. Если запись давно не менялась, это ещё не доказывает, что задача остановилась.',
+          'Отставание означает, что для задачи уже появились более новые данные, до которых она ещё не дошла. Это не обязательно задержка доставки сообщения клиенту.'
+        ];
+        const streak = number(payload.unhealthy_streak);
+        if (streak > 0) result.meaning.push(`Проблема отмечена в ${display(streak)} проверках подряд. Это число проверок, а не число новых сбоев: одни и те же записи с ошибкой могут попадать в них повторно.`);
+        result.title = key === 'panel-transport-sustained-pressure' ? 'В панели остаются ошибки обработки данных' : 'Панель не завершила обработку части данных';
+        result.impact = 'В панели может не появиться часть сообщений или обращений, а уведомления и изменения на экране могут обновляться с задержкой. Какие именно операции затронуты — смотрите в записях ниже.';
+        result.action = 'Посмотрите, на какой операции возникла ошибка и когда запись менялась в последний раз. Старые ошибки разбираются отдельно от текущих задержек; повторную обработку нельзя запускать вслепую.';
       }
     } else if (type === 'credential_rotation') {
       const data = { ...latest(incident, ['incident_reason', 'last_status']), ...object(incident.signal_context) };
@@ -119,5 +129,32 @@
     result.listSummary = result.known ? result.summary.split(/(?<=[.!?])\s+/)[0] : result.summary;
     return result;
   }
-  return { describe };
+  function transportDetails(raw) {
+    const overview = object(raw), inbound = object(overview.inbound), outbound = object(overview.outbound);
+    const list = value => Array.isArray(value) ? value.map(object) : [];
+    const kinds = { 'client_message.active_ticket': 'Сообщение клиента в существующее обращение', 'client_message.selected_media_batch.v1': 'Вложения к сообщению клиента', 'conversation_ticket.created': 'Создание обращения' };
+    function failure(item) {
+      const error = text(item.last_error);
+      if (/bad SQL grammar/i.test(error) && /INSERT INTO\s+chat_attachment_metadata/i.test(error)) return 'При обработке сообщения не удалось записать в базу сведения о вложении. Из этой ошибки не следует, что сам файл потерян.';
+      if (/Inbound event ticket not found:/i.test(error)) return 'Не найдено обращение, к которому относится сообщение.';
+      if (/Inbound event channel not found:/i.test(error)) return 'Не найдено подключение, от которого пришли данные.';
+      if (/does not match ticket channel/i.test(error)) return 'Подключение входящего сообщения не совпало с подключением обращения.';
+      return error ? 'Во время обработки произошла ошибка. Её технический текст доступен в записи.' : 'Сведения о причине этой ошибки не сохранены.';
+    }
+    function entries(items) {
+      return list(items).filter(item => ['failed', 'processing'].includes(item.status)).map(item => ({
+        id: text(item.event_id), ticket: typeof item.ticket_id === 'string' ? item.ticket_id : '',
+        title: kinds[text(item.event_kind)] || 'Операция с данными интеграции',
+        explanation: item.status === 'failed' ? failure(item) : 'Операция началась, но в ожидаемый срок не появилась запись о её завершении.',
+        updatedAt: text(item.updated_at)
+      }));
+    }
+    const tasks = list(overview.runtime_checkpoints).filter(item => item.stale === true || item.lagging === true || ['stale', 'lagging'].includes(item.health_status)).map(item => {
+      const label = { 'operator-notification-watch.chat-history': 'Уведомления операторам о новых сообщениях', 'operator-notification-watch.feedbacks': 'Уведомления операторам об оценках клиентов', 'ui-event-outbox-watch': 'Обновление данных на открытых страницах панели' }[text(item.worker_key)] || 'Служебная задача панели';
+      const lag = number(item.cursor_lag), lagging = item.lagging === true || item.health_status === 'lagging';
+      return { title: label, explanation: lagging ? 'Есть новые данные, до которых эта задача ещё не дошла.' : lag === 0 ? 'После последней обработанной записи более новых нет. Давно не менялась только служебная запись о ходе работы; задержка данных этим не подтверждается.' : 'Давно не менялась служебная запись о ходе работы. Данных недостаточно, чтобы сказать, остались ли необработанные записи.', updatedAt: text(item.updated_at), ageMinutes: number(item.age_minutes), limitMinutes: number(item.stale_threshold_minutes) };
+    });
+    return { inboundFailed: number(inbound.failed), outboundFailed: number(outbound.failed), inbound: entries(overview.recent_failed_inbound), outbound: entries(overview.recent_failed_outbound), tasks };
+  }
+  return { describe, transportDetails };
 });
