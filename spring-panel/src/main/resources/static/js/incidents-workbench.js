@@ -369,6 +369,7 @@
     if (!incident || typeof incident !== 'object') {
       return '';
     }
+    if (window.IncidentDescriptions) return window.IncidentDescriptions.describe(incident).title;
 
     const signalType = String(incident.signal_type || '').trim().toLowerCase();
     const summary = String(incident.summary || '').trim();
@@ -1246,13 +1247,15 @@ function restoreIncidentDetailFocus(
         return;
     }
 
-    listNode.innerHTML = state.incidents.map((item) => `
+    listNode.innerHTML = state.incidents.map((item) => {
+      const explanation = window.IncidentDescriptions?.describe(item) || item;
+      return `
       <tr class="incident-list-row ${Number(item.id) === Number(state.selectedIncidentId) ? 'is-active' : ''}" data-incident-id="${escapeHtml(item.id)}">
         <td>
 			<button
 				type="button"
 				class="incident-list-row-button"
-				aria-label="Открыть incident ${escapeHtml(item.incident_key || '')}: ${escapeHtml(item.title || '')}"
+				aria-label="Открыть инцидент ${escapeHtml(item.incident_key || '')}: ${escapeHtml(explanation.title || '')}"
 				aria-current="${
 					Number(item.id) === Number(state.selectedIncidentId)
 						? 'true'
@@ -1263,10 +1266,10 @@ function restoreIncidentDetailFocus(
 			  ${escapeHtml(item.incident_key || '—')}
 			</span>
 			<span class="d-block">
-			  ${escapeHtml(item.title || '')}
+			  ${escapeHtml(explanation.title || '')}
 			</span>
 			<span class="d-block small text-muted">
-			  ${escapeHtml(item.summary || '')}
+			  ${escapeHtml(explanation.listSummary || explanation.summary || '')}
 			</span>
 		  </button>
 		</td>
@@ -1274,7 +1277,8 @@ function restoreIncidentDetailFocus(
         <td><span class="badge ${badgeClass(item.status)}">${escapeHtml(incidentStatusLabel(item.status))}</span></td>
         <td class="small text-muted">${escapeHtml(formatDate(item.updated_at))}</td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
 		if (focusedIncidentId) {
 		window.requestAnimationFrame(() => {
 			const nextRow = Array.from(
@@ -1478,6 +1482,26 @@ function restoreIncidentDetailFocus(
     return ({ critical: 'Критический', high: 'Высокий', medium: 'Средний', low: 'Низкий' })[value] || value || '—';
   }
 
+  function renderIncidentExplanation(incident) {
+    const info = window.IncidentDescriptions?.describe(incident);
+    if (!info) return '';
+    return `<section class="card mb-3 incident-explanation" aria-label="Понятное описание проблемы">
+      <div class="card-header"><strong>${escapeHtml(info.title)}</strong></div>
+      <div class="card-body">
+        <p class="small text-muted">${info.historical ? 'Инцидент закрыт или решён. Ниже описана зафиксированная проблема, а не текущее состояние системы.' : incident.signal_type ? 'По последней сохранённой проверке. Это описание наблюдаемой проблемы, не подтверждение её первопричины.' : 'Описание, сохранённое автором инцидента.'}</p>
+        <p class="incident-explanation-summary">${escapeHtml(info.summary)}</p>
+        ${info.impact ? `<div class="mb-3"><strong class="d-block mb-1">На что влияет</strong><p class="mb-0">${escapeHtml(info.impact)}</p></div>` : ''}
+        ${info.action ? `<div class="mb-3"><strong class="d-block mb-1">Что проверить</strong><p class="mb-0">${escapeHtml(info.action)}</p></div>` : ''}
+        ${info.facts.length ? `<dl class="row mb-0">${info.facts.map(fact => `<dt class="col-sm-7 fw-normal text-muted">${escapeHtml(fact.label)}</dt><dd class="col-sm-5">${escapeHtml(fact.value)}</dd>`).join('')}</dl>` : ''}
+        <details class="mt-3 incident-original-diagnostics"><summary>Технические подробности — исходный текст</summary>
+          <dl class="mt-2 mb-0"><dt>Название источника</dt><dd class="text-break">${escapeHtml(incident.title || '—')}</dd>
+          <dt>Исходная причина</dt><dd class="text-break">${escapeHtml(incident.summary || '—')}</dd>
+          <dt>Описание источника</dt><dd class="text-break">${escapeHtml(incident.description || '—')}</dd></dl>
+        </details>
+      </div>
+    </section>`;
+  }
+
   function renderIncidentDetail() {
     const incident = state.selectedIncident;
 
@@ -1510,11 +1534,12 @@ function restoreIncidentDetailFocus(
         <div class="incident-kpi-card"><div class="incident-kpi-label">Приоритет</div><div class="incident-kpi-value">${escapeHtml(incidentSeverityLabel(incident.severity))}</div></div>
         <div class="incident-kpi-card"><div class="incident-kpi-label">Ошибки доставки</div><div class="incident-kpi-value">${escapeHtml(incident.failed_route_count || 0)}</div></div>
       </div>
+      ${renderIncidentExplanation(incident)}
       ${renderCredentialRotationSignalContext(incident)}
       <div class="incident-detail-columns">
         <div class="d-grid gap-3">
           <section class="card">
-            <div class="card-header"><strong>Основное</strong></div>
+            <div class="card-header"><strong>Редактирование инцидента</strong></div>
             <div class="card-body">
               <div class="incident-create-grid mb-3">
                 <input type="text"
@@ -1600,8 +1625,8 @@ function restoreIncidentDetailFocus(
           <section class="card incident-metadata-card">
             <div class="card-header"><strong>Сведения об источнике</strong></div>
             <div class="card-body incident-metadata-list">
-              ${renderMetadataRow('Signal type', incident.signal_type || '\u2014')}
-              ${renderMetadataRow('Signal key', incident.signal_key || '\u2014')}
+              ${renderMetadataRow('Тип технического сигнала', incident.signal_type || '\u2014')}
+              ${renderMetadataRow('Ключ технического сигнала', incident.signal_key || '\u2014')}
               ${renderMetadataRow('\u0421\u043e\u0437\u0434\u0430\u043b', incident.created_by || '\u2014')}
               ${renderMetadataRow('\u041e\u0431\u043d\u043e\u0432\u043b\u0451\u043d', formatDate(incident.updated_at))}
             </div>
