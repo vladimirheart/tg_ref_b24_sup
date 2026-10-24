@@ -56,6 +56,7 @@ public class CredentialRotationRegistryService {
     public static final String STATUS_ROTATION_DUE_SOON = "rotation_due_soon";
     public static final String STATUS_ROTATION_OVERDUE = "rotation_overdue";
     public static final String STATUS_MISSING_SECRET = "missing_secret";
+    public static final String STATUS_NOT_REQUIRED = "not_required";
     public static final String STATUS_SOURCE_REMOVED = "source_removed";
 
     public static final String LEVEL_OK = "ok";
@@ -209,6 +210,10 @@ public class CredentialRotationRegistryService {
         for (DiscoveredCredential discovered : discoveredByKey.values()) {
             long startedAtNs = System.nanoTime();
             CredentialRotationRegistryEntry item = existingByKey.remove(discovered.entryKey());
+            // Empty form placeholders are not credentials. Keep previously tracked rows/history.
+            if (item == null && !discovered.required()) {
+                continue;
+            }
             if (item == null) {
                 item = new CredentialRotationRegistryEntry();
                 item.setCreatedAt(now);
@@ -220,7 +225,7 @@ public class CredentialRotationRegistryService {
             }
             applyDiscovery(item, discovered, now);
             applyImportedMetadata(item, importedMetadataByEntryKey.get(discovered.entryKey()));
-            applyStatus(item, now);
+            applyStatus(item, now, discovered.required());
             repository.save(item);
             if (recordHistory) {
                 recordHistory(item, elapsedMillis(startedAtNs), now);
@@ -591,6 +596,17 @@ public class CredentialRotationRegistryService {
     }
 
     private void applyStatus(CredentialRotationRegistryEntry item, OffsetDateTime now) {
+        applyStatus(item, now, !STATUS_NOT_REQUIRED.equals(item.getLastStatus()));
+    }
+
+    private void applyStatus(CredentialRotationRegistryEntry item, OffsetDateTime now, boolean required) {
+        if (!required) {
+            item.setLastStatus(STATUS_NOT_REQUIRED);
+            item.setStatusLevel(LEVEL_OK);
+            item.setStatusReason("Эти учётные данные не требуются выбранному сетевому маршруту. Пустое поле не означает отказ подключения.");
+            item.setNextRotationDueAt(null);
+            return;
+        }
         StatusAssessment assessment = assessStatus(item, now);
         item.setLastStatus(assessment.statusCode());
         item.setStatusLevel(assessment.statusLevel());
@@ -886,20 +902,18 @@ public class CredentialRotationRegistryService {
                                       String displayPrefix,
                                       String sourceType,
                                       String sourceRefBase) {
-        if (route == null || route.isEmpty() || !StringUtils.hasText(entryPrefix)) {
+        if (!StringUtils.hasText(entryPrefix)) {
             return;
         }
+        route = route == null ? Map.of() : route;
         Map<String, Object> proxy = mapValue(route.get("proxy"));
-        if (proxy.isEmpty()) {
-            return;
-        }
         String scheme = readString(proxy, "scheme");
         String username = readString(proxy, "username");
         String password = readString(proxy, "password");
         String token = readString(proxy, "token");
 
-        boolean passwordExpected = StringUtils.hasText(username) || proxy.containsKey("password");
-        if (passwordExpected) {
+        boolean proxySelected = "proxy".equalsIgnoreCase(readString(route, "mode"));
+        boolean passwordExpected = proxySelected && !"vless".equalsIgnoreCase(scheme) && StringUtils.hasText(username);
             register(target, new DiscoveredCredential(
                 entryPrefix + ".proxy.password",
                 "network_route",
@@ -907,12 +921,11 @@ public class CredentialRotationRegistryService {
                 displayPrefix + " proxy password",
                 sourceType,
                 sourceRefBase + ".proxy.password",
-                StringUtils.hasText(password)
+                StringUtils.hasText(password),
+                passwordExpected
             ));
-        }
 
-        boolean tokenExpected = "vless".equalsIgnoreCase(scheme) || proxy.containsKey("token");
-        if (tokenExpected) {
+        boolean tokenExpected = proxySelected && "vless".equalsIgnoreCase(scheme);
             register(target, new DiscoveredCredential(
                 entryPrefix + ".proxy.token",
                 "network_route",
@@ -920,9 +933,9 @@ public class CredentialRotationRegistryService {
                 displayPrefix + " proxy token",
                 sourceType,
                 sourceRefBase + ".proxy.token",
-                StringUtils.hasText(token)
+                StringUtils.hasText(token),
+                tokenExpected
             ));
-        }
     }
 
     private void syncAlertIncident(CredentialRotationRegistryEntry item,
@@ -1107,13 +1120,14 @@ public class CredentialRotationRegistryService {
         payload.put("incident_severity_reason", buildIncidentSeverityExplanation(item));
         payload.put("incident_next_action", buildIncidentNextAction(item));
         payload.put("incident_warning_handling", "Предупреждения остаются на странице аналитики ротации секретов и не создают инцидент в рабочей панели.");
-        payload.put("incident_escalates_to_workbench", Boolean.TRUE);
+        payload.put("incident_escalates_to_workbench", LEVEL_CRITICAL.equals(item.getStatusLevel()));
         return payload;
     }
 
     private String buildIncidentStatusLabel(CredentialRotationRegistryEntry item) {
         String status = normalizeKey(item.getLastStatus(), "");
         return switch (status) {
+            case STATUS_NOT_REQUIRED -> "Учётные данные не требуются выбранному сетевому маршруту.";
             case STATUS_SOURCE_REMOVED -> "Источник секрета больше не найден в рабочей конфигурации.";
             case STATUS_MISSING_SECRET -> "Источник найден, но секрет пустой, не сохранён или недоступен для runtime.";
             case STATUS_EXPIRED -> "Срок действия секрета уже истёк.";
@@ -1131,6 +1145,9 @@ public class CredentialRotationRegistryService {
 
     private String buildIncidentSeverityExplanation(CredentialRotationRegistryEntry item) {
         String status = normalizeKey(item.getLastStatus(), "");
+        if (STATUS_NOT_REQUIRED.equals(status)) {
+            return "Критичного состояния нет: локальный прокси не выбран или этот способ авторизации не требуется.";
+        }
         String trigger = switch (status) {
             case STATUS_SOURCE_REMOVED -> "источник секрета исчез из рабочей конфигурации";
             case STATUS_MISSING_SECRET -> "источник найден, но значение секрета пустое или не сохранено";
@@ -1146,6 +1163,7 @@ public class CredentialRotationRegistryService {
     private String buildIncidentNextAction(CredentialRotationRegistryEntry item) {
         String status = normalizeKey(item.getLastStatus(), "");
         return switch (status) {
+            case STATUS_NOT_REQUIRED -> "Не заполняйте неиспользуемые поля. При необходимости проверьте выбранный профиль сетевого маршрута.";
             case STATUS_SOURCE_REMOVED -> "Проверьте, не была ли удалена или переименована интеграция либо настройка, из которой читается секрет, и восстановите источник.";
             case STATUS_MISSING_SECRET -> "Откройте настройку, где хранится секрет, заново сохраните секрет и убедитесь, что приложение видит непустое значение.";
             case STATUS_EXPIRED -> "Немедленно перевыпустите секрет, сохраните новое значение в источнике и проверьте работу интеграции.";
@@ -1370,7 +1388,12 @@ public class CredentialRotationRegistryService {
                                         String displayName,
                                         String sourceType,
                                         String sourceRef,
-                                        boolean secretPresent) {
+                                        boolean secretPresent,
+                                        boolean required) {
+        private DiscoveredCredential(String entryKey, String integrationKind, String credentialKind,
+                                     String displayName, String sourceType, String sourceRef, boolean secretPresent) {
+            this(entryKey, integrationKind, credentialKind, displayName, sourceType, sourceRef, secretPresent, true);
+        }
     }
 
     private record StatusAssessment(String statusCode,

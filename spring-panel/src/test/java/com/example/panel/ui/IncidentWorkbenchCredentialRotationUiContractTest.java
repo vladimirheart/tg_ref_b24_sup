@@ -22,7 +22,10 @@ class IncidentWorkbenchCredentialRotationUiContractTest {
             .contains("function renderCredentialRotationSignalContext(incident)")
             .contains("incident?.signal_context")
             .contains("Почему появился инцидент")
-            .contains("Почему критично")
+            .contains("Сохранённая оценка мониторинга (не ручной приоритет)")
+            .contains("incidentQuickSeverity")
+            .contains("Назначен вручную; проверки не меняют")
+            .contains("async function updateIncidentPriority(value)")
             .contains("Что сделать")
             .contains("Политика критичности");
     }

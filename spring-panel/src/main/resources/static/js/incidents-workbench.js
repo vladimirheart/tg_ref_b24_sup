@@ -1461,7 +1461,7 @@ function restoreIncidentDetailFocus(
               <div class="incident-signal-context-value">${escapeHtml(reason || 'Причина не определена')}</div>
             </div>
             <div class="incident-signal-context-item">
-              <div class="incident-signal-context-label">Почему критично</div>
+              <div class="incident-signal-context-label">Сохранённая оценка мониторинга (не ручной приоритет)</div>
               <div class="incident-signal-context-value">${escapeHtml(severityReason || 'Критичность определена реестром ротации секретов.')}</div>
             </div>
             <div class="incident-signal-context-item">
@@ -1561,7 +1561,13 @@ function restoreIncidentDetailFocus(
             </select>
           </div>
         </div>
-        <div class="incident-kpi-card"><div class="incident-kpi-label">Приоритет</div><div class="incident-kpi-value">${escapeHtml(incidentSeverityLabel(incident.severity))}</div></div>
+        <div class="incident-kpi-card incident-kpi-card--status">
+          <label class="incident-kpi-label" for="incidentQuickSeverity">Приоритет</label>
+          <select class="form-select form-select-sm incident-status-quick-select" id="incidentQuickSeverity" aria-label="Приоритет инцидента ${escapeHtml(incident.incident_key || '')}">
+            ${['critical', 'high', 'medium', 'low'].map(value => `<option value="${value}" ${value === incident.severity ? 'selected' : ''}>${escapeHtml(incidentSeverityLabel(value))}</option>`).join('')}
+          </select>
+          <div class="small text-muted">${incident.severity_mode === 'manual' ? 'Назначен вручную; проверки не меняют' : incident.signal_type ? 'Оценка мониторинга; можно изменить' : 'Можно изменить'}</div>
+        </div>
         <div class="incident-kpi-card"><div class="incident-kpi-label">Ошибки доставки</div><div class="incident-kpi-value">${escapeHtml(incident.failed_route_count || 0)}</div></div>
       </div>
       ${renderIncidentExplanation(incident)}
@@ -1746,11 +1752,12 @@ function restoreIncidentDetailFocus(
     const payload = {
       title: document.getElementById('incidentDetailTitle')?.value?.trim() || '',
       summary: document.getElementById('incidentDetailSummary')?.value?.trim() || '',
-      severity: document.getElementById('incidentDetailSeverity')?.value || '',
       owner: document.getElementById('incidentDetailOwner')?.value?.trim() || '',
       source: document.getElementById('incidentDetailSource')?.value?.trim() || '',
       description: document.getElementById('incidentDetailDescription')?.value?.trim() || ''
     };
+    const editedSeverity = document.getElementById('incidentDetailSeverity')?.value;
+    if (editedSeverity && editedSeverity !== incident.severity) payload.severity = editedSeverity;
     await requestJson(
 		`/api/incidents/${encodeURIComponent(incident.id)}`,
 		{
@@ -1769,9 +1776,29 @@ function restoreIncidentDetailFocus(
 		incident.id
 	);
 
-	showSuccess('Incident обновлён');
+	showSuccess(`${incident.incident_key || incident.id}: изменения сохранены`);
 
 	await loadIncidents();
+  }
+
+  async function updateIncidentPriority(value) {
+    const incident = state.selectedIncident;
+    if (!incident || value === incident.severity) return;
+    await requestJson(`/api/incidents/${encodeURIComponent(incident.id)}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ severity: value })
+    });
+    incident.severity = value;
+    incident.severity_mode = 'manual';
+    const listItem = state.incidents.find(item => String(item.id) === String(incident.id));
+    if (listItem) { listItem.severity = value; listItem.severity_mode = 'manual'; }
+    // Keep unsaved description/owner drafts while synchronising the persisted priority.
+    if (isIncidentStillSelected(incident.id)) {
+      const field = document.getElementById('incidentDetailSeverity');
+      if (field) field.value = value;
+    }
+    renderIncidentList();
+    showSuccess(`${incident.incident_key || incident.id}: приоритет «${incidentSeverityLabel(value)}» сохранён`);
+    await refreshIncidentIfStillSelected(incident.id);
   }
 
   async function updateIncidentStatus(nextStatus) {
@@ -2480,6 +2507,16 @@ detailNode.addEventListener(
     'change',
     (event) => {
         markIncidentDetailDirty(event);
+
+        if (event.target instanceof HTMLSelectElement && event.target.id === 'incidentQuickSeverity') {
+            const select = event.target, previous = state.selectedIncident?.severity;
+            select.disabled = true;
+            void updateIncidentPriority(select.value).catch(error => {
+                if (select.isConnected) select.value = previous;
+                showError(error.message);
+            }).finally(() => { if (select.isConnected) select.disabled = false; });
+            return;
+        }
 
         const statusSelect =
             event.target instanceof Element

@@ -53,6 +53,7 @@ public class IncidentService {
     private static final Logger log = LoggerFactory.getLogger(IncidentService.class);
     private static final Set<String> STATUSES = Set.of("open", "acknowledged", "investigating", "resolved", "closed");
     private static final Set<String> SEVERITIES = Set.of("low", "medium", "high", "critical");
+    private static final String PRIORITY_OVERRIDE_EVENT = "priority_override";
     private static final Set<String> RELATION_TYPES = Set.of("ticket", "task", "object_passport");
     private static final Set<String> ROUTE_TYPES = Set.of("webhook", "user", "users", "department", "all_operators");
 
@@ -183,7 +184,9 @@ public class IncidentService {
     }
 
     public Map<String, Object> getIncident(Long id) {
-        Incident incident = requireIncident(id);
+        if (id == null || id <= 0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Укажите incident id");
+        Incident incident = incidentRepository.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Incident не найден"));
         return Map.of(
             "success", true,
             "incident", buildIncidentDetails(incident)
@@ -275,10 +278,15 @@ public class IncidentService {
             }
         }
         if (payload.containsKey("severity")) {
-            String value = normalizeSeverity(payload.get("severity"), incident.getSeverity());
+            String value = normalizeSeverity(payload.get("severity"), null);
+            if (value == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Укажите приоритет: low, medium, high или critical.");
+            }
             if (!Objects.equals(value, incident.getSeverity())) {
                 incident.setSeverity(value);
                 changes.add("severity");
+                appendEvent(incident, PRIORITY_OVERRIDE_EVENT,
+                    "Приоритет назначен вручную: " + value, Map.of("severity", value), actor, now);
             }
         }
         if (payload.containsKey("status")) {
@@ -445,6 +453,7 @@ public class IncidentService {
         Incident incident = requireIncident(id);
         OffsetDateTime now = OffsetDateTime.now();
         String normalizedEventType = normalizeEventType(eventType);
+        rejectReservedEventType(normalizedEventType);
         String normalizedEventText = requiredText(eventText, "Укажите текст escalation control event.");
         appendEvent(
             incident,
@@ -471,6 +480,7 @@ public class IncidentService {
         Incident incident = requireIncident(id);
         OffsetDateTime now = OffsetDateTime.now();
         String eventType = normalizeEventType(payload.get("event_type"));
+        rejectReservedEventType(eventType);
         String eventText = requiredText(payload.get("event_text"), "Укажите текст события incident.");
         appendEvent(incident, eventType, eventText, payload.get("payload"), actor, now);
         incident.setUpdatedAt(now);
@@ -531,7 +541,7 @@ public class IncidentService {
             return Map.of("success", true, "suppressed", true);
         }
         OffsetDateTime now = OffsetDateTime.now();
-        Incident incident = incidentRepository.findBySignalTypeAndSignalKeyOrderByUpdatedAtDescIdDesc(
+        Incident incident = incidentRepository.findActiveSignalForUpdate(
                 normalizedSignalType,
                 normalizedSignalKey
             ).stream()
@@ -564,7 +574,9 @@ public class IncidentService {
             incident.setTitle(requiredText(title, "Укажите заголовок incident."));
             incident.setSummary(normalizeNullableText(summary));
             incident.setDescription(normalizeNullableText(description));
-            incident.setSeverity(normalizeSeverity(severity, incident.getSeverity() != null ? incident.getSeverity() : "high"));
+            String manualPriority = manualPriority(incidentEventRepository.findByIncidentIdOrderByCreatedAtAscIdAsc(incident.getId()));
+            incident.setSeverity(manualPriority != null ? manualPriority
+                : normalizeSeverity(severity, incident.getSeverity() != null ? incident.getSeverity() : "high"));
             incident.setSource(normalizeNullableText(source));
             incident.setStatus("investigating");
             incident.setResolvedAt(null);
@@ -594,7 +606,7 @@ public class IncidentService {
         if (!StringUtils.hasText(normalizedSignalType) || !StringUtils.hasText(normalizedSignalKey)) {
             return Map.of("success", true, "resolved", false);
         }
-        Incident incident = incidentRepository.findBySignalTypeAndSignalKeyOrderByUpdatedAtDescIdDesc(
+        Incident incident = incidentRepository.findActiveSignalForUpdate(
                 normalizedSignalType,
                 normalizedSignalKey
             ).stream()
@@ -622,12 +634,13 @@ public class IncidentService {
                                   String eventText,
                                   Object payload,
                                   String actor) {
+        rejectReservedEventType(normalizeEventType(eventType));
         String normalizedSignalType = normalizeNullableText(signalType);
         String normalizedSignalKey = normalizeNullableText(signalKey);
         if (!StringUtils.hasText(normalizedSignalType) || !StringUtils.hasText(normalizedSignalKey)) {
             return;
         }
-        Incident incident = incidentRepository.findBySignalTypeAndSignalKeyOrderByUpdatedAtDescIdDesc(
+        Incident incident = incidentRepository.findActiveSignalForUpdate(
                 normalizedSignalType,
                 normalizedSignalKey
             ).stream()
@@ -898,7 +911,7 @@ public class IncidentService {
         if (id == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Укажите incident id");
         }
-        return incidentRepository.findById(id)
+        return incidentRepository.findByIdForUpdate(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Incident не найден"));
     }
 
@@ -915,6 +928,7 @@ public class IncidentService {
         payload.put("summary", incident.getSummary() == null ? "" : incident.getSummary());
         payload.put("status", incident.getStatus());
         payload.put("severity", incident.getSeverity());
+        payload.put("severity_mode", manualPriority(events) == null ? "automatic" : "manual");
         payload.put("source", incident.getSource() == null ? "" : incident.getSource());
         payload.put("owner", incident.getOwner() == null ? "" : incident.getOwner());
         payload.put("signal_type", incident.getSignalType() == null ? "" : incident.getSignalType());
@@ -937,6 +951,20 @@ public class IncidentService {
         payload.put("relations", relations.stream().map(this::toRelationPayload).toList());
         payload.put("routes", routes.stream().map(route -> toRoutePayload(route, routeDeliverySnapshots.get(route.getId()))).toList());
         return payload;
+    }
+
+    private void rejectReservedEventType(String eventType) {
+        if (PRIORITY_OVERRIDE_EVENT.equals(eventType)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Приоритет изменяется через поле приоритета инцидента, не через комментарий.");
+        }
+    }
+
+    private String manualPriority(List<IncidentEvent> events) {
+        if (events == null) return null;
+        return events.stream().filter(event -> PRIORITY_OVERRIDE_EVENT.equals(event.getEventType()))
+            .max(java.util.Comparator.comparingLong(event -> event.getId() == null ? 0L : event.getId()))
+            .map(this::parseIncidentEventPayload)
+            .map(payload -> normalizeSeverity(payload.get("severity"), null)).orElse(null);
     }
 
     private Map<String, Object> buildIncidentDetails(Incident incident) {

@@ -200,7 +200,7 @@
           <div class="small text-muted">${escapeHtml(item.integration_kind || '—')} · ${escapeHtml(item.credential_kind || '—')}</div>
         </td>
         <td>
-          <span class="badge ${statusBadgeClass(item.status_level)}">${escapeHtml(item.last_status || 'unknown')}</span>
+          <span class="badge ${statusBadgeClass(item.status_level)}">${escapeHtml(item.last_status === 'not_required' ? 'Не требуется маршруту' : item.last_status || 'unknown')}</span>
           <div class="small text-muted mt-1">${escapeHtml(item.status_reason || '—')}</div>
         </td>
         <td>

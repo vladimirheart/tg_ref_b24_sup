@@ -57,14 +57,52 @@
     IguanaAlloyUnavailable: ['Не удаётся проверить сборщик журналов', 'Prometheus не получает метрики Alloy более пяти минут.', 'Работа сборщика журналов не подтверждена; часть журналов может поступать с задержкой.', 'Проверьте Alloy и сетевой доступ к его метрикам.'],
     IguanaAlertmanagerDeliverySmoke: ['Проверка доставки тестового уведомления', 'Получен тестовый сигнал для проверки пути Alertmanager → панель.', 'Сам по себе этот сигнал не означает поломку рабочего сервиса.', 'Убедитесь, что тестовый инцидент появился в панели и уведомление дошло до нужных получателей.']
   };
-  const credentials = {
-    source_removed: ['Настройка с ключом доступа больше не найдена', 'Источник ключа отсутствует в рабочей конфигурации.', 'Проверьте, было ли удаление интеграции запланировано, и восстановите настройку, если она ещё нужна.'],
-    missing_secret: ['Не найдено значение ключа доступа', 'Настройка интеграции есть, но ключ пустой, не сохранён или недоступен приложению.', 'Откройте соответствующую настройку и проверьте сохранение ключа, не публикуя его значение.'],
-    expired: ['Истёк срок действия ключа доступа', 'Сохранённый срок действия ключа уже истёк.', 'Перевыпустите ключ в системе-источнике, сохраните его в настройках и проверьте интеграцию.'],
-    expires_soon: ['Срок действия ключа скоро закончится', 'До окончания срока действия ключа осталось критически мало времени.', 'Подготовьте новый ключ и замените его до истечения срока.'],
-    rotation_overdue: ['Просрочена плановая замена ключа доступа', 'Наступила сохранённая дата обязательной замены ключа.', 'Согласуйте замену с владельцем интеграции, выполните её и обновите дату ротации.'],
-    rotation_due_soon: ['Подходит срок плановой замены ключа доступа', 'Близка сохранённая дата обязательной замены ключа.', 'Согласуйте с владельцем интеграции замену ключа до установленного срока.']
-  };
+  function credentialDescription(data) {
+    const kind = text(data.credential_kind), status = text(data.last_status).toLowerCase();
+    const name = text(data.display_name);
+    const labels = { proxy_password: 'Пароль прокси', proxy_token: 'Токен VLESS-прокси', bot_token: 'Токен бота', api_token: 'Токен API', integration_token: 'Токен интеграции', external_auth_token: 'Токен авторизации внешнего сервиса', webhook_secret: 'Секрет проверки вебхука', webhook_confirmation_token: 'Код подтверждения вебхука VK', webhook_url: 'Адрес вебхука с авторизацией', api_secret: 'Секрет API', api_login: 'Ключ доступа iiko API', shared_secret: 'Токен внутреннего API', signature_secret: 'Секрет подписи запросов', remember_me_key: 'Ключ подписи сохранённого входа', password: 'Пароль' };
+    const label = labels[kind] || 'Учётные данные';
+    const channel = name.match(/^Channel network route · (.+) proxy (?:password|token)$/);
+    const bot = name.match(/^Channel token · (.+)$/);
+    const profile = name.match(/^Network profile · (.+) proxy (?:password|token)$/);
+    let resource = name, location = 'Настройка-источник в аналитике ротации учётных данных';
+    if (channel || bot) {
+      resource = `канал «${(channel || bot)[1]}»`;
+      location = `Настройки → Каналы и запуск ботов → «${(channel || bot)[1]}»` + (channel ? ' → Сетевой маршрут → Прокси' : ' → Токен');
+    } else if (profile) {
+      resource = `профиль «${profile[1]}»`;
+      location = 'Настройки → Профили прокси и VPN → «' + profile[1] + '»';
+    } else if (/^(Project|Bots) network route proxy (password|token)$/.test(name)) {
+      resource = name.startsWith('Project') ? 'маршрут проекта' : 'маршрут ботов';
+      location = 'Настройки → Сетевые маршруты интеграций → ' + resource;
+    } else if (name.startsWith('Bot credential · ')) {
+      resource = 'учётная запись бота «' + name.slice('Bot credential · '.length) + '»';
+      location = 'Настройки → Каналы и запуск ботов → Учётные данные ботов';
+    } else if (/^(VK confirmation token|VK webhook secret|MAX webhook secret) · /.test(name)) {
+      resource = 'канал «' + name.slice(name.indexOf(' · ') + 3) + '»';
+      location = 'Настройки → Каналы и запуск ботов → ' + resource + ' → Настройки вебхука';
+    } else if (name === 'NetBox sync API token') {
+      resource = 'синхронизация с NetBox'; location = 'Настройки синхронизации NetBox → API token';
+    } else if (name === 'Notion knowledge base token') {
+      resource = 'база знаний Notion'; location = 'Настройки базы знаний → Токен Notion';
+    } else if (text(data.source_type) === 'environment') {
+      resource = ({ 'Panel internal bot API token': 'связь панели с ботами', 'Panel internal bot API signature secret': 'подпись запросов ботов к панели', 'Panel remember-me key': 'сохранение входа в панель' })[name] || name;
+      location = 'Конфигурация запуска приложения (переменные окружения)';
+    }
+    const subject = label + (resource ? ' — ' + resource : '');
+    const titles = { missing_secret: 'Не заполнено значение', source_removed: 'Настройка больше не найдена', expired: 'Истёк срок действия', expires_soon: 'Скоро истечёт срок действия', rotation_overdue: 'Просрочена плановая замена', rotation_due_soon: 'Подходит срок плановой замены', not_required: 'Не требуется выбранному маршруту' };
+    const summaries = { missing_secret: 'В сохранённой проверке значение пустое, не сохранено или не прочитано приложением.', source_removed: 'Источник не найден в рабочей конфигурации.', expired: 'Сохранённый срок действия уже истёк.', expires_soon: 'Близка сохранённая дата окончания срока действия.', rotation_overdue: 'Наступила сохранённая дата плановой замены.', rotation_due_soon: 'Приближается сохранённая дата плановой замены.', not_required: 'Локальные поля не используются выбранным маршрутом или прокси не требует такой авторизации.' };
+    let impact = 'Возможны ограничения доступа к указанному подключению. Запись о сроке или плановой замене сама по себе не подтверждает отказ подключения.';
+    let action = 'Проверьте указанную настройку и её владельца. Не публикуйте значение учётных данных.';
+    if (['expired', 'expires_soon', 'rotation_overdue', 'rotation_due_soon'].includes(status)) action = 'Согласуйте замену с владельцем указанного подключения, сохраните новые учётные данные и обновите дату в реестре.';
+    if (kind === 'proxy_password' || kind === 'proxy_token') {
+      if (status === 'missing_secret' || status === 'not_required') {
+        impact = 'Пустое поле локального прокси не доказывает сбой канала. При выборе профиля, наследования, VPN или прямого подключения оно не используется. Прокси без авторизации не требует пароля.';
+        action = 'Сначала проверьте выбранный режим сетевого маршрута. Если используется профиль — проверяйте его, а не локальные поля. Пароль нужен только для прокси с именем пользователя; токен — для VLESS. Не заполняйте неиспользуемые поля ради устранения предупреждения.';
+      }
+    }
+    return { title: (titles[status] || 'Проверить настройку') + ': ' + subject, summary: subject + '. ' + (summaries[status] || text(data.reason) || 'Точное состояние не сохранено.'), impact, action, facts: [{ label: 'Учётные данные', value: label }, ...(resource ? [{ label: 'Подключение', value: resource }] : []), { label: 'Где проверить', value: location }] };
+  }
   function describe(input) {
     const incident = object(input), type = text(incident.signal_type).toLowerCase(), key = text(incident.signal_key);
     const original = text(incident.summary) || text(incident.description).split(/\r?\n/)[0] || text(incident.title);
@@ -107,9 +145,7 @@
       }
     } else if (type === 'credential_rotation') {
       const data = { ...latest(incident, ['incident_reason', 'last_status']), ...object(incident.signal_context) };
-      const explanation = credentials[text(data.last_status).toLowerCase()];
-      Object.assign(result, { known: true, title: explanation?.[0] || 'Нужно проверить ключ доступа интеграции', summary: explanation?.[1] || text(data.reason) || text(data.incident_reason) || original || 'Контроль ключей доступа сообщил о проблеме; точное состояние не сохранено.', impact: 'Интеграция может потерять доступ после истечения или отзыва ключа. Плановая дата замены сама по себе не доказывает отказ интеграции.', action: explanation?.[2] || text(data.next_action) || text(data.incident_next_action) || 'Откройте аналитику ключей доступа и проверьте срок действия, источник настройки и владельца.' });
-      if (text(data.display_name)) result.facts.push({ label: 'Настройка', value: text(data.display_name) });
+      Object.assign(result, { known: true, ...credentialDescription(data) });
     } else if (type === 'provider_delivery') {
       const payload = latest(incident, ['channel_name', 'short_window_attempts']);
       const limited = /rate.limit|throttl/i.test(key);

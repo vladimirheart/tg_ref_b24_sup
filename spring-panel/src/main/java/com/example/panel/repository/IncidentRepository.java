@@ -6,8 +6,21 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
 
 public interface IncidentRepository extends JpaRepository<Incident, Long> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select i from Incident i where i.id = :id")
+    Optional<Incident> findByIdForUpdate(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select i from Incident i where i.signalType = :type and i.signalKey = :key "
+        + "and i.status not in ('resolved', 'closed') order by i.updatedAt desc, i.id desc")
+    List<Incident> findActiveSignalForUpdate(@Param("type") String type, @Param("key") String key);
 
     Optional<Incident> findByIncidentKey(String incidentKey);
 

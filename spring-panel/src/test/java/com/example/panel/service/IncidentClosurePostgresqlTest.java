@@ -34,6 +34,7 @@ class IncidentClosurePostgresqlTest {
             value.setStatus(jdbc.queryForObject("SELECT status FROM closure_incidents WHERE id=731", String.class));
             return Optional.of(value);
         });
+        when(incidents.findByIdForUpdate(731L)).thenAnswer(call -> incidents.findById(731L));
         when(incidents.save(any(Incident.class))).thenAnswer(call -> {
             Incident value = call.getArgument(0);
             jdbc.update("UPDATE closure_incidents SET status=? WHERE id=?", value.getStatus(), value.getId()); return value;
