@@ -36,6 +36,18 @@
     'operator-notification-watch.feedbacks': ['Уведомления об оценках обновляются с задержкой', 'Операторы могут с задержкой видеть уведомления о новых оценках клиентов.'],
     'ui-event-outbox-watch': ['Изменения не доходят до интерфейса вовремя', 'Изменения в панели могут появляться с задержкой или только после обновления страницы.']
   };
+  const workerInfo = {
+    'operator-notification-watch.chat-history': { name: 'Уведомления операторам о новых сообщениях', component: 'OperatorNotificationWatcher', purpose: 'Читает новые записи переписки и формирует уведомления операторам.', source: 'chat_history' },
+    'operator-notification-watch.feedbacks': { name: 'Уведомления операторам об оценках клиентов', component: 'Сохранённая позиция наблюдателя оценок', purpose: 'Это сохранённая позиция чтения оценок клиентов, а не задача доставки сообщений клиенту.', source: 'feedbacks' },
+    'ui-event-outbox-watch': { name: 'Обновление данных на открытых страницах панели', component: 'UiEventOutboxWatcher', purpose: 'Читает события об обращениях, сообщениях и оценках и передаёт изменения в открытый интерфейс панели.', source: 'ui_event_outbox' }
+  };
+  function duration(minutes) {
+    const value = number(minutes);
+    if (value === null) return '';
+    if (value < 60) return display(value) + ' мин';
+    const days = Math.floor(value / 1440), hours = Math.floor(value % 1440 / 60), rest = Math.floor(value % 60);
+    return [days ? days + ' д' : '', hours ? hours + ' ч' : '', rest ? rest + ' мин' : ''].filter(Boolean).join(' ') + ' (' + display(value) + ' мин)';
+  }
   // Формулировки соответствуют условиям observability/prometheus/rules/iguana-alerts.yml.
   // Недоступность метрик не доказывает остановку самого сервиса.
   const alerts = {
@@ -111,10 +123,21 @@
     if (type === 'integration_transport') {
       const payload = latest(incident, ['worker_key', 'stale_checkpoint_count', 'inbound_failed', 'latest_summary']);
       if (key.startsWith('panel-runtime-checkpoints/')) {
-        const worker = workers[key.slice('panel-runtime-checkpoints/'.length)] || ['Фоновая обработка выполняется с задержкой', 'Связанные с обработчиком изменения могут поступать в панель позже обычного.'];
-        const stale = /checkpoint stale|checkpoint.*TTL/i.test(original) || number(payload.age_minutes) !== null && number(payload.stale_threshold_minutes) !== null && Number(payload.age_minutes) > Number(payload.stale_threshold_minutes);
-        Object.assign(result, { known: true, title: worker[0], summary: stale ? 'Фоновый обработчик давно не подтверждал свою работу. Мониторинг не видит свежей отметки выполнения.' : 'Обработчик не успевает за новыми записями или несколько проверок подряд показывает задержку.', impact: worker[1], action: 'Проверьте журнал и последнюю отметку работы обработчика в мониторинге транспорта. Доставка сообщений и работа ботов проверяются отдельно.' });
-        fact('С последней отметки работы', payload.age_minutes, ' мин'); fact('Допустимый перерыв', payload.stale_threshold_minutes, ' мин'); fact('Проверок с проблемой подряд', payload.unhealthy_streak);
+        const workerKey = key.slice('panel-runtime-checkpoints/'.length), details = workerInfo[workerKey];
+        const data = text(payload.worker_key) && text(payload.worker_key) !== workerKey ? {} : payload;
+        const worker = workers[workerKey] || ['Проверка служебной задачи', 'Влияние этой задачи нужно уточнить по её назначению.'];
+        const taskName = details?.name || workerKey || 'Неизвестная задача';
+        const lag = number(data.cursor_lag), age = number(data.age_minutes);
+        Object.assign(result, { known: true,
+          title: 'Проверка задачи: ' + taskName,
+          summary: taskName + '. ' + (details?.purpose || 'Назначение неизвестной задачи не сохранено.') + ' ' + (age === null ? 'Возраст сохранённой позиции не указан.' : 'Позиция чтения данных не менялась ' + duration(age) + '.') + ' ' + (lag === 0 ? 'По сохранённой проверке после неё более новых записей нет.' : lag > 0 ? 'В источнике есть более новые записи, до которых эта задача ещё не дошла.' : 'Неизвестно, появились ли более новые записи.'),
+          impact: lag === 0 ? 'Отставание по данным в сохранённой проверке отсутствует. Долгий возраст позиции не означает, что интерфейс всё это время не работал: эта отметка меняется при продвижении по данным, а не при каждом запуске задачи.' : lag > 0 ? worker[1] + ' Разница номеров записей не показывает точное число пропущенных уведомлений.' : 'По одной старой позиции нельзя подтвердить остановку или задержку. ' + worker[1],
+          action: 'Смотрите ниже данные именно этой задачи и дату её последнего продвижения. ' + (details?.component ? 'Компонент: ' + details.component + '. ' : '') + 'Если новые данные есть, проверьте журнал этой задачи в ops-worker. Не сбрасывайте позицию и не повторяйте сообщения без проверки.' });
+        if (age !== null) result.facts.push({ label: 'Позиция не менялась', value: duration(age) });
+        fact('Порог возраста позиции', data.stale_threshold_minutes, ' мин'); fact('Проверок с проблемой подряд', data.unhealthy_streak);
+        result.facts.push({ label: 'Задача', value: taskName }, { label: 'Служебное имя', value: workerKey });
+        if (details) result.facts.push({ label: 'Источник данных', value: details.source }, { label: 'Компонент', value: details.component });
+        if (number(data.unhealthy_streak) > 0) result.meaning = [`В ${display(Number(data.unhealthy_streak))} проверках подряд повторяется условие мониторинга. Это не число новых ошибок и не число неудачных запусков задачи.`];
       } else if (key === 'panel-runtime-checkpoints') {
         Object.assign(result, { known: true, title: 'Фоновые обработчики давно не подтверждали работу', summary: 'Один или несколько обработчиков панели не обновили отметку выполнения в ожидаемый срок.', impact: 'Уведомления и изменения в интерфейсе могут поступать с задержкой. Это не доказывает остановку ботов.', action: 'Откройте мониторинг транспорта и проверьте, у каких обработчиков устарела последняя отметка работы.' });
         fact('Обработчиков без свежей отметки', payload.stale_checkpoint_count); fact('Обработчиков с отставанием', payload.lagging_checkpoint_count);
@@ -165,13 +188,13 @@
     result.listSummary = result.known ? result.summary.split(/(?<=[.!?])\s+/)[0] : result.summary;
     return result;
   }
-  function transportDetails(raw) {
+  function transportDetails(raw, options = {}) {
     const overview = object(raw), inbound = object(overview.inbound), outbound = object(overview.outbound);
     const list = value => Array.isArray(value) ? value.map(object) : [];
     const kinds = { 'client_message.active_ticket': 'Сообщение клиента в существующее обращение', 'client_message.selected_media_batch.v1': 'Вложения к сообщению клиента', 'conversation_ticket.created': 'Создание обращения' };
     function failure(item) {
       const error = text(item.last_error);
-      if (/bad SQL grammar/i.test(error) && /INSERT INTO\s+chat_attachment_metadata/i.test(error)) return 'При обработке сообщения не удалось записать в базу сведения о вложении. Из этой ошибки не следует, что сам файл потерян.';
+      if (/bad SQL grammar/i.test(error) && /INSERT INTO\s+chat_attachment_metadata/i.test(error)) return 'При обработке сообщения не удалось записать в базу сведения о вложении: ошибка SQL при записи в chat_attachment_metadata. Из этой ошибки не следует, что сам файл потерян.';
       if (/Inbound event ticket not found:/i.test(error)) return 'Не найдено обращение, к которому относится сообщение.';
       if (/Inbound event channel not found:/i.test(error)) return 'Не найдено подключение, от которого пришли данные.';
       if (/does not match ticket channel/i.test(error)) return 'Подключение входящего сообщения не совпало с подключением обращения.';
@@ -185,10 +208,10 @@
         updatedAt: text(item.updated_at)
       }));
     }
-    const tasks = list(overview.runtime_checkpoints).filter(item => item.stale === true || item.lagging === true || ['stale', 'lagging'].includes(item.health_status)).map(item => {
+    const tasks = list(overview.runtime_checkpoints).filter(item => text(options.workerKey) ? text(item.worker_key) === text(options.workerKey) : item.stale === true || item.lagging === true || ['stale', 'lagging'].includes(item.health_status)).map(item => {
       const label = { 'operator-notification-watch.chat-history': 'Уведомления операторам о новых сообщениях', 'operator-notification-watch.feedbacks': 'Уведомления операторам об оценках клиентов', 'ui-event-outbox-watch': 'Обновление данных на открытых страницах панели' }[text(item.worker_key)] || 'Служебная задача панели';
       const lag = number(item.cursor_lag), lagging = item.lagging === true || item.health_status === 'lagging';
-      return { title: label, explanation: lagging ? 'Есть новые данные, до которых эта задача ещё не дошла.' : lag === 0 ? 'После последней обработанной записи более новых нет. Давно не менялась только служебная запись о ходе работы; задержка данных этим не подтверждается.' : 'Давно не менялась служебная запись о ходе работы. Данных недостаточно, чтобы сказать, остались ли необработанные записи.', updatedAt: text(item.updated_at), ageMinutes: number(item.age_minutes), limitMinutes: number(item.stale_threshold_minutes) };
+      return { workerKey: text(item.worker_key), component: workerInfo[text(item.worker_key)]?.component || '', title: label, explanation: lagging ? 'Есть новые данные, до которых эта задача ещё не дошла.' : lag === 0 ? 'После последней обработанной записи более новых нет. Давно не менялась только служебная запись о ходе работы; задержка данных этим не подтверждается.' : 'Давно не менялась служебная запись о ходе работы. Данных недостаточно, чтобы сказать, остались ли необработанные записи.', updatedAt: text(item.updated_at), ageMinutes: number(item.age_minutes), limitMinutes: number(item.stale_threshold_minutes) };
     });
     return { inboundFailed: number(inbound.failed), outboundFailed: number(outbound.failed), inbound: entries(overview.recent_failed_inbound), outbound: entries(overview.recent_failed_outbound), tasks };
   }

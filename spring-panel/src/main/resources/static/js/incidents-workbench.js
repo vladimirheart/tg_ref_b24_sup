@@ -1487,15 +1487,19 @@ function restoreIncidentDetailFocus(
   function renderIncidentExplanation(incident) {
     const info = window.IncidentDescriptions?.describe(incident);
     if (!info) return '';
+    const compactCounters = transportNodes.pane && incident.signal_type === 'integration_transport'
+      && ['panel-rabbitmq-bridge', 'panel-transport-sustained-pressure', 'panel-runtime-checkpoints'].includes(incident.signal_key) && !info.historical;
     return `<section class="card mb-3 incident-explanation" aria-label="Понятное описание проблемы">
       <div class="card-header"><strong>${escapeHtml(info.title)}</strong></div>
       <div class="card-body">
         <p class="small text-muted">${info.historical ? 'Инцидент закрыт или решён. Ниже описана зафиксированная проблема, а не текущее состояние системы.' : incident.signal_type ? 'Результат сохранённой проверки.' : 'Описание, сохранённое автором инцидента.'}</p>
+        ${compactCounters ? '<details class="incident-saved-counters"><summary>Сохранённые счётчики и условия срабатывания</summary>' : ''}
         <p class="incident-explanation-summary">${escapeHtml(info.summary)}</p>
         ${info.meaning?.length ? `<ul class="ps-3">${info.meaning.map(item => `<li class="mb-2">${escapeHtml(item)}</li>`).join('')}</ul>` : ''}
         ${info.impact ? `<div class="mb-3"><strong class="d-block mb-1">На что влияет</strong><p class="mb-0">${escapeHtml(info.impact)}</p></div>` : ''}
         ${info.action ? `<div class="mb-3"><strong class="d-block mb-1">Что проверить</strong><p class="mb-0">${escapeHtml(info.action)}</p></div>` : ''}
-        ${info.facts.length ? `<dl class="row mb-0">${info.facts.map(fact => `<dt class="col-sm-7 fw-normal text-muted">${escapeHtml(fact.label)}</dt><dd class="col-sm-5">${escapeHtml(fact.value)}</dd>`).join('')}</dl>` : ''}
+        ${info.facts.length ? `<dl class="row mb-0">${info.facts.map(fact => `<dt class="col-sm-7 fw-normal text-muted">${escapeHtml(fact.label)}</dt><dd class="col-sm-5 text-break">${escapeHtml(fact.value)}</dd>`).join('')}</dl>` : ''}
+        ${compactCounters ? '</details>' : ''}
         <details class="mt-3 incident-original-diagnostics"><summary>Технические подробности — исходный текст</summary>
           <dl class="mt-2 mb-0"><dt>Название источника</dt><dd class="text-break">${escapeHtml(incident.title || '—')}</dd>
           <dt>Исходная причина</dt><dd class="text-break">${escapeHtml(incident.summary || '—')}</dd>
@@ -1508,11 +1512,14 @@ function restoreIncidentDetailFocus(
   function renderCurrentIncidentProblems() {
     const node = document.getElementById('incidentCurrentProblems');
     if (!node || !transportNodes.pane || state.selectedIncident?.signal_type !== 'integration_transport') return;
-    if (!['panel-rabbitmq-bridge', 'panel-transport-sustained-pressure'].includes(state.selectedIncident.signal_key)) return;
+    const signalKey = String(state.selectedIncident.signal_key || '');
+    const workerKey = signalKey.startsWith('panel-runtime-checkpoints/') ? signalKey.slice('panel-runtime-checkpoints/'.length) : '';
+    if (!workerKey && !['panel-rabbitmq-bridge', 'panel-transport-sustained-pressure', 'panel-runtime-checkpoints'].includes(signalKey)) return;
+    const tasksOnly = !!workerKey || signalKey === 'panel-runtime-checkpoints';
     if (['closed', 'resolved'].includes(state.selectedIncident.status)) { node.replaceChildren(); return; }
-    const data = window.IncidentDescriptions?.transportDetails?.(state.transportOverview);
+    const data = window.IncidentDescriptions?.transportDetails?.(state.transportOverview, { workerKey });
     if (!state.transportOverview || !data) { node.innerHTML = '<p class="small text-muted">Подробности текущих ошибок пока не загружены. Сохранённые результаты проверки показаны выше.</p>'; return; }
-    const button = (target, label) => `<button type="button" class="btn btn-sm btn-outline-secondary mt-2" data-incident-diagnostics-target="${target}">${label}</button>`;
+    const button = (target, label) => `<button type="button" class="btn btn-sm btn-outline-secondary mt-2" data-incident-diagnostics-target="${target}" ${workerKey ? `data-incident-worker-key="${escapeHtml(workerKey)}"` : ''}>${label}</button>`;
     const group = (items, total, heading, target) => {
       if (!items.length && !(total > 0)) return '';
       const groups = new Map();
@@ -1523,12 +1530,12 @@ function restoreIncidentDetailFocus(
           <ul class="small mb-0 ps-3">${entries.map(item => `<li class="text-break">${item.ticket ? `Обращение: ${escapeHtml(item.ticket)}. ` : ''}Запись: ${escapeHtml(item.id || 'без номера')}. Последнее изменение записи: ${escapeHtml(formatDate(item.updatedAt))}.</li>`).join('')}</ul></div>`).join('')}
         ${!items.length ? '<p>Подробные записи не попали в выборку. По одному счётчику нельзя установить причину.</p>' : ''}${button(target, 'Открыть записи и технические ошибки')}</section>`;
     };
-    node.innerHTML = `<section class="card mb-3"><div class="card-header"><strong>Какие операции требуют разбора</strong></div><div class="card-body">
+    node.innerHTML = `<section class="card mb-3"><div class="card-header"><strong>${workerKey ? 'Данные конкретной задачи' : 'Какие операции требуют разбора'}</strong></div><div class="card-body">
       <p class="small text-muted">${state.transportOverviewFailed ? 'Обновить данные не удалось; ниже — последняя успешная загрузка. ' : ''}Данные загружены: ${escapeHtml(formatDate(state.transportOverviewLoadedAt))}. Это отдельная текущая выборка, а не состав сохранённой проверки выше. Старые записи с ошибкой не означают новые сбои сегодня.</p>
-      ${group(data.inbound, data.inboundFailed, 'Приём данных от ботов и подключений', 'inbound')}
-      ${group(data.outbound, data.outboundFailed, 'Отправка данных из панели', 'outbound')}
-      ${data.tasks.length ? `<section><h4 class="fs-6">Уведомления и обновление экрана</h4>${data.tasks.map(task => `<div class="border rounded p-3 mb-2"><strong>${escapeHtml(task.title)}</strong><p class="my-2">${escapeHtml(task.explanation)}</p><div class="small text-muted">Запись о ходе работы менялась: ${escapeHtml(formatDate(task.updatedAt))}${task.limitMinutes == null ? '' : `. Контрольный срок: ${escapeHtml(task.limitMinutes)} мин`}.</div></div>`).join('')}${button('tasks', 'Открыть диагностику этих задач')}</section>` : ''}
-      ${!data.inbound.length && !data.outbound.length && !data.tasks.length && !(data.inboundFailed > 0) && !(data.outboundFailed > 0) ? '<p>В этой выборке нет подробных проблемных записей. Это не отменяет сохранённую проверку и не подтверждает исправность остальных компонентов.</p>' : ''}
+      ${tasksOnly ? '' : group(data.inbound, data.inboundFailed, 'Приём данных от ботов и подключений', 'inbound')}
+      ${tasksOnly ? '' : group(data.outbound, data.outboundFailed, 'Отправка данных из панели', 'outbound')}
+      ${data.tasks.length ? `<section><h4 class="fs-6">Уведомления и обновление экрана</h4>${data.tasks.map(task => `<div class="border rounded p-3 mb-2"><strong>${escapeHtml(task.title)}</strong><div class="small text-muted text-break">${escapeHtml(task.component)} · ${escapeHtml(task.workerKey)}</div><p class="my-2">${escapeHtml(task.explanation)}</p><div class="small text-muted">Последнее продвижение по данным: ${escapeHtml(formatDate(task.updatedAt))}${task.limitMinutes == null ? '' : `. Порог возраста позиции: ${escapeHtml(task.limitMinutes)} мин`}.</div></div>`).join('')}${button('tasks', workerKey ? 'Открыть диагностику этой задачи' : 'Открыть диагностику этих задач')}</section>` : ''}
+      ${workerKey && !data.tasks.length ? `<p>В текущей выборке нет задачи <span class="text-break">${escapeHtml(workerKey)}</span>. Её состояние сейчас неизвестно; другие задачи не подставляются вместо неё.</p>` : !data.tasks.length && (tasksOnly || !data.inbound.length && !data.outbound.length && !(data.inboundFailed > 0) && !(data.outboundFailed > 0)) ? '<p>В этой выборке нет подробных проблемных записей. Это не отменяет сохранённую проверку и не подтверждает исправность остальных компонентов.</p>' : ''}
     </div></section>`;
   }
 
@@ -1570,8 +1577,8 @@ function restoreIncidentDetailFocus(
         </div>
         <div class="incident-kpi-card"><div class="incident-kpi-label">Ошибки доставки</div><div class="incident-kpi-value">${escapeHtml(incident.failed_route_count || 0)}</div></div>
       </div>
-      ${renderIncidentExplanation(incident)}
       <div id="incidentCurrentProblems"></div>
+      ${renderIncidentExplanation(incident)}
       ${renderCredentialRotationSignalContext(incident)}
       <div class="incident-detail-columns">
         <div class="d-grid gap-3">
@@ -2554,10 +2561,13 @@ detailNode.addEventListener(
     if (!button) return;
     const targets = { inbound: transportNodes.inboundList, outbound: transportNodes.outboundList, tasks: transportNodes.checkpointList };
     const key = button.getAttribute('data-incident-diagnostics-target');
-    const target = Object.hasOwn(targets, key) ? targets[key] : null;
+    const listTarget = Object.hasOwn(targets, key) ? targets[key] : null;
+    const workerKey = button.getAttribute('data-incident-worker-key');
+    const workerInput = workerKey ? listTarget?.querySelector(`[data-transport-checkpoint-input="${CSS.escape(workerKey)}"]`) : null;
+    const target = workerKey ? workerInput : listTarget;
     const tab = document.getElementById('incidentWorkbenchTransportTab');
     if (!target || !tab || !window.bootstrap?.Tab) return;
-    const focus = () => { target.setAttribute('tabindex', '-1'); target.scrollIntoView({ block: 'start' }); target.focus({ preventScroll: true }); };
+    const focus = () => { if (!(target instanceof HTMLInputElement)) target.setAttribute('tabindex', '-1'); target.scrollIntoView({ block: 'start' }); target.focus({ preventScroll: true }); };
     if (tab.classList.contains('active')) focus();
     else { tab.addEventListener('shown.bs.tab', focus, { once: true }); bootstrap.Tab.getOrCreateInstance(tab).show(); }
   });

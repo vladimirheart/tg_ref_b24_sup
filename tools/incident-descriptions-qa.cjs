@@ -45,7 +45,7 @@ async function main() {
         assert((await page.locator(`.incident-list-row[data-incident-id="${incident.id}"]`).textContent()).includes(await description.locator('.card-header').textContent()));
         assert.equal(await page.locator('#incidentDetailTitle').inputValue(), incident.title);
         assert.equal(await page.locator('#incidentDetailSummary').inputValue(), incident.summary);
-        const technical = description.locator('details'); assert(!await technical.evaluate(el => el.open));
+        const technical = description.locator('.incident-original-diagnostics'); assert(!await technical.evaluate(el => el.open));
         await technical.locator('summary').click(); assert((await technical.textContent()).includes(incident.summary));
         assert.equal(await technical.locator('img, script').count(), 0, 'Diagnostic strings are text, never HTML');
         await technical.locator('summary').click();
