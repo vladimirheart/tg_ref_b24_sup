@@ -158,6 +158,13 @@ class IntegrationTransportOpsServiceTest {
 
         assertThat(((Map<?, ?>) payload.get("inbound")).get("failed")).isEqualTo(1L);
         assertThat(((Map<?, ?>) payload.get("outbound")).get("failed")).isEqualTo(1L);
+        assertThat(service.buildHealthSnapshot().forIncidents().inboundFailed()).isZero();
+        assertThat(service.buildHealthSnapshot().forIncidents().outboundFailed()).isZero();
+        assertThat(service.buildIncidentTrendSummary(java.time.Duration.ofHours(6)).get("sustained_pressure")).isEqualTo(false);
+        assertThat((List<?>) service.buildOverview().get("recent_failed_inbound")).hasSize(1);
+        assertThat((List<?>) service.buildOverview().get("recent_failed_outbound")).hasSize(1);
+        assertThat(jdbcTemplate.queryForObject("SELECT last_error FROM integration_inbound_event_inbox WHERE event_id='in-1'", String.class)).isEqualTo("boom");
+        assertThat(jdbcTemplate.queryForObject("SELECT last_error FROM integration_transport_outbox WHERE event_id='out-1'", String.class)).isEqualTo("boom");
     }
 
     @Test
@@ -399,6 +406,34 @@ class IntegrationTransportOpsServiceTest {
         assertThat(summary.get("peak_outbound_backlog")).isEqualTo(140L);
         assertThat(summary.get("peak_stale_checkpoints")).isEqualTo(1L);
         assertThat(summary.get("peak_recent_manual_operations")).isEqualTo(4L);
+    }
+
+    @Test
+    void incidentTrendIgnoresFailedRecordsAndLegacyCriticalSeverityWithoutChangingDiagnosticHistory() {
+        for (int index = 0; index < 4; index++) {
+            service.recordHealthSnapshot(new IntegrationTransportOpsService.TransportHealthSnapshot(4, 0, 3, 0, 0, 0, 0, 0));
+        }
+        // Old incident rules could classify error-only snapshots as critical.
+        jdbcTemplate.update("UPDATE integration_transport_health_snapshots SET severity='critical', summary_text='legacy failed record pressure'");
+        Map<String, Object> diagnostic = service.buildTrendSummary(java.time.Duration.ofHours(6));
+        Map<String, Object> incident = service.buildIncidentTrendSummary(java.time.Duration.ofHours(6));
+        assertThat(diagnostic.get("sustained_pressure")).isEqualTo(true);
+        assertThat(incident.get("sustained_pressure")).isEqualTo(false);
+        assertThat(incident.get("unhealthy_streak")).isEqualTo(0L);
+        assertThat(incident.get("critical_streak")).isEqualTo(0L);
+        assertThat(incident.get("latest_severity")).isEqualTo("ok");
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM integration_transport_health_snapshots WHERE severity='critical' AND inbound_failed=4 AND outbound_failed=3", Long.class)).isEqualTo(4L);
+    }
+
+    @Test
+    void incidentTrendStillEscalatesSystemicQueuePressureAndBreaksStreakAtErrorOnlySnapshot() {
+        for (int index = 0; index < 3; index++) {
+            service.recordHealthSnapshot(new IntegrationTransportOpsService.TransportHealthSnapshot(4, 0, 2, 250, 0, 0, 0, 0));
+        }
+        assertThat(service.buildIncidentTrendSummary(java.time.Duration.ofHours(6)).get("sustained_pressure")).isEqualTo(true);
+        service.recordHealthSnapshot(new IntegrationTransportOpsService.TransportHealthSnapshot(4, 0, 2, 0, 0, 0, 0, 0));
+        assertThat(service.buildIncidentTrendSummary(java.time.Duration.ofHours(6)).get("sustained_pressure")).isEqualTo(false);
+        assertThat(service.buildIncidentTrendSummary(java.time.Duration.ofHours(6)).get("unhealthy_streak")).isEqualTo(0L);
     }
 
     @Test

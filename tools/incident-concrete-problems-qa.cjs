@@ -44,23 +44,28 @@ async function main() {
       await page.locator('#incidentDetailTitle').waitFor(); await page.locator('#incidentDetailTitle').fill('Несохранённый черновик');
       release();
       if (mode === 'active') {
-        await page.waitForFunction(() => document.getElementById('incidentCurrentProblems')?.textContent.includes('сведения о вложении'));
+        await page.waitForFunction(() => document.getElementById('incidentCurrentProblems')?.textContent.includes('Уведомления и обновление экрана'));
         const current = page.locator('#incidentCurrentProblems'), text = await current.textContent();
-        assert(text.includes('Сообщение клиента в существующее обращение — 4')); assert(text.includes('24.08.2026'));
-        assert(text.includes('Старые записи с ошибкой не означают новые сбои сегодня'));
+        assert(!text.includes('Сообщение клиента в существующее обращение')); assert(!text.includes('24.08.2026'));
+        assert(!text.includes('chat_attachment_metadata')); assert(!text.includes('fixture-event'));
         assert(text.includes('Уведомления операторам о новых сообщениях')); assert(text.includes('об оценках клиентов')); assert(text.includes('Обновление данных на открытых страницах'));
         assert.equal((text.match(/более новых нет/g) || []).length, 2);
-        assert(text.includes(' T/№9007199254740993123 '));
+        assert(!text.includes(' T/№9007199254740993123 '));
         assert.equal(await current.locator('img, script').count(), 0); assert.equal(await page.evaluate(() => window.r14Injection), undefined);
         assert.equal(await page.locator('#incidentDetailTitle').inputValue(), 'Несохранённый черновик', 'Async overview never resets editable fields');
         assert((await page.locator('.incident-explanation').textContent()).includes('10 проверках подряд'));
+        await current.locator('[data-incident-diagnostics-target="inbound"]').click();
+        await page.locator('#incidentWorkbenchTransportPane').waitFor({ state: 'visible' });
+        const diagnostic = await page.locator('#transportWorkbenchInboundList').textContent();
+        assert(diagnostic.includes('chat_attachment_metadata')); assert(diagnostic.includes(' T/№9007199254740993123 '));
+        await page.locator('#incidentWorkbenchIncidentsTab').click(); await current.waitFor({ state: 'visible' });
         await current.locator('[data-incident-diagnostics-target="tasks"]').click();
         await page.locator('#incidentWorkbenchTransportPane').waitFor({ state: 'visible' });
         assert.equal(await page.evaluate(() => document.activeElement.id), 'transportWorkbenchCheckpointList');
         failRefresh = true; await page.locator('#transportWorkbenchRefresh').click();
         await page.waitForFunction(() => document.getElementById('incidentCurrentProblems').textContent.includes('Обновить данные не удалось'));
         await page.locator('#incidentWorkbenchIncidentsTab').click(); await current.waitFor({ state: 'visible' });
-        assert((await current.textContent()).includes('сведения о вложении'), 'Failed refresh retains explicitly dated previous data');
+        assert((await current.textContent()).includes('Уведомления операторам'), 'Failed refresh retains explicitly dated system diagnostics');
         assert.equal(await page.locator('#incidentDetailTitle').inputValue(), 'Несохранённый черновик');
         await current.scrollIntoViewIfNeeded(); await page.screenshot({ path: path.join(output, `current-${theme}-${width}.png`) });
       } else {

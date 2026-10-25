@@ -42,8 +42,8 @@ public class IntegrationTransportIncidentMonitor {
     public void monitor() {
         if (monitoringPolicy != null && monitoringPolicy.isSuppressed(SIGNAL_TYPE)) return;
         runtimeCoordinationService.runWithLease("integration-transport-incident-monitor", Duration.ofMinutes(4), () -> {
-            IntegrationTransportOpsService.TransportHealthSnapshot snapshot = transportOpsService.buildHealthSnapshot();
-            Map<String, Object> trendSummary = transportOpsService.buildTrendSummary(SUSTAINED_PRESSURE_WINDOW);
+            IntegrationTransportOpsService.TransportHealthSnapshot snapshot = transportOpsService.buildHealthSnapshot().forIncidents();
+            Map<String, Object> trendSummary = transportOpsService.buildIncidentTrendSummary(SUSTAINED_PRESSURE_WINDOW);
             if (snapshot.unhealthy()) {
                 incidentService.openOrRefreshSignalIncident(
                     SIGNAL_TYPE,
@@ -51,15 +51,14 @@ public class IntegrationTransportIncidentMonitor {
                     "Integration transport degradation",
                     snapshot.summary(),
                     """
-                    Backend transport contour has accumulated failed or stale integration events.
-                    Use analytics transport monitoring for replay/requeue and inspect queue/backlog behavior.
+                    Проверка обнаружила системные условия деградации: зависшую обработку,
+                    накопление очереди или состояние фоновых задач. Ошибки отдельных
+                    записей не являются основанием инцидента и доступны в диагностике.
                     """.trim(),
                     snapshot.severity(),
                     "integration_transport_monitor",
                     Map.of(
-                        "inbound_failed", snapshot.inboundFailed(),
                         "inbound_stale_processing", snapshot.inboundStaleProcessing(),
-                        "outbound_failed", snapshot.outboundFailed(),
                         "outbound_backlog", snapshot.outboundBacklog(),
                         "outbound_stale_processing", snapshot.outboundStaleProcessing()
                     ),
@@ -69,8 +68,8 @@ public class IntegrationTransportIncidentMonitor {
                 incidentService.resolveSignalIncident(
                     SIGNAL_TYPE,
                     SIGNAL_KEY,
-                    "Transport contour recovered",
-                    Map.of("status", "healthy"),
+                    "Системные условия транспортного инцидента больше не выполняются. Ошибки отдельных записей остаются в диагностике; это не подтверждение их исправления.",
+                    Map.of("status", "below_incident_threshold", "failed_records_handling", "diagnostics_only"),
                     "system"
                 );
             }
@@ -166,8 +165,9 @@ public class IntegrationTransportIncidentMonitor {
                     "Sustained transport pressure",
                     "Transport contour остаётся unhealthy несколько последовательных snapshot-циклов подряд.",
                     """
-                    Snapshot history показывает не разовый сбой, а sustained pressure на transport contour.
-                    Проверьте backlog trend, stale checkpoints, repeated manual recovery operations и worker ownership/leases.
+                    История системных счётчиков показывает устойчивую деградацию транспорта.
+                    Ошибки отдельных записей не участвуют в этой оценке. Проверьте очередь,
+                    зависшую обработку и состояние фоновых задач.
                     """.trim(),
                     "critical",
                     "integration_transport_monitor",
@@ -191,8 +191,8 @@ public class IntegrationTransportIncidentMonitor {
                 incidentService.resolveSignalIncident(
                     SIGNAL_TYPE,
                     SUSTAINED_PRESSURE_SIGNAL_KEY,
-                    "Sustained transport pressure cleared",
-                    Map.of("status", "healthy"),
+                    "Устойчивая системная деградация больше не подтверждается условиями инцидента. Ошибки отдельных записей остаются в диагностике.",
+                    Map.of("status", "below_incident_threshold", "failed_records_handling", "diagnostics_only"),
                     "system"
                 );
             }

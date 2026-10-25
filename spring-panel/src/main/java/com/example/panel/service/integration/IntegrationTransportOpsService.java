@@ -231,8 +231,20 @@ public class IntegrationTransportOpsService {
     }
 
     public Map<String, Object> buildTrendSummary(Duration window) {
+        return buildTrendSummary(window, false);
+    }
+
+    /** Failed records remain diagnostic evidence, never an incident trigger. */
+    public Map<String, Object> buildIncidentTrendSummary(Duration window) {
+        return buildTrendSummary(window, true);
+    }
+
+    private Map<String, Object> buildTrendSummary(Duration window, boolean incidentsOnly) {
         Duration safeWindow = window == null || window.isZero() || window.isNegative() ? DEFAULT_TREND_WINDOW : window;
         List<TransportHealthSnapshotRow> snapshots = loadHealthSnapshotRows(safeWindow, 288);
+        if (incidentsOnly) {
+            snapshots = snapshots.stream().map(TransportHealthSnapshotRow::forIncidents).toList();
+        }
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("window_hours", safeWindow.toHours());
         summary.put("snapshot_count", snapshots.size());
@@ -1570,6 +1582,11 @@ public class IntegrationTransportOpsService {
                                           long laggingCheckpointCount,
                                           long recentManualOperations) {
 
+        public TransportHealthSnapshot forIncidents() {
+            return new TransportHealthSnapshot(0, inboundStaleProcessing, 0, outboundBacklog,
+                outboundStaleProcessing, staleCheckpointCount, laggingCheckpointCount, recentManualOperations);
+        }
+
         public boolean unhealthy() {
             return inboundFailed > 0
                 || inboundStaleProcessing > 0
@@ -1705,6 +1722,15 @@ public class IntegrationTransportOpsService {
                                               String severity,
                                               String summaryText,
                                               String createdAt) {
+        TransportHealthSnapshotRow forIncidents() {
+            TransportHealthSnapshot signal = new TransportHealthSnapshot(0, inboundStaleProcessing, 0,
+                outboundBacklog, outboundStaleProcessing, staleCheckpointCount, laggingCheckpointCount,
+                recentManualOperations);
+            return new TransportHealthSnapshotRow(id, 0, inboundStaleProcessing, 0, outboundBacklog,
+                outboundStaleProcessing, staleCheckpointCount, laggingCheckpointCount, recentManualOperations,
+                signal.severity(), signal.summary(), createdAt);
+        }
+
         boolean unhealthy() {
             return inboundFailed > 0
                 || inboundStaleProcessing > 0

@@ -1520,22 +1520,15 @@ function restoreIncidentDetailFocus(
     const data = window.IncidentDescriptions?.transportDetails?.(state.transportOverview, { workerKey });
     if (!state.transportOverview || !data) { node.innerHTML = '<p class="small text-muted">Подробности текущих ошибок пока не загружены. Сохранённые результаты проверки показаны выше.</p>'; return; }
     const button = (target, label) => `<button type="button" class="btn btn-sm btn-outline-secondary mt-2" data-incident-diagnostics-target="${target}" ${workerKey ? `data-incident-worker-key="${escapeHtml(workerKey)}"` : ''}>${label}</button>`;
-    const group = (items, total, heading, target) => {
-      if (!items.length && !(total > 0)) return '';
-      const groups = new Map();
-      for (const item of items) { const key = JSON.stringify([item.title, item.explanation]); if (!groups.has(key)) groups.set(key, []); groups.get(key).push(item); }
-      return `<section class="mb-3"><h4 class="fs-6">${heading}</h4>
-        <p class="small text-muted">В подробной выборке: ${items.length}${total == null ? '' : `; записей со статусом ошибки всего: ${escapeHtml(total)}`}. Выборка ограничена последними записями и может включать незавершённые операции.</p>
-        ${Array.from(groups.values()).map(entries => `<div class="border rounded p-3 mb-2"><strong>${escapeHtml(entries[0].title)} — ${entries.length}</strong><p class="my-2">${escapeHtml(entries[0].explanation)}</p>
-          <ul class="small mb-0 ps-3">${entries.map(item => `<li class="text-break">${item.ticket ? `Обращение: ${escapeHtml(item.ticket)}. ` : ''}Запись: ${escapeHtml(item.id || 'без номера')}. Последнее изменение записи: ${escapeHtml(formatDate(item.updatedAt))}.</li>`).join('')}</ul></div>`).join('')}
-        ${!items.length ? '<p>Подробные записи не попали в выборку. По одному счётчику нельзя установить причину.</p>' : ''}${button(target, 'Открыть записи и технические ошибки')}</section>`;
-    };
-    node.innerHTML = `<section class="card mb-3"><div class="card-header"><strong>${workerKey ? 'Данные конкретной задачи' : 'Какие операции требуют разбора'}</strong></div><div class="card-body">
-      <p class="small text-muted">${state.transportOverviewFailed ? 'Обновить данные не удалось; ниже — последняя успешная загрузка. ' : ''}Данные загружены: ${escapeHtml(formatDate(state.transportOverviewLoadedAt))}. Это отдельная текущая выборка, а не состав сохранённой проверки выше. Старые записи с ошибкой не означают новые сбои сегодня.</p>
-      ${tasksOnly ? '' : group(data.inbound, data.inboundFailed, 'Приём данных от ботов и подключений', 'inbound')}
-      ${tasksOnly ? '' : group(data.outbound, data.outboundFailed, 'Отправка данных из панели', 'outbound')}
+    const counters = [
+      ['Зависших операций приёма', data.inboundStale], ['Зависших операций отправки', data.outboundStale], ['Ожидают отправки', data.outboundBacklog]
+    ].filter(([, value]) => value > 0);
+    node.innerHTML = `<section class="card mb-3"><div class="card-header"><strong>${workerKey ? 'Данные конкретной задачи' : 'Состояние очереди и фоновых задач'}</strong></div><div class="card-body">
+      <p class="small text-muted">${state.transportOverviewFailed ? 'Обновить данные не удалось; ниже — последняя успешная загрузка. ' : ''}Данные загружены: ${escapeHtml(formatDate(state.transportOverviewLoadedAt))}. Это отдельная текущая выборка, а не состав сохранённой проверки выше.</p>
+      ${!tasksOnly && counters.length ? `<dl class="row">${counters.map(([label, value]) => `<dt class="col-sm-8">${label}</dt><dd class="col-sm-4">${escapeHtml(value)}</dd>`).join('')}</dl>` : ''}
       ${data.tasks.length ? `<section><h4 class="fs-6">Уведомления и обновление экрана</h4>${data.tasks.map(task => `<div class="border rounded p-3 mb-2"><strong>${escapeHtml(task.title)}</strong><div class="small text-muted text-break">${escapeHtml(task.component)} · ${escapeHtml(task.workerKey)}</div><p class="my-2">${escapeHtml(task.explanation)}</p><div class="small text-muted">Последнее продвижение по данным: ${escapeHtml(formatDate(task.updatedAt))}${task.limitMinutes == null ? '' : `. Порог возраста позиции: ${escapeHtml(task.limitMinutes)} мин`}.</div></div>`).join('')}${button('tasks', workerKey ? 'Открыть диагностику этой задачи' : 'Открыть диагностику этих задач')}</section>` : ''}
-      ${workerKey && !data.tasks.length ? `<p>В текущей выборке нет задачи <span class="text-break">${escapeHtml(workerKey)}</span>. Её состояние сейчас неизвестно; другие задачи не подставляются вместо неё.</p>` : !data.tasks.length && (tasksOnly || !data.inbound.length && !data.outbound.length && !(data.inboundFailed > 0) && !(data.outboundFailed > 0)) ? '<p>В этой выборке нет подробных проблемных записей. Это не отменяет сохранённую проверку и не подтверждает исправность остальных компонентов.</p>' : ''}
+      ${workerKey && !data.tasks.length ? `<p>В текущей выборке нет задачи <span class="text-break">${escapeHtml(workerKey)}</span>. Её состояние сейчас неизвестно; другие задачи не подставляются вместо неё.</p>` : !data.tasks.length && (tasksOnly || !counters.length) ? '<p>В этой выборке нет системных условий транспортного инцидента. Ошибки отдельных записей не являются такими условиями.</p>' : ''}
+      ${tasksOnly ? '' : button('inbound', 'Открыть диагностику транспорта')}
     </div></section>`;
   }
 

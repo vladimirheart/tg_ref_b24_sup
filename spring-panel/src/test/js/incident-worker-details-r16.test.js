@@ -36,7 +36,7 @@ test('Закрытая карточка остаётся историческо�
   input.signal_key = 'panel-runtime-checkpoints/unfamiliar-worker'; input.events = [];
   const value = describe(input); assert.match(value.title, /unfamiliar-worker/); assert(!JSON.stringify(value).includes('UiEventOutboxWatcher'));
 });
-test('SQL-причина берётся из записи, а не из четырёх в счётчике', () => {
+test('SQL-причина отдельной записи не попадает в инцидент — правило R17', () => {
   assert(!JSON.stringify(describe(incident)).includes('chat_attachment_metadata'));
-  const value = transportDetails(overview); assert(value.inbound.every(item => item.explanation.includes('chat_attachment_metadata')));
+  const value = transportDetails(overview); assert(!JSON.stringify(value).includes('chat_attachment_metadata')); assert(!Object.hasOwn(value, 'inbound'));
 });

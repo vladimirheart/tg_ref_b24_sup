@@ -47,8 +47,8 @@ async function main() {
       await page.locator('#incidentDetailTitle').waitFor(); await page.locator('#incidentDetailTitle').fill('Сохранить черновик'); release();
       const current = page.locator('#incidentCurrentProblems'), saved = page.locator('.incident-explanation');
       if (mode === 'aggregate') {
-        await page.waitForFunction(() => document.getElementById('incidentCurrentProblems')?.textContent.includes('chat_attachment_metadata'));
-        const content = await current.textContent(); assert(content.includes('24.08.2026')); assert(content.includes('Сообщение клиента в существующее обращение — 4'));
+        await page.waitForFunction(() => document.getElementById('incidentCurrentProblems')?.textContent.includes('Состояние очереди и фоновых задач'));
+        const content = await current.textContent(); assert(!content.includes('24.08.2026')); assert(!content.includes('chat_attachment_metadata')); assert(!content.includes('Сообщение клиента в существующее обращение'));
         assert(!await saved.locator('.incident-saved-counters').evaluate(node => node.open));
       } else {
         assert((await saved.textContent()).includes('UiEventOutboxWatcher'));

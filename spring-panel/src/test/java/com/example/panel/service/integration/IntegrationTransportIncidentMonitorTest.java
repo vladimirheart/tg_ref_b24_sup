@@ -14,8 +14,43 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class IntegrationTransportIncidentMonitorTest {
+
+    @ParameterizedTest
+    @CsvSource({"1,0", "0,1", "4,0", "0,4", "10000,10000"})
+    void failedRecordsNeverOpenIncidentEvenWhenRepeated(long inbound, long outbound) {
+        var ops = mock(IntegrationTransportOpsService.class);
+        var coordination = mock(RuntimeCoordinationService.class);
+        var incidents = mock(IncidentService.class);
+        doAnswer(call -> { ((Runnable) call.getArgument(2)).run(); return null; })
+            .when(coordination).runWithLease(any(), any(), any());
+        var diagnostic = new IntegrationTransportOpsService.TransportHealthSnapshot(inbound, 0, outbound, 0, 0, 0, 0, 0);
+        when(ops.buildHealthSnapshot()).thenReturn(diagnostic);
+        when(ops.buildIncidentTrendSummary(any())).thenReturn(Map.of("sustained_pressure", false));
+        var monitor = new IntegrationTransportIncidentMonitor(ops, coordination, incidents);
+        for (int index = 0; index < 5; index++) monitor.monitor();
+        verify(incidents, never()).openOrRefreshSignalIncident(any(), any(), any(), any(), any(), any(), any(), any(), any());
+        verify(ops, never()).buildTrendSummary(any());
+        assertThat(diagnostic.inboundFailed()).isEqualTo(inbound);
+        assertThat(diagnostic.outboundFailed()).isEqualTo(outbound);
+        assertThat(diagnostic.unhealthy()).isTrue(); // Diagnostic health remains unchanged.
+        assertThat(diagnostic.forIncidents().unhealthy()).isFalse();
+        assertThat(diagnostic.forIncidents().severity()).isEqualTo("ok");
+    }
+
+    @ParameterizedTest
+    @CsvSource({"1,0,0,0,critical", "0,1,0,0,critical", "0,0,100,0,high", "0,0,250,0,critical", "0,0,0,1,critical"})
+    void systemicConditionsStillKeepTheirSeverity(long inboundStale, long outboundStale, long backlog, long checkpoints, String severity) {
+        var snapshot = new IntegrationTransportOpsService.TransportHealthSnapshot(4, inboundStale, 2, backlog, outboundStale, checkpoints, 0, 0);
+        assertThat(snapshot.forIncidents().unhealthy()).isTrue();
+        assertThat(snapshot.forIncidents().severity()).isEqualTo(severity);
+        assertThat(snapshot.forIncidents().inboundFailed()).isZero();
+        assertThat(snapshot.forIncidents().outboundFailed()).isZero();
+    }
 
     @Test
     void monitorOpensCheckpointIncidentWhenCheckpointsAreStale() {
@@ -30,7 +65,7 @@ class IntegrationTransportIncidentMonitorTest {
         when(opsService.buildHealthSnapshot()).thenReturn(new IntegrationTransportOpsService.TransportHealthSnapshot(
             1, 0, 0, 0, 0, 2, 1, 6
         ));
-        when(opsService.buildTrendSummary(any(Duration.class))).thenReturn(Map.ofEntries(
+        when(opsService.buildIncidentTrendSummary(any(Duration.class))).thenReturn(Map.ofEntries(
             Map.entry("sustained_pressure", true),
             Map.entry("window_hours", 6L),
             Map.entry("snapshot_count", 4L),
@@ -131,7 +166,7 @@ class IntegrationTransportIncidentMonitorTest {
         when(opsService.buildHealthSnapshot()).thenReturn(new IntegrationTransportOpsService.TransportHealthSnapshot(
             0, 0, 0, 2, 0, 0, 0, 0
         ));
-        when(opsService.buildTrendSummary(any(Duration.class))).thenReturn(Map.ofEntries(
+        when(opsService.buildIncidentTrendSummary(any(Duration.class))).thenReturn(Map.ofEntries(
             Map.entry("sustained_pressure", false),
             Map.entry("window_hours", 6L),
             Map.entry("snapshot_count", 2L),
