@@ -15,6 +15,9 @@ import org.springframework.stereotype.Component;
 )@Component
 public class IntegrationTransportHealthSnapshotScheduler {
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.example.panel.service.IncidentMonitoringPolicyService monitoringPolicy;
+
     private static final Duration SNAPSHOT_LEASE_TTL = Duration.ofMinutes(4);
     private static final Duration CLEANUP_LEASE_TTL = Duration.ofMinutes(10);
 
@@ -29,6 +32,7 @@ public class IntegrationTransportHealthSnapshotScheduler {
 
     @Scheduled(fixedDelayString = "${panel.integration.transport-health-snapshot.interval-ms:300000}")
     public void captureSnapshot() {
+        if (monitoringPolicy != null && monitoringPolicy.isSuppressed("integration_transport")) return;
         runtimeCoordinationService.runWithLease("integration-transport-health-snapshot", SNAPSHOT_LEASE_TTL, () -> {
             transportOpsService.recordHealthSnapshot(transportOpsService.buildHealthSnapshot());
             transportOpsService.recordWorkerHealthSnapshots();

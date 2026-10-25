@@ -547,6 +547,93 @@ class IntegrationTransportOpsServiceTest {
         assertThat(summary.get("peak_age_minutes")).isEqualTo(25L);
     }
 
+    @Test void oldIdleUnknownAndRetiredPositionsNeverBecomeIncidentConditions() {
+        seedUiCheckpoint("100");
+        jdbcTemplate.update("INSERT INTO runtime_worker_checkpoints VALUES ('operator-notification-watch.feedbacks','10',CURRENT_TIMESTAMP - INTERVAL '2 months')");
+        jdbcTemplate.update("INSERT INTO runtime_worker_checkpoints VALUES ('unknown-task','invalid',CURRENT_TIMESTAMP - INTERVAL '2 months')");
+        seedUiObservation("100", 300L, 15);
+        var rows = service.loadRuntimeCheckpointDiagnostics();
+        assertThat(rows).hasSize(3).allSatisfy(row -> {
+            assertThat(row.get("stale")).isEqualTo(false);
+            assertThat(row.get("incident_eligible")).isEqualTo(false);
+        });
+        assertThat(rows.stream().filter(row -> "ui-event-outbox-watch".equals(row.get("worker_key"))).findFirst().orElseThrow().get("health_status")).isEqualTo("idle");
+        assertThat(service.buildHealthSnapshot().staleCheckpointCount()).isZero();
+        service.recordWorkerHealthSnapshots();
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM integration_transport_worker_health_snapshots WHERE worker_key <> 'ui-event-outbox-watch'", Integer.class)).isZero();
+    }
+
+    @Test void freshDataAfterLongIdleDoesNotImmediatelyCauseIncident() {
+        seedUiCheckpoint("10");
+        seedUiObservation("10", 0L, 5);
+        assertThat(uiState().get("incident_eligible")).isEqualTo(false);
+        seedUiObservation("10", 90L, 0);
+        assertThat(uiState().get("incident_eligible")).isEqualTo(false);
+    }
+
+    @Test void unchangedCursorAndContinuouslyObservedPendingDataConfirmDelay() {
+        seedUiCheckpoint("10");
+        seedUiObservation("10", 90L, 15);
+        seedUiObservation("10", 90L, 10);
+        seedUiObservation("10", 90L, 5);
+        var row = uiState();
+        assertThat(row.get("incident_eligible")).isEqualTo(true);
+        assertThat(row.get("observed_backlog_minutes")).isEqualTo(15L);
+        assertThat(row.get("health_status")).isEqualTo("delayed");
+        assertThat(service.buildHealthSnapshot().staleCheckpointCount()).isEqualTo(1L);
+    }
+
+    @Test void cursorProgressOrObservationGapBreaksConfirmationEvenWithOldCriticalHistory() {
+        seedUiCheckpoint("10");
+        seedUiObservation("9", 91L, 15);
+        seedUiObservation("10", 90L, 5);
+        assertThat(uiState().get("incident_eligible")).isEqualTo(false);
+        jdbcTemplate.update("DELETE FROM integration_transport_worker_health_snapshots"); // Isolated test fixture only.
+        seedUiObservation("10", 90L, 30);
+        seedUiObservation("10", 90L, 5);
+        assertThat(uiState().get("incident_eligible")).isEqualTo(false);
+    }
+
+    @Test void pausedWorkerDoesNotQuerySourceOrHistoryAndDoesNotRecordNewObservations() {
+        seedUiCheckpoint("10");
+        var policy = mock(com.example.panel.service.IncidentMonitoringPolicyService.class);
+        org.mockito.Mockito.when(policy.isSuppressed("integration_transport.ui_updates")).thenReturn(true);
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "monitoringPolicy", policy);
+        var jdbcSpy = org.mockito.Mockito.spy(jdbcTemplate);
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "jdbcTemplate", jdbcSpy);
+        assertThat(uiState().get("health_status")).isEqualTo("monitoring_paused");
+        service.recordWorkerHealthSnapshots();
+        var sql = org.mockito.Mockito.mockingDetails(jdbcSpy).getInvocations().stream()
+            .flatMap(call -> java.util.Arrays.stream(call.getArguments())).filter(String.class::isInstance).map(String.class::cast).toList();
+        assertThat(sql).noneMatch(statement -> statement.contains("MAX(") || statement.contains("integration_transport_worker_health_snapshots"));
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM integration_transport_worker_health_snapshots", Integer.class)).isZero();
+    }
+
+    @Test void checkpointOnlyHistoryCannotResurrectAggregateCriticalIncident() {
+        var old = new IntegrationTransportOpsService.TransportHealthSnapshot(4, 0, 0, 0, 0, 3, 1, 0);
+        for (int index = 0; index < 3; index++) service.recordHealthSnapshot(old);
+        assertThat(service.buildTrendSummary(java.time.Duration.ofHours(6)).get("sustained_pressure")).isEqualTo(true);
+        assertThat(service.buildIncidentTrendSummary(java.time.Duration.ofHours(6)).get("sustained_pressure")).isEqualTo(false);
+        assertThat(old.forIncidents().unhealthy()).isFalse();
+    }
+
+    private void seedUiCheckpoint(String cursor) {
+        jdbcTemplate.execute("CREATE TABLE ui_event_outbox(id BIGINT PRIMARY KEY)");
+        jdbcTemplate.update("INSERT INTO ui_event_outbox VALUES (100)");
+        jdbcTemplate.update("INSERT INTO runtime_worker_checkpoints VALUES ('ui-event-outbox-watch',?,CURRENT_TIMESTAMP - INTERVAL '2 months')", cursor);
+    }
+
+    private void seedUiObservation(String cursor, long lag, int minutesAgo) {
+        jdbcTemplate.update("""
+            INSERT INTO integration_transport_worker_health_snapshots(worker_key,cursor_text,cursor_lag,created_at,health_status,stale,unhealthy)
+            VALUES ('ui-event-outbox-watch',?,?,?,'stale',TRUE,TRUE)
+            """, cursor, lag, OffsetDateTime.now().minusMinutes(minutesAgo));
+    }
+
+    private Map<String, Object> uiState() {
+        return service.loadRuntimeCheckpointDiagnostics().stream().filter(row -> "ui-event-outbox-watch".equals(row.get("worker_key"))).findFirst().orElseThrow();
+    }
+
     private void whenListSignalIncidentsEmpty(IncidentService incidentService) {
         org.mockito.Mockito.when(incidentService.listIncidentSummariesForSignalType("integration_transport"))
             .thenReturn(List.of());

@@ -51,4 +51,19 @@ class IncidentPolicyAndUserOptionsWebMvcTest {
             .andExpect(jsonPath("$[0].value").value("operator"))
             .andExpect(jsonPath("$[0].passwordHash").doesNotExist()).andExpect(jsonPath("$[0].email").doesNotExist());
     }
+
+    @Test void granularTransportDirectionUsesTheSameAdminSettingsAndCsrfBoundary() throws Exception {
+        String endpoint = "/api/incidents/monitoring/integration_transport.ui_updates";
+        when(policy.update(eq("integration_transport.ui_updates"), anyMap(), eq("admin"))).thenReturn(Map.of("items", List.of()));
+        mvc.perform(patch(endpoint).with(user("reader").authorities(() -> "PAGE_SETTINGS")).with(csrf()).contentType("application/json").content("{\"mode\":\"disabled\"}"))
+            .andExpect(status().isForbidden());
+        mvc.perform(patch(endpoint).with(user("admin").authorities(() -> "ROLE_ADMIN")).with(csrf()).contentType("application/json").content("{\"mode\":\"disabled\"}"))
+            .andExpect(status().isForbidden());
+        mvc.perform(patch(endpoint).with(user("admin").authorities(() -> "ROLE_ADMIN", () -> "PAGE_SETTINGS")).contentType("application/json").content("{\"mode\":\"disabled\"}"))
+            .andExpect(status().isForbidden());
+        verify(policy, never()).update(anyString(), anyMap(), anyString());
+        mvc.perform(patch(endpoint).with(user("admin").authorities(() -> "ROLE_ADMIN", () -> "PAGE_SETTINGS")).with(csrf()).contentType("application/json").content("{\"mode\":\"disabled\"}"))
+            .andExpect(status().isOk());
+        verify(policy).update(eq("integration_transport.ui_updates"), eq(Map.of("mode", "disabled")), eq("admin"));
+    }
 }

@@ -74,12 +74,18 @@
     return response.json();
   }
   function error(ex) { message.className = 'alert alert-danger'; message.textContent = ex.message; }
+  function monitoringState(item) {
+    const zone = new Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const own = item.suppressed ? (item.mode === 'paused' ? 'Пауза до ' + new Date(item.until).toLocaleString('ru-RU', { timeZone: zone }) + ` (${zone})` : 'Отключено бессрочно') : 'Включено';
+    return own + (item.parent_suppressed ? '. Проверки остановлены общим выключателем транспорта.' : '');
+  }
   function row(item) {
     const form = document.createElement('form'); form.className = 'incident-monitoring-row';
+    form.dataset.monitoringDirection = item.id;
     const deviceZone = new Intl.DateTimeFormat().resolvedOptions().timeZone;
     const info = document.createElement('div'), title = document.createElement('strong'), description = document.createElement('p'), state = document.createElement('div');
     title.textContent = item.label; description.textContent = item.description;
-    state.className = 'small'; state.textContent = item.suppressed ? (item.mode === 'paused' ? 'Пауза до ' + new Date(item.until).toLocaleString('ru-RU', { timeZone: deviceZone }) + ` (${deviceZone})` : 'Отключено бессрочно') : 'Включено';
+    state.className = 'small'; state.dataset.monitoringState = ''; state.textContent = monitoringState(item);
     info.append(title, description, state);
     const controls = document.createElement('div'), select = document.createElement('select'); select.className = 'form-select form-select-sm'; select.setAttribute('aria-label', 'Режим: ' + item.label);
     for (const [value, text] of [['enabled', 'Включено'], ['hour', 'Пауза на час'], ['week', 'Пауза на неделю'], ['paused', 'Пауза до даты…'], ['disabled', 'Отключено бессрочно']]) { const option = new Option(text, value); select.add(option); }
@@ -99,7 +105,11 @@
       save.disabled = true; message.textContent = ''; message.className = '';
       try {
         const data = await request('/api/incidents/monitoring/' + encodeURIComponent(item.id), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode, ...(mode === 'paused' ? (duration ? { duration_minutes: duration } : { until: item.until && until.value === initialUntil ? item.until : new Date(until.value).toISOString() }) : {}) }) });
-        const updated = data.items.find(value => value.id === item.id); form.replaceWith(row(updated));
+        for (const updated of data.items) {
+          const existing = Array.from(monitoringList.children).find(node => node.dataset.monitoringDirection === updated.id);
+          if (existing === form) existing.replaceWith(row(updated));
+          else if (existing) existing.querySelector('[data-monitoring-state]').textContent = monitoringState(updated);
+        }
         message.className = 'alert alert-success'; message.textContent = 'Сохранено: ' + item.label;
       } catch (ex) { error(ex); save.disabled = false; }
     });

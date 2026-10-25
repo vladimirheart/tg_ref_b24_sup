@@ -2,6 +2,7 @@ package com.example.panel.service.integration;
 
 import com.example.panel.converter.LenientOffsetDateTimeConverter;
 import com.example.panel.service.IncidentService;
+import com.example.panel.service.IncidentMonitoringPolicyService;
 import com.example.panel.service.RuntimeWorkerCheckpointService;
 import com.example.panel.support.LegacyTicketIdSupport;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -39,7 +40,6 @@ public class IntegrationTransportOpsService {
     private static final LenientOffsetDateTimeConverter DATE_TIME_CONVERTER = new LenientOffsetDateTimeConverter();
     private static final List<WorkerDiagnosticsDefinition> WORKER_DIAGNOSTICS = List.of(
         new WorkerDiagnosticsDefinition("operator-notification-watch.chat-history", "Operator chat-history watcher", "chat_history", "id", Duration.ofMinutes(15), 25L),
-        new WorkerDiagnosticsDefinition("operator-notification-watch.feedbacks", "Operator feedback watcher", "feedbacks", "id", Duration.ofMinutes(20), 10L),
         new WorkerDiagnosticsDefinition("ui-event-outbox-watch", "UI event outbox watcher", "ui_event_outbox", "id", Duration.ofMinutes(10), 50L)
     );
 
@@ -50,6 +50,11 @@ public class IntegrationTransportOpsService {
     private final OutboundFeedbackPromptPublishOutboxService outboundFeedbackPromptPublishOutboxService;
     private final IncidentService incidentService;
     private final RuntimeWorkerCheckpointService runtimeWorkerCheckpointService;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private IncidentMonitoringPolicyService monitoringPolicy;
+    @org.springframework.beans.factory.annotation.Value("${panel.integration.transport-health-snapshot.interval-ms:300000}")
+    private long snapshotIntervalMs = 300000L;
 
     public IntegrationTransportOpsService(JdbcTemplate jdbcTemplate,
                                           ObjectMapper objectMapper,
@@ -202,7 +207,7 @@ public class IntegrationTransportOpsService {
     public void recordWorkerHealthSnapshots() {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         for (WorkerCheckpointSnapshot snapshot : loadWorkerCheckpointSnapshots(now)) {
-            recordWorkerHealthSnapshot(snapshot);
+            if (snapshot.monitoringEnabled()) recordWorkerHealthSnapshot(snapshot);
         }
     }
 
@@ -594,12 +599,13 @@ public class IntegrationTransportOpsService {
         Timestamp inboundStaleThreshold = timestamp(OffsetDateTime.now(ZoneOffset.UTC).minus(INBOUND_STALE_TIMEOUT));
         Timestamp outboundStaleThreshold = timestamp(OffsetDateTime.now(ZoneOffset.UTC).minus(OUTBOUND_STALE_TIMEOUT));
         List<WorkerCheckpointSnapshot> checkpointSnapshots = loadWorkerCheckpointSnapshots(now);
+        boolean queueEnabled = monitoringPolicy == null || !monitoringPolicy.isSuppressed("integration_transport.queue");
         return new TransportHealthSnapshot(
-            toLong(count("integration_inbound_event_inbox", "status = 'failed'")),
-            toLong(countWithThreshold("integration_inbound_event_inbox", "status = 'processing' AND processing_started_at IS NOT NULL AND processing_started_at < ?", inboundStaleThreshold)),
-            toLong(count("integration_transport_outbox", "status = 'failed'")),
-            toLong(count("integration_transport_outbox", "status = 'queued' OR status = 'processing'")),
-            toLong(countWithThreshold("integration_transport_outbox", "status = 'processing' AND processing_started_at IS NOT NULL AND processing_started_at < ?", outboundStaleThreshold)),
+            queueEnabled ? toLong(count("integration_inbound_event_inbox", "status = 'failed'")) : 0,
+            queueEnabled ? toLong(countWithThreshold("integration_inbound_event_inbox", "status = 'processing' AND processing_started_at IS NOT NULL AND processing_started_at < ?", inboundStaleThreshold)) : 0,
+            queueEnabled ? toLong(count("integration_transport_outbox", "status = 'failed'")) : 0,
+            queueEnabled ? toLong(count("integration_transport_outbox", "status = 'queued' OR status = 'processing'")) : 0,
+            queueEnabled ? toLong(countWithThreshold("integration_transport_outbox", "status = 'processing' AND processing_started_at IS NOT NULL AND processing_started_at < ?", outboundStaleThreshold)) : 0,
             checkpointSnapshots.stream().filter(WorkerCheckpointSnapshot::stale).count(),
             checkpointSnapshots.stream().filter(snapshot -> snapshot.cursorLag() != null && snapshot.cursorLag() > 0L).count(),
             countRecentManualOperations(RECENT_MANUAL_OPERATION_WINDOW)
@@ -971,13 +977,19 @@ public class IntegrationTransportOpsService {
         OffsetDateTime updatedAt = parseOffsetDateTime(updatedAtRaw);
         long staleThresholdMinutes = definition != null ? definition.staleThreshold().toMinutes() : 60L;
         long lagAlertThreshold = definition != null ? definition.lagAlertThreshold() : 0L;
-        Long sourceMaxCursor = definition != null ? loadMaxCursor(definition.sourceTable(), definition.cursorColumn()) : null;
+        String direction = IncidentMonitoringPolicyService.workerDirection(workerKey);
+        boolean monitoringEnabled = definition != null && direction != null
+            && (monitoringPolicy == null || !monitoringPolicy.isSuppressed(direction));
+        Long sourceMaxCursor = monitoringEnabled ? loadMaxCursor(definition.sourceTable(), definition.cursorColumn()) : null;
         Long cursorValue = parseLong(cursorText);
         Long cursorLag = cursorValue != null && sourceMaxCursor != null ? Math.max(0L, sourceMaxCursor - cursorValue) : null;
         long ageMinutes = updatedAt == null ? Long.MAX_VALUE : Math.max(0L, Duration.between(updatedAt, now).toMinutes());
-        boolean stale = ageMinutes > staleThresholdMinutes;
-        boolean lagging = cursorLag != null && cursorLag > lagAlertThreshold;
-        String healthStatus = stale ? "stale" : (lagging ? "lagging" : "healthy");
+        Long observedBacklogMinutes = monitoringEnabled && cursorLag != null && cursorLag > 0
+            ? observedStationaryBacklogMinutes(workerKey, cursorValue, now) : null;
+        boolean stale = observedBacklogMinutes != null && observedBacklogMinutes >= staleThresholdMinutes;
+        boolean lagging = stale;
+        String healthStatus = definition == null ? "not_monitored" : !monitoringEnabled ? "monitoring_paused"
+            : cursorLag == null ? "unknown" : cursorLag == 0 ? "idle" : stale ? "delayed" : "pending";
         return new WorkerCheckpointSnapshot(
             workerKey,
             label,
@@ -991,8 +1003,34 @@ public class IntegrationTransportOpsService {
             sourceMaxCursor,
             cursorLag,
             stale,
-            lagging
+            lagging,
+            monitoringEnabled,
+            observedBacklogMinutes
         );
+    }
+
+    /** Cursor age is not a heartbeat. Require observed pending data and no cursor progress. */
+    private Long observedStationaryBacklogMinutes(String workerKey, Long cursor, OffsetDateTime now) {
+        if (cursor == null) return null;
+        List<Map<String, Object>> history = jdbcTemplate.queryForList("""
+            SELECT cursor_text, cursor_lag, created_at
+              FROM integration_transport_worker_health_snapshots
+             WHERE worker_key = ? AND created_at >= ?
+             ORDER BY created_at DESC, id DESC LIMIT 288
+            """, workerKey, timestamp(now.minusHours(6)));
+        OffsetDateTime previous = now, oldest = null;
+        long allowedGapMs = Math.max(60000L, snapshotIntervalMs) * 2 + 60000L;
+        for (Map<String, Object> observation : history) {
+            Long previousCursor = parseLong(String.valueOf(observation.get("cursor_text")));
+            Long lag = parseLong(String.valueOf(observation.get("cursor_lag")));
+            Object createdAt = observation.get("created_at");
+            OffsetDateTime at = createdAt instanceof Timestamp value ? value.toInstant().atOffset(ZoneOffset.UTC)
+                : createdAt instanceof OffsetDateTime value ? value : parseOffsetDateTime(String.valueOf(createdAt));
+            if (!cursor.equals(previousCursor) || lag == null || lag <= 0 || at == null || at.isAfter(previous)
+                || Duration.between(at, previous).toMillis() > allowedGapMs) break;
+            oldest = at; previous = at;
+        }
+        return oldest == null ? null : Math.max(0L, Duration.between(oldest, now).toMinutes());
     }
 
     private List<Map<String, Object>> loadRecentOperationLogs(int limit) {
@@ -1584,7 +1622,7 @@ public class IntegrationTransportOpsService {
 
         public TransportHealthSnapshot forIncidents() {
             return new TransportHealthSnapshot(0, inboundStaleProcessing, 0, outboundBacklog,
-                outboundStaleProcessing, staleCheckpointCount, laggingCheckpointCount, recentManualOperations);
+                outboundStaleProcessing, 0, 0, recentManualOperations);
         }
 
         public boolean unhealthy() {
@@ -1672,7 +1710,9 @@ public class IntegrationTransportOpsService {
                                             Long sourceMaxCursor,
                                             Long cursorLag,
                                             boolean stale,
-                                            boolean lagging) {
+                                            boolean lagging,
+                                            boolean monitoringEnabled,
+                                            Long observedBacklogMinutes) {
         boolean unhealthy() {
             return stale || lagging;
         }
@@ -1704,6 +1744,9 @@ public class IntegrationTransportOpsService {
             row.put("cursor_lag", cursorLag);
             row.put("stale", stale);
             row.put("lagging", lagging);
+            row.put("monitoring_enabled", monitoringEnabled);
+            row.put("incident_eligible", monitoringEnabled && stale);
+            row.put("observed_backlog_minutes", observedBacklogMinutes);
             row.put("unhealthy", unhealthy());
             row.put("summary_text", summary());
             return row;
@@ -1724,10 +1767,10 @@ public class IntegrationTransportOpsService {
                                               String createdAt) {
         TransportHealthSnapshotRow forIncidents() {
             TransportHealthSnapshot signal = new TransportHealthSnapshot(0, inboundStaleProcessing, 0,
-                outboundBacklog, outboundStaleProcessing, staleCheckpointCount, laggingCheckpointCount,
+                outboundBacklog, outboundStaleProcessing, 0, 0,
                 recentManualOperations);
             return new TransportHealthSnapshotRow(id, 0, inboundStaleProcessing, 0, outboundBacklog,
-                outboundStaleProcessing, staleCheckpointCount, laggingCheckpointCount, recentManualOperations,
+                outboundStaleProcessing, 0, 0, recentManualOperations,
                 signal.severity(), signal.summary(), createdAt);
         }
 

@@ -64,7 +64,7 @@ public class IncidentRouteDeliveryOutboxService {
         if (incident == null || incident.getId() == null) {
             return 0;
         }
-        if (monitoringPolicy != null && monitoringPolicy.isSuppressed(incident.getSignalType())) return 0;
+        if (monitoringPolicy != null && monitoringPolicy.isSignalSuppressed(incident.getSignalType(), incident.getSignalKey())) return 0;
         List<IncidentRoute> routes = incidentRouteRepository.findByIncidentIdOrderByCreatedAtAscIdAsc(incident.getId());
         int queued = 0;
         for (IncidentRoute route : routes) {
@@ -167,7 +167,9 @@ public class IncidentRouteDeliveryOutboxService {
             if (entry == null) {
                 continue;
             }
-            if (monitoringPolicy != null && monitoringPolicy.isSuppressed(String.valueOf(parsePayload(entry.payloadJson()).get("signal_type")))) {
+            if (monitoringPolicy != null && monitoringPolicy.isSignalSuppressed(
+                    String.valueOf(parsePayload(entry.payloadJson()).get("signal_type")),
+                    String.valueOf(parsePayload(entry.payloadJson()).get("signal_key")))) {
                 jdbcTemplate.update("""
                     UPDATE incident_route_delivery_outbox
                        SET status = 'queued', processing_started_at = NULL,

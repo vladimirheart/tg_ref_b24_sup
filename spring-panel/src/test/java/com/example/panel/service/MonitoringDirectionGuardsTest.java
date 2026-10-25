@@ -63,5 +63,8 @@ class MonitoringDirectionGuardsTest {
         var transport = new com.example.panel.service.integration.IntegrationTransportIncidentMonitor(null, null, null);
         ReflectionTestUtils.setField(transport, "monitoringPolicy", policy);
         assertThatCode(transport::monitor).doesNotThrowAnyException();
+        var snapshots = new com.example.panel.service.integration.IntegrationTransportHealthSnapshotScheduler(null, null);
+        ReflectionTestUtils.setField(snapshots, "monitoringPolicy", policy);
+        assertThatCode(snapshots::captureSnapshot).doesNotThrowAnyException();
     }
 }

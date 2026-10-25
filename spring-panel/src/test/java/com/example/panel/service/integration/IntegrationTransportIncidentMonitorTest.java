@@ -20,6 +20,24 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class IntegrationTransportIncidentMonitorTest {
 
+    @Test void pausedChildDoesNotInspectHistoryRefreshResolveOrReopenItsSignal() {
+        var ops = mock(IntegrationTransportOpsService.class);
+        var coordination = mock(RuntimeCoordinationService.class);
+        var incidents = mock(IncidentService.class);
+        var policy = mock(com.example.panel.service.IncidentMonitoringPolicyService.class);
+        when(policy.isSuppressed("integration_transport.ui_updates")).thenReturn(true);
+        doAnswer(call -> { ((Runnable) call.getArgument(2)).run(); return null; }).when(coordination).runWithLease(any(), any(), any());
+        when(ops.buildHealthSnapshot()).thenReturn(new IntegrationTransportOpsService.TransportHealthSnapshot(0,0,0,0,0,3,0,0));
+        when(ops.buildIncidentTrendSummary(any())).thenReturn(Map.of("sustained_pressure", false));
+        when(ops.loadRuntimeCheckpointDiagnostics()).thenReturn(List.of(Map.of("worker_key", "ui-event-outbox-watch", "incident_eligible", true)));
+        var monitor = new IntegrationTransportIncidentMonitor(ops, coordination, incidents);
+        org.springframework.test.util.ReflectionTestUtils.setField(monitor, "monitoringPolicy", policy);
+        monitor.monitor();
+        verify(ops, never()).buildWorkerTrendSummary(any(), any());
+        verify(incidents, never()).openOrRefreshSignalIncident(any(), any(), any(), any(), any(), any(), any(), any(), any());
+        verify(incidents, never()).resolveSignalIncident(any(), eq("panel-runtime-checkpoints/ui-event-outbox-watch"), any(), any(), any());
+    }
+
     @ParameterizedTest
     @CsvSource({"1,0", "0,1", "4,0", "0,4", "10000,10000"})
     void failedRecordsNeverOpenIncidentEvenWhenRepeated(long inbound, long outbound) {
@@ -43,7 +61,7 @@ class IntegrationTransportIncidentMonitorTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"1,0,0,0,critical", "0,1,0,0,critical", "0,0,100,0,high", "0,0,250,0,critical", "0,0,0,1,critical"})
+    @CsvSource({"1,0,0,0,critical", "0,1,0,0,critical", "0,0,100,0,high", "0,0,250,0,critical"})
     void systemicConditionsStillKeepTheirSeverity(long inboundStale, long outboundStale, long backlog, long checkpoints, String severity) {
         var snapshot = new IntegrationTransportOpsService.TransportHealthSnapshot(4, inboundStale, 2, backlog, outboundStale, checkpoints, 0, 0);
         assertThat(snapshot.forIncidents().unhealthy()).isTrue();
@@ -53,7 +71,7 @@ class IntegrationTransportIncidentMonitorTest {
     }
 
     @Test
-    void monitorOpensCheckpointIncidentWhenCheckpointsAreStale() {
+    void confirmedWorkerDelayIsHighAndDoesNotCreateDuplicateAggregate() {
         IntegrationTransportOpsService opsService = mock(IntegrationTransportOpsService.class);
         RuntimeCoordinationService coordinationService = mock(RuntimeCoordinationService.class);
         IncidentService incidentService = mock(IncidentService.class);
@@ -63,7 +81,7 @@ class IntegrationTransportIncidentMonitorTest {
             return null;
         }).when(coordinationService).runWithLease(eq("integration-transport-incident-monitor"), any(Duration.class), any(Runnable.class));
         when(opsService.buildHealthSnapshot()).thenReturn(new IntegrationTransportOpsService.TransportHealthSnapshot(
-            1, 0, 0, 0, 0, 2, 1, 6
+            1, 0, 0, 250, 0, 2, 1, 6
         ));
         when(opsService.buildIncidentTrendSummary(any(Duration.class))).thenReturn(Map.ofEntries(
             Map.entry("sustained_pressure", true),
@@ -91,6 +109,8 @@ class IntegrationTransportIncidentMonitorTest {
             Map.entry("stale_threshold_minutes", 10L),
             Map.entry("lag_alert_threshold", 50L),
             Map.entry("stale", true),
+            Map.entry("incident_eligible", true),
+            Map.entry("observed_backlog_minutes", 15L),
             Map.entry("lagging", true)
         )));
         when(opsService.buildWorkerTrendSummary(eq("ui-event-outbox-watch"), any(Duration.class))).thenReturn(Map.of(
@@ -117,7 +137,7 @@ class IntegrationTransportIncidentMonitorTest {
             any(),
             eq("system")
         );
-        verify(incidentService).openOrRefreshSignalIncident(
+        verify(incidentService, never()).openOrRefreshSignalIncident(
             eq("integration_transport"),
             eq("panel-runtime-checkpoints"),
             any(),
@@ -142,15 +162,10 @@ class IntegrationTransportIncidentMonitorTest {
         verify(incidentService).openOrRefreshSignalIncident(
             eq("integration_transport"),
             eq("panel-runtime-checkpoints/ui-event-outbox-watch"),
-            any(),
-            any(),
-            any(),
-            any(),
-            any(),
-            any(),
+            any(), any(), any(), eq("high"), any(), any(),
             eq("system")
         );
-        verify(incidentService, never()).resolveSignalIncident(eq("integration_transport"), eq("panel-runtime-checkpoints"), any(), any(Map.class), eq("system"));
+        verify(incidentService).resolveSignalIncident(eq("integration_transport"), eq("panel-runtime-checkpoints"), any(), any(Map.class), eq("system"));
     }
 
     @Test

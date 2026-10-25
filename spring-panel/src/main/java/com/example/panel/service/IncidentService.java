@@ -399,7 +399,7 @@ public class IncidentService {
                                     Map<String, Object> details,
                                     String actor) {
         Incident incident = requireIncident(id);
-        if (isResolvedStatus(incident.getStatus()) || (monitoringPolicy != null && monitoringPolicy.isSuppressed(incident.getSignalType()))) {
+        if (isResolvedStatus(incident.getStatus()) || (monitoringPolicy != null && monitoringPolicy.isSignalSuppressed(incident.getSignalType(), incident.getSignalKey()))) {
             return false;
         }
 
@@ -537,7 +537,7 @@ public class IncidentService {
                                                            List<Map<String, Object>> initialRoutes) {
         String normalizedSignalType = requiredText(signalType, "Укажите signal type incident.");
         String normalizedSignalKey = requiredText(signalKey, "Укажите signal key incident.");
-        if (monitoringPolicy != null && monitoringPolicy.isSuppressed(normalizedSignalType)) {
+        if (monitoringPolicy != null && monitoringPolicy.isSignalSuppressed(normalizedSignalType, normalizedSignalKey)) {
             return Map.of("success", true, "suppressed", true);
         }
         OffsetDateTime now = OffsetDateTime.now();
@@ -1413,7 +1413,7 @@ public class IncidentService {
     }
 
     private void notifyIncidentParticipants(Incident incident, String event, String text, String actor) {
-        if (monitoringPolicy != null && monitoringPolicy.isSuppressed(incident.getSignalType())) return;
+        if (monitoringPolicy != null && monitoringPolicy.isSignalSuppressed(incident.getSignalType(), incident.getSignalKey())) return;
         Set<String> recipients = new LinkedHashSet<>();
         if (StringUtils.hasText(incident.getOwner())) {
             recipients.add(incident.getOwner().trim().toLowerCase(Locale.ROOT));

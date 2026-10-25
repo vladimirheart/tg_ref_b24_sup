@@ -43,8 +43,9 @@ public class IntegrationTransportIncidentMonitor {
         if (monitoringPolicy != null && monitoringPolicy.isSuppressed(SIGNAL_TYPE)) return;
         runtimeCoordinationService.runWithLease("integration-transport-incident-monitor", Duration.ofMinutes(4), () -> {
             IntegrationTransportOpsService.TransportHealthSnapshot snapshot = transportOpsService.buildHealthSnapshot().forIncidents();
-            Map<String, Object> trendSummary = transportOpsService.buildIncidentTrendSummary(SUSTAINED_PRESSURE_WINDOW);
-            if (snapshot.unhealthy()) {
+            boolean queueEnabled = monitoringPolicy == null || !monitoringPolicy.isSuppressed("integration_transport.queue");
+            Map<String, Object> trendSummary = queueEnabled ? transportOpsService.buildIncidentTrendSummary(SUSTAINED_PRESSURE_WINDOW) : Map.of();
+            if (queueEnabled && snapshot.unhealthy()) {
                 incidentService.openOrRefreshSignalIncident(
                     SIGNAL_TYPE,
                     SIGNAL_KEY,
@@ -52,7 +53,7 @@ public class IntegrationTransportIncidentMonitor {
                     snapshot.summary(),
                     """
                     Проверка обнаружила системные условия деградации: зависшую обработку,
-                    накопление очереди или состояние фоновых задач. Ошибки отдельных
+                    накопление очереди. Фоновые задачи контролируются отдельно. Ошибки отдельных
                     записей не являются основанием инцидента и доступны в диагностике.
                     """.trim(),
                     snapshot.severity(),
@@ -64,7 +65,7 @@ public class IntegrationTransportIncidentMonitor {
                     ),
                     "system"
                 );
-            } else {
+            } else if (queueEnabled) {
                 incidentService.resolveSignalIncident(
                     SIGNAL_TYPE,
                     SIGNAL_KEY,
@@ -74,46 +75,29 @@ public class IntegrationTransportIncidentMonitor {
                 );
             }
 
-            if (snapshot.staleCheckpointCount() > 0) {
-                incidentService.openOrRefreshSignalIncident(
-                    SIGNAL_TYPE,
-                    CHECKPOINT_SIGNAL_KEY,
-                    "Runtime worker checkpoint degradation",
-                    "Обнаружены stale runtime checkpoints в panel-side watchers.",
-                    """
-                    Один или несколько background/watcher loops перестали своевременно обновлять runtime checkpoints.
-                    Проверьте active lease owner, worker logs и backlog по связанным source tables.
-                    """.trim(),
-                    snapshot.staleCheckpointCount() > 1 ? "critical" : "high",
-                    "integration_transport_monitor",
-                    Map.of(
-                        "stale_checkpoint_count", snapshot.staleCheckpointCount(),
-                        "lagging_checkpoint_count", snapshot.laggingCheckpointCount(),
-                        "recent_manual_operations", snapshot.recentManualOperations()
-                    ),
-                    "system"
-                );
-            } else {
-                incidentService.resolveSignalIncident(
-                    SIGNAL_TYPE,
-                    CHECKPOINT_SIGNAL_KEY,
-                    "Runtime checkpoints recovered",
-                    Map.of("status", "healthy"),
-                    "system"
-                );
-            }
+            incidentService.resolveSignalIncident(
+                SIGNAL_TYPE, CHECKPOINT_SIGNAL_KEY,
+                "Возраст служебных позиций не является сбоем. Контроль подтверждённого отставания ведётся отдельно для каждой действующей задачи.",
+                Map.of("status", "retired_duplicate_check"), "system"
+            );
 
+            Map<String, Map<String, Object>> workers = new LinkedHashMap<>();
             for (Map<String, Object> worker : transportOpsService.loadRuntimeCheckpointDiagnostics()) {
+                workers.put(String.valueOf(worker.getOrDefault("worker_key", "")), worker);
+            }
+            for (String key : java.util.List.of("ui-event-outbox-watch", "operator-notification-watch.chat-history", "operator-notification-watch.feedbacks")) {
+                workers.putIfAbsent(key, Map.of("worker_key", key));
+            }
+            for (Map<String, Object> worker : workers.values()) {
                 String workerKey = String.valueOf(worker.getOrDefault("worker_key", ""));
                 if (workerKey.isBlank()) {
                     continue;
                 }
-                Map<String, Object> workerTrend = transportOpsService.buildWorkerTrendSummary(workerKey, Duration.ofHours(6));
-                boolean workerStale = Boolean.TRUE.equals(worker.get("stale"));
-                boolean workerLagging = Boolean.TRUE.equals(worker.get("lagging"));
-                boolean sustainedWorkerPressure = Boolean.TRUE.equals(workerTrend.get("sustained_pressure"));
-                String signalKey = transportOpsService.workerSignalKey(workerKey);
-                if (workerStale || workerLagging || sustainedWorkerPressure) {
+                String direction = com.example.panel.service.IncidentMonitoringPolicyService.workerDirection(workerKey);
+                if (direction != null && monitoringPolicy != null && monitoringPolicy.isSuppressed(direction)) continue;
+                boolean incidentEligible = direction != null && Boolean.TRUE.equals(worker.get("incident_eligible"));
+                String signalKey = "panel-runtime-checkpoints/" + workerKey;
+                if (incidentEligible) {
                     String workerLabel = String.valueOf(worker.getOrDefault("worker_label", workerKey));
                     Map<String, Object> workerDetails = new LinkedHashMap<>();
                     workerDetails.put("worker_key", workerKey);
@@ -125,24 +109,19 @@ public class IntegrationTransportIncidentMonitor {
                     workerDetails.put("source_max_cursor", worker.get("source_max_cursor"));
                     workerDetails.put("stale_threshold_minutes", worker.get("stale_threshold_minutes"));
                     workerDetails.put("lag_alert_threshold", worker.get("lag_alert_threshold"));
-                    workerDetails.put("sustained_pressure", sustainedWorkerPressure);
-                    workerDetails.put("unhealthy_streak", workerTrend.get("unhealthy_streak"));
-                    workerDetails.put("critical_streak", workerTrend.get("critical_streak"));
-                    workerDetails.put("peak_cursor_lag", workerTrend.get("peak_cursor_lag"));
-                    workerDetails.put("peak_age_minutes", workerTrend.get("peak_age_minutes"));
-                    workerDetails.put("latest_created_at", workerTrend.get("latest_created_at"));
+                    workerDetails.put("observed_backlog_minutes", worker.get("observed_backlog_minutes"));
+                    workerDetails.put("monitoring_direction", direction);
                     incidentService.openOrRefreshSignalIncident(
                         SIGNAL_TYPE,
                         signalKey,
-                        "Worker checkpoint degradation: " + workerLabel,
-                        workerStale
-                            ? "Worker checkpoint stale beyond TTL."
-                            : "Worker checkpoint shows persistent cursor lag or sustained pressure.",
+                        "Подтверждённое отставание: " + workerLabel,
+                        "Новые данные остаются необработанными, позиция задачи не продвигается в нескольких последовательных проверках дольше допустимого времени.",
                         """
-                        Конкретный worker вышел за healthy contour.
-                        Проверьте source cursor, lease owner, backlog по source table и историю worker snapshot-ов.
+                        Отставание подтверждено историей наблюдений за новыми данными и неизменной позицией.
+                        Возраст самой позиции, отсутствие новых данных и неизвестный источник не являются инцидентом.
+                        Проверьте журнал задачи и непрерывную историю её наблюдений.
                         """.trim(),
-                        workerStale ? "critical" : "high",
+                        "high",
                         "integration_transport_monitor",
                         workerDetails,
                         "system"
@@ -151,14 +130,14 @@ public class IntegrationTransportIncidentMonitor {
                     incidentService.resolveSignalIncident(
                         SIGNAL_TYPE,
                         signalKey,
-                        "Worker checkpoint recovered",
-                        Map.of("status", "healthy", "worker_key", workerKey),
+                        "Нет подтверждённого длительного отставания действующей задачи. Возраст позиции без новых данных и неиспользуемые позиции не являются инцидентом.",
+                        Map.of("status", "no_confirmed_delay", "worker_key", workerKey),
                         "system"
                     );
                 }
             }
 
-            if (Boolean.TRUE.equals(trendSummary.get("sustained_pressure"))) {
+            if (queueEnabled && Boolean.TRUE.equals(trendSummary.get("sustained_pressure"))) {
                 incidentService.openOrRefreshSignalIncident(
                     SIGNAL_TYPE,
                     SUSTAINED_PRESSURE_SIGNAL_KEY,
@@ -187,7 +166,7 @@ public class IntegrationTransportIncidentMonitor {
                     ),
                     "system"
                 );
-            } else {
+            } else if (queueEnabled) {
                 incidentService.resolveSignalIncident(
                     SIGNAL_TYPE,
                     SUSTAINED_PRESSURE_SIGNAL_KEY,

@@ -34,7 +34,10 @@ public class IncidentMonitoringPolicyService {
         items.put("backup_readiness", "Готовность резервных копий");
         items.put("credential_rotation", "Сроки и ротация учётных данных");
         items.put("provider_delivery", "Контроль доставки сообщений");
-        items.put("integration_transport", "Контроль транспорта интеграций");
+        items.put("integration_transport", "Транспорт и фоновые задачи — общий выключатель");
+        items.put("integration_transport.queue", "Очередь транспорта интеграций");
+        items.put("integration_transport.ui_updates", "Обновление открытых страниц панели");
+        items.put("integration_transport.operator_notifications", "Обработка новых сообщений для операторов");
         items.put("alertmanager", "Приём инцидентов от Alertmanager");
         DIRECTIONS = java.util.Collections.unmodifiableMap(items);
     }
@@ -53,7 +56,29 @@ public class IncidentMonitoringPolicyService {
 
     public boolean isSuppressed(String direction) {
         if (direction == null || !DIRECTIONS.containsKey(direction)) return false;
-        return suppressed(read().get(direction), OffsetDateTime.now(clock));
+        var saved = read();
+        var now = OffsetDateTime.now(clock);
+        return suppressed(saved.get(direction), now)
+            || (direction.startsWith("integration_transport.") && suppressed(saved.get("integration_transport"), now));
+    }
+
+    public static String workerDirection(String workerKey) {
+        return switch (workerKey == null ? "" : workerKey) {
+            case "ui-event-outbox-watch" -> "integration_transport.ui_updates";
+            case "operator-notification-watch.chat-history" -> "integration_transport.operator_notifications";
+            default -> null; // Historical/unknown cursors are not active monitored tasks.
+        };
+    }
+
+    public boolean isSignalSuppressed(String signalType, String signalKey) {
+        if (isSuppressed(signalType)) return true;
+        if (!"integration_transport".equals(signalType) || signalKey == null) return false;
+        if (List.of("panel-rabbitmq-bridge", "panel-transport-sustained-pressure").contains(signalKey))
+            return isSuppressed("integration_transport.queue");
+        String prefix = "panel-runtime-checkpoints/";
+        if ("panel-runtime-checkpoints".equals(signalKey)) return true; // Retired duplicate aggregate.
+        String direction = signalKey.startsWith(prefix) ? workerDirection(signalKey.substring(prefix.length())) : null;
+        return signalKey.startsWith(prefix) && (direction == null || isSuppressed(direction));
     }
 
     public Map<String, Object> overview() {
@@ -62,11 +87,20 @@ public class IncidentMonitoringPolicyService {
         OffsetDateTime now = OffsetDateTime.now(clock);
         DIRECTIONS.forEach((id, label) -> {
             Map<String, Object> row = new LinkedHashMap<>(saved.getOrDefault(id, Map.of("mode", "enabled")));
-            row.put("id", id); row.put("label", label); row.put("suppressed", suppressed(row, now));
-            row.put("effective_mode", suppressed(row, now) ? row.get("mode") : "enabled");
+            boolean parentSuppressed = id.startsWith("integration_transport.") && suppressed(saved.get("integration_transport"), now);
+            boolean ownSuppressed = suppressed(row, now);
+            row.put("id", id); row.put("label", label); row.put("suppressed", ownSuppressed);
+            row.put("parent_suppressed", parentSuppressed);
+            row.put("effective_mode", ownSuppressed ? row.get("mode") : "enabled");
             row.put("description", "alertmanager".equals(id)
                 ? "Останавливает приём и повторы инцидентов. Сбор метрик Prometheus настраивается отдельно."
-                : "Останавливает проверки направления, новые инциденты и повторные уведомления. История сохраняется.");
+                : id.startsWith("integration_transport.")
+                    ? "integration_transport.queue".equals(id)
+                        ? "Контроль зависшей обработки и системного накопления очереди. Пауза не останавливает доставку рабочих сообщений."
+                        : "Контроль подтверждённого отставания этой задачи. Нет новых данных — нет инцидента. Пауза останавливает проверки и уведомления, но не сам обработчик."
+                    : "integration_transport".equals(id)
+                        ? "Общий выключатель трёх отдельных проверок ниже. Отдельные ошибки записей и возраст позиции без новых данных не создают инцидент."
+                        : "Останавливает проверки направления, новые инциденты и повторные уведомления. История сохраняется.");
             items.add(row);
         });
         return Map.of("items", items, "server_time", now.toString());
