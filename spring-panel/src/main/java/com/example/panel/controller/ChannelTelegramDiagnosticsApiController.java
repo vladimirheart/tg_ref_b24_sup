@@ -2,6 +2,7 @@ package com.example.panel.controller;
 
 import com.example.panel.service.ChannelTransportService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -12,6 +13,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
+@PreAuthorize("hasAnyAuthority('PAGE_CHANNELS', 'PAGE_SETTINGS')")
 public class ChannelTelegramDiagnosticsApiController {
 
     private final ChannelTransportService channelTransportService;

@@ -14,7 +14,14 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R180 (2026-10-26): рабочие проект и Docker остаются на
+Актуальное уточнение R181 (2026-10-26): рабочие проект и Docker остаются на
+другой машине/в другой сессии. Здесь source и изолированные Maven MVC/service
+fixtures; Docker/browser/Node в R181 не запускались. R180 f8a8367f3 сверён по
+parent/subject/files/content. Пользователь явно разрешил commit/push до конца
+26 октября Moscow (21:00 UTC); source apply и expiry-guarded publisher разделены.
+Рабочие restart/deploy/migration/backfill/config/flags не выполнялись.
+
+Историческое уточнение R180 (2026-10-26): рабочие проект и Docker остаются на
 другой машине/в другой сессии. Здесь только source и изолированные browser/Node
 fixtures; Java/Docker в R180 не запускались. R179 b92c1aa26 сверён по parent,
 subject/files/content. Grant commit/push — до 26 октября 21:00 UTC; source apply
@@ -1406,6 +1413,52 @@ Production classes скомпилированы в v2 с теми же source SH
 CSS baseline blobs сверены; Node/browser=0, поскольку JS/templates не менялись.
 Live Redis/proxy/providers, рабочая functional acceptance и rollout не проверялись.
 Общий статус 01-278 остаётся 🟡.
+
+### Channel management page authority — R181
+
+R181 вводит явную page authority для ChannelApiController,
+ChannelBotCredentialApiController, ChannelTelegramDiagnosticsApiController и
+ChannelNotificationApiController: hasAnyAuthority('PAGE_CHANNELS','PAGE_SETTINGS').
+Это существующие права двух управляющих страниц: ManagementController /channels
+требует PAGE_CHANNELS, settings API/редактор — PAGE_SETTINGS. Наличие одного
+из этих прав сохраняет прежние controller→transport вызовы и ответы. Роль
+ROLE_ADMIN, права других страниц и business/ALL_BUSINESSES tokens сами по себе
+не заменяют page authority. Клиентский business_id тоже не даёт её.
+Барьер закрывает GET/POST /api/channels, PATCH/PUT/POST/DELETE /api/channels/{id},
+оба public-id/regenerate alias, bot credentials GET/POST/DELETE, test-message,
+bot-info и channel-notifications — 14 route/verb combinations. Отказ происходит
+до вызова транспорта, в том числе до загрузки credentials и внешней диагностики.
+Настоящий CSRF для всех write aliases остаётся обязательным; GET не требует token.
+Полный channel catalog больше не доступен любому authenticated пользователю;
+sidebar без этих page rights получает прежний catch/hide при 403. Отдельного
+расширения READ scope или нового публичного status endpoint здесь нет.
+ChannelTransportService, DB/SQL, payload normalization, IDs, grants/roles, UI/JS,
+schema/flags и internal bot APIs не менялись. Это global administration page
+boundary, не business scoping каналов: foreign/shared channel CRUD policy,
+membership/owner predicates и правила глобальных администраторов — следующий
+отдельный gate. Остальные legacy/global picker/attribution, incident targets,
+S2B и рабочий rollout/acceptance также открыты. Статус 01-278 — 🟡.
+
+Проверки R181: 246 Java tests / 5 свежих XML GREEN, Maven v2 exit 0,
+failures/errors/skips=0. Новый ChannelManagementAuthorityWebMvcTest — 170 cases
+с реальной SecurityConfig, фильтрами, method security и CSRF. Для 14 routes
+проверены 84 запрета при valid CSRF без нужной page authority, 28 разрешений
+по PAGE_CHANNELS или PAGE_SETTINGS с exact delegation/response и long ID >2^53,
+44 missing/invalid CSRF отказа и 14 anonymous redirects. Отказы не вызывают
+mock transport. Session principal задаётся Spring Security test; live auth/DB/
+provider acceptance не заявляется. Существующие 50 ChannelApiControllerWebMvcTest
+с отключёнными фильтрами остаются функциональной регрессией; новый suite отдельно
+доказывает security boundary. ManagementController (16), SettingsApiController (5)
+и SettingsBridgeController (5) повторены без изменений.
+До production edits тот же test source SHA на exact baseline blobs дал
+170 tests / 84 failures / 86 passing controls / 0 errors/skips: чужие права
+получали HTTP 200 вместо 403. XML/log/test SHA и controller blobs сохранены
+в ignored r181-baseline-report.xml, r181-panel-v1.log, r181-baseline-red.json.
+Тесты после RED не менялись. Кэш Java R179 использован только после сравнения
+нормализованных SHA всех Java sources с текущим baseline; новый test и четыре
+controller class реально перекомпилированы, XML свежие. Source/class/XML/log SHA,
+generated CSS baseline и diff --check проверены. Node/browser=0: UI/JS не менялись;
+прежний R53 debt из R180 здесь не запускался. Рабочей приёмки нет.
 
 ### Exact typed channel notification UI — R180
 
