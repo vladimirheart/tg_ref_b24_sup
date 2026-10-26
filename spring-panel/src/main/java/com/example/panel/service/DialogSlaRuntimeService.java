@@ -121,7 +121,9 @@ public class DialogSlaRuntimeService {
             // try same timestamp as explicit UTC when timezone is omitted
         }
         try {
-            return OffsetDateTime.parse(value).toInstant().toEpochMilli();
+            String normalized = value.replace(' ', 'T');
+            if (normalized.matches(".*[+-]\\d{2}$")) normalized += ":00";
+            return OffsetDateTime.parse(normalized).toInstant().toEpochMilli();
         } catch (DateTimeParseException ex) {
             // continue
         }

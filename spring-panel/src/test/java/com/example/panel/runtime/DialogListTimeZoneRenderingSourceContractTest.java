@@ -35,7 +35,8 @@ class DialogListTimeZoneRenderingSourceContractTest {
             .contains("th:data-created-at=\"${dialog.createdAt()}\"")
             .contains("data-dialog-created-date th:text=\"${dialog.createdDateSafe()}\"")
             .contains("data-dialog-created-time th:text=\"${dialog.createdTimeSafe()}\"")
-            .contains("dialogsAssetVersion='20261002-01-278-timezone-r46'");
+            .contains("dialogsAssetVersion='20261026-01-282-pagination-v1'")
+            .contains("dialogs.js(v=${dialogsAssetVersion})");
     }
 
     private String read(String relativePath) throws IOException {

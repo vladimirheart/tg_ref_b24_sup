@@ -2,6 +2,8 @@ package com.example.panel.service;
 
 import com.example.panel.model.dialog.DialogChannelStat;
 import com.example.panel.model.dialog.DialogListItem;
+import com.example.panel.model.dialog.DialogListPage;
+import com.example.panel.model.dialog.DialogListQuery;
 import com.example.panel.model.dialog.DialogMyDialogs;
 import com.example.panel.model.dialog.DialogSummary;
 import com.example.panel.support.JdbcSchemaInspector;
@@ -121,6 +123,30 @@ public class DialogLookupReadService {
     }
 
     private List<DialogListItem> loadDialogsInternal(String currentOperator,List<ScopedSlaDialog> captured) {
+        return loadDialogsInternal(currentOperator, captured, null);
+    }
+
+    DialogListPage loadDialogsPage(String operator, DialogListQuery query, DialogListPageSql.Policy policy) {
+        var selection = new DialogListPageSql.Selection(query, policy, false);
+        var items = loadDialogsInternal(operator, null, selection);
+        return new DialogListPage(items, selection.total, selection.page, query.pageSize());
+    }
+
+    record MyDialogsPreview(DialogMyDialogs dialogs, Map<String, Long> counts) {}
+
+    MyDialogsPreview loadMyDialogsPreview(String operator, DialogListPageSql.Policy policy) {
+        return loadMyDialogsPreview(operator, policy, DialogListQuery.defaults());
+    }
+
+    MyDialogsPreview loadMyDialogsPreview(String operator, DialogListPageSql.Policy policy, DialogListQuery query) {
+        if (!StringUtils.hasText(operator)) return new MyDialogsPreview(DialogMyDialogs.empty(), Map.of());
+        var selection = new DialogListPageSql.Selection(query, policy, true);
+        var items = loadDialogsInternal(operator, null, selection);
+        return new MyDialogsPreview(groupMyActiveDialogs(items, operator), Map.copyOf(selection.counts));
+    }
+
+    private List<DialogListItem> loadDialogsInternal(String currentOperator, List<ScopedSlaDialog> captured,
+                                                    DialogListPageSql.Selection selection) {
         try {
             Set<String> feedbackColumns = loadTableColumns("feedbacks");
             boolean feedbackHasTicketId = feedbackColumns.contains("ticket_id");
@@ -156,7 +182,7 @@ public class DialogLookupReadService {
                     .formatted(feedbackOrderBy)
                     : "NULL AS rating,";
             String sql = """
-                    SELECT %s t.ticket_id, m.group_msg_id AS request_number,
+                    SELECT %s %s AS last_activity, t.ticket_id, m.group_msg_id AS request_number,
                            COALESCE(
                                m.user_id,
                                t.user_id,
@@ -252,10 +278,10 @@ public class DialogLookupReadService {
                        AND %s
                        AND (SELECT COUNT(*) FROM tickets legacy_ticket
                             WHERE legacy_ticket.ticket_id = t.ticket_id) = 1
-                      ORDER BY %s,
-                               t.ticket_id DESC
+                      %s
                     """.formatted(
                     captured==null?"":"t.user_id AS scoped_user_id,t.ticket_public_id,t.business_id AS scoped_business_id,t.channel_id AS scoped_channel_id,t.responsibility_revision,",
+                    lastActivityExpression,
                     latestMessageOrder,
                     ratingSelect,
                     latestHistoryOrder,
@@ -267,9 +293,24 @@ public class DialogLookupReadService {
                     latestMessageOrder,
                     latestMessageOrder,
                     captured==null?"TRUE":"(m.user_id IS NULL OR m.user_id=t.user_id) AND (m.channel_id IS NULL OR m.channel_id=t.channel_id)",
-                    timestampSqlSupport.orderByTimestampDesc(lastActivityExpression)
+                    selection == null ? "ORDER BY " + timestampSqlSupport.orderByTimestampDesc(lastActivityExpression) + ", t.ticket_id DESC" : ""
             );
+            Object[] bindings = {currentOperator};
+            if (selection != null) {
+                var statement = DialogListPageSql.build(sql, currentOperator, selection);
+                sql = statement.sql();
+                bindings = statement.bindings();
+            }
             List<DialogListItem> items = jdbcTemplate.query(sql, (rs, rowNum) -> {
+                if (selection != null) {
+                    if (selection.myPreview) {
+                        selection.counts.put(rs.getString("my_bucket"), rs.getLong("page_total"));
+                    } else {
+                        selection.total = rs.getLong("page_total");
+                        selection.page = rs.getInt("current_page");
+                    }
+                    if (rs.getString("ticket_id") == null) return null;
+                }
                 var item=new DialogListItem(
                     rs.getString("ticket_id"),
                     rs.getString("request_number"),
@@ -306,10 +347,12 @@ public class DialogLookupReadService {
                     Long channel=rs.getObject("scoped_channel_id",Long.class);
                     if(scope.isValid() && channel!=null && channel>0) captured.add(new ScopedSlaDialog(item,scope,channel,rs.getLong("responsibility_revision"),rs.getString("responsible")));
                 }
-                return item;
-            }, currentOperator);
+                return selection != null ? item.withRequestNumber(rs.getString("display_number")) : item;
+            }, bindings);
+            if (selection != null) return enrichResponsibleProfiles(items.stream().filter(Objects::nonNull).toList());
             return assignDailyRequestNumbers(enrichResponsibleProfiles(items));
         } catch (DataAccessException ex) {
+            if (selection != null) throw ex; // Don't disguise a failed page query as a successfully empty list.
             log.warn("Unable to load dialogs, returning empty list: {}", DialogDataAccessSupport.summarizeDataAccessException(ex));
             return List.of();
         }

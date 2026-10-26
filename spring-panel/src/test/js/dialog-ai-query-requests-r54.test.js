@@ -126,7 +126,8 @@ async function reviewActionRequests() {
   const template = fs.readFileSync(path.resolve(__dirname, '../../main/resources/templates/dialogs/index.html'), 'utf8');
   const aiOpsTemplate = fs.readFileSync(path.resolve(__dirname, '../../main/resources/templates/dialogs/ai-ops.html'), 'utf8');
   assert.ok(template.includes("dialogs-ai-runtime.js(v='20261012-01-278-r54')"));
-  assert.ok(template.includes("dialogs.js(v='20261012-01-278-r54')"));
+  assert.ok(template.includes("dialogsAssetVersion='20261026-01-282-pagination-v1'"));
+  assert.ok(template.includes('dialogs.js(v=${dialogsAssetVersion})'));
   assert.ok(aiOpsTemplate.includes("ai-ops.js(v='20261012-01-278-r54')"));
   console.log('DIALOG_AI_QUERY_REQUESTS_R54_RESULT=GREEN');
 })().catch(error => { console.error(error); process.exitCode = 1; });

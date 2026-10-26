@@ -79,7 +79,7 @@ class DialogApiControllerWebMvcTest {
 
     @Test
     void listReturnsDialogsPayloadForAuthenticatedOperator() throws Exception {
-        when(dialogListReadService.loadListPayload("operator"))
+        when(dialogListReadService.loadListPayload(eq("operator"), any(), eq(true)))
                 .thenReturn(Map.of(
                         "success", true,
                         "dialogs", List.of(Map.of("ticketId", "T-100")),

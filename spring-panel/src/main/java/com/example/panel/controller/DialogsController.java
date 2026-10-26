@@ -1,10 +1,7 @@
 package com.example.panel.controller;
 
 import com.example.panel.config.MultibusinessFeatureFlags;
-import com.example.panel.model.dialog.DialogSummary;
-import com.example.panel.model.dialog.DialogListItem;
-import com.example.panel.model.dialog.DialogMyDialogs;
-import com.example.panel.service.DialogLookupReadService;
+import com.example.panel.service.DialogListReadService;
 import com.example.panel.service.NavigationService;
 import com.example.panel.service.SharedConfigService;
 import org.slf4j.Logger;
@@ -17,7 +14,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import java.util.List;
+import java.util.Map;
 
 @Controller
 public class DialogsController {
@@ -25,18 +22,18 @@ public class DialogsController {
     private static final Logger log = LoggerFactory.getLogger(DialogsController.class);
 
     private final NavigationService navigationService;
-    private final DialogLookupReadService dialogLookupReadService;
     private final SharedConfigService sharedConfigService;
     private final MultibusinessFeatureFlags multibusinessFlags;
+    private final DialogListReadService dialogListReadService;
 
     public DialogsController(NavigationService navigationService,
-                             DialogLookupReadService dialogLookupReadService,
                              SharedConfigService sharedConfigService,
-                             MultibusinessFeatureFlags multibusinessFlags) {
+                             MultibusinessFeatureFlags multibusinessFlags,
+                             DialogListReadService dialogListReadService) {
         this.navigationService = navigationService;
-        this.dialogLookupReadService = dialogLookupReadService;
         this.sharedConfigService = sharedConfigService;
         this.multibusinessFlags = multibusinessFlags;
+        this.dialogListReadService = dialogListReadService;
     }
 
     @GetMapping("/dialogs")
@@ -74,14 +71,15 @@ public class DialogsController {
         model.addAttribute("businessSelectorAvailable",
                 multibusinessFlags.isFoundationEnabled() && multibusinessFlags.isUiSelector());
         try {
-            DialogSummary summary = dialogLookupReadService.loadSummary();
-            List<DialogListItem> dialogs = dialogLookupReadService.loadDialogs(operatorIdentity);
-            DialogMyDialogs myDialogs = dialogLookupReadService.groupMyActiveDialogs(dialogs, operatorIdentity);
-            model.addAttribute("summary", summary);
-            model.addAttribute("dialogs", dialogs);
-            model.addAttribute("myNewDialogs", myDialogs.newUnassigned());
-            model.addAttribute("myUnansweredDialogs", myDialogs.unanswered());
-            model.addAttribute("myInWorkDialogs", myDialogs.inWork());
+            var payload = dialogListReadService.loadListPayload(operatorIdentity);
+            model.addAttribute("summary", payload.get("summary"));
+            model.addAttribute("dialogs", payload.get("dialogs"));
+            Map<?, ?> myDialogs = (Map<?, ?>) payload.get("my_dialogs");
+            model.addAttribute("myNewDialogs", myDialogs.get("new"));
+            model.addAttribute("myUnansweredDialogs", myDialogs.get("unanswered"));
+            model.addAttribute("myInWorkDialogs", myDialogs.get("in_work"));
+            model.addAttribute("myDialogsCounts", myDialogs.get("counts"));
+            model.addAttribute("dialogListPagination", payload.get("pagination"));
             model.addAttribute("settingsPayload", sharedConfigService.loadSettings());
             log.info("Loaded dialogs page for user {}", operatorIdentity);
         } catch (Exception ex) {

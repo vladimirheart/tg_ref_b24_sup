@@ -3,12 +3,21 @@ package com.example.panel.service;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DialogSlaRuntimeServiceTest {
 
     private final DialogSlaRuntimeService service = new DialogSlaRuntimeService();
+
+    @Test
+    void postgresOffsetTimestampAgreesWithUtcSlaFilters() {
+        long expected = Instant.parse("2026-10-26T09:00:00Z").toEpochMilli();
+        assertThat(service.parseTimestampToMillis("2026-10-26 09:00:00+00")).isEqualTo(expected);
+        assertThat(service.parseTimestampToMillis("2026-10-26 12:00:00+03:00")).isEqualTo(expected);
+        assertThat(service.parseTimestampToMillis("2026-10-26 12:00:00+03")).isEqualTo(expected);
+    }
 
     @Test
     void resolveSlaStateAndMinutesLeftRespectWarningAndBreachWindows() {

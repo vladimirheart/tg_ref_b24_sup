@@ -115,6 +115,10 @@
                 1
             );
         } else {
+            if (pinnedIds.length >= 100) {
+                options.showNotification?.('Можно закрепить до 100 диалогов.', 'warning');
+                return;
+            }
             pinnedIds.push(
                 normalizedTicketId
             );
@@ -125,6 +129,7 @@
         );
 
         renderMyDialogsPanel();
+        options.onPinsChanged?.();
     }
 
     function escapeHtml(value) {
@@ -196,6 +201,7 @@
     function normalizeMyDialogsState(payload) {
       const source = payload && typeof payload === 'object' ? payload : {};
       setMyDialogsState({
+        counts: source.counts || null,
         new: normalizeMyDialogsCollection(source.new || source.new_unassigned || source.newUnassigned),
         unanswered: normalizeMyDialogsCollection(source.unanswered),
         inWork: normalizeMyDialogsCollection(source.in_work || source.inWork),
@@ -651,12 +657,15 @@
 				)
 				.join('');
 
-		const totalActive =
-			activeById.size;
+		const counts = state.counts;
+		const totalActive = counts
+			? ['new', 'unanswered', 'in_work'].reduce((total, key) => total + Math.max(0, Number(counts[key]) || 0), 0)
+			: activeById.size;
 
 		if (elements.count) {
 			elements.count.textContent =
-				`(${totalActive})`;
+				activeById.size < totalActive ? `(${totalActive}, показано ${activeById.size})` : `(${totalActive})`;
+			elements.count.title = 'В каждом разделе показаны до 20 последних диалогов. Полный список доступен через поиск и фильтры.';
 		}
 
 		elements.newSection
@@ -802,6 +811,7 @@
     }
 
     return {
+      getPinnedDialogIds,
       normalizeMyDialogsCollection,
       resolveResponsibleRawFromItem,
       resolveRowResponsibleRaw,

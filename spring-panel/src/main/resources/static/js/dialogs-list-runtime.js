@@ -19,15 +19,57 @@
   }
 
   function normalizePageSize(value, fallbackValue = 20) {
-    if (value === 'all') return Infinity;
     const parsed = Number.parseInt(value, 10);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallbackValue;
+    return Number.isFinite(parsed) && parsed > 0
+      ? Math.min(100, parsed)
+      : Math.min(100, Math.max(1, Number(fallbackValue) || 20));
   }
 
   function createRuntime(options = {}) {
     const elements = options.elements || {};
     const table = options.table;
     const emptyRow = options.emptyRow;
+    let serverPagination = window.DIALOG_LIST_PAGINATION || null;
+    let listGeneration = 0;
+    let requestSequence = 0;
+    let activeRequest = null;
+    let filterTimer = null;
+    let refreshQueued = false;
+    let disposed = false;
+    let lastAppliedQueryKey = null;
+    let errorNotified = false;
+    const emptyCell = emptyRow?.querySelector('td');
+    const emptyText = emptyCell?.textContent || 'Диалоги не найдены';
+
+    function listQuery() {
+      const state = getFilterState();
+      return {
+        page: Math.max(1, Number.parseInt(state.page, 10) || 1),
+        pageSize: normalizePageSize(state.pageSize, options.defaultPageSize),
+        search: String(state.search || '').trim(),
+        status: String(state.status || '').trim(),
+        view: normalizeDialogView(state.view),
+        slaWindowMinutes: Number.isFinite(state.slaWindowMinutes) ? state.slaWindowMinutes : null,
+        sortMode: state.sortMode === 'sla_priority' ? 'sla_priority' : 'default',
+        snoozedTicketIds: state.view === 'all' ? [] : (options.getSnoozedTicketIds?.() || []),
+        pinnedTicketIds: options.getPinnedTicketIds?.() || [],
+      };
+    }
+
+    function renderServerPage() {
+      const rows = rowsList();
+      if (emptyCell) emptyCell.textContent = emptyText;
+      rows.forEach((row) => {
+        row.classList.remove('d-none');
+        applySlaPriorityClass(row);
+      });
+      setLastFilteredRows(rows.slice());
+      applyPageSize(rows);
+      updateZebraRows(rows);
+      ensureEmptyRow();
+      emptyRow?.classList.toggle('d-none', rows.length !== 0);
+      updateBulkActionsState();
+    }
 
     function getFilterState() {
       return options.filterState;
@@ -460,7 +502,7 @@
           selectedTicketIds.delete(ticketId);
         }
       });
-      applyFilters();
+      renderServerPage();
       rowsList().forEach((row) => options.updateRowQuickActions(row));
 
       const activeState = getActiveDialogState();
@@ -471,49 +513,83 @@
       }
     }
 
-    async function refreshDialogsList() {
-      if (isListLoading()) {
+    async function refreshDialogsList(runtimeOptions = {}) {
+      if (disposed || document.visibilityState === 'hidden') {
         return;
       }
-      if (document.visibilityState === 'hidden') {
+      if (filterTimer) {
+        clearTimeout(filterTimer);
+        filterTimer = null;
+      }
+      const query = listQuery();
+      const queryKey = JSON.stringify(query);
+      if (activeRequest?.queryKey === queryKey && activeRequest.generation === listGeneration) {
+        refreshQueued = true;
         return;
       }
+      activeRequest?.controller.abort();
+      const request = { id: ++requestSequence, queryKey, generation: listGeneration, controller: new AbortController() };
+      activeRequest = request;
       setListLoading(true);
+      table?.setAttribute('aria-busy', 'true');
       try {
-        const resp = await fetch('/api/dialogs', {
+        const resp = await fetch('/api/dialogs/query', {
+          method: 'POST',
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
           credentials: 'same-origin',
           cache: 'no-store',
+          signal: request.controller.signal,
+          body: JSON.stringify({ query, includeOverview: runtimeOptions.includeOverview !== false }),
         });
         const data = await resp.json();
+        if (disposed || request.generation !== listGeneration || activeRequest !== request) return;
         if (!resp.ok || !data?.success) {
           throw new Error(data?.error || `Ошибка ${resp.status}`);
         }
+        if (!data.pagination || !Array.isArray(data.dialogs) || data.dialogs.length > query.pageSize) {
+          throw new Error('Некорректный ответ постраничного списка');
+        }
+        serverPagination = data.pagination;
+        errorNotified = false;
+        getFilterState().page = Math.max(1, Number(data.pagination.page) || 1);
         const dialogs = data.dialogs || [];
         syncSlaOrchestrationSignals(data.sla_orchestration || null);
         applySlaOrchestrationToRows();
         const marker = options.buildDialogsMarker(dialogs);
         const lastMarker = typeof options.getLastListMarker === 'function' ? options.getLastListMarker() : null;
         const isInitialSync = lastMarker === null;
-        const hasListChanges = !isInitialSync && marker !== lastMarker;
+        const hasListChanges = !isInitialSync && lastAppliedQueryKey === queryKey && marker !== lastMarker;
+        lastAppliedQueryKey = JSON.stringify(listQuery());
         if (isInitialSync || marker !== lastMarker) {
           options.setLastListMarker?.(marker);
         }
         syncDialogsTable(dialogs);
         if (data.my_dialogs && typeof data.my_dialogs === 'object') {
           options.normalizeMyDialogsState(data.my_dialogs);
-        } else {
-          options.syncMyDialogsStateFromTable();
         }
         options.renderMyDialogsPanel();
         applySlaOrchestrationToRows();
-        options.refreshSummaryCounters(data.summary || {});
+        if (data.summary) options.refreshSummaryCounters(data.summary);
         if (hasListChanges) {
           options.requestSidebarNotificationRefresh('dialogs-list-change');
         }
-      } catch (_error) {
-        // ignore polling errors
+      } catch (error) {
+        if (activeRequest !== request || request.generation !== listGeneration || disposed || error?.name === 'AbortError') return;
+        if (elements.pageState) elements.pageState.textContent = 'Не удалось обновить список. Повторите поиск или смену страницы.';
+        if (emptyCell && !rowsList().length) emptyCell.textContent = 'Не удалось загрузить диалоги. Повторите поиск или смену страницы.';
+        if (!errorNotified) options.showNotification?.('Не удалось загрузить страницу диалогов. Повторите запрос.', 'warning');
+        errorNotified = true;
       } finally {
-        setListLoading(false);
+        if (activeRequest === request) {
+          activeRequest = null;
+          setListLoading(false);
+          table?.setAttribute('aria-busy', 'false');
+          updateBulkActionsState();
+          if (refreshQueued && !disposed) {
+            refreshQueued = false;
+            void refreshDialogsList();
+          }
+        }
       }
     }
 
@@ -787,7 +863,7 @@
 
     function updateBulkActionsState() {
       const count = getSelectedTicketIds().size;
-      const canShowBulkToolbar = count > 1;
+      const canShowBulkToolbar = count > 1 && !isListLoading();
       if (elements.bulkToolbar) {
         elements.bulkToolbar.classList.toggle('d-none', !canShowBulkToolbar);
       }
@@ -919,45 +995,29 @@
       if (runtimeOptions.resetPage === true) {
         filterState.page = 1;
       }
-      options.updateAllSlaBadges();
-      const search = (filterState.search || '').trim().toLowerCase();
-      const status = (filterState.status || '').trim().toLowerCase();
-      const matchedRows = [];
-      const hiddenRows = [];
-      rowsList().forEach((row) => {
-        const text = options.collectRowSearchText(row);
-        const statusValue = (row.dataset.status || '').toLowerCase();
-        const matchesSearch = !search || text.includes(search);
-        const matchesStatus = !status || statusValue === status;
-        const matchesView = matchesCurrentView(row);
-        const matchesSlaWindow = matchesSlaReactionWindow(row);
-        const visible = matchesSearch && matchesStatus && matchesView && matchesSlaWindow;
-        row.classList.toggle('d-none', !visible);
-        applySlaPriorityClass(row);
-        if (visible) {
-          matchedRows.push(row);
-        } else {
-          hiddenRows.push(row);
-        }
-      });
-      if (filterState.sortMode === 'sla_priority') {
-        matchedRows.sort(compareRowsBySlaPriority);
-      }
-      setLastFilteredRows(matchedRows.slice());
-      syncTableBodyOrder(matchedRows.concat(hiddenRows));
-      const visibleCount = applyPageSize(matchedRows);
-      updateZebraRows(matchedRows);
-      ensureEmptyRow();
-      if (emptyRow) {
-        emptyRow.classList.toggle('d-none', visibleCount !== 0);
-      }
-      updateBulkActionsState();
+      listGeneration += 1; // Invalidate immediately, before the search debounce fires.
+      activeRequest?.controller.abort();
+      activeRequest = null;
+      refreshQueued = false;
+      if (filterTimer) clearTimeout(filterTimer);
+      clearSelection(); // Selection never silently extends beyond the currently loaded page.
+      rowsList().forEach((row) => row.remove());
+      setLastFilteredRows([]);
+      if (emptyCell) emptyCell.textContent = 'Загрузка диалогов…';
+      emptyRow?.classList.remove('d-none');
+      setListLoading(true);
+      table?.setAttribute('aria-busy', 'true');
+      if (elements.pageState) elements.pageState.textContent = 'Загрузка…';
+      filterTimer = setTimeout(() => {
+        filterTimer = null;
+        void refreshDialogsList({ includeOverview: runtimeOptions.includeOverview === true });
+      }, runtimeOptions.debounce === true ? 220 : 0);
     }
 
     function applyQuickSearch(value) {
       const filterState = getFilterState();
       filterState.search = value || '';
-      applyFilters({ resetPage: true });
+      applyFilters({ resetPage: true, debounce: true });
     }
 
     function applyStatusFilter(statusLabel = '') {
@@ -1092,24 +1152,11 @@
 
     function resolveListPagination(totalItems) {
       const filterState = getFilterState();
-      let limit = filterState.pageSize;
-      if (limit === Infinity) {
-        return {
-          limit: Infinity,
-          totalItems,
-          totalPages: totalItems > 0 ? 1 : 0,
-          currentPage: totalItems > 0 ? 1 : 0,
-          startIndex: 0,
-          endIndex: totalItems,
-          visibleCount: totalItems,
-        };
-      }
-      if (!Number.isFinite(limit) || limit <= 0) {
-        limit = options.defaultPageSize;
-      }
+      const limit = normalizePageSize(serverPagination?.page_size ?? filterState.pageSize, options.defaultPageSize);
+      totalItems = Math.max(0, Number(serverPagination?.total_items) || 0);
       const totalPages = totalItems > 0 ? Math.ceil(totalItems / limit) : 0;
       const currentPage = totalPages > 0
-        ? Math.min(Math.max(1, Number.parseInt(filterState.page, 10) || 1), totalPages)
+        ? Math.min(Math.max(1, Number(serverPagination?.page) || 1), totalPages)
         : 0;
       const startIndex = currentPage > 0 ? (currentPage - 1) * limit : 0;
       const endIndex = currentPage > 0 ? Math.min(startIndex + limit, totalItems) : 0;
@@ -1192,16 +1239,24 @@
 
     function applyPageSize(matchedRows) {
       const pagination = resolveListPagination(matchedRows.length);
-      getFilterState().page = pagination.currentPage || 1;
-      matchedRows.forEach((row, index) => {
-        const visible = pagination.limit === Infinity
-          ? true
-          : index >= pagination.startIndex && index < pagination.endIndex;
-        row.classList.toggle('d-none', !visible);
-      });
       updatePaginationControls(pagination);
-      return pagination.visibleCount;
+      return matchedRows.length;
     }
+
+    function dispose() {
+      disposed = true;
+      listGeneration += 1;
+      if (filterTimer) clearTimeout(filterTimer);
+      activeRequest?.controller.abort();
+      activeRequest = null;
+      stopDialogsPolling();
+      document.removeEventListener('visibilitychange', refreshOnVisible);
+    }
+
+    function refreshOnVisible() {
+      if (document.visibilityState === 'visible') void refreshDialogsList();
+    }
+    document.addEventListener('visibilitychange', refreshOnVisible);
 
     function updateZebraRows(matchedRows) {
       rowsList().forEach((row) => {
@@ -1214,6 +1269,7 @@
 
     return {
       syncDialogsTable,
+      dispose,
       refreshDialogsList,
       startDialogsPolling,
       stopDialogsPolling,

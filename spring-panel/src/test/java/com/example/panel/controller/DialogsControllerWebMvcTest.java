@@ -6,6 +6,7 @@ import com.example.panel.model.dialog.DialogMyDialogs;
 import com.example.panel.model.dialog.DialogSummary;
 import com.example.panel.repository.PanelUserRepository;
 import com.example.panel.service.DialogLookupReadService;
+import com.example.panel.service.DialogListReadService;
 import com.example.panel.service.NavigationService;
 import com.example.panel.service.PanelUserPhotoService;
 import com.example.panel.service.PermissionService;
@@ -41,11 +42,41 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import(NavigationService.class)
 class DialogsControllerWebMvcTest {
 
+    @Test
+    void initialHtmlContainsOnlyABoundedPageAndIndependentTotals() throws Exception {
+        stubNavigationDefaults();
+        var dialogs = java.util.stream.IntStream.rangeClosed(1, 20).mapToObj(n -> new DialogListItem(
+                "T-" + String.format("%05d", n), "20261026-" + String.format("%03d", n), 1000L + n,
+                "client", "Клиент " + n, "Поддержка", 1L, "Telegram", "Город", "Ресторан",
+                "Проблема " + n, "2026-10-26T09:00:00Z", "open", false, null, null, null,
+                "2026-10-26", "09:00:00", "VIP", "user", "2026-10-26T09:00:00Z", 1, null, "Техническая поддержка", null, null)).toList();
+        stubDialogsPageData(new DialogSummary(10000, 2000, 8000, List.of()), dialogs,
+                new DialogMyDialogs(dialogs, List.of(), List.of()));
+        var result = mockMvc.perform(get("/dialogs").with(user("operator")))
+                .andExpect(status().isOk()).andReturn();
+        String html = result.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        long rowCount = java.util.regex.Pattern.compile("<tr\\b[^>]*\\bdata-ticket-id=", java.util.regex.Pattern.DOTALL)
+                .matcher(html).results().count();
+        org.assertj.core.api.Assertions.assertThat(rowCount).isEqualTo(20);
+        org.assertj.core.api.Assertions.assertThat(html).doesNotContain("<option value=\"all\">Все</option>");
+        org.assertj.core.api.Assertions.assertThat(html).contains("DIALOG_LIST_PAGINATION", "10000");
+        org.mockito.Mockito.verifyNoInteractions(dialogLookupReadService);
+        String capture = System.getProperty("iguana.dialogs.capture");
+        if (capture != null) {
+            var file = java.nio.file.Path.of(capture);
+            java.nio.file.Files.createDirectories(file.getParent());
+            java.nio.file.Files.writeString(file, html, java.nio.charset.StandardCharsets.UTF_8);
+        }
+    }
+
     @Autowired
     private MockMvc mockMvc;
 
     @MockBean
     private DialogLookupReadService dialogLookupReadService;
+
+    @MockBean
+    private DialogListReadService dialogListReadService;
 
     @MockBean
     private SharedConfigService sharedConfigService;
@@ -236,9 +267,11 @@ class DialogsControllerWebMvcTest {
     private void stubDialogsPageData(DialogSummary summary,
                                      List<DialogListItem> dialogs,
                                      DialogMyDialogs myDialogs) {
-        when(dialogLookupReadService.loadSummary()).thenReturn(summary);
-        when(dialogLookupReadService.loadDialogs(anyString())).thenReturn(dialogs);
-        when(dialogLookupReadService.groupMyActiveDialogs(anyList(), anyString())).thenReturn(myDialogs);
+        when(dialogListReadService.loadListPayload(anyString())).thenReturn(Map.of(
+                "summary", summary, "dialogs", dialogs,
+                "pagination", Map.of("page", 1, "page_size", 20, "total_items", summary.totalTickets()),
+                "my_dialogs", Map.of("new", myDialogs.newUnassigned(), "unanswered", myDialogs.unanswered(),
+                        "in_work", myDialogs.inWork(), "counts", Map.of())));
         when(sharedConfigService.loadSettings()).thenReturn(Map.of());
     }
 

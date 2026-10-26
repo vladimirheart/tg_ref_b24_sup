@@ -3,6 +3,8 @@ package com.example.panel.service;
 import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.model.dialog.DialogMyDialogs;
 import com.example.panel.model.dialog.DialogSummary;
+import com.example.panel.model.dialog.DialogListPage;
+import com.example.panel.model.dialog.DialogListQuery;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -13,6 +15,10 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 
 class DialogListReadServiceTest {
 
@@ -23,15 +29,31 @@ class DialogListReadServiceTest {
             new DialogListReadService(dialogLookupReadService, sharedConfigService, dialogSlaRuntimeService);
 
     @Test
+    void pageSwitchDoesNotRebuildOverviewAndNeverLoadsEntireList() {
+        var query = new DialogListQuery(4, 20, "клиент", "", "active", null, "default", List.of());
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of());
+        when(dialogLookupReadService.loadDialogsPage(eq("operator"), eq(query), any()))
+                .thenReturn(new DialogListPage(List.of(), 0, 1, 20));
+        var payload = service.loadListPayload("operator", query, false);
+        assertThat(payload).doesNotContainKeys("summary", "my_dialogs");
+        verify(dialogLookupReadService, never()).loadDialogs(any());
+        verify(dialogLookupReadService, never()).loadSummary();
+        verify(dialogLookupReadService, never()).loadMyDialogsPreview(any(), any(), any());
+    }
+
+    @Test
     void loadListPayloadBuildsSlaOrchestrationWithCriticalUnassignedTicket() {
         when(dialogLookupReadService.loadSummary()).thenReturn(new DialogSummary(2, 0, 2, List.of()));
         List<DialogListItem> dialogs = List.of(
                 sampleDialog("T-100", null, "2026-04-21T00:00:00Z", "open"),
                 sampleDialog("T-200", "operator", Instant.now().minus(10, ChronoUnit.MINUTES).toString(), "open")
         );
-        when(dialogLookupReadService.loadDialogs("operator")).thenReturn(dialogs);
-        when(dialogLookupReadService.groupMyActiveDialogs(dialogs, "operator"))
-                .thenReturn(new DialogMyDialogs(List.of(dialogs.get(0)), List.of(), List.of(dialogs.get(1))));
+        when(dialogLookupReadService.loadDialogsPage(eq("operator"), any(), any()))
+                .thenReturn(new DialogListPage(dialogs, 2000, 1, 20));
+        when(dialogLookupReadService.loadMyDialogsPreview(eq("operator"), any(), any()))
+                .thenReturn(new DialogLookupReadService.MyDialogsPreview(
+                        new DialogMyDialogs(List.of(dialogs.get(0)), List.of(), List.of(dialogs.get(1))),
+                        Map.of("new", 1200L, "unanswered", 0L, "in_work", 800L)));
         when(sharedConfigService.loadSettings()).thenReturn(Map.of(
                 "dialog_config", Map.of(
                         "sla_target_minutes", 180,
@@ -44,6 +66,8 @@ class DialogListReadServiceTest {
         Map<String, Object> payload = service.loadListPayload("operator");
 
         assertThat(payload.get("success")).isEqualTo(true);
+        assertThat(((Map<?, ?>) payload.get("pagination")).get("total_items")).isEqualTo(2000L);
+        verify(dialogLookupReadService, never()).loadDialogs(any());
         Map<?, ?> orchestration = (Map<?, ?>) payload.get("sla_orchestration");
         Map<?, ?> tickets = (Map<?, ?>) orchestration.get("tickets");
         Map<?, ?> criticalTicket = (Map<?, ?>) tickets.get("T-100");
@@ -68,9 +92,12 @@ class DialogListReadServiceTest {
                 sampleDialog("T-300", "new_owner", Instant.now().minus(5, ChronoUnit.MINUTES).toString(), "open"),
                 autoProcessingDialog("T-301", "new_owner", Instant.now().minus(3, ChronoUnit.MINUTES).toString())
         );
-        when(dialogLookupReadService.loadDialogs("new_owner")).thenReturn(dialogs);
-        when(dialogLookupReadService.groupMyActiveDialogs(dialogs, "new_owner"))
-                .thenReturn(new DialogMyDialogs(List.of(), List.of(dialogs.get(0)), List.of(dialogs.get(1))));
+        when(dialogLookupReadService.loadDialogsPage(eq("new_owner"), any(), any()))
+                .thenReturn(new DialogListPage(dialogs, 2, 1, 20));
+        when(dialogLookupReadService.loadMyDialogsPreview(eq("new_owner"), any(), any()))
+                .thenReturn(new DialogLookupReadService.MyDialogsPreview(
+                        new DialogMyDialogs(List.of(), List.of(dialogs.get(0)), List.of(dialogs.get(1))),
+                        Map.of("new", 0L, "unanswered", 1L, "in_work", 1L)));
         when(sharedConfigService.loadSettings()).thenReturn(Map.of());
 
         Map<String, Object> payload = service.loadListPayload("new_owner");

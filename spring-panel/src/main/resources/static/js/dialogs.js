@@ -1132,6 +1132,7 @@
   let columnState = { ...defaultColumnState };
   let columnOrder = [...defaultColumnOrder];
   let myDialogsState = {
+    counts: window.DIALOG_MY_COUNTS || null,
     new: Array.isArray(INITIAL_MY_DIALOGS.new)
       ? INITIAL_MY_DIALOGS.new.filter((item) => item && typeof item === 'object')
       : [],
@@ -1455,6 +1456,8 @@
     updateDetailsResponsible,
   }) || null;
   dialogsMyDialogsRuntime = window.DialogsMyDialogsRuntime?.createRuntime({
+    onPinsChanged: () => refreshDialogsList(),
+    showNotification,
     elements: {
       panel: myDialogsPanel,
       count: myDialogsCount,
@@ -2127,7 +2130,8 @@
   }
 
   function syncMyDialogsStateFromTable() {
-    dialogsMyDialogsRuntime?.syncMyDialogsStateFromTable();
+    // The table contains a page, not the whole queue; never rebuild global buckets from it.
+    void refreshDialogsList();
   }
 
   function formatMyDialogLastActivity(dialog) {
@@ -2680,6 +2684,8 @@
     requestSidebarNotificationRefresh: (source = 'dialogs') => dialogsNotificationsRuntime?.requestSidebarNotificationRefresh(source),
     parseUtcDateValue,
     getSnoozeUntil,
+    getSnoozedTicketIds: () => Object.keys(snoozedDialogs).filter((ticketId) => getSnoozeUntil(ticketId)),
+    getPinnedTicketIds: () => (dialogsMyDialogsRuntime?.getPinnedDialogIds() || []).slice(0, 100),
     canRunAction,
     notifyPermissionDenied,
     emitWorkspaceTelemetry,
@@ -3725,6 +3731,7 @@
     if (connected) {
       stopDialogsPolling();
       stopHistoryPolling();
+      scheduleDialogsListRefresh('sse_connected');
       return;
     }
     startDialogsPolling();
@@ -4523,7 +4530,15 @@
     });
   }
   updateAllSlaBadges();
-  setInterval(updateAllSlaBadges, 60 * 1000);
+  setInterval(() => {
+    updateAllSlaBadges();
+    // Time-based SQL filters and expiring local snoozes need a bounded refresh even on an idle SSE stream.
+    if (Number.isFinite(filterState.slaWindowMinutes) || filterState.sortMode === 'sla_priority'
+        || ['overdue', 'sla_critical', 'escalation_required'].includes(filterState.view)
+        || (filterState.view !== 'all' && Object.keys(snoozedDialogs).length > 0)) {
+      void dialogsListRuntime?.refreshDialogsList({ includeOverview: false });
+    }
+  }, 60 * 1000);
   emitWorkspaceTelemetry('workspace_experiment_exposure', {
     reason: WORKSPACE_AB_TEST_CONFIG.enabled ? 'bootstrap' : 'experiment_disabled',
   });
@@ -4534,6 +4549,7 @@
   } else {
     applyFilters();
   }
+  void refreshDialogsList(); // Includes global counters and pinned dialogs outside the initial page.
   renderMyDialogsPanel();
   window.openDialogDetailsByTicketId = (ticketId, runtimeOptions = {}) => {
     const normalizedTicketId = exactLegacyTicketId(ticketId);
@@ -4559,6 +4575,8 @@
   window.refreshAiReviewQueue = () => {};
 
   void loadServerTriagePreferences();
+  window.addEventListener('pagehide', event => { if (!event.persisted) dialogsListRuntime?.dispose(); });
+  window.addEventListener('pageshow', event => { if (event.persisted) void refreshDialogsList(); });
   if (aiMonitoringSection && aiMonitoringState) {
     loadAiMonitoringSummary(7);
     setInterval(() => loadAiMonitoringSummary(7), 60 * 1000);

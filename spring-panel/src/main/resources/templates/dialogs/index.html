@@ -591,7 +591,6 @@
                 <option value="20">20 / стр.</option>
                 <option value="50">50 / стр.</option>
                 <option value="100">100 / стр.</option>
-                <option value="all">Все</option>
             </select>
         </div>
     </div>
@@ -1284,13 +1283,15 @@
   const RAW_MY_NEW_DIALOGS = /*[[${myNewDialogs}]]*/ [];
   const RAW_MY_UNANSWERED_DIALOGS = /*[[${myUnansweredDialogs}]]*/ [];
   const RAW_MY_IN_WORK_DIALOGS = /*[[${myInWorkDialogs}]]*/ [];
+  window.DIALOG_LIST_PAGINATION = /*[[${dialogListPagination}]]*/ null;
+  window.DIALOG_MY_COUNTS = /*[[${myDialogsCounts}]]*/ null;
   window.INITIAL_MY_DIALOGS = {
     new: Array.isArray(RAW_MY_NEW_DIALOGS) ? RAW_MY_NEW_DIALOGS : [],
     unanswered: Array.isArray(RAW_MY_UNANSWERED_DIALOGS) ? RAW_MY_UNANSWERED_DIALOGS : [],
     in_work: Array.isArray(RAW_MY_IN_WORK_DIALOGS) ? RAW_MY_IN_WORK_DIALOGS : [],
   };
 </script>
-<th:block th:with="dialogsAssetVersion='20261002-01-278-timezone-r46'">
+<th:block th:with="dialogsAssetVersion='20261026-01-282-pagination-v1'">
 <script th:src="@{/js/dialogs-list-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-shell-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-avatar-runtime.js(v=${dialogsAssetVersion})}"></script>
@@ -1310,7 +1311,7 @@
 <script th:src="@{/js/dialogs-flow-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-experiment-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-media-composer-enhancements.js(v=${dialogsAssetVersion})}"></script>
-<script th:src="@{/js/dialogs.js(v='20261012-01-278-r54')}"></script>
+<script th:src="@{/js/dialogs.js(v=${dialogsAssetVersion})}"></script>
 </th:block>
 <script th:inline="javascript">
   (() => {
