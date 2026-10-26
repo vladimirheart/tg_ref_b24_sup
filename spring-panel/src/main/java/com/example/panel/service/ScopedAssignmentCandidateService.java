@@ -33,7 +33,7 @@ public class ScopedAssignmentCandidateService {
                 LEFT JOIN businesses business ON business.id=owner.business_id AND business.status='active'
                 LEFT JOIN users candidate ON business.id IS NOT NULL
                     AND candidate.enabled=TRUE AND candidate.is_blocked=FALSE
-                    AND candidate.username IS NOT NULL AND candidate.username=btrim(candidate.username) AND candidate.username<>''
+                    AND candidate.username IS NOT NULL AND btrim(candidate.username)<>''
                     AND lower(candidate.username)<>'ai_agent'
                     AND 1=(SELECT count(*) FROM users identity_candidate WHERE lower(identity_candidate.username)=lower(candidate.username))
                     AND (EXISTS(SELECT 1 FROM business_memberships membership
@@ -61,7 +61,7 @@ public class ScopedAssignmentCandidateService {
                 channelId,scope.ticketUserId(),scope.ticketId(),scope.ticketPublicId(),scope.businessId(),scope.scopeKind(),flags.isStrictReadScope());
             if(rows.isEmpty()) return Optional.empty();
             var counts=new LinkedHashMap<String,Long>();
-            for(var row:rows) if(row.username()!=null) counts.put(row.username().toLowerCase(java.util.Locale.ROOT),row.openCount());
+            for(var row:rows) if(org.springframework.util.StringUtils.hasText(row.username())) counts.put(row.username().toLowerCase(java.util.Locale.ROOT),row.openCount());
             return Optional.of(new Snapshot("UNRESOLVED".equals(scope.scopeKind()),counts));
         } catch(DataAccessException ex) {return Optional.empty();}
     }

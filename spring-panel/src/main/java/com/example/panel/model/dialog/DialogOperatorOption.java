@@ -9,7 +9,7 @@ public record DialogOperatorOption(String username,
                                    String role) {
 
     public DialogOperatorOption {
-        username = normalize(username);
+        username = StringUtils.hasText(username) ? username : null;
         displayName = normalize(displayName);
         avatarUrl = normalize(avatarUrl);
         department = normalize(department);

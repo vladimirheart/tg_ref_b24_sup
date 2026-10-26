@@ -69,7 +69,7 @@ public class SlaEscalationAutoAssignService {
             return List.of();
         }
         List<AutoAssignRule> rules = parseAutoAssignRules(dialogConfig.get("sla_critical_auto_assign_rules"));
-        String fallbackAssignee = trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_to")));
+        String fallbackAssignee = exactAccountKey(dialogConfig.get("sla_critical_auto_assign_to"));
         int maxPerRun = resolvePositiveInt(dialogConfig, "sla_critical_auto_assign_max_per_run", 5, 100);
         Integer maxOpenPerOperator = resolveOptionalNonNegativeInt(dialogConfig.get("sla_critical_auto_assign_max_open_per_operator"));
         boolean requireCategories = resolveBoolean(dialogConfig, "sla_critical_auto_assign_require_categories", false);
@@ -103,7 +103,7 @@ public class SlaEscalationAutoAssignService {
                 if(!snapshot.get().legacyUnresolved()) context=new RoutingContext(snapshot.get().openCounts(),
                     "business:"+frozen.scope().businessId()+":channel:"+frozen.channelId()+":");
             }
-            String currentResponsible = trimToNull(String.valueOf(contexts==null?candidate.get("responsible"):frozen.expectedResponsible()));
+            String currentResponsible = exactAccountKey(contexts==null?candidate.get("responsible"):frozen.expectedResponsible());
             if (!includeAssigned && currentResponsible != null) {
                 continue;
             }
@@ -196,7 +196,7 @@ public class SlaEscalationAutoAssignService {
             if (!(item instanceof Map<?, ?> ruleMap)) {
                 continue;
             }
-            String assignee = trimToNull(String.valueOf(ruleMap.get("assign_to")));
+            String assignee = exactAccountKey(ruleMap.get("assign_to"));
             List<String> assigneePool = parseAssigneePool(ruleMap.get("assign_to_pool"));
             if (assignee == null && assigneePool.isEmpty()) {
                 continue;
@@ -435,7 +435,7 @@ public class SlaEscalationAutoAssignService {
         if (operatorSkills == null || operatorSkills.isEmpty()) {
             return false;
         }
-        Set<String> skills = operatorSkills.get(assignee.toLowerCase());
+        Set<String> skills = operatorSkills.get(assignee.toLowerCase(java.util.Locale.ROOT));
         return skills != null && skills.containsAll(requiredSkills);
     }
 
@@ -445,13 +445,13 @@ public class SlaEscalationAutoAssignService {
         }
         Map<String, Set<String>> normalized = new LinkedHashMap<>();
         rawMap.forEach((operatorKey, skillsRaw) -> {
-            String operator = trimToNull(String.valueOf(operatorKey));
+            String operator = exactAccountKey(operatorKey);
             if (operator == null) {
                 return;
             }
             Set<String> skills = parseRuleMatchValues(null, skillsRaw);
             if (!skills.isEmpty()) {
-                normalized.put(operator.toLowerCase(), skills);
+                normalized.put(operator.toLowerCase(java.util.Locale.ROOT), skills);
             }
         });
         return normalized;
@@ -538,7 +538,7 @@ public class SlaEscalationAutoAssignService {
         List<String> result = new ArrayList<>();
         Set<String> seen = new HashSet<>();
         for (Object item : list) {
-            String normalized = trimToNull(String.valueOf(item));
+            String normalized = exactAccountKey(item);
             if (normalized == null || !seen.add(normalized)) continue;
             result.add(normalized);
         }
@@ -592,6 +592,13 @@ public class SlaEscalationAutoAssignService {
         }
         if (parsed <= 0) return fallback;
         return Math.min(parsed, maxValue);
+    }
+
+    // Preserve account keys; retain the existing unpadded null sentinel and blank handling.
+    private String exactAccountKey(Object rawValue) {
+        if (rawValue == null) return null;
+        String value = String.valueOf(rawValue);
+        return value.isBlank() || "null".equalsIgnoreCase(value) ? null : value;
     }
 
     private String trimToNull(String value) {

@@ -14,7 +14,15 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R176 (2026-10-26): рабочий экземпляр и Docker остаются на
+Актуальное уточнение R177 (2026-10-26): рабочие проект и Docker находятся на
+другой машине/в другой сессии; здесь source/test и изолированные Testcontainers.
+R176 e10cd9706 уже опубликован пользователем и сверён по parent/files/content.
+Пользователь продлил commit/push на 2026-10-26 Moscow, expiry 2026-10-26 21:00 UTC.
+Source apply и отдельный Git publisher имеют exact baseline/content/file guards;
+publisher дополнительно проверяет срок и actual remote. Рабочие restart/deploy/
+migration/backfill/config/flags не разрешались и не выполнялись.
+
+Историческое уточнение R176 (2026-10-26): рабочий экземпляр и Docker остаются на
 другой машине/в другой сессии; здесь source/test checkout и изолированные
 Testcontainers. Git grant 23 октября истёк; нового разрешения на commit/push нет.
 R176 заканчивается только source apply после GREEN, без staging/commit/push
@@ -1376,6 +1384,74 @@ Production classes скомпилированы в v2 с теми же source SH
 CSS baseline blobs сверены; Node/browser=0, поскольку JS/templates не менялись.
 Live Redis/proxy/providers, рабочая functional acceptance и rollout не проверялись.
 Общий статус 01-278 остаётся 🟡.
+
+### Exact active assignment routing identity — R177
+
+R177 закрывает обрезку account key в активном выборе ответственного:
+ChannelTransportService сохраняет scalar/list assignment selectors без trim,
+с Locale.ROOT case folding и case dedup отдельно от названий отделов.
+Notification arrays используют тот же exact-key normalizer, их контракт R175
+сохранён. ChannelAssignmentRoutingService читает single/pool keys и каталоги
+без trim; scoped и общий assignable catalog DialogParticipantService возвращают
+реальные username. DialogOperatorOption сохраняет этот ключ в compact constructor;
+displayName/avatar/department/role по-прежнему нормализуются как labels. Legacy participant CRUD,
+profile lookup и их прежний normalizeIdentity остаются отдельными путями.
+Assignable catalog introspection привязана через to_regclass к реально используемой
+users relation; одноимённая users.role другой схемы больше не ломает каталог.
+ScopedAssignmentCandidateService больше не исключает реальный literal username
+только за внешние пробелы: blank/ai_agent, unique enabled/unblocked account,
+current OPERATE membership/ALL_BUSINESSES, active business/channel, frozen owner
+и exact workload predicates сохраняются. Похожий plain account не даёт прав.
+SlaEscalationAutoAssignService сохраняет single/fallback/typed pool identity,
+operator skills/queues map keys и previous responsible без trim; identity map
+lookup использует Locale.ROOT. Прежние blank и unpadded null sentinel сохранены;
+labels, rule matching, typed-list grammar и порядок pool не менялись.
+Финальные writers R176, locks/CAS/atomic event, namespaces и long cursor semantics
+не менялись; новых migrations, grants, flags, JS/UI и внешних вызовов нет.
+SettingsDialogSlaAiConfigService уже копирует typed значения без нормализации,
+его исходник не менялся; round-trip проверен через SharedConfigService.
+
+R177 не закрывает UI CSV/picker round-trip, SLA policy preview/audit parser,
+upstream SLA actor label, ChannelApiController CRUD authority/business policy,
+incident user targets, legacy responsible/active/spans attribution,
+global/system/task/PermissionService и S2B/рабочий rollout. Общий статус 🟡.
+
+Проверки R177: 494 Java tests / 15 свежих XML GREEN,
+failures/errors/skips=0, Maven v4 exit 0. Новый PostgreSQL suite:
+71 tests, полная Flyway V81-схема, два похожих реальных account с разными
+business grants; отрицательные selectors и успешные сохранение → каталог →
+resolver → финальный writer, real DB channel questions_cfg save/reload и
+typed SLA settings file save/reload. Проверены пять whitespace variants,
+single/pool/fallback, три стратегии и department queue, exact workload/capacity,
+skills/queues isolation, exact previous identity и SLA reassignment/CAS event,
+current revoke/disabled/blocked/duplicate/VIEWER/archive/foreign/channel/owner.
+На baseline production blobs новый diagnostic method дал 25/25 failures,
+errors/skips=0 (пять путей × пять вариантов). XML/log/test SHA и production
+blobs сохранены в ignored .tmp/r177-baseline-red.json,
+r177-baseline-report.xml и r177-panel-v1.log. Исходный test source SHA сохранён вместе с XML; diagnostic method/aliases
+и account/grant/root fixtures неизменны в финальном GREEN.
+Первый полный v2 (455 tests) обнаружил 27 failures только нового suite:
+дополнительный trim в DialogOperatorOption после SQL-чтения. Исходный XML и
+диагностика сохранены в r177-routing-v2-report.xml/r177-fix-v3.json; baseline
+DTO blob проверен. V3 исправляет DTO, повторяет все 13 suites и добавляет
+DialogQuickActionServiceTest и DialogWorkspaceWorkflowSnapshotServiceTest как
+потребителей DTO. V3: 494 tests, 6 failures/1 error только нового suite. Пять
+failures выявили metadata union чужих schemas (u.role), что исправлено внутри
+assignable catalog; явный foreign-schema decoy теперь есть в каждом catalog test.
+Две новые fixture assumptions исправлены: immutable public ID меняется только
+через delete/recreate root, а create writer без channel key получает результат
+resolver при disabled channel. SLA active-channel и остальные прямые writer
+negatives сохранены; triggers/constraints не отключались. Исходные source/XML
+и три точечных test transformations сохранены в r177-routing-before-v4.java,
+r177-routing-v3-report.xml и r177-fix-v4.json. Diagnostic method/aliases и
+account/grant/root setup побайтово прежние; в v4 все 15 suites повторены целиком.
+Две прежние scoped fixtures обновлены по контракту: single mixed-case ALICE
+без добавленного padding и previousResponsible с исходными внешними пробелами;
+grant/root/frozen assertions сохранены, новые negatives не ослаблены.
+Выбранные regression suites: ScopedAssignmentWriterIdentityPostgresTest (55), ScopedAssignmentCandidatePostgresTest (43), ScopedAssignmentRoutingServiceTest (23), ScopedSlaRoutingServiceTest (19), ChannelAssignmentRoutingServiceTest (3), SlaEscalationAutoAssignServiceTest (4), DialogParticipantSnapshotPostgresqlTest (73), DialogParticipantLegacyTicketGuardTest (3), LegacyParticipantWriteBoundaryPostgresTest (51), ScopedSlaAssignmentPostgresTest (26), ChannelApiControllerWebMvcTest (50), ChannelNotificationIdentityPostgresTest (34), DialogQuickActionServiceTest (35), DialogWorkspaceWorkflowSnapshotServiceTest (4).
+Проверены source/class/XML SHA/freshness, exact file set, diff --check и
+generated CSS baseline blobs. Node/browser=0: JS/UI не менялись. Это source
+проверки, не функциональная приёмка рабочего экземпляра на другой машине.
 
 ### Exact final auto-assignment writer identity — R176
 

@@ -120,13 +120,13 @@ public class DialogParticipantService {
     }
 
     public List<DialogOperatorOption> loadAssignableOperators() {
-        return queryOperators(Set.of());
+        return queryOperators(Set.of(), true);
     }
 
     public List<DialogOperatorOption> loadAssignableOperators(Set<String> usernames) {
         // An empty scoped directory must never mean "all users".
         if(usernames==null || usernames.isEmpty()) return List.of();
-        Set<String> identities=usernames.stream().map(this::normalizeIdentity).filter(StringUtils::hasText).collect(Collectors.toSet());
+        Set<String> identities=usernames.stream().map(this::normalizeAccountKey).filter(StringUtils::hasText).collect(Collectors.toSet());
         if(identities.isEmpty()) return List.of();
         // Scoped routing requires the canonical migrated schema. Do not infer optional columns
         // from JDBC metadata spanning other schemas or fall back to legacy users.role.
@@ -240,7 +240,11 @@ public class DialogParticipantService {
     }
 
     private List<DialogOperatorOption> queryOperators(Set<String> usernames) {
-        Set<String> userColumns = loadUserColumns();
+        return queryOperators(usernames, false);
+    }
+
+    private List<DialogOperatorOption> queryOperators(Set<String> usernames, boolean exactAccountKeys) {
+        Set<String> userColumns = exactAccountKeys ? loadAssignableUserColumns() : loadUserColumns();
         if (userColumns.isEmpty() || !userColumns.contains("username")) {
             return List.of();
         }
@@ -277,7 +281,7 @@ public class DialogParticipantService {
 
         List<Object> params = new ArrayList<>();
         Set<String> normalizedUsernames = usernames.stream()
-                .map(this::normalizeIdentity)
+                .map(value -> exactAccountKeys ? normalizeAccountKey(value) : normalizeIdentity(value))
                 .filter(StringUtils::hasText)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         if (!normalizedUsernames.isEmpty()) {
@@ -291,11 +295,13 @@ public class DialogParticipantService {
 
         try {
             return usersJdbcTemplate.query(sql.toString(), (rs, rowNum) -> {
-                String username = trimToNull(rs.getString("username"));
+                String rawUsername = rs.getString("username");
+                String username = exactAccountKeys
+                        ? (StringUtils.hasText(rawUsername) ? rawUsername : null) : trimToNull(rawUsername);
                 if (username == null) {
                     return null;
                 }
-                String normalizedUsername = normalizeIdentity(username);
+                String normalizedUsername = exactAccountKeys ? normalizeAccountKey(username) : normalizeIdentity(username);
                 if (AI_AGENT_USERNAME.equalsIgnoreCase(normalizedUsername)) {
                     return null;
                 }
@@ -313,6 +319,19 @@ public class DialogParticipantService {
         }
     }
 
+    // Inspect the relation used by FROM users, rather than unioning same-named tables across schemas.
+    private Set<String> loadAssignableUserColumns() {
+        try {
+            return new LinkedHashSet<>(usersJdbcTemplate.queryForList("""
+                SELECT attname FROM pg_catalog.pg_attribute
+                WHERE attrelid=to_regclass('users') AND attnum>0 AND NOT attisdropped
+                """, String.class));
+        } catch (DataAccessException ex) {
+            log.warn("Unable to inspect assignable users: {}", DialogDataAccessSupport.summarizeDataAccessException(ex));
+            return Set.of();
+        }
+    }
+
     private Set<String> loadUserColumns() {
         try {
             return JdbcSchemaInspector.loadColumnNames(usersJdbcTemplate, "users").stream()
@@ -325,6 +344,11 @@ public class DialogParticipantService {
 
     private String selectColumn(Set<String> columns, String alias, String column) {
         return columns.contains(column) ? alias + "." + column : "NULL";
+    }
+
+    // Assignment catalogs keep literal keys. Legacy participant/profile paths retain their own normalization.
+    private String normalizeAccountKey(String value) {
+        return StringUtils.hasText(value) ? value.toLowerCase(Locale.ROOT) : null;
     }
 
     private String normalizeIdentity(String value) {

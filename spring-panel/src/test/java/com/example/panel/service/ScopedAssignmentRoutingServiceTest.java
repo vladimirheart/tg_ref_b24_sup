@@ -51,7 +51,7 @@ class ScopedAssignmentRoutingServiceTest {
         verify(directory,never()).loadAssignableOperators();verifyNoInteractions(globalLoads);
     }
     @Test void singleEligibleOperatorStillUsesTheConfiguredIdentity() {
-        var result=routing.resolveScoped(channel(7,"single_operator","round_robin"," ALICE ",true),ChannelAssignmentRoutingService.RoutingEvent.NEW_PUBLIC_APPEAL,scope);
+        var result=routing.resolveScoped(channel(7,"single_operator","round_robin","ALICE",true),ChannelAssignmentRoutingService.RoutingEvent.NEW_PUBLIC_APPEAL,scope);
         assertThat(result.recipients()).containsExactly("alice");assertThat(result.assignee()).isEqualTo("alice");
     }
     @ParameterizedTest @ValueSource(strings={"least_loaded","round_robin","hash_by_ticket"})

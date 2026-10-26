@@ -95,7 +95,7 @@ class ScopedSlaRoutingServiceTest {
         assertThat(resolve(config)).isEmpty();
         config.put("sla_critical_auto_assign_include_assigned",true);
         assertThat(resolve(config)).singleElement().satisfies(d->{
-            assertThat(d.previousResponsible()).isEqualTo("Original Owner");
+            assertThat(d.previousResponsible()).isEqualTo(" Original Owner ");
             assertThat(d.context().expectedResponsible()).isEqualTo(" Original Owner ");
         });
     }

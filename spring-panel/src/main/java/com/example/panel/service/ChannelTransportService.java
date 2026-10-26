@@ -869,8 +869,9 @@ public class ChannelTransportService {
         String mode = normalizeAssignmentMode(stringValue(node.path("mode").asText("disabled")));
         boolean enabled = node.path("enabled").asBoolean(false) && !"disabled".equals(mode);
         String strategy = normalizeAssignmentStrategy(stringValue(node.path("strategy").asText("round_robin")));
-        String operatorUsername = stringValue(node.path("operatorUsername").asText("")).toLowerCase();
-        List<String> operatorUsernames = normalizeStringList(node.path("operatorUsernames"));
+        String operatorUsername = node.path("operatorUsername").asText("");
+        operatorUsername = operatorUsername.isBlank() ? "" : operatorUsername.toLowerCase(Locale.ROOT);
+        List<String> operatorUsernames = normalizeIdentityList(node.path("operatorUsernames"));
         String department = stringValue(node.path("department").asText(""));
         Map<String, Object> normalized = new LinkedHashMap<>();
         normalized.put("enabled", enabled);
@@ -903,8 +904,8 @@ public class ChannelTransportService {
         normalized.put("department", stringValue(node.path("department").asText("")));
         normalized.put("targetMode", mode);
         normalized.put("deliveryMode", deliveryMode);
-        normalized.put("employeeUsernames", normalizeRecipientList(node.path("employeeUsernames")));
-        normalized.put("excludeUsernames", normalizeRecipientList(node.path("excludeUsernames")));
+        normalized.put("employeeUsernames", normalizeIdentityList(node.path("employeeUsernames")));
+        normalized.put("excludeUsernames", normalizeIdentityList(node.path("excludeUsernames")));
         return normalized;
     }
 
@@ -956,8 +957,8 @@ public class ChannelTransportService {
         normalized.put("department", stringValue(node.path("department").asText("")));
         normalized.put("targetMode", mode);
         normalized.put("deliveryMode", deliveryMode);
-        normalized.put("employeeUsernames", normalizeRecipientList(node.path("employeeUsernames")));
-        normalized.put("excludeUsernames", normalizeRecipientList(node.path("excludeUsernames")));
+        normalized.put("employeeUsernames", normalizeIdentityList(node.path("employeeUsernames")));
+        normalized.put("excludeUsernames", normalizeIdentityList(node.path("excludeUsernames")));
         return normalized;
     }
 
@@ -978,8 +979,8 @@ public class ChannelTransportService {
         };
     }
 
-    // Notification arrays contain exact account keys; freeform labels use stringValue separately.
-    private List<String> normalizeRecipientList(JsonNode node) {
+    // Account selectors contain exact keys; freeform labels use stringValue separately.
+    private List<String> normalizeIdentityList(JsonNode node) {
         if (node == null || !node.isArray()) {
             return List.of();
         }
@@ -988,20 +989,6 @@ public class ChannelTransportService {
             String value = item.asText("");
             if (!value.isBlank()) {
                 values.add(value.toLowerCase(Locale.ROOT));
-            }
-        }
-        return new ArrayList<>(values);
-    }
-
-    private List<String> normalizeStringList(JsonNode node) {
-        if (node == null || node.isNull() || !node.isArray()) {
-            return List.of();
-        }
-        Set<String> values = new LinkedHashSet<>();
-        for (JsonNode item : node) {
-            String value = stringValue(item.asText(""));
-            if (!value.isEmpty()) {
-                values.add(value.toLowerCase());
             }
         }
         return new ArrayList<>(values);

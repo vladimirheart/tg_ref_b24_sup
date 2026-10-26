@@ -286,7 +286,7 @@ public class ChannelAssignmentRoutingService {
             RoutingMode mode = RoutingMode.from(node.path("mode").asText(""));
             boolean assignResponsibleOnCreate = node.path("assignResponsibleOnCreate").asBoolean(false);
             AssignmentStrategy strategy = AssignmentStrategy.from(node.path("strategy").asText(""));
-            String operatorUsername = trimToNull(node.path("operatorUsername").asText(""));
+            String operatorUsername = normalizeIdentity(node.path("operatorUsername").asText(""));
             List<String> operatorUsernames = readStringList(node.path("operatorUsernames"));
             String department = trimToNull(node.path("department").asText(""));
             return new AssignmentRoutingConfig(enabled, mode, assignResponsibleOnCreate, strategy, operatorUsername, operatorUsernames, department);
@@ -316,8 +316,7 @@ public class ChannelAssignmentRoutingService {
     }
 
     private String normalizeIdentity(String value) {
-        String trimmed = trimToNull(value);
-        return trimmed == null ? null : trimmed.toLowerCase(Locale.ROOT);
+        return StringUtils.hasText(value) ? value.toLowerCase(Locale.ROOT) : null;
     }
 
     private String trimToNull(String value) {
