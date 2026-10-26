@@ -38,7 +38,7 @@ class NeutralOpsPageFamiliesWebMvcTest {
             mvc.perform(get("/__visual-family").param("view", view).with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("/css/app.css?v=" +
-                    (view.equals("incidents/index") ? "20261026-incidents-r19" : List.of("businesses/dialog-assignment", "general/work").contains(view) ? "20261023-incidents-r12"
+                    (view.equals("incidents/index") ? "20261026-incidents-r20" : List.of("businesses/dialog-assignment", "general/work").contains(view) ? "20261023-incidents-r12"
                         : List.of("knowledge/note-editor", "home/index").contains(view) ? "20261023-neutral-ops-r10" : "20261022-neutral-ops-r9"))))
                 .andExpect(content().string(containsString("data-ui-page=")));
         }

@@ -11,6 +11,8 @@ body[data-ui-page='incidents'] {
   .incident-detail-columns .incident-create-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
   .incident-timeline > summary { cursor: pointer; padding: 14px 18px; font-weight: 600; }
   .incident-timeline > summary::marker { color: var(--color-text-muted); }
+  .incident-multiline { white-space: pre-wrap; overflow-wrap: anywhere; tab-size: 4; }
+  .incident-comment-editor { grid-column: 1 / -1; resize: vertical; }
   #incidentCreateModal .modal-dialog, #incidentResolutionModal .modal-dialog { max-width: 580px; }
   #incidentCreatePanel { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
   #incidentCreatePanel .incident-field:first-child { grid-column: 1 / -1; }

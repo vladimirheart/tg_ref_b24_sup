@@ -18167,6 +18167,15 @@ body[data-ui-page=incidents] .incident-timeline > summary {
 body[data-ui-page=incidents] .incident-timeline > summary::marker {
   color: var(--color-text-muted);
 }
+body[data-ui-page=incidents] .incident-multiline {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 4;
+}
+body[data-ui-page=incidents] .incident-comment-editor {
+  grid-column: 1/-1;
+  resize: vertical;
+}
 body[data-ui-page=incidents] #incidentCreateModal .modal-dialog, body[data-ui-page=incidents] #incidentResolutionModal .modal-dialog {
   max-width: 580px;
 }

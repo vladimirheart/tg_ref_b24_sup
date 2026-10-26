@@ -1494,16 +1494,16 @@ function restoreIncidentDetailFocus(
       <div class="card-body">
         <p class="small text-muted">${info.historical ? 'Инцидент закрыт или решён. Ниже описана зафиксированная проблема, а не текущее состояние системы.' : incident.signal_type ? 'Результат сохранённой проверки.' : 'Описание, сохранённое автором инцидента.'}</p>
         ${compactCounters ? '<details class="incident-saved-counters"><summary>Сохранённые счётчики и условия срабатывания</summary>' : ''}
-        <p class="incident-explanation-summary">${escapeHtml(info.summary)}</p>
+        <p class="incident-explanation-summary incident-multiline">${escapeHtml(info.summary)}</p>
         ${info.meaning?.length ? `<ul class="ps-3">${info.meaning.map(item => `<li class="mb-2">${escapeHtml(item)}</li>`).join('')}</ul>` : ''}
         ${info.impact ? `<div class="mb-3"><strong class="d-block mb-1">На что влияет</strong><p class="mb-0">${escapeHtml(info.impact)}</p></div>` : ''}
         ${info.action ? `<div class="mb-3"><strong class="d-block mb-1">Что проверить</strong><p class="mb-0">${escapeHtml(info.action)}</p></div>` : ''}
         ${info.facts.length ? `<dl class="row mb-0">${info.facts.map(fact => `<dt class="col-sm-7 fw-normal text-muted">${escapeHtml(fact.label)}</dt><dd class="col-sm-5 text-break">${escapeHtml(fact.value)}</dd>`).join('')}</dl>` : ''}
         ${compactCounters ? '</details>' : ''}
         <details class="mt-3 incident-original-diagnostics"><summary>Технические подробности — исходный текст</summary>
-          <dl class="mt-2 mb-0"><dt>Название источника</dt><dd class="text-break">${escapeHtml(incident.title || '—')}</dd>
-          <dt>Исходная причина</dt><dd class="text-break">${escapeHtml(incident.summary || '—')}</dd>
-          <dt>Описание источника</dt><dd class="text-break">${escapeHtml(incident.description || '—')}</dd></dl>
+          <dl class="mt-2 mb-0"><dt>Название источника</dt><dd class="text-break incident-multiline">${escapeHtml(incident.title || '—')}</dd>
+          <dt>Исходная причина</dt><dd class="text-break incident-multiline">${escapeHtml(incident.summary || '—')}</dd>
+          <dt>Описание источника</dt><dd class="text-break incident-multiline">${escapeHtml(incident.description || '—')}</dd></dl>
         </details>
       </div>
     </section>`;
@@ -1637,11 +1637,11 @@ function restoreIncidentDetailFocus(
 					   placeholder="event_type"
 					   aria-label="Тип события incident">
 
-				<input type="text"
-					   class="form-control form-control-sm"
+				<textarea rows="5"
+					   class="form-control form-control-sm incident-comment-editor"
 					   id="incidentEventText"
-					   placeholder="Короткий update / runbook note"
-					   aria-label="Текст события или runbook note">
+					   placeholder="Комментарий или инструкция — можно вставить несколько строк"
+					   aria-label="Комментарий к инциденту"></textarea>
               </div>
               <div class="incident-event-list">
                 ${events.length ? events.slice().reverse().map((event) => `
@@ -1650,7 +1650,7 @@ function restoreIncidentDetailFocus(
                       <strong>${escapeHtml(event.event_type || 'event')}</strong>
                       <span class="small text-muted">${escapeHtml(formatDate(event.created_at))}</span>
                     </div>
-                    <div class="incident-event-text mb-1">${escapeHtml(event.event_text || '')}</div>
+                    <div class="incident-event-text incident-multiline mb-1">${escapeHtml(event.event_text || '')}</div>
                     <div class="small text-muted">actor: ${escapeHtml(event.actor || 'system')}</div>
                   </div>
                 `).join('') : '<div class="text-muted">История incident пока пуста.</div>'}
