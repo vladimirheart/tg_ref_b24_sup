@@ -219,7 +219,7 @@ public class SlaEscalationWebhookNotifier {
         if (decisions.isEmpty()) {
             return;
         }
-        String actor = trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_actor")));
+        String actor = SlaRoutingRuleScalarParserService.exactAccountKey(dialogConfig.get("sla_critical_auto_assign_actor"));
         if (actor == null) {
             actor = "sla_orchestrator";
         }

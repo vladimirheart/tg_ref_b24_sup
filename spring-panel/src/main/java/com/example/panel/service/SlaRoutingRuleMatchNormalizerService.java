@@ -88,7 +88,7 @@ public class SlaRoutingRuleMatchNormalizerService {
         List<String> assigneePool = new ArrayList<>();
         if (rawPool instanceof List<?> list) {
             for (Object item : list) {
-                String normalized = scalarParserService.trimToNull(String.valueOf(item));
+                String normalized = SlaRoutingRuleScalarParserService.exactAccountKey(item);
                 if (normalized != null && !assigneePool.contains(normalized)) assigneePool.add(normalized);
             }
         } else if (rawPool instanceof String text) {

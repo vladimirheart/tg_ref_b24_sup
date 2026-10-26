@@ -30,7 +30,7 @@ public class SlaRoutingPolicySnapshotDialogStateService {
         boolean critical = minutesLeft != null && openLifecycle && minutesLeft <= criticalMinutes;
         boolean autoAssignIncludeAssigned = policyConfigService.resolveBoolean(dialogConfig, "sla_critical_auto_assign_include_assigned", false);
         boolean effectiveIncludeAssigned = orchestrationMode == SlaEscalationWebhookNotifier.SlaOrchestrationMode.AUTOPILOT || autoAssignIncludeAssigned;
-        String currentResponsible = policyConfigService.trimToNull(dialog.responsible());
+        String currentResponsible = SlaRoutingRuleScalarParserService.exactAccountKey(dialog.rawResponsible());
         return new DialogState(lifecycleState, createdAtUtc, minutesLeft, currentResponsible, effectiveIncludeAssigned, openLifecycle, critical);
     }
 

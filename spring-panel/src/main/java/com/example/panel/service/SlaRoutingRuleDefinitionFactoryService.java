@@ -31,7 +31,7 @@ public class SlaRoutingRuleDefinitionFactoryService {
         if (ruleMap == null) {
             return null;
         }
-        String assignee = scalarParserService.trimToNull(String.valueOf(ruleMap.get("assign_to")));
+        String assignee = SlaRoutingRuleScalarParserService.exactAccountKey(ruleMap.get("assign_to"));
         List<String> assigneePool = matchNormalizerService.parseAssigneePool(ruleMap.get("assign_to_pool"));
         if (assignee == null && assigneePool.isEmpty()) {
             return null;

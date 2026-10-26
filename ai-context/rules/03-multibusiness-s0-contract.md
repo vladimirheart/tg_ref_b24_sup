@@ -14,7 +14,15 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R178 (2026-10-26): рабочие проект и Docker остаются на
+Актуальное уточнение R179 (2026-10-26): рабочие проект и Docker остаются на
+другой машине/в другой сессии. Здесь только source и изолированные Maven
+unit/service fixtures; Docker/browser/Node в R179 не запускались. Новый baseline
+a687d6b73 содержит независимые incident/pagination commits после проверенного
+R178. Grant commit/push действует до 26 октября 21:00 UTC; source apply и Git
+publisher разделены. Рабочие restart/deploy/migration/backfill/config/flags
+не выполнялись, рабочая acceptance неизвестна.
+
+Историческое уточнение R178 (2026-10-26): рабочие проект и Docker остаются на
 другой машине/в другой сессии. Здесь source и изолированные browser/Node fixtures;
 Docker/Java tests в R178 не запускались. R177 dd41dea3a опубликован и проверен
 по parent/files/content. Grant commit/push на 26 октября действует до
@@ -1391,6 +1399,49 @@ Production classes скомпилированы в v2 с теми же source SH
 CSS baseline blobs сверены; Node/browser=0, поскольку JS/templates не менялись.
 Live Redis/proxy/providers, рабочая functional acceptance и rollout не проверялись.
 Общий статус 01-278 остаётся 🟡.
+
+### Exact SLA preview and audit identities — R179
+
+R179: SLA snapshot, escalation candidates и governance rule parser сохраняют
+точные непустые account keys. Scalar assign_to, typed assign_to_pool, current/
+previous responsible и upstream audit actor больше не обрезаются. Общий
+package-local scalar helper exactAccountKey сохраняет исходный регистр, blank
+и unpadded null sentinel обрабатываются как прежде; padded " null " остаётся
+literal identity в соответствии с resolver R177. Fallback presence diagnostic
+использует тот же контракт. Типизированный pool сохраняет прежние порядок и
+case-sensitive dedup; строковая comma/newline CSV-грамматика не менялась.
+Snapshot/candidate используют rawResponsible(), а не presentation accessor
+responsible(): display name или прошлый resolvedBy не создают текущего назначения.
+Snapshot больше не принимает literal ответственного за похожий plain account
+и не скрывает корректное reassign-решение. Governance assignee_target совпадает
+с буквальной целью фактического resolver. Notifier передаёт exact actor вместе
+с frozen context в scoped writer; прежний sla_orchestrator fallback сохранён.
+Rule owner/reviewer metadata, labels/matchers, UTC, приоритеты/конфликты, режимы
+monitor/assist/autopilot, includeAssigned gates и settings schema не менялись.
+Scoped eligibility, final writer/locks/CAS/atomic event, UI/JS, SQL/migrations/
+grants/flags не менялись. Это исправление identity strings, без нового
+authorization scope для preview и без подтверждения live DB/worker поведения.
+Общий статус 01-278 остаётся 🟡.
+
+Проверки R179: 201 Java tests / 56 свежих XML GREEN, Maven v3 exit 0,
+failures/errors/skips=0. Новый SlaRoutingIdentityBoundaryTest: 50 cases —
+single/typed-pool live resolver → snapshot/governance audit, exact current
+responsible и reassign, escalation candidate payload/includeAssigned, notifier
+→ captured scoped writer (actor и frozen owner), mode/writer gates, отсутствие
+legacy writer/raw audit/webhook calls, display name/resolvedBy isolation, case/order/delimiter typed pool, legacy
+CSV/labels и missing/blank/null fallback. Шесть literal variants включают
+leading/trailing/both spaces, tab, newline и padded null. Endpoint/DB acceptance
+этим набором не заявляется: writer и DB reader в notifier fixture — mocks.
+Первый baseline v1 дал 46 tests / 32 failures / 0 errors. Затем добавлены
+четыре raw-vs-presentation regressions без изменения прежних 46 cases.
+До production edits окончательный test SHA на exact baseline blobs в v2 воспроизвёл
+36 failures / 14 passing controls, errors/skips=0. Исходные XML/log/test SHA
+сохранены в ignored r179-baseline-report.xml, r179-panel-v2.log и
+r179-baseline-red.json; diagnostic test не изменялся после RED. Финальный v3
+повторяет все Sla*Test и четыре service consumer suites, существующие тесты
+не менялись. Source/class/XML/log SHA, generated CSS baseline и diff --check
+проверены. Java-only scope: прежний R53 Node fixture debt из R178 не изменён
+и в R179 не запускался; полной Node/browser/live acceptance нет.
 
 ### Exact channel assignment UI keys — R178
 

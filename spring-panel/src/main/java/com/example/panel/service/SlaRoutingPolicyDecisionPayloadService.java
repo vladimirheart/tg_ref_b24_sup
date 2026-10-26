@@ -74,7 +74,7 @@ public class SlaRoutingPolicyDecisionPayloadService {
         if (!autoAssignEnabled) {
             issues.add("auto_assign_disabled");
         }
-        if (policyConfigService.trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_to"))) == null) {
+        if (SlaRoutingRuleScalarParserService.exactAccountKey(dialogConfig.get("sla_critical_auto_assign_to")) == null) {
             issues.add("fallback_assignee_missing");
         }
         Map<String, Object> payload = new LinkedHashMap<>();

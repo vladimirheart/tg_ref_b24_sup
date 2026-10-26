@@ -38,7 +38,7 @@ public class SlaEscalationCandidateService {
             if (!"open".equals(normalizeLifecycleState(dialog.statusKey()))) {
                 continue;
             }
-            String responsible = trimToNull(dialog.responsible());
+            String responsible = SlaRoutingRuleScalarParserService.exactAccountKey(dialog.rawResponsible());
             if (responsible != null && !includeAssigned) {
                 continue;
             }
@@ -113,11 +113,4 @@ public class SlaEscalationCandidateService {
         }
     }
 
-    private String trimToNull(String value) {
-        if (value == null) {
-            return null;
-        }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() || "null".equalsIgnoreCase(trimmed) ? null : trimmed;
-    }
 }

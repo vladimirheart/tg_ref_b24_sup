@@ -68,6 +68,13 @@ public class SlaRoutingRuleScalarParserService {
         }
     }
 
+    // Account identity is literal. Blank values and the unpadded null sentinel remain absent.
+    static String exactAccountKey(Object rawValue) {
+        if (rawValue == null) return null;
+        String value = String.valueOf(rawValue);
+        return value.isBlank() || "null".equalsIgnoreCase(value) ? null : value;
+    }
+
     public String trimToNull(String value) {
         if (value == null) return null;
         String trimmed = value.trim();
