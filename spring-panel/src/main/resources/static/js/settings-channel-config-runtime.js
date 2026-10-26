@@ -48,6 +48,18 @@
     };
   }
 
+  function normalizeAssignmentUsername(value) {
+    const username = String(value || '');
+    return username.trim() ? username.toLowerCase() : '';
+  }
+
+  function parseAssignmentUsernames(raw) {
+    // Typed selectors contain exact account keys. Legacy string lists retain their grammar.
+    return Array.isArray(raw)
+      ? Array.from(new Set(raw.map(normalizeAssignmentUsername).filter(Boolean)))
+      : parseChannelNotificationList(raw);
+  }
+
   function parseChannelNotificationList(raw) {
     if (Array.isArray(raw)) {
       return raw
@@ -186,8 +198,8 @@
           ? Boolean(assignmentRoutingRaw.assignResponsibleOnCreate)
           : false,
         strategy: assignmentStrategy,
-        operatorUsername: String(assignmentRoutingRaw.operatorUsername || '').trim().toLowerCase(),
-        operatorUsernames: parseChannelNotificationList(assignmentRoutingRaw.operatorUsernames),
+        operatorUsername: normalizeAssignmentUsername(assignmentRoutingRaw.operatorUsername),
+        operatorUsernames: parseAssignmentUsernames(assignmentRoutingRaw.operatorUsernames),
         department: String(assignmentRoutingRaw.department || '').trim(),
       },
       panelNotifications: {

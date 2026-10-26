@@ -261,8 +261,13 @@
       }
     }
 
+    function normalizeAssignmentUsername(value) {
+      const username = String(value || '');
+      return username.trim() ? username.toLowerCase() : '';
+    }
+
     function buildAssignmentOperatorLabel(operator) {
-      const username = String(operator?.username || '').trim();
+      const username = String(operator?.username || '');
       const displayName = String(operator?.display_name || '').trim();
       const department = String(operator?.department || '').trim();
       const identity = displayName && username
@@ -275,24 +280,29 @@
       if (!(selectEl instanceof HTMLSelectElement)) {
         return;
       }
-      const selectedUsername = String(selectedValue || '').trim().toLowerCase();
+      const selectedUsername = normalizeAssignmentUsername(selectedValue);
       const includePlaceholder = optionsArg.includePlaceholder !== false;
       const placeholderLabel = optionsArg.placeholderLabel || 'Выберите оператора';
-      const optionItems = Array.isArray(operators) ? operators : [];
-      const optionMarkup = optionItems.map((operator) => {
-        const username = String(operator?.username || '').trim().toLowerCase();
-        if (!username) {
-          return '';
-        }
-        const selectedAttr = username === selectedUsername ? ' selected' : '';
-        return `<option value="${escapeHtml(username)}"${selectedAttr}>${escapeHtml(buildAssignmentOperatorLabel(operator))}</option>`;
-      }).join('');
-      const hasSelectedOperator = optionItems.some((operator) => String(operator?.username || '').trim().toLowerCase() === selectedUsername);
-      const placeholderSelected = includePlaceholder && !hasSelectedOperator ? ' selected' : '';
-      const emptyLabel = optionItems.length ? placeholderLabel : 'Нет доступных операторов';
-      selectEl.innerHTML = includePlaceholder
-        ? `<option value=""${placeholderSelected}>${escapeHtml(emptyLabel)}</option>${optionMarkup}`
-        : optionMarkup;
+      const optionItems = (Array.isArray(operators) ? operators : []).filter(operator => normalizeAssignmentUsername(operator?.username));
+      const hasSelectedOperator = optionItems.some(operator => normalizeAssignmentUsername(operator?.username) === selectedUsername);
+      const nodes = [];
+      if (includePlaceholder) {
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = optionItems.length ? placeholderLabel : 'Нет доступных операторов';
+        placeholder.defaultSelected = !hasSelectedOperator;
+        nodes.push(placeholder);
+      }
+      for (const operator of optionItems) {
+        const option = document.createElement('option');
+        // A DOM property keeps CR/LF in account keys; HTML attribute parsing normalizes them.
+        option.value = normalizeAssignmentUsername(operator.username);
+        option.textContent = buildAssignmentOperatorLabel(operator);
+        option.defaultSelected = option.value === selectedUsername;
+        nodes.push(option);
+      }
+      selectEl.replaceChildren(...nodes);
+      selectEl.value = hasSelectedOperator ? selectedUsername : '';
       selectEl.dataset.assignmentOptionsAvailable = optionItems.length ? '1' : '0';
       selectEl.disabled = optionItems.length === 0;
     }
@@ -301,20 +311,17 @@
       if (!(selectEl instanceof HTMLSelectElement)) {
         return;
       }
-      const selectedUsernames = new Set(
-        Array.isArray(selectedValues)
-          ? selectedValues.map((value) => String(value || '').trim().toLowerCase()).filter((value) => value)
-          : []
-      );
-      const optionItems = Array.isArray(operators) ? operators : [];
-      selectEl.innerHTML = optionItems.map((operator) => {
-        const username = String(operator?.username || '').trim().toLowerCase();
-        if (!username) {
-          return '';
-        }
-        const selectedAttr = selectedUsernames.has(username) ? ' selected' : '';
-        return `<option value="${escapeHtml(username)}"${selectedAttr}>${escapeHtml(buildAssignmentOperatorLabel(operator))}</option>`;
-      }).join('');
+      const selectedUsernames = new Set(Array.isArray(selectedValues)
+        ? selectedValues.map(normalizeAssignmentUsername).filter(Boolean) : []);
+      const optionItems = (Array.isArray(operators) ? operators : []).filter(operator => normalizeAssignmentUsername(operator?.username));
+      const nodes = optionItems.map(operator => {
+        const option = document.createElement('option');
+        option.value = normalizeAssignmentUsername(operator.username);
+        option.textContent = buildAssignmentOperatorLabel(operator);
+        option.defaultSelected = selectedUsernames.has(option.value);
+        return option;
+      });
+      selectEl.replaceChildren(...nodes);
       selectEl.dataset.assignmentOptionsAvailable = optionItems.length ? '1' : '0';
       selectEl.disabled = optionItems.length === 0;
     }

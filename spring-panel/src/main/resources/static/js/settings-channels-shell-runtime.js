@@ -140,13 +140,18 @@
       return parts.length ? parts.join(' • ') : '—';
     }
 
+    function normalizeAssignmentUsername(value) {
+      const username = String(value || '');
+      return username.trim() ? username.toLowerCase() : '';
+    }
+
     function normalizeAssignmentRoutingCatalog(raw) {
       const source = raw && typeof raw === 'object' ? raw : {};
       const operators = Array.isArray(source.operators)
         ? source.operators
             .filter((item) => item && typeof item === 'object')
             .map((item) => ({
-              username: String(item.username || '').trim().toLowerCase(),
+              username: normalizeAssignmentUsername(item.username),
               display_name: String(item.display_name || '').trim(),
               department: String(item.department || '').trim(),
               role: String(item.role || '').trim(),
@@ -247,7 +252,7 @@
         return [];
       }
       return Array.from(selectEl.selectedOptions || [])
-        .map((option) => String(option.value || '').trim().toLowerCase())
+        .map((option) => normalizeAssignmentUsername(option.value))
         .filter((value) => value);
     }
 
@@ -305,11 +310,11 @@
       const assignmentStrategy = ['least_loaded', 'hash_by_ticket'].includes(assignmentStrategyRaw)
         ? assignmentStrategyRaw
         : 'round_robin';
-      const assignmentSingleOperator = String(
-        elements.channelEditorAssignmentSingleOperatorInput?.value
-        || existingAssignmentRouting.operatorUsername
-        || ''
-      ).trim().toLowerCase();
+      const assignmentSingleOperator = normalizeAssignmentUsername(
+        elements.channelEditorAssignmentSingleOperatorInput
+          ? elements.channelEditorAssignmentSingleOperatorInput.value
+          : existingAssignmentRouting.operatorUsername
+      );
       const assignmentDepartment = String(
         elements.channelEditorAssignmentDepartmentInput?.value
         || existingAssignmentRouting.department

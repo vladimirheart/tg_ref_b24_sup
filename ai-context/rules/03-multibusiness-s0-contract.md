@@ -14,7 +14,14 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R177 (2026-10-26): рабочие проект и Docker находятся на
+Актуальное уточнение R178 (2026-10-26): рабочие проект и Docker остаются на
+другой машине/в другой сессии. Здесь source и изолированные browser/Node fixtures;
+Docker/Java tests в R178 не запускались. R177 dd41dea3a опубликован и проверен
+по parent/files/content. Grant commit/push на 26 октября действует до
+2026-10-26 21:00 UTC; source apply и Git publisher разделены. Рабочие
+restart/deploy/migration/backfill/config/flags не выполнялись.
+
+Историческое уточнение R177 (2026-10-26): рабочие проект и Docker находятся на
 другой машине/в другой сессии; здесь source/test и изолированные Testcontainers.
 R176 e10cd9706 уже опубликован пользователем и сверён по parent/files/content.
 Пользователь продлил commit/push на 2026-10-26 Moscow, expiry 2026-10-26 21:00 UTC.
@@ -1384,6 +1391,55 @@ Production classes скомпилированы в v2 с теми же source SH
 CSS baseline blobs сверены; Node/browser=0, поскольку JS/templates не менялись.
 Live Redis/proxy/providers, рабочая functional acceptance и rollout не проверялись.
 Общий статус 01-278 остаётся 🟡.
+
+### Exact channel assignment UI keys — R178
+
+R178: typed assignment selectors в редакторе каналов сохраняют точные
+непустые username без trim, с прежним case folding. Исправлены parseQuestionsCfg,
+assignment catalog, single/pool rendering и сборка JSON payload. Typed arrays
+отделены от прежней строковой CSV-грамматики; case dedup сохраняет первое
+typed вхождение. Присутствующий пустой single select больше не подставляет
+старый configured username; обязательность single/pool по-прежнему проверяет
+существующий persistence runtime, без POST для отсутствующего выбора.
+Options строятся DOM properties value/textContent вместо HTML-атрибутов:
+CR/LF account key не нормализуется HTML parser, labels не исполняются как markup.
+defaultSelected сохраняет native reset. Не добавляются отсутствующие в каталоге
+accounts; похожее обрезанное имя не выбирается автоматически. Порядок selected
+pool остаётся прежним порядком DOM options; нового управления порядком нет.
+Общий employee-picker.js, id/name полей, runtime API, CSS/HTML, Java/backend,
+SQL/migrations/grants и strategy/cursor semantics не менялись. Native picker
+использует только свои options, без расширения глобальным справочником.
+
+Граница R178 — channel assignment native selects. Notification CSV/typed-array
+UI round-trip, прочие legacy/global pickers, SLA preview/audit parser и actor
+label, ChannelApiController CRUD authority/business policy, incident user
+targets и legacy attribution остаются отдельными gates. Refresh unsaved state
+и управление порядком пула не переработаны. Общий статус 01-278 остаётся 🟡.
+
+Проверки R178: 36/36 headless Chromium/Edge DOM scenarios GREEN,
+95/95 Node checks из 38 regression scripts GREEN, 4 node --check GREEN.
+Browser fixture использует актуальный channel-editor.html и реальные config/
+shell/editor/persistence/controls/employee-picker runtimes; внешние зависимости
+страницы заменены fixture, POST только перехватывается, внешние URL блокируются.
+Пять whitespace variants проверены для single/pool restore → picker → captured
+JSON POST → parse/reload и для отсутствующего target при наличии plain account.
+Также проверены comma/semicolon keys, string ID >2^53, markup label, case dedup,
+clear, disabled mode, legacy CSV, keyboard/Enter/Escape/focus и native form reset.
+До production edits тот же QA source SHA дал 22 failures / 14 positive passes,
+errors=0 в v4; baseline blobs/report/test SHA сохранены в ignored
+r178-baseline-red.json и r178-browser-v4.json. Final browser report — v5;
+проверки не ослаблялись после baseline, test SHA совпадает.
+
+Полный Node run: 39 scripts/96 checks, 1 failure старого R53 notes fixture
+(ожидает «Заметок нет.», получает error state). Сбой воспроизведён отдельно на
+неизменённом main dd41dea3a; все 5 dependencies совпадают с baseline/root/sandbox.
+Старый DOM stub не реализует replaceChildren текущего renderer. R53 и код
+заметок не менялись. Точечный scoped run повторил остальные 38 scripts, без
+skip/cancel; весь Node набор не объявляется GREEN. Evidence: r178-node-v1.log,
+r178-node-baseline.json/.log и r178-node-v2.json/.log. Этот прежний test debt
+нужен отдельным шагом. Source/report SHA, exact scope и diff --check проверены.
+Java=0: серверные изменения R177 не менялись и здесь повторно не проверялись.
+Это изолированные source-проверки, не приёмка рабочего экземпляра.
 
 ### Exact active assignment routing identity — R177
 
