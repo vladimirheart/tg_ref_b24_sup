@@ -88,8 +88,8 @@ public class DialogResponsibilityService {
         if (scope == null || !scope.isValid() || flags == null) {
             return null;
         }
-        String normalizedUsername = trimToNull(username);
-        String actor = trimToNull(assignedBy);
+        String normalizedUsername = exactIdentityToNull(username);
+        String actor = exactIdentityToNull(assignedBy);
         if (normalizedUsername == null || AI_AGENT_USERNAME.equalsIgnoreCase(normalizedUsername)) {
             return loadScopedResponsible(scope);
         }
@@ -144,7 +144,7 @@ public class DialogResponsibilityService {
                     """ + EXPECTED_OWNER_SQL + """
                      ) LIMIT 1
                     """,
-                    rs -> rs.next() ? trimToNull(rs.getString("responsible")) : null,
+                    rs -> rs.next() ? exactIdentityToNull(rs.getString("responsible")) : null,
                     scope.ticketId(), scope.ticketUserId(), scope.ticketId(), scope.ticketPublicId(),
                     scope.businessId(), scope.scopeKind(), flags.isStrictReadScope()
             );
@@ -228,6 +228,11 @@ public class DialogResponsibilityService {
             log.warn("Unable to load responsible for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
             return null;
         }
+    }
+
+    // Scoped identities are account keys; only the legacy paths trim freeform values.
+    private String exactIdentityToNull(String value) {
+        return StringUtils.hasText(value) ? value : null;
     }
 
     private String trimToNull(String value) {

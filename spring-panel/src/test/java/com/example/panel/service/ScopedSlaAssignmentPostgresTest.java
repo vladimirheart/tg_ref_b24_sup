@@ -159,7 +159,12 @@ class ScopedSlaAssignmentPostgresTest {
         org.flywaydb.core.Flyway.configure().dataSource(previous.getDataSource())
             .locations("filesystem:src/main/resources/db/migration/postgresql").load().migrate();
         var after=previous.queryForMap("SELECT * FROM tickets WHERE ticket_id='old-sla'");
-        assertThat(after.remove("responsibility_revision")).isEqualTo(0L);assertThat(after).isEqualTo(root);
+        assertThat(after.remove("responsibility_revision")).isEqualTo(0L);
+        // V81 adds independent work metadata; all V76 root fields still match exactly.
+        assertThat(root).doesNotContainKeys("business_work_revision","business_categories");
+        assertThat(after.remove("business_work_revision")).isEqualTo(0L);
+        assertThat(String.valueOf(after.remove("business_categories"))).isEqualTo("[]");
+        assertThat(after).isEqualTo(root);
         assertThat(previous.queryForMap("SELECT * FROM ticket_responsibles WHERE ticket_id='old-sla'")).isEqualTo(assignment);
         previous.update("UPDATE ticket_responsibles SET last_read_at=CURRENT_TIMESTAMP WHERE ticket_id='old-sla'");
         assertThat(previous.queryForObject("SELECT responsibility_revision FROM tickets WHERE ticket_id='old-sla'",Long.class)).isZero();

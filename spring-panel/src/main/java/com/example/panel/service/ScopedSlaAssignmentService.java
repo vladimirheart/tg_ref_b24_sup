@@ -38,9 +38,9 @@ public class ScopedSlaAssignmentService {
     public boolean assign(DialogLookupReadService.ScopedSlaDialog expected,String assignee,String actor,String source,String route) {
         if(expected==null || expected.scope()==null || !expected.scope().isValid() || expected.channelId()==null || expected.channelId()<=0
                 || expected.revision()<0 || expected.revision()==Long.MAX_VALUE || assignee==null || assignee.isBlank()
-                || assignee.trim().equalsIgnoreCase("ai_agent") || source==null || source.isBlank()
+                || assignee.equalsIgnoreCase("ai_agent") || source==null || source.isBlank()
                 || ("BUSINESS".equals(expected.scope().scopeKind()) && !flags.isFoundationEnabled())) return false;
-        String target=assignee.trim(),who=actor==null||actor.isBlank()?"sla_orchestrator":actor.trim();
+        String target=assignee,who=actor==null||actor.isBlank()?"sla_orchestrator":actor;
         if(target.length()>255 || who.length()>255 || source.length()>4096 || route!=null&&route.length()>4096) return false;
         var scope=expected.scope();
         var params=new MapSqlParameterSource().addValue("user",scope.ticketUserId()).addValue("ticket",scope.ticketId())

@@ -75,7 +75,7 @@ class DialogScopedResponsibilityPostgresTest {
         else f.jdbc.update("INSERT INTO business_access_grants VALUES (1,'ALL_BUSINESSES',?,TRUE)", role);
         var sibling = f.jdbc.queryForList("SELECT * FROM ticket_responsibles WHERE ticket_id <> ?", raw);
 
-        assertThat(f.service.assignScopedResponsibleIfMissing(f.scope, " OpErAtOr ", " Lead ")).isEqualTo("OpErAtOr");
+        assertThat(f.service.assignScopedResponsibleIfMissing(f.scope, "OpErAtOr", "Lead")).isEqualTo("OpErAtOr");
 
         var row = f.jdbc.queryForMap("SELECT * FROM ticket_responsibles WHERE ticket_id = ?", raw);
         assertThat(row).containsEntry("ticket_id", raw).containsEntry("responsible", "OpErAtOr")
@@ -177,15 +177,15 @@ class DialogScopedResponsibilityPostgresTest {
         var before = f.jdbc.queryForList("SELECT * FROM ticket_responsibles ORDER BY ticket_id");
         assertThat(f.service.assignScopedResponsibleIfMissing(f.scope,
             "null".equals(username) ? null : "blank".equals(username) ? " " : username, "routing"))
-            .isEqualTo("First Owner");
+            .isEqualTo(" First Owner ");
         assertThat(f.jdbc.queryForList("SELECT * FROM ticket_responsibles ORDER BY ticket_id")).isEqualTo(before);
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"null", "blank"})
-    void actorFallbackKeepsTrimmedAssignee(String actor) {
+    void actorFallbackKeepsCanonicalAssignee(String actor) {
         Fixture f = fixture(RAW, false);
-        assertThat(f.service.assignScopedResponsibleIfMissing(f.scope, " Operator ", "null".equals(actor) ? null : " "))
+        assertThat(f.service.assignScopedResponsibleIfMissing(f.scope, "Operator", "null".equals(actor) ? null : " "))
             .isEqualTo("Operator");
         assertThat(f.jdbc.queryForObject("SELECT assigned_by FROM ticket_responsibles WHERE ticket_id=?",
             String.class, RAW)).isEqualTo("Operator");
@@ -208,7 +208,7 @@ class DialogScopedResponsibilityPostgresTest {
             insertResponsible(f.jdbc, RAW, " Concurrent Owner ");
             return f.jdbc.update(call.getArgument(0, String.class), (Object[]) call.getRawArguments()[1]);
         }).when(f.observed).update(anyString(), any(Object[].class));
-        assertThat(f.service.assignScopedResponsibleIfMissing(f.scope, "operator", "routing")).isEqualTo("Concurrent Owner");
+        assertThat(f.service.assignScopedResponsibleIfMissing(f.scope, "operator", "routing")).isEqualTo(" Concurrent Owner ");
         assertThat(f.jdbc.queryForObject("SELECT assigned_by FROM ticket_responsibles WHERE ticket_id=?",
             String.class, RAW)).isEqualTo("Original Lead");
     }
