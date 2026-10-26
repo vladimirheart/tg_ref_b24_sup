@@ -1622,7 +1622,7 @@ function restoreIncidentDetailFocus(
           <section class="card">
             <div class="card-header"><strong>Связи</strong></div>
             <div class="card-body incident-meta-list">
-              ${relations.length ? relations.map((relation) => renderKeyValue(relation.relation_type, `${relation.relation_label || relation.relation_key}${relation.primary ? ' · primary' : ''}`)).join('') : '<div class="text-muted">Связи ещё не добавлены.</div>'}
+              ${relations.length ? relations.map((relation) => renderKeyValue(({ ticket: 'Диалог', task: 'Задача', object_passport: 'Паспорт объекта', external_object: 'Внешний объект' })[relation.relation_type] || 'Объект', `${relation.relation_label || relation.relation_key}${relation.primary ? ' · основная связь' : ''}`)).join('') : '<div class="text-muted">Связи ещё не добавлены.</div>'}
             </div>
           </section>
           <details class="card incident-timeline">
@@ -1851,7 +1851,7 @@ function restoreIncidentDetailFocus(
       ? exactLegacyTicketId(createNodes.relationKey?.value)
       : createNodes.relationKey?.value.trim();
     if (!title || !relationKey) {
-      throw new Error('Для создания incident заполните title и relation key.');
+      throw new Error('Укажите название инцидента и выберите связанный объект из поиска.');
     }
     const payload = {
       title,

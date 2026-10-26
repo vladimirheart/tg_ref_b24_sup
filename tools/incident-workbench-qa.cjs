@@ -27,6 +27,8 @@ async function main() {
       await context.route('**/*', route => {
         const req = route.request(), url = new URL(req.url()); if (url.origin !== origin) return route.abort();
         if (!url.pathname.startsWith('/api/')) return route.continue();
+        if (url.pathname === '/api/incidents/related-object-options') return route.fulfill({ json: { types: ['ticket', 'task', 'object_passport', 'external_object'], can_create_external: true } });
+        if (url.pathname === '/api/incidents/related-objects') return route.fulfill({ json: { items: [{ value: ' T/1?&%# Ю ', label: '20261026-001 · Нет связи', detail: 'Клиент' }] } });
         if (url.pathname === '/api/panel-users/options') { directoryCalls++; return route.fulfill({ json: [{ value: 'anna', label: 'Анна Смирнова · anna' }, { value: 'victor', label: 'Виктор Крюков · victor' }] }); }
         if (url.pathname.startsWith('/api/incidents/monitoring')) {
           if (req.method() === 'PATCH') { const payload = req.postDataJSON(); settings.push(payload); Object.assign(policies[0], payload, { ...(payload.duration_minutes ? { until: new Date(Date.now() + payload.duration_minutes * 60000).toISOString() } : {}), effective_mode: payload.mode, suppressed: payload.mode !== 'enabled' }); }
@@ -76,7 +78,10 @@ async function main() {
 
       await page.locator('[data-bs-target="#incidentCreateModal"]').click(); await page.locator('#incidentCreateModal.show').waitFor();
       const modal = await page.locator('#incidentCreateModal .modal-dialog').boundingBox(); assert(modal.x >= 0 && modal.x + modal.width <= width && modal.width <= 580);
-      await page.locator('#incidentCreateTitle').fill('Новая задача связи'); await page.locator('#incidentCreateRelationKey').fill(' T/1?&%# Ю ');
+      await page.locator('#incidentCreateTitle').fill('Новая задача связи');
+      await page.locator('#incidentCreateRelationSearch').fill('20261026-001');
+      await page.locator('#incidentCreateRelationResults button').click();
+      assert.equal(await page.locator('#incidentCreateRelationKey').inputValue(), ' T/1?&%# Ю ');
       const owner = page.locator('#incidentCreateOwner').locator('..');
       await owner.locator('.employee-picker__trigger').click(); await owner.locator('input[type="search"]').fill('смирн');
       await owner.locator('.employee-picker__option', { hasText: 'Анна Смирнова' }).click(); assert.equal(await page.locator('#incidentCreateOwner').inputValue(), 'anna');

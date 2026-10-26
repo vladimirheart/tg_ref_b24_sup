@@ -58,5 +58,6 @@ test('Адрес проверки не раскрывает credentials, path и
 test('Подключение каталога перед workbench и версии кеша совпадают', () => {
   const html = fs.readFileSync(path.resolve(__dirname, '../../main/resources/templates/incidents/index.html'), 'utf8');
   assert(html.indexOf('/js/incident-descriptions.js') < html.indexOf('/js/incidents-workbench.js'));
-  for (const name of ['incident-descriptions', 'incidents-workbench']) assert(html.includes(`/js/${name}.js(v='20261025-incidents-r18')`));
+  assert(html.includes("/js/incident-descriptions.js(v='20261025-incidents-r18')"));
+  assert(html.includes("/js/incidents-workbench.js(v='20261026-incidents-r19')"));
 });

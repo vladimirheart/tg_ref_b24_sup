@@ -60,7 +60,8 @@ class IncidentServiceTest {
                 jdbcTemplate,
                 new ObjectMapper(),
                 notificationRoutingService,
-                incidentRouteDeliveryOutboxService
+                incidentRouteDeliveryOutboxService,
+                mock(IncidentRelatedObjectService.class)
         );
 
         AtomicLong relationIds = new AtomicLong(1);
@@ -201,7 +202,8 @@ class IncidentServiceTest {
             jdbcTemplate,
             new ObjectMapper(),
             notificationRoutingService,
-            incidentRouteDeliveryOutboxService
+            incidentRouteDeliveryOutboxService,
+            mock(IncidentRelatedObjectService.class)
         );
 
         AtomicLong eventIds = new AtomicLong(1L);
@@ -293,7 +295,7 @@ class IncidentServiceTest {
             mock(JdbcTemplate.class),
             new ObjectMapper(),
             mock(NotificationRoutingService.class),
-            mock(IncidentRouteDeliveryOutboxService.class));
+            mock(IncidentRouteDeliveryOutboxService.class), mock(IncidentRelatedObjectService.class));
 
         assertThat(service.listIncidentSummariesForTicket(" T-EXACT ")).isEmpty();
         verify(incidentRelationRepository)

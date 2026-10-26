@@ -59,7 +59,7 @@ async function submit(relationType, relationKey) {
   assert.equal(blank.requests.length, 0);
   assert.equal(blank.modalHidden, 0);
   assert.equal(blank.formReset, 0);
-  assert.match(blank.error.message, /relation key/);
+  assert.match(blank.error.message, /выберите связанный объект из поиска/);
   console.log('INCIDENT_CREATE_EXACT_TICKET_ID_R35_GREEN=6');
 })().catch(error => {
   console.error(error.stack || error);

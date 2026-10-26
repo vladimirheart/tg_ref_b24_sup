@@ -39,7 +39,7 @@ class IncidentPriorityPostgresqlTest {
             var target = new IncidentService(incidentPort, eventPort, mock(IncidentRelationRepository.class),
                 mock(IncidentWatcherRepository.class), mock(IncidentRouteRepository.class), mock(TicketRepository.class),
                 mock(TaskRepository.class), jdbc, new ObjectMapper(), mock(NotificationRoutingService.class),
-                mock(IncidentRouteDeliveryOutboxService.class));
+                mock(IncidentRouteDeliveryOutboxService.class), mock(IncidentRelatedObjectService.class));
             var proxy = new ProxyFactory(target);
             proxy.addAdvice(new TransactionInterceptor(new JpaTransactionManager(factory), new AnnotationTransactionAttributeSource()));
             return (IncidentService) proxy.getProxy();

@@ -54,7 +54,7 @@ public class IncidentService {
     private static final Set<String> STATUSES = Set.of("open", "acknowledged", "investigating", "resolved", "closed");
     private static final Set<String> SEVERITIES = Set.of("low", "medium", "high", "critical");
     private static final String PRIORITY_OVERRIDE_EVENT = "priority_override";
-    private static final Set<String> RELATION_TYPES = Set.of("ticket", "task", "object_passport");
+    private static final Set<String> RELATION_TYPES = Set.of("ticket", "task", "object_passport", "external_object");
     private static final Set<String> ROUTE_TYPES = Set.of("webhook", "user", "users", "department", "all_operators");
 
     private final IncidentRepository incidentRepository;
@@ -64,6 +64,7 @@ public class IncidentService {
     private final IncidentRouteRepository incidentRouteRepository;
     private final TicketRepository ticketRepository;
     private final TaskRepository taskRepository;
+    private final IncidentRelatedObjectService relatedObjects;
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
     private final NotificationRoutingService notificationRoutingService;
@@ -79,7 +80,8 @@ public class IncidentService {
                            JdbcTemplate jdbcTemplate,
                            ObjectMapper objectMapper,
                            NotificationRoutingService notificationRoutingService,
-                           IncidentRouteDeliveryOutboxService incidentRouteDeliveryOutboxService) {
+                           IncidentRouteDeliveryOutboxService incidentRouteDeliveryOutboxService,
+                           IncidentRelatedObjectService relatedObjects) {
         this.incidentRepository = incidentRepository;
         this.incidentEventRepository = incidentEventRepository;
         this.incidentRelationRepository = incidentRelationRepository;
@@ -91,6 +93,7 @@ public class IncidentService {
         this.objectMapper = objectMapper;
         this.notificationRoutingService = notificationRoutingService;
         this.incidentRouteDeliveryOutboxService = incidentRouteDeliveryOutboxService;
+        this.relatedObjects = relatedObjects;
 			}
 
 			private Incident saveNewIncidentWithGeneratedKey(
@@ -1285,6 +1288,7 @@ public class IncidentService {
         }
         String relationType = normalizeRelationType(relation.relationType());
         String relationKey = requiredRelationKey(relation.relationKey(), relationType);
+        relatedObjects.validateSelection(relationType, relationKey);
         switch (relationType) {
             case "ticket" -> {
                 if (ticketRepository.findUniqueByLegacyTicketId(relationKey).isEmpty()) {
@@ -1303,6 +1307,7 @@ public class IncidentService {
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Паспорт объекта " + relationKey + " не найден для incident.");
                 }
             }
+            case "external_object" -> { /* The catalog lookup and authorization above are mandatory. */ }
             default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Неподдерживаемый relation type incident: " + relationType);
         }
     }
@@ -1319,6 +1324,9 @@ public class IncidentService {
     private String resolveRelationLabel(RelationDraft relation) {
         if (relation == null) {
             return null;
+        }
+        if ("external_object".equals(relation.relationType())) {
+            return relatedObjects.selectionLabel("external_object", relation.relationKey());
         }
         if (StringUtils.hasText(relation.relationLabel())) {
             return relation.relationLabel();

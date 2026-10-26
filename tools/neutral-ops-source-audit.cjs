@@ -17,7 +17,7 @@ const rows = templates.map(file => {
   if (standalone) {
     assert(source.includes('data-ui-page='), relative + ': missing page scope');
     const r12 = ['incidents/index', 'dialogs/index', 'tasks/index', 'projects/index', 'settings/index', 'businesses/manage', 'businesses/dialog-assignment', 'businesses/dialogs', 'general/work'].map(view => 'templates/' + view + '.html');
-    const version = r12.includes(relative) ? '20261023-incidents-r12'
+    const version = relative === 'templates/incidents/index.html' ? '20261026-incidents-r19' : r12.includes(relative) ? '20261023-incidents-r12'
       : ['templates/home/index.html', 'templates/knowledge/note-editor.html'].includes(relative)
         ? '20261023-neutral-ops-r10' : '20261022-neutral-ops-r9';
     assert(source.includes(`app.css(v='${version}')`), relative + ': stale stylesheet version');

@@ -45,7 +45,7 @@ class IncidentClosurePostgresqlTest {
         });
         var target = new IncidentService(incidents, events, relations, watchers, routes,
             mock(TicketRepository.class), mock(TaskRepository.class), jdbc, new ObjectMapper(),
-            mock(NotificationRoutingService.class), mock(IncidentRouteDeliveryOutboxService.class));
+            mock(NotificationRoutingService.class), mock(IncidentRouteDeliveryOutboxService.class), mock(IncidentRelatedObjectService.class));
         var factory = new ProxyFactory(target);
         factory.addAdvice(new TransactionInterceptor(new JdbcTransactionManager(jdbc.getDataSource()), new AnnotationTransactionAttributeSource()));
         var service = (IncidentService) factory.getProxy();
