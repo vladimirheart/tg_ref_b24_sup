@@ -99,6 +99,21 @@
 - Стили — общие SCSS/tokens, не отдельная inline тема. Сохранять клавиатурный
   фокус, required validation, submit/reset и динамические server options.
 
+## Typed channel notification selections — R180
+
+- Только channelEditorPanelNotifEmployees/Exclude включают формат
+  data-employee-value-format="username-json": значение textarea — JSON-массив
+  username strings без trim, с прежним case folding; backend получает typed arrays.
+- Остальные поля сохраняют native/CSV id/name/value и грамматику. JSON-формат не
+  означает новый scoped catalog: global options endpoint и его права прежние,
+  native select/datalist не расширяются им, backend eligibility остаётся обязательным.
+- Пустой присутствующий control авторитетен; fallback только при отсутствии.
+  Некорректный typed список блокирует POST, reset восстанавливает загруженный
+  defaultValue. Ошибка/неполнота справочника не подменяет сохранённые ключи.
+- Observer игнорирует disconnected added nodes: последовательные render/refresh
+  меню не должны запускать бесконечный global rescan. Связанные реальные добавления
+  в документ по-прежнему монтируются, удаление не меняет данные/гранты.
+
 ## Связанные объекты инцидентов — R19
 
 - Ручное создание использует поиск существующей записи, а не свободный ввод ID.

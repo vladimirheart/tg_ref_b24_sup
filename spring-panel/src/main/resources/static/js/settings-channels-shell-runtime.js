@@ -256,6 +256,20 @@
         .filter((value) => value);
     }
 
+    function readChannelNotificationValues(input, fallback) {
+      if (!input) return settingsChannelConfig.serializeChannelNotificationList(fallback);
+      if (input.dataset.employeeValueFormat !== 'username-json') {
+        return settingsChannelConfig.serializeChannelNotificationList(input.value);
+      }
+      try {
+        const values = JSON.parse(input.value || '[]');
+        if (!Array.isArray(values) || values.some(value => typeof value !== 'string')) throw new Error();
+        return settingsChannelConfig.serializeChannelNotificationList(values);
+      } catch (_) {
+        throw new Error('Не удалось прочитать список сотрудников. Откройте канал заново.');
+      }
+    }
+
     function buildChannelQuestionsCfgPayload(existingQuestionsCfg) {
       const existingAssignmentRouting = existingQuestionsCfg?.assignmentRouting && typeof existingQuestionsCfg.assignmentRouting === 'object'
         ? existingQuestionsCfg.assignmentRouting
@@ -345,12 +359,8 @@
             department: notificationDepartmentValue,
             targetMode: normalizedNotificationTargetMode,
             deliveryMode: notificationDeliveryMode,
-            employeeUsernames: settingsChannelConfig.serializeChannelNotificationList(
-              elements.channelEditorPanelNotifEmployeesInput?.value || existingRouting.employeeUsernames
-            ),
-            excludeUsernames: settingsChannelConfig.serializeChannelNotificationList(
-              elements.channelEditorPanelNotifExcludeInput?.value || existingRouting.excludeUsernames
-            ),
+            employeeUsernames: readChannelNotificationValues(elements.channelEditorPanelNotifEmployeesInput, existingRouting.employeeUsernames),
+            excludeUsernames: readChannelNotificationValues(elements.channelEditorPanelNotifExcludeInput, existingRouting.excludeUsernames),
           },
           events: {
             newPublicAppeal: typeof existingEvents.newPublicAppeal === 'boolean'

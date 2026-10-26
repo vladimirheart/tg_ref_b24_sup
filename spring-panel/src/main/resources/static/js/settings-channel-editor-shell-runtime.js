@@ -245,6 +245,15 @@
       elements.channelEditorSupportHint.textContent = 'ID группы не задан. Добавьте бота в чат или укажите значение вручную.';
     }
 
+    function populateChannelNotificationSelection(input, rawValues) {
+      if (!input) return;
+      const values = Array.isArray(rawValues) ? rawValues : [];
+      const value = input.dataset.employeeValueFormat === 'username-json'
+        ? JSON.stringify(values) : values.join(', ');
+      input.defaultValue = value;
+      input.value = value;
+    }
+
     function updateChannelPanelNotificationRoutingState() {
       const targetMode = String(elements.channelEditorPanelNotifTargetModeInput?.value || 'all_operators').trim().toLowerCase();
       const usesDepartment = targetMode !== 'all_operators';
@@ -477,16 +486,8 @@
       if (elements.channelEditorPanelNotifDepartmentInput) {
         elements.channelEditorPanelNotifDepartmentInput.value = panelRouting.department || '';
       }
-      if (elements.channelEditorPanelNotifEmployeesInput) {
-        elements.channelEditorPanelNotifEmployeesInput.value = Array.isArray(panelRouting.employeeUsernames)
-          ? panelRouting.employeeUsernames.join(', ')
-          : '';
-      }
-      if (elements.channelEditorPanelNotifExcludeInput) {
-        elements.channelEditorPanelNotifExcludeInput.value = Array.isArray(panelRouting.excludeUsernames)
-          ? panelRouting.excludeUsernames.join(', ')
-          : '';
-      }
+      populateChannelNotificationSelection(elements.channelEditorPanelNotifEmployeesInput, panelRouting.employeeUsernames);
+      populateChannelNotificationSelection(elements.channelEditorPanelNotifExcludeInput, panelRouting.excludeUsernames);
       populateAssignmentOperatorSelect(
         elements.channelEditorAssignmentSingleOperatorInput,
         assignmentOperators,

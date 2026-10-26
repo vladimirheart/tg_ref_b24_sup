@@ -48,7 +48,7 @@
     };
   }
 
-  function normalizeAssignmentUsername(value) {
+  function normalizeChannelUsername(value) {
     const username = String(value || '');
     return username.trim() ? username.toLowerCase() : '';
   }
@@ -56,15 +56,13 @@
   function parseAssignmentUsernames(raw) {
     // Typed selectors contain exact account keys. Legacy string lists retain their grammar.
     return Array.isArray(raw)
-      ? Array.from(new Set(raw.map(normalizeAssignmentUsername).filter(Boolean)))
+      ? Array.from(new Set(raw.map(normalizeChannelUsername).filter(Boolean)))
       : parseChannelNotificationList(raw);
   }
 
   function parseChannelNotificationList(raw) {
     if (Array.isArray(raw)) {
-      return raw
-        .map((value) => String(value || '').trim().toLowerCase())
-        .filter(Boolean);
+      return raw.map(normalizeChannelUsername).filter(Boolean);
     }
     if (typeof raw === 'string') {
       return raw
@@ -198,7 +196,7 @@
           ? Boolean(assignmentRoutingRaw.assignResponsibleOnCreate)
           : false,
         strategy: assignmentStrategy,
-        operatorUsername: normalizeAssignmentUsername(assignmentRoutingRaw.operatorUsername),
+        operatorUsername: normalizeChannelUsername(assignmentRoutingRaw.operatorUsername),
         operatorUsernames: parseAssignmentUsernames(assignmentRoutingRaw.operatorUsernames),
         department: String(assignmentRoutingRaw.department || '').trim(),
       },

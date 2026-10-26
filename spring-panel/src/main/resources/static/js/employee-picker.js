@@ -25,12 +25,26 @@
     // Не меняем type: legacy form.elements/value и submit остаются прежними.
     source.hidden = true; source.dataset.employeeSource = 'true';
     let remote = null, busy = false, error = '';
+    function usesTypedUsernames() { return multiple && source.dataset.employeeValueFormat === 'username-json'; }
     function options() {
       if (source instanceof HTMLSelectElement) return Array.from(source.options).filter(option => option.value && !option.disabled).map(option => ({ value: option.value, label: option.textContent }));
       if (source.list) return Array.from(source.list.options).map(option => ({ value: option.value, label: option.label || option.value }));
-      return remote || [];
+      const values = remote || [];
+      return usesTypedUsernames()
+        ? values.filter(option => typeof option.value === 'string' && option.value.trim())
+          .map(option => ({ ...option, value: option.value.toLowerCase() }))
+        : values;
     }
-    function selected() { return multiple ? (source instanceof HTMLSelectElement ? Array.from(source.selectedOptions).map(option => option.value) : split(source.value)) : (source.value ? [source.value] : []); }
+    function selected() {
+      if (multiple && source instanceof HTMLSelectElement) return Array.from(source.selectedOptions).map(option => option.value);
+      if (usesTypedUsernames()) {
+        try {
+          const values = JSON.parse(source.value || '[]');
+          return Array.isArray(values) ? values.filter(value => typeof value === 'string' && value.trim()).map(value => value.toLowerCase()) : [];
+        } catch (_) { return []; }
+      }
+      return multiple ? split(source.value) : (source.value ? [source.value] : []);
+    }
     function refresh() {
       const values = selected(), all = options();
       trigger.textContent = values.map(value => all.find(option => option.value === value)?.label || value).join(', ') || source.dataset.employeePlaceholder || 'Выберите сотрудника';
@@ -41,6 +55,7 @@
     }
     function setValue(values) {
       if (source instanceof HTMLSelectElement && multiple) Array.from(source.options).forEach(option => { option.selected = values.includes(option.value); });
+      else if (usesTypedUsernames()) source.value = JSON.stringify(values);
       else source.value = values.join(', ');
       source.dispatchEvent(new Event('input', { bubbles: true })); source.dispatchEvent(new Event('change', { bubbles: true })); refresh();
     }
@@ -102,7 +117,7 @@
     for (const record of records) for (const node of record.removedNodes) if (node instanceof Element) {
       if (!node.isConnected) { node.__employeeAbort?.abort(); node.querySelectorAll('.employee-picker').forEach(item => item.__employeeAbort?.abort()); }
     }
-    if (!queued && records.some(record => Array.from(record.addedNodes).some(node => node instanceof Element && !node.closest('.employee-picker')))) {
+    if (!queued && records.some(record => Array.from(record.addedNodes).some(node => node instanceof Element && node.isConnected && !node.closest('.employee-picker')))) {
       queued = true; queueMicrotask(() => { queued = false; scan(); });
     }
   }).observe(document.documentElement, { childList: true, subtree: true });
