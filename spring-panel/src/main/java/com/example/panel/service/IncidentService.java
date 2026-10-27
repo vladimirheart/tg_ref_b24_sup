@@ -1274,7 +1274,7 @@ public class IncidentService {
             }
             routes.add(new RouteDraft(
                 normalizeNullableText(rawMap.get("route_type")),
-                normalizeNullableText(rawMap.get("route_target")),
+                rawMap.get("route_target") == null ? null : String.valueOf(rawMap.get("route_target")),
                 normalizeNullableText(rawMap.get("route_status")),
                 normalizeNullableText(rawMap.get("note"))
             ));
@@ -1399,7 +1399,7 @@ public class IncidentService {
         return incidentWatcherRepository.findByIncidentIdOrderByWatcherIdentityAsc(incidentId).stream()
             .map(IncidentWatcher::getWatcherIdentity)
             .filter(StringUtils::hasText)
-            .map(value -> value.trim().toLowerCase(Locale.ROOT))
+            .map(value -> value.toLowerCase(Locale.ROOT))
             .distinct()
             .toList();
     }
@@ -1424,7 +1424,7 @@ public class IncidentService {
         if (monitoringPolicy != null && monitoringPolicy.isSignalSuppressed(incident.getSignalType(), incident.getSignalKey())) return;
         Set<String> recipients = new LinkedHashSet<>();
         if (StringUtils.hasText(incident.getOwner())) {
-            recipients.add(incident.getOwner().trim().toLowerCase(Locale.ROOT));
+            recipients.add(incident.getOwner().toLowerCase(Locale.ROOT));
         }
         recipients.addAll(loadWatcherIdentities(incident.getId()));
         if (recipients.isEmpty()) {
@@ -1541,7 +1541,8 @@ public class IncidentService {
         if ("all_operators".equals(normalizeNullableText(routeType))) {
             return "all_operators";
         }
-        return requiredText(rawRouteTarget, "Укажите цель маршрута incident.");
+        String target = requiredText(rawRouteTarget, "Укажите цель маршрута incident.");
+        return "user".equals(normalizeNullableText(routeType)) ? String.valueOf(rawRouteTarget) : target;
     }
 
     private boolean isResolvedStatus(String status) {
@@ -1611,8 +1612,8 @@ public class IncidentService {
     }
 
     private String normalizeNullableIdentity(Object raw) {
-        String value = normalizeNullableText(raw);
-        return value == null ? null : value.toLowerCase(Locale.ROOT);
+        String value = raw == null ? null : String.valueOf(raw);
+        return value == null || value.trim().isEmpty() ? null : value.toLowerCase(Locale.ROOT);
     }
 
     private record RelationDraft(String relationType,

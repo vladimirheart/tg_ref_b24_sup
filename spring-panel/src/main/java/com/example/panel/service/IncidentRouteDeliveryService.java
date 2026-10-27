@@ -43,6 +43,9 @@ public class IncidentRouteDeliveryService {
                         Map<String, Object> payload) {
         String normalizedType = normalizeRouteType(routeType);
         String normalizedTarget = normalizeTarget(routeTarget);
+        if ("user".equals(normalizedType) && StringUtils.hasText(normalizedTarget)) {
+            normalizedTarget = routeTarget;
+        }
         String safeText = requiredText(messageText, "Incident route delivery requires message text.");
         switch (normalizedType) {
             case "webhook" -> sendWebhook(normalizedTarget, payload);

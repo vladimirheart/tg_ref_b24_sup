@@ -266,11 +266,11 @@ public class IncidentRouteDeliveryOutboxService {
             route.getId(),
             normalize(eventType),
             normalize(route.getRouteType()),
-            route.getRouteTarget().trim(),
+            "user".equalsIgnoreCase(normalize(route.getRouteType())) ? route.getRouteTarget() : route.getRouteTarget().trim(),
             buildMessageText(incident, eventText),
             buildIncidentUrl(incident),
             toJson(buildPayload(incident, route, eventType, eventText, payload, actor)),
-            normalize(actor),
+            exactIdentity(actor),
             "queued",
             0,
             timestamp(now),
@@ -297,17 +297,18 @@ public class IncidentRouteDeliveryOutboxService {
         envelope.put("status", normalize(incident.getStatus()));
         envelope.put("severity", normalize(incident.getSeverity()));
         envelope.put("source", normalize(incident.getSource()));
-        envelope.put("owner", normalize(incident.getOwner()));
+        envelope.put("owner", exactIdentity(incident.getOwner()));
         envelope.put("signal_type", normalize(incident.getSignalType()));
         envelope.put("signal_key", normalize(incident.getSignalKey()));
         envelope.put("event_type", normalize(eventType));
         envelope.put("event_text", normalize(eventText));
         envelope.put("route_id", route.getId());
         envelope.put("route_type", normalize(route.getRouteType()));
-        envelope.put("route_target", normalize(route.getRouteTarget()));
+        envelope.put("route_target", "user".equalsIgnoreCase(normalize(route.getRouteType()))
+            ? exactIdentity(route.getRouteTarget()) : normalize(route.getRouteTarget()));
         envelope.put("route_note", normalize(route.getNote()));
         envelope.put("incident_url", buildIncidentUrl(incident));
-        envelope.put("requested_by", normalize(actor));
+        envelope.put("requested_by", exactIdentity(actor));
         envelope.put("payload", payload);
         return envelope;
     }
@@ -473,6 +474,10 @@ public class IncidentRouteDeliveryOutboxService {
 
     private Timestamp timestamp(OffsetDateTime value) {
         return value == null ? null : Timestamp.from(value.toInstant());
+    }
+
+    private String exactIdentity(String value) {
+        return StringUtils.hasText(value) ? value : null;
     }
 
     private String normalize(String value) {
