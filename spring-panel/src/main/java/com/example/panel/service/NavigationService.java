@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import com.example.panel.security.ChannelManagementAccess;
+
 import com.example.panel.entity.PanelUser;
 import com.example.panel.repository.PanelUserRepository;
 import com.example.panel.config.MultibusinessFeatureFlags;
@@ -44,7 +46,9 @@ public class NavigationService {
         model.addAttribute("canViewScopedAiSources", flags!=null && flags.isFoundationEnabled() && flags.isUiSelector()
                 && permissionService.hasAuthority(authentication,"PAGE_KNOWLEDGE_BASE"));
         model.addAttribute("canManageTasks", permissionService.hasAuthority(authentication, "PAGE_TASKS"));
-        model.addAttribute("canManageChannels", permissionService.hasAuthority(authentication, "PAGE_CHANNELS"));
+        boolean canManageChannels = ChannelManagementAccess.isAllowed(authentication);
+        model.addAttribute("canManageChannels", canManageChannels);
+        model.addAttribute("canManageChannelsInSettings", canManageChannels && ChannelManagementAccess.hasSettingsPage(authentication));
         model.addAttribute("canManageUsers", permissionService.hasAuthority(authentication, "PAGE_USERS"));
         model.addAttribute("canViewIncidents",
                 permissionService.hasAuthority(authentication, "PAGE_DIALOGS")

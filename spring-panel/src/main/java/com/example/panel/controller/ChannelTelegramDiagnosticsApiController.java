@@ -1,5 +1,7 @@
 package com.example.panel.controller;
 
+import com.example.panel.security.ChannelManagementAccess;
+
 import com.example.panel.service.ChannelTransportService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -13,7 +15,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
-@PreAuthorize("hasAnyAuthority('PAGE_CHANNELS', 'PAGE_SETTINGS')")
+@PreAuthorize(ChannelManagementAccess.REQUIRE)
 public class ChannelTelegramDiagnosticsApiController {
 
     private final ChannelTransportService channelTransportService;

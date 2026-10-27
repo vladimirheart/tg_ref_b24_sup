@@ -1,5 +1,7 @@
 package com.example.panel.controller;
 
+import com.example.panel.security.ChannelManagementAccess;
+
 import com.example.panel.entity.Channel;
 import com.example.panel.repository.ChannelRepository;
 import com.example.panel.runtime.RuntimeRole;
@@ -12,6 +14,7 @@ import com.example.panel.service.UiEventStreamService;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/bots")
+@PreAuthorize(ChannelManagementAccess.REQUIRE)
 public class BotProcessApiController {
 
     private final BotProcessService botProcessService;

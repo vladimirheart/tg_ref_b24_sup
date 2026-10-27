@@ -180,7 +180,7 @@
                         <span class="nav-label-sub">Пульсы, cert-monitoring и KPI</span>
                     </span>
                 </a>
-                <a class="nav-link" data-page-key="channels" data-nav-group="admin" th:if="${canManageChannels == true and canViewSettings != true}"
+                <a class="nav-link" data-page-key="channels" data-nav-group="admin" th:if="${canManageChannels == true and canManageChannelsInSettings != true}"
                    th:classappend="${active}=='channels' ? ' active'"
                    th:href="@{/channels}">
                     <span class="icon" aria-hidden="true">📡</span>

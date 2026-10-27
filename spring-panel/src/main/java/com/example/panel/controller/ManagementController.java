@@ -1,5 +1,7 @@
 package com.example.panel.controller;
 
+import com.example.panel.security.ChannelManagementAccess;
+
 import com.example.panel.entity.Channel;
 import com.example.panel.entity.PanelUser;
 import com.example.panel.entity.Task;
@@ -66,9 +68,9 @@ public class ManagementController {
     }
 
     @GetMapping("/channels")
-    @PreAuthorize("hasAuthority('PAGE_CHANNELS')")
+    @PreAuthorize(ChannelManagementAccess.REQUIRE)
     public String channels(Authentication authentication, Model model) {
-        if (permissionService.hasAuthority(authentication, "PAGE_SETTINGS")) {
+        if (ChannelManagementAccess.hasSettingsPage(authentication)) {
             return "redirect:/settings?open=channels";
         }
         navigationService.enrich(model, authentication);

@@ -331,11 +331,13 @@
 
     <th:block th:replace="~{settings/fragments/reporting-manager-bindings :: managerBindingsWorkspace}"></th:block>
 
+  <th:block th:if="${canManageChannels}">
     <th:block th:replace="~{settings/fragments/channels-workspace :: channelsWorkspace}"></th:block>
 
   <th:block th:replace="~{settings/fragments/channels-add-channel :: addChannelWorkspace}"></th:block>
 
   <th:block th:replace="~{settings/fragments/channel-editor :: channelEditorWorkspace}"></th:block>
+  </th:block>
 
 </div>
 

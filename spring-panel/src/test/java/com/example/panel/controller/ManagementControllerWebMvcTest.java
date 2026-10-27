@@ -183,7 +183,7 @@ class ManagementControllerWebMvcTest {
         when(settingsCatalogService.buildLocationPresets(liveCatalog.tree(), Map.of())).thenReturn(Map.of());
         when(permissionService.hasAuthority(any(), any())).thenReturn(false);
 
-        mockMvc.perform(get("/settings").with(user("operator").authorities(() -> "PAGE_SETTINGS")))
+        mockMvc.perform(get("/settings").with(user("system").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")))
             .andExpect(status().isOk())
             .andExpect(view().name("settings/index"))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-preferences.js")))
@@ -259,7 +259,7 @@ class ManagementControllerWebMvcTest {
         when(settingsCatalogService.buildLocationPresets(liveCatalog.tree(), Map.of())).thenReturn(Map.of());
         when(permissionService.hasAuthority(any(), any())).thenReturn(false);
 
-        mockMvc.perform(get("/settings").with(user("operator").authorities(() -> "PAGE_SETTINGS")))
+        mockMvc.perform(get("/settings").with(user("system").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")))
             .andExpect(status().isOk())
             .andExpect(view().name("settings/index"))
             .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("\"template-imported\""))))
@@ -302,7 +302,7 @@ class ManagementControllerWebMvcTest {
         when(settingsCatalogService.buildLocationPresets(liveCatalog.tree(), Map.of())).thenReturn(Map.of());
         when(permissionService.hasAuthority(any(), any())).thenReturn(false);
 
-        mockMvc.perform(get("/settings").with(user("operator").authorities(() -> "PAGE_SETTINGS")))
+        mockMvc.perform(get("/settings").with(user("system").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")))
             .andExpect(status().isOk())
             .andExpect(view().name("settings/index"))
             .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("\"unblock_request_cooldown_minutes\":13"))));
@@ -342,7 +342,7 @@ class ManagementControllerWebMvcTest {
         when(channelRepository.findAll()).thenReturn(List.of());
         when(permissionService.hasAuthority(any(), eq("PAGE_SETTINGS"))).thenReturn(false);
 
-        mockMvc.perform(get("/channels").with(user("operator").authorities(() -> "PAGE_CHANNELS")))
+        mockMvc.perform(get("/channels").with(user("system").authorities(() -> "PAGE_CHANNELS", () -> "ROLE_ADMIN")))
             .andExpect(status().isOk())
             .andExpect(view().name("channels/index"))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-preferences.js")))
@@ -370,7 +370,7 @@ class ManagementControllerWebMvcTest {
     void channelsPageRedirectsIntoSettingsWhenSettingsPageIsAvailable() throws Exception {
         when(permissionService.hasAuthority(any(), eq("PAGE_SETTINGS"))).thenReturn(true);
 
-        mockMvc.perform(get("/channels").with(user("operator").authorities(() -> "PAGE_CHANNELS")))
+        mockMvc.perform(get("/channels").with(user("system").authorities(() -> "PAGE_CHANNELS", () -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")))
             .andExpect(status().is3xxRedirection())
             .andExpect(redirectedUrl("/settings?open=channels"));
     }
