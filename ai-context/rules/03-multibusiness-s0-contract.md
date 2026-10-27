@@ -14,7 +14,32 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R186 (2026-10-27): рабочие проект и Docker остаются на
+Актуальное уточнение R187 (2026-10-27): рабочие проект и Docker остаются на
+другой машине/в другой сессии C:\Users\SinicinVV\git_h\tg_ref_b24_sup. Здесь
+source/test checkout C:\Users\sushi\Git_H\tg_ref_b24_sup: изолированные Maven
+MVC/mock/security/Thymeleaf и browser/Node fixtures. R186 9b7bd6f6b проверен по
+parent/subject/exact 9 files/content. 255 Java + 76 real DOM browser cases и
+110 scoped Node checks GREEN. Полный Node run содержит один прежний R53 notes
+fixture failure, отдельно повторённый на неизменённых baseline inputs.
+Docker/live DB/HTTP/providers не запускались. Checkpoint R184 и пользовательский
+start/stop одного бота сохранены точно, без новых runtime probes. Рабочие
+restart/deploy/migration/backfill/config/flags и массовые изменения логинов
+не выполнялись. R185–R187 здесь не развёрнуты. Grant commit/push до
+2026-10-27 21:00 UTC сохраняется; source apply и publisher разделены.
+
+Политика R187: новые/явно изменяемые логины — ASCII латиница, цифры и `. _ - @`,
+обычные крайние пробелы удаляются; внутренние/другие символы отклоняются.
+Старые account keys и grants не нормализуются при сохранении других полей.
+`lower(trim(username))` допустим только для консервативного отказа в коллизии
+новой записи/переименования, не для выбора identity или authority. Пароли
+передаются точно, включая пробелы; общая write policy и подсказки описаны в
+[08-panel-account-credentials](08-panel-account-credentials.md).
+UserLastActivityFilter больше не trim'ит principal; прежние SQL case folding,
+auth/blank guards и best-effort поведение сохранены. Это не миграция старых
+логинов и не разрешение ослаблять exact-key guards других consumers.
+Worker/fleet/S6 acceptance по-прежнему открыта, общий статус 01-278 — 🟡.
+
+Историческое уточнение R186 (2026-10-27): рабочие проект и Docker остаются на
 другой машине/в другой сессии C:\Users\SinicinVV\git_h\tg_ref_b24_sup. Здесь
 source/test checkout C:\Users\sushi\Git_H\tg_ref_b24_sup: только изолированные
 browser/Node fixtures детальной карточки инцидента. R185 3e5ceba37 проверен по

@@ -391,7 +391,55 @@
     }
   }
 
+  function hasInvalidCredentialCharacters(value) {
+      return /[\u0000-\u001F\u007F-\u009F]/.test(value) || Array.from(value).some(character => {
+        const point = character.codePointAt(0);
+        return point >= 0xD800 && point <= 0xDFFF;
+      });
+    }
+
+  function credentialPasswordError(value) {
+      if (!value || /^\s*$/u.test(value)) return 'Пароль не может быть пустым или состоять только из пробелов.';
+      if (hasInvalidCredentialCharacters(value)) return 'Пароль содержит недопустимые управляющие символы или некорректный Unicode. Удалите их.';
+      if (new TextEncoder().encode(value).length > 72) return 'Пароль слишком длинный: максимум 72 байта UTF-8; кириллица и emoji занимают больше одного байта.';
+      return '';
+    }
+
+  const passwordInputs = changePasswordForm ? Array.from(changePasswordForm.querySelectorAll('input[type="password"]')) : [];
+
+  function sidebarPasswordFeedback(input, message) {
+    input.setCustomValidity(message);
+    input.classList.toggle('is-invalid', Boolean(message));
+    if (message) input.setAttribute('aria-invalid', 'true'); else input.removeAttribute('aria-invalid');
+    const feedback = document.getElementById(input.id + 'Error');
+    if (feedback) feedback.textContent = message;
+  }
+
+  function validateSidebarPassword(input) {
+    let message = '';
+    if (input.dataset.credentialPasteError) message = 'Вставка содержит недопустимые управляющие символы. Измените поле или вставьте значение без них.';
+    else if (input.name === 'new_password') message = credentialPasswordError(input.value);
+    else if (input.name === 'confirm_password' && input.value !== changePasswordForm.elements.new_password.value) message = 'Пароли не совпадают. Пробелы тоже учитываются.';
+    else if (!input.value) message = input.name === 'current_password' ? 'Укажите текущий пароль.' : 'Повторите пароль.';
+    sidebarPasswordFeedback(input, message);
+    return !message;
+  }
+
+  for (const input of passwordInputs) {
+    input.addEventListener('input', () => {
+      delete input.dataset.credentialPasteError; validateSidebarPassword(input);
+      const confirm = changePasswordForm.elements.confirm_password;
+      if (input.name === 'new_password' && confirm.value) validateSidebarPassword(confirm);
+    });
+    input.addEventListener('paste', event => {
+      if (hasInvalidCredentialCharacters(event.clipboardData?.getData('text') || '')) {
+        event.preventDefault(); input.dataset.credentialPasteError = 'true'; validateSidebarPassword(input);
+      }
+    });
+  }
+
   function resetChangePasswordState() {
+    for (const input of passwordInputs) { delete input.dataset.credentialPasteError; sidebarPasswordFeedback(input, ''); }
     if (changePasswordForm) {
       changePasswordForm.reset();
     }
@@ -436,10 +484,14 @@
       togglePasswordMessage(changePasswordSuccess, '');
 
       const formData = new FormData(changePasswordForm);
-      const currentPassword = (formData.get('current_password') || '').toString().trim();
-      const newPassword = (formData.get('new_password') || '').toString().trim();
-      const confirmPassword = (formData.get('confirm_password') || '').toString().trim();
+      const currentPassword = (formData.get('current_password') || '').toString();
+      const newPassword = (formData.get('new_password') || '').toString();
+      const confirmPassword = (formData.get('confirm_password') || '').toString();
 
+      if (!passwordInputs.every(validateSidebarPassword)) {
+        togglePasswordMessage(changePasswordError, 'Проверьте пароль и подтверждение: подсказка показана под полем.');
+        return;
+      }
       if (!currentPassword) {
         togglePasswordMessage(changePasswordError, 'Укажите текущий пароль.');
         return;

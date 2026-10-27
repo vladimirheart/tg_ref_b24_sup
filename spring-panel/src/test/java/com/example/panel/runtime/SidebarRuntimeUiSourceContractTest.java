@@ -102,7 +102,7 @@ class SidebarRuntimeUiSourceContractTest {
         String sidebarJs = read(SIDEBAR_JS);
 
         assertThat(navbar)
-            .contains("sidebar.js(v='20261008-sidebar-prepaint-r75')");
+            .contains("sidebar.js(v='20261027-credentials-r187')");
         assertThat(sidebarJs)
             .contains("const SIDEBAR_RUNTIME_FLAG = '__IGUANA_SIDEBAR_RUNTIME_READY__';")
             .contains("if (window[SIDEBAR_RUNTIME_FLAG] === true) return;")

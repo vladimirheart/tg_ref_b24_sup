@@ -147,11 +147,15 @@ public class AuthManagementApiController {
 
     private Map<String, Object> createUserFromPayload(Map<String, Object> payload) {
         Set<String> userColumns = loadUserColumns();
-        String username = stringValue(payload.get("username"));
-        String password = stringValue(payload.get("password"));
+        String username = normalizeCredentialLogin(payload.get("username"));
+        String password = payload.get("password") instanceof String text ? text : "";
         if (!StringUtils.hasText(username) || !StringUtils.hasText(password)) {
             return Map.of("success", false, "error", "Имя пользователя и пароль не могут быть пустыми");
         }
+        String loginError = credentialLoginError(username);
+        if (!loginError.isEmpty()) return credentialFailure("username", loginError);
+        String passwordError = credentialPasswordError(password);
+        if (!passwordError.isEmpty()) return credentialFailure("password", passwordError);
         Integer existing = usersJdbcTemplate.queryForObject(
             "SELECT COUNT(*) FROM users WHERE lower(username) = lower(?)",
             Integer.class,
@@ -161,6 +165,10 @@ public class AuthManagementApiController {
             return Map.of("success", false, "error", "Пользователь уже существует");
         }
 
+        // Conservative conflict detection only: never resolve an existing identity by trimming it.
+        Integer legacyCollision = usersJdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM users WHERE lower(trim(username)) = lower(?)", Integer.class, username);
+        if (legacyCollision != null && legacyCollision > 0) return credentialFailure("username", "Пользователь с таким логином уже существует, включая старый логин с пробелами.");
         String hashed = passwordEncoder.encode(password);
         Map<String, Object> fields = new LinkedHashMap<>();
         fields.put("username", username);
@@ -209,8 +217,25 @@ public class AuthManagementApiController {
         Long currentUserId = resolveCurrentUserId(authentication);
         boolean isSelf = currentUserId != null && currentUserId.equals(userId);
 
-        if (hasEditPermission(authentication, "user.username")) {
-            updateColumnIfPresent(payload, updates, params, userColumns, "username", "username");
+        if (hasEditPermission(authentication, "user.username") && payload.containsKey("username") && userColumns.contains("username")) {
+            if (!(payload.get("username") instanceof String rawUsername)) {
+                return credentialFailure("username", "Укажите логин пользователя.");
+            }
+            List<Map<String, Object>> current = usersJdbcTemplate.queryForList("SELECT username FROM users WHERE id = ?", userId);
+            boolean unchanged = current.size() == 1 && rawUsername.equals(current.get(0).get("username"));
+            if (!unchanged) {
+                String username = normalizeCredentialLogin(rawUsername);
+                String error = credentialLoginError(username);
+                if (!error.isEmpty()) return credentialFailure("username", error);
+                Integer existing = usersJdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM users WHERE lower(username) = lower(?) AND id <> ?", Integer.class, username, userId);
+                if (existing != null && existing > 0) return credentialFailure("username", "Пользователь уже существует");
+                Integer legacyCollision = usersJdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM users WHERE lower(trim(username)) = lower(?) AND id <> ?", Integer.class, username, userId);
+                if (legacyCollision != null && legacyCollision > 0) return credentialFailure("username", "Пользователь с таким логином уже существует, включая старый логин с пробелами.");
+                updates.add("username = ?");
+                params.add(username);
+            }
         }
         if (hasEditPermission(authentication, "user.username") || isSelf) {
             updateColumnIfPresent(payload, updates, params, userColumns, "full_name", "full_name");
@@ -253,8 +278,12 @@ public class AuthManagementApiController {
         }
 
         if ((hasEditPermission(authentication, "user.password") || isSelf) && payload.containsKey("password")) {
-            String password = stringValue(payload.get("password"));
-            if (StringUtils.hasText(password)) {
+            if (!(payload.get("password") instanceof String password)) {
+                return credentialFailure("password", "Укажите пароль.");
+            }
+            if (!password.isEmpty()) {
+                String error = credentialPasswordError(password);
+                if (!error.isEmpty()) return credentialFailure("password", error);
                 String hashed = passwordEncoder.encode(password);
                 updates.add("password = ?");
                 params.add(hashed);
@@ -701,6 +730,23 @@ public class AuthManagementApiController {
 
     private boolean isAllowedImageExtension(String extension) {
         return Set.of(".jpg", ".jpeg", ".png", ".gif", ".webp").contains(extension);
+    }
+
+    // Write-boundary policy only; existing account lookup keys remain exact.
+    private String normalizeCredentialLogin(Object raw) {
+        return raw instanceof String value ? value.replaceAll("^ +| +$", "") : "";
+    }
+
+    private String credentialLoginError(String username) {
+        return username.matches("[A-Za-z0-9._@-]+") ? "" : "Логин: только латинские буквы, цифры и . _ - @, без пробелов внутри.";
+    }
+
+    private String credentialPasswordError(String password) {
+        return com.example.panel.security.CredentialPasswordPolicy.error(password);
+    }
+
+    private Map<String, Object> credentialFailure(String field, String error) {
+        return Map.of("success", false, "field", field, "error", error);
     }
 
     private String stringValue(Object raw) {

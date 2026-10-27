@@ -195,6 +195,7 @@
       this.moveManagedModalToBody(this.elements.userPhotoViewerModal);
       this.moveManagedModalToBody(this.elements.orgMembersModal);
       this.bindEvents();
+      this.bindCredentialInputs();
       if (this.elements.userModal && this.bootstrap?.Modal) {
         this.modalInstance = this.bootstrap.Modal.getOrCreateInstance(this.elements.userModal);
       }
@@ -1071,6 +1072,8 @@
         permissions,
         isBlocked: Boolean(user?.is_blocked),
       };
+      this.usernameEdited = false;
+      this.resetCredentialFeedback();
       this.elements.userForm.dataset.mode = mode;
       this.elements.userForm.dataset.userId = mode === 'edit' && user?.id != null ? String(user.id) : '';
       if (this.elements.userModal) {
@@ -1859,6 +1862,7 @@
     }
 
     resetPasswordModal() {
+      this.resetCredentialFeedback([this.elements.userPasswordModalInput, this.elements.userPasswordModalConfirmInput]);
       if (this.elements.userPasswordModalForm) {
         this.elements.userPasswordModalForm.reset();
       }
@@ -1928,11 +1932,16 @@
         submitButton.disabled = true;
       }
       const newPassword = this.elements.userPasswordModalInput
-        ? this.elements.userPasswordModalInput.value.trim()
+        ? this.elements.userPasswordModalInput.value
         : '';
       const confirmPassword = this.elements.userPasswordModalConfirmInput
-        ? this.elements.userPasswordModalConfirmInput.value.trim()
+        ? this.elements.userPasswordModalConfirmInput.value
         : '';
+      if (!this.validateCredentialControl(this.elements.userPasswordModalInput) || !this.validateCredentialControl(this.elements.userPasswordModalConfirmInput)) {
+        this.setPasswordModalMessage('Проверьте пароль и его подтверждение: подсказка показана под полем.');
+        if (submitButton) submitButton.disabled = false;
+        return;
+      }
       if (!newPassword || !confirmPassword) {
         this.setPasswordModalMessage('Укажите новый пароль и подтверждение.');
         if (submitButton) {
@@ -1998,7 +2007,15 @@
       this.setUserSaveStatus('');
       const { mode, original, permissions, userId } = this.modalState;
       const payload = {};
-      const username = this.elements.userUsernameInput ? this.elements.userUsernameInput.value.trim() : '';
+      const rawUsername = this.elements.userUsernameInput?.value || '';
+      const usernameChanged = mode === 'create' || permissions.canEditUsername && this.usernameEdited && rawUsername !== original?.username;
+      const username = usernameChanged ? this.normalizeCredentialLogin(rawUsername) : original?.username || rawUsername;
+      if (!this.validateCredentialControl(this.elements.userUsernameInput)) {
+        this.setUserModalError('Проверьте логин: подсказка показана под полем.');
+        if (submitButton) submitButton.disabled = false;
+        return;
+      }
+      if (usernameChanged && this.elements.userUsernameInput) this.elements.userUsernameInput.value = username;
       if (!username) {
         this.setUserModalError('Укажите логин пользователя.');
         if (submitButton) {
@@ -2007,7 +2024,7 @@
         return;
       }
 
-      if (mode === 'create' || (permissions.canEditUsername && username !== (original?.username || ''))) {
+      if (mode === 'create' || (usernameChanged && username !== (original?.username || ''))) {
         payload.username = username;
       }
 
@@ -2088,11 +2105,16 @@
         }
       }
 
-      const password = this.elements.userPasswordInput ? this.elements.userPasswordInput.value.trim() : '';
+      const password = this.elements.userPasswordInput ? this.elements.userPasswordInput.value : '';
       const passwordConfirm = this.elements.userPasswordConfirmInput
-        ? this.elements.userPasswordConfirmInput.value.trim()
+        ? this.elements.userPasswordConfirmInput.value
         : '';
       if (mode === 'create') {
+        if (!this.validateCredentialControl(this.elements.userPasswordInput) || !this.validateCredentialControl(this.elements.userPasswordConfirmInput)) {
+          this.setUserModalError('Проверьте пароль и его подтверждение: подсказка показана под полем.');
+          if (submitButton) submitButton.disabled = false;
+          return;
+        }
         if (!password) {
           this.setUserModalError('Укажите пароль для нового пользователя.');
           if (submitButton) {
@@ -2320,7 +2342,97 @@
       this.updateUserModalTitleFromInputs();
     }
 
+    credentialControls() {
+      return [this.elements.userUsernameInput, this.elements.userPasswordInput, this.elements.userPasswordConfirmInput,
+        this.elements.userPasswordModalInput, this.elements.userPasswordModalConfirmInput].filter(Boolean);
+    }
+
+    normalizeCredentialLogin(value) {
+      return String(value || '').replace(/^ +| +$/g, '');
+    }
+
+    hasInvalidCredentialCharacters(value) {
+      return /[\u0000-\u001F\u007F-\u009F]/.test(value) || Array.from(value).some(character => {
+        const point = character.codePointAt(0);
+        return point >= 0xD800 && point <= 0xDFFF;
+      });
+    }
+
+    credentialPasswordError(value) {
+      if (!value || /^\s*$/u.test(value)) return 'Пароль не может быть пустым или состоять только из пробелов.';
+      if (this.hasInvalidCredentialCharacters(value)) return 'Пароль содержит недопустимые управляющие символы или некорректный Unicode. Удалите их.';
+      if (new TextEncoder().encode(value).length > 72) return 'Пароль слишком длинный: максимум 72 байта UTF-8; кириллица и emoji занимают больше одного байта.';
+      return '';
+    }
+
+    setCredentialFeedback(input, message) {
+      if (!input) return;
+      input.setCustomValidity(message);
+      input.classList.toggle('is-invalid', Boolean(message));
+      if (message) input.setAttribute('aria-invalid', 'true'); else input.removeAttribute('aria-invalid');
+      const feedback = this.documentRoot.getElementById(input.id + 'Error');
+      if (feedback) feedback.textContent = message;
+    }
+
+    validateCredentialControl(input) {
+      if (!input || input.disabled) return true;
+      let message = '';
+      if (input.dataset.credentialPasteError) {
+        message = 'Вставка содержит недопустимые управляющие символы. Измените поле или вставьте значение без них.';
+      } else if (input === this.elements.userUsernameInput) {
+        const unchanged = this.modalState?.mode === 'edit' && (!this.usernameEdited || input.value === this.modalState.original?.username);
+        if (!unchanged && !/^[A-Za-z0-9._@-]+$/.test(this.normalizeCredentialLogin(input.value))) {
+          message = 'Логин: только латинские буквы, цифры и . _ - @, без пробелов внутри.';
+        }
+      } else {
+        const original = input === this.elements.userPasswordConfirmInput ? this.elements.userPasswordInput
+          : input === this.elements.userPasswordModalConfirmInput ? this.elements.userPasswordModalInput : null;
+        message = original ? (input.value === original.value ? '' : 'Пароли не совпадают. Пробелы тоже учитываются.') : this.credentialPasswordError(input.value);
+        if (original && !input.value) message = 'Повторите пароль.';
+      }
+      this.setCredentialFeedback(input, message);
+      return !message;
+    }
+
+    resetCredentialFeedback(controls = this.credentialControls()) {
+      for (const input of controls.filter(Boolean)) { delete input.dataset.credentialPasteError; this.setCredentialFeedback(input, ''); }
+      if (controls.includes(this.elements.userUsernameInput)) {
+        const status = this.documentRoot.getElementById('authUserModalLoginStatus');
+        if (status) status.textContent = '';
+      }
+    }
+
+    bindCredentialInputs() {
+      for (const input of this.credentialControls()) {
+        input.addEventListener('input', () => {
+          delete input.dataset.credentialPasteError;
+          this.validateCredentialControl(input);
+          const confirm = input === this.elements.userPasswordInput ? this.elements.userPasswordConfirmInput
+            : input === this.elements.userPasswordModalInput ? this.elements.userPasswordModalConfirmInput : null;
+          if (confirm?.value) this.validateCredentialControl(confirm);
+        });
+        input.addEventListener('paste', event => {
+          const text = event.clipboardData?.getData('text') || '';
+          if (this.hasInvalidCredentialCharacters(text)) {
+            event.preventDefault(); input.dataset.credentialPasteError = 'true'; this.validateCredentialControl(input);
+          }
+        });
+      }
+      this.elements.userUsernameInput?.addEventListener('blur', () => {
+        const input = this.elements.userUsernameInput;
+        const changed = this.modalState?.mode === 'create' || this.usernameEdited && input.value !== this.modalState?.original?.username;
+        if (changed && !input.disabled && !input.dataset.credentialPasteError) {
+          const normalized = this.normalizeCredentialLogin(input.value);
+          const status = this.documentRoot.getElementById('authUserModalLoginStatus');
+          if (status) status.textContent = normalized !== input.value ? 'Пробелы по краям логина удалены.' : '';
+          input.value = normalized;
+        }
+        this.validateCredentialControl(input);
+      });
+    }
+
     handleUsernameInput() {
+      this.usernameEdited = true;
       this.updateUserModalTitleFromInputs();
     }
 

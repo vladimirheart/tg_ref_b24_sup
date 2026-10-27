@@ -256,15 +256,21 @@
                     <div class="alert alert-success d-none" data-change-password-success role="alert"></div>
                     <div class="mb-3">
                         <label class="form-label" for="changePasswordCurrent">Текущий пароль</label>
-                        <input type="password" class="form-control" id="changePasswordCurrent" name="current_password" autocomplete="current-password" required>
+                        <input type="password" class="form-control" id="changePasswordCurrent" name="current_password" autocomplete="current-password" required title="Введите текущий пароль точно, включая пробелы и регистр. Пробелы не удаляются." aria-describedby="changePasswordCurrentHelp changePasswordCurrentError">
+                        <div class="invalid-feedback" id="changePasswordCurrentError" aria-live="polite"></div>
+                        <div class="form-text" id="changePasswordCurrentHelp">Введите текущий пароль точно, включая пробелы и регистр. Пробелы не удаляются.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="changePasswordNew">Новый пароль</label>
-                        <input type="password" class="form-control" id="changePasswordNew" name="new_password" autocomplete="new-password" required minlength="8">
+                        <input type="password" class="form-control" id="changePasswordNew" name="new_password" autocomplete="new-password" required minlength="8" title="Пробелы учитываются. Допустимы Unicode и знаки; запрещены управляющие символы. Максимум 72 байта UTF-8; кириллица и emoji занимают больше одного байта." aria-describedby="changePasswordNewHelp changePasswordNewError">
+                        <div class="invalid-feedback" id="changePasswordNewError" aria-live="polite"></div>
+                        <div class="form-text" id="changePasswordNewHelp">Пробелы учитываются. Допустимы Unicode и знаки; запрещены управляющие символы. Максимум 72 байта UTF-8; кириллица и emoji занимают больше одного байта.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="changePasswordConfirm">Повторите новый пароль</label>
-                        <input type="password" class="form-control" id="changePasswordConfirm" name="confirm_password" autocomplete="new-password" required>
+                        <input type="password" class="form-control" id="changePasswordConfirm" name="confirm_password" autocomplete="new-password" required title="Повторите новый пароль точно, включая пробелы и регистр." aria-describedby="changePasswordConfirmHelp changePasswordConfirmError">
+                        <div class="invalid-feedback" id="changePasswordConfirmError" aria-live="polite"></div>
+                        <div class="form-text" id="changePasswordConfirmHelp">Повторите новый пароль точно, включая пробелы и регистр.</div>
                     </div>
                     <p class="text-muted small mb-0">Пароль должен соответствовать корпоративной политике безопасности.</p>
                 </div>
@@ -279,6 +285,6 @@
         </div>
     </div>
 
-    <script th:src="@{/js/sidebar.js(v='20261008-sidebar-prepaint-r75')}"></script>
+    <script th:src="@{/js/sidebar.js(v='20261027-credentials-r187')}"></script>
     <script th:src="@{/js/content-disclosure.js}"></script>
 </div>

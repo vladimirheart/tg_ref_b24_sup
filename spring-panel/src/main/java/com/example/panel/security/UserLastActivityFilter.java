@@ -62,7 +62,7 @@ public class UserLastActivityFilter extends OncePerRequestFilter {
             usersJdbcTemplate.update(
                     "UPDATE users SET last_portal_activity_at = ? WHERE lower(username) = lower(?)",
                     OffsetDateTime.now(ZoneOffset.UTC).toString(),
-                    username.trim()
+                    username
             );
         } catch (DataAccessException ex) {
             if (ex.getMessage() != null && ex.getMessage().toLowerCase().contains("last_portal_activity_at")) {

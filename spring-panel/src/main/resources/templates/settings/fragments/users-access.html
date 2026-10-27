@@ -202,7 +202,10 @@
                     <div class="row g-3">
                       <div class="col-md-6">
                         <label class="form-label small mb-1" for="authUserModalLogin">Логин</label>
-                        <input type="text" class="form-control form-control-sm" id="authUserModalLogin" name="username" autocomplete="off" required>
+                        <input type="text" class="form-control form-control-sm" id="authUserModalLogin" name="username" autocomplete="off" required title="Латинские буквы A–Z, цифры и . _ - @. Без пробелов внутри. Обычные пробелы по краям удаляются." aria-describedby="authUserModalLoginHelp authUserModalLoginError">
+                            <div class="invalid-feedback" id="authUserModalLoginError" aria-live="polite"></div>
+                            <div class="form-text" id="authUserModalLoginHelp">Латинские буквы A–Z, цифры и . _ - @. Без пробелов внутри. Обычные пробелы по краям удаляются.</div>
+                            <div class="form-text" id="authUserModalLoginStatus" role="status" aria-live="polite"></div>
                       </div>
                       <div class="col-md-6">
                         <label class="form-label small mb-1" for="authUserModalRole">Роль</label>
@@ -509,7 +512,9 @@
                         <div class="row g-3">
                           <div class="col-md-6">
                             <label class="form-label small mb-1" for="authUserModalPassword">Пароль</label>
-                            <input type="password" class="form-control form-control-sm" id="authUserModalPassword" name="password" autocomplete="off" placeholder="Придумайте пароль">
+                            <input type="password" class="form-control form-control-sm" id="authUserModalPassword" name="password" autocomplete="off" placeholder="Придумайте пароль" title="Пробелы учитываются и не удаляются. Допустимы Unicode и знаки; запрещены управляющие символы. Максимум 72 байта UTF-8, кириллица и emoji занимают больше одного байта." aria-describedby="authUserModalPasswordHelp authUserModalPasswordError">
+                            <div class="invalid-feedback" id="authUserModalPasswordError" aria-live="polite"></div>
+                            <div class="form-text" id="authUserModalPasswordHelp">Пробелы учитываются и не удаляются. Допустимы Unicode и знаки; запрещены управляющие символы. Максимум 72 байта UTF-8, кириллица и emoji занимают больше одного байта.</div>
                           </div>
                           <div class="col-md-6">
                             <label class="form-label small mb-1" for="authUserModalPasswordConfirm">Повторите пароль</label>
@@ -520,7 +525,9 @@
                               autocomplete="off"
                               placeholder="Введите пароль повторно"
                               data-auth-user-password-confirm
-                            >
+                             title="Повторите пароль точно, включая пробелы и регистр. Подтверждение должно совпадать с паролем." aria-describedby="authUserModalPasswordConfirmHelp authUserModalPasswordConfirmError">
+                            <div class="invalid-feedback" id="authUserModalPasswordConfirmError" aria-live="polite"></div>
+                            <div class="form-text" id="authUserModalPasswordConfirmHelp">Повторите пароль точно, включая пробелы и регистр. Подтверждение должно совпадать с паролем.</div>
                           </div>
                         </div>
                       </div>
@@ -559,11 +566,15 @@
               <div class="alert alert-danger d-none" role="alert" data-auth-user-password-error></div>
               <div class="mb-3">
                 <label class="form-label small mb-1" for="authUserPasswordNew">Новый пароль</label>
-                <input type="password" class="form-control" id="authUserPasswordNew" autocomplete="off" data-auth-user-password-new placeholder="Введите новый пароль">
+                <input type="password" class="form-control" id="authUserPasswordNew" autocomplete="off" data-auth-user-password-new placeholder="Введите новый пароль" title="Пробелы учитываются и не удаляются. Допустимы Unicode и знаки; запрещены управляющие символы. Максимум 72 байта UTF-8, кириллица и emoji занимают больше одного байта." aria-describedby="authUserPasswordNewHelp authUserPasswordNewError">
+                            <div class="invalid-feedback" id="authUserPasswordNewError" aria-live="polite"></div>
+                            <div class="form-text" id="authUserPasswordNewHelp">Пробелы учитываются и не удаляются. Допустимы Unicode и знаки; запрещены управляющие символы. Максимум 72 байта UTF-8, кириллица и emoji занимают больше одного байта.</div>
               </div>
               <div class="mb-3">
                 <label class="form-label small mb-1" for="authUserPasswordConfirmNew">Повторите пароль</label>
-                <input type="password" class="form-control" id="authUserPasswordConfirmNew" autocomplete="off" data-auth-user-password-confirm-new placeholder="Повторите пароль ещё раз">
+                <input type="password" class="form-control" id="authUserPasswordConfirmNew" autocomplete="off" data-auth-user-password-confirm-new placeholder="Повторите пароль ещё раз" title="Повторите пароль точно, включая пробелы и регистр. Подтверждение должно совпадать с паролем." aria-describedby="authUserPasswordConfirmNewHelp authUserPasswordConfirmNewError">
+                            <div class="invalid-feedback" id="authUserPasswordConfirmNewError" aria-live="polite"></div>
+                            <div class="form-text" id="authUserPasswordConfirmNewHelp">Повторите пароль точно, включая пробелы и регистр. Подтверждение должно совпадать с паролем.</div>
               </div>
               <p class="small text-muted mb-0">Пароль должен соответствовать корпоративной политике безопасности.</p>
             </div>

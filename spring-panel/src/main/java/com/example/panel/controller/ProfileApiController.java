@@ -68,9 +68,9 @@ public class ProfileApiController {
                 .body(Map.of("success", false, "error", "Не удалось определить пользователя."));
         }
 
-        String currentPassword = stringValue(payload.get("current_password"));
-        String newPassword = stringValue(payload.get("new_password"));
-        String confirmPassword = stringValue(payload.get("confirm_password"));
+        String currentPassword = rawPassword(payload.get("current_password"));
+        String newPassword = rawPassword(payload.get("new_password"));
+        String confirmPassword = rawPassword(payload.get("confirm_password"));
 
         if (!StringUtils.hasText(currentPassword)) {
             return ResponseEntity.badRequest()
@@ -80,6 +80,8 @@ public class ProfileApiController {
             return ResponseEntity.badRequest()
                 .body(Map.of("success", false, "error", "Новый пароль не может быть пустым."));
         }
+        String passwordError = com.example.panel.security.CredentialPasswordPolicy.error(newPassword);
+        if (!passwordError.isEmpty()) return ResponseEntity.badRequest().body(Map.of("success", false, "field", "new_password", "error", passwordError));
         if (!newPassword.equals(confirmPassword)) {
             return ResponseEntity.badRequest()
                 .body(Map.of("success", false, "error", "Новый пароль и подтверждение не совпадают."));
@@ -115,6 +117,10 @@ public class ProfileApiController {
         }
 
         return ResponseEntity.ok(Map.of("success", true, "message", "Пароль успешно обновлён."));
+    }
+
+    private String rawPassword(Object value) {
+        return value instanceof String text ? text : "";
     }
 
     private String stringValue(Object value) {
