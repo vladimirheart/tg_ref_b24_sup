@@ -15,7 +15,7 @@ public class PermissionService {
             return false;
         }
         String username = authentication.getName();
-        if (username != null && "admin".equalsIgnoreCase(username.trim())) {
+        if (username != null && "admin".equalsIgnoreCase(username)) {
             return true;
         }
         return authentication.getAuthorities().stream()
