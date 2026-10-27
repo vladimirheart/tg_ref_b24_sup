@@ -101,10 +101,11 @@
 
 ## Typed channel notification selections — R180
 
-- Только channelEditorPanelNotifEmployees/Exclude включают формат
+- В R180 только channelEditorPanelNotifEmployees/Exclude включают формат
   data-employee-value-format="username-json": значение textarea — JSON-массив
   username strings без trim, с прежним case folding; backend получает typed arrays.
-- Остальные поля сохраняют native/CSV id/name/value и грамматику. JSON-формат не
+- Остальные поля, кроме явного opt-in R185 ниже, сохраняют native/CSV id/name/value
+  и грамматику. JSON-формат не
   означает новый scoped catalog: global options endpoint и его права прежние,
   native select/datalist не расширяются им, backend eligibility остаётся обязательным.
 - Пустой присутствующий control авторитетен; fallback только при отсутствии.
@@ -113,6 +114,25 @@
 - Observer игнорирует disconnected added nodes: последовательные render/refresh
   меню не должны запускать бесконечный global rescan. Связанные реальные добавления
   в документ по-прежнему монтируются, удаление не меняет данные/гранты.
+
+## Выбор сотрудников при создании инцидента — R185
+
+- Только incidentCreateWatchers дополнительно включает username-json: textarea
+  хранит JSON array строк, POST передаёт typed watchers без trim/split ключей.
+  Прежний case folding общего picker и backend сохраняется. Пустой присутствующий
+  control — пустой выбор, без fallback к прошлому значению. Неверный JSON, не-array,
+  нестроковые и blank элементы блокируют POST, показывают ошибку и сохраняют draft.
+- incidentCreateOwner остаётся scalar username, hidden input сохраняет точные
+  пробелы и CR/LF. Trim используется только для проверки полного blank. Поскольку
+  hidden value изменяет attribute/defaultValue, create form reset явно восстанавливает
+  исходный default owner; успешный POST сбрасывает форму, отказ — сохраняет draft.
+- Исходные id и семантика JSON API сохраняются. Native FormData owner — raw scalar,
+  watchers — явный JSON array text; остальные legacy поля не переводятся в JSON.
+  CSV fallback для поля без opt-in не расширяет прежнюю грамматику. Общий picker,
+  global catalog/его права, native select/datalist и backend eligibility не меняются.
+- Это только create form: detail owner, add/remove watcher и singular user route
+  ещё имеют отдельный UI identity debt. URL/department/CSV route targets не
+  переопределяются. При rollout версия workbench меняется вместе с template.
 
 ## Связанные объекты инцидентов — R19
 

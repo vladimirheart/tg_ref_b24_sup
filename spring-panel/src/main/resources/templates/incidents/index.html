@@ -378,7 +378,7 @@
 							<option value="investigating">В работе</option>
 						</select></div>
 
-						<div class="incident-field"><label for="incidentCreateOwner">Ответственный</label><input type="text" data-employee-picker
+						<div class="incident-field"><label for="incidentCreateOwner">Ответственный</label><input type="hidden" data-employee-picker
 							   class="form-control form-control-sm"
 							   id="incidentCreateOwner"
 							   placeholder="Ответственный"
@@ -412,11 +412,11 @@
                                     data-bs-toggle="modal" data-bs-target="#incidentExternalObjectsModal" hidden>Открыть справочник внешних объектов</button>
                         </div>
 
-						<div class="incident-field"><label for="incidentCreateWatchers">Наблюдатели</label><input type="text" data-employee-picker data-employee-multiple="true"
+						<div class="incident-field"><label for="incidentCreateWatchers">Наблюдатели</label><textarea rows="1" data-employee-picker data-employee-multiple="true" data-employee-value-format="username-json"
 							   class="form-control form-control-sm"
 							   id="incidentCreateWatchers"
 							   placeholder="Выберите наблюдателей"
-							   aria-label="Выберите наблюдателей"></div>
+							   aria-label="Выберите наблюдателей"></textarea></div>
 					</div></div>
   <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button><button type="button" class="btn btn-primary" id="incidentWorkbenchCreate">Создать инцидент</button></div>
  </form></div>
@@ -457,7 +457,7 @@
 <script th:src="@{/js/incident-workbench-ui.js(v='20261025-incidents-r18')}"></script>
 <script th:src="@{/js/incident-descriptions.js(v='20261025-incidents-r18')}"></script>
 <script th:src="@{/js/incident-relation-picker.js(v='20261026-incidents-r19')}"></script>
-<script th:src="@{/js/incidents-workbench.js(v='20261026-incidents-r20')}"></script>
+<script th:src="@{/js/incidents-workbench.js(v='20261027-incidents-r185')}"></script>
 <script th:src="@{/js/incident-escalation-controls.js}"></script>
 <script th:src="@{/js/incident-route-delivery-health.js}"></script>
 </body>

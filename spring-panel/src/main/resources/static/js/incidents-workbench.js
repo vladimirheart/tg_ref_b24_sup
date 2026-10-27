@@ -451,6 +451,13 @@
     watchers: document.getElementById('incidentCreateWatchers')
   };
 
+  // Hidden scalar values preserve CR/LF; their value attribute changes on selection.
+  // Keep the create form's initial default for native reset and successful submit.
+  const createOwnerDefault = createNodes.owner?.defaultValue || '';
+  document.getElementById('incidentCreateForm')?.addEventListener('reset', () => {
+    if (createNodes.owner) createNodes.owner.value = createOwnerDefault;
+  });
+
   const transportNodes = {
 		pane:
 			document.getElementById(
@@ -1853,19 +1860,33 @@ function restoreIncidentDetailFocus(
     if (!title || !relationKey) {
       throw new Error('Укажите название инцидента и выберите связанный объект из поиска.');
     }
+    const owner = createNodes.owner?.value || '';
+    let watchers;
+    if (createNodes.watchers?.dataset?.employeeValueFormat === 'username-json') {
+      try {
+        watchers = JSON.parse(createNodes.watchers.value || '[]');
+      } catch (_) {
+        throw new Error('Не удалось прочитать выбор наблюдателей. Выберите сотрудников заново.');
+      }
+      if (!Array.isArray(watchers) || watchers.some(value => typeof value !== 'string' || !value.trim())) {
+        throw new Error('Не удалось прочитать выбор наблюдателей. Выберите сотрудников заново.');
+      }
+    } else {
+      watchers = splitCommaList(createNodes.watchers?.value || '');
+    }
     const payload = {
       title,
       summary: createNodes.summary?.value.trim() || '',
       severity: createNodes.severity?.value || 'high',
       status: createNodes.status?.value || 'open',
-      owner: createNodes.owner?.value.trim() || '',
+      owner: owner.trim() ? owner : '',
       source: createNodes.source?.value.trim() || '',
       relations: [{
         relation_type: relationType,
         relation_key: relationKey,
         primary: true
       }],
-      watchers: splitCommaList(createNodes.watchers?.value || '')
+      watchers
     };
     const response = await requestJson('/api/incidents', {
       method: 'POST',

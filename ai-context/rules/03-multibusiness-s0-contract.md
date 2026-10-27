@@ -14,7 +14,19 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R184 (2026-10-27): рабочие проект и Docker остаются на
+Актуальное уточнение R185 (2026-10-27): source/test checkout находится на
+машине C:\Users\sushi\Git_H\tg_ref_b24_sup; рабочий проект и Docker — на другой
+машине/в другой сессии C:\Users\SinicinVV\git_h\tg_ref_b24_sup. Из репозитория
+прочитаны checkpoint panel-web R184 (8310d1f7f) и сообщение пользователя об
+успешном start/stop одного бота. Это сохранённые runtime evidence другой сессии,
+не новые probes здесь и не полная приёмка S6. R185 — только source и isolated
+browser/Node fixtures создания инцидента: 117 browser cases + 110 scoped Node
+checks GREEN; один прежний R53 notes fixture failure в полном Node run отдельно
+повторён на неизменённых baseline inputs. Java/Docker/DB не запускались. Рабочие
+revision/config/flags/worker/bot fleet не менялись, R185 не развёрнут. Grant
+commit/push до 2026-10-27 21:00 UTC сохраняется; source apply/publisher разделены.
+
+Историческое уточнение R184 (2026-10-27): рабочие проект и Docker остаются на
 другой машине/в другой сессии. Здесь source и изолированные MVC/security/Thymeleaf
 tests; Docker/PostgreSQL/browser/Node не запускались. R183 5aa3d5e46 проверен
 по parent/subject/files/content. Grant commit/push до 27 октября 21:00 UTC
