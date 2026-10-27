@@ -14,7 +14,30 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R187 (2026-10-27): рабочие проект и Docker остаются на
+Актуальное уточнение R188 (2026-10-27): рабочие проект и Docker остаются на
+другой машине/в другой сессии C:\Users\SinicinVV\git_h\tg_ref_b24_sup. Здесь
+source/test checkout C:\Users\sushi\Git_H\tg_ref_b24_sup: Maven MockMvc с
+настоящими security/DAO/encoder/session/remember-me и Thymeleaf, JDBC mocked.
+R187 d8a68ca80 сверён по parent/subject/exact 20 files/content. 12 suites / 550
+tests GREEN; новые frozen 37 cases на baseline — 16 failures / 21 controls /
+0 errors. Проверены точный логин и собственные authorities при похожих аккаунтах
+с одним паролем, отказы, настоящая CSRF cookie/form token, session ID, logout,
+remember-me restore/disable/tamper и прежние channel/credential/permission guards.
+Browser/Node/Docker/live DB/HTTP/providers в R188 не запускались. Checkpoint R184
+и пользовательский start/stop одного бота сохранены точно; новых runtime probes
+или рабочего restart/deploy/migration/backfill/config/flags нет. R185–R188 здесь
+не развёрнуты. Commit/push grant до 2026-10-27 21:00 UTC сохраняется; source
+apply и expiry-guarded publisher разделены. Общий статус 01-278 — 🟡.
+
+R188 сохраняет exact username/password уже в POST /login, до DAO: стандартный
+filter больше не создаёт trim alias. Политика R187 нормализует только новые
+и явно изменяемые логины, не вход или существующие account keys. Прежние
+case-insensitive lookup, authority loading и framework session/remember-me
+остаются; новое чтение authority/revoke уже открытых сессий не добавляется.
+Подробнее: [08-panel-account-credentials](08-panel-account-credentials.md).
+Другие legacy consumers, S2B и worker/fleet/S6 gates остаются открыты.
+
+Историческое уточнение R187 (2026-10-27): рабочие проект и Docker остаются на
 другой машине/в другой сессии C:\Users\SinicinVV\git_h\tg_ref_b24_sup. Здесь
 source/test checkout C:\Users\sushi\Git_H\tg_ref_b24_sup: изолированные Maven
 MVC/mock/security/Thymeleaf и browser/Node fixtures. R186 9b7bd6f6b проверен по

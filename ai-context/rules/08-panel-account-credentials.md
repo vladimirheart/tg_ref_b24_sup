@@ -41,6 +41,26 @@
 
 ## Граница identity и прав
 
+При входе (R188) логин и пароль передаются в AuthenticationManager точно,
+без trim. Это относится и к старым логинам: если точного аккаунта нет, вход
+не подставляет логин без крайних пробелов, даже при совпадении пароля.
+Disabled/blocked аккаунт не заменяется похожим включённым аккаунтом.
+Прежний case-insensitive SQL lookup и возврат stored username сохранены.
+
+ExactFormLoginConfigurer меняет только извлечение credentials в POST /login.
+Стандартный AbstractAuthenticationFilterConfigurer связывает фильтр с DAO,
+security context repository, session strategy, success/failure handlers и
+remember-me. Сохраняются /login?error, /post-login с прежним always-use-default,
+CSRF cookie/form token, смена session ID, очистка credentials, logout и срок
+remember-me 14 суток. Фильтр не регистрируется отдельным servlet bean.
+
+Политика очистки логина на записи не применяется ко входу и не разрешает
+искать похожий аккаунт. Новые обычные аккаунты вводят логин без добавочных
+пробелов. Авторитеты уже открытой сессии автоматически не перечитываются в R188;
+refresh/revoke сессий и неоднозначные case-insensitive account rows требуют
+отдельной проверки. MockMvc с настоящей security chain не заменяет working
+JDBC session/fleet acceptance или проверку native browser input sanitization.
+
 Нормализация нового логина не распространяется на существующие authenticated
 account keys. UserLastActivityFilter передаёт непустой principal в прежний
 case-insensitive SQL без trim. Blank/authentication guards и best-effort

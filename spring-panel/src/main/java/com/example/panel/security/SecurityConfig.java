@@ -49,7 +49,7 @@ public class SecurityConfig {
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
-                .formLogin(form -> form
+                .with(new ExactFormLoginConfigurer(), form -> form
                         .loginPage("/login")
                         .defaultSuccessUrl("/post-login", true)
                         .permitAll()
