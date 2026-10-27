@@ -43,7 +43,9 @@ class IncidentPolicyAndUserOptionsWebMvcTest {
     @Test void optionsAreMinimalActiveAndPermissionGated() throws Exception {
         PanelUser active = new PanelUser(); active.setUsername("operator"); active.setFullName("Оператор"); active.setPasswordHash("never-serialize"); active.setEmail("private@example.test");
         PanelUser blocked = new PanelUser(); blocked.setUsername("blocked"); blocked.setBlocked(true);
-        when(users.findAll()).thenReturn(List.of(active, blocked));
+        when(users.findEmployeeOptions()).thenReturn(List.of(
+            new PanelUserRepository.EmployeeOptionRow(active.getUsername(), active.getFullName(), true, false, 1),
+            new PanelUserRepository.EmployeeOptionRow(blocked.getUsername(), blocked.getFullName(), true, true, 1)));
         mvc.perform(get("/api/panel-users/options").with(user("reader").authorities(() -> "PAGE_KNOWLEDGE_BASE"))).andExpect(status().isForbidden());
         verifyNoInteractions(users);
         mvc.perform(get("/api/panel-users/options").with(user("operator").authorities(() -> "PAGE_DIALOGS")))

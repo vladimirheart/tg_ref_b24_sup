@@ -24,13 +24,31 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальная сводка R197 имеют
+что production уже запускался. Эта оговорка и актуальная сводка R198 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R197 (2026-10-27): automation run history использует
+Актуальное уточнение R198 (2026-10-27): общий legacy/global employee catalog
+использует минимальную JDBC-проекцию вместо полного users SELECT; disabled,
+blocked и case-fold ambiguous accounts не предлагаются. Window count включает
+даже disabled/blocked соседей. Raw username остаётся точной строкой, label/order,
+value/label response и прежние page gates сохранены. Основной PanelUser RowMapper
+корректно читает JDBC Boolean и прежние numeric/string flags. Это не расширение
+scoped candidates или assignment grants. Null status defaults совпадают с login.
+38 suites / 974 tests GREEN; frozen 46 cases: baseline v2 8 failures / 38 controls /
+0 errors, те же bytes GREEN. Новый PanelUserOptionsPostgresqlTest (8 cases)
+только скомпилирован, реальная SQL/Boolean/window acceptance не выполнялась.
+83 migrations неизменны, V83 здесь НЕ запускалась. Изолированные PostgreSQL
+R195–R198 suites нужны до отдельно разрешённых migration/rollout.
+Текущая source/test машина C:\Users\sushi\Git_H\tg_ref_b24_sup;
+рабочий экземпляр/Docker C:\Users\SinicinVV\git_h\tg_ref_b24_sup на другой
+машине/в другой сессии. R185–R198 не развёртывались отсюда; рабочая БД/данные,
+grants/roles/config/providers и checkpoint/rollback R184 сохранены. S3–S6,
+policy/AI/bots/fleet gates открыты; historical S2B исключён R190, статус 🟡.
+
+Историческое уточнение R197 (2026-10-27): automation run history использует
 Authentication и positive numeric actor_user_id. Этот ID сохраняется до первого
 audit write/discovery; actor — только raw display snapshot. List/detail repository
 queries ограничены automation key/owner ID (+ run ID для detail); child records

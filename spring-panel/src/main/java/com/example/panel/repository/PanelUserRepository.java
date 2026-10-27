@@ -27,6 +27,22 @@ public class PanelUserRepository {
         return usersJdbcTemplate.query("select * from users", this::mapRow);
     }
 
+    /** Count collisions before applying eligibility, including disabled/blocked neighbours. */
+    public List<EmployeeOptionRow> findEmployeeOptions() {
+        return usersJdbcTemplate.query("""
+                SELECT username, full_name,
+                       COALESCE(enabled, TRUE) AS enabled,
+                       COALESCE(is_blocked, FALSE) AS is_blocked,
+                       COUNT(*) OVER (PARTITION BY lower(username)) AS identity_count
+                  FROM users
+                """, (rs, rowNum) -> new EmployeeOptionRow(
+                rs.getString("username"), rs.getString("full_name"),
+                rs.getBoolean("enabled"), rs.getBoolean("is_blocked"), rs.getLong("identity_count")));
+    }
+
+    public record EmployeeOptionRow(String username, String fullName, boolean enabled,
+                                    boolean blocked, long identityCount) {}
+
     public Optional<PanelUser> findByUsernameIgnoreCase(String username) {
         if (!StringUtils.hasText(username)) {
             return Optional.empty();
@@ -61,9 +77,20 @@ public class PanelUserRepository {
         user.setDepartment(getStringSafe(rs, "department"));
         user.setPhones(getStringSafe(rs, "phones"));
         user.setFullName(getStringSafe(rs, "full_name"));
-        Integer blocked = getNumberSafe(rs, "is_blocked", Integer.class);
-        user.setBlocked(blocked != null && blocked == 1);
+        user.setBlocked(isTrueSafe(rs, "is_blocked"));
         return user;
+    }
+
+    private boolean isTrueSafe(ResultSet rs, String column) throws SQLException {
+        if (!hasColumn(rs, column)) {
+            return false;
+        }
+        Object value = rs.getObject(column);
+        if (value instanceof Boolean flag) {
+            return flag;
+        }
+        Integer numeric = getNumberSafe(rs, column, Integer.class);
+        return numeric != null && numeric == 1;
     }
 
     private boolean hasColumn(ResultSet rs, String column) {

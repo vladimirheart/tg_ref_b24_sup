@@ -180,3 +180,22 @@
 - Смена типа/редактирование запроса сбрасывают выбранный ID. Ответы старого
   поиска не восстанавливают его. Сохранять выбор с клавиатуры, native required,
   черновик при переходе в справочник и при ошибке сохранения.
+
+## Eligibility общего employee catalog — R198
+
+/api/panel-users/options остаётся только legacy/global справочником. Repository
+читает отдельную минимальную проекцию username/full_name/enabled/is_blocked и
+window identity_count, без password/hash/private profile. Window по lower(username)
+считает все строки до status filter, включая disabled/blocked. Предлагать только
+enabled, unblocked, однозначный непустой username. Null status defaults: enabled
+true, blocked false. Не trim/canonicalize/Number raw value; label и сортировка
+по String.CASE_INSENSITIVE_ORDER сохраняются. SQL errors не дают findAll fallback.
+Полный PanelUser mapper должен поддерживать JDBC Boolean и прежний numeric/string 1.
+
+Page gate прежний: PAGE_DIALOGS/PAGE_TASKS/PAGE_OBJECT_PASSPORTS/PAGE_SETTINGS/
+PAGE_USERS. Системная роль или ALL_BUSINESSES не подменяют его. Session refresh/
+revoke проверяется до запроса catalog. Этот endpoint не даёт права назначения,
+не заменяет backend eligibility и не расширяет scoped/business candidate list.
+Backend lookup/collation и другие identity consumers требуют своих проверок.
+R198 real security + isolated JDBC adapters проверены; actual PostgreSQL window/
+Boolean suite (8 cases) только compiled, требует Docker на другой машине.
