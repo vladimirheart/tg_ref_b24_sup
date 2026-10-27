@@ -100,7 +100,8 @@ public class EmployeeDiscountAutomationService {
     }
 
     public Map<String, Object> run(Boolean dryRunRequested, Authentication authentication, List<String> selectedTaskIds) {
-        String effectiveActor = EmployeeDiscountAutomationCredentialService.requirePrincipal(authentication).getUsername();
+        var principal = EmployeeDiscountAutomationCredentialService.requirePrincipal(authentication);
+        String effectiveActor = principal.getUsername();
         EmployeeDiscountAutomationSettings settings = settingsService.load();
         Set<String> requestedTaskIds = selectedTaskIds != null ? normalizeTaskIds(selectedTaskIds) : null;
         boolean dryRun = dryRunRequested != null ? dryRunRequested : settings.dryRunByDefault();
@@ -111,6 +112,7 @@ public class EmployeeDiscountAutomationService {
         run.setMode(dryRun ? "dry_run" : "execute");
         run.setStatus("running");
         run.setActor(effectiveActor);
+        run.setActorUserId(principal.getUserId());
         run.setStartedAt(now);
         run.setCreatedAt(now);
         automationRunRepository.save(run);
@@ -229,19 +231,19 @@ public class EmployeeDiscountAutomationService {
         );
     }
 
-    public List<Map<String, Object>> listRuns(String actor) {
-        String effectiveActor = requireActor(actor);
+    public List<Map<String, Object>> listRuns(Authentication authentication) {
+        long actorUserId = EmployeeDiscountAutomationCredentialService.requirePrincipal(authentication).getUserId();
         return automationRunRepository
-            .findTop20ByAutomationKeyAndActorIgnoreCaseOrderByStartedAtDesc(AUTOMATION_KEY, effectiveActor)
+            .findTop20ByAutomationKeyAndActorUserIdOrderByStartedAtDescIdDesc(AUTOMATION_KEY, actorUserId)
             .stream()
             .map(this::toRunMap)
             .toList();
     }
 
-    public Map<String, Object> getRun(Long runId, String actor) {
-        String effectiveActor = requireActor(actor);
+    public Map<String, Object> getRun(Long runId, Authentication authentication) {
+        long actorUserId = EmployeeDiscountAutomationCredentialService.requirePrincipal(authentication).getUserId();
         AutomationRun run = automationRunRepository
-            .findByIdAndAutomationKeyAndActorIgnoreCase(runId, AUTOMATION_KEY, effectiveActor)
+            .findByIdAndAutomationKeyAndActorUserId(runId, AUTOMATION_KEY, actorUserId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Run not found"));
         List<Map<String, Object>> items = automationRunItemRepository.findByRunIdOrderByCreatedAtAsc(runId).stream()
             .map(item -> Map.<String, Object>of(
@@ -524,13 +526,6 @@ public class EmployeeDiscountAutomationService {
             || "completed".equals(normalized)
             || "closed".equals(normalized)
             || "done".equals(normalized);
-    }
-
-    private String requireActor(String actor) {
-        if (!StringUtils.hasText(actor)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Не удалось определить пользователя панели.");
-        }
-        return actor.trim();
     }
 
     private String safe(Object value) {

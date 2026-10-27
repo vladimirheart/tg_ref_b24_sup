@@ -2,6 +2,7 @@ package com.example.panel.entity;
 
 import com.example.panel.converter.LenientOffsetDateTimeConverter;
 import jakarta.persistence.Convert;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -25,6 +26,9 @@ public class AutomationRun {
     private String status;
 
     private String actor;
+
+    @Column(name = "actor_user_id")
+    private Long actorUserId;
 
     private String summary;
 
@@ -75,6 +79,14 @@ public class AutomationRun {
 
     public void setActor(String actor) {
         this.actor = actor;
+    }
+
+    public Long getActorUserId() {
+        return actorUserId;
+    }
+
+    public void setActorUserId(Long actorUserId) {
+        this.actorUserId = actorUserId;
     }
 
     public String getSummary() {

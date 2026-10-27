@@ -90,36 +90,38 @@ class EmployeeDiscountAutomationServiceTest {
         aliceRun.setMode("dry_run");
         aliceRun.setStatus("success");
         aliceRun.setActor("alice");
+        aliceRun.setActorUserId(7L);
         aliceRun.setSummary("success=1, error=0, skipped=0");
         aliceRun.setStartedAt(OffsetDateTime.parse("2026-08-24T08:00:00Z"));
         aliceRun.setCreatedAt(OffsetDateTime.parse("2026-08-24T08:00:00Z"));
 
         when(fixture.automationRunRepository
-            .findTop20ByAutomationKeyAndActorIgnoreCaseOrderByStartedAtDesc(
+            .findTop20ByAutomationKeyAndActorUserIdOrderByStartedAtDescIdDesc(
                 EmployeeDiscountAutomationService.AUTOMATION_KEY,
-                "alice"
+                7L
             )).thenReturn(List.of(aliceRun));
         when(fixture.automationRunRepository
-            .findByIdAndAutomationKeyAndActorIgnoreCase(
+            .findByIdAndAutomationKeyAndActorUserId(
                 9L,
                 EmployeeDiscountAutomationService.AUTOMATION_KEY,
-                "alice"
+                7L
             )).thenReturn(Optional.of(aliceRun));
         when(fixture.automationRunRepository
-            .findByIdAndAutomationKeyAndActorIgnoreCase(
+            .findByIdAndAutomationKeyAndActorUserId(
                 9L,
                 EmployeeDiscountAutomationService.AUTOMATION_KEY,
-                "bob"
+                99L
             )).thenReturn(Optional.empty());
         when(fixture.automationRunItemRepository.findByRunIdOrderByCreatedAtAsc(9L)).thenReturn(List.of());
 
-        List<Map<String, Object>> runs = fixture.service.listRuns(" alice ");
-        Map<String, Object> details = fixture.service.getRun(9L, "alice");
+        List<Map<String, Object>> runs = fixture.service.listRuns(ALICE);
+        Map<String, Object> details = fixture.service.getRun(9L, ALICE);
 
         assertEquals(1, runs.size());
         assertEquals(9L, runs.get(0).get("id"));
         assertEquals(9L, runMap(details).get("id"));
-        assertThrows(ResponseStatusException.class, () -> fixture.service.getRun(9L, "bob"));
+        assertThrows(ResponseStatusException.class, () -> fixture.service.getRun(9L, org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated(
+            new com.example.panel.security.PanelUserPrincipal(99L,"bob","",true,List.of()),null,List.of())));
     }
 
     private void stubSelectedCandidate(Fixture fixture) {

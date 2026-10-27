@@ -100,13 +100,13 @@ public class EmployeeDiscountAutomationController {
     public Map<String, Object> runs(Authentication authentication) {
         return Map.of(
             "success", true,
-            "items", employeeDiscountAutomationService.listRuns(requireUsername(authentication))
+            "items", employeeDiscountAutomationService.listRuns(authentication)
         );
     }
 
     @GetMapping("/runs/{runId}")
     public Map<String, Object> runDetails(@PathVariable Long runId, Authentication authentication) {
-        return employeeDiscountAutomationService.getRun(runId, requireUsername(authentication));
+        return employeeDiscountAutomationService.getRun(runId, authentication);
     }
 
     private List<String> normalizeTaskIds(Object raw) {
@@ -127,10 +127,4 @@ public class EmployeeDiscountAutomationController {
         return List.copyOf(result);
     }
 
-    private String requireUsername(Authentication authentication) {
-        if (authentication == null || !StringUtils.hasText(authentication.getName())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Не удалось определить пользователя панели.");
-        }
-        return authentication.getName().trim();
-    }
 }

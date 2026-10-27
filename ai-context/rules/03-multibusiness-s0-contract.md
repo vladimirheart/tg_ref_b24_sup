@@ -24,13 +24,34 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальная сводка R196 имеют
+что production уже запускался. Эта оговорка и актуальная сводка R197 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R196 (2026-10-27): личные automation credentials
+Актуальное уточнение R197 (2026-10-27): automation run history использует
+Authentication и positive numeric actor_user_id. Этот ID сохраняется до первого
+audit write/discovery; actor — только raw display snapshot. List/detail repository
+queries ограничены automation key/owner ID (+ run ID для detail); child records
+читаются после собственного parent. Нет actor.trim/IgnoreCase fallback. Top 20
+упорядочены started_at DESC/id DESC. PAGE_DIALOGS/session/CSRF и UI contract сохранены.
+Source-only V83 добавляет nullable positive BIGINT + composite index; legacy rows
+остаются NULL и скрыты, без исторического backfill. V1–V82/старый index не менялись.
+V83 здесь НЕ выполнялась; PostgreSQL/JPA acceptance и отдельная migration перед
+согласованным rollout обязательны. Код без колонки не имеет schema/name fallback.
+34 suites / 909 tests GREEN; frozen 43 cases: baseline v2 32 failures / 11 controls /
+0 errors, те же bytes GREEN. Real security + stateful repository/JDBC и Spring Data
+PartTree проверены; новый PostgreSQL/JPA/Flyway suite (8 cases) только скомпилирован.
+Текущая машина C:\Users\sushi\Git_H\tg_ref_b24_sup — source/test.
+Рабочий экземпляр/Docker C:\Users\SinicinVV\git_h\tg_ref_b24_sup — другая
+машина/сессия. R185–R197 не развёртывались отсюда, рабочая БД/данные/schema,
+roles/grants/flags/config/providers и checkpoint/rollback R184 не менялись.
+Следующий runtime gate — isolated PostgreSQL suites R195–R197, затем отдельное
+разрешение на migration/rollout. Остальные S3–S6/policy/AI/bots/fleet gates открыты;
+historical S2B исключён R190, общий статус 🟡.
+
+Историческое уточнение R196 (2026-10-27): личные automation credentials
 Bitrix24/iiko используют bound Authentication и canonical numeric account ID в
 employee_discount_automation_credentials.account.v2; нет trim/lower(name),
 v1 fallback или импорта тестовых данных. Account guard/row locks и REQUIRES_NEW

@@ -267,3 +267,28 @@ Run audit display/history пока name-based: ActorIgnoreCase/trim остают
 этим шагом не изменены. Schema/migrations/grants/serialized principal не меняются.
 Проверены real security и loopback HTTP с isolated stateful JDBC/transaction adapters;
 настоящие PostgreSQL locking/concurrency/rollback и runtime acceptance ещё нужны.
+
+## Personal automation run history по ID — R197
+
+AutomationRun.actorUserId / automation_runs.actor_user_id — ключ personal history.
+Authenticated PanelUserPrincipal с positive ID/exact raw username/status приходит
+в controller/service как Authentication. ID записывается до initial audit save;
+actor остаётся display snapshot, не lookup/fallback. List использует automation
+key + actor user ID, top 20 started_at DESC/id DESC. Detail дополнительно требует
+run ID; child items загружаются только после собственного parent, иначе 404.
+Rename/reused names и case-fold соседи не передают ownership. Client actor/ID не
+определяет владельца. PAGE_DIALOGS, session refresh/revoke, CSRF и JSON/UI сохранены.
+Repository read errors не дают name fallback; новых global/business/admin grants нет.
+
+Source migration V83 добавляет nullable BIGINT с positive-or-NULL check и индекс.
+NULL legacy rows не видны в personal API, без auto-backfill по actor; новый код
+пишет bound ID. FK/cascade к users нет, чтобы audit переживал удаление аккаунта.
+Старые migrations/index сохранены. V83 нужно отдельно проверить на PostgreSQL
+и применить до rollout; текущий source step не выполняет migration/deploy.
+Mixed old/new writers и полный fleet не считаются принятыми. Historical S2B не
+возвращается. R189 serialized-session/fleet compatibility остаётся применимой.
+
+Проверены real security + isolated stateful repository/JDBC и Spring Data parser.
+AutomationRunOwnershipPostgresqlTest (8 cases) только скомпилирован: настоящий
+JPA/SQL/Flyway upgrade acceptance, R195/R196 locks/rollback и live checks открыты.
+Это не атомарное завершение всех in-flight запросов после account revoke.

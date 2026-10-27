@@ -8,7 +8,7 @@ import java.util.Optional;
 
 public interface AutomationRunRepository extends JpaRepository<AutomationRun, Long> {
 
-    List<AutomationRun> findTop20ByAutomationKeyAndActorIgnoreCaseOrderByStartedAtDesc(String automationKey, String actor);
+    List<AutomationRun> findTop20ByAutomationKeyAndActorUserIdOrderByStartedAtDescIdDesc(String automationKey, Long actorUserId);
 
-    Optional<AutomationRun> findByIdAndAutomationKeyAndActorIgnoreCase(Long id, String automationKey, String actor);
+    Optional<AutomationRun> findByIdAndAutomationKeyAndActorUserId(Long id, String automationKey, Long actorUserId);
 }
