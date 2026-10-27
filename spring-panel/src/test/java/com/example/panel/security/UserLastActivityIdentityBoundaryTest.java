@@ -26,7 +26,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class UserLastActivityIdentityBoundaryTest {
-    private static final String SQL = "UPDATE users SET last_portal_activity_at = ? WHERE lower(username) = lower(?)";
+    private static final String SQL = "UPDATE users SET last_portal_activity_at = ? WHERE id = ? AND username = ?";
     final JdbcTemplate jdbc = mock(JdbcTemplate.class);
     final AtomicInteger chained = new AtomicInteger();
     UserLastActivityFilter filter;
@@ -43,12 +43,12 @@ class UserLastActivityIdentityBoundaryTest {
             assertThat(SecurityContextHolder.getContext().getAuthentication()).isSameAs(actor); chained.incrementAndGet();
         });
     }
-    private Authentication actor(String username) { return new UsernamePasswordAuthenticationToken(username,"fixture",List.of()); }
+    private Authentication actor(String username) { return new UsernamePasswordAuthenticationToken(new PanelUserPrincipal(7L,username,"fixture",true,List.of()),null,List.of()); }
 
     @ParameterizedTest @ValueSource(strings = {"reader", " reader", "reader ", " reader ", "\treader\t", "\nreader\r", "mem\r\nber", "member,one", "member;one", "9007199254740993", "ReAdEr", " user/%?#&+ Ю ", "<img>"})
     void activityBindsExactAuthenticatedAccountKey(String username) throws Exception {
         invoke(actor(username)); var timestamp = ArgumentCaptor.forClass(String.class);
-        verify(jdbc).update(eq(SQL), timestamp.capture(), eq(username));
+        verify(jdbc).update(eq(SQL), timestamp.capture(), eq(7L), eq(username));
         assertThat(OffsetDateTime.parse(timestamp.getValue()).getOffset()).isEqualTo(ZoneOffset.UTC); assertThat(chained).hasValue(1);
     }
 
@@ -67,6 +67,6 @@ class UserLastActivityIdentityBoundaryTest {
     }
     @Test void otherDatabaseFailureRemainsBestEffortAndCanRetry() throws Exception {
         when(jdbc.update(anyString(), any(Object[].class))).thenThrow(new DataAccessResourceFailureException("fixture transient failure")).thenReturn(1);
-        invoke(actor("reader")); invoke(actor("reader")); verify(jdbc, times(2)).update(eq(SQL), anyString(), eq("reader")); assertThat(chained).hasValue(2);
+        invoke(actor("reader")); invoke(actor("reader")); verify(jdbc, times(2)).update(eq(SQL), anyString(), eq(7L), eq("reader")); assertThat(chained).hasValue(2);
     }
 }

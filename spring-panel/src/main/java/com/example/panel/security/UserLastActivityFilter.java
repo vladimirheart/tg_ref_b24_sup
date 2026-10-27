@@ -54,14 +54,19 @@ public class UserLastActivityFilter extends OncePerRequestFilter {
                 || authentication instanceof AnonymousAuthenticationToken) {
             return;
         }
-        String username = authentication.getName();
+        if (!(authentication.getPrincipal() instanceof PanelUserPrincipal principal)
+                || principal.getUserId() <= 0) {
+            return;
+        }
+        String username = principal.getUsername();
         if (!StringUtils.hasText(username)) {
             return;
         }
         try {
             usersJdbcTemplate.update(
-                    "UPDATE users SET last_portal_activity_at = ? WHERE lower(username) = lower(?)",
+                    "UPDATE users SET last_portal_activity_at = ? WHERE id = ? AND username = ?",
                     OffsetDateTime.now(ZoneOffset.UTC).toString(),
+                    principal.getUserId(),
                     username
             );
         } catch (DataAccessException ex) {

@@ -24,13 +24,32 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальная сводка R192 имеют
+что production уже запускался. Эта оговорка и актуальная сводка R193 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R192 (2026-10-27): AuthManagementApiController берёт
+Актуальное уточнение R193 (2026-10-27): last_portal_activity_at обновляется
+только по positive numeric ID из authenticated PanelUserPrincipal и exact raw
+username. Нет case-fold fan-out, trim или unbound username fallback. Session
+refresh/revoke R189 остаётся перед activity; timestamp UTC и best-effort/cache/
+retry semantics сохранены, новых grants/schema/flags нет.
+17 Maven suites / 727 tests GREEN; frozen 29 cases на baseline v1 —
+10 failures / 19 controls / 0 errors, те же bytes GREEN. Real login/security/
+session/remember-me/activity filters с mocked JDBC: collisions, rename/delete
+races, revoke/read errors, activity retry/cache, raw keys и long IDs проверены.
+Здесь source/test checkout C:\Users\sushi\Git_H\tg_ref_b24_sup; рабочие
+проект/Docker тестового стенда на другой машине/в другой сессии
+C:\Users\SinicinVV\git_h\tg_ref_b24_sup. Baseline R192 23da82a09 сверён по
+parent/subject/exact 7 files/content. R184 checkpoint сохранён точно;
+R185–R193 здесь не развёрнуты. Runtime/БД/данные/flags не менялись;
+Browser/Node/Docker/live DB/HTTP/providers не запускались. Grant commit/push
+до 2026-10-27 21:00 UTC; apply и publisher разделены. Historical S2B снят R190;
+остаются ID consumers (в том числе workforce/preferences), S3–S5 и первый
+production запуск S6. Это не общая изоляция online/notification recipients. Статус — 🟡.
+
+Историческое уточнение R192 (2026-10-27): AuthManagementApiController берёт
 self/current user ID из authenticated PanelUserPrincipal, а field permissions
 non-superuser читает по этому ID с exact username/status/row-count guards.
 Нет переноса self/edit прав к case-fold соседу; self delete/block guards

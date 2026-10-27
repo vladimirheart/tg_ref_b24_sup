@@ -68,9 +68,10 @@ MockMvc с настоящей security chain не заменяет working Postg
 JDBC session/fleet acceptance или проверку native browser input sanitization.
 
 Нормализация нового логина не распространяется на существующие authenticated
-account keys. UserLastActivityFilter передаёт непустой principal в прежний
-case-insensitive SQL без trim. Blank/authentication guards и best-effort
-обработка отсутствующей колонки/недоступной БД сохранены.
+account keys. UserLastActivityFilter в R193 использует positive numeric ID из
+authenticated PanelUserPrincipal и exact raw username в UPDATE. Нет trim,
+case-fold fan-out или unbound username fallback. Blank/authentication guards
+и best-effort обработка отсутствующей колонки/недоступной БД сохранены.
 
 Права создания/редактирования, field permissions и проверка текущего пароля
 остаются обязательными. R187 не даёт новых grants и не выполняет миграцию,
@@ -168,3 +169,19 @@ R192 не добавляет CAS/транзакционную авторизац
 общую session/token revocation policy и не закрывает остальные global/business
 paths. Schema, сериализуемый principal и runtime не меняются. Проверка — MockMvc
 с real security и изолированными JDBC/config/file adapters, без рабочей БД/файлов.
+
+## Отметка активности своего аккаунта — R193
+
+UserLastActivityFilter пишет UTC last_portal_activity_at по ID + exact username
+из authenticated PanelUserPrincipal. Legacy/unbound, zero/negative ID, blank,
+anonymous и unauthenticated principals не пишут. Тип remember-me сохраняется;
+сессия перед activity проходит проверку R189. Отказ session refresh не допускает
+activity touch, тогда как ошибка самого touch остаётся best-effort.
+
+Появление case-fold коллизии не отмечает другой аккаунт online. Rename/delete
+между refresh и записью даёт no-op по прежнему ID/name вместо fallback.
+Прежний one-failure cache отсутствующей колонки и retry прочих DB failures
+сохранены. Schema, principal serialization и grants не меняются. Это не полная
+recipient/business policy и не исправление остальных username-based consumers.
+Real filter/security/remember-me проверены MockMvc с mocked JDBC; working DB,
+браузер и fleet здесь не проверялись.
