@@ -56,12 +56,14 @@ class UserRepositoryUserDetailsService implements UserDetailsService {
             throw new UsernameNotFoundException("User store is not configured");
         }
         try {
-            Map<String, Object> userRow = jdbcTemplate.queryForMap(
-                    "SELECT * FROM users WHERE lower(username) = lower(?) LIMIT 1",
+            List<Map<String, Object>> matches = jdbcTemplate.queryForList(
+                    "SELECT * FROM users WHERE lower(username) = lower(?) LIMIT 2",
                     username
             );
-
-            return buildPrincipal(userRow, false);
+            if (matches.size() != 1) {
+                throw new UsernameNotFoundException("User not found");
+            }
+            return buildPrincipal(matches.get(0), false);
         } catch (EmptyResultDataAccessException ex) {
             throw new UsernameNotFoundException("User not found", ex);
         }

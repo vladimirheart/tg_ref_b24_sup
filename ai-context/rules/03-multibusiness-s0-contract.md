@@ -12,9 +12,41 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 код не должен подставлять бизнес по текстовому имени, каналу, последнему выбору
 оператора или иной эвристике.
 
+## Первое production развёртывание и тестовые данные — R190
+
+Пользователь уточнил 2026-10-27 (R190): проект ещё не запускался в production;
+все имеющиеся данные тестовые и не имеют ценности. Сопоставление старых aliases,
+ручная классификация пустых/спорных записей и исторический backfill S2B исключены
+из обязательного плана. Сохранение старых ID, counts и связей не является
+критерием выпуска. Цель — корректная новая модель и первый production запуск.
+Это решение не утверждает политики будущих manual/global задач, проектов,
+системных событий или права доступа к ним.
+
+Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
+production/рабочий в старых записях, именах Compose и образов не означают,
+что production уже запускался. Эта оговорка и актуальная сводка R190 имеют
+приоритет над прежними требованиями переноса тестовых данных. Само уточнение
+не выполняет очистку БД и не меняет среду.
+
 ## Среда выполнения и сессии
 
-Актуальное уточнение R189 (2026-10-27): рабочие проект и Docker остаются на
+Актуальное уточнение R190 (2026-10-27): здесь source/test checkout
+C:\Users\sushi\Git_H\tg_ref_b24_sup; рабочие проект/Docker тестового стенда
+на другой машине/в другой сессии C:\Users\SinicinVV\git_h\tg_ref_b24_sup.
+R189 a4d263eb3 сверён по parent/subject/exact 10 files/content. R190: первичный
+login/remember-me принимает только одну case-insensitive account row, без
+trim и выбора по регистру/порядку. Коллизия отклоняется до чтения прав;
+открытая ID-bound сессия R189 не переходит на соседний аккаунт.
+14 Maven suites / 600 tests GREEN; frozen 18 cases на baseline —
+9 failures / 9 controls / 0 errors, те же bytes GREEN. JDBC mocked,
+Browser/Node/Docker/live DB/HTTP/providers здесь не запускались. Checkpoint R184
+сохранён точно как evidence тестового стенда; runtime/БД не изменены.
+R185–R190 здесь не развёрнуты. Grant commit/push до 2026-10-27 21:00 UTC;
+source apply и expiry-guarded publisher разделены. Исторический S2B снят,
+остаются новые data flows/S3–S5, будущие product policies и первый запуск S6.
+Правило входа/сессий: [08-panel-account-credentials](08-panel-account-credentials.md).
+
+Историческое уточнение R189 (2026-10-27): рабочие проект и Docker остаются на
 другой машине/в другой сессии C:\Users\SinicinVV\git_h\tg_ref_b24_sup. Здесь
 source/test checkout C:\Users\sushi\Git_H\tg_ref_b24_sup: Maven MockMvc с
 настоящими login/security/method security и MockHttpSession, только JDBC mocked.
@@ -2551,14 +2583,14 @@ requireSelectedBusiness(requested context, authenticated user)
 
 | Область | Безопасное временное поведение | Решение, необходимое до реализации |
 | --- | --- | --- |
-| Три непустых legacy aliases | Хранить исходный text; не normalise/assign автоматически | **PENDING:** approved alias → `business.code` map и ответственный за него |
-| Три пустых `messages.business` | `UNRESOLVED`, исключены из произвольного business list | **PENDING:** ручное назначение или permanent unresolved policy |
-| 3 history channel mismatch | owner берётся из ticket; исторический channel не переписывается | **PENDING:** классификация forwarding/error и правила отображения |
+| Три непустых legacy aliases | Dataset тестовый, не переносится | **СНЯТО R190:** alias map и historical assignment не требуются |
+| Три пустых `messages.business` | Dataset тестовый, не переносится | **СНЯТО R190:** решения по этим строкам не требуются; новые unresolved остаются fail-closed |
+| 3 history channel mismatch | Dataset тестовый, не переносится | **СНЯТО R190:** классификация старой истории не требуется; новый child scope определяется canonical ticket |
 | Mixed channels | Явный выбор бизнеса или «Без бизнеса» до первого вопроса; без выбора flow не запускается | **УТОЧНЕНО 2026-10-16:** general — отдельный scope, не unresolved. **PENDING:** UX-представление и precedence для иных verified sources |
-| 2 tasks без ticket link | Сохранять ручные задачи без автоматической классификации/назначения | **PENDING:** R12 manual-task scope policy и право на global Kanban |
-| 105 incidents / system notifications | Не получают business ID массово | **PENDING:** business/shared/global classification и отдельные permissions |
+| Ручные задачи / global Kanban | Две старые задачи не классифицируются и не переносятся | **PENDING:** R12 provenance/visibility/link policy для новых ручных задач и право на global Kanban |
+| Новые incidents / system notifications | 105 старых инцидентов не классифицируются и не переносятся | **PENDING:** модель business/shared/global для новых событий, получатели и отдельные permissions |
 | Existing ticket route | Legacy route доступен только в подтверждённом unique window | **РЕШЕНО S2A:** opaque immutable `ticket_public_id`; internal fallback — обязательный composite locator |
-| Roles | Global page permissions не меняются автоматически | **PENDING:** business role matrix и administrator boundary |
+| Roles | Global page permissions не выдаются автоматически; channel management требует системного ROLE_ADMIN + права страницы (R184) | **PENDING:** оставшаяся global/system и business capability policy |
 | Projects/boards | Не показывают inaccessible tasks | **PENDING:** scope project/board and explicit-global task policy |
 
 ## Поэтапное применение
@@ -2567,11 +2599,10 @@ requireSelectedBusiness(requested context, authenticated user)
    выше V50; новые tables/nullable FKs/indexes, `BusinessAccessService`,
    default-deny contract и PostgreSQL integration tests. Feature flags off;
    никаких existing-row mutation, UI switch или strict filtering.
-2. **S2, assignment.** S2A фиксирует public/composite ticket locator и
-   read-only preview, но не делает legacy assignment. S2B требует approved
-   alias/location map, dry-run evidence, controlled writes, child tuple integrity
-   и UNRESOLVED queue. Backfill
-   запускается только отдельным явным scope.
+2. **S2, canonical identity.** S2A public/composite locator и security guards
+   сохраняются для новых данных. Historical S2B alias assignment/dry-run/
+   backfill снят R190. Проверяются чистая схема, canonical owner и child tuple
+   integrity новых записей; перенос старого dataset не является gate.
 3. **S3, server scope.** Read/write API, dialogs, attachments, tasks,
    projects/boards, analytics, notification and realtime/outbox paths; negative
    cross-business tests before strict flag.
@@ -2580,9 +2611,10 @@ requireSelectedBusiness(requested context, authenticated user)
 5. **S5, UI.** Accessible-business selector, business catalog/memberships,
    empty states and manual acceptance. Browser state can select scope but cannot
    grant it.
-6. **S6, release.** A separately approved production preflight, immutable
-   revision/image, migration/backfill checkpoint, rollback pointer and
-   independent acceptance. It is not part of source implementation.
+6. **S6, первый production запуск.** Чистая схема, immutable revision/image,
+   совместимые consumers, отдельно согласованный runtime preflight/запуск,
+   rollback plan и независимая приёмка новых data flows. Historical backfill
+   не требуется; source implementation не выполняет runtime операции.
 
 ### S1 source checkpoint — 2026-10-10
 
@@ -2632,10 +2664,12 @@ the configuration does not enable filtering, assignment or a UI switch.
 POST. Исходное значение флага — `false`; наличие source/migration не включает
 операторскую запись в рабочей среде.
 
-Строгий read scope нельзя включать, пока вся показываемая legacy выборка не
-получила approved business или не изолирована как `UNRESOLVED`. Каждый flag
-имеет отдельный acceptance checklist и rollback в состояние `false`; source
-merge сам по себе не является rollout.
+Первый запуск с чистой базой не требует historical assignment. Каждая новая
+показываемая запись должна иметь canonical business/general/global scope и
+соответствующий допуск; unresolved и противоречивые rows не дают доступ по
+догадке. Остатки тестового dataset исключаются либо удаляются при отдельно
+подготовленном пересоздании стенда, без silent fallback. Каждый flag требует
+своей приёмки и rollback в false; source merge не является rollout.
 
 ## Обязательная test matrix
 
@@ -2645,9 +2679,10 @@ merge сам по себе не является rollout.
 - Security: user A не читает/не меняет B через list, direct ID, attachment,
   search, export, count, task, notification, SSE и AI context; `ALL_BUSINESSES`
   не получает global-system data.
-- Ticket identity: existing IDs/history remain stable; ambiguous bare
-  `ticket_id` is rejected after the compatibility window; all child lookups
-  resolve the canonical ticket.
+- Ticket identity: новые записи имеют устойчивую public/composite identity;
+  ambiguous bare ticket_id отклоняется, child lookups подтверждают canonical
+  owner/generation и FK integrity. Сохранение ID/history старого dataset
+  не является требованием (R190).
 - Transport: single and shared channel, explicit selection, verified mapping,
   conflict/unresolved, idempotent replay/retry/edit/feedback.
 - Templates: clone B does not mutate A, template version stays frozen on an
@@ -2657,14 +2692,15 @@ merge сам по себе не является rollout.
 
 ## Gates после S1
 
-S1 не назначает legacy records и не включает strict scope, поэтому может быть
-подготовлен без раскрытия sensitive aliases. S2A закрывает ticket public locator
-contract и добавляет fail-closed read-only preview, но до S2B/S3 необходимо
-закрыть релевантные оставшиеся PENDING
-decisions из decision table и precise changed-file/test plan against fresh
-`main`. Отдельное явное
-разрешение на запуск migration, backfill или rollout по-прежнему обязательно:
-ни один из них не следует из source foundation.
+Historical S2B не блокирует S3: approved alias map и решения по старым строкам
+больше не нужны (R190). Релевантные будущие product policies из decision table
+остаются PENDING; их нельзя вывести из отказа от тестовых данных. Перед
+соответствующим новым path нужны явный contract, changed-file/test plan от
+свежего main и negative scope tests. Подготовка чистой схемы/стенда и первый
+production запуск — отдельный согласованный runtime scope.
+
+Ниже сохранены исторические source checkpoints; старые требования переноса
+dataset не переопределяют решение R190.
 
 ### R149: v2 GENERAL producer, nullable SDK и выбранные sessions во всех ботах
 

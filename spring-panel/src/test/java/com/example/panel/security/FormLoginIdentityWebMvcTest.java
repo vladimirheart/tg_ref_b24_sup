@@ -47,7 +47,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     properties = {"spring.session.store-type=none", "management.endpoint.health.group.readiness.include=ping"})
 @AutoConfigureMockMvc
 class FormLoginIdentityWebMvcTest {
-    private static final String USER_SQL = "SELECT * FROM users WHERE lower(username) = lower(?) LIMIT 1";
+    private static final String USER_SQL = "SELECT * FROM users WHERE lower(username) = lower(?) LIMIT 2";
     private static final String AUTHORITIES_SQL = "SELECT authority FROM user_authorities WHERE user_id = ?";
     private static final String ROLE_SQL = "SELECT r.name AS role_name, r.permissions AS permissions FROM users u LEFT JOIN roles r ON r.id = u.role_id WHERE u.id = ? LIMIT 1";
     private static final String PASSWORD = " fixture secret ";
@@ -72,10 +72,9 @@ class FormLoginIdentityWebMvcTest {
     @BeforeEach void fixtures() {
         accounts.clear(); reset(jdbc);
         when(jdbc.getDataSource()).thenReturn(mock(DataSource.class));
-        when(jdbc.queryForMap(eq(USER_SQL), anyString())).thenAnswer(call -> {
+        when(jdbc.queryForList(eq(USER_SQL), anyString())).thenAnswer(call -> {
             Account account = accounts.get(call.<String>getArgument(1).toLowerCase(Locale.ROOT));
-            if (account == null) throw new EmptyResultDataAccessException(1);
-            return account.row();
+            return account == null ? List.of() : List.of(account.row());
         });
         when(jdbc.queryForMap(eq("SELECT * FROM users WHERE id = ?"), anyLong())).thenAnswer(call ->
             accounts.values().stream().filter(a -> a.row().get("id").equals(call.getArgument(1)))
@@ -125,7 +124,7 @@ class FormLoginIdentityWebMvcTest {
         pair(username);
         MvcResult result = successful(login(username), username);
         whoami(session(result), username, "PAGE_DIALOGS");
-        verify(jdbc).queryForMap(USER_SQL, username);
+        verify(jdbc).queryForList(USER_SQL, username);
         verify(jdbc,never()).query(eq(AUTHORITIES_SQL), org.mockito.ArgumentMatchers.<RowMapper<String>>any(), eq(99L));
         Authentication auth = ((SecurityContext)session(result).getAttribute(CONTEXT_KEY)).getAuthentication();
         assertThat(auth.getCredentials()).isNull();
@@ -137,8 +136,8 @@ class FormLoginIdentityWebMvcTest {
         account("reader",99L,true,false,"ROLE_ADMIN","PAGE_SETTINGS");
         mvc.perform(login(username)).andExpect(redirectedUrl("/login?error")).andExpect(unauthenticated());
         // Existing local/parent AuthenticationManager retry; both lookups must retain the exact key.
-        verify(jdbc,times(2)).queryForMap(USER_SQL,username);
-        verify(jdbc,never()).queryForMap(USER_SQL,"reader");
+        verify(jdbc,times(2)).queryForList(USER_SQL,username);
+        verify(jdbc,never()).queryForList(USER_SQL,"reader");
     }
 
     @ParameterizedTest @ValueSource(strings = {"disabled", "blocked"})
@@ -146,14 +145,14 @@ class FormLoginIdentityWebMvcTest {
         account("reader",99L,true,false,"ROLE_ADMIN","PAGE_SETTINGS");
         account(" reader ",7L,!state.equals("disabled"),state.equals("blocked"),"PAGE_DIALOGS");
         mvc.perform(login(" reader ")).andExpect(redirectedUrl("/login?error")).andExpect(unauthenticated());
-        verify(jdbc).queryForMap(USER_SQL," reader ");
-        verify(jdbc,never()).queryForMap(USER_SQL,"reader");
+        verify(jdbc).queryForList(USER_SQL," reader ");
+        verify(jdbc,never()).queryForList(USER_SQL,"reader");
     }
 
     @Test void existingCaseInsensitiveLookupStillReturnsStoredIdentity() throws Exception {
         account("ReAdEr",7L,true,false,"PAGE_DIALOGS");
         whoami(session(successful(login("rEaDeR"),"ReAdEr")),"ReAdEr","PAGE_DIALOGS");
-        verify(jdbc).queryForMap(USER_SQL,"rEaDeR");
+        verify(jdbc).queryForList(USER_SQL,"rEaDeR");
     }
 
     @Test void passwordEdgeSpacesRemainSignificant() throws Exception {
@@ -190,7 +189,7 @@ class FormLoginIdentityWebMvcTest {
         mvc.perform(get("/api/auth/whoami").cookie(cookie)).andExpect(status().isOk())
             .andExpect(authenticated().withUsername(" reader ")).andExpect(jsonPath("$.username").value(" reader "))
             .andExpect(jsonPath("$.authorities",containsInAnyOrder("PAGE_DIALOGS")));
-        verify(jdbc).queryForMap(USER_SQL," reader "); verify(jdbc,never()).queryForMap(USER_SQL,"reader");
+        verify(jdbc).queryForList(USER_SQL," reader "); verify(jdbc,never()).queryForList(USER_SQL,"reader");
     }
 
     @Test void rememberMeRechecksDisabledAccountWithoutNeighbourFallback() throws Exception {
@@ -198,7 +197,7 @@ class FormLoginIdentityWebMvcTest {
         Cookie cookie=successful(login(" reader ").param("remember-me","true")," reader ").getResponse().getCookie("remember-me");
         account(" reader ",7L,false,false,"PAGE_DIALOGS"); clearInvocations(jdbc);
         mvc.perform(get("/api/auth/whoami").cookie(cookie)).andExpect(status().is3xxRedirection()).andExpect(unauthenticated());
-        verify(jdbc).queryForMap(USER_SQL," reader "); verify(jdbc,never()).queryForMap(USER_SQL,"reader");
+        verify(jdbc).queryForList(USER_SQL," reader "); verify(jdbc,never()).queryForList(USER_SQL,"reader");
     }
 
     @Test void tamperedRememberMeCannotAuthenticate() throws Exception {

@@ -57,7 +57,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     properties={"spring.session.store-type=none","management.endpoint.health.group.readiness.include=ping"})
 @AutoConfigureMockMvc
 class SessionAuthorityWebMvcTest {
-    private static final String USER_SQL="SELECT * FROM users WHERE lower(username) = lower(?) LIMIT 1";
+    private static final String USER_SQL="SELECT * FROM users WHERE lower(username) = lower(?) LIMIT 2";
     private static final String ID_SQL="SELECT * FROM users WHERE id = ?";
     private static final String AUTH_SQL="SELECT authority FROM user_authorities WHERE user_id = ?";
     private static final String ROLE_SQL="SELECT r.name AS role_name, r.permissions AS permissions FROM users u LEFT JOIN roles r ON r.id = u.role_id WHERE u.id = ? LIMIT 1";
@@ -88,9 +88,8 @@ class SessionAuthorityWebMvcTest {
     @BeforeEach void fixtures() {
         users.clear();rights.clear();roles.clear();failing="";reset(jdbc,transport);
         when(jdbc.getDataSource()).thenReturn(mock(DataSource.class));
-        when(jdbc.queryForMap(eq(USER_SQL),anyString())).thenAnswer(call -> users.values().stream()
-            .filter(row -> row.get("username").toString().equalsIgnoreCase(call.getArgument(1))).findFirst()
-            .orElseThrow(() -> new EmptyResultDataAccessException(1)));
+        when(jdbc.queryForList(eq(USER_SQL),anyString())).thenAnswer(call -> users.values().stream()
+            .filter(row -> row.get("username").toString().equalsIgnoreCase(call.getArgument(1))).limit(2).toList());
         when(jdbc.queryForMap(eq(ID_SQL),anyLong())).thenAnswer(call -> {
             failIf("user");var row=users.get(call.<Long>getArgument(1));
             if(row==null) throw new EmptyResultDataAccessException(1);return row;
@@ -152,7 +151,7 @@ class SessionAuthorityWebMvcTest {
             .andExpect(jsonPath("$.username").value(username)).andExpect(jsonPath("$.authorities",containsInAnyOrder("PAGE_USERS")));
         assertThat(auth(session).getAuthorities()).extracting(a->a.getAuthority()).containsExactly("PAGE_USERS");
         assertThat(auth(session).getCredentials()).isNull();
-        verify(jdbc).queryForMap(ID_SQL,7L);verify(jdbc,never()).queryForMap(eq(USER_SQL),anyString());
+        verify(jdbc).queryForMap(ID_SQL,7L);verify(jdbc,never()).queryForList(eq(USER_SQL),anyString());
     }
 
     @ParameterizedTest @ValueSource(strings={"disabled","blocked","deleted","renamed","case-renamed","reused"})
@@ -170,7 +169,7 @@ class SessionAuthorityWebMvcTest {
         mvc.perform(get("/api/channels").session(session)).andExpect(status().is3xxRedirection())
             .andExpect(unauthenticated()).andExpect(cookie().maxAge("JSESSIONID",0)).andExpect(cookie().maxAge("remember-me",0));
         assertThat(session.isInvalid()).isTrue();verifyNoInteractions(transport);
-        verify(jdbc).queryForMap(ID_SQL,7L);verify(jdbc,never()).queryForMap(eq(USER_SQL),anyString());
+        verify(jdbc).queryForMap(ID_SQL,7L);verify(jdbc,never()).queryForList(eq(USER_SQL),anyString());
     }
 
     @ParameterizedTest @ValueSource(strings={"user","direct","role"})

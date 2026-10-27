@@ -60,12 +60,12 @@ class UserRepositoryUserDetailsServiceTest {
         UserRepositoryUserDetailsService service = new UserRepositoryUserDetailsService(jdbcTemplate, passwordEncoder);
 
         when(jdbcTemplate.getDataSource()).thenReturn(mock(javax.sql.DataSource.class));
-        when(jdbcTemplate.queryForMap("SELECT * FROM users WHERE lower(username) = lower(?) LIMIT 1", "operator"))
-                .thenReturn(Map.of(
+        when(jdbcTemplate.queryForList("SELECT * FROM users WHERE lower(username) = lower(?) LIMIT 2", "operator"))
+                .thenReturn(List.of(Map.of(
                         "id", 42L,
                         "username", "operator",
                         "password", "plain-secret"
-                ));
+                )));
 
         UserDetails user = service.loadUserByUsername("operator");
 
@@ -80,13 +80,13 @@ class UserRepositoryUserDetailsServiceTest {
         UserRepositoryUserDetailsService service = new UserRepositoryUserDetailsService(jdbcTemplate, passwordEncoder);
 
         when(jdbcTemplate.getDataSource()).thenReturn(mock(javax.sql.DataSource.class));
-        when(jdbcTemplate.queryForMap("SELECT * FROM users WHERE lower(username) = lower(?) LIMIT 1", "blocked"))
-                .thenReturn(Map.of(
+        when(jdbcTemplate.queryForList("SELECT * FROM users WHERE lower(username) = lower(?) LIMIT 2", "blocked"))
+                .thenReturn(List.of(Map.of(
                         "id", 43L,
                         "username", "blocked",
                         "password", "plain-secret",
                         "is_blocked", 1
-                ));
+                )));
 
         UserDetails user = service.loadUserByUsername("blocked");
 

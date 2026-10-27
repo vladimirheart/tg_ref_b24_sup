@@ -1,97 +1,45 @@
-# 01-278 — входные данные для согласования S2B
+# 01-278 — исторический S2B снят; оставшиеся продуктовые решения
 
-## Статус
+## Решение владельца — 2026-10-27, R190
 
-🟡 Ожидается решение владельцев бизнеса и продукта. Это форма для
-согласования, а не разрешение на migration, backfill, rollout или включение
-feature flag.
+Промт пользователя:
 
-Файл намеренно не содержит фактических legacy aliases, идентификаторов
-обращений и персональных данных. Такие значения передаются только через
-защищённый согласованный контур, а здесь указывается ссылка на запись и её
-проверяемый fingerprint.
+> тогда продолжай работу. старые данные в корне не интересны - проект ещё не запускался в прод, все данные являются тестами не имеющими ценности
 
-## Что нужно согласовать
+Исторические alias mapping, классификация пустых/спорных records, history
+channel mismatch, dry-run и backfill больше не нужны для выпуска. Прежняя
+форма S2B остаётся в Git history. Не требуется отдельно решать судьбу двух
+старых задач и 105 инцидентов, переносить старые counts/ID/связи или сохранять
+тестовую историю. Это снимает historical S2B gate, а не утверждает новые права.
 
-### 1. Точное сопоставление legacy alias
+Первый production запуск проектируется с чистой базой и актуальной схемой.
+В текущем source шаге база/файлы данных не удалялись и не пересоздавались;
+рабочие проект и Docker тестового стенда на другой машине/в другой сессии
+C:\Users\SinicinVV\git_h\tg_ref_b24_sup.
 
-Для каждого из трёх непустых значений `messages.business` в защищённой записи
-нужно зафиксировать одно из решений ниже. Нельзя выводить принадлежность из
-названия канала, регистра, пробелов, последнего выбора оператора или похожего
-написания.
+## Что остаётся согласовать для новых данных
 
-| Ссылка на защищённую запись | Fingerprint exact UTF-8 значения | Решение | Целевой `business.code` | Approver | Evidence | Дата |
-| --- | --- | --- | --- | --- | --- | --- |
-| `<private-record-ref>` | `<sha256-or-approved-fingerprint>` | `MAP` / `KEEP_UNRESOLVED` | `<existing-code-or-n/a>` | `<name-or-role>` | `<source>` | `<YYYY-MM-DD>` |
-
-Для `MAP` требуется ровно один существующий active business. Actual value
-alias и его производные не должны попадать в source, changelog, логи или
-тестовые fixtures. S2B сможет сравнивать значение лишь побайтно, как S2A
-preview; нормализация, эвристика и неявный fallback запрещены.
-
-### 2. Три обращения без legacy business label
-
-Для каждого обращения с пустым `messages.business` нужен отдельный outcome.
-
-| Ссылка на защищённый locator обращения | Решение | `business.code`, если `ASSIGN` | Evidence | Approver | Дата |
-| --- | --- | --- | --- | --- | --- |
-| `<private-ticket-reference>` | `ASSIGN` / `KEEP_UNRESOLVED` | `<existing-code-or-n/a>` | `<source>` | `<name-or-role>` | `<YYYY-MM-DD>` |
-
-`KEEP_UNRESOLVED` — допустимый и безопасный outcome; он не даёт доступ к
-обращению через чужой business scope. Автоматически назначать бизнес таким
-строкам нельзя.
-
-### 3. Расхождения исторического канала
-
-Для трёх расхождений `chat_history.channel_id` требуется классификация для
-каждого canonical ticket.
-
-| Ссылка на защищённый locator обращения | Класс | Источник отображаемой принадлежности | Evidence | Approver |
-| --- | --- | --- | --- | --- |
-| `<private-ticket-reference>` | `LEGAL_TRANSFER` / `BAD_REFERENCE` / `UNRESOLVED` | `CANONICAL_TICKET` | `<source>` | `<name-or-role>` |
-
-Business owner определяется только canonical ticket. Историческая строка не
-может расширить scope читателя.
-
-### 4. Shared channel и операции с обращением
-
-Product owner должен утвердить оба решения:
-
-| Область | Обязательное решение |
+| Область | Состояние / нужное решение |
 | --- | --- |
-| Shared channel | приоритет разрешения: explicit ticket owner, explicit channel/location mapping или `UNRESOLVED`; UX при конфликте и при отсутствии mapping |
-| Ticket actions | матрица action → минимальная capability (`READ`, `OPERATE`, `MANAGE`, `CONFIGURE`), включая создание, ответ, назначение, закрытие, удаление и экспорт |
-| Tasks / projects / boards | policy для `business`, `global_system`, `unresolved`; владелец и фильтрация каждой глобальной сущности |
-| Incidents / notifications | отдельный тип системного события, получатели и полномочие на просмотр; delivery channel не расширяет data scope |
+| Manual tasks (R12) | **PROPOSED_NOT_APPROVED.** Ticket-derived задачи наследуют business canonical ticket; ручные задачи независимы и могут иметь несколько поддерживаемых links разных бизнесов. Ещё нужны собственная visibility/provenance и отдельный допуск к каждому link. Links не дают доступ и не назначают owner. |
+| Projects / boards / global Kanban | **PENDING:** scope владельца, global-system grants и фильтрация задач во всех projections. ALL_BUSINESSES не является global-system правом. |
+| Incidents / notifications | **PENDING:** тип/owner новых business/shared/global событий, получатели и отдельное право просмотра. Delivery channel не расширяет data scope. |
+| Shared channel | Явный выбор business/«Без бизнеса» до вопросника уже зафиксирован. **PENDING:** precedence иных verified sources и поведение при их конфликте/отсутствии. |
+| Ticket actions | Реализованные scoped guards сохраняются; оставшиеся action → READ/OPERATE/MANAGE/CONFIGURE paths требуют полной согласованной матрицы и negative tests. |
 
-Если строка матрицы не утверждена, соответствующий S2B/S3 path остаётся
-выключенным и deny-by-default.
+R12 остаётся предложением в части ещё не утверждённой visibility/link policy:
+отмена сохранения двух исторических задач не даёт product signoff. Проверка
+каждой связи обязательна для lists, search, projects/Kanban, details, files,
+notifications/SSE, exports и AI context. Неоднозначный owner новой ticket-derived
+задачи остаётся fail-closed, без угадывания по links или каналу.
 
-## Критерии принятия входных данных
+## Условия реализации и первого запуска
 
-- Каждое решение имеет approver, дату и проверяемое evidence.
-- Все `business.code` существуют в утверждённом справочнике и активны.
-- В protected decision record сохранены exact values и fingerprint; в
-  репозитории остаются только ссылки и безопасная классификация.
-- Предварительный read-only preview даёт ожидаемые counts
-  `READY_TO_ASSIGN` / `ALREADY_ASSIGNED` / `UNRESOLVED` /
-  `AMBIGUOUS_MAPPING` / `CONFLICT`; любой неожиданный результат возвращается
-  на ручное решение.
-- До отдельного разрешения на controlled write отсутствуют записи в
-  `tickets.business_id`, изменение legacy полей, включение feature flags и
-  запуск migration/backfill в рабочем контуре.
-
-## Граница следующего шага
-
-Подтверждённый документ снимает только блокировку проектирования S2B. Для
-реализации controlled write, dry-run или backfill потребуется отдельный
-явный scope с критериями preflight, rollback и acceptance; настоящее
-согласование его не заменяет.
-
-### 5. Задачи из обращений и независимые ручные задачи (R12)
-
-**PROPOSED_NOT_APPROVED; product/owner signoff PENDING.** Предложение R11 учитывает уточнение пользователя: только задачи, создаваемые из обращений, наследуют business от canonical ticket. Ручная задача допускает любые поддерживаемые типы связей, включая несколько объектов разных бизнесов; сами links не задают origin/owner и не предоставляют доступ.
-
-Перед реализацией согласовать явный task provenance, собственную область видимости задачи и отдельную проверку каждой связи, в том числе для lists, search, projects, Kanban, details, attachments, notifications, SSE, exports и AI context. При отсутствующем/неоднозначном `tickets.business_id` ticket-derived task остаётся fail-closed, без угадывания.
-
-Две исторические задачи без ticket relation **не классифицируются автоматически** как unresolved или global/system; защищённые record decisions остаются PENDING. Фактические legacy IDs/aliases, evidence и private snapshot в репозиторий не копировать. Согласование policy не даёт разрешения на DB changes или rollout.
+- Для каждого нового path фиксируются contract/approver, критерии приёмки
+  и точный scope; неутверждённые действия остаются deny-by-default.
+- Чистая схема и новые записи должны пройти FK/owner/child integrity,
+  single/many/all/general scope, отзыв прав и cross-business negative tests.
+- S2A public/composite locator и security guards остаются действующими.
+- Подготовка чистой базы тестового стенда, schema apply, совместимые web/
+  worker/bot images, feature flags и первый production запуск требуют своего
+  runtime плана/checkpoint/rollback/приёмки; source commit их не выполняет.
