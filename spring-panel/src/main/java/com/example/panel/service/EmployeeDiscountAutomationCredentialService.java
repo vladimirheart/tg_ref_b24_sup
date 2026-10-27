@@ -1,5 +1,16 @@
 package com.example.panel.service;
 
+import com.example.panel.security.PanelUserPrincipal;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
+import java.util.function.Function;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.dao.DataAccessException;
@@ -17,19 +28,41 @@ import java.util.Map;
 @Service
 public class EmployeeDiscountAutomationCredentialService {
 
-    private static final String PARAM_TYPE = "employee_discount_automation_credentials.v1";
+    static final String PARAM_TYPE = "employee_discount_automation_credentials.account.v2";
+
+    public static boolean isPrivateParameterType(String type) {
+        return type != null && type.startsWith("employee_discount_automation_credentials.");
+    }
+
+    public static PanelUserPrincipal requirePrincipal(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()
+                || authentication instanceof AnonymousAuthenticationToken
+                || !(authentication.getPrincipal() instanceof PanelUserPrincipal principal)
+                || principal.getUserId() <= 0 || !StringUtils.hasText(principal.getUsername())
+                || !principal.isEnabled() || !principal.isAccountNonLocked()
+                || !principal.isAccountNonExpired() || !principal.isCredentialsNonExpired()) {
+            throw new AccessDeniedException("Credentials require a bound account");
+        }
+        return principal;
+    }
 
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
+    private final TransactionTemplate transaction;
 
-    public EmployeeDiscountAutomationCredentialService(JdbcTemplate jdbcTemplate,
+    public EmployeeDiscountAutomationCredentialService(@Qualifier("usersJdbcTemplate") JdbcTemplate jdbcTemplate,
                                                        ObjectMapper objectMapper) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
+        this.transaction = new TransactionTemplate(new DataSourceTransactionManager(jdbcTemplate.getDataSource()));
+        this.transaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
-    public EmployeeDiscountAutomationCredentials loadForUser(String username) {
-        Map<String, Object> payload = loadStoredPayload(username);
+    public EmployeeDiscountAutomationCredentials loadForUser(Authentication authentication) {
+        return withAccount(authentication, false, principal -> parseCredentials(loadStoredPayload(principal).payload()));
+    }
+
+    private EmployeeDiscountAutomationCredentials parseCredentials(Map<String, Object> payload) {
         Map<String, IikoProfile> profiles = parseProfiles(payload.get("iiko_profiles"));
         if (profiles.isEmpty()) {
             IikoProfile legacyProfile = parseLegacyIiko(payload.get("iiko"));
@@ -54,66 +87,66 @@ public class EmployeeDiscountAutomationCredentialService {
         );
     }
 
-    public IikoProfile loadActiveIikoProfile(String username) {
-        return loadForUser(username).activeIikoProfile();
+    public IikoProfile loadActiveIikoProfile(Authentication authentication) {
+        return loadForUser(authentication).activeIikoProfile();
     }
 
-    public Map<String, Object> loadClientView(String username) {
-        return loadForUser(username).toClientMap(username);
+    public Map<String, Object> loadClientView(Authentication authentication) {
+        return loadForUser(authentication).toClientMap(requirePrincipal(authentication).getUsername());
     }
 
-    public EmployeeDiscountAutomationCredentials saveForUser(String username, Map<String, Object> payload) {
-        if (!StringUtils.hasText(username)) {
-            return EmployeeDiscountAutomationCredentials.empty();
-        }
-        EmployeeDiscountAutomationCredentials current = loadForUser(username);
-        Map<String, Object> source = payload != null ? payload : Map.of();
+    public EmployeeDiscountAutomationCredentials saveForUser(Authentication authentication, Map<String, Object> payload) {
+        return withAccount(authentication, true, principal -> {
+            Stored stored = loadStoredPayload(principal);
+            EmployeeDiscountAutomationCredentials current = parseCredentials(stored.payload());
+            Map<String, Object> source = payload != null ? payload : Map.of();
 
-        Bitrix24Credentials bitrix = source.containsKey("bitrix24")
-            ? mergeBitrix(current.bitrix24(), source.get("bitrix24"))
-            : current.bitrix24();
+            Bitrix24Credentials bitrix = source.containsKey("bitrix24")
+                ? mergeBitrix(current.bitrix24(), source.get("bitrix24"))
+                : current.bitrix24();
 
-        LinkedHashMap<String, IikoProfile> profiles = new LinkedHashMap<>(current.iikoProfiles());
-        String activeProfileUrl = normalizeProfileKey(text(
-            source.get("select_profile_url"),
-            source.get("active_iiko_profile_url"),
-            current.activeIikoProfileUrl()
-        ));
+            LinkedHashMap<String, IikoProfile> profiles = new LinkedHashMap<>(current.iikoProfiles());
+            String activeProfileUrl = normalizeProfileKey(text(
+                source.get("select_profile_url"),
+                source.get("active_iiko_profile_url"),
+                current.activeIikoProfileUrl()
+            ));
 
-        if (source.containsKey("iiko_profile")) {
-            Map<String, Object> profileNode = asMap(source.get("iiko_profile"));
-            String requestedBaseUrl = text(profileNode.get("base_url"), profileNode.get("baseUrl"));
-            String profileKey = normalizeProfileKey(requestedBaseUrl);
-            if (!StringUtils.hasText(profileKey) && StringUtils.hasText(activeProfileUrl)) {
-                profileKey = activeProfileUrl;
+            if (source.containsKey("iiko_profile")) {
+                Map<String, Object> profileNode = asMap(source.get("iiko_profile"));
+                String requestedBaseUrl = text(profileNode.get("base_url"), profileNode.get("baseUrl"));
+                String profileKey = normalizeProfileKey(requestedBaseUrl);
+                if (!StringUtils.hasText(profileKey) && StringUtils.hasText(activeProfileUrl)) {
+                    profileKey = activeProfileUrl;
+                }
+                if (!StringUtils.hasText(profileKey)) {
+                    throw new IllegalArgumentException("Для профиля iiko обязательно укажите URL.");
+                }
+                IikoProfile merged = mergeProfile(profiles.get(profileKey), profileNode, profileKey);
+                profiles.put(profileKey, merged);
+                activeProfileUrl = profileKey;
             }
-            if (!StringUtils.hasText(profileKey)) {
-                throw new IllegalArgumentException("Для профиля iiko обязательно укажите URL.");
+
+            String removeProfileUrl = normalizeProfileKey(text(source.get("remove_profile_url")));
+            if (StringUtils.hasText(removeProfileUrl)) {
+                profiles.remove(removeProfileUrl);
+                if (removeProfileUrl.equals(activeProfileUrl)) {
+                    activeProfileUrl = profiles.isEmpty() ? "" : profiles.keySet().iterator().next();
+                }
             }
-            IikoProfile merged = mergeProfile(profiles.get(profileKey), profileNode, profileKey);
-            profiles.put(profileKey, merged);
-            activeProfileUrl = profileKey;
-        }
 
-        String removeProfileUrl = normalizeProfileKey(text(source.get("remove_profile_url")));
-        if (StringUtils.hasText(removeProfileUrl)) {
-            profiles.remove(removeProfileUrl);
-            if (removeProfileUrl.equals(activeProfileUrl)) {
-                activeProfileUrl = profiles.isEmpty() ? "" : profiles.keySet().iterator().next();
+            if (!StringUtils.hasText(activeProfileUrl) && !profiles.isEmpty()) {
+                activeProfileUrl = profiles.keySet().iterator().next();
             }
-        }
 
-        if (!StringUtils.hasText(activeProfileUrl) && !profiles.isEmpty()) {
-            activeProfileUrl = profiles.keySet().iterator().next();
-        }
-
-        EmployeeDiscountAutomationCredentials updated = new EmployeeDiscountAutomationCredentials(
-            bitrix,
-            activeProfileUrl,
-            profiles
-        );
-        persistForUser(username, updated);
-        return updated;
+            EmployeeDiscountAutomationCredentials updated = new EmployeeDiscountAutomationCredentials(
+                bitrix,
+                activeProfileUrl,
+                profiles
+            );
+            persistForUser(principal, stored, updated);
+            return updated;
+        });
     }
 
     private Bitrix24Credentials parseBitrix(Object raw) {
@@ -203,72 +236,62 @@ public class EmployeeDiscountAutomationCredentialService {
         return fallback;
     }
 
-    private Map<String, Object> loadStoredPayload(String username) {
-        if (!StringUtils.hasText(username)) {
-            return Map.of();
-        }
-        List<Map<String, Object>> rows;
+    private <T> T withAccount(Authentication authentication, boolean writing, Function<PanelUserPrincipal,T> action) {
+        PanelUserPrincipal principal = requirePrincipal(authentication);
         try {
-            rows = jdbcTemplate.queryForList(
-                "SELECT extra_json FROM settings_parameters WHERE param_type = ? AND lower(value) = lower(?) AND is_deleted = FALSE LIMIT 1",
-                PARAM_TYPE,
-                username.trim()
-            );
-        } catch (DataAccessException ex) {
-            throw new IllegalStateException("Failed to load employee discount credentials for current user", ex);
-        }
-        if (rows.isEmpty()) {
-            return Map.of();
-        }
-        Object rawJson = rows.get(0).get("extra_json");
-        if (!(rawJson instanceof String json) || !StringUtils.hasText(json)) {
-            return Map.of();
-        }
-        try {
-            return objectMapper.readValue(json, new TypeReference<LinkedHashMap<String, Object>>() {});
-        } catch (Exception ex) {
-            throw new IllegalStateException("Stored employee discount credentials are malformed", ex);
+            return transaction.execute(status -> {
+                var rows = jdbcTemplate.queryForList("SELECT id, username, enabled, is_blocked FROM users WHERE id = ? "
+                        + (writing ? "FOR UPDATE" : "FOR SHARE"), principal.getUserId());
+                if (rows.size() != 1 || !(rows.get(0).get("id") instanceof Number id)
+                        || id.longValue() != principal.getUserId()
+                        || !principal.getUsername().equals(rows.get(0).get("username"))
+                        || Boolean.FALSE.equals(rows.get(0).get("enabled"))
+                        || Boolean.TRUE.equals(rows.get(0).get("is_blocked"))) {
+                    throw new AccessDeniedException("Credential account has changed");
+                }
+                return action.apply(principal);
+            });
+        } catch (DataAccessException | org.springframework.transaction.TransactionException ex) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Credential storage is unavailable", ex);
         }
     }
 
-    private void persistForUser(String username, EmployeeDiscountAutomationCredentials credentials) {
-        Map<String, Object> payload = credentials.toStorageMap();
-        payload.put("updated_at_utc", OffsetDateTime.now(ZoneOffset.UTC).toString());
-        String json = writeJson(payload);
+    private Stored loadStoredPayload(PanelUserPrincipal principal) {
+        var rows = jdbcTemplate.queryForList(
+                "SELECT id, extra_json FROM settings_parameters WHERE param_type = ? AND value = ? AND is_deleted = FALSE ORDER BY id LIMIT 2",
+                PARAM_TYPE, Long.toString(principal.getUserId()));
+        if (rows.isEmpty()) return new Stored(null, null, Map.of());
+        if (rows.size() != 1 || !(rows.get(0).get("id") instanceof Number id) || id.longValue() <= 0) throw conflict();
+        Object raw = rows.get(0).get("extra_json");
+        if (!(raw instanceof String json) || !StringUtils.hasText(json)) throw conflict();
         try {
-            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                "SELECT id FROM settings_parameters WHERE param_type = ? AND lower(value) = lower(?) AND is_deleted = FALSE LIMIT 1",
-                PARAM_TYPE,
-                username.trim()
-            );
-            if (rows.isEmpty()) {
-                int inserted = jdbcTemplate.update(
-                    "INSERT INTO settings_parameters(param_type, value, state, is_deleted, extra_json) VALUES (?, ?, 'Активен', FALSE, ?)",
-                    PARAM_TYPE,
-                    username.trim(),
-                    json
-                );
-                if (inserted != 1) {
-                    throw new IllegalStateException("Employee discount credentials insert was not acknowledged by the database");
-                }
-            } else {
-                Number id = (Number) rows.get(0).get("id");
-                if (id == null) {
-                    throw new IllegalStateException("Employee discount credential row has no id");
-                }
-                int updated = jdbcTemplate.update(
-                    "UPDATE settings_parameters SET state = 'Активен', is_deleted = FALSE, deleted_at = NULL, extra_json = ? WHERE id = ?",
-                    json,
-                    id.longValue()
-                );
-                if (updated != 1) {
-                    throw new IllegalStateException("Employee discount credentials update was not acknowledged by the database");
-                }
-            }
-        } catch (DataAccessException ex) {
-            throw new IllegalStateException("Failed to persist employee discount credentials for current user", ex);
+            Map<String,Object> payload = objectMapper.readValue(json, new TypeReference<LinkedHashMap<String,Object>>() {});
+            if (payload == null) throw conflict();
+            return new Stored(id.longValue(), json, payload);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            throw conflict();
         }
     }
+
+    private void persistForUser(PanelUserPrincipal principal, Stored stored, EmployeeDiscountAutomationCredentials credentials) {
+        Map<String,Object> payload = credentials.toStorageMap();
+        payload.put("updated_at_utc", OffsetDateTime.now(ZoneOffset.UTC).toString());
+        String json = writeJson(payload);
+        String key = Long.toString(principal.getUserId());
+        int changed = stored.id() == null
+                ? jdbcTemplate.update("INSERT INTO settings_parameters(param_type, value, state, is_deleted, extra_json) VALUES (?, ?, 'Активен', FALSE, ?)",
+                        PARAM_TYPE, key, json)
+                : jdbcTemplate.update("UPDATE settings_parameters SET state = 'Активен', extra_json = ?"
+                        + " WHERE id = ? AND param_type = ? AND value = ? AND is_deleted = FALSE AND extra_json IS NOT DISTINCT FROM ?",
+                        json, stored.id(), PARAM_TYPE, key, stored.json());
+        if (changed != 1) throw conflict();
+    }
+
+    private ResponseStatusException conflict() {
+        return new ResponseStatusException(HttpStatus.CONFLICT, "Credential row is ambiguous, corrupt or changed");
+    }
+
+    private record Stored(Long id, String json, Map<String,Object> payload) {}
 
     private String writeJson(Map<String, Object> payload) {
         try {
@@ -374,7 +397,7 @@ public class EmployeeDiscountAutomationCredentialService {
 
         public Map<String, Object> toClientMap(String username) {
             Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("scope", username != null ? username.trim() : "");
+            payload.put("scope", username != null ? username : "");
             payload.put("bitrix24", bitrix24.toClientMap());
             payload.put("active_iiko_profile_url", activeIikoProfileUrl);
             payload.put("iiko_profiles", iikoProfiles.values().stream().map(profile -> profile.toClientMap(activeIikoProfileUrl)).toList());

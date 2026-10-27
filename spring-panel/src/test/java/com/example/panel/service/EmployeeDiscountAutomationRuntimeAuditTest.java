@@ -21,18 +21,20 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 class EmployeeDiscountAutomationRuntimeAuditTest {
+    private static final org.springframework.security.core.Authentication ALICE = org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated(
+        new com.example.panel.security.PanelUserPrincipal(7L,"alice","",true,List.of()),null,List.of());
 
     @Test
     void runIsPersistedBeforeBitrixDiscoveryAndDiscoveryFailureBecomesDurableError() {
         Fixture fixture = fixture(settings(77L));
-        when(fixture.bitrix24RestService.listTasksForGroup("alice", 77L))
+        when(fixture.bitrix24RestService.listTasksForGroup(ALICE, 77L))
             .thenThrow(new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Bitrix24 unavailable"));
 
-        Map<String, Object> result = fixture.service.run(false, "alice");
+        Map<String, Object> result = fixture.service.run(false, ALICE);
 
         InOrder order = inOrder(fixture.automationRunRepository, fixture.bitrix24RestService);
         order.verify(fixture.automationRunRepository).save(any(AutomationRun.class));
-        order.verify(fixture.bitrix24RestService).listTasksForGroup("alice", 77L);
+        order.verify(fixture.bitrix24RestService).listTasksForGroup(ALICE, 77L);
         assertThat(result.get("success")).isEqualTo(false);
         assertThat(runMap(result)).containsEntry("status", "error");
         assertThat(runMap(result)).containsEntry("summary", "success=0, error=1, skipped=0");
@@ -42,22 +44,22 @@ class EmployeeDiscountAutomationRuntimeAuditTest {
     @Test
     void executePersistsInFlightItemBeforeCallingExternalMutations() {
         Fixture fixture = fixture(settings(77L));
-        when(fixture.bitrix24RestService.listTasksForGroup("alice", 77L)).thenReturn(List.of(Map.of(
+        when(fixture.bitrix24RestService.listTasksForGroup(ALICE, 77L)).thenReturn(List.of(Map.of(
             "id", "101",
             "title", "Увольнение сотрудника",
             "description", "Тел. сотрудника: +7 (999) 123-45-67",
             "status", "2",
             "closed_date", ""
         )));
-        when(fixture.bitrix24RestService.listChecklistItems("alice", "101")).thenReturn(List.of(Map.of(
+        when(fixture.bitrix24RestService.listChecklistItems(ALICE, "101")).thenReturn(List.of(Map.of(
             "id", "501",
             "title", "отключение корпоративной скидки",
             "is_complete", false
         )));
-        when(fixture.iikoDirectoryService.disableCorporateDiscount("alice", "+79991234567"))
+        when(fixture.iikoDirectoryService.disableCorporateDiscount(ALICE, "+79991234567"))
             .thenReturn(new IikoDirectoryService.MutationResult(true, "done"));
 
-        Map<String, Object> result = fixture.service.run(false, "alice");
+        Map<String, Object> result = fixture.service.run(false, ALICE);
 
         InOrder order = inOrder(
             fixture.automationRunItemRepository,
@@ -65,28 +67,28 @@ class EmployeeDiscountAutomationRuntimeAuditTest {
             fixture.bitrix24RestService
         );
         order.verify(fixture.automationRunItemRepository).save(any(AutomationRunItem.class));
-        order.verify(fixture.iikoDirectoryService).disableCorporateDiscount("alice", "+79991234567");
-        order.verify(fixture.bitrix24RestService).completeChecklistItem("alice", "101", "501");
+        order.verify(fixture.iikoDirectoryService).disableCorporateDiscount(ALICE, "+79991234567");
+        order.verify(fixture.bitrix24RestService).completeChecklistItem(ALICE, "101", "501");
         assertThat(runMap(result)).containsEntry("status", "success");
     }
 
     @Test
     void deferredBitrixTaskRemainsEligibleBecauseStatusSixIsNotClosed() {
         Fixture fixture = fixture(settings(77L));
-        when(fixture.bitrix24RestService.listTasksForGroup("alice", 77L)).thenReturn(List.of(Map.of(
+        when(fixture.bitrix24RestService.listTasksForGroup(ALICE, 77L)).thenReturn(List.of(Map.of(
             "id", "606",
             "title", "Увольнение сотрудника",
             "description", "Тел. сотрудника: +7 (999) 123-45-67",
             "status", "6",
             "closed_date", ""
         )));
-        when(fixture.bitrix24RestService.listChecklistItems("alice", "606")).thenReturn(List.of(Map.of(
+        when(fixture.bitrix24RestService.listChecklistItems(ALICE, "606")).thenReturn(List.of(Map.of(
             "id", "506",
             "title", "отключение корпоративной скидки",
             "is_complete", false
         )));
 
-        Map<String, Object> result = fixture.service.run(true, "alice");
+        Map<String, Object> result = fixture.service.run(true, ALICE);
 
         assertThat(runMap(result)).containsEntry("status", "success");
         assertThat(result.toString()).contains("dry_run");
@@ -97,7 +99,7 @@ class EmployeeDiscountAutomationRuntimeAuditTest {
     void missingGroupConfigurationCannotProduceFalseSuccessfulExecute() {
         Fixture fixture = fixture(settings(null));
 
-        Map<String, Object> result = fixture.service.run(false, "alice");
+        Map<String, Object> result = fixture.service.run(false, ALICE);
 
         assertThat(result.get("success")).isEqualTo(false);
         assertThat(runMap(result)).containsEntry("status", "error");

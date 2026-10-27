@@ -18,6 +18,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
 
 class IikoDirectoryServiceTest {
+    private static final org.springframework.security.core.Authentication ALICE = org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated(
+        new com.example.panel.security.PanelUserPrincipal(7L,"alice","",true,List.of()),null,List.of());
 
     @Test
     void emptyCategorySnapshotIsTreatedAsAlreadyRemovedOnReplay() throws Exception {
@@ -31,7 +33,7 @@ class IikoDirectoryServiceTest {
         try {
             IikoDirectoryService service = serviceFor(server, List.of("cat-1"));
 
-            IikoDirectoryService.MutationResult result = service.disableCorporateDiscount("alice", "+79991234567");
+            IikoDirectoryService.MutationResult result = service.disableCorporateDiscount(ALICE, "+79991234567");
 
             assertThat(result.success()).isTrue();
             assertThat(result.message()).contains("категория cat-1 уже отсутствует");
@@ -53,7 +55,7 @@ class IikoDirectoryServiceTest {
         try {
             IikoDirectoryService service = serviceFor(server, List.of("cat-1"));
 
-            IikoDirectoryService.MutationResult result = service.disableCorporateDiscount("alice", "+79991234567");
+            IikoDirectoryService.MutationResult result = service.disableCorporateDiscount(ALICE, "+79991234567");
 
             assertThat(result.success()).isTrue();
             assertThat(result.message()).contains("категория cat-1 уже отсутствует");
@@ -75,7 +77,7 @@ class IikoDirectoryServiceTest {
         try {
             IikoDirectoryService service = serviceFor(server, List.of("cat-1"));
 
-            assertThatThrownBy(() -> service.disableCorporateDiscount("alice", "+79991234567"))
+            assertThatThrownBy(() -> service.disableCorporateDiscount(ALICE, "+79991234567"))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("Permission denied");
             assertThat(removeCalls.get()).isEqualTo(1);
@@ -120,7 +122,7 @@ class IikoDirectoryServiceTest {
             categoryIds,
             List.of()
         );
-        when(credentials.loadActiveIikoProfile("alice")).thenReturn(profile);
+        when(credentials.loadActiveIikoProfile(ALICE)).thenReturn(profile);
         return new IikoDirectoryService(credentials, new ObjectMapper());
     }
 

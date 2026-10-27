@@ -14,6 +14,13 @@ import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 class EmployeeDiscountAutomationCredentialServiceTest {
+    private static final org.springframework.security.core.Authentication ALICE = org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated(
+        new com.example.panel.security.PanelUserPrincipal(7L,"alice","",true,List.of()),null,List.of());
+    private javax.sql.DataSource transactionDataSource() throws Exception {
+        var ds=org.mockito.Mockito.mock(javax.sql.DataSource.class);var connection=org.mockito.Mockito.mock(java.sql.Connection.class);
+        org.mockito.Mockito.when(ds.getConnection()).thenReturn(connection);org.mockito.Mockito.when(connection.getAutoCommit()).thenReturn(true);return ds;
+    }
+
 
     @Test
     void postgresqlBooleanContractPersistsLoadsAndAllowsClearingAllSelections() throws Exception {
@@ -22,7 +29,7 @@ class EmployeeDiscountAutomationCredentialServiceTest {
         EmployeeDiscountAutomationCredentialService service =
             new EmployeeDiscountAutomationCredentialService(jdbcTemplate, objectMapper);
 
-        service.saveForUser("alice", Map.of(
+        service.saveForUser(ALICE, Map.of(
             "bitrix24", Map.of(
                 "portal_url", "https://portal.example",
                 "webhook_url", "https://portal.example/rest/1/secret-webhook"
@@ -38,7 +45,7 @@ class EmployeeDiscountAutomationCredentialServiceTest {
             "select_profile_url", "https://iiko.example"
         ));
 
-        Map<String, Object> clientView = service.loadClientView("alice");
+        Map<String, Object> clientView = service.loadClientView(ALICE);
         assertThat(clientView.toString())
             .doesNotContain("secret-webhook")
             .doesNotContain("secret-iiko")
@@ -47,7 +54,7 @@ class EmployeeDiscountAutomationCredentialServiceTest {
             .contains("cat-1")
             .contains("wallet-1");
 
-        service.saveForUser("alice", Map.of(
+        service.saveForUser(ALICE, Map.of(
             "iiko_profile", Map.of(
                 "base_url", "https://iiko.example",
                 "api_secret", "",
@@ -57,7 +64,7 @@ class EmployeeDiscountAutomationCredentialServiceTest {
             "select_profile_url", "https://iiko.example"
         ));
 
-        Map<String, Object> clearedView = service.loadClientView("alice");
+        Map<String, Object> clearedView = service.loadClientView(ALICE);
         assertThat(clearedView.toString())
             .contains("api_secret_saved=true")
             .contains("selected_discount_category_ids=[]")
@@ -69,16 +76,16 @@ class EmployeeDiscountAutomationCredentialServiceTest {
         String storedJson = jdbcTemplate.queryForObject(
             "SELECT extra_json FROM settings_parameters WHERE param_type = ? AND value = ? AND is_deleted = FALSE",
             String.class,
-            "employee_discount_automation_credentials.v1",
-            "alice"
+            "employee_discount_automation_credentials.account.v2",
+            "7"
         );
         Map<String, Object> stored = objectMapper.readValue(storedJson, new TypeReference<LinkedHashMap<String, Object>>() {});
         assertThat(stored.toString()).contains("secret-webhook").contains("secret-iiko");
     }
 
     @Test
-    void loadFailsClosedWhenCredentialStoreIsUnavailable() {
-        JdbcTemplate jdbcTemplate = new JdbcTemplate() {
+    void loadFailsClosedWhenCredentialStoreIsUnavailable() throws Exception {
+        JdbcTemplate jdbcTemplate = new JdbcTemplate(transactionDataSource()) {
             @Override
             public List<Map<String, Object>> queryForList(String sql, Object... args) {
                 throw new DataAccessResourceFailureException("database unavailable");
@@ -87,16 +94,17 @@ class EmployeeDiscountAutomationCredentialServiceTest {
         EmployeeDiscountAutomationCredentialService service =
             new EmployeeDiscountAutomationCredentialService(jdbcTemplate, new ObjectMapper());
 
-        assertThatThrownBy(() -> service.loadForUser("alice"))
-            .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("Failed to load employee discount credentials");
+        assertThatThrownBy(() -> service.loadForUser(ALICE))
+            .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+            .hasMessageContaining("Credential storage is unavailable");
     }
 
     @Test
-    void saveFailsClosedWhenDatabaseWriteIsNotPersisted() {
-        JdbcTemplate jdbcTemplate = new JdbcTemplate() {
+    void saveFailsClosedWhenDatabaseWriteIsNotPersisted() throws Exception {
+        JdbcTemplate jdbcTemplate = new JdbcTemplate(transactionDataSource()) {
             @Override
             public List<Map<String, Object>> queryForList(String sql, Object... args) {
+                if (sql.contains("FROM users")) return List.of(Map.of("id",7L,"username","alice","enabled",true,"is_blocked",false));
                 return List.of();
             }
 
@@ -108,14 +116,14 @@ class EmployeeDiscountAutomationCredentialServiceTest {
         EmployeeDiscountAutomationCredentialService service =
             new EmployeeDiscountAutomationCredentialService(jdbcTemplate, new ObjectMapper());
 
-        assertThatThrownBy(() -> service.saveForUser("alice", Map.of(
+        assertThatThrownBy(() -> service.saveForUser(ALICE, Map.of(
             "bitrix24", Map.of(
                 "portal_url", "https://portal.example",
                 "webhook_url", "https://portal.example/rest/1/secret-token"
             )
         )))
-            .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("Failed to persist employee discount credentials");
+            .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+            .hasMessageContaining("Credential storage is unavailable");
     }
 
     private JdbcTemplate postgresqlModeJdbcTemplate() {
@@ -133,6 +141,8 @@ class EmployeeDiscountAutomationCredentialServiceTest {
                 UNIQUE(param_type, value)
             )
             """);
+        jdbcTemplate.execute("CREATE TABLE users(id BIGINT PRIMARY KEY,username TEXT,enabled BOOLEAN,is_blocked BOOLEAN)");
+        jdbcTemplate.update("INSERT INTO users VALUES(7,'alice',TRUE,FALSE)");
         return jdbcTemplate;
     }
 }

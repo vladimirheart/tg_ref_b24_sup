@@ -102,9 +102,9 @@ class CredentialRotationRegistryServiceTest {
         iikoApiMonitor.setApiLogin("monitor-token");
         when(iikoApiMonitorRepository.findAllByOrderByMonitorNameAscIdAsc()).thenReturn(List.of(iikoApiMonitor));
 
-        when(jdbcTemplate.queryForList(any(String.class), eq("employee_discount_automation_credentials.v1"))).thenReturn(List.of(
+        when(jdbcTemplate.queryForList(any(String.class), eq("employee_discount_automation_credentials.account.v2"))).thenReturn(List.of(
             Map.of(
-                "value", "ops.lead",
+                "value", "7",
                 "extra_json", """
                     {
                       "bitrix24": {"portal_url":"https://portal.example.test","webhook_url":"https://portal.example.test/rest/1/secret"},
@@ -163,8 +163,8 @@ class CredentialRotationRegistryServiceTest {
                 "channel.77.vk.confirmation_token",
                 "channel.77.vk.webhook_secret",
                 "monitoring.iiko_api_monitors.5",
-                "employee-discount.ops.lead.bitrix24.webhook_url",
-                "employee-discount.ops.lead.iiko.https-iiko.example.test.api_secret"
+                "employee-discount.account-7.bitrix24.webhook_url",
+                "employee-discount.account-7.iiko.5e71ffd9d6edf2b1c639f95c8604d3eb16c33de7c1f6ae8a5290384ef7cb7e91.api_secret"
             );
 
         CredentialRotationRegistryEntry netBoxEntry = snapshot.items().stream()
@@ -199,7 +199,7 @@ class CredentialRotationRegistryServiceTest {
         when(channelRepository.findAll()).thenReturn(List.of());
         when(iikoApiMonitorRepository.findAllByOrderByMonitorNameAscIdAsc()).thenReturn(List.of());
         when(locationsService.loadForRuntime(Map.of())).thenReturn(List.of());
-        when(jdbcTemplate.queryForList(any(String.class), eq("employee_discount_automation_credentials.v1"))).thenReturn(List.of());
+        when(jdbcTemplate.queryForList(any(String.class), eq("employee_discount_automation_credentials.account.v2"))).thenReturn(List.of());
         when(environment.getProperty("app.bots.internal-api.token", "iguana-internal-bot-token")).thenReturn("");
         when(environment.getProperty("app.bots.internal-api.signature-secret", "")).thenReturn("");
         securityProperties.setRememberMeKey("");
@@ -294,7 +294,7 @@ class CredentialRotationRegistryServiceTest {
             false,
             List.of("site-1")
         ));
-        when(jdbcTemplate.queryForList(any(String.class), eq("employee_discount_automation_credentials.v1"))).thenReturn(List.of());
+        when(jdbcTemplate.queryForList(any(String.class), eq("employee_discount_automation_credentials.account.v2"))).thenReturn(List.of());
         when(environment.getProperty("app.bots.internal-api.token", "iguana-internal-bot-token")).thenReturn("");
         when(environment.getProperty("app.bots.internal-api.signature-secret", "")).thenReturn("");
         securityProperties.setRememberMeKey("");
@@ -392,7 +392,7 @@ class CredentialRotationRegistryServiceTest {
             false,
             List.of("site-1")
         ));
-        when(jdbcTemplate.queryForList(any(String.class), eq("employee_discount_automation_credentials.v1"))).thenReturn(List.of());
+        when(jdbcTemplate.queryForList(any(String.class), eq("employee_discount_automation_credentials.account.v2"))).thenReturn(List.of());
         when(environment.getProperty("app.bots.internal-api.token", "iguana-internal-bot-token")).thenReturn("internal-token");
         when(environment.getProperty("app.bots.internal-api.signature-secret", "")).thenReturn("");
         securityProperties.setRememberMeKey("remember-me-secret");
@@ -626,7 +626,7 @@ class CredentialRotationRegistryServiceTest {
         ));
         when(locationsService.loadForRuntime(settings)).thenReturn(List.of());
         when(iikoApiMonitorRepository.findAllByOrderByMonitorNameAscIdAsc()).thenReturn(List.of());
-        when(jdbcTemplate.queryForList(any(String.class), eq("employee_discount_automation_credentials.v1"))).thenReturn(List.of());
+        when(jdbcTemplate.queryForList(any(String.class), eq("employee_discount_automation_credentials.account.v2"))).thenReturn(List.of());
         when(environment.getProperty("app.bots.internal-api.token", "iguana-internal-bot-token")).thenReturn("");
         when(environment.getProperty("app.bots.internal-api.signature-secret", "")).thenReturn("");
         securityProperties.setRememberMeKey("");

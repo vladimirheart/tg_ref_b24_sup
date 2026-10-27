@@ -23,6 +23,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
 
 class Bitrix24RestServiceTest {
+    private static final org.springframework.security.core.Authentication ALICE = org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated(
+        new com.example.panel.security.PanelUserPrincipal(7L,"alice","",true,List.of()),null,List.of());
 
     @Test
     void taskDiscoveryFollowsBitrixPagination() throws Exception {
@@ -54,9 +56,9 @@ class Bitrix24RestServiceTest {
         });
         server.start();
         try {
-            Bitrix24RestService service = serviceFor(server, "alice");
+            Bitrix24RestService service = serviceFor(server, ALICE);
 
-            List<Map<String, Object>> tasks = service.listTasksForGroup("alice", 77L);
+            List<Map<String, Object>> tasks = service.listTasksForGroup(ALICE, 77L);
 
             assertThat(tasks).extracting(item -> item.get("id")).containsExactly("101", "202");
             assertThat(listCalls.get()).isEqualTo(2);
@@ -83,9 +85,9 @@ class Bitrix24RestServiceTest {
         });
         server.start();
         try {
-            Bitrix24RestService service = serviceFor(server, "alice");
+            Bitrix24RestService service = serviceFor(server, ALICE);
 
-            List<Map<String, Object>> groups = service.listWorkgroups("alice", "Увольнение", 10);
+            List<Map<String, Object>> groups = service.listWorkgroups(ALICE, "Увольнение", 10);
 
             assertThat(groups).extracting(item -> item.get("id")).containsExactly("7", "8");
             assertThat(starts).containsExactly(0, 50);
@@ -104,9 +106,9 @@ class Bitrix24RestServiceTest {
         });
         server.start();
         try {
-            Bitrix24RestService service = serviceFor(server, "alice");
+            Bitrix24RestService service = serviceFor(server, ALICE);
 
-            service.completeChecklistItem("alice", "101", "501");
+            service.completeChecklistItem(ALICE, "101", "501");
 
             assertThat(bodies).containsExactly("0=101&1=501");
         } finally {
@@ -120,9 +122,9 @@ class Bitrix24RestServiceTest {
         server.createContext("/rest/1/token/", exchange -> sendJson(exchange, 200, "{\"result\":false}"));
         server.start();
         try {
-            Bitrix24RestService service = serviceFor(server, "alice");
+            Bitrix24RestService service = serviceFor(server, ALICE);
 
-            assertThatThrownBy(() -> service.completeChecklistItem("alice", "101", "501"))
+            assertThatThrownBy(() -> service.completeChecklistItem(ALICE, "101", "501"))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("did not confirm checklist completion");
         } finally {
@@ -130,7 +132,7 @@ class Bitrix24RestServiceTest {
         }
     }
 
-    private Bitrix24RestService serviceFor(HttpServer server, String username) {
+    private Bitrix24RestService serviceFor(HttpServer server, org.springframework.security.core.Authentication username) {
         EmployeeDiscountAutomationCredentialService credentials = mock(EmployeeDiscountAutomationCredentialService.class);
         String webhook = "http://127.0.0.1:" + server.getAddress().getPort() + "/rest/1/token/";
         EmployeeDiscountAutomationCredentials stored = new EmployeeDiscountAutomationCredentials(

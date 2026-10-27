@@ -24,13 +24,33 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальная сводка R195 имеют
+что production уже запускался. Эта оговорка и актуальная сводка R196 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R195 (2026-10-27): personal UI/triage preferences
+Актуальное уточнение R196 (2026-10-27): личные automation credentials
+Bitrix24/iiko используют bound Authentication и canonical numeric account ID в
+employee_discount_automation_credentials.account.v2; нет trim/lower(name),
+v1 fallback или импорта тестовых данных. Account guard/row locks и REQUIRES_NEW
+охватывают read/merge/write; CAS/affected count защищают update, duplicate/corrupt
+rows дают 409, SQL/transaction failures — 503. Все credential callers передают
+Authentication; generic settings CRUD/list/model закрывает namespace даже admin.
+Registry keys используют account ID + SHA-256 URL-key, не lossy name/profile slug.
+31 suites / 862 tests GREEN; 56 frozen cases: baseline v6 53 failures / 3 controls /
+0 errors, те же bytes GREEN. Stateful JDBC/transaction и loopback HTTP adapters
+не доказывают PostgreSQL locking/rollback или live/fleet acceptance.
+Текущая машина — C:\Users\sushi\Git_H\tg_ref_b24_sup, source/test checkout.
+Стенд/Docker — на другой машине C:\Users\SinicinVV\git_h\tg_ref_b24_sup;
+здесь daemon недоступен. R195 runtime probe — исторический факт другой сессии.
+R185–R196 не развёртывались отсюда, рабочие данные/БД/роли/config/providers,
+checkpoint/rollback R184 не менялись. Следующие конкретные проверки — отдельный
+PostgreSQL для credentials и ID-bound automation history (ещё ActorIgnoreCase).
+Остальные S3–S6/policy/AI/bots/fleet gates открыты; historical S2B не возвращается.
+Статус — 🟡.
+
+Историческое уточнение R195 (2026-10-27): personal UI/triage preferences
 получают Authentication и хранятся по positive numeric ID в
 ui_preferences.account.v2, без trim/lower(name) и legacy auto-import.
 Account ID/exact raw username/status проверяются под row lock; транзакционные

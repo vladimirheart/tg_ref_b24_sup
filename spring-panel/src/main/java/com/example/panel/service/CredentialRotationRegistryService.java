@@ -69,7 +69,7 @@ public class CredentialRotationRegistryService {
     private static final int[] WARNING_HORIZONS_DAYS = {30, 14, 7};
     private static final String DEFAULT_INTERNAL_BOT_API_TOKEN = "iguana-internal-bot-token";
     private static final String DEFAULT_REMEMBER_ME_KEY = "iguana-panel-remember-me";
-    private static final String AUTOMATION_PARAM_TYPE = "employee_discount_automation_credentials.v1";
+    private static final String AUTOMATION_PARAM_TYPE = EmployeeDiscountAutomationCredentialService.PARAM_TYPE;
     private static final String INCIDENT_SOURCE = "credential_rotation_registry";
     private static final String INCIDENT_ACTOR = "system";
     private static final int INCIDENT_CONTEXT_VERSION = 1;
@@ -511,10 +511,13 @@ public class CredentialRotationRegistryService {
             """,
             AUTOMATION_PARAM_TYPE
         );
+        Map<String,Long> counts = rows.stream().collect(java.util.stream.Collectors.groupingBy(
+                row -> Objects.toString(row.get("value"), ""), java.util.stream.Collectors.counting()));
         for (Map<String, Object> row : rows) {
-            String username = normalizeOptional(row.get("value"));
+            String accountId = Objects.toString(row.get("value"), "");
+            if (!canonicalAccountId(accountId) || counts.get(accountId) != 1L) continue;
             Map<String, Object> payload = parseJsonMap(Objects.toString(row.get("extra_json"), ""));
-            if (!StringUtils.hasText(username) || payload.isEmpty()) {
+            if (payload == null || payload.isEmpty()) {
                 continue;
             }
 
@@ -523,12 +526,12 @@ public class CredentialRotationRegistryService {
             String webhookUrl = readString(bitrix24, "webhook_url", "webhookUrl");
             if (StringUtils.hasText(portalUrl) || StringUtils.hasText(webhookUrl)) {
                 register(target, new DiscoveredCredential(
-                    "employee-discount." + slug(username) + ".bitrix24.webhook_url",
+                    "employee-discount.account-" + accountId + ".bitrix24.webhook_url",
                     "bitrix24",
                     "webhook_url",
-                    "Bitrix24 webhook · " + username,
+                    "Bitrix24 webhook · account #" + accountId,
                     "settings_parameters",
-                    "settings_parameters.employee_discount_automation_credentials.v1[" + username + "].bitrix24.webhook_url",
+                    "settings_parameters." + AUTOMATION_PARAM_TYPE + "[" + accountId + "].bitrix24.webhook_url",
                     StringUtils.hasText(webhookUrl)
                 ));
             }
@@ -538,20 +541,39 @@ public class CredentialRotationRegistryService {
                 Map<String, Object> profile = mapValue(profileEntry.getValue());
                 String baseUrl = readString(profile, "base_url", "baseUrl");
                 String apiSecret = readString(profile, "api_secret", "apiSecret", "password");
-                String profileKey = slug(defaultIfBlank(baseUrl, profileEntry.getKey()));
+                String profileKey = automationProfileKey(profileEntry.getKey());
                 if (!StringUtils.hasText(baseUrl) && !StringUtils.hasText(apiSecret)) {
                     continue;
                 }
                 register(target, new DiscoveredCredential(
-                    "employee-discount." + slug(username) + ".iiko." + profileKey + ".api_secret",
+                    "employee-discount.account-" + accountId + ".iiko." + profileKey + ".api_secret",
                     "iiko",
                     "api_secret",
-                    "iiko profile secret · " + username + " · " + defaultIfBlank(baseUrl, profileEntry.getKey()),
+                    "iiko profile secret · account #" + accountId + " · " + defaultIfBlank(baseUrl, profileEntry.getKey()),
                     "settings_parameters",
-                    "settings_parameters.employee_discount_automation_credentials.v1[" + username + "].iiko_profiles[" + profileEntry.getKey() + "].api_secret",
+                    "settings_parameters." + AUTOMATION_PARAM_TYPE + "[" + accountId + "].iiko_profiles[" + profileEntry.getKey() + "].api_secret",
                     StringUtils.hasText(apiSecret)
                 ));
             }
+        }
+    }
+
+    private boolean canonicalAccountId(String value) {
+        try {
+            long id = Long.parseLong(value);
+            return id > 0 && Long.toString(id).equals(value);
+        } catch (NumberFormatException ex) {
+            return false;
+        }
+    }
+
+    private String automationProfileKey(String value) {
+        try {
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(digest);
+        } catch (java.security.NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 is unavailable", ex);
         }
     }
 

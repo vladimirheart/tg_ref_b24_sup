@@ -240,3 +240,30 @@ activity touch, тогда как ошибка самого touch остаётс
 recipient/business policy и не исправление остальных username-based consumers.
 Real filter/security/remember-me проверены MockMvc с mocked JDBC; working DB,
 браузер и fleet здесь не проверялись.
+
+## Личные automation credentials по ID — R196
+
+EmployeeDiscountAutomationCredentialService принимает authenticated
+PanelUserPrincipal с positive numeric ID, exact raw username и допустимым status.
+Storage: settings_parameters, employee_discount_automation_credentials.account.v2,
+value = canonical decimal Long ID. Username не ключ; нет trim/lower lookup,
+fallback/auto-import из v1. Новые/reused-name accounts не наследуют чужие секреты.
+Старые тестовые данные оставлены; новые credentials сохраняются заново согласно R190.
+
+Account ID/exact username/enabled/not blocked проверяются под FOR SHARE при read
+и FOR UPDATE при write, в REQUIRES_NEW read/merge/write transaction. Cooperating
+writers сериализуются по account row. UPDATE сравнивает исходный JSON, row ID,
+type/key/active status и affected count. Ambiguous/corrupt/changed storage — 409;
+SQL/transaction infrastructure failures — 503. Merge и secret masking сохранены.
+
+Credential API, orchestration и provider adapters передают Authentication, не
+строковый actor. Весь employee_discount_automation_credentials.* зарезервирован
+от generic settings CRUD/list и page model, в том числе admin; ui_preferences.*
+защита сохраняется. Registry читает v2 canonical numeric keys без duplicate choice,
+entry keys включают account ID, SHA-256 полного iiko URL-key; секреты не выдаются.
+
+Run audit display/history пока name-based: ActorIgnoreCase/trim остаются отдельным
+подтверждённым identity gap. Shared automation settings и global/business policy
+этим шагом не изменены. Schema/migrations/grants/serialized principal не меняются.
+Проверены real security и loopback HTTP с isolated stateful JDBC/transaction adapters;
+настоящие PostgreSQL locking/concurrency/rollback и runtime acceptance ещё нужны.

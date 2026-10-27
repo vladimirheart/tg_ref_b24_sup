@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import org.springframework.security.core.Authentication;
+
 import com.example.panel.service.EmployeeDiscountAutomationCredentialService.IikoProfile;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,8 +47,8 @@ public class IikoDirectoryService {
             .build();
     }
 
-    public List<Map<String, Object>> loadOrganizations(String username) {
-        IikoProfile profile = requireActiveProfile(username);
+    public List<Map<String, Object>> loadOrganizations(Authentication authentication) {
+        IikoProfile profile = requireActiveProfile(authentication);
         String accessToken = requestAccessToken(profile);
         JsonNode root = executeGet(buildApiUrl(profile.baseUrl(), "/api/0/organization/list", Map.of(
             "access_token", accessToken
@@ -68,8 +70,8 @@ public class IikoDirectoryService {
         return items;
     }
 
-    public List<Map<String, Object>> loadCategories(String username) {
-        IikoProfile profile = requireProfileWithOrganization(username);
+    public List<Map<String, Object>> loadCategories(Authentication authentication) {
+        IikoProfile profile = requireProfileWithOrganization(authentication);
         String accessToken = requestAccessToken(profile);
         JsonNode root = executeGet(buildApiUrl(profile.baseUrl(),
             "/api/0/organization/" + encodePath(profile.organizationId()) + "/guest_categories",
@@ -93,8 +95,8 @@ public class IikoDirectoryService {
         return items;
     }
 
-    public List<Map<String, Object>> loadWallets(String username) {
-        IikoProfile profile = requireProfileWithOrganization(username);
+    public List<Map<String, Object>> loadWallets(Authentication authentication) {
+        IikoProfile profile = requireProfileWithOrganization(authentication);
         String accessToken = requestAccessToken(profile);
         JsonNode root = executeGet(buildApiUrl(profile.baseUrl(),
             "/api/0/organization/" + encodePath(profile.organizationId()) + "/corporate_nutritions",
@@ -123,8 +125,8 @@ public class IikoDirectoryService {
         return items;
     }
 
-    public MutationResult disableCorporateDiscount(String username, String phone) {
-        IikoProfile profile = requireProfileWithOrganization(username);
+    public MutationResult disableCorporateDiscount(Authentication authentication, String phone) {
+        IikoProfile profile = requireProfileWithOrganization(authentication);
         if (profile.selectedDiscountCategoryIds().isEmpty() && profile.selectedWalletIds().isEmpty()) {
             return new MutationResult(false, "Для активного URL-профиля не выбраны категории и кошельки для удаления.");
         }
@@ -209,8 +211,8 @@ public class IikoDirectoryService {
         return new MutationResult(true, message.toString());
     }
 
-    public Map<String, Object> loadStatus(String username) {
-        IikoProfile profile = credentialService.loadActiveIikoProfile(username);
+    public Map<String, Object> loadStatus(Authentication authentication) {
+        IikoProfile profile = credentialService.loadActiveIikoProfile(authentication);
         Map<String, Object> status = new LinkedHashMap<>();
         status.put("configured", profile != null && StringUtils.hasText(profile.baseUrl()));
         status.put("active_profile_url", profile != null ? profile.baseUrl() : "");
@@ -238,16 +240,16 @@ public class IikoDirectoryService {
         return unwrapResult(root);
     }
 
-    private IikoProfile requireActiveProfile(String username) {
-        IikoProfile profile = credentialService.loadActiveIikoProfile(username);
+    private IikoProfile requireActiveProfile(Authentication authentication) {
+        IikoProfile profile = credentialService.loadActiveIikoProfile(authentication);
         if (profile == null || !StringUtils.hasText(profile.baseUrl())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Сначала сохраните активный iiko URL-профиль.");
         }
         return profile;
     }
 
-    private IikoProfile requireProfileWithOrganization(String username) {
-        IikoProfile profile = requireActiveProfile(username);
+    private IikoProfile requireProfileWithOrganization(Authentication authentication) {
+        IikoProfile profile = requireActiveProfile(authentication);
         if (!StringUtils.hasText(profile.organizationId())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Для активного iiko URL-профиля сначала выберите organization id.");
         }

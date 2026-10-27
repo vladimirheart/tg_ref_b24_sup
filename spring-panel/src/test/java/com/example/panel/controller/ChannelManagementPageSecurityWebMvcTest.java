@@ -106,7 +106,9 @@ class ChannelManagementPageSecurityWebMvcTest {
         var owned = new com.example.panel.entity.SettingsParameter(); owned.setParamType("ui_preferences.account.v2");
         var legacy = new com.example.panel.entity.SettingsParameter(); legacy.setParamType("ui_preferences.v1");
         var ordinary = new com.example.panel.entity.SettingsParameter(); ordinary.setParamType("role");
-        when(parameters.findAll()).thenReturn(List.of(owned, legacy, ordinary));
+        var automation = new com.example.panel.entity.SettingsParameter(); automation.setParamType("employee_discount_automation_credentials.account.v2");
+        var legacyAutomation = new com.example.panel.entity.SettingsParameter(); legacyAutomation.setParamType("employee_discount_automation_credentials.v1");
+        when(parameters.findAll()).thenReturn(List.of(owned, legacy, automation, legacyAutomation, ordinary));
         mvc.perform(get("/settings").with(user("system").authorities(authorities("ROLE_ADMIN","PAGE_SETTINGS"))))
             .andExpect(status().isOk()).andExpect(model().attribute("systemParameters", List.of(ordinary)));
     }

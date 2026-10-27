@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import org.springframework.security.core.Authentication;
+
 import com.example.panel.entity.AutomationRun;
 import com.example.panel.entity.AutomationRunItem;
 import com.example.panel.repository.AutomationRunItemRepository;
@@ -47,12 +49,12 @@ public class EmployeeDiscountAutomationService {
         this.automationRunItemRepository = automationRunItemRepository;
     }
 
-    public Map<String, Object> loadStatus(String username) {
+    public Map<String, Object> loadStatus(Authentication authentication) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("settings", settingsService.load().toMap());
-        payload.put("credentials", credentialService.loadClientView(username));
-        payload.put("bitrix_connection", bitrix24RestService.loadConnectionStatus(username));
-        payload.put("iiko_connection", iikoDirectoryService.loadStatus(username));
+        payload.put("credentials", credentialService.loadClientView(authentication));
+        payload.put("bitrix_connection", bitrix24RestService.loadConnectionStatus(authentication));
+        payload.put("iiko_connection", iikoDirectoryService.loadStatus(authentication));
         return payload;
     }
 
@@ -60,32 +62,32 @@ public class EmployeeDiscountAutomationService {
         return settingsService.save(payload != null ? payload : Map.of());
     }
 
-    public Map<String, Object> saveCredentials(String username, Map<String, Object> payload) {
-        return credentialService.saveForUser(username, payload != null ? payload : Map.of()).toClientMap(username);
+    public Map<String, Object> saveCredentials(Authentication authentication, Map<String, Object> payload) {
+        return credentialService.saveForUser(authentication, payload != null ? payload : Map.of()).toClientMap(EmployeeDiscountAutomationCredentialService.requirePrincipal(authentication).getUsername());
     }
 
-    public List<Map<String, Object>> listBitrixGroups(String username, String query, Integer limit) {
-        return bitrix24RestService.listWorkgroups(username, query, limit != null ? limit : 25);
+    public List<Map<String, Object>> listBitrixGroups(Authentication authentication, String query, Integer limit) {
+        return bitrix24RestService.listWorkgroups(authentication, query, limit != null ? limit : 25);
     }
 
-    public List<Map<String, Object>> loadIikoOrganizations(String username) {
-        return iikoDirectoryService.loadOrganizations(username);
+    public List<Map<String, Object>> loadIikoOrganizations(Authentication authentication) {
+        return iikoDirectoryService.loadOrganizations(authentication);
     }
 
-    public List<Map<String, Object>> loadIikoCategories(String username) {
-        return iikoDirectoryService.loadCategories(username);
+    public List<Map<String, Object>> loadIikoCategories(Authentication authentication) {
+        return iikoDirectoryService.loadCategories(authentication);
     }
 
-    public List<Map<String, Object>> loadIikoWallets(String username) {
-        return iikoDirectoryService.loadWallets(username);
+    public List<Map<String, Object>> loadIikoWallets(Authentication authentication) {
+        return iikoDirectoryService.loadWallets(authentication);
     }
 
-    public Map<String, Object> previewSelection(String username) {
+    public Map<String, Object> previewSelection(Authentication authentication) {
         EmployeeDiscountAutomationSettings settings = settingsService.load();
         if (settings.bitrixGroupId() == null || settings.bitrixGroupId() <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Сначала задайте bitrix_group_id в настройках автоматизации.");
         }
-        List<CandidateTask> candidates = collectCandidates(username, settings);
+        List<CandidateTask> candidates = collectCandidates(authentication, settings);
         return Map.of(
             "success", true,
             "group_id", settings.bitrixGroupId(),
@@ -93,12 +95,12 @@ public class EmployeeDiscountAutomationService {
         );
     }
 
-    public Map<String, Object> run(Boolean dryRunRequested, String actor) {
-        return run(dryRunRequested, actor, null);
+    public Map<String, Object> run(Boolean dryRunRequested, Authentication authentication) {
+        return run(dryRunRequested, authentication, null);
     }
 
-    public Map<String, Object> run(Boolean dryRunRequested, String actor, List<String> selectedTaskIds) {
-        String effectiveActor = requireActor(actor);
+    public Map<String, Object> run(Boolean dryRunRequested, Authentication authentication, List<String> selectedTaskIds) {
+        String effectiveActor = EmployeeDiscountAutomationCredentialService.requirePrincipal(authentication).getUsername();
         EmployeeDiscountAutomationSettings settings = settingsService.load();
         Set<String> requestedTaskIds = selectedTaskIds != null ? normalizeTaskIds(selectedTaskIds) : null;
         boolean dryRun = dryRunRequested != null ? dryRunRequested : settings.dryRunByDefault();
@@ -119,7 +121,7 @@ public class EmployeeDiscountAutomationService {
 
         List<CandidateTask> candidates;
         try {
-            candidates = collectCandidates(effectiveActor, settings);
+            candidates = collectCandidates(authentication, settings);
         } catch (Exception ex) {
             return failRun(run, "Bitrix24 discovery", integrationErrorMessage(ex, "Не удалось загрузить задачи Bitrix24."));
         }
@@ -194,7 +196,7 @@ public class EmployeeDiscountAutomationService {
                 candidate.checklistItemId()
             );
             try {
-                IikoDirectoryService.MutationResult iikoResult = iikoDirectoryService.disableCorporateDiscount(effectiveActor, candidate.phone());
+                IikoDirectoryService.MutationResult iikoResult = iikoDirectoryService.disableCorporateDiscount(authentication, candidate.phone());
                 if (!iikoResult.success()) {
                     errorCount++;
                     updateRunItem(pendingItem, "error", iikoResult.message());
@@ -202,7 +204,7 @@ public class EmployeeDiscountAutomationService {
                     continue;
                 }
 
-                bitrix24RestService.completeChecklistItem(effectiveActor, candidate.taskId(), candidate.checklistItemId());
+                bitrix24RestService.completeChecklistItem(authentication, candidate.taskId(), candidate.checklistItemId());
                 successCount++;
                 String message = "Чеклист Bitrix24 отмечен после успешной обработки iiko.";
                 updateRunItem(pendingItem, "success", message);
@@ -260,8 +262,8 @@ public class EmployeeDiscountAutomationService {
         );
     }
 
-    private List<CandidateTask> collectCandidates(String username, EmployeeDiscountAutomationSettings settings) {
-        List<Map<String, Object>> tasks = bitrix24RestService.listTasksForGroup(username, settings.bitrixGroupId());
+    private List<CandidateTask> collectCandidates(Authentication authentication, EmployeeDiscountAutomationSettings settings) {
+        List<Map<String, Object>> tasks = bitrix24RestService.listTasksForGroup(authentication, settings.bitrixGroupId());
         List<CandidateTask> candidates = new ArrayList<>();
         Pattern phonePattern = compilePattern(settings.phoneRegex());
         for (Map<String, Object> task : tasks) {
@@ -277,7 +279,7 @@ public class EmployeeDiscountAutomationService {
                 candidates.add(new CandidateTask(taskId, title, "", "", "skipped", "Задача не попала под фильтр title markers."));
                 continue;
             }
-            List<Map<String, Object>> checklistItems = bitrix24RestService.listChecklistItems(username, taskId);
+            List<Map<String, Object>> checklistItems = bitrix24RestService.listChecklistItems(authentication, taskId);
             ChecklistMatch checklist = findChecklistItem(checklistItems, settings.checklistLabels());
             if (checklist == null) {
                 candidates.add(new CandidateTask(taskId, title, "", "", "skipped", "Не найден целевой checklist-пункт."));

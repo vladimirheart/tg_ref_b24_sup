@@ -22,19 +22,21 @@ import org.mockito.InOrder;
 import org.springframework.web.server.ResponseStatusException;
 
 class EmployeeDiscountAutomationServiceTest {
+    private static final org.springframework.security.core.Authentication ALICE = org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated(
+        new com.example.panel.security.PanelUserPrincipal(7L,"alice","",true,List.of()),null,List.of());
 
     @Test
     void executeCompletesChecklistOnlyAfterSuccessfulIikoMutation() {
         Fixture fixture = fixture();
         stubSelectedCandidate(fixture);
-        when(fixture.iikoDirectoryService.disableCorporateDiscount("alice", "+79991234567"))
+        when(fixture.iikoDirectoryService.disableCorporateDiscount(ALICE, "+79991234567"))
             .thenReturn(new IikoDirectoryService.MutationResult(true, "iiko updated"));
 
-        Map<String, Object> result = fixture.service.run(false, "alice");
+        Map<String, Object> result = fixture.service.run(false, ALICE);
 
         InOrder order = inOrder(fixture.iikoDirectoryService, fixture.bitrix24RestService);
-        order.verify(fixture.iikoDirectoryService).disableCorporateDiscount("alice", "+79991234567");
-        order.verify(fixture.bitrix24RestService).completeChecklistItem("alice", "101", "501");
+        order.verify(fixture.iikoDirectoryService).disableCorporateDiscount(ALICE, "+79991234567");
+        order.verify(fixture.bitrix24RestService).completeChecklistItem(ALICE, "101", "501");
         assertEquals("success", runMap(result).get("status"));
         assertEquals("success", firstItem(result).get("status"));
     }
@@ -43,10 +45,10 @@ class EmployeeDiscountAutomationServiceTest {
     void executeDoesNotCompleteChecklistWhenIikoMutationFails() {
         Fixture fixture = fixture();
         stubSelectedCandidate(fixture);
-        when(fixture.iikoDirectoryService.disableCorporateDiscount("alice", "+79991234567"))
+        when(fixture.iikoDirectoryService.disableCorporateDiscount(ALICE, "+79991234567"))
             .thenReturn(new IikoDirectoryService.MutationResult(false, "guest not found"));
 
-        Map<String, Object> result = fixture.service.run(false, "alice");
+        Map<String, Object> result = fixture.service.run(false, ALICE);
 
         verify(fixture.bitrix24RestService, never()).completeChecklistItem(any(), any(), any());
         assertEquals("error", runMap(result).get("status"));
@@ -57,20 +59,20 @@ class EmployeeDiscountAutomationServiceTest {
     @Test
     void extractionFailureRemainsErrorInsteadOfBeingDowngradedToSkipped() {
         Fixture fixture = fixture();
-        when(fixture.bitrix24RestService.listTasksForGroup("alice", 77L)).thenReturn(List.of(Map.of(
+        when(fixture.bitrix24RestService.listTasksForGroup(ALICE, 77L)).thenReturn(List.of(Map.of(
             "id", "101",
             "title", "Увольнение сотрудника",
             "description", "Телефон в задаче не указан",
             "status", "2",
             "closed_date", ""
         )));
-        when(fixture.bitrix24RestService.listChecklistItems("alice", "101")).thenReturn(List.of(Map.of(
+        when(fixture.bitrix24RestService.listChecklistItems(ALICE, "101")).thenReturn(List.of(Map.of(
             "id", "501",
             "title", "отключение корпоративной скидки",
             "is_complete", false
         )));
 
-        Map<String, Object> result = fixture.service.run(false, "alice");
+        Map<String, Object> result = fixture.service.run(false, ALICE);
 
         verify(fixture.iikoDirectoryService, never()).disableCorporateDiscount(any(), any());
         verify(fixture.bitrix24RestService, never()).completeChecklistItem(any(), any(), any());
@@ -121,14 +123,14 @@ class EmployeeDiscountAutomationServiceTest {
     }
 
     private void stubSelectedCandidate(Fixture fixture) {
-        when(fixture.bitrix24RestService.listTasksForGroup("alice", 77L)).thenReturn(List.of(Map.of(
+        when(fixture.bitrix24RestService.listTasksForGroup(ALICE, 77L)).thenReturn(List.of(Map.of(
             "id", "101",
             "title", "Увольнение сотрудника",
             "description", "Тел. сотрудника: +7 (999) 123-45-67",
             "status", "2",
             "closed_date", ""
         )));
-        when(fixture.bitrix24RestService.listChecklistItems("alice", "101")).thenReturn(List.of(Map.of(
+        when(fixture.bitrix24RestService.listChecklistItems(ALICE, "101")).thenReturn(List.of(Map.of(
             "id", "501",
             "title", "отключение корпоративной скидки",
             "is_complete", false

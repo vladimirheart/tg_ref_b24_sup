@@ -32,7 +32,7 @@ public class EmployeeDiscountAutomationController {
 
     @GetMapping("/status")
     public Map<String, Object> status(Authentication authentication) {
-        return Map.of("success", true, "status", employeeDiscountAutomationService.loadStatus(requireUsername(authentication)));
+        return Map.of("success", true, "status", employeeDiscountAutomationService.loadStatus(authentication));
     }
 
     @PostMapping("/settings")
@@ -46,7 +46,7 @@ public class EmployeeDiscountAutomationController {
                                                @RequestBody(required = false) Map<String, Object> payload) {
         return Map.of(
             "success", true,
-            "credentials", employeeDiscountAutomationService.saveCredentials(requireUsername(authentication), payload != null ? payload : Map.of())
+            "credentials", employeeDiscountAutomationService.saveCredentials(authentication, payload != null ? payload : Map.of())
         );
     }
 
@@ -54,28 +54,28 @@ public class EmployeeDiscountAutomationController {
     public Map<String, Object> groups(@RequestParam(value = "query", required = false) String query,
                                       @RequestParam(value = "limit", required = false) Integer limit,
                                       Authentication authentication) {
-        List<Map<String, Object>> items = employeeDiscountAutomationService.listBitrixGroups(requireUsername(authentication), query, limit);
+        List<Map<String, Object>> items = employeeDiscountAutomationService.listBitrixGroups(authentication, query, limit);
         return Map.of("success", true, "items", items);
     }
 
     @GetMapping("/preview")
     public Map<String, Object> preview(Authentication authentication) {
-        return employeeDiscountAutomationService.previewSelection(requireUsername(authentication));
+        return employeeDiscountAutomationService.previewSelection(authentication);
     }
 
     @GetMapping("/iiko/categories")
     public Map<String, Object> categories(Authentication authentication) {
-        return Map.of("success", true, "items", employeeDiscountAutomationService.loadIikoCategories(requireUsername(authentication)));
+        return Map.of("success", true, "items", employeeDiscountAutomationService.loadIikoCategories(authentication));
     }
 
     @GetMapping("/iiko/organizations")
     public Map<String, Object> organizations(Authentication authentication) {
-        return Map.of("success", true, "items", employeeDiscountAutomationService.loadIikoOrganizations(requireUsername(authentication)));
+        return Map.of("success", true, "items", employeeDiscountAutomationService.loadIikoOrganizations(authentication));
     }
 
     @GetMapping("/iiko/wallets")
     public Map<String, Object> wallets(Authentication authentication) {
-        return Map.of("success", true, "items", employeeDiscountAutomationService.loadIikoWallets(requireUsername(authentication)));
+        return Map.of("success", true, "items", employeeDiscountAutomationService.loadIikoWallets(authentication));
     }
 
     @PostMapping("/runs")
@@ -93,8 +93,7 @@ public class EmployeeDiscountAutomationController {
                 "Боевой запуск требует Preview и явного выбора хотя бы одной задачи."
             );
         }
-        String actor = requireUsername(authentication);
-        return employeeDiscountAutomationService.run(dryRun, actor, selectedTaskIds);
+        return employeeDiscountAutomationService.run(dryRun, authentication, selectedTaskIds);
     }
 
     @GetMapping("/runs")

@@ -21,11 +21,17 @@ import org.springframework.util.StringUtils;
 public class SettingsParameterService {
 
     private static final Logger log = LoggerFactory.getLogger(SettingsParameterService.class);
-    private static final String PUBLIC_PARAMETER = "COALESCE(left(param_type,15),'') <> 'ui_preferences.'";
+    private static final String PUBLIC_PARAMETER = "COALESCE(left(param_type,15),'') <> 'ui_preferences.'"
+            + " AND COALESCE(left(param_type,41),'') <> 'employee_discount_automation_credentials.'";
+
+    public static boolean isPrivateParameterType(String type) {
+        return UiPreferenceService.isPrivateParameterType(type)
+                || EmployeeDiscountAutomationCredentialService.isPrivateParameterType(type);
+    }
 
     private void rejectPrivateParameter(String type) {
-        if (UiPreferenceService.isPrivateParameterType(type)) {
-            throw new AccessDeniedException("Private preferences are not generic parameters");
+        if (isPrivateParameterType(type)) {
+            throw new AccessDeniedException("Private account data are not generic parameters");
         }
     }
     private static final Map<String, String> BUSINESS_NAME_ALIASES = Map.of(
@@ -187,7 +193,7 @@ public class SettingsParameterService {
     private Map<String, Object> fetchParametersGrouped(boolean includeDeleted) {
         Map<String, Object> grouped = new LinkedHashMap<>();
         Map<String, String> types = settingsCatalogService.getParameterTypes();
-        types.keySet().stream().filter(key -> !UiPreferenceService.isPrivateParameterType(key))
+        types.keySet().stream().filter(key -> !isPrivateParameterType(key))
                 .forEach(key -> grouped.put(key, new ArrayList<>()));
 
         String sql = "SELECT id, param_type, value, state, is_deleted, deleted_at, extra_json FROM settings_parameters WHERE " + PUBLIC_PARAMETER;
@@ -200,7 +206,7 @@ public class SettingsParameterService {
         Map<String, List<String>> dependenciesMap = settingsCatalogService.getParameterDependencies();
         for (Map<String, Object> row : rows) {
             String type = stringValue(row.get("param_type"));
-            if (UiPreferenceService.isPrivateParameterType(type)) continue;
+            if (isPrivateParameterType(type)) continue;
             if (!grouped.containsKey(type)) {
                 continue;
             }

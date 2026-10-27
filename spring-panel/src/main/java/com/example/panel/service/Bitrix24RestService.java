@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import org.springframework.security.core.Authentication;
+
 import com.example.panel.service.EmployeeDiscountAutomationCredentialService.Bitrix24Credentials;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,7 +41,7 @@ public class Bitrix24RestService {
             .build();
     }
 
-    public List<Map<String, Object>> listWorkgroups(String username, String query, int limit) {
+    public List<Map<String, Object>> listWorkgroups(Authentication authentication, String query, int limit) {
         int effectiveLimit = Math.max(1, Math.min(limit, 200));
         String normalizedQuery = query != null ? query.trim().toLowerCase(Locale.ROOT) : "";
         List<Map<String, Object>> items = new ArrayList<>();
@@ -56,7 +58,7 @@ public class Bitrix24RestService {
             }
             params.put("start", String.valueOf(start));
 
-            JsonNode root = call(username, "sonet_group.get", params);
+            JsonNode root = call(authentication, "sonet_group.get", params);
             List<JsonNode> groups = collectRows(root);
             for (JsonNode group : groups) {
                 String id = pickText(group, "ID", "id");
@@ -82,7 +84,7 @@ public class Bitrix24RestService {
         return items;
     }
 
-    public List<Map<String, Object>> listTasksForGroup(String username, Long groupId) {
+    public List<Map<String, Object>> listTasksForGroup(Authentication authentication, Long groupId) {
         if (groupId == null || groupId <= 0) {
             return List.of();
         }
@@ -98,14 +100,14 @@ public class Bitrix24RestService {
             params.put("filter[GROUP_ID]", String.valueOf(groupId));
             params.put("start", String.valueOf(start));
 
-            JsonNode root = call(username, "tasks.task.list", params);
+            JsonNode root = call(authentication, "tasks.task.list", params);
             List<JsonNode> tasks = collectRows(root);
             for (JsonNode task : tasks) {
                 String id = pickText(task, "id", "ID");
                 if (!StringUtils.hasText(id)) {
                     continue;
                 }
-                Map<String, Object> details = getTaskDetails(username, id);
+                Map<String, Object> details = getTaskDetails(authentication, id);
                 if (!details.isEmpty()) {
                     items.add(details);
                 }
@@ -120,11 +122,11 @@ public class Bitrix24RestService {
         return items;
     }
 
-    public Map<String, Object> getTaskDetails(String username, String taskId) {
+    public Map<String, Object> getTaskDetails(Authentication authentication, String taskId) {
         if (!StringUtils.hasText(taskId)) {
             return Map.of();
         }
-        JsonNode root = call(username, "tasks.task.get", Map.of("taskId", taskId));
+        JsonNode root = call(authentication, "tasks.task.get", Map.of("taskId", taskId));
         JsonNode result = root.path("result");
         JsonNode task = result.has("task") ? result.path("task") : result;
         if (task == null || task.isMissingNode() || task.isNull()) {
@@ -148,11 +150,11 @@ public class Bitrix24RestService {
         return payload;
     }
 
-    public List<Map<String, Object>> listChecklistItems(String username, String taskId) {
+    public List<Map<String, Object>> listChecklistItems(Authentication authentication, String taskId) {
         if (!StringUtils.hasText(taskId)) {
             return List.of();
         }
-        JsonNode root = call(username, "task.checklistitem.getlist", Map.of("TASKID", taskId));
+        JsonNode root = call(authentication, "task.checklistitem.getlist", Map.of("TASKID", taskId));
         List<JsonNode> rows = collectRows(root);
         List<Map<String, Object>> items = new ArrayList<>();
         for (JsonNode row : rows) {
@@ -171,14 +173,14 @@ public class Bitrix24RestService {
         return items;
     }
 
-    public void completeChecklistItem(String username, String taskId, String itemId) {
+    public void completeChecklistItem(Authentication authentication, String taskId, String itemId) {
         if (!StringUtils.hasText(taskId) || !StringUtils.hasText(itemId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "taskId and itemId are required");
         }
         Map<String, String> positionalParams = new LinkedHashMap<>();
         positionalParams.put("0", taskId);
         positionalParams.put("1", itemId);
-        JsonNode root = call(username, "task.checklistitem.complete", positionalParams);
+        JsonNode root = call(authentication, "task.checklistitem.complete", positionalParams);
         if (!root.path("result").asBoolean(false)) {
             throw new ResponseStatusException(
                 HttpStatus.BAD_GATEWAY,
@@ -187,8 +189,8 @@ public class Bitrix24RestService {
         }
     }
 
-    public Map<String, Object> loadConnectionStatus(String username) {
-        Bitrix24Credentials config = credentialService.loadForUser(username).bitrix24();
+    public Map<String, Object> loadConnectionStatus(Authentication authentication) {
+        Bitrix24Credentials config = credentialService.loadForUser(authentication).bitrix24();
         Map<String, Object> status = new LinkedHashMap<>();
         status.put("configured", StringUtils.hasText(config.webhookUrl()));
         status.put("portal_url", config.portalUrl());
@@ -199,7 +201,7 @@ public class Bitrix24RestService {
             return status;
         }
         try {
-            call(username, "server.time", Map.of());
+            call(authentication, "server.time", Map.of());
             status.put("reachable", true);
             status.put("message", "Bitrix24 webhook отвечает.");
         } catch (Exception ex) {
@@ -209,8 +211,8 @@ public class Bitrix24RestService {
         return status;
     }
 
-    private JsonNode call(String username, String method, Map<String, String> params) {
-        Bitrix24Credentials config = credentialService.loadForUser(username).bitrix24();
+    private JsonNode call(Authentication authentication, String method, Map<String, String> params) {
+        Bitrix24Credentials config = credentialService.loadForUser(authentication).bitrix24();
         if (!StringUtils.hasText(config.webhookUrl())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Не задан Bitrix24 webhook URL в личном конфиге пользователя панели.");
         }

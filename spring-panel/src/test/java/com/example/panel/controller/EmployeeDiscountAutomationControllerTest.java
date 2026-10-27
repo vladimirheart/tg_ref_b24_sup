@@ -20,14 +20,14 @@ class EmployeeDiscountAutomationControllerTest {
         EmployeeDiscountAutomationController controller = new EmployeeDiscountAutomationController(service);
         Authentication authentication = mock(Authentication.class);
         when(authentication.getName()).thenReturn("alice");
-        when(service.run(false, "alice", List.of("101", "102"))).thenReturn(Map.of("success", true));
+        when(service.run(false, authentication, List.of("101", "102"))).thenReturn(Map.of("success", true));
 
         controller.run(Map.of(
             "dry_run", false,
             "selected_task_ids", List.of("101", "102", "101")
         ), authentication);
 
-        verify(service).run(false, "alice", List.of("101", "102"));
+        verify(service).run(false, authentication, List.of("101", "102"));
     }
 
     @Test

@@ -17,22 +17,24 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class EmployeeDiscountTaskSelectionAndPhoneTest {
+    private static final org.springframework.security.core.Authentication ALICE = org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated(
+        new com.example.panel.security.PanelUserPrincipal(7L,"alice","",true,List.of()),null,List.of());
 
     @Test
     void previewNormalizesCommonRussianPhoneFormatsAndReportsIgnoredNumber() {
         Fixture fixture = fixture(List.of("+79999999998"));
-        when(fixture.bitrix24RestService.listTasksForGroup("alice", 77L)).thenReturn(List.of(
+        when(fixture.bitrix24RestService.listTasksForGroup(ALICE, 77L)).thenReturn(List.of(
             task("101", "Тел. сотрудника: 89999999999"),
             task("102", "Телефон сотрудника: 8 999 999 99 99"),
             task("103", "Номер телефона сотрудника: 8 (999) 999 99 99"),
             task("104", "Тел. сотрудника: 8 (999) 999 99 98")
         ));
         for (String taskId : List.of("101", "102", "103", "104")) {
-            when(fixture.bitrix24RestService.listChecklistItems("alice", taskId))
+            when(fixture.bitrix24RestService.listChecklistItems(ALICE, taskId))
                 .thenReturn(checklist(taskId));
         }
 
-        Map<String, Object> preview = fixture.service.previewSelection("alice");
+        Map<String, Object> preview = fixture.service.previewSelection(ALICE);
 
         List<Map<String, Object>> items = items(preview);
         assertThat(items).hasSize(4);
@@ -46,21 +48,21 @@ class EmployeeDiscountTaskSelectionAndPhoneTest {
     @Test
     void executeMutatesOnlyExplicitlySelectedTaskAndReportsManualSkip() {
         Fixture fixture = fixture(List.of());
-        when(fixture.bitrix24RestService.listTasksForGroup("alice", 77L)).thenReturn(List.of(
+        when(fixture.bitrix24RestService.listTasksForGroup(ALICE, 77L)).thenReturn(List.of(
             task("101", "Тел. сотрудника: 8 999 111 11 11"),
             task("102", "Тел. сотрудника: 8 999 222 22 22")
         ));
-        when(fixture.bitrix24RestService.listChecklistItems("alice", "101")).thenReturn(checklist("101"));
-        when(fixture.bitrix24RestService.listChecklistItems("alice", "102")).thenReturn(checklist("102"));
-        when(fixture.iikoDirectoryService.disableCorporateDiscount("alice", "+79992222222"))
+        when(fixture.bitrix24RestService.listChecklistItems(ALICE, "101")).thenReturn(checklist("101"));
+        when(fixture.bitrix24RestService.listChecklistItems(ALICE, "102")).thenReturn(checklist("102"));
+        when(fixture.iikoDirectoryService.disableCorporateDiscount(ALICE, "+79992222222"))
             .thenReturn(new IikoDirectoryService.MutationResult(true, "done"));
 
-        Map<String, Object> result = fixture.service.run(false, "alice", List.of("102"));
+        Map<String, Object> result = fixture.service.run(false, ALICE, List.of("102"));
 
-        verify(fixture.iikoDirectoryService, never()).disableCorporateDiscount("alice", "+79991111111");
-        verify(fixture.bitrix24RestService, never()).completeChecklistItem("alice", "101", "501-101");
-        verify(fixture.iikoDirectoryService).disableCorporateDiscount("alice", "+79992222222");
-        verify(fixture.bitrix24RestService).completeChecklistItem("alice", "102", "501-102");
+        verify(fixture.iikoDirectoryService, never()).disableCorporateDiscount(ALICE, "+79991111111");
+        verify(fixture.bitrix24RestService, never()).completeChecklistItem(ALICE, "101", "501-101");
+        verify(fixture.iikoDirectoryService).disableCorporateDiscount(ALICE, "+79992222222");
+        verify(fixture.bitrix24RestService).completeChecklistItem(ALICE, "102", "501-102");
         assertThat(items(result)).anySatisfy(item -> {
             assertThat(item).containsEntry("task_id", "101").containsEntry("status", "skipped");
             assertThat(item.get("message").toString()).contains("снята оператором");
@@ -71,11 +73,11 @@ class EmployeeDiscountTaskSelectionAndPhoneTest {
     @Test
     void ignoredPhoneNeverCallsIikoOrBitrixChecklistAndIsReturnedInRunHistory() {
         Fixture fixture = fixture(List.of("+79993334455"));
-        when(fixture.bitrix24RestService.listTasksForGroup("alice", 77L))
+        when(fixture.bitrix24RestService.listTasksForGroup(ALICE, 77L))
             .thenReturn(List.of(task("105", "Контакт: 8 (999) 333-44-55")));
-        when(fixture.bitrix24RestService.listChecklistItems("alice", "105")).thenReturn(checklist("105"));
+        when(fixture.bitrix24RestService.listChecklistItems(ALICE, "105")).thenReturn(checklist("105"));
 
-        Map<String, Object> result = fixture.service.run(false, "alice", List.of("105"));
+        Map<String, Object> result = fixture.service.run(false, ALICE, List.of("105"));
 
         verify(fixture.iikoDirectoryService, never()).disableCorporateDiscount(any(), any());
         verify(fixture.bitrix24RestService, never()).completeChecklistItem(any(), any(), any());
@@ -89,13 +91,13 @@ class EmployeeDiscountTaskSelectionAndPhoneTest {
     @Test
     void ambiguousFallbackPhonesBecomeErrorInsteadOfChoosingRandomNumber() {
         Fixture fixture = fixture(List.of());
-        when(fixture.bitrix24RestService.listTasksForGroup("alice", 77L)).thenReturn(List.of(task(
+        when(fixture.bitrix24RestService.listTasksForGroup(ALICE, 77L)).thenReturn(List.of(task(
             "106",
             "Контакты для сверки: 8 999 111 11 11 и 8 999 222 22 22"
         )));
-        when(fixture.bitrix24RestService.listChecklistItems("alice", "106")).thenReturn(checklist("106"));
+        when(fixture.bitrix24RestService.listChecklistItems(ALICE, "106")).thenReturn(checklist("106"));
 
-        Map<String, Object> preview = fixture.service.previewSelection("alice");
+        Map<String, Object> preview = fixture.service.previewSelection(ALICE);
 
         assertThat(items(preview)).singleElement().satisfies(item -> {
             assertThat(item).containsEntry("status", "error");
