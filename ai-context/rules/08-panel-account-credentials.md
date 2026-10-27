@@ -170,6 +170,28 @@ R192 не добавляет CAS/транзакционную авторизац
 paths. Schema, сериализуемый principal и runtime не меняются. Проверка — MockMvc
 с real security и изолированными JDBC/config/file adapters, без рабочей БД/файлов.
 
+## Собственный check-in смены по ID — R194
+
+WorkforceService получает Authentication от post-login/check-in controllers.
+Допускается только authenticated PanelUserPrincipal с positive numeric ID,
+непустым точным username и допустимым principal status. Username не используется
+для повторного поиска; нет trim/case folding или legacy/unbound fallback.
+Account/workforce join читается по ID: ровно одна строка, exact stored username,
+enabled и not blocked. Сбой чтения не превращается в пропуск обязательной смены.
+
+Создание workforce_shift_sessions использует conditional INSERT ... SELECT
+с тем же ID/exact username, account enabled/not blocked и workforce enabled.
+Изменение, зафиксированное до начала statement, предотвращает создание записи
+и отправку уведомления. ON CONFLICT shift_key сохраняет идемпотентность.
+Raw legacy names, schedule/late/unscheduled, user overrides и opt-in сохраняются.
+
+Это не полная атомарная авторизация доставки относительно всех будущих
+конкурентных изменений после snapshot INSERT, не делегирование WorkforceAdminApi
+и не утверждение общей business/global recipient policy. Schema, grants,
+serialized principal и feature flags не меняются. Проверка — реальные
+security/login/session/CSRF MVC fixtures плюс отдельный PostgreSQL Testcontainers,
+не приёмка R194 на тестовом стенде или production.
+
 ## Отметка активности своего аккаунта — R193
 
 UserLastActivityFilter пишет UTC last_portal_activity_at по ID + exact username

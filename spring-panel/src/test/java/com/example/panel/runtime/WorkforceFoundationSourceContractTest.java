@@ -33,12 +33,12 @@ class WorkforceFoundationSourceContractTest {
         String template = read("src/main/resources/templates/workforce/check-in.html");
 
         assertThat(redirect)
-                .contains("workforceService.requiresCheckIn(authentication.getName())")
+                .contains("workforceService.requiresCheckIn(authentication)")
                 .contains("return \"redirect:/shift-check-in\"");
         assertThat(checkInController)
                 .contains("@GetMapping(\"/shift-check-in\")")
                 .contains("@PostMapping(\"/shift-check-in\")")
-                .contains("workforceService.confirmCheckIn(authentication.getName())");
+                .contains("workforceService.confirmCheckIn(authentication)");
         assertThat(template)
                 .contains("Подтвердите начало смены")
                 .contains("Подтвердить начало смены")
@@ -58,6 +58,9 @@ class WorkforceFoundationSourceContractTest {
                 .contains("scheduled:")
                 .contains("unscheduled:")
                 .contains("🟢 Пришёл на смену")
+                .contains("WHERE u.id = ? AND u.username = ?")
+                .contains("u.enabled AS account_enabled, u.is_blocked AS account_blocked")
+                .doesNotContain("WHERE lower(u.username) = lower(?)", "username.trim()")
                 .doesNotContain("role_id AS position_id");
         assertThat(transport)
                 .contains("ConfiguredMessageDeliveryResult sendConfiguredMessage")

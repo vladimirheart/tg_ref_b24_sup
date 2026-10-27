@@ -24,13 +24,35 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальная сводка R193 имеют
+что production уже запускался. Эта оговорка и актуальная сводка R194 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R193 (2026-10-27): last_portal_activity_at обновляется
+Актуальное уточнение R194 (2026-10-27): self workforce check-in использует
+только ID-bound Authentication и exact stored username. Конфигурация смены
+читается по numeric ID с row/status guards; conditional INSERT проверяет
+identity/account/workforce status ещё раз в statement. Нет переноса смены
+или уведомления к trim/case-fold соседу, обязательный check-in не пропускается
+при ошибке account/workforce read. Opt-in, расписание и идемпотентность сохранены.
+16 suites / 598 tests GREEN: 36 frozen MVC/security cases (baseline v6:
+23 failures / 13 controls / 0 errors), 20 PostgreSQL workforce cases и
+login/session/password/admin/activity/channel regressions. Девять SQL cases новые.
+UI source contract обновляет только точную ожидаемую R187 asset version.
+Schema/grants/flags/serialized principal не менялись. Это не новая общая
+recipient/global/business policy и не сериализация всех account/config mutations.
+
+Здесь текущая source/test сессия C:\Users\SinicinVV\git_h\tg_ref_b24_sup на
+машине тестового стенда. Read-only probe подтвердил прежний R184 panel-web
+9fb4a33fd8a4, healthy; R185–R194 не развёртывались. Изолированные Docker Maven/
+PostgreSQL tests не меняют данные/схему БД стенда и не являются rollout.
+Migration/backfill/reset/flags/config/provider sends, staging/commit/push не
+выполнялись. Следующие gates: personal/triage preferences по ID, остальные
+S3–S5 paths/policies, fleet/сквозная приёмка и первый production S6.
+Historical S2B снят R190; runtime/rollback R184 сохраняются. Статус — 🟡.
+
+Историческое уточнение R193 (2026-10-27): last_portal_activity_at обновляется
 только по positive numeric ID из authenticated PanelUserPrincipal и exact raw
 username. Нет case-fold fan-out, trim или unbound username fallback. Session
 refresh/revoke R189 остаётся перед activity; timestamp UTC и best-effort/cache/

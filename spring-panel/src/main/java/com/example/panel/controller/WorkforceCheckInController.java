@@ -24,7 +24,7 @@ public class WorkforceCheckInController {
 
     @GetMapping("/shift-check-in")
     public String checkInPage(Authentication authentication, Model model) {
-        WorkforceService.CheckInContext context = workforceService.getCheckInContext(authentication.getName());
+        WorkforceService.CheckInContext context = workforceService.getCheckInContext(authentication);
         if (!context.enabled() || !context.checkInRequired() || !context.pending()) {
             return "redirect:/post-login";
         }
@@ -35,7 +35,7 @@ public class WorkforceCheckInController {
 
     @PostMapping("/shift-check-in")
     public String confirmCheckIn(Authentication authentication, RedirectAttributes redirectAttributes) {
-        WorkforceService.CheckInResult result = workforceService.confirmCheckIn(authentication.getName());
+        WorkforceService.CheckInResult result = workforceService.confirmCheckIn(authentication);
         if ("failed".equals(result.notificationStatus())) {
             redirectAttributes.addFlashAttribute(
                     "workforceNotificationWarning",

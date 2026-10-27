@@ -16,7 +16,7 @@ class WorkforceManagementUiSourceContractTest {
         String runtime = read("src/main/resources/static/js/workforce-management.js");
 
         assertThat(settings)
-                .contains("<script th:src=\"@{/js/auth-management.js(v='20261023-incidents-r12')}\"></script>")
+                .contains("<script th:src=\"@{/js/auth-management.js(v='20261027-credentials-r187')}\"></script>")
                 .contains("<script src=\"/js/workforce-management.js\"></script>");
         assertThat(settings.indexOf("/js/workforce-management.js"))
                 .isGreaterThan(settings.indexOf("/js/auth-management.js"));

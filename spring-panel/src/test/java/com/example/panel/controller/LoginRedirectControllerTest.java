@@ -29,14 +29,13 @@ class LoginRedirectControllerTest {
 
     @BeforeEach
     void setUp() {
-        when(authentication.getName()).thenReturn("operator");
-        when(workforceService.requiresCheckIn("operator")).thenReturn(false);
+        when(workforceService.requiresCheckIn(authentication)).thenReturn(false);
         controller = new LoginRedirectController(permissionService, workforceService);
     }
 
     @Test
     void redirectsToCheckInBeforeNormalPageRoutingWhenShiftIsPending() {
-        when(workforceService.requiresCheckIn("operator")).thenReturn(true);
+        when(workforceService.requiresCheckIn(authentication)).thenReturn(true);
 
         String redirect = controller.postLogin(authentication);
 

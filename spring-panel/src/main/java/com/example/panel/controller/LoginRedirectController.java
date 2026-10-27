@@ -32,7 +32,7 @@ public class LoginRedirectController {
 
     @GetMapping("/post-login")
     public String postLogin(Authentication authentication) {
-        if (authentication != null && workforceService.requiresCheckIn(authentication.getName())) {
+        if (authentication != null && workforceService.requiresCheckIn(authentication)) {
             return "redirect:/shift-check-in";
         }
         for (String mapping : PAGE_REDIRECTS) {

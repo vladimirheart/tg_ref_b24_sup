@@ -1,10 +1,17 @@
 package com.example.panel.service;
 
+import com.example.panel.security.PanelUserPrincipal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.dao.DataAccessException;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -60,20 +67,16 @@ public class WorkforceService {
         this.clock = clock;
     }
 
-    public boolean requiresCheckIn(String username) {
-        try {
-            CheckInContext context = getCheckInContext(username);
-            return context.enabled() && context.checkInRequired() && context.pending();
-        } catch (RuntimeException ex) {
-            log.warn("Unable to resolve workforce check-in for {}: {}", username, ex.getMessage());
-            return false;
-        }
+    public boolean requiresCheckIn(Authentication authentication) {
+        CheckInContext context = getCheckInContext(authentication);
+        return context.enabled() && context.checkInRequired() && context.pending();
     }
 
-    public CheckInContext getCheckInContext(String username) {
-        UserWorkforceConfig config = loadUserConfig(username);
-        if (config == null || !config.enabled()) {
-            return CheckInContext.disabled(username);
+    public CheckInContext getCheckInContext(Authentication authentication) {
+        PanelUserPrincipal principal = checkInPrincipal(authentication);
+        UserWorkforceConfig config = loadUserConfig(principal);
+        if (!config.enabled()) {
+            return CheckInContext.disabled(principal.getUsername());
         }
 
         ZoneId zone = safeZoneId(config.timeZone());
@@ -131,8 +134,9 @@ public class WorkforceService {
         );
     }
 
-    public CheckInResult confirmCheckIn(String username) {
-        CheckInContext context = getCheckInContext(username);
+    public CheckInResult confirmCheckIn(Authentication authentication) {
+        PanelUserPrincipal principal = checkInPrincipal(authentication);
+        CheckInContext context = getCheckInContext(authentication);
         if (!context.enabled() || !context.checkInRequired()) {
             return new CheckInResult(false, false, "skipped", null, context);
         }
@@ -160,7 +164,13 @@ public class WorkforceService {
                     check_in_source, full_name_snapshot, position_name_snapshot,
                     notification_required, notification_channel_id, notification_target,
                     notification_chat_id, notification_status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'login', ?, ?, ?, ?, ?, ?, ?)
+                ) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, 'login', ?, ?, ?, ?, ?, ?, ?
+                FROM users u
+                JOIN workforce_user_settings s ON s.user_id = u.id
+                WHERE u.id = ? AND u.username = ?
+                  AND COALESCE(u.enabled, TRUE) = TRUE
+                  AND COALESCE(u.is_blocked, FALSE) = FALSE
+                  AND s.enabled = TRUE
                 ON CONFLICT (shift_key) DO NOTHING
                 RETURNING id
                 """,
@@ -180,7 +190,9 @@ public class WorkforceService {
                 context.notificationChannelId(),
                 context.notificationTarget(),
                 context.notificationChatId(),
-                initialNotificationStatus
+                initialNotificationStatus,
+                principal.getUserId(),
+                principal.getUsername()
         );
 
         if (inserted.isEmpty()) {
@@ -190,7 +202,7 @@ public class WorkforceService {
                     false,
                     existing != null ? existing.notificationStatus() : "skipped",
                     existing != null ? existing.notificationError() : null,
-                    getCheckInContext(username)
+                    getCheckInContext(authentication)
             );
         }
 
@@ -218,7 +230,7 @@ public class WorkforceService {
             );
         }
 
-        return new CheckInResult(true, notificationSent, notificationStatus, notificationError, getCheckInContext(username));
+        return new CheckInResult(true, notificationSent, notificationStatus, notificationError, getCheckInContext(authentication));
     }
 
     public List<Map<String, Object>> listPositions() {
@@ -469,11 +481,25 @@ public class WorkforceService {
         );
     }
 
-    private UserWorkforceConfig loadUserConfig(String username) {
-        if (!StringUtils.hasText(username)) return null;
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+    private PanelUserPrincipal checkInPrincipal(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()
+                || authentication instanceof AnonymousAuthenticationToken
+                || !(authentication.getPrincipal() instanceof PanelUserPrincipal principal)
+                || principal.getUserId() <= 0 || !StringUtils.hasText(principal.getUsername())
+                || !principal.isEnabled() || !principal.isAccountNonLocked()
+                || !principal.isAccountNonExpired() || !principal.isCredentialsNonExpired()) {
+            throw new AccessDeniedException("Workforce check-in requires a bound account");
+        }
+        return principal;
+    }
+
+    private UserWorkforceConfig loadUserConfig(PanelUserPrincipal principal) {
+        List<Map<String, Object>> rows;
+        try {
+            rows = jdbcTemplate.queryForList(
                 """
                 SELECT u.id AS user_id, u.username, u.full_name,
+                       u.enabled AS account_enabled, u.is_blocked AS account_blocked,
                        s.position_id, s.enabled, s.time_zone,
                        s.check_in_required_override, s.notify_on_check_in_override,
                        s.notification_channel_id_override, s.notification_target_override,
@@ -486,16 +512,26 @@ public class WorkforceService {
                 FROM users u
                 LEFT JOIN workforce_user_settings s ON s.user_id = u.id
                 LEFT JOIN workforce_positions p ON p.id = s.position_id
-                WHERE lower(u.username) = lower(?)
-                LIMIT 1
+                WHERE u.id = ?
                 """,
-                username.trim()
-        );
-        if (rows.isEmpty()) return null;
+                principal.getUserId()
+            );
+        } catch (DataAccessException ex) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Workforce account is unavailable", ex);
+        }
+        if (rows.size() != 1) {
+            throw new AccessDeniedException("Workforce account is unavailable");
+        }
         Map<String, Object> row = rows.get(0);
+        if (!(row.get("user_id") instanceof Number id) || id.longValue() != principal.getUserId()
+                || !principal.getUsername().equals(row.get("username"))
+                || !booleanValue(row.get("account_enabled"), true)
+                || booleanValue(row.get("account_blocked"), false)) {
+            throw new AccessDeniedException("Workforce account has changed");
+        }
         return new UserWorkforceConfig(
                 longValue(row.get("user_id"), 0L),
-                stringValue(row.get("username")),
+                principal.getUsername(),
                 stringValue(row.get("full_name")),
                 nullableLong(row.get("position_id")),
                 stringValue(row.get("position_name")),

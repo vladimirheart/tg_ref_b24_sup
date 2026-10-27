@@ -1,8 +1,13 @@
 package com.example.panel.service;
 
 import com.example.panel.support.PostgresqlJdbcTestSupport;
+import com.example.panel.security.PanelUserPrincipal;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.Clock;
@@ -12,6 +17,7 @@ import java.util.Map;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -43,8 +49,8 @@ class WorkforceServiceTest {
         )).thenReturn(new ChannelTransportService.ConfiguredMessageDeliveryResult(true, "-100123", null));
 
         WorkforceService service = serviceAt("2026-10-08T06:05:00Z");
-        WorkforceService.CheckInResult first = service.confirmCheckIn("operator");
-        WorkforceService.CheckInResult second = service.confirmCheckIn("operator");
+        WorkforceService.CheckInResult first = service.confirmCheckIn(actor(userId, "operator"));
+        WorkforceService.CheckInResult second = service.confirmCheckIn(actor(userId, "operator"));
 
         assertThat(first.created()).isTrue();
         assertThat(first.notificationSent()).isTrue();
@@ -78,8 +84,8 @@ class WorkforceServiceTest {
                 .thenReturn(new ChannelTransportService.ConfiguredMessageDeliveryResult(true, "-100789", null));
 
         WorkforceService service = serviceAt("2026-10-08T10:00:00Z");
-        assertThat(service.confirmCheckIn("multi").notificationStatus()).isEqualTo("sent");
-        assertThat(service.confirmCheckIn("multi").created()).isFalse();
+        assertThat(service.confirmCheckIn(actor(userId, "multi")).notificationStatus()).isEqualTo("sent");
+        assertThat(service.confirmCheckIn(actor(userId, "multi")).created()).isFalse();
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM workforce_shift_sessions", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM workforce_shift_notification_deliveries", Integer.class)).isEqualTo(2);
         verify(channelTransportService).sendConfiguredMessage(eq(11L), eq("support_chat"), isNull(), contains("Multi Recipient"));
@@ -187,7 +193,7 @@ class WorkforceServiceTest {
         insertSchedule(userId, 4, "09:00", "18:00", 120, 15);
 
         WorkforceService service = serviceAt("2026-10-08T06:30:00Z");
-        WorkforceService.CheckInResult result = service.confirmCheckIn("late_operator");
+        WorkforceService.CheckInResult result = service.confirmCheckIn(actor(userId, "late_operator"));
 
         assertThat(result.created()).isTrue();
         assertThat(result.notificationSent()).isFalse();
@@ -208,8 +214,8 @@ class WorkforceServiceTest {
         enableUser(userId, positionId, "UTC", null, null);
 
         WorkforceService service = serviceAt("2026-10-08T10:00:00Z");
-        WorkforceService.CheckInContext context = service.getCheckInContext("unscheduled");
-        WorkforceService.CheckInResult result = service.confirmCheckIn("unscheduled");
+        WorkforceService.CheckInContext context = service.getCheckInContext(actor(userId, "unscheduled"));
+        WorkforceService.CheckInResult result = service.confirmCheckIn(actor(userId, "unscheduled"));
 
         assertThat(context.pending()).isTrue();
         assertThat(context.unscheduled()).isTrue();
@@ -240,11 +246,67 @@ class WorkforceServiceTest {
 
     @Test
     void workforceIsOptInForExistingUsers() {
-        insertUser("legacy", "Обычный пользователь");
+        long userId = insertUser("legacy", "Обычный пользователь");
         WorkforceService service = serviceAt("2026-10-08T10:00:00Z");
 
-        assertThat(service.requiresCheckIn("legacy")).isFalse();
-        assertThat(service.getCheckInContext("legacy").enabled()).isFalse();
+        assertThat(service.requiresCheckIn(actor(userId, "legacy"))).isFalse();
+        assertThat(service.getCheckInContext(actor(userId, "legacy")).enabled()).isFalse();
+    }
+
+    private Authentication actor(long id, String username) {
+        return UsernamePasswordAuthenticationToken.authenticated(
+                new PanelUserPrincipal(id, username, "", true, List.of()), null, List.of());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"reader", " reader ", "имя"})
+    void existingAccountWithSimilarNameCannotOwnTheAuthenticatedShift(String username) {
+        long neighbourId = insertUser(username.trim().toUpperCase(java.util.Locale.ROOT), "Neighbour");
+        long userId = insertUser(username, "Own employee");
+        long positionId = insertPosition("Own position", true, false, null);
+        enableUser(neighbourId, positionId, "UTC", null, null);
+        enableUser(userId, positionId, "UTC", null, null);
+        WorkforceService service = serviceAt("2026-10-08T10:00:00Z");
+
+        assertThat(service.getCheckInContext(actor(userId, username)).username()).isEqualTo(username);
+        assertThat(service.confirmCheckIn(actor(userId, username)).created()).isTrue();
+        assertThat(service.confirmCheckIn(actor(userId, username)).created()).isFalse();
+        assertThat(jdbcTemplate.queryForList("SELECT user_id FROM workforce_shift_sessions", Long.class))
+                .containsExactly(userId);
+        org.mockito.Mockito.verifyNoInteractions(channelTransportService);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"rename", "case-rename", "disabled", "blocked", "deleted", "workforce-disabled"})
+    void conditionalInsertRejectsAccountOrWorkforceRevocationAfterTheContextRead(String change) {
+        long userId = insertUser("reader", "Own employee");
+        long positionId = insertPosition("Own position", true, true, 11L);
+        enableUser(userId, positionId, "UTC", null, null);
+        JdbcTemplate guardedJdbc = org.mockito.Mockito.spy(jdbcTemplate);
+        org.mockito.Mockito.doAnswer(invocation -> {
+            switch (change) {
+                case "rename" -> jdbcTemplate.update("UPDATE users SET username = 'changed' WHERE id = ?", userId);
+                case "case-rename" -> jdbcTemplate.update("UPDATE users SET username = 'READER' WHERE id = ?", userId);
+                case "disabled" -> jdbcTemplate.update("UPDATE users SET enabled = FALSE WHERE id = ?", userId);
+                case "blocked" -> jdbcTemplate.update("UPDATE users SET is_blocked = TRUE WHERE id = ?", userId);
+                case "deleted" -> jdbcTemplate.update("DELETE FROM users WHERE id = ?", userId);
+                case "workforce-disabled" -> jdbcTemplate.update("UPDATE workforce_user_settings SET enabled = FALSE WHERE user_id = ?", userId);
+                default -> throw new AssertionError(change);
+            }
+            return invocation.callRealMethod();
+        }).when(guardedJdbc).query(contains("INSERT INTO workforce_shift_sessions"),
+                org.mockito.ArgumentMatchers.<org.springframework.jdbc.core.RowMapper<Long>>any(),
+                org.mockito.ArgumentMatchers.any(Object[].class));
+        WorkforceService service = new WorkforceService(guardedJdbc, channelTransportService,
+                Clock.fixed(Instant.parse("2026-10-08T10:00:00Z"), ZoneOffset.UTC));
+        if (change.equals("workforce-disabled")) {
+            assertThat(service.confirmCheckIn(actor(userId, "reader")).created()).isFalse();
+        } else {
+            assertThatThrownBy(() -> service.confirmCheckIn(actor(userId, "reader")))
+                    .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+        }
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM workforce_shift_sessions", Integer.class)).isZero();
+        org.mockito.Mockito.verifyNoInteractions(channelTransportService);
     }
 
     private WorkforceService serviceAt(String instant) {
@@ -260,7 +322,9 @@ class WorkforceServiceTest {
                 CREATE TABLE users (
                     id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
                     username TEXT NOT NULL UNIQUE,
-                    full_name TEXT
+                    full_name TEXT,
+                    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                    is_blocked BOOLEAN NOT NULL DEFAULT FALSE
                 )
                 """);
         jdbcTemplate.execute("""
