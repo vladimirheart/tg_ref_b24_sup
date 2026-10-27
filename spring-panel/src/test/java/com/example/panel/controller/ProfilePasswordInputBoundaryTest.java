@@ -1,6 +1,7 @@
 package com.example.panel.controller;
 
 import com.example.panel.service.UiPreferenceService;
+import com.example.panel.security.PanelUserPrincipal;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -19,10 +20,11 @@ class ProfilePasswordInputBoundaryTest {
     final JdbcTemplate jdbc = mock(JdbcTemplate.class);
     final PasswordEncoder encoder = mock(PasswordEncoder.class);
     final ProfileApiController controller = new ProfileApiController(jdbc, encoder, mock(UiPreferenceService.class));
-    final UsernamePasswordAuthenticationToken actor = new UsernamePasswordAuthenticationToken(" reader ", "fixture", List.of());
+    final UsernamePasswordAuthenticationToken actor = new UsernamePasswordAuthenticationToken(new PanelUserPrincipal(7L, " reader ", "fixture", true, List.of()), null, List.of());
 
     @BeforeEach void setup() {
-        when(jdbc.queryForList("SELECT * FROM users WHERE lower(username) = lower(?) LIMIT 1", " reader ")).thenReturn(List.of(Map.of("password", "fixture-stored")));
+        when(jdbc.queryForList("SELECT * FROM users WHERE id = ?", 7L)).thenReturn(List.of(Map.of("id", 7L, "username", " reader ", "password", "fixture-stored")));
+        when(jdbc.update(anyString(), any(Object[].class))).thenReturn(1);
         when(encoder.matches(anyString(), eq("fixture-stored"))).thenReturn(true);
         when(encoder.encode(anyString())).thenReturn("fixture-hash");
     }
@@ -35,7 +37,7 @@ class ProfilePasswordInputBoundaryTest {
         var response = controller.updatePassword(actor, Map.of("current_password", "current", "new_password", password, "confirm_password", password));
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         verify(encoder).matches("current", "fixture-stored"); verify(encoder).encode(password);
-        verify(jdbc).update("UPDATE users SET password = ? WHERE lower(username) = lower(?)", "fixture-hash", " reader ");
+        verify(jdbc).update("UPDATE users SET password = ? WHERE id = ? AND username = ? AND password IS NOT DISTINCT FROM ?", "fixture-hash", 7L, " reader ", "fixture-stored");
     }
 
     @ParameterizedTest @MethodSource("invalid")

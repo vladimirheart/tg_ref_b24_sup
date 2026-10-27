@@ -1,6 +1,7 @@
 package com.example.panel.controller;
 
 import com.example.panel.service.UiPreferenceService;
+import com.example.panel.security.PanelUserPrincipal;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -11,10 +12,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 
-import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.ResultSet;
 import java.util.List;
 import java.util.Map;
 
@@ -22,7 +19,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -37,6 +33,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(ProfileApiController.class)
 @AutoConfigureMockMvc
 class ProfileApiControllerWebMvcTest {
+
+    private static final PanelUserPrincipal ACTOR = new PanelUserPrincipal(42L, "operator", "fixture", true, List.of());
 
     @Autowired
     private MockMvc mockMvc;
@@ -57,7 +55,7 @@ class ProfileApiControllerWebMvcTest {
                 .thenReturn(Map.of("theme", "dark", "themePalette", "catppuccin"));
 
         mockMvc.perform(get("/profile/ui-preferences")
-                        .with(user("operator")))
+                        .with(user(ACTOR)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.preferences.theme").value("dark"))
@@ -82,7 +80,7 @@ class ProfileApiControllerWebMvcTest {
                 ));
 
         mockMvc.perform(put("/profile/ui-preferences")
-                        .with(user("operator"))
+                        .with(user(ACTOR))
                         .with(csrf())
                         .contentType("application/json")
                         .content("""
@@ -133,7 +131,7 @@ class ProfileApiControllerWebMvcTest {
     @Test
     void updatePasswordRejectsMissingCurrentPassword() throws Exception {
         mockMvc.perform(post("/profile/password")
-                        .with(user("operator"))
+                        .with(user(ACTOR))
                         .with(csrf())
                         .contentType("application/json")
                         .content("""
@@ -151,7 +149,7 @@ class ProfileApiControllerWebMvcTest {
     @Test
     void updatePasswordRejectsMissingNewPassword() throws Exception {
         mockMvc.perform(post("/profile/password")
-                        .with(user("operator"))
+                        .with(user(ACTOR))
                         .with(csrf())
                         .contentType("application/json")
                         .content("""
@@ -169,7 +167,7 @@ class ProfileApiControllerWebMvcTest {
     @Test
     void updatePasswordRejectsMismatchedConfirmation() throws Exception {
         mockMvc.perform(post("/profile/password")
-                        .with(user("operator"))
+                        .with(user(ACTOR))
                         .with(csrf())
                         .contentType("application/json")
                         .content("""
@@ -186,10 +184,10 @@ class ProfileApiControllerWebMvcTest {
 
     @Test
     void updatePasswordReturnsNotFoundWhenUserDoesNotExist() throws Exception {
-        when(usersJdbcTemplate.queryForList(anyString(), eq("operator"))).thenReturn(List.of());
+        when(usersJdbcTemplate.queryForList(eq("SELECT * FROM users WHERE id = ?"), eq(42L))).thenReturn(List.of());
 
         mockMvc.perform(post("/profile/password")
-                        .with(user("operator"))
+                        .with(user(ACTOR))
                         .with(csrf())
                         .contentType("application/json")
                         .content("""
@@ -206,12 +204,12 @@ class ProfileApiControllerWebMvcTest {
 
     @Test
     void updatePasswordRejectsInvalidCurrentPassword() throws Exception {
-        when(usersJdbcTemplate.queryForList(anyString(), eq("operator")))
-                .thenReturn(List.of(Map.of("password", "stored-hash")));
+        when(usersJdbcTemplate.queryForList(eq("SELECT * FROM users WHERE id = ?"), eq(42L)))
+                .thenReturn(List.of(Map.of("id", 42L, "username", "operator", "password", "stored-hash")));
         when(passwordEncoder.matches("old", "stored-hash")).thenReturn(false);
 
         mockMvc.perform(post("/profile/password")
-                        .with(user("operator"))
+                        .with(user(ACTOR))
                         .with(csrf())
                         .contentType("application/json")
                         .content("""
@@ -228,13 +226,14 @@ class ProfileApiControllerWebMvcTest {
 
     @Test
     void updatePasswordPersistsHashedPasswordWithoutPasswordHashColumn() throws Exception {
-        when(usersJdbcTemplate.queryForList(anyString(), eq("operator")))
-                .thenReturn(List.of(Map.of("password", "stored-hash")));
+        when(usersJdbcTemplate.queryForList(eq("SELECT * FROM users WHERE id = ?"), eq(42L)))
+                .thenReturn(List.of(Map.of("id", 42L, "username", "operator", "password", "stored-hash")));
         when(passwordEncoder.matches("old", "stored-hash")).thenReturn(true);
         when(passwordEncoder.encode("next")).thenReturn("hashed-next");
+        when(usersJdbcTemplate.update(anyString(), any(Object[].class))).thenReturn(1);
 
         mockMvc.perform(post("/profile/password")
-                        .with(user("operator"))
+                        .with(user(ACTOR))
                         .with(csrf())
                         .contentType("application/json")
                         .content("""
@@ -249,31 +248,24 @@ class ProfileApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.message").value("Пароль успешно обновлён."));
 
         verify(usersJdbcTemplate).update(
-                eq("UPDATE users SET password = ? WHERE lower(username) = lower(?)"),
+                eq("UPDATE users SET password = ? WHERE id = ? AND username = ? AND password IS NOT DISTINCT FROM ?"),
                 eq("hashed-next"),
-                eq("operator")
+                eq(42L),
+                eq("operator"),
+                eq("stored-hash")
         );
     }
 
     @Test
     void updatePasswordPersistsPasswordHashWhenColumnExists() throws Exception {
-        DataSource dataSource = mock(DataSource.class);
-        Connection connection = mock(Connection.class);
-        DatabaseMetaData metaData = mock(DatabaseMetaData.class);
-        ResultSet resultSet = mock(ResultSet.class);
-
-        when(usersJdbcTemplate.queryForList(anyString(), eq("operator")))
-                .thenReturn(List.of(Map.of("password", "stored-hash")));
+        when(usersJdbcTemplate.queryForList(eq("SELECT * FROM users WHERE id = ?"), eq(42L)))
+                .thenReturn(List.of(Map.of("id", 42L, "username", "operator", "password", "stored-hash", "password_hash", "previous-fallback")));
         when(passwordEncoder.matches("old", "stored-hash")).thenReturn(true);
         when(passwordEncoder.encode("next")).thenReturn("hashed-next");
-        when(usersJdbcTemplate.getDataSource()).thenReturn(dataSource);
-        when(dataSource.getConnection()).thenReturn(connection);
-        when(connection.getMetaData()).thenReturn(metaData);
-        when(metaData.getColumns(any(), any(), eq("users"), eq("password_hash"))).thenReturn(resultSet);
-        when(resultSet.next()).thenReturn(true);
+        when(usersJdbcTemplate.update(anyString(), any(Object[].class))).thenReturn(1);
 
         mockMvc.perform(post("/profile/password")
-                        .with(user("operator"))
+                        .with(user(ACTOR))
                         .with(csrf())
                         .contentType("application/json")
                         .content("""
@@ -287,10 +279,13 @@ class ProfileApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.success").value(true));
 
         verify(usersJdbcTemplate).update(
-                eq("UPDATE users SET password = ?, password_hash = ? WHERE lower(username) = lower(?)"),
+                eq("UPDATE users SET password = ?, password_hash = ? WHERE id = ? AND username = ? AND password IS NOT DISTINCT FROM ? AND password_hash IS NOT DISTINCT FROM ?"),
                 eq("hashed-next"),
                 eq("hashed-next"),
-                eq("operator")
+                eq(42L),
+                eq("operator"),
+                eq("stored-hash"),
+                eq("previous-fallback")
         );
     }
 }

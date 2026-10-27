@@ -118,3 +118,29 @@ JDBC sessions; старый image не прочитает новый payload. Ro
 сессий в кластере. Уже выполняющиеся запросы, открытые async/SSE соединения,
 password-change revocation и token policy остаются отдельным scope. Schema,
 миграции, backfill и рабочая среда не меняются.
+
+## Смена собственного пароля по ID — R191
+
+POST /profile/password требует authenticated PanelUserPrincipal с положительным
+numeric ID. Контроллер читает только этот ID и проверяет точный stored username,
+enabled/blocked status. У unbound/legacy principal нет fallback по логину;
+требуется повторный вход. Отсутствующая запись возвращает 404, изменившаяся
+identity/status — 409. UI preferences и admin user-management не изменены.
+
+Текущий password проверяется по snapshot собственного аккаунта. Новый hash
+записывается одним UPDATE с ID + exact username + исходными password и всеми
+присутствующими password_hash/enabled/is_blocked values. PostgreSQL
+IS NOT DISTINCT FROM сравнивает и NULL. Concurrent credential/hash, rename,
+delete/disable/block дают 409 вместо success и не перезаписываются. Соседние
+case-insensitive accounts не участвуют в чтении/записи.
+
+Наличие password_hash определяется колонками результата SELECT *, без
+metadata fallback; при наличии оба credential поля обновляются вместе.
+Нужна ровно одна изменённая строка. Политики raw password/confirmation, текущий
+пароль и CSRF остаются обязательными. Новая схема/unique index не добавлены.
+
+PanelUserPrincipal доступен typed consumers; serialized fields/serialVersionUID
+не изменены. R189 rollout/session compatibility всё ещё применима. Принудительный
+выход всех сессий и изменение общей password-change/token revocation policy
+не входят в R191. Security chain проверена MockMvc с stateful mocked JDBC,
+без working PostgreSQL locking/driver, JDBC session store или browser acceptance.

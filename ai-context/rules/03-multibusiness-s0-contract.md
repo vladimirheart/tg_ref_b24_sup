@@ -24,13 +24,32 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальная сводка R190 имеют
+что production уже запускался. Эта оговорка и актуальная сводка R191 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R190 (2026-10-27): здесь source/test checkout
+Актуальное уточнение R191 (2026-10-27): /profile/password использует только
+numeric ID из authenticated PanelUserPrincipal, с exact stored username и
+current enabled/blocked checks. Одна null-safe CAS запись сравнивает исходные
+password/password_hash и доступные status columns; race возвращает 409,
+соседние case-fold аккаунты не изменяются. Legacy/unbound identity не получает
+username fallback. Существующие password validation/current-password/CSRF guards
+сохранены, UI preferences и общая revocation policy вне этого scope.
+15 Maven suites / 635 tests GREEN; frozen 35 cases на baseline v3 —
+18 failures / 17 controls / 0 errors, те же bytes GREEN. Stateful mocked JDBC
+с real security/encoder — не PostgreSQL concurrency или browser acceptance.
+Здесь source/test checkout C:\Users\sushi\Git_H\tg_ref_b24_sup; рабочие
+проект/Docker тестового стенда на другой машине/в другой сессии
+C:\Users\SinicinVV\git_h\tg_ref_b24_sup. Baseline R190 96878bd4b сверён по
+parent/subject/exact 10 files/content. R184 checkpoint сохранён точно;
+R185–R191 здесь не развёрнуты. Runtime/БД/flags не менялись, Browser/Node/Docker/
+live DB/HTTP/providers не запускались. Исторический S2B снят R190; остаются
+новые scoped data flows и первый production запуск. Grant commit/push до
+2026-10-27 21:00 UTC; source apply отделён от publisher. Статус 01-278 — 🟡.
+
+Историческое уточнение R190 (2026-10-27): здесь source/test checkout
 C:\Users\sushi\Git_H\tg_ref_b24_sup; рабочие проект/Docker тестового стенда
 на другой машине/в другой сессии C:\Users\SinicinVV\git_h\tg_ref_b24_sup.
 R189 a4d263eb3 сверён по parent/subject/exact 10 files/content. R190: первичный

@@ -1,12 +1,9 @@
 package com.example.panel.controller;
 
-import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.Locale;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
-import javax.sql.DataSource;
+import com.example.panel.security.PanelUserPrincipal;
 import com.example.panel.service.UiPreferenceService;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
@@ -63,7 +60,9 @@ public class ProfileApiController {
     @PostMapping("/profile/password")
     public ResponseEntity<Map<String, Object>> updatePassword(Authentication authentication,
                                                               @RequestBody Map<String, Object> payload) {
-        if (authentication == null || !StringUtils.hasText(authentication.getName())) {
+        if (authentication == null || !authentication.isAuthenticated()
+                || !(authentication.getPrincipal() instanceof PanelUserPrincipal principal)
+                || principal.getUserId() <= 0 || !StringUtils.hasText(principal.getUsername())) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(Map.of("success", false, "error", "Не удалось определить пользователя."));
         }
@@ -87,34 +86,47 @@ public class ProfileApiController {
                 .body(Map.of("success", false, "error", "Новый пароль и подтверждение не совпадают."));
         }
 
-        String username = authentication.getName();
         var rows = usersJdbcTemplate.queryForList(
-            "SELECT * FROM users WHERE lower(username) = lower(?) LIMIT 1",
-            username
+            "SELECT * FROM users WHERE id = ?", principal.getUserId()
         );
         if (rows.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(Map.of("success", false, "error", "Пользователь не найден."));
         }
-        String storedPassword = resolveStoredCredential(rows.get(0));
+        if (rows.size() != 1) return accountChanged();
+        Map<String, Object> account = rows.get(0);
+        if (!(account.get("id") instanceof Number id) || id.longValue() != principal.getUserId()
+                || !principal.getUsername().equals(account.get("username"))
+                || !booleanValue(account.get("enabled"), true) || booleanValue(account.get("is_blocked"), false)) {
+            return accountChanged();
+        }
+        String storedPassword = resolveStoredCredential(account);
         if (!passwordEncoder.matches(currentPassword, storedPassword)) {
             return ResponseEntity.badRequest()
                 .body(Map.of("success", false, "error", "Текущий пароль введён неверно."));
         }
 
         String hashed = passwordEncoder.encode(newPassword);
-        boolean hasPasswordHash = hasColumn("users", "password_hash");
+        boolean hasPasswordHash = account.containsKey("password_hash");
+        StringBuilder sql = new StringBuilder("UPDATE users SET password = ?");
+        List<Object> values = new ArrayList<>();
+        values.add(hashed);
         if (hasPasswordHash) {
-            usersJdbcTemplate.update(
-                "UPDATE users SET password = ?, password_hash = ? WHERE lower(username) = lower(?)",
-                hashed, hashed, username
-            );
-        } else {
-            usersJdbcTemplate.update(
-                "UPDATE users SET password = ? WHERE lower(username) = lower(?)",
-                hashed, username
-            );
+            sql.append(", password_hash = ?");
+            values.add(hashed);
         }
+        sql.append(" WHERE id = ? AND username = ? AND password IS NOT DISTINCT FROM ?");
+        values.add(principal.getUserId());
+        values.add(principal.getUsername());
+        values.add(account.get("password"));
+        // Compare the snapshot used to verify the current password; a concurrent change must win.
+        for (String column : List.of("password_hash", "enabled", "is_blocked")) {
+            if (account.containsKey(column)) {
+                sql.append(" AND ").append(column).append(" IS NOT DISTINCT FROM ?");
+                values.add(account.get(column));
+            }
+        }
+        if (usersJdbcTemplate.update(sql.toString(), values.toArray()) != 1) return accountChanged();
 
         return ResponseEntity.ok(Map.of("success", true, "message", "Пароль успешно обновлён."));
     }
@@ -135,24 +147,16 @@ public class ProfileApiController {
         return stringValue(row.get("password_hash"));
     }
 
-    private boolean hasColumn(String tableName, String columnName) {
-        DataSource dataSource = usersJdbcTemplate.getDataSource();
-        if (dataSource == null) {
-            return false;
-        }
-        return hasColumn(dataSource, tableName, columnName)
-            || hasColumn(dataSource, tableName.toLowerCase(Locale.ROOT), columnName.toLowerCase(Locale.ROOT))
-            || hasColumn(dataSource, tableName.toUpperCase(Locale.ROOT), columnName.toUpperCase(Locale.ROOT));
+    private ResponseEntity<Map<String, Object>> accountChanged() {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(Map.of("success", false, "error", "Учётная запись изменилась. Повторите вход."));
     }
 
-    private boolean hasColumn(DataSource dataSource, String tableName, String columnName) {
-        try (Connection connection = dataSource.getConnection()) {
-            DatabaseMetaData metaData = connection.getMetaData();
-            try (ResultSet rs = metaData.getColumns(connection.getCatalog(), null, tableName, columnName)) {
-                return rs.next();
-            }
-        } catch (SQLException ex) {
-            return false;
-        }
+    private boolean booleanValue(Object raw, boolean defaultValue) {
+        if (raw == null) return defaultValue;
+        if (raw instanceof Boolean value) return value;
+        if (raw instanceof Number value) return value.intValue() != 0;
+        String text = raw.toString().trim();
+        return text.isEmpty() ? defaultValue : "1".equals(text) || "true".equalsIgnoreCase(text);
     }
 }
