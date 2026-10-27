@@ -77,6 +77,9 @@ class FormLoginIdentityWebMvcTest {
             if (account == null) throw new EmptyResultDataAccessException(1);
             return account.row();
         });
+        when(jdbc.queryForMap(eq("SELECT * FROM users WHERE id = ?"), anyLong())).thenAnswer(call ->
+            accounts.values().stream().filter(a -> a.row().get("id").equals(call.getArgument(1)))
+                .findFirst().orElseThrow(() -> new EmptyResultDataAccessException(1)).row());
         when(jdbc.query(eq(AUTHORITIES_SQL), org.mockito.ArgumentMatchers.<RowMapper<String>>any(), anyLong()))
             .thenAnswer(call -> accounts.values().stream()
                 .filter(a -> a.row().get("id").equals(call.getArgument(2))).findFirst().orElseThrow().authorities());

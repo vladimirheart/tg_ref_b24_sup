@@ -56,9 +56,9 @@ remember-me 14 суток. Фильтр не регистрируется отд
 
 Политика очистки логина на записи не применяется ко входу и не разрешает
 искать похожий аккаунт. Новые обычные аккаунты вводят логин без добавочных
-пробелов. Авторитеты уже открытой сессии автоматически не перечитываются в R188;
-refresh/revoke сессий и неоднозначные case-insensitive account rows требуют
-отдельной проверки. MockMvc с настоящей security chain не заменяет working
+пробелов. До R189 права открытой сессии автоматически не перечитывались;
+проверка сессий описана ниже. Неоднозначные case-insensitive account rows при
+первичном входе требуют отдельной проверки. MockMvc с настоящей security chain не заменяет working
 JDBC session/fleet acceptance или проверку native browser input sanitization.
 
 Нормализация нового логина не распространяется на существующие authenticated
@@ -69,3 +69,46 @@ case-insensitive SQL без trim. Blank/authentication guards и best-effort
 Права создания/редактирования, field permissions и проверка текущего пароля
 остаются обязательными. R187 не даёт новых grants и не выполняет миграцию,
 backfill, переименование данных или rollout рабочего экземпляра.
+
+## Проверка открытых сессий — R189
+
+При DB-backed входе principal содержит положительный numeric user ID и точный
+stored username. Перед каждым защищённым запросом SessionAuthorityFilter
+повторно читает аккаунт **по ID**, затем прямые authorities и текущую роль.
+Нет trim, lookup по имени, переноса сессии на похожий/повторно созданный аккаунт
+или TTL-кэша старых прав. Case folding первичного входа из R188 не меняется.
+
+Новые права применяются в текущем запросе, до method security и controller/service.
+Меняется весь набор authorities. Новый SecurityContext сохраняется через общий
+request-attribute + HttpSession repository, чтобы ON_SET_ATTRIBUTE Spring Session
+увидел изменение. При одинаковом наборе прав context не перезаписывается.
+Тип remember-me сохраняется: обновление прав не делает такую сессию fully authenticated.
+Credentials стираются; в serialized principal остаются ID/username и права,
+без password/hash. Сериализация проверена изолированно, не на рабочем JDBC store.
+
+Удалённый, disabled/blocked или переименованный аккаунт, в том числе изменение
+регистра stored username, прекращает старую сессию. То же относится к legacy
+principal без numeric ID. Context очищается, сессия инвалидируется, cookies
+JSESSIONID/remember-me удаляются, далее действует прежний login entry point.
+
+Ошибка чтения аккаунта/любого источника прав возвращает 503 до защищённого
+действия; старые права не используются. Сессия сохраняется для повторной проверки
+после восстановления хранилища. Strict error propagation применяется к session
+refresh; прежние login authority-loading fallbacks не расширяются этим шагом.
+
+Фильтр зарегистрирован только в security chain, после remember-me и до anonymous/
+activity/authorization. Public routes используют тот же MVC/static/error matcher,
+что permitAll, и не зависят от refresh. Anonymous requests и прежний fallback
+без настроенного users datasource сохраняются; недоступная настроенная БД не
+считается fallback. CSRF остаётся перед refresh.
+
+После будущей выкатки legacy сессиям понадобится повторный вход. Новый serialized
+класс PanelUserPrincipal должен присутствовать во всех web images, читающих
+JDBC sessions; старый image не прочитает новый payload. Rollout/rollback требует
+согласования версий web-реплик и обработки несовместимых сессий. Эти операции
+здесь не выполнялись; checkpoint/rollback R184 сохраняются как исторические факты.
+
+Это проверка на следующем защищённом запросе, не принудительное удаление всех
+сессий в кластере. Уже выполняющиеся запросы, открытые async/SSE соединения,
+password-change revocation и token policy остаются отдельным scope. Schema,
+миграции, backfill и рабочая среда не меняются.

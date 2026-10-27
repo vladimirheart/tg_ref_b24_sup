@@ -18,7 +18,15 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.context.DelegatingSecurityContextRepository;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.DispatcherTypeRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.security.web.servlet.util.matcher.MvcRequestMatcher;
+import org.springframework.web.servlet.handler.HandlerMappingIntrospector;
 
 @Configuration
 @EnableMethodSecurity
@@ -31,24 +39,28 @@ public class SecurityConfig {
                                                    ObjectProvider<UserLastActivityFilter> userLastActivityFilter,
                                                    DaoAuthenticationProvider daoAuthenticationProvider,
                                                    UserDetailsService userDetailsService,
+                                                   UserRepositoryUserDetailsService users,
+                                                   HandlerMappingIntrospector introspector,
                                                    PanelSecurityProperties securityProperties) throws Exception {
+        var publicRequests = new OrRequestMatcher(
+                new DispatcherTypeRequestMatcher(DispatcherType.ERROR),
+                PathRequest.toStaticResources().atCommonLocations(),
+                new OrRequestMatcher(java.util.stream.Stream.of(
+                        "/css/**", "/js/**", "/images/**", "/vendor/**", "/webjars/**",
+                        "/favicon.ico", "/*.svg", "/*.png", "/login",
+                        "/api/password-reset-requests/public",
+                        "/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus",
+                        "/internal/api/bot/**", "/internal/observability/alertmanager", "/webhooks/max/**",
+                        "/error", "/error/**"
+                ).<RequestMatcher>map(pattern -> new MvcRequestMatcher(introspector, pattern)).toList()));
+        var contexts = new DelegatingSecurityContextRepository(
+                new RequestAttributeSecurityContextRepository(), new HttpSessionSecurityContextRepository());
         http
                 .authorizeHttpRequests(auth -> auth
-                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
-                        .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
-                        .requestMatchers(
-                                "/css/**", "/js/**", "/images/**", "/vendor/**", "/webjars/**",
-                                "/favicon.ico", "/*.svg", "/*.png",
-                                "/login",
-                                "/api/password-reset-requests/public",
-                                "/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus",
-                                "/internal/api/bot/**",
-                                "/internal/observability/alertmanager",
-                                "/webhooks/max/**",
-                                "/error", "/error/**"
-                        ).permitAll()
+                        .requestMatchers(publicRequests).permitAll()
                         .anyRequest().authenticated()
                 )
+                .securityContext(context -> context.securityContextRepository(contexts))
                 .with(new ExactFormLoginConfigurer(), form -> form
                         .loginPage("/login")
                         .defaultSuccessUrl("/post-login", true)
@@ -90,6 +102,8 @@ public class SecurityConfig {
                 }))
                 .addFilterAfter(securityHeadersFilter, org.springframework.security.web.csrf.CsrfFilter.class);
 
+        http.addFilterBefore(new SessionAuthorityFilter(users, publicRequests, contexts, securityProperties.getRememberMeKey()),
+                org.springframework.security.web.authentication.AnonymousAuthenticationFilter.class);
         UserLastActivityFilter activityFilter = userLastActivityFilter.getIfAvailable();
         if (activityFilter != null) {
             http.addFilterAfter(activityFilter, org.springframework.security.web.authentication.AnonymousAuthenticationFilter.class);

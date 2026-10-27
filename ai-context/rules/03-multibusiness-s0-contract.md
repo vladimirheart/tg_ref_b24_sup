@@ -14,7 +14,32 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R188 (2026-10-27): рабочие проект и Docker остаются на
+Актуальное уточнение R189 (2026-10-27): рабочие проект и Docker остаются на
+другой машине/в другой сессии C:\Users\SinicinVV\git_h\tg_ref_b24_sup. Здесь
+source/test checkout C:\Users\sushi\Git_H\tg_ref_b24_sup: Maven MockMvc с
+настоящими login/security/method security и MockHttpSession, только JDBC mocked.
+R188 1ccdfc4c5 сверён по parent/subject/exact 7 files/content. 13 suites / 582
+tests GREEN; новые frozen 32 cases на baseline — 24 failures / 8 controls / 0 errors.
+Проверены refresh/revoke прав в той же сессии, numeric identity, статус/rename/
+username reuse, строгий отказ при read failure, сериализация, public/CSRF и прежние
+login/channel guards. Browser/Node/Docker/live DB/HTTP/providers не запускались.
+Checkpoint R184 и пользовательский start/stop одного бота сохранены точно;
+новых runtime probes/restart/deploy/migration/backfill/config/flags/данных нет.
+R185–R189 здесь не развёрнуты. Grant commit/push до 2026-10-27 21:00 UTC
+сохраняется; source apply и expiry-guarded publisher разделены. Статус 01-278 — 🟡.
+
+R189 привязывает DB-backed principal к numeric account ID. Каждый защищённый
+запрос проверяет ID + точный stored username, active status и текущие direct/role
+authorities до controller/service. Права обновляются в том же запросе и явно
+сохраняются в session context; старый/переименованный/удалённый аккаунт не получает
+права нового пользователя с тем же логином. Legacy principal без ID требует
+повторного входа. Read failure — 503 без старых прав, public routes независимы.
+Подробнее и rollout/rollback compatibility нового serialized principal:
+[08-panel-account-credentials](08-panel-account-credentials.md).
+Это next-request guard, не cluster-wide deletion или полная S6 acceptance;
+неоднозначный первичный login lookup и остальные legacy/S2B/S3–S6 gates открыты.
+
+Историческое уточнение R188 (2026-10-27): рабочие проект и Docker остаются на
 другой машине/в другой сессии C:\Users\SinicinVV\git_h\tg_ref_b24_sup. Здесь
 source/test checkout C:\Users\sushi\Git_H\tg_ref_b24_sup: Maven MockMvc с
 настоящими security/DAO/encoder/session/remember-me и Thymeleaf, JDBC mocked.

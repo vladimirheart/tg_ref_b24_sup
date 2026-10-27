@@ -7,7 +7,6 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -62,30 +61,38 @@ class UserRepositoryUserDetailsService implements UserDetailsService {
                     username
             );
 
-            Number idNumber = (Number) userRow.get("id");
-            Long userId = idNumber != null ? idNumber.longValue() : null;
-            boolean enabled = resolveEnabled(userRow);
-            String storedCredential = resolveStoredCredential(userRow);
-            if (!org.springframework.util.StringUtils.hasText(storedCredential)) {
-                throw new UsernameNotFoundException("User credentials are not configured");
-            }
-
-            List<GrantedAuthority> authorities = loadAuthorities(userId);
-
-            return User.withUsername((String) userRow.get("username"))
-                    .password(storedCredential)
-                    .authorities(authorities)
-                    .disabled(!enabled)
-                    .build();
+            return buildPrincipal(userRow, false);
         } catch (EmptyResultDataAccessException ex) {
             throw new UsernameNotFoundException("User not found", ex);
         }
     }
 
-    private List<GrantedAuthority> loadAuthorities(Long userId) {
+    PanelUserPrincipal loadCurrentUser(long userId) {
+        try {
+            return buildPrincipal(jdbcTemplate.queryForMap("SELECT * FROM users WHERE id = ?", userId), true);
+        } catch (EmptyResultDataAccessException ex) {
+            throw new UsernameNotFoundException("User not found", ex);
+        }
+    }
+
+    private PanelUserPrincipal buildPrincipal(Map<String, Object> userRow, boolean strict) {
+        if (!(userRow.get("id") instanceof Number id) || id.longValue() <= 0
+                || !(userRow.get("username") instanceof String username)
+                || !org.springframework.util.StringUtils.hasText(username)) {
+            throw new UsernameNotFoundException("User identity is not configured");
+        }
+        String storedCredential = resolveStoredCredential(userRow);
+        if (!org.springframework.util.StringUtils.hasText(storedCredential)) {
+            throw new UsernameNotFoundException("User credentials are not configured");
+        }
+        return new PanelUserPrincipal(id.longValue(), username, storedCredential, resolveEnabled(userRow),
+            loadAuthorities(id.longValue(), strict));
+    }
+
+    private List<GrantedAuthority> loadAuthorities(Long userId, boolean strict) {
         Set<String> authorityNames = new LinkedHashSet<>();
-        authorityNames.addAll(loadDirectAuthorities(userId));
-        authorityNames.addAll(loadRoleAuthorities(userId));
+        authorityNames.addAll(loadDirectAuthorities(userId, strict));
+        authorityNames.addAll(loadRoleAuthorities(userId, strict));
 
         if (authorityNames.isEmpty()) {
             authorityNames.add("ROLE_USER");
@@ -95,7 +102,7 @@ class UserRepositoryUserDetailsService implements UserDetailsService {
                 .toList();
     }
 
-    private Set<String> loadDirectAuthorities(Long userId) {
+    private Set<String> loadDirectAuthorities(Long userId, boolean strict) {
         try {
             return new LinkedHashSet<>(jdbcTemplate.query(
                     "SELECT authority FROM user_authorities WHERE user_id = ?",
@@ -103,11 +110,12 @@ class UserRepositoryUserDetailsService implements UserDetailsService {
                     userId
             ));
         } catch (DataAccessException ex) {
+            if (strict) throw ex;
             return Set.of();
         }
     }
 
-    private Set<String> loadRoleAuthorities(Long userId) {
+    private Set<String> loadRoleAuthorities(Long userId, boolean strict) {
         try {
             List<Map<String, Object>> rows = jdbcTemplate.queryForList(
                     "SELECT r.name AS role_name, r.permissions AS permissions " +
@@ -128,6 +136,7 @@ class UserRepositoryUserDetailsService implements UserDetailsService {
             }
             return result;
         } catch (DataAccessException ex) {
+            if (strict) throw ex;
             return Set.of();
         }
     }
