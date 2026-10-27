@@ -1,5 +1,17 @@
 package com.example.panel.service;
 
+import com.example.panel.security.PanelUserPrincipal;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
+import java.util.function.Function;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.dao.DataAccessException;
@@ -19,117 +31,140 @@ import java.util.Map;
 @Service
 public class UiPreferenceService {
 
-    private static final String PARAM_TYPE = "ui_preferences.v1";
-
+    private static final String PARAM_TYPE = "ui_preferences.account.v2";
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
+    private final TransactionTemplate transaction;
 
-    public UiPreferenceService(JdbcTemplate jdbcTemplate,
+    public UiPreferenceService(@Qualifier("usersJdbcTemplate") JdbcTemplate jdbcTemplate,
                                ObjectMapper objectMapper) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
+        this.transaction = new TransactionTemplate(
+                new DataSourceTransactionManager(jdbcTemplate.getDataSource()));
+        this.transaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
-    public Map<String, Object> loadForUser(String username) {
-        return normalizePreferences(loadStoredPayload(username));
+    public static boolean isBoundAccount(Authentication authentication) {
+        return authentication != null && authentication.isAuthenticated()
+                && !(authentication instanceof AnonymousAuthenticationToken)
+                && authentication.getPrincipal() instanceof PanelUserPrincipal principal
+                && principal.getUserId() > 0 && StringUtils.hasText(principal.getUsername())
+                && principal.isEnabled() && principal.isAccountNonLocked()
+                && principal.isAccountNonExpired() && principal.isCredentialsNonExpired();
     }
 
-    public Map<String, Object> saveForUser(String username, Map<String, Object> payload) {
-        if (!StringUtils.hasText(username)) {
-            return Map.of();
-        }
-        Map<String, Object> existing = new LinkedHashMap<>(loadStoredPayload(username));
-        Map<String, Object> normalized = normalizePreferences(payload);
-        mergeBasePreferences(existing, normalized, payload);
-        persistForUser(username, existing);
-        return normalizePreferences(existing);
+    public static boolean isPrivateParameterType(String type) {
+        return type != null && type.startsWith("ui_preferences.");
     }
 
-    public Map<String, Object> loadDialogsTriageForUser(String username) {
-        if (!StringUtils.hasText(username)) {
-            return Map.of();
-        }
-        Map<String, Object> payload = loadStoredPayload(username);
-        Object rawDialogsTriage = payload.get("dialogsTriage");
-        if (!(rawDialogsTriage instanceof Map<?, ?> map)) {
-            return Map.of();
-        }
-        Map<String, Object> triagePayload = objectMapper.convertValue(map, new TypeReference<LinkedHashMap<String, Object>>() {});
-        return normalizeDialogsTriage(triagePayload);
+    public Map<String, Object> loadForUser(Authentication authentication) {
+        return withAccount(authentication, false, principal -> normalizePreferences(loadStoredPayload(principal).payload()));
     }
 
-    public Map<String, Object> saveDialogsTriageForUser(String username, Map<String, Object> payload) {
-        if (!StringUtils.hasText(username)) {
-            return Map.of();
-        }
-        Map<String, Object> normalized = normalizeDialogsTriage(payload);
-        Map<String, Object> existing = new LinkedHashMap<>(loadStoredPayload(username));
-        if (normalized.isEmpty()) {
-            existing.remove("dialogsTriage");
-        } else {
-            Map<String, Object> triagePayload = new LinkedHashMap<>(normalized);
-            triagePayload.put("updated_at_utc", OffsetDateTime.now(ZoneOffset.UTC).toString());
-            existing.put("dialogsTriage", triagePayload);
-        }
-        persistForUser(username, existing);
-        return loadDialogsTriageForUser(username);
+    public Map<String, Object> saveForUser(Authentication authentication, Map<String, Object> payload) {
+        return withAccount(authentication, true, principal -> {
+            Stored stored = loadStoredPayload(principal);
+            Map<String, Object> existing = new LinkedHashMap<>(stored.payload());
+            mergeBasePreferences(existing, normalizePreferences(payload), payload);
+            persistForUser(principal, stored, existing);
+            return normalizePreferences(existing);
+        });
     }
 
-    private Map<String, Object> loadStoredPayload(String username) {
-        if (!StringUtils.hasText(username)) {
-            return Map.of();
+    public Map<String, Object> loadDialogsTriageForUser(Authentication authentication) {
+        return withAccount(authentication, false, principal -> triagePayload(loadStoredPayload(principal).payload()));
+    }
+
+    public Map<String, Object> saveDialogsTriageForUser(Authentication authentication, Map<String, Object> payload) {
+        return withAccount(authentication, true, principal -> {
+            Stored stored = loadStoredPayload(principal);
+            Map<String, Object> existing = new LinkedHashMap<>(stored.payload());
+            Map<String, Object> normalized = normalizeDialogsTriage(payload);
+            if (normalized.isEmpty()) {
+                existing.remove("dialogsTriage");
+            } else {
+                Map<String, Object> triage = new LinkedHashMap<>(normalized);
+                triage.put("updated_at_utc", OffsetDateTime.now(ZoneOffset.UTC).toString());
+                existing.put("dialogsTriage", triage);
+            }
+            persistForUser(principal, stored, existing);
+            return triagePayload(existing);
+        });
+    }
+
+    private Map<String, Object> triagePayload(Map<String, Object> payload) {
+        Object raw = payload.get("dialogsTriage");
+        if (!(raw instanceof Map<?, ?> map)) return Map.of();
+        return normalizeDialogsTriage(objectMapper.convertValue(map, new TypeReference<LinkedHashMap<String, Object>>() {}));
+    }
+
+    private Map<String, Object> withAccount(Authentication authentication, boolean writing,
+            Function<PanelUserPrincipal, Map<String, Object>> action) {
+        if (!isBoundAccount(authentication)) {
+            throw new AccessDeniedException("Preferences require a bound account");
         }
+        var principal = (PanelUserPrincipal) authentication.getPrincipal();
         try {
-            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                "SELECT extra_json FROM settings_parameters WHERE param_type = ? AND lower(value) = lower(?) AND is_deleted = FALSE LIMIT 1",
-                PARAM_TYPE,
-                username.trim()
-            );
-            if (rows.isEmpty()) {
-                return Map.of();
-            }
-            Object rawJson = rows.get(0).get("extra_json");
-            if (!(rawJson instanceof String json) || !StringUtils.hasText(json)) {
-                return Map.of();
-            }
-            return objectMapper.readValue(json, new TypeReference<LinkedHashMap<String, Object>>() {});
-        } catch (Exception ex) {
-            return Map.of();
+            return transaction.execute(status -> {
+                var rows = jdbcTemplate.queryForList("SELECT id, username, enabled, is_blocked FROM users WHERE id = ? "
+                        + (writing ? "FOR UPDATE" : "FOR SHARE"), principal.getUserId());
+                if (rows.size() != 1 || !(rows.get(0).get("id") instanceof Number id)
+                        || id.longValue() != principal.getUserId()
+                        || !principal.getUsername().equals(rows.get(0).get("username"))
+                        || Boolean.FALSE.equals(rows.get(0).get("enabled"))
+                        || Boolean.TRUE.equals(rows.get(0).get("is_blocked"))) {
+                    throw new AccessDeniedException("Preference account has changed");
+                }
+                return action.apply(principal);
+            });
+        } catch (DataAccessException ex) {
+            throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE, "Preference storage is unavailable", ex);
         }
     }
 
-    private void persistForUser(String username, Map<String, Object> payload) {
-        Map<String, Object> persisted = new LinkedHashMap<>(payload != null ? payload : Map.of());
+    private Stored loadStoredPayload(PanelUserPrincipal principal) {
+        var rows = jdbcTemplate.queryForList(
+                "SELECT id, extra_json FROM settings_parameters WHERE param_type = ? AND value = ? AND is_deleted = FALSE ORDER BY id LIMIT 2",
+                PARAM_TYPE, Long.toString(principal.getUserId()));
+        if (rows.isEmpty()) return new Stored(null, null, Map.of());
+        if (rows.size() != 1 || !(rows.get(0).get("id") instanceof Number id) || id.longValue() <= 0) {
+            throw conflict();
+        }
+        Object raw = rows.get(0).get("extra_json");
+        if (!(raw instanceof String json) || !StringUtils.hasText(json)) throw conflict();
+        try {
+            Map<String, Object> payload = objectMapper.readValue(json, new TypeReference<LinkedHashMap<String, Object>>() {});
+            if (payload == null) throw conflict();
+            return new Stored(id.longValue(), json, payload);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            throw conflict();
+        }
+    }
+
+    private void persistForUser(PanelUserPrincipal principal, Stored stored, Map<String, Object> payload) {
+        Map<String, Object> persisted = new LinkedHashMap<>(payload);
         persisted.put("updated_at_utc", OffsetDateTime.now(ZoneOffset.UTC).toString());
         String json = writeJson(persisted);
-        if (json == null) {
-            return;
-        }
-        try {
-            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                "SELECT id FROM settings_parameters WHERE param_type = ? AND lower(value) = lower(?) AND is_deleted = FALSE LIMIT 1",
-                PARAM_TYPE,
-                username.trim()
-            );
-            if (rows.isEmpty()) {
-                jdbcTemplate.update(
-                    "INSERT INTO settings_parameters(param_type, value, state, is_deleted, extra_json) VALUES (?, ?, 'Активен', FALSE, ?)",
-                    PARAM_TYPE,
-                    username.trim(),
-                    json
-                );
-            } else {
-                Number id = (Number) rows.get(0).get("id");
-                jdbcTemplate.update(
-                    "UPDATE settings_parameters SET state = 'Активен', is_deleted = FALSE, deleted_at = NULL, extra_json = ? WHERE id = ?",
-                    json,
-                    id != null ? id.longValue() : null
-                );
-            }
-        } catch (DataAccessException ex) {
-            return;
-        }
+        if (json == null) throw new ResponseStatusException(
+                HttpStatus.INTERNAL_SERVER_ERROR, "Preferences cannot be serialized");
+        String key = Long.toString(principal.getUserId());
+        int changed = stored.id() == null
+                ? jdbcTemplate.update("INSERT INTO settings_parameters(param_type, value, state, is_deleted, extra_json) VALUES (?, ?, 'Активен', FALSE, ?)",
+                        PARAM_TYPE, key, json)
+                : jdbcTemplate.update("UPDATE settings_parameters SET state = 'Активен', extra_json = ?"
+                        + " WHERE id = ? AND param_type = ? AND value = ? AND is_deleted = FALSE AND extra_json IS NOT DISTINCT FROM ?",
+                        json, stored.id(), PARAM_TYPE, key, stored.json());
+        if (changed != 1) throw conflict();
     }
+
+    private ResponseStatusException conflict() {
+        return new ResponseStatusException(
+                HttpStatus.CONFLICT, "Preference row is ambiguous, corrupt or changed");
+    }
+
+    private record Stored(Long id, String json, Map<String, Object> payload) {}
 
     private void mergeBasePreferences(Map<String, Object> target,
                                       Map<String, Object> normalized,

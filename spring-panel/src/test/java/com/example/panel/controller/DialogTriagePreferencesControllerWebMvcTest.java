@@ -44,7 +44,7 @@ class DialogTriagePreferencesControllerWebMvcTest {
 
     @Test
     void getTriagePreferencesReturnsServerBackedPayload() throws Exception {
-        when(dialogTriagePreferenceService.loadForOperator("operator"))
+        when(dialogTriagePreferenceService.loadForOperator(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class)))
             .thenReturn(Map.of("view", "overdue", "sort_mode", "sla_priority"));
 
         mockMvc.perform(get("/api/dialogs/triage-preferences").with(user("operator")))
@@ -60,7 +60,7 @@ class DialogTriagePreferencesControllerWebMvcTest {
         when(dialogTriagePreferenceService.normalizeSortMode("sla_priority")).thenReturn("sla_priority");
         when(dialogTriagePreferenceService.normalizeSlaWindowMinutes(60)).thenReturn(60);
         when(dialogTriagePreferenceService.normalizePageSizePreference("50")).thenReturn("50");
-        when(dialogTriagePreferenceService.saveForOperator("operator", "active", "sla_priority", 60, "50"))
+        when(dialogTriagePreferenceService.saveForOperator(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq("active"), org.mockito.ArgumentMatchers.eq("sla_priority"), org.mockito.ArgumentMatchers.eq(60), org.mockito.ArgumentMatchers.eq("50")))
             .thenReturn(Map.of(
                 "view", "active",
                 "sort_mode", "sla_priority",
@@ -122,7 +122,7 @@ class DialogTriagePreferencesControllerWebMvcTest {
         when(dialogTriagePreferenceService.normalizeSortMode("recent")).thenReturn("recent");
         when(dialogTriagePreferenceService.normalizeSlaWindowMinutes(null)).thenReturn(null);
         when(dialogTriagePreferenceService.normalizePageSizePreference("25")).thenReturn("25");
-        when(dialogTriagePreferenceService.saveForOperator("operator", "all", "recent", null, "25"))
+        when(dialogTriagePreferenceService.saveForOperator(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq("all"), org.mockito.ArgumentMatchers.eq("recent"), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq("25")))
             .thenReturn(Map.of(
                 "view", "all",
                 "sort_mode", "recent",

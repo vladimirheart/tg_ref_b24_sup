@@ -128,7 +128,7 @@ public class DialogWorkspaceService {
         );
         Map<String, Object> workflowSnapshot = dialogWorkspaceWorkflowSnapshotService.buildWorkflowSnapshot(
                 ticketId,
-                operator,
+                authentication,
                 summary,
                 workspacePermissions
         );

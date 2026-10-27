@@ -40,7 +40,7 @@ public class DialogTriagePreferencesController {
         }
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("success", true);
-        payload.put("preferences", dialogTriagePreferenceService.loadForOperator(operator));
+        payload.put("preferences", dialogTriagePreferenceService.loadForOperator(authentication));
         return ResponseEntity.ok(payload);
     }
 
@@ -60,7 +60,7 @@ public class DialogTriagePreferencesController {
         Integer slaWindowMinutes = dialogTriagePreferenceService.normalizeSlaWindowMinutes(request.slaWindowMinutes());
         String pageSize = dialogTriagePreferenceService.normalizePageSizePreference(request.pageSize());
         Map<String, Object> savedPreferences = dialogTriagePreferenceService.saveForOperator(
-                operator,
+                authentication,
                 view,
                 sortMode,
                 slaWindowMinutes,

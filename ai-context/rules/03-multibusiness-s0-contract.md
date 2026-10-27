@@ -24,13 +24,40 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальная сводка R194 имеют
+что production уже запускался. Эта оговорка и актуальная сводка R195 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R194 (2026-10-27): self workforce check-in использует
+Актуальное уточнение R195 (2026-10-27): personal UI/triage preferences
+получают Authentication и хранятся по positive numeric ID в
+ui_preferences.account.v2, без trim/lower(name) и legacy auto-import.
+Account ID/exact raw username/status проверяются под row lock; транзакционные
+read/merge/write сериализуют UI/triage saves, сохраняют частичный merge и UTC.
+Duplicate/corrupt rows дают 409, ошибки SQL-чтения/записи — 503/rollback, не success.
+Общий settings API/model исключает весь private namespace ui_preferences.*;
+generic CRUD не обходит personal ownership даже для admin. Unbound optional
+bootstrap/workflow даёт пустые defaults, не доступ к чужим настройкам.
+Старые v1/shared-config записи не удалены; после будущего rollout defaults
+без автоматического переноса соответствуют R190. Новых migrations нет.
+30 suites / 704 tests GREEN; frozen 32 MVC cases: baseline v2 26 failures /
+6 controls / 0 errors, те же bytes GREEN; 14 PostgreSQL cases включают реальные
+concurrent saves и rollback. Workspace integration проверен одним методом.
+Это не вся workspace identity, не новая global/business policy и не live
+browser/fleet/JDBC session-store приёмка.
+
+Сессия здесь на машине тестового стенда. Read-only probe: web 9fb4a33fd8a4,
+R184 8310d1f7f0001314abdc60e52516e563168bfee1, healthy/restart 0.
+R185–R195 не развёрнуты; данные/схема БД стенда, grants/flags/config/providers,
+R184 checkpoint и rollback не менялись. Изолированные Maven/Testcontainers
+не являются rollout; существующая Flyway chain запускалась только в тестовой БД.
+Нет migrations/backfill/reset на стенде, staging/commit/push.
+Следующий identity-кандидат — automation credentials и их rotation registry;
+остаются scoped data/picker/bot/AI paths, manual/global/system policy и сквозная
+приёмка/первый production S6. Historical S2B снят R190. Статус — 🟡.
+
+Историческое уточнение R194 (2026-10-27): self workforce check-in использует
 только ID-bound Authentication и exact stored username. Конфигурация смены
 читается по numeric ID с row/status guards; conditional INSERT проверяет
 identity/account/workforce status ещё раз в statement. Нет переноса смены

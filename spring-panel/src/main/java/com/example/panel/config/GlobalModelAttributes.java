@@ -35,10 +35,7 @@ public class GlobalModelAttributes {
 
     @ModelAttribute
     public void addUiPreferenceBootstrap(Model model, Authentication authentication) {
-        boolean authenticated = authentication != null
-            && authentication.isAuthenticated()
-            && StringUtils.hasText(authentication.getName())
-            && !"anonymousUser".equalsIgnoreCase(authentication.getName());
+        boolean authenticated = UiPreferenceService.isBoundAccount(authentication);
         model.addAttribute("uiPreferencesSyncEnabled", authenticated);
         if (!authenticated) {
             model.addAttribute("uiPreferencesBootstrap", java.util.Map.of());
@@ -46,7 +43,7 @@ public class GlobalModelAttributes {
         }
         model.addAttribute(
             "uiPreferencesBootstrap",
-            uiPreferenceService.map(service -> service.loadForUser(authentication.getName())).orElse(java.util.Map.of())
+            uiPreferenceService.map(service -> service.loadForUser(authentication)).orElse(java.util.Map.of())
         );
     }
 }

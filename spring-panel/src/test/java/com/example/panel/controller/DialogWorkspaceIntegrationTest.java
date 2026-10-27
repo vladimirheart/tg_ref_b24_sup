@@ -597,9 +597,16 @@ class DialogWorkspaceIntegrationTest extends PostgresqlIntegrationTestSupport {
                 "T-WS-WORKFLOW", "watcher_observer", "watcher_owner");
         insertHistoryRow("T-WS-WORKFLOW", 910098L, "user", "Сообщение для workflow snapshot", "2026-05-26T12:01:00Z", "text", 981L, null, 88L, null);
 
+        Long preferenceOwnerId = usersJdbcTemplate.queryForObject(
+                "SELECT id FROM users WHERE username = ?", Long.class, "watcher_owner");
+        jdbcTemplate.update("INSERT INTO settings_parameters(param_type,value,state,is_deleted,extra_json) VALUES (?,?,'Активен',FALSE,?)",
+                "ui_preferences.account.v2", Long.toString(preferenceOwnerId),
+                "{\"dialogsTriage\":{\"view\":\"SLA_CRITICAL\",\"sort_mode\":\"unknown\",\"sla_window_minutes\":30,\"page_size\":\"all\",\"updated_at_utc\":\"2026-05-26T15:00:00+03:00\"}}");
+
         mockMvc.perform(get("/api/dialogs/T-WS-WORKFLOW/workspace")
                         .param("include", "messages,permissions")
-                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                        .principal(new TestingAuthenticationToken(new com.example.panel.security.PanelUserPrincipal(
+                                preferenceOwnerId, "watcher_owner", "", true, List.of()), null, "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.workflow.responsible.assigned").value(true))

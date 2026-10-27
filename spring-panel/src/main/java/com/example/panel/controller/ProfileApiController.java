@@ -33,24 +33,24 @@ public class ProfileApiController {
 
     @org.springframework.web.bind.annotation.GetMapping("/profile/ui-preferences")
     public ResponseEntity<Map<String, Object>> loadUiPreferences(Authentication authentication) {
-        if (authentication == null || !StringUtils.hasText(authentication.getName())) {
+        if (authentication == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(Map.of("success", false, "error", "Не удалось определить пользователя."));
         }
         return ResponseEntity.ok(Map.of(
             "success", true,
-            "preferences", uiPreferenceService.loadForUser(authentication.getName())
+            "preferences", uiPreferenceService.loadForUser(authentication)
         ));
     }
 
     @org.springframework.web.bind.annotation.PutMapping("/profile/ui-preferences")
     public ResponseEntity<Map<String, Object>> updateUiPreferences(Authentication authentication,
                                                                    @RequestBody Map<String, Object> payload) {
-        if (authentication == null || !StringUtils.hasText(authentication.getName())) {
+        if (authentication == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(Map.of("success", false, "error", "Не удалось определить пользователя."));
         }
-        Map<String, Object> saved = uiPreferenceService.saveForUser(authentication.getName(), payload);
+        Map<String, Object> saved = uiPreferenceService.saveForUser(authentication, payload);
         return ResponseEntity.ok(Map.of(
             "success", true,
             "preferences", saved

@@ -204,7 +204,7 @@ class DialogApiControllerWebMvcTest {
 
     @Test
     void triagePreferencesReturnNormalizedPayloadForAuthenticatedOperator() throws Exception {
-        when(dialogTriagePreferenceService.loadForOperator("operator"))
+        when(dialogTriagePreferenceService.loadForOperator(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class)))
                 .thenReturn(Map.of(
                         "view", "overdue",
                         "sort_mode", "sla_priority",
@@ -250,7 +250,7 @@ class DialogApiControllerWebMvcTest {
         when(dialogTriagePreferenceService.normalizeSortMode("sla_priority")).thenReturn("sla_priority");
         when(dialogTriagePreferenceService.normalizeSlaWindowMinutes(60)).thenReturn(60);
         when(dialogTriagePreferenceService.normalizePageSizePreference("all")).thenReturn("all");
-        when(dialogTriagePreferenceService.saveForOperator("operator", "overdue", "sla_priority", 60, "all"))
+        when(dialogTriagePreferenceService.saveForOperator(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq("overdue"), org.mockito.ArgumentMatchers.eq("sla_priority"), org.mockito.ArgumentMatchers.eq(60), org.mockito.ArgumentMatchers.eq("all")))
                 .thenReturn(Map.of(
                         "view", "overdue",
                         "sort_mode", "sla_priority",

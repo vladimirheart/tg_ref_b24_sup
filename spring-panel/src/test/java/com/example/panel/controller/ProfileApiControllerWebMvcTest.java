@@ -51,7 +51,7 @@ class ProfileApiControllerWebMvcTest {
 
     @Test
     void loadUiPreferencesReturnsServerBackedPayload() throws Exception {
-        when(uiPreferenceService.loadForUser("operator"))
+        when(uiPreferenceService.loadForUser(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class)))
                 .thenReturn(Map.of("theme", "dark", "themePalette", "catppuccin"));
 
         mockMvc.perform(get("/profile/ui-preferences")
@@ -67,12 +67,12 @@ class ProfileApiControllerWebMvcTest {
         mockMvc.perform(get("/profile/ui-preferences"))
                 .andExpect(status().isUnauthorized());
 
-        verify(uiPreferenceService, never()).loadForUser(anyString());
+        verify(uiPreferenceService, never()).loadForUser(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class));
     }
 
     @Test
     void updateUiPreferencesPersistsNormalizedPayload() throws Exception {
-        when(uiPreferenceService.saveForUser(eq("operator"), anyMap()))
+        when(uiPreferenceService.saveForUser(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), anyMap()))
                 .thenReturn(Map.of(
                         "theme", "dark",
                         "themePalette", "amber-minimal",
@@ -108,7 +108,7 @@ class ProfileApiControllerWebMvcTest {
                                 """))
                 .andExpect(status().isUnauthorized());
 
-        verify(uiPreferenceService, never()).saveForUser(anyString(), anyMap());
+        verify(uiPreferenceService, never()).saveForUser(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), anyMap());
     }
 
     @Test

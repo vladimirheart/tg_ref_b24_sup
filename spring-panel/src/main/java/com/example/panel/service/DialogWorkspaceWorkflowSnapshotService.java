@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import org.springframework.security.core.Authentication;
+
 import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.model.dialog.DialogOperatorOption;
 import com.example.panel.model.dialog.DialogParticipantDto;
@@ -30,9 +32,10 @@ public class DialogWorkspaceWorkflowSnapshotService {
     }
 
     public Map<String, Object> buildWorkflowSnapshot(String ticketId,
-                                                     String operator,
+                                                     Authentication authentication,
                                                      DialogListItem summary,
                                                      Map<String, Object> workspacePermissions) {
+        String operator = authentication != null ? authentication.getName() : null;
         List<DialogParticipantDto> participants = dialogParticipantService.loadParticipants(ticketId);
         String responsibleUsername = resolveResponsibleUsername(ticketId, summary);
         Optional<DialogOperatorOption> responsibleProfile = StringUtils.hasText(responsibleUsername)
@@ -86,7 +89,7 @@ public class DialogWorkspaceWorkflowSnapshotService {
         workflow.put("participants", participants);
         workflow.put("reassign_candidates", reassignCandidates);
         workflow.put("participant_candidates", participantCandidates);
-        workflow.put("triage_preferences", dialogTriagePreferenceService.loadForOperator(operator));
+        workflow.put("triage_preferences", dialogTriagePreferenceService.loadForOperator(authentication));
         workflow.put("collaboration", collaboration);
         workflow.put("actions", buildActionAvailability(
                 operator,

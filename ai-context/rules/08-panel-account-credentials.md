@@ -170,6 +170,39 @@ R192 не добавляет CAS/транзакционную авторизац
 paths. Schema, сериализуемый principal и runtime не меняются. Проверка — MockMvc
 с real security и изолированными JDBC/config/file adapters, без рабочей БД/файлов.
 
+## Личные UI/triage preferences по ID — R195
+
+UiPreferenceService принимает Authentication с authenticated PanelUserPrincipal,
+positive numeric user ID, непустым exact raw username и допустимым status.
+Хранилище settings_parameters использует param_type ui_preferences.account.v2
+и канонический decimal user ID в value. Username не является ключом:
+нет trim/case-fold lookup, fallback к v1 или auto-import из shared config.
+Переиспользованный логин не наследует чужие preferences. Старые name-keyed
+данные не удаляются; без отдельно разрешённого переноса новый namespace
+начинается с defaults, что допустимо для тестовых данных согласно R190.
+
+Перед storage operation читается собственный users row по ID, проверяются
+exact username и enabled/not blocked. FOR SHARE удерживает account snapshot
+при чтении, FOR UPDATE сериализует cooperating writers; REQUIRES_NEW transaction
+охватывает account guard, чтение, merge и запись. UI и triage сохраняют общую
+строку без потерянных полей/двойного первого INSERT. UPDATE ограничен исходным
+JSON, ID/type/key/active status; нужен ровно один affected row.
+Duplicate/corrupt rows дают 409 без overwrite, ошибки SQL-чтения/записи — 503 с rollback.
+Нормализация значений, UTC timestamps, partial merge и unknown fields сохранены.
+
+Profile API, triage controller, global model bootstrap и workspace snapshot
+передают typed Authentication. Profile API и saves отвергают unbound actors;
+optional bootstrap/workflow возвращает пустые defaults без доступа к хранилищу.
+Global bootstrap определяет anonymous по principal type, а не строке логина.
+Это не исправляет все username-based workspace participants/candidates.
+
+Весь namespace ui_preferences.* зарезервирован: generic settings parameters
+create/update/delete запрещены, grouped list и /settings model его не выдают,
+в том числе admin. Личный API не принимает user ID/username от клиента.
+Новых grants, schema/migrations, serialized-principal или feature-flag изменений нет.
+Проверка включает real PostgreSQL row locking/rollback и security/login/session/
+CSRF fixtures; не заменяет browser/fleet/JDBC session-store или live acceptance.
+
 ## Собственный check-in смены по ID — R194
 
 WorkforceService получает Authentication от post-login/check-in controllers.

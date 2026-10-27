@@ -102,6 +102,15 @@ class ChannelManagementPageSecurityWebMvcTest {
         verifyNoInteractions(channels);
     }
 
+    @Test void settingsModelExcludesAllPrivatePreferenceRecords() throws Exception {
+        var owned = new com.example.panel.entity.SettingsParameter(); owned.setParamType("ui_preferences.account.v2");
+        var legacy = new com.example.panel.entity.SettingsParameter(); legacy.setParamType("ui_preferences.v1");
+        var ordinary = new com.example.panel.entity.SettingsParameter(); ordinary.setParamType("role");
+        when(parameters.findAll()).thenReturn(List.of(owned, legacy, ordinary));
+        mvc.perform(get("/settings").with(user("system").authorities(authorities("ROLE_ADMIN","PAGE_SETTINGS"))))
+            .andExpect(status().isOk()).andExpect(model().attribute("systemParameters", List.of(ordinary)));
+    }
+
     @Test void adminRoleAloneCannotOpenEitherManagementPage() throws Exception {
         var actor=user("system").roles("ADMIN");
         mvc.perform(get("/channels").with(actor)).andExpect(status().isForbidden());

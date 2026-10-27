@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import org.springframework.security.access.AccessDeniedException;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,6 +21,13 @@ import org.springframework.util.StringUtils;
 public class SettingsParameterService {
 
     private static final Logger log = LoggerFactory.getLogger(SettingsParameterService.class);
+    private static final String PUBLIC_PARAMETER = "COALESCE(left(param_type,15),'') <> 'ui_preferences.'";
+
+    private void rejectPrivateParameter(String type) {
+        if (UiPreferenceService.isPrivateParameterType(type)) {
+            throw new AccessDeniedException("Private preferences are not generic parameters");
+        }
+    }
     private static final Map<String, String> BUSINESS_NAME_ALIASES = Map.of(
             "СушиВесла", "СушиВёсла",
             "SV-Povolzhye", "СушиВёсла",
@@ -50,6 +59,7 @@ public class SettingsParameterService {
 
     public Map<String, Object> createParameter(Map<String, Object> payload) {
         String paramType = stringValue(payload.get("param_type"));
+        rejectPrivateParameter(paramType);
         Map<String, Object> normalizedPayload = normalizePayloadForPersistence(paramType, payload);
         String value = stringValue(normalizedPayload.get("value"));
         if (!StringUtils.hasText(paramType) || !StringUtils.hasText(value)) {
@@ -84,6 +94,7 @@ public class SettingsParameterService {
         Map<String, Object> existing = existingRows.get(0);
 
         String paramType = stringValue(existing.get("param_type"));
+        rejectPrivateParameter(paramType);
         Map<String, Object> normalizedPayload = normalizePayloadForPersistence(paramType, payload);
         String finalValue = normalizedPayload.containsKey("value")
                 ? stringValue(normalizedPayload.get("value"))
@@ -124,14 +135,16 @@ public class SettingsParameterService {
         }
 
         params.add(paramId);
-        jdbcTemplate.update("UPDATE settings_parameters SET " + updates + " WHERE id = ?", params.toArray());
+        jdbcTemplate.update("UPDATE settings_parameters SET " + updates + " WHERE id = ? AND " + PUBLIC_PARAMETER, params.toArray());
         syncLocationsFromParameters();
         return Map.of("success", true, "data", fetchParametersGrouped(true));
     }
 
     public Map<String, Object> deleteParameter(long paramId) {
+        var rows = jdbcTemplate.queryForList("SELECT param_type FROM settings_parameters WHERE id = ?", paramId);
+        if (!rows.isEmpty()) rejectPrivateParameter(stringValue(rows.get(0).get("param_type")));
         int updated = jdbcTemplate.update(
-                "UPDATE settings_parameters SET is_deleted = TRUE, deleted_at = CURRENT_TIMESTAMP WHERE id = ?",
+                "UPDATE settings_parameters SET is_deleted = TRUE, deleted_at = CURRENT_TIMESTAMP WHERE id = ? AND " + PUBLIC_PARAMETER,
                 paramId
         );
         if (updated == 0) {
@@ -174,11 +187,12 @@ public class SettingsParameterService {
     private Map<String, Object> fetchParametersGrouped(boolean includeDeleted) {
         Map<String, Object> grouped = new LinkedHashMap<>();
         Map<String, String> types = settingsCatalogService.getParameterTypes();
-        types.keySet().forEach(key -> grouped.put(key, new ArrayList<>()));
+        types.keySet().stream().filter(key -> !UiPreferenceService.isPrivateParameterType(key))
+                .forEach(key -> grouped.put(key, new ArrayList<>()));
 
-        String sql = "SELECT id, param_type, value, state, is_deleted, deleted_at, extra_json FROM settings_parameters";
+        String sql = "SELECT id, param_type, value, state, is_deleted, deleted_at, extra_json FROM settings_parameters WHERE " + PUBLIC_PARAMETER;
         if (!includeDeleted) {
-            sql += " WHERE is_deleted = FALSE";
+            sql += " AND is_deleted = FALSE";
         }
         sql += " ORDER BY param_type, value";
 
@@ -186,6 +200,7 @@ public class SettingsParameterService {
         Map<String, List<String>> dependenciesMap = settingsCatalogService.getParameterDependencies();
         for (Map<String, Object> row : rows) {
             String type = stringValue(row.get("param_type"));
+            if (UiPreferenceService.isPrivateParameterType(type)) continue;
             if (!grouped.containsKey(type)) {
                 continue;
             }

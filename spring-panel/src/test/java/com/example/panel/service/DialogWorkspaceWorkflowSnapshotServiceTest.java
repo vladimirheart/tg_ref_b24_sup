@@ -39,14 +39,14 @@ class DialogWorkspaceWorkflowSnapshotServiceTest {
                 new DialogOperatorOption("watcher_peer", "Watcher Peer", "/avatars/peer.png", "Ops", "Support"),
                 new DialogOperatorOption("watcher_new", "Watcher New", "/avatars/new.png", "Backoffice", "Support")
         ));
-        when(dialogTriagePreferenceService.loadForOperator("watcher_owner")).thenReturn(Map.of(
+        when(dialogTriagePreferenceService.loadForOperator(actor("watcher_owner"))).thenReturn(Map.of(
                 "view", "sla_critical",
                 "sort_mode", "default"
         ));
 
         Map<String, Object> snapshot = service.buildWorkflowSnapshot(
                 "T-WF-1",
-                "watcher_owner",
+                actor("watcher_owner"),
                 dialogWithResponsible("T-WF-1", "watcher_owner", null, null),
                 Map.of("can_assign", true)
         );
@@ -117,11 +117,11 @@ class DialogWorkspaceWorkflowSnapshotServiceTest {
         when(dialogParticipantService.findOperator("watcher_owner")).thenReturn(Optional.of(
                 new DialogOperatorOption("watcher_owner", "Watcher Owner", "/avatars/owner.png", "Ops", "Lead")
         ));
-        when(dialogTriagePreferenceService.loadForOperator("viewer_only")).thenReturn(Map.of());
+        when(dialogTriagePreferenceService.loadForOperator(actor("viewer_only"))).thenReturn(Map.of());
 
         Map<String, Object> snapshot = service.buildWorkflowSnapshot(
                 "T-WF-2",
-                "viewer_only",
+                actor("viewer_only"),
                 dialogWithResponsible("T-WF-2", null, null, null),
                 Map.of("can_assign", false)
         );
@@ -186,11 +186,11 @@ class DialogWorkspaceWorkflowSnapshotServiceTest {
         when(dialogParticipantService.loadAssignableOperators()).thenReturn(List.of(
                 new DialogOperatorOption("watcher_new", "Watcher New", "/avatars/new.png", "Ops", "Support")
         ));
-        when(dialogTriagePreferenceService.loadForOperator("watcher_owner")).thenReturn(Map.of());
+        when(dialogTriagePreferenceService.loadForOperator(actor("watcher_owner"))).thenReturn(Map.of());
 
         Map<String, Object> snapshot = service.buildWorkflowSnapshot(
                 "T-WF-3",
-                "watcher_owner",
+                actor("watcher_owner"),
                 closedDialog("T-WF-3", "watcher_owner"),
                 Map.of("can_assign", true, "can_close", true, "can_reply", true, "can_snooze", true)
         );
@@ -233,11 +233,11 @@ class DialogWorkspaceWorkflowSnapshotServiceTest {
                 new DialogOperatorOption("watcher_owner", "Watcher Owner", "/avatars/owner.png", "Ops", "Lead"),
                 new DialogOperatorOption("watcher_peer", "Watcher Peer", "/avatars/peer.png", "Ops", "Support")
         ));
-        when(dialogTriagePreferenceService.loadForOperator("watcher_new")).thenReturn(Map.of());
+        when(dialogTriagePreferenceService.loadForOperator(actor("watcher_new"))).thenReturn(Map.of());
 
         Map<String, Object> snapshot = service.buildWorkflowSnapshot(
                 "T-WF-4",
-                "watcher_new",
+                actor("watcher_new"),
                 dialogWithResponsible("T-WF-4", "watcher_new", "Watcher New", "/avatars/new.png"),
                 Map.of("can_assign", true, "can_close", true, "can_reply", true)
         );
@@ -329,4 +329,9 @@ class DialogWorkspaceWorkflowSnapshotServiceTest {
                 "/avatars/owner.png"
         );
     }
+    private static org.springframework.security.core.Authentication actor(String name) {
+        return org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated(
+                new com.example.panel.security.PanelUserPrincipal(7L, name, "", true, List.of()), null, List.of());
+    }
+
 }

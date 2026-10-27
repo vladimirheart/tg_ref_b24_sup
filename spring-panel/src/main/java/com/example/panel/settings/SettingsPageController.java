@@ -74,7 +74,9 @@ public class SettingsPageController {
                 && permissionService.hasAuthority(authentication, "ROLE_ADMIN"));
         try {
             List<AppSetting> appSettings = appSettingRepository.findAll();
-            List<SettingsParameter> systemParameters = settingsParameterRepository.findAll();
+            List<SettingsParameter> systemParameters = settingsParameterRepository.findAll().stream()
+                    .filter(parameter -> !com.example.panel.service.UiPreferenceService.isPrivateParameterType(parameter.getParamType()))
+                    .toList();
             model.addAttribute("appSettings", appSettings);
             model.addAttribute("systemParameters", systemParameters);
             Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
