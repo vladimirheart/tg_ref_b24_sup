@@ -24,13 +24,32 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальная сводка R191 имеют
+что production уже запускался. Эта оговорка и актуальная сводка R192 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R191 (2026-10-27): /profile/password использует только
+Актуальное уточнение R192 (2026-10-27): AuthManagementApiController берёт
+self/current user ID из authenticated PanelUserPrincipal, а field permissions
+non-superuser читает по этому ID с exact username/status/row-count guards.
+Нет переноса self/edit прав к case-fold соседу; self delete/block guards
+сохраняют собственный ID. Avatar file cleanup требует разрешённого photo UPDATE.
+Существующие page/global admin/portal/field policies сохранены; полная business
+изоляция и атомарность всех admin CRUD этим шагом не объявляются закрытыми.
+16 Maven suites / 698 tests GREEN; frozen 63 cases на baseline v4 —
+49 failures / 14 controls / 0 errors, те же bytes GREEN. Real login/security/
+method security/CSRF с mocked JDBC/config/file adapters, без working DB или browser.
+Здесь source/test checkout C:\Users\sushi\Git_H\tg_ref_b24_sup; рабочие
+проект/Docker тестового стенда на другой машине/в другой сессии
+C:\Users\SinicinVV\git_h\tg_ref_b24_sup. Baseline R191 8946949ea сверён по
+parent/subject/exact 9 files/content. R184 checkpoint сохранён точно;
+R185–R192 здесь не развёрнуты. Runtime/БД/flags/данные не менялись;
+Browser/Node/Docker/live DB/HTTP/providers не запускались. Grant commit/push
+до 2026-10-27 21:00 UTC; apply и publisher разделены. Historical S2B снят R190;
+остаются новые scoped data flows/S3–S5 и первый production запуск S6. Статус — 🟡.
+
+Историческое уточнение R191 (2026-10-27): /profile/password использует только
 numeric ID из authenticated PanelUserPrincipal, с exact stored username и
 current enabled/blocked checks. Одна null-safe CAS запись сравнивает исходные
 password/password_hash и доступные status columns; race возвращает 409,

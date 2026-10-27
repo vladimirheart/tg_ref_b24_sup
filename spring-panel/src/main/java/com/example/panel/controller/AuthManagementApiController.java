@@ -1,6 +1,7 @@
 package com.example.panel.controller;
 
 import com.example.panel.support.JdbcSchemaInspector;
+import com.example.panel.security.PanelUserPrincipal;
 import com.example.panel.service.PermissionService;
 import com.example.panel.service.PanelUserPhotoService;
 import com.example.panel.service.SharedConfigService;
@@ -302,7 +303,7 @@ public class AuthManagementApiController {
         String sql = "UPDATE users SET " + String.join(", ", updates) + " WHERE id = ?";
         usersJdbcTemplate.update(sql, params.toArray());
 
-        if (payload.containsKey("photo") && !StringUtils.hasText(stringValue(payload.get("photo")))) {
+        if (updates.contains("photo = ?") && !StringUtils.hasText(stringValue(payload.get("photo")))) {
             panelUserPhotoService.deleteUserAvatarFiles(userId);
         }
 
@@ -593,18 +594,26 @@ public class AuthManagementApiController {
     }
 
     private Map<String, Object> resolveCurrentRolePermissions(Authentication authentication) {
-        if (authentication == null || !StringUtils.hasText(authentication.getName())) {
+        Long currentUserId = resolveCurrentUserId(authentication);
+        if (currentUserId == null) {
             return Map.of();
         }
         List<Map<String, Object>> rows = usersJdbcTemplate.queryForList(
-            "SELECT r.permissions AS permissions FROM users u LEFT JOIN roles r ON r.id = u.role_id " +
-                "WHERE lower(u.username) = lower(?) LIMIT 1",
-            authentication.getName()
+            "SELECT u.*, r.permissions AS permissions FROM users u LEFT JOIN roles r ON r.id = u.role_id " +
+                "WHERE u.id = ?",
+            currentUserId
         );
-        if (rows.isEmpty()) {
+        if (rows.size() != 1) {
             return Map.of();
         }
-        return parsePermissions(rows.get(0).get("permissions"));
+        Map<String, Object> account = rows.get(0);
+        if (!(account.get("id") instanceof Number id) || id.longValue() != currentUserId
+                || !authentication.getName().equals(account.get("username"))
+                || (account.get("enabled") != null && !asBoolean(account.get("enabled")))
+                || asBoolean(account.get("is_blocked"))) {
+            return Map.of();
+        }
+        return parsePermissions(account.get("permissions"));
     }
 
     private List<String> extractFieldPermissions(Map<String, Object> permissions, String mode) {
@@ -632,18 +641,12 @@ public class AuthManagementApiController {
     }
 
     private Long resolveCurrentUserId(Authentication authentication) {
-        if (authentication == null || !StringUtils.hasText(authentication.getName())) {
+        if (authentication == null || !authentication.isAuthenticated()
+                || !(authentication.getPrincipal() instanceof PanelUserPrincipal principal)
+                || principal.getUserId() <= 0 || !StringUtils.hasText(principal.getUsername())) {
             return null;
         }
-        List<Map<String, Object>> rows = usersJdbcTemplate.queryForList(
-            "SELECT id FROM users WHERE lower(username) = lower(?) LIMIT 1",
-            authentication.getName()
-        );
-        if (rows.isEmpty()) {
-            return null;
-        }
-        Object id = rows.get(0).get("id");
-        return id instanceof Number n ? n.longValue() : null;
+        return principal.getUserId();
     }
 
     private String encodePermissions(Object raw) {

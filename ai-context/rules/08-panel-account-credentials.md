@@ -144,3 +144,27 @@ PanelUserPrincipal доступен typed consumers; serialized fields/serialVer
 выход всех сессий и изменение общей password-change/token revocation policy
 не входят в R191. Security chain проверена MockMvc с stateful mocked JDBC,
 без working PostgreSQL locking/driver, JDBC session store или browser acceptance.
+
+## Identity управления пользователями и полями — R192
+
+AuthManagementApiController определяет self/current user только по positive
+numeric ID из authenticated PanelUserPrincipal. Username lookup/fallback для
+этого удалён. Current user ID/is_self, собственные profile/password/photo paths
+и запрет удалить/заблокировать себя используют один bound ID. Проверка текущей
+DB-backed сессии остаётся обязанностью SessionAuthorityFilter R189.
+
+Для non-superuser field permissions читаются join users/roles по тому же ID.
+Требуются ровно одна строка, совпадающие ID/exact username и допустимый
+enabled/blocked status; missing/changed/ambiguous rows или invalid permissions
+не дают прав. Ошибка DB-чтения не превращается в поиск соседнего аккаунта.
+Точный raw username не обрезается. Новые grants, page/global admin/portal bypass
+и смысл существующей field matrix этим шагом не меняются.
+
+Удаление avatar files после обновления требует photo в разрешённом UPDATE;
+одного неавторизованного photo в payload недостаточно, даже если другая часть
+payload разрешена. Legitimate self/admin upload/clear сохраняются.
+
+R192 не добавляет CAS/транзакционную авторизацию всем admin CRUD, не меняет
+общую session/token revocation policy и не закрывает остальные global/business
+paths. Schema, сериализуемый principal и runtime не меняются. Проверка — MockMvc
+с real security и изолированными JDBC/config/file adapters, без рабочей БД/файлов.

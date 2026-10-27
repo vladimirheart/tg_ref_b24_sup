@@ -19,6 +19,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.example.panel.service.PermissionService;
+import com.example.panel.security.PanelUserPrincipal;
 import com.example.panel.service.PanelUserPhotoService;
 import com.example.panel.service.SharedConfigService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -1150,7 +1151,7 @@ class AuthManagementApiControllerWebMvcTest {
         when(usersJdbcTemplate.queryForList(startsWith("SELECT id FROM users"), eq("admin")))
             .thenReturn(List.of(Map.of("id", 7L)));
         ReflectionTestUtils.setField(controller, "userColumns", Set.of("is_blocked", "enabled"));
-        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken("admin", "n/a");
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(new PanelUserPrincipal(7L, "admin", "n/a", true, List.of()), null, List.of());
 
         mockMvc.perform(patch("/api/users/7")
                 .principal(authentication)
@@ -1186,7 +1187,7 @@ class AuthManagementApiControllerWebMvcTest {
         when(permissionService.isSuperUser(any())).thenReturn(true);
         when(usersJdbcTemplate.queryForList(startsWith("SELECT id FROM users"), eq("admin")))
             .thenReturn(List.of(Map.of("id", 7L)));
-        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken("admin", "n/a");
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(new PanelUserPrincipal(7L, "admin", "n/a", true, List.of()), null, List.of());
 
         mockMvc.perform(delete("/api/users/7")
                 .principal(authentication)
