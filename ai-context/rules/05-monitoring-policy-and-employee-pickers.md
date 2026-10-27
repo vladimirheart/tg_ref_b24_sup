@@ -130,9 +130,31 @@
   watchers — явный JSON array text; остальные legacy поля не переводятся в JSON.
   CSV fallback для поля без opt-in не расширяет прежнюю грамматику. Общий picker,
   global catalog/его права, native select/datalist и backend eligibility не меняются.
-- Это только create form: detail owner, add/remove watcher и singular user route
-  ещё имеют отдельный UI identity debt. URL/department/CSV route targets не
+- На момент R185 исправлена только create form: detail owner, add/remove watcher
+  и singular user route оставались отдельным UI identity debt. URL/department/CSV route targets не
   переопределяются. При rollout версия workbench меняется вместе с template.
+
+## Точные scalar ключи в карточке инцидента — R186
+
+- incidentDetailOwner/incidentWatcherInput — scalar hidden inputs с прежними id.
+  Loaded owner присваивать через DOM value; HTML parsing нормализует CR/LF в
+  attributes. Для owner/watcher/singular user route trim проверяет только blank,
+  непустой raw key передаётся без изменения, с прежним backend case folding.
+- Кнопки удаления получают watcher_identity через DOM setAttribute после render.
+  DELETE использует исходный key и один encodeURIComponent. Не заменять его
+  похожим логином и не выполнять лишний decode; display text экранируется.
+- Существующий scalar incidentRouteUserPicker и исходный incidentRouteTarget
+  при type=user используют hidden input. Users остаётся прежним CSV string;
+  URL/department/all_operators не становятся employee fields. Прежняя смена типа
+  очищает target/оба person pickers; пустое поле не восстанавливает старый key.
+- Сохранять core owner draft при refresh/actions/switch, фокус возвращать на
+  видимый picker trigger. Удаление watcher возвращает фокус к picker добавления.
+  Ошибки API/directory и отсутствующие options не подменяют выбранный scalar.
+- Это существующие global/legacy поля, не новый scoped catalog или grants.
+  Общий picker, native select/datalist, backend access/eligibility не меняются.
+  Cache versions workbench/UI decorator обновляются вместе с template; scalar
+  API и native source values остаются строками. Backend/ingress URL decoding
+  и остальной upstream identity не считаются проверенными browser fixtures.
 
 ## Связанные объекты инцидентов — R19
 

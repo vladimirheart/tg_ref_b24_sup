@@ -14,7 +14,20 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R185 (2026-10-27): source/test checkout находится на
+Актуальное уточнение R186 (2026-10-27): рабочие проект и Docker остаются на
+другой машине/в другой сессии C:\Users\SinicinVV\git_h\tg_ref_b24_sup. Здесь
+source/test checkout C:\Users\sushi\Git_H\tg_ref_b24_sup: только изолированные
+browser/Node fixtures детальной карточки инцидента. R185 3e5ceba37 проверен по
+parent/subject/exact files/content. 203 browser cases + 110 scoped Node checks
+GREEN; один прежний R53 notes fixture failure в полном Node run отдельно
+повторён на неизменённых baseline inputs. Java/Docker/DB/live HTTP/providers
+не запускались. Checkpoint R184 и сообщение пользователя о start/stop одного
+бота сохранены из документации, без новых runtime probes. R185/R186 не
+развёрнуты здесь; нет рабочего restart/deploy/migration/backfill/config/flags.
+Grant commit/push до 2026-10-27 21:00 UTC сохраняется; source apply и publisher
+разделены. Общая worker/fleet/S6 acceptance не выводится из UI fixtures.
+
+Историческое уточнение R185 (2026-10-27): source/test checkout находится на
 машине C:\Users\sushi\Git_H\tg_ref_b24_sup; рабочий проект и Docker — на другой
 машине/в другой сессии C:\Users\SinicinVV\git_h\tg_ref_b24_sup. Из репозитория
 прочитаны checkpoint panel-web R184 (8310d1f7f) и сообщение пользователя об

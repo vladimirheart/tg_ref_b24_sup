@@ -42,13 +42,15 @@
       const people = {};
       for (const mode of ['user', 'users']) {
         const field = document.createElement('div'); field.className = 'incident-route-person-field';
-        const input = document.createElement('input'); input.type = 'text'; input.id = mode === 'user' ? 'incidentRouteUserPicker' : 'incidentRouteUsersPicker';
+        const input = document.createElement('input'); input.type = mode === 'user' ? 'hidden' : 'text'; input.id = mode === 'user' ? 'incidentRouteUserPicker' : 'incidentRouteUsersPicker';
         input.dataset.employeePicker = 'true'; input.dataset.employeeMultiple = String(mode === 'users'); input.setAttribute('aria-label', 'Получатель маршрута');
         field.append(input); routeTarget.after(field); people[mode] = { field, input };
         input.addEventListener('change', () => { if (routeType.value === mode) routeTarget.value = input.value; });
       }
       function toggle(clear) {
         const personal = ['user', 'users'].includes(routeType.value);
+        // The original scalar target must preserve CR/LF too when the user picker copies it.
+        routeTarget.type = routeType.value === 'user' ? 'hidden' : 'text';
         routeTarget.hidden = personal;
         for (const [mode, value] of Object.entries(people)) { value.field.hidden = mode !== routeType.value; if (clear) value.input.value = ''; }
         if (clear) routeTarget.value = '';

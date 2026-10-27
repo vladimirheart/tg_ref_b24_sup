@@ -636,6 +636,11 @@
     errorNode?.classList.add('d-none');
   }
 
+  function exactIncidentIdentity(value) {
+    const raw = value == null ? '' : String(value);
+    return raw.trim() ? raw : '';
+  }
+
   function exactLegacyTicketId(value) {
     const raw = value == null ? '' : String(value);
     return raw.trim() ? raw : '';
@@ -890,6 +895,11 @@ function getIncidentDetailFocusKey(
         return `id:${element.id}`;
     }
 
+    const employeeSource = element.closest('.employee-picker')?.querySelector('[data-employee-source]');
+    if (employeeSource?.id) {
+        return `id:${employeeSource.id}`;
+    }
+
     const removeWatcherButton =
         element.closest(
             '[data-incident-remove-watcher]'
@@ -1009,7 +1019,10 @@ function restoreIncidentDetailFocus(
             target instanceof HTMLElement &&
             detailNode.contains(target)
         ) {
-            target.focus({
+            const focusTarget = target.matches('[data-employee-source]')
+                ? target.closest('.employee-picker')?.querySelector('.employee-picker__trigger')
+                : target;
+            focusTarget?.focus({
                 preventScroll: true
             });
         }
@@ -1605,10 +1618,9 @@ function restoreIncidentDetailFocus(
 						aria-label="Severity incident">
                   ${['critical', 'high', 'medium', 'low'].map((value) => `<option value="${value}" ${value === incident.severity ? 'selected' : ''}>${escapeHtml(incidentSeverityLabel(value))}</option>`).join('')}
                 </select>
-                <input type="text"
+                <input type="hidden"
 					   class="form-control form-control-sm"
 					   id="incidentDetailOwner"
-					   value="${escapeHtml(incident.owner || '')}"
 					   placeholder="Ответственный"
 					   aria-label="Ответственный за incident">
 
@@ -1679,7 +1691,7 @@ function restoreIncidentDetailFocus(
             <div class="card-header"><strong>Наблюдатели</strong></div>
             <div class="card-body">
               <div class="input-group input-group-sm mb-3">
-                <input type="text"
+                <input type="hidden"
 					   class="form-control"
 					   id="incidentWatcherInput"
 					   placeholder="username"
@@ -1693,7 +1705,7 @@ function restoreIncidentDetailFocus(
                       <div class="fw-semibold">${escapeHtml(watcher.watcher_identity || '')}</div>
                       <div class="small text-muted">${escapeHtml(formatDate(watcher.added_at))}</div>
                     </div>
-                    <button type="button" class="btn btn-sm btn-outline-danger" data-incident-remove-watcher="${escapeHtml(watcher.watcher_identity || '')}">Удалить</button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" data-incident-remove-watcher="">Удалить</button>
                   </div>
                 `).join('') : '<div class="text-muted">Наблюдателей пока нет.</div>'}
               </div>
@@ -1749,6 +1761,11 @@ function restoreIncidentDetailFocus(
         </div>
       </div>
     `;
+    // Assign opaque keys through the DOM: HTML parsing normalizes CR/LF in attributes.
+    document.getElementById('incidentDetailOwner').value = incident.owner || '';
+    detailNode.querySelectorAll('[data-incident-remove-watcher]').forEach((button, index) => {
+      button.setAttribute('data-incident-remove-watcher', watchers[index].watcher_identity || '');
+    });
 	state.incidentDetailDirty = false;
     renderCurrentIncidentProblems();
   }
@@ -1759,7 +1776,7 @@ function restoreIncidentDetailFocus(
     const payload = {
       title: document.getElementById('incidentDetailTitle')?.value?.trim() || '',
       summary: document.getElementById('incidentDetailSummary')?.value?.trim() || '',
-      owner: document.getElementById('incidentDetailOwner')?.value?.trim() || '',
+      owner: exactIncidentIdentity(document.getElementById('incidentDetailOwner')?.value),
       source: document.getElementById('incidentDetailSource')?.value?.trim() || '',
       description: document.getElementById('incidentDetailDescription')?.value?.trim() || ''
     };
@@ -1930,7 +1947,7 @@ function restoreIncidentDetailFocus(
 
   async function addWatcher() {
     const incident = state.selectedIncident;
-    const watcher = document.getElementById('incidentWatcherInput')?.value?.trim() || '';
+    const watcher = exactIncidentIdentity(document.getElementById('incidentWatcherInput')?.value);
     if (!incident || !watcher) return;
     await requestJson(`/api/incidents/${encodeURIComponent(incident.id)}/watchers`, {
       method: 'POST',
@@ -1961,7 +1978,8 @@ function restoreIncidentDetailFocus(
     const incident = state.selectedIncident;
     if (!incident) return;
     const routeType = document.getElementById('incidentRouteType')?.value || '';
-    const routeTarget = document.getElementById('incidentRouteTarget')?.value?.trim() || '';
+    const rawTarget = document.getElementById('incidentRouteTarget')?.value || '';
+    const routeTarget = routeType === 'user' ? exactIncidentIdentity(rawTarget) : rawTarget.trim();
     const note = document.getElementById('incidentRouteNote')?.value?.trim() || '';
     if (!routeType || (!routeTarget && routeType !== 'all_operators')) {
       throw new Error('Укажите route type и target.');
