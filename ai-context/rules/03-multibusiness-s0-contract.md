@@ -24,7 +24,7 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R212 и runtime R207 имеют
+что production уже запускался. Эта оговорка, source-сводка R213 и runtime R207 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
@@ -56,6 +56,26 @@ inputs функционально совпали (620 EOL-only различий)
 завершён, но другие identity/child/GENERAL/policy/AI/fleet/flags/S6 gates остаются;
 Task 🟡, historical S2B исключён R190. Этот checkpoint приоритетнее source-only
 состояния среды R206 ниже.
+
+Source-уточнение R213 (внутренний non-CAS control, без rollout):
+setControl получает bound Authentication; positive ID/raw name/status и SQL
+actor.id/exact username защищают INSERT и conflict UPDATE. Audit columns сохраняют
+ID/raw name; String-only overload удалён. READ/OPERATE/current account/uniqueness/
+business/grants, полный owner tuple/SAME_EXCLUDED_OWNER/collision denial и reason
+trim/null/cap500 сохранены; при SQL failure нет частичной записи. Primitive не
+создаёт event. Production callers отсутствуют; controller использует прежний CAS.
+Все остальные persistence методы/helpers, workbench/MEMORY/source/handoff, UI/schema
+неизменны; statement-time, не post-snapshot global revocation. 230/5 selected SQL
+suites +15 JS GREEN; frozen99 RED99/30/0, те же bytes GREEN. 22 old calls/4 fixtures
+адаптированы, assertions прежние. Source proof subset6+1; HTTP не rerun, route/CAS
+не менялись. Native PG16.15/fresh schemas/ignored R200 supplier, server остановлен.
+Docker/Testcontainers не запускались;83 migrations неизменны, V62..64 только test
+schemas. Source/test C:\Users\sushi\Git_H\tg_ref_b24_sup; рабочая машина/сессия другая:
+C:\Users\SinicinVV\git_h\tg_ref_b24_sup. Последний runtime R207/webR206/workerR198/
+foundation off и полные rollback/V83 blocks сохранены; deploy/restart/working
+migrations/flags не выполнялись. Нужен новый panel-web image, migrations нет.
+Прямой source MEMORY primitive, source/handoff и остальные policy/privacy/delivery/
+fleet/flags/S6 gates открыты; Task🟡, S2B снят R190.
 
 Source-уточнение R212 (MEMORY writer, без rollout):
 Workbench createMemory получает bound Authentication; positive ID/raw name/status

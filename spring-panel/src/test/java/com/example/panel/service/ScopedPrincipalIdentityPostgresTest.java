@@ -124,7 +124,7 @@ class ScopedPrincipalIdentityPostgresTest {
         assertThat(assignments.change(scope,assignmentAuthentication(actor),1,1L,false)).isFalse();
         assertThat(participants.change(scope,assignmentAuthentication(actor),1,2L,false)).isFalse();
         assertThat(participants.change(scope,assignmentAuthentication(actor),1,5L,true)).isFalse();
-        assertThat(persistence.setControl(scope,actor,true,true,"forged")).isFalse();
+        assertThat(persistence.setControl(scope,assignmentAuthentication(actor),true,true,"forged")).isFalse();
         assertThat(persistence.setControlExpected(scope,assignmentAuthentication(actor),stamp,true,true,"forged")).isFalse();
         assertThat(workbench.createMemory(scope,assignmentAuthentication(actor),key(),40,41,questionHash,answerHash,"forged","body",true)).isFalse();
         assertThat(sources.createKnowledge(11L,actor,key(),"forged","body")).isFalse();
@@ -150,7 +150,7 @@ class ScopedPrincipalIdentityPostgresTest {
         assertThat(participants.change(scope,assignmentAuthentication(actor),1,2L,false)).isTrue();
         assertThat(sources.createKnowledge(11L,actor,key(),"case","body")).isTrue();
         assertThat(workbench.createMemory(scope,assignmentAuthentication(actor),key(),40,41,questionHash,answerHash,"case","body",true)).isTrue();
-        assertThat(persistence.setControl(scope,actor,false,true,"case")).isTrue();
+        assertThat(persistence.setControl(scope,assignmentAuthentication(actor),false,true,"case")).isTrue();
         assertThat(jdbc.queryForObject("SELECT actor_user_id FROM business_ticket_assignment_events WHERE revision=2",Long.class)).isEqualTo(1);
     }
     @Test void literalSpacedAccountKeepsOnlyItsOwnBusinessAndNumericAuditIdentity() {

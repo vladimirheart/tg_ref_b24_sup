@@ -177,7 +177,7 @@ class ScopedDialogAiWorkbenchPostgresTest {
             case "archive"->sources.revise(1L,"admin",ScopedAiSourceService.Kind.KNOWLEDGE,"A",2,"refund","refund",ScopedAiSourceService.Status.ARCHIVED);
             case "delete"->jdbc.update("DELETE FROM ai_scoped_sources WHERE business_id=1");
             case "origin","owner"->jdbc.update("UPDATE tickets SET business_id=2 WHERE ticket_id=?",RAW);
-            case "disabled"->persistence.setControl(scope,"all",true,true,"pause");
+            case "disabled"->persistence.setControl(scope,com.example.panel.support.AiControlIdentityFixture.auth(3,"all"),true,true,"pause");
             case "revoke"->jdbc.update("DELETE FROM business_access_grants WHERE user_id=3");
         }
         assertThat(knowledge.candidates(scope,"all")).isEmpty();
@@ -199,7 +199,7 @@ class ScopedDialogAiWorkbenchPostgresTest {
             if (mode.equals("owner-changed")) jdbc.update("UPDATE tickets SET business_id=2 WHERE ticket_id=?",RAW);
             return !mode.equals("global-off");
         });
-        if (mode.equals("disabled")) assertThat(persistence.setControl(scope,"admin",true,true,"pause")).isTrue();
+        if (mode.equals("disabled")) assertThat(persistence.setControl(scope,boundControlActor(),true,true,"pause")).isTrue();
         var escalation=mock(DialogAiAssistantEscalationService.class);
         var retrieval=mock(AiRetrievalService.class);
         var normalizer=mock(AiInputNormalizerService.class);

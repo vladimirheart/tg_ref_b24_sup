@@ -412,7 +412,7 @@ class ScopedAiSourcePostgresTest {
             "events",jdbc.queryForList("SELECT * FROM ai_scoped_source_events ORDER BY id"));
     }
     private void disableAi() {
-        assertThat(new ScopedDialogAiPersistenceService(jdbc,flags).setControl(scope,"admin",true,false,"disabled")).isTrue();
+        assertThat(new ScopedDialogAiPersistenceService(jdbc,flags).setControl(scope,com.example.panel.support.AiControlIdentityFixture.auth(1,"admin"),true,false,"disabled")).isTrue();
     }
     private void mutateActor(String mutation) {
         switch (mutation) {

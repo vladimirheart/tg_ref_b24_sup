@@ -75,18 +75,19 @@ public class ScopedDialogAiPersistenceService {
     }
 
     /** Internal service primitive. An HTTP caller must additionally enforce its page authority and CSRF. */
-    public boolean setControl(UiEventTicketScope scope, String identity, boolean aiDisabled,
+    public boolean setControl(UiEventTicketScope scope, Authentication authentication, boolean aiDisabled,
                               boolean autoReplyBlocked, String reason) {
-        if (!valid(scope) || !StringUtils.hasText(identity)) return false;
+        var account=boundControlActor(authentication);
+        if (account==null || !valid(scope)) return false;
         String sql = "INSERT INTO ticket_ai_scoped_control AS target (" + OWNER_COLUMNS
             + ",ai_disabled,auto_reply_blocked,reason,updated_by_user_id,updated_by) SELECT " + OWNER_VALUES
-            + ",:aiDisabled,:autoReplyBlocked,:reason,actor.id,n.user_identity FROM tickets owner" + ACTOR
-            + " JOIN users actor ON lower(actor.username)=n.user_identity WHERE " + ScopedAiSql.CURRENT_OWNER
+            + ",:aiDisabled,:autoReplyBlocked,:reason,actor.id,actor.username FROM tickets owner" + READ_ACTOR
+            + " WHERE " + ScopedAiSql.CURRENT_OWNER
             + READ + OPERATE + " ON CONFLICT (ticket_public_id,scope_business_key) DO UPDATE SET "
             + "ai_disabled=excluded.ai_disabled,auto_reply_blocked=excluded.auto_reply_blocked,reason=excluded.reason,"
             + "updated_by_user_id=excluded.updated_by_user_id,updated_by=excluded.updated_by,updated_at=CURRENT_TIMESTAMP WHERE "
             + SAME_EXCLUDED_OWNER;
-        var args = parameters(scope, identity).addValue("aiDisabled", aiDisabled, Types.BOOLEAN)
+        var args = readParameters(scope, account).addValue("aiDisabled", aiDisabled, Types.BOOLEAN)
             .addValue("autoReplyBlocked", autoReplyBlocked, Types.BOOLEAN).addValue("reason", cut(reason), Types.VARCHAR);
         try {
             return jdbc.update(sql, args) == 1;
