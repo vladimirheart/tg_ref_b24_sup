@@ -24,13 +24,33 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальная source-сводка R200 имеют
+что production уже запускался. Эта оговорка и актуальная source-сводка R201 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
 
-Source-уточнение R200 (2026-10-28): BusinessTicketAssignmentHttpPostgresTest
+Source-уточнение R201 (2026-10-28): manual BUSINESS take/assign writer
+получает Authentication, positive numeric PanelUserPrincipal ID и exact raw name.
+Locking root SELECT и final conditional write связывают actor по обоим полям;
+String-only change overload удалён. Rename/reuse после refresh/read/lock wait
+не меняют автора; take/audit сохраняют того же bound actor. PAGE_DIALOGS/CSRF,
+READ/OPERATE/ambiguity, tuple/revision/CAS/locks/rollback/outbox сохранены.
+394 tests / 9 suites и 15 BUSINESS Node scripts GREEN. Frozen 40 новых cases:
+23 RED failures + 17 новых controls, ошибки 0; те же bytes/block GREEN.
+201 прежних HTTP и 19 ScopedPrincipal cases/assertions сохранены. Real SQL и
+advisory-lock wait — owned native PostgreSQL 16.15, fresh schemas; явный ignored
+R200 JDBC supplier adapter, без изменения tracked helper и без Docker.
+Это не Testcontainers/working/fleet acceptance. Новых migrations нет, 83 SQL
+sources неизменны. Readers/participant/work/AI String paths остаются отдельным
+scope, полной атомарной revocation всех in-flight requests не заявлено.
+Текущая source/test машина C:\Users\sushi\Git_H\tg_ref_b24_sup; рабочая
+C:\Users\SinicinVV\git_h\tg_ref_b24_sup — другая машина/сессия.
+Remote R198/V83 checkpoints, backup/rollback и R200 historical incident сохранены.
+R201 требует новой сборки panel-web, не новой migration; здесь deploy не выполнялся.
+S3–S6/policy/AI/bots/fleet открыты, historical S2B снят R190, статус 🟡.
+
+Историческое source-уточнение R200 (2026-10-28): BusinessTicketAssignmentHttpPostgresTest
 переведён на numeric-ID PanelUserPrincipal и DB authorities. Все прежние 190
 cases/assertions сохранены, literal padded accounts не подменяются соседями.
 Добавлены 11 account/page revoke/forged principal/reuse cases и настоящий

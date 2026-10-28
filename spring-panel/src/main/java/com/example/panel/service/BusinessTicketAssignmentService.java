@@ -2,6 +2,9 @@ package com.example.panel.service;
 
 import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.repository.NotificationBusinessAccessSql;
+import com.example.panel.security.PanelUserPrincipal;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import com.example.panel.service.integration.LegacyTicketIdConcurrencyGuard;
 import java.sql.Types;
 import java.time.OffsetDateTime;
@@ -19,6 +22,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class BusinessTicketAssignmentService {
     static final String ACTOR=" CROSS JOIN (SELECT CAST(:identity AS TEXT) AS user_identity) n "
         +" JOIN users actor ON lower(actor.username)=n.user_identity ";
+    private static final String AUTHENTICATED_ACTOR=" CROSS JOIN (SELECT CAST(:identity AS TEXT) AS user_identity) n "
+        +" JOIN users actor ON actor.id=:authenticatedActorId AND actor.username=:authenticatedActorName ";
     static final String READ=" AND ("+NotificationBusinessAccessSql.CAN_READ_OWNER_BUSINESS+")";
     static final String UNIQUE_ROOT=" owner.is_general=FALSE AND owner.business_id IS NOT NULL "
         +" AND 1=(SELECT count(*) FROM tickets collision WHERE collision.ticket_id=owner.ticket_id) ";
@@ -76,10 +81,13 @@ public class BusinessTicketAssignmentService {
                 rs.getString("actor"),rs.getString("action"),rs.getObject("created_at",OffsetDateTime.class)));
         }catch(DataAccessException ex){return List.of();}
     }
-    public boolean change(UiEventTicketScope scope,String identity,long revision,Long targetId,boolean take) {
-        if(!valid(scope,identity)||revision<0||revision==Long.MAX_VALUE||!take&&(targetId==null||targetId<=0))return false;
-        var params=args(scope,identity).addValue("revision",revision).addValue("target",targetId,Types.BIGINT).addValue("take",take);
-        String from=" FROM tickets owner"+ACTOR
+    public boolean change(UiEventTicketScope scope,Authentication authentication,long revision,Long targetId,boolean take) {
+        var account=boundActor(authentication);
+        if(account==null||!valid(scope,account.getUsername())||revision<0||revision==Long.MAX_VALUE||!take&&(targetId==null||targetId<=0))return false;
+        String identity=account.getUsername();
+        var params=args(scope,identity).addValue("revision",revision).addValue("target",targetId,Types.BIGINT).addValue("take",take)
+            .addValue("authenticatedActorId",account.getUserId()).addValue("authenticatedActorName",identity);
+        String from=" FROM tickets owner"+AUTHENTICATED_ACTOR
             +" JOIN businesses business ON business.id=owner.business_id "
             +" JOIN users candidate ON ((:take=TRUE AND candidate.id=actor.id) OR (:take=FALSE AND candidate.id=:target)) "
             +" LEFT JOIN ticket_responsibles assigned ON assigned.ticket_id=owner.ticket_id WHERE "+OWNER+READ
@@ -118,6 +126,13 @@ public class BusinessTicketAssignmentService {
                 params.addValue("eventId",ids.nextEventId()).addValue("channel",root.channel(),Types.BIGINT));
             return true;
         }));}catch(DataAccessException|IllegalStateException ex){return false;}
+    }
+    private PanelUserPrincipal boundActor(Authentication authentication){
+        if(authentication==null||!authentication.isAuthenticated()||authentication instanceof AnonymousAuthenticationToken
+            ||!(authentication.getPrincipal() instanceof PanelUserPrincipal account)||account.getUserId()<=0
+            ||account.getUsername().isBlank()||!account.isEnabled()||!account.isAccountNonLocked()
+            ||!account.isAccountNonExpired()||!account.isCredentialsNonExpired())return null;
+        return account;
     }
     private boolean enabled(String identity){return flags.isFoundationEnabled()&&flags.isUiSelector()&&identity!=null&&!identity.isBlank();}
     private boolean valid(UiEventTicketScope scope,String identity){return enabled(identity)&&scope!=null&&scope.isValid()&&"BUSINESS".equals(scope.scopeKind());}

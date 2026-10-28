@@ -69,7 +69,7 @@ class ScopedPrincipalIdentityPostgresTest {
         workbench=new ScopedDialogAiWorkbenchService(jdbc);
         sources=new ScopedAiSourceService(jdbc,flags);
         handoff=new ScopedAiHandoffKnowledgeService(jdbc,flags,persistence);
-        assertThat(assignments.change(scope,"admin",0,5L,false)).isTrue();
+        assertThat(assignments.change(scope,assignmentAuthentication("admin"),0,5L,false)).isTrue();
         assertThat(participants.change(scope,"admin",0,2L,true)).isTrue();
         assertThat(sources.createKnowledge(11L,"admin","proof","refund","PRIVATE Business A refund knowledge")).isTrue();
         assertThat(sources.revise(11L,"admin",KNOWLEDGE,"proof",1,"refund","PRIVATE Business A refund knowledge",APPROVED)).isTrue();
@@ -78,6 +78,13 @@ class ScopedPrincipalIdentityPostgresTest {
         assertThat(workbench.createMemory(scope,"admin",key(),40,41,questionHash,answerHash,"reviewed","safe memory",true)).isTrue();
         assertThat(handoff.record(scope,"refund")).isTrue();
         assertThat(persistence.setControlExpected(scope,"admin","",false,true,"original")).isTrue();
+    }
+    /** Models initial case-insensitive login; the resulting principal always has the stored raw name. */
+    private org.springframework.security.core.Authentication assignmentAuthentication(String supplied){
+        var rows=jdbc.queryForList("SELECT id,username FROM users WHERE lower(username)=lower(?) LIMIT 2",supplied);
+        Object principal=rows.size()==1?new com.example.panel.security.PanelUserPrincipal(((Number)rows.get(0).get("id")).longValue(),
+            (String)rows.get(0).get("username"),"unused",true,List.of()):supplied;
+        return org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated(principal,null,List.of());
     }
     private String key() { return UUID.randomUUID().toString(); }
     private String fingerprint(long id) { return jdbc.queryForObject("SELECT encode(sha256(convert_to(message,'UTF8')),'hex') FROM chat_history WHERE id=?",String.class,id); }
@@ -113,8 +120,8 @@ class ScopedPrincipalIdentityPostgresTest {
     }
     private void deniedWrites(String actor) {
         String stamp=persistence.findControl(scope,"admin").map(ScopedDialogAiPersistenceService.Control::updatedAt).orElse("");
-        assertThat(assignments.change(scope,actor,1,null,true)).isFalse();
-        assertThat(assignments.change(scope,actor,1,1L,false)).isFalse();
+        assertThat(assignments.change(scope,assignmentAuthentication(actor),1,null,true)).isFalse();
+        assertThat(assignments.change(scope,assignmentAuthentication(actor),1,1L,false)).isFalse();
         assertThat(participants.change(scope,actor,1,2L,false)).isFalse();
         assertThat(participants.change(scope,actor,1,5L,true)).isFalse();
         assertThat(persistence.setControl(scope,actor,true,true,"forged")).isFalse();
@@ -139,7 +146,7 @@ class ScopedPrincipalIdentityPostgresTest {
         assertThat(workbench.resolve(PUBLIC,actor)).contains(scope);assertThat(workbench.messages(scope,actor)).hasSize(2);
         assertThat(persistence.canOperate(scope,actor)).isTrue();assertThat(sources.find(11L,actor,KNOWLEDGE,"proof")).isPresent();
         assertThat(handoff.candidates(scope,actor)).hasSize(1);
-        assertThat(assignments.change(scope,actor,1,null,true)).isTrue();
+        assertThat(assignments.change(scope,assignmentAuthentication(actor),1,null,true)).isTrue();
         assertThat(participants.change(scope,actor,1,2L,false)).isTrue();
         assertThat(sources.createKnowledge(11L,actor,key(),"case","body")).isTrue();
         assertThat(workbench.createMemory(scope,actor,key(),40,41,questionHash,answerHash,"case","body",true)).isTrue();
@@ -150,7 +157,7 @@ class ScopedPrincipalIdentityPostgresTest {
         String actor=" ADMIN ";
         assertThat(assignments.find(OTHER,actor)).isPresent();assertThat(workbench.resolve(OTHER,actor)).contains(other);
         deniedReads(actor);
-        assertThat(assignments.change(other,actor,0,null,true)).isTrue();
+        assertThat(assignments.change(other,assignmentAuthentication(actor),0,null,true)).isTrue();
         assertThat(participants.change(other,actor,0,3L,true)).isTrue();
         assertThat(sources.createKnowledge(22L,actor,"own","refund","own refund")).isTrue();
         assertThat(sources.revise(22L,actor,KNOWLEDGE,"own",1,"refund","own refund",APPROVED)).isTrue();

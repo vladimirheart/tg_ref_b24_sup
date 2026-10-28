@@ -38,7 +38,7 @@ class BusinessTicketAssignmentHttpPostgresTest {
         String forged=switch(variant){case "prefix"->" "+actor;case "suffix"->actor+" ";case "tab"->"\t"+actor+"\t";default->" "+actor+" ";};
         long literalId=account(forged);
         if(variant.equals("both"))jdbc.update("INSERT INTO business_memberships(user_id,business_id,role_code) VALUES(?,?,'ADMIN')",literalId,other);
-        assertThat(service.change(scope,actor,0,targetId,false)).isTrue();
+        assertThat(service.change(scope,boundActor(),0,targetId,false)).isTrue();
         assertThat(participants.change(scope,actor,0,viewerId,true)).isTrue();
         var assignment=jdbc.queryForList("SELECT * FROM ticket_responsibles WHERE ticket_id=?",raw);
         var roster=jdbc.queryForList("SELECT * FROM business_ticket_participants WHERE ticket_id=?",raw);
@@ -129,7 +129,7 @@ class BusinessTicketAssignmentHttpPostgresTest {
         mvc.perform(auth(get(path),viewer,"PAGE_DIALOGS")).andExpect(status().isNotFound());
     }
     @Test void assignmentAuditReadSurvivesRawCollisionAndCannotFollowOwnerTransfer() throws Exception {
-        assertThat(service.change(scope,actor,0,targetId,false)).isTrue();
+        assertThat(service.change(scope,boundActor(),0,targetId,false)).isTrue();
         jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,business_id) VALUES(902,?,?,?)",raw,UUID.randomUUID().toString().replace("-",""),other);
         String path="/api/business-scope/tickets/"+publicId+"/assignments/history";
         mvc.perform(auth(get(path),viewer,"PAGE_DIALOGS")).andExpect(status().isOk()).andExpect(jsonPath("$.events",hasSize(1)));
@@ -473,10 +473,10 @@ class BusinessTicketAssignmentHttpPostgresTest {
         assertThat(memberEvents()).isZero();assertThat(outbox()).isZero();
     }
     @Test void participantRevisionIsIndependentOfAssignmentRevision() {
-        assertThat(service.change(scope,actor,0,targetId,false)).isTrue();
+        assertThat(service.change(scope,boundActor(),0,targetId,false)).isTrue();
         assertThat(participants.change(scope,actor,0,viewerId,true)).isTrue();
         assertThat(revision()).isEqualTo(1);assertThat(participants.revision(scope,actor)).contains(1L);
-        assertThat(service.change(scope,actor,1,null,true)).isTrue();
+        assertThat(service.change(scope,boundActor(),1,null,true)).isTrue();
         assertThat(participants.change(scope,actor,1,viewerId,false)).isTrue();
         assertThat(revision()).isEqualTo(2);assertThat(events()).isEqualTo(2);assertThat(memberEvents()).isEqualTo(2);
     }
@@ -759,6 +759,23 @@ class BusinessTicketAssignmentHttpPostgresTest {
         mvc.perform(command("take",1).cookie(requestCookies).param("_csrf",token)).andExpect(status().isForbidden());
         assertThat(events()).isEqualTo(1);assertThat(revision()).isEqualTo(1);assertThat(outbox()).isEqualTo(1);
     }
+    @ParameterizedTest @ValueSource(strings={"renamed","reused-name","disabled","blocked"})
+    void actorChangedAfterControllerReadCannotBeReboundByTheWriter(String change) throws Exception {
+        var once=new java.util.concurrent.atomic.AtomicBoolean();
+        doAnswer(call->{Object result=call.callRealMethod();if(once.compareAndSet(false,true)){
+            if(change.equals("disabled"))jdbc.update("UPDATE users SET enabled=FALSE WHERE id=?",actorId);
+            else if(change.equals("blocked"))jdbc.update("UPDATE users SET is_blocked=TRUE WHERE id=?",actorId);
+            else {jdbc.update("UPDATE users SET username=? WHERE id=?","renamed-"+actor,actorId);if(change.equals("reused-name")){long replacement=account(actor);jdbc.update("INSERT INTO business_memberships(user_id,business_id,role_code) VALUES(?,?,'OPERATOR')",replacement,business);}}
+        }return result;}).when(service).find(publicId,actor);
+        mvc.perform(auth(command("take",0),actor,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
+        assertThat(once).isTrue();assertThat(events()).isZero();assertThat(memberEvents()).isZero();assertThat(outbox()).isZero();assertThat(revision()).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM ticket_responsibles WHERE ticket_id=?",Long.class,raw)).isZero();
+    }
+    private org.springframework.security.core.Authentication boundActor(){
+        var granted=List.of(new SimpleGrantedAuthority("PAGE_DIALOGS"));
+        return org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated(
+            new com.example.panel.security.PanelUserPrincipal(actorId,actor,"unused",true,granted),null,granted);
+    }
     private MockHttpServletRequestBuilder command(String action,long revision){
         return post(url+"/"+action).param("ownerId","901").param("rawId",raw).param("businessId",Long.toString(business))
             .param("revision",Long.toString(revision)).param("targetId",Long.toString(targetId));
@@ -835,13 +852,14 @@ class BusinessTicketAssignmentHttpPostgresTest {
             case "closed"->jdbc.update("UPDATE tickets SET status='closed' WHERE ticket_id=?",raw);
             case "flag"->flags.setUiSelector(false);
         }
-        assertThat(service.change(scope,actor,0,targetId,false)).isFalse();
+        assertThat(service.change(scope,boundActor(),0,targetId,false)).isFalse();
         assertThat(events()).isZero();assertThat(outbox()).isZero();assertThat(revision()).isZero();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM ticket_responsibles WHERE ticket_id=?",Long.class,raw)).isZero();
     }
     @Test void revokeAfterControllerReadStillCannotWriteOrAuditSuccess() throws Exception {
         doAnswer(call->{jdbc.update("UPDATE business_memberships SET role_code='VIEWER' WHERE user_id=?",actorId);return call.callRealMethod();})
-            .when(service).change(eq(scope),eq(actor),eq(0L),eq(targetId),eq(false));
+            .when(service).change(eq(scope),org.mockito.ArgumentMatchers.<org.springframework.security.core.Authentication>argThat(a->a!=null
+                && a.getPrincipal() instanceof com.example.panel.security.PanelUserPrincipal p && p.getUserId()==actorId && p.getUsername().equals(actor)),eq(0L),eq(targetId),eq(false));
         mvc.perform(auth(command("assign",0),actor,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
         assertThat(events()).isZero();assertThat(outbox()).isZero();assertThat(revision()).isZero();
     }
@@ -861,19 +879,19 @@ class BusinessTicketAssignmentHttpPostgresTest {
         String table=failure.equals("audit")?"business_ticket_assignment_events":"ui_event_outbox";
         jdbc.execute("CREATE FUNCTION fail_r159_insert() RETURNS TRIGGER LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'synthetic R159 failure'; END; $$");
         jdbc.execute("CREATE TRIGGER fail_r159_insert BEFORE INSERT ON "+table+" FOR EACH ROW EXECUTE FUNCTION fail_r159_insert()");
-        try{assertThat(service.change(scope,actor,0,targetId,false)).isFalse();assertThat(revision()).isZero();assertThat(events()).isZero();assertThat(outbox()).isZero();}
+        try{assertThat(service.change(scope,boundActor(),0,targetId,false)).isFalse();assertThat(revision()).isZero();assertThat(events()).isZero();assertThat(outbox()).isZero();}
         finally{jdbc.execute("DROP TRIGGER fail_r159_insert ON "+table);jdbc.execute("DROP FUNCTION fail_r159_insert()");}
-        assertThat(service.change(scope,actor,0,targetId,false)).isTrue();
+        assertThat(service.change(scope,boundActor(),0,targetId,false)).isTrue();
     }
     @Test void concurrentCommandsCommitOneTransition() throws Exception {
         var start=new CountDownLatch(1);
-        java.util.function.Supplier<Boolean> attempt=()->{try{start.await();}catch(InterruptedException ex){throw new IllegalStateException(ex);}return service.change(scope,actor,0,targetId,false);};
+        java.util.function.Supplier<Boolean> attempt=()->{try{start.await();}catch(InterruptedException ex){throw new IllegalStateException(ex);}return service.change(scope,boundActor(),0,targetId,false);};
         var first=CompletableFuture.supplyAsync(attempt);var second=CompletableFuture.supplyAsync(attempt);start.countDown();
         assertThat(List.of(first.get(15,TimeUnit.SECONDS),second.get(15,TimeUnit.SECONDS))).containsExactlyInAnyOrder(true,false);
         assertThat(events()).isEqualTo(1);assertThat(outbox()).isEqualTo(1);assertThat(revision()).isEqualTo(1);
     }
     @Test void historyIsAppendOnlyAndDoesNotFollowChangedBusinessOrNewGeneration(){
-        assertThat(service.change(scope,actor,0,targetId,false)).isTrue();
+        assertThat(service.change(scope,boundActor(),0,targetId,false)).isTrue();
         assertThat(service.recent(scope,viewer)).hasSize(1);
         assertThatThrownBy(()->jdbc.update("UPDATE business_ticket_assignment_events SET actor='changed' WHERE ticket_id=?",raw)).isInstanceOf(RuntimeException.class);
         assertThatThrownBy(()->jdbc.update("DELETE FROM business_ticket_assignment_events WHERE ticket_id=?",raw)).isInstanceOf(RuntimeException.class);
@@ -884,19 +902,19 @@ class BusinessTicketAssignmentHttpPostgresTest {
     @Test void allBusinessOperateGrantIsAcceptedButViewerGlobalGrantCannotAssign(){
         jdbc.update("DELETE FROM business_memberships WHERE user_id IN (?,?)",actorId,targetId);
         jdbc.update("INSERT INTO business_access_grants(user_id,grant_scope,role_code) VALUES(?,'ALL_BUSINESSES','OPERATOR'),(?,'ALL_BUSINESSES','VIEWER')",actorId,targetId);
-        assertThat(service.change(scope,actor,0,targetId,false)).isFalse();
+        assertThat(service.change(scope,boundActor(),0,targetId,false)).isFalse();
         jdbc.update("UPDATE business_access_grants SET role_code='MANAGER' WHERE user_id=?",targetId);
-        assertThat(service.change(scope,actor,0,targetId,false)).isTrue();
+        assertThat(service.change(scope,boundActor(),0,targetId,false)).isTrue();
     }
     @Test void manualAndSlaShareRevisionWithoutReusingEachOthersAuditOrRawWorkflow(){
         long channel=jdbc.queryForObject("INSERT INTO channels(token,channel_name,platform) VALUES(?,'Telegram','telegram') RETURNING id",Long.class,UUID.randomUUID().toString());
         jdbc.update("UPDATE tickets SET channel_id=? WHERE ticket_id=?",channel,raw);
         var frozen=new DialogLookupReadService.ScopedSlaDialog(null,scope,channel,0,null);
-        assertThat(service.change(scope,actor,0,null,true)).isTrue();
+        assertThat(service.change(scope,boundActor(),0,null,true)).isTrue();
         assertThat(sla.assign(frozen,target,"scheduler","rules","r")).isFalse();
         var fresh=new DialogLookupReadService.ScopedSlaDialog(null,scope,channel,1,actor);
         assertThat(sla.assign(fresh,target,"scheduler","rules","r")).isTrue();
-        assertThat(service.change(scope,actor,1,null,true)).isFalse();
+        assertThat(service.change(scope,boundActor(),1,null,true)).isFalse();
         assertThat(revision()).isEqualTo(2);assertThat(events()).isEqualTo(1);assertThat(outbox()).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM scoped_sla_assignment_events WHERE ticket_id=?",Long.class,raw)).isEqualTo(1);
     }
