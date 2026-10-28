@@ -30,7 +30,7 @@ public class BusinessTicketWorkReadController {
             if(pageSize>100) throw new IllegalArgumentException();
         } catch(IllegalArgumentException ex) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid work history page",ex); }
         try {
-            var result=service.history(publicId,authentication==null?null:authentication.getName(),cursor,pageSize)
+            var result=service.history(publicId,authentication,cursor,pageSize)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND));
             return ResponseEntity.ok().header(HttpHeaders.CACHE_CONTROL,"no-store").header("X-Content-Type-Options","nosniff").body(result);
         } catch(BusinessTicketWorkReadService.ReadUnavailableException ex) {

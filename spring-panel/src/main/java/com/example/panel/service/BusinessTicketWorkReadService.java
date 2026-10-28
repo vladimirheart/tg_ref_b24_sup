@@ -1,6 +1,7 @@
 package com.example.panel.service;
 
 import com.example.panel.repository.NotificationBusinessAccessSql;
+import com.example.panel.security.PanelUserPrincipal;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -15,6 +16,8 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 /** Full-owner immutable BUSINESS lifecycle/category audit. No legacy child reads. */
@@ -23,8 +26,11 @@ public class BusinessTicketWorkReadService {
     private static final String SQL = """
         WITH authorized_owner AS (
             SELECT owner.user_id,owner.ticket_id,owner.ticket_public_id,owner.business_id,owner.business_work_revision
-              FROM tickets owner CROSS JOIN (VALUES(CAST(:identity AS TEXT))) n(user_identity)
+              FROM tickets owner
+              JOIN users reader ON reader.id=:readerId AND reader.username=:readerName
+              CROSS JOIN (VALUES(CAST(:identity AS TEXT))) n(user_identity)
              WHERE owner.ticket_public_id=:publicId AND owner.is_general=FALSE AND owner.business_id IS NOT NULL
+               AND reader.enabled=TRUE AND reader.is_blocked=FALSE
                AND 1=(SELECT count(*) FROM tickets same_public WHERE same_public.ticket_public_id=owner.ticket_public_id)
                AND (
         """ + NotificationBusinessAccessSql.CAN_READ_OWNER_BUSINESS + """
@@ -48,12 +54,18 @@ public class BusinessTicketWorkReadService {
     private final ObjectMapper json;
     public BusinessTicketWorkReadService(JdbcTemplate jdbc,ObjectMapper json) { this.jdbc=new NamedParameterJdbcTemplate(jdbc);this.json=json; }
 
-    public Optional<History> history(String publicId,String identity,Long before,int limit) {
+    public Optional<History> history(String publicId,Authentication authentication,Long before,int limit) {
         if(limit<1 || limit>100 || before!=null && before<1) throw new IllegalArgumentException("Invalid work history page");
-        if(publicId==null || !publicId.matches("[a-f0-9]{32}") || identity==null || identity.isBlank()) return Optional.empty();
+        if(publicId==null || !publicId.matches("[a-f0-9]{32}") || authentication==null
+            || !authentication.isAuthenticated() || authentication instanceof AnonymousAuthenticationToken
+            || !(authentication.getPrincipal() instanceof PanelUserPrincipal account)
+            || account.getUserId()<=0 || account.getUsername().isBlank()
+            || !account.isEnabled() || !account.isAccountNonLocked()
+            || !account.isAccountNonExpired() || !account.isCredentialsNonExpired()) return Optional.empty();
         try {
             return jdbc.query(SQL,new MapSqlParameterSource("publicId",publicId)
-                .addValue("identity",identity.toLowerCase(Locale.ROOT)).addValue("before",before,Types.BIGINT)
+                .addValue("readerId",account.getUserId()).addValue("readerName",account.getUsername())
+                .addValue("identity",account.getUsername().toLowerCase(Locale.ROOT)).addValue("before",before,Types.BIGINT)
                 .addValue("pageSize",limit+1),rs->{
                     Owner owner=null;long revision=0,latest=0;
                     var events=new ArrayList<Event>();

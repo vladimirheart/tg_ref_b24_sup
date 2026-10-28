@@ -15,6 +15,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.test.web.servlet.MockMvc;
 import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.*;
+import org.springframework.security.core.Authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -30,7 +32,7 @@ class BusinessTicketWorkReadControllerWebMvcTest {
     @Test void privateHistoryKeepsBigintIdsRevisionsAndCursorExact() throws Exception {
         when(flags.isFoundationEnabled()).thenReturn(true);
         var owner=new BusinessTicketWorkReadService.Owner("9007199254740993"," raw ",PUBLIC,"11");
-        when(service.history(PUBLIC,"viewer",Long.MAX_VALUE,1)).thenReturn(Optional.of(new BusinessTicketWorkReadService.History(owner,Long.MAX_VALUE,Long.MAX_VALUE,
+        when(service.history(eq(PUBLIC),any(Authentication.class),eq(Long.MAX_VALUE),eq(1))).thenReturn(Optional.of(new BusinessTicketWorkReadService.History(owner,Long.MAX_VALUE,Long.MAX_VALUE,
             List.of(new BusinessTicketWorkReadService.Event(9,"close","open","resolved",List.of("Old"),List.of("New","<script>"),Long.MAX_VALUE,"actor",null)),true,9L)));
         mvc.perform(get(PATH).param("before",Long.toString(Long.MAX_VALUE)).param("limit","1").with(user("viewer").authorities(()->"PAGE_DIALOGS")))
             .andExpect(status().isOk()).andExpect(header().string("Cache-Control","no-store"))
@@ -43,14 +45,14 @@ class BusinessTicketWorkReadControllerWebMvcTest {
     }
     @Test void requiresPageFoundationAndCurrentScopeAndDoesNotHideSchemaErrors() throws Exception {
         when(flags.isFoundationEnabled()).thenReturn(true);
-        when(service.history(PUBLIC,"viewer",null,50)).thenReturn(Optional.empty())
+        when(service.history(eq(PUBLIC),any(Authentication.class),isNull(),eq(50))).thenReturn(Optional.empty())
             .thenThrow(new BusinessTicketWorkReadService.ReadUnavailableException(new IllegalStateException()));
         mvc.perform(get(PATH).with(user("viewer").authorities(()->"PAGE_DIALOGS"))).andExpect(status().isNotFound());
         mvc.perform(get(PATH).with(user("viewer").authorities(()->"PAGE_DIALOGS"))).andExpect(status().isServiceUnavailable());
         mvc.perform(get(PATH).with(user("viewer").authorities(()->"PAGE_SETTINGS"))).andExpect(status().isForbidden());
         when(flags.isFoundationEnabled()).thenReturn(false);
         mvc.perform(get(PATH).with(user("viewer").authorities(()->"PAGE_DIALOGS"))).andExpect(status().isNotFound());
-        verify(service,times(2)).history(PUBLIC,"viewer",null,50);
+        verify(service,times(2)).history(eq(PUBLIC),argThat(auth->auth!=null && "viewer".equals(auth.getName())),isNull(),eq(50));
     }
     @ParameterizedTest @ValueSource(strings={"0","-1","01"," ","bad","9223372036854775808"})
     void invalidCursorIsRejectedBeforeRead(String value) throws Exception {

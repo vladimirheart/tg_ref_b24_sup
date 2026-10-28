@@ -24,13 +24,39 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальная source-сводка R203 имеют
+что production уже запускался. Эта оговорка и актуальная source-сводка R204 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
 
-Source-уточнение R203 (2026-10-28): manual BUSINESS close/reopen/categories
+Текущее source/runtime уточнение R204 (2026-10-28): BUSINESS work history reader
+получает Authentication, bound positive session ID и exact raw username/status.
+Один SQL проверяет текущий account + BUSINESS READ/ambiguity/active business.
+Rename/delete + reused name и case change после session refresh не подменяют
+читателя. String-only history API нет; owner tuple, immutable audit/categories,
+pagination/BIGINT/private headers и 404/400/503 сохранены. Другие name-based
+reads/find/recent/AI остаются отдельными границами; новых policy/grants/schema нет.
+40 frozen новых cases: baseline 16 failures/0 errors; после патча GREEN.
+Итог 601 tests/12 suites + 15 BUSINESS Node scripts GREEN; 349 завершённых cases
+из прерванного run + 252 повторённых cases с неизменными native classes.
+Шесть source/test files совпали в sandbox/replay/main; два main bytecode class
+совпали с образом. Штатный Testcontainers PostgreSQL 16; migrations только test.
+
+Рабочий экземпляр подтверждён на этой машине C:\Users\SinicinVV\git_h\tg_ref_b24_sup.
+Panel-web обновлён до base 53e858df0 + локальный R204 (uncommitted=true), одна
+реплика, healthy/readiness 200; live login/channel smoke 13 checks GREEN.
+Image c1634138193d, JAR bfd68529a9d719ca; полный checkpoint/rollback hashes в 01-278.
+Worker остаётся R198, bot/infrastructure images не обновлены. Однако за сессию
+был Docker/WSL restart для восстановления после memory exhaustion; running
+сервисы перезапускались, bot-runner один раз автоматически, затем healthy.
+Web-only rollout после восстановления не менял остальные 17 containers.
+83 migration sources, working Flyway/users/authorities/roles/settings/flags
+не менялись. Final web ENV/mounts/HostConfig совпали с исходными; промежуточный
+post-restart HostConfig hash отличался, не замаскирован как Binds-only.
+Старые R184/R198 backup/rollback/evidence сохранены. Полная S6 приёмка не заявляется.
+
+Историческое source-уточнение R203 (2026-10-28): manual BUSINESS close/reopen/categories
 writer принимает Authentication с bound PanelUserPrincipal, positive session ID,
 exact raw username/status. Locking root SELECT, conditional UPDATE и confirmation
 после audit/outbox используют того же actor по ID/raw name. String-only API нет;
