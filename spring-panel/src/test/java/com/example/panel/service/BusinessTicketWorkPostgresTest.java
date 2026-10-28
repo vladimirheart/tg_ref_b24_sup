@@ -72,7 +72,7 @@ class BusinessTicketWorkPostgresTest {
     @Test void closeReopenAndCategoriesAreAtomicVersionedAndDoNotEnterLegacyWorkflows() {
         var before=snapshot();
         assertThat(command("close")).isTrue();
-        assertThat(service.find(PUBLIC,"Operator").orElseThrow()).satisfies(v->{
+        assertThat(service.find(PUBLIC,boundActor("Operator")).orElseThrow()).satisfies(v->{
             assertThat(v.status()).isEqualTo("resolved");assertThat(v.revision()).isEqualTo(1);assertThat(v.categories()).containsExactly("Billing","Payment");
         });
         assertThat(jdbc.queryForMap("SELECT closed_count,reopen_count,resolved_by,resolved_at FROM tickets WHERE ticket_id=?",RAW))
@@ -83,7 +83,7 @@ class BusinessTicketWorkPostgresTest {
         assertThat(service.change(scope,boundActor("Operator"),2,"pending","categories",List.of())).isTrue();
         assertThat(revision()).isEqualTo(3);
         assertThat(service.change(scope,boundActor("Operator"),3,"pending","categories",List.of())).isFalse();
-        var events=service.recent(scope,"viewer");assertThat(events).extracting(BusinessTicketWorkService.Event::action).containsExactly("categories","reopen","close");
+        var events=service.recent(scope,boundActor("viewer"));assertThat(events).extracting(BusinessTicketWorkService.Event::action).containsExactly("categories","reopen","close");
         assertThat(events.get(1).categories()).containsExactly("Billing","Payment");
         assertThat(jdbc.queryForList("SELECT ticket_user_id,ticket_id,ticket_public_id,ticket_scope_kind,ticket_business_id,event_type FROM ui_event_outbox"))
             .hasSize(3).allSatisfy(row->assertThat(row).containsEntry("ticket_user_id",42L).containsEntry("ticket_id",RAW)
@@ -154,7 +154,7 @@ class BusinessTicketWorkPostgresTest {
     }
     @ParameterizedTest @ValueSource(strings={"viewer","foreign"," Operator ","ai_agent","missing"})
     void readAndOperateAreSeparateAndPaddedPrincipalsCannotBorrowGrants(String actor) {
-        assertThat(service.find(PUBLIC,actor).isPresent()).isEqualTo(actor.equals("viewer"));
+        assertThat(service.find(PUBLIC,boundActor(actor)).isPresent()).isEqualTo(actor.equals("viewer"));
         assertThat(service.change(scope,boundActor(actor),0,"pending","close",List.of("New"))).isFalse();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM business_ticket_work_events",Long.class)).isZero();
     }
@@ -165,7 +165,7 @@ class BusinessTicketWorkPostgresTest {
         mutate(mutation);
         assertThat(jdbc.queryForObject("SELECT business_categories::text FROM tickets WHERE ticket_id=?",String.class,RAW)).isEqualTo("[]");
         assertThat(jdbc.queryForList("SELECT * FROM business_ticket_work_events")).isEqualTo(history);
-        assertThat(service.recent(scope,"Operator")).isEmpty();
+        assertThat(service.recent(scope,boundActor("Operator"))).isEmpty();
     }
     @Test void allBusinessOperateWorksButViewerGrantCannotWrite() {
         jdbc.update("DELETE FROM business_memberships WHERE user_id=1");
@@ -225,7 +225,7 @@ class BusinessTicketWorkPostgresTest {
     @ParameterizedTest @ValueSource(strings={"null","{}","[1]","[\"\"]","[\" untrimmed\"]","[\"A\",\"A\"]"})
     void databaseRejectsNoncanonicalCategoryStateWithoutAdvancingRevision(String invalid) {
         assertThatThrownBy(()->jdbc.update("UPDATE tickets SET business_categories=CAST(? AS JSONB) WHERE ticket_id=?",invalid,RAW)).isInstanceOf(RuntimeException.class);
-        assertThat(revision()).isZero();assertThat(service.find(PUBLIC,"Operator").orElseThrow().categories()).isEmpty();
+        assertThat(revision()).isZero();assertThat(service.find(PUBLIC,boundActor("Operator")).orElseThrow().categories()).isEmpty();
     }
     @Test void upgradeV80ToV81PreservesOldRootAndChildRowsWithoutImportingCategoriesOrGrants() {
         var old=PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType("business_work_upgrade");
@@ -254,7 +254,7 @@ class BusinessTicketWorkPostgresTest {
         java.util.function.Supplier<Boolean> run=()->{try{start.await();return command("close");}catch(InterruptedException ex){throw new IllegalStateException(ex);}};
         var a=CompletableFuture.supplyAsync(run);var b=CompletableFuture.supplyAsync(run);start.countDown();
         assertThat(List.of(a.get(10,TimeUnit.SECONDS),b.get(10,TimeUnit.SECONDS))).containsExactlyInAnyOrder(true,false);
-        assertThat(revision()).isEqualTo(1);assertThat(service.recent(scope,"Operator")).hasSize(1);
+        assertThat(revision()).isEqualTo(1);assertThat(service.recent(scope,boundActor("Operator"))).hasSize(1);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM ui_event_outbox",Long.class)).isEqualTo(1);
     }
 }

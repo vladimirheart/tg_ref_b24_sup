@@ -40,36 +40,44 @@ public class BusinessTicketParticipantService {
         transaction=new TransactionTemplate(new DataSourceTransactionManager(jdbc.getDataSource()));
         transaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
-    public Optional<Long> revision(UiEventTicketScope scope,String identity) {
-        if(!valid(scope,identity))return Optional.empty();
+    public Optional<Long> revision(UiEventTicketScope scope,Authentication authentication) {
+        var account=boundActor(authentication);
+        String identity=account==null?null:account.getUsername();
+        if(account==null||!valid(scope,identity))return Optional.empty();
         try {
-            var rows=jdbc.query("SELECT "+REVISION+" FROM tickets owner"+ACTOR+" WHERE "+OWNER+READ,args(scope,identity),
+            var rows=jdbc.query("SELECT "+REVISION+" FROM tickets owner"+ACTOR+" WHERE "+OWNER+READ,readArgs(scope,account),
                 (rs,row)->rs.getLong(1));
             return rows.size()==1?Optional.of(rows.get(0)):Optional.empty();
         }catch(DataAccessException ex){return Optional.empty();}
     }
-    public List<Member> members(UiEventTicketScope scope,String identity) {
-        if(!valid(scope,identity))return List.of();
+    public List<Member> members(UiEventTicketScope scope,Authentication authentication) {
+        var account=boundActor(authentication);
+        String identity=account==null?null:account.getUsername();
+        if(account==null||!valid(scope,identity))return List.of();
         try{return jdbc.query("SELECT entry.member_user_id,entry.member,candidate.username,("+MEMBER_READ+") AS eligible"
             +" FROM tickets owner"+ACTOR+" JOIN business_ticket_participants entry ON "+TUPLE
             +" LEFT JOIN users candidate ON candidate.id=entry.member_user_id WHERE "+OWNER+READ
-            +" ORDER BY entry.revision,entry.member_user_id LIMIT 200",args(scope,identity),
+            +" ORDER BY entry.revision,entry.member_user_id LIMIT 200",readArgs(scope,account),
             (rs,row)->new Member(rs.getLong("member_user_id"),rs.getString("member"),rs.getString("username"),rs.getBoolean("eligible")));
         }catch(DataAccessException ex){return List.of();}
     }
-    public List<Candidate> candidates(UiEventTicketScope scope,String identity) {
-        if(!valid(scope,identity))return List.of();
+    public List<Candidate> candidates(UiEventTicketScope scope,Authentication authentication) {
+        var account=boundActor(authentication);
+        String identity=account==null?null:account.getUsername();
+        if(account==null||!valid(scope,identity))return List.of();
         try{return jdbc.query("SELECT candidate.id,candidate.username FROM tickets owner"+ACTOR+" CROSS JOIN users candidate"
             +" WHERE "+OWNER+READ+" AND "+OPEN+" AND "+OPERATOR+" AND "+MEMBER_READ
             +" AND NOT EXISTS(SELECT 1 FROM business_ticket_participants entry WHERE "+TUPLE+" AND entry.member_user_id=candidate.id)"
-            +" ORDER BY lower(candidate.username),candidate.id LIMIT 200",args(scope,identity),
+            +" ORDER BY lower(candidate.username),candidate.id LIMIT 200",readArgs(scope,account),
             (rs,row)->new Candidate(rs.getLong("id"),rs.getString("username")));
         }catch(DataAccessException ex){return List.of();}
     }
-    public List<Event> recent(UiEventTicketScope scope,String identity) {
-        if(!valid(scope,identity))return List.of();
+    public List<Event> recent(UiEventTicketScope scope,Authentication authentication) {
+        var account=boundActor(authentication);
+        String identity=account==null?null:account.getUsername();
+        if(account==null||!valid(scope,identity))return List.of();
         try{return jdbc.query("SELECT entry.* FROM tickets owner"+ACTOR+" JOIN business_ticket_participant_events entry ON "+TUPLE
-            +" WHERE "+OWNER+READ+" ORDER BY entry.revision DESC LIMIT 10",args(scope,identity),
+            +" WHERE "+OWNER+READ+" ORDER BY entry.revision DESC LIMIT 10",readArgs(scope,account),
             (rs,row)->new Event(rs.getLong("revision"),rs.getLong("member_user_id"),rs.getString("member"),
                 rs.getString("actor"),rs.getString("action"),rs.getObject("created_at",OffsetDateTime.class)));
         }catch(DataAccessException ex){return List.of();}
@@ -142,6 +150,9 @@ public class BusinessTicketParticipantService {
     private boolean valid(UiEventTicketScope scope,String identity) {
         return flags.isFoundationEnabled()&&flags.isUiSelector()&&identity!=null&&!identity.isBlank()
             &&scope!=null&&scope.isValid()&&"BUSINESS".equals(scope.scopeKind());
+    }
+    private MapSqlParameterSource readArgs(UiEventTicketScope scope,PanelUserPrincipal account){
+        return args(scope,account.getUsername()).addValue("readerId",account.getUserId()).addValue("readerName",account.getUsername());
     }
     private MapSqlParameterSource args(UiEventTicketScope scope,String identity) {
         return new MapSqlParameterSource("owner",scope.ticketUserId()).addValue("raw",scope.ticketId()).addValue("public",scope.ticketPublicId())

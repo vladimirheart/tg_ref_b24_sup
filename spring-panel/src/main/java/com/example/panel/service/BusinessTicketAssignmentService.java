@@ -21,7 +21,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Service
 public class BusinessTicketAssignmentService {
     static final String ACTOR=" CROSS JOIN (SELECT CAST(:identity AS TEXT) AS user_identity) n "
-        +" JOIN users actor ON lower(actor.username)=n.user_identity ";
+        +" JOIN users actor ON actor.id=:readerId AND actor.username=:readerName ";
     private static final String AUTHENTICATED_ACTOR=" CROSS JOIN (SELECT CAST(:identity AS TEXT) AS user_identity) n "
         +" JOIN users actor ON actor.id=:authenticatedActorId AND actor.username=:authenticatedActorName ";
     static final String READ=" AND ("+NotificationBusinessAccessSql.CAN_READ_OWNER_BUSINESS+")";
@@ -49,34 +49,40 @@ public class BusinessTicketAssignmentService {
         transaction=new TransactionTemplate(new DataSourceTransactionManager(jdbc.getDataSource()));
         transaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
-    public Optional<State> find(String publicId,String identity) {
-        if(!enabled(identity)||publicId==null||!publicId.matches("[a-f0-9]{32}"))return Optional.empty();
+    public Optional<State> find(String publicId,Authentication authentication) {
+        var account=boundActor(authentication);
+        String identity=account==null?null:account.getUsername();
+        if(account==null||!enabled(identity)||publicId==null||!publicId.matches("[a-f0-9]{32}"))return Optional.empty();
         try {
             var rows=jdbc.query("SELECT owner.*,assigned.responsible,("+OPEN+" AND "+OPERATOR+") AS can_operate "
                 +" FROM tickets owner"+ACTOR+" LEFT JOIN ticket_responsibles assigned ON assigned.ticket_id=owner.ticket_id "
                 +" WHERE owner.ticket_public_id=:public AND "+UNIQUE_ROOT+READ,
-                new MapSqlParameterSource("public",publicId).addValue("identity",normalize(identity)),
+                new MapSqlParameterSource("public",publicId).addValue("identity",normalize(identity)).addValue("readerId",account.getUserId()).addValue("readerName",identity),
                 (rs,row)->new State(new UiEventTicketScope(rs.getLong("user_id"),rs.getString("ticket_id"),
                     rs.getString("ticket_public_id"),"BUSINESS",rs.getLong("business_id")),
                     rs.getLong("responsibility_revision"),rs.getString("responsible"),rs.getBoolean("can_operate")));
             return rows.size()==1?Optional.of(rows.get(0)):Optional.empty();
         } catch(DataAccessException ex){return Optional.empty();}
     }
-    public List<Candidate> candidates(UiEventTicketScope scope,String identity) {
-        if(!valid(scope,identity))return List.of();
+    public List<Candidate> candidates(UiEventTicketScope scope,Authentication authentication) {
+        var account=boundActor(authentication);
+        String identity=account==null?null:account.getUsername();
+        if(account==null||!valid(scope,identity))return List.of();
         try{return jdbc.query("SELECT candidate.id,candidate.username FROM tickets owner"+ACTOR
             +" CROSS JOIN users candidate WHERE "+OWNER+READ+" AND "+OPEN+" AND "+OPERATOR+" AND "+TARGET
-            +" ORDER BY lower(candidate.username),candidate.id LIMIT 200",args(scope,identity),
+            +" ORDER BY lower(candidate.username),candidate.id LIMIT 200",readArgs(scope,account),
             (rs,row)->new Candidate(rs.getLong("id"),rs.getString("username")));
         }catch(DataAccessException ex){return List.of();}
     }
-    public List<Event> recent(UiEventTicketScope scope,String identity) {
-        if(!valid(scope,identity))return List.of();
+    public List<Event> recent(UiEventTicketScope scope,Authentication authentication) {
+        var account=boundActor(authentication);
+        String identity=account==null?null:account.getUsername();
+        if(account==null||!valid(scope,identity))return List.of();
         try{return jdbc.query("SELECT entry.revision,entry.previous_responsible,entry.assignee,entry.actor,entry.action,entry.created_at "
             +" FROM tickets owner"+ACTOR+" JOIN business_ticket_assignment_events entry ON "
             +" ROW(entry.ticket_user_id,entry.ticket_id,entry.ticket_public_id,entry.business_id)"
             +"=ROW(owner.user_id,owner.ticket_id,owner.ticket_public_id,owner.business_id)"
-            +" WHERE "+OWNER+READ+" ORDER BY entry.revision DESC LIMIT 10",args(scope,identity),
+            +" WHERE "+OWNER+READ+" ORDER BY entry.revision DESC LIMIT 10",readArgs(scope,account),
             (rs,row)->new Event(rs.getLong("revision"),rs.getString("previous_responsible"),rs.getString("assignee"),
                 rs.getString("actor"),rs.getString("action"),rs.getObject("created_at",OffsetDateTime.class)));
         }catch(DataAccessException ex){return List.of();}
@@ -137,6 +143,9 @@ public class BusinessTicketAssignmentService {
     private boolean enabled(String identity){return flags.isFoundationEnabled()&&flags.isUiSelector()&&identity!=null&&!identity.isBlank();}
     private boolean valid(UiEventTicketScope scope,String identity){return enabled(identity)&&scope!=null&&scope.isValid()&&"BUSINESS".equals(scope.scopeKind());}
     private String normalize(String identity){return identity.toLowerCase(Locale.ROOT);}
+    private MapSqlParameterSource readArgs(UiEventTicketScope scope,PanelUserPrincipal account){
+        return args(scope,account.getUsername()).addValue("readerId",account.getUserId()).addValue("readerName",account.getUsername());
+    }
     private MapSqlParameterSource args(UiEventTicketScope scope,String identity){
         return new MapSqlParameterSource("owner",scope.ticketUserId()).addValue("raw",scope.ticketId()).addValue("public",scope.ticketPublicId())
             .addValue("business",scope.businessId()).addValue("identity",normalize(identity));

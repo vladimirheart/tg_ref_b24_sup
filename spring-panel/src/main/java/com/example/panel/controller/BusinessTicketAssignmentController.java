@@ -28,17 +28,17 @@ public class BusinessTicketAssignmentController {
     public String view(@PathVariable String publicId,Authentication auth,Model model,HttpServletResponse response){
         var state=find(publicId,auth,response);
         model.addAttribute("state",state);
-        model.addAttribute("candidates",state.canOperate()?service.candidates(state.scope(),auth.getName()):java.util.List.of());
-        model.addAttribute("events",service.recent(state.scope(),auth.getName()));
-        model.addAttribute("participantRevision",participants.revision(state.scope(),auth.getName()).orElse(null));
-        model.addAttribute("members",participants.members(state.scope(),auth.getName()));
-        model.addAttribute("memberCandidates",state.canOperate()?participants.candidates(state.scope(),auth.getName()):java.util.List.of());
-        model.addAttribute("participantEvents",participants.recent(state.scope(),auth.getName()));
-        var workState=work.find(publicId,auth.getName()).orElse(null);
+        model.addAttribute("candidates",state.canOperate()?service.candidates(state.scope(),auth):java.util.List.of());
+        model.addAttribute("events",service.recent(state.scope(),auth));
+        model.addAttribute("participantRevision",participants.revision(state.scope(),auth).orElse(null));
+        model.addAttribute("members",participants.members(state.scope(),auth));
+        model.addAttribute("memberCandidates",state.canOperate()?participants.candidates(state.scope(),auth):java.util.List.of());
+        model.addAttribute("participantEvents",participants.recent(state.scope(),auth));
+        var workState=work.find(publicId,auth).orElse(null);
         if(workState!=null&&!state.scope().equals(workState.scope()))workState=null;
         model.addAttribute("work",workState);
         model.addAttribute("workCategoryText",workState==null?"":String.join("\n",workState.categories()));
-        model.addAttribute("workEvents",workState==null?java.util.List.of():work.recent(workState.scope(),auth.getName()));
+        model.addAttribute("workEvents",workState==null?java.util.List.of():work.recent(workState.scope(),auth));
         navigation.enrich(model,auth);
         return "businesses/dialog-assignment";
     }
@@ -73,7 +73,7 @@ public class BusinessTicketAssignmentController {
             @RequestParam long workRevision,@RequestParam String expectedStatus,@RequestParam(defaultValue="") String categoryText) {
         response.setHeader("Cache-Control","no-store");
         if(auth==null||!auth.isAuthenticated())throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-        var current=work.find(publicId,auth.getName()).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND));
+        var current=work.find(publicId,auth).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND));
         if(!current.canOperate())throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         if(categoryText.length()>20000)throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         var expected=new UiEventTicketScope(ownerId,rawId,publicId,"BUSINESS",businessId);
@@ -86,7 +86,7 @@ public class BusinessTicketAssignmentController {
     private BusinessTicketAssignmentService.State find(String id,Authentication auth,HttpServletResponse response){
         response.setHeader("Cache-Control","no-store");
         if(auth==null||!auth.isAuthenticated())throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-        return service.find(id,auth.getName()).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND));
+        return service.find(id,auth).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND));
     }
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<String> malformed(){return ResponseEntity.badRequest().cacheControl(CacheControl.noStore()).body("Некорректные параметры назначения");}

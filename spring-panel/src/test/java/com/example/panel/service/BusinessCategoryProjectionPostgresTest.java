@@ -68,7 +68,7 @@ class BusinessCategoryProjectionPostgresTest {
             new com.example.panel.security.PanelUserPrincipal(1,"operator","unused",true,List.of()),null,List.of());
     }
     private void save(List<String> categories) {
-        var view=work.find(PUBLIC,"operator").orElseThrow();
+        var view=work.find(PUBLIC,boundActor()).orElseThrow();
         assertThat(work.change(owner,boundActor(),view.revision(),view.status(),"categories",categories)).isTrue();
     }
     private void allProjections(List<String> expected) {
@@ -89,7 +89,7 @@ class BusinessCategoryProjectionPostgresTest {
         save(List.of(" Delivery ","Delivery","<script>Markup</script>","😀".repeat(160)));
         var expected=List.of("Delivery","<script>Markup</script>","😀".repeat(160));
         allProjections(expected);
-        var view=work.find(PUBLIC,"operator").orElseThrow();
+        var view=work.find(PUBLIC,boundActor()).orElseThrow();
         assertThat(work.change(owner,boundActor(),view.revision(),"open","close",expected)).isTrue();
         allProjections(expected);
         assertThat(work.change(owner,boundActor(),view.revision()+1,"resolved","reopen",List.of())).isTrue();

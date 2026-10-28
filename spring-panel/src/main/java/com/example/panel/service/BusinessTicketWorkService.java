@@ -37,24 +37,28 @@ public class BusinessTicketWorkService {
         transaction=new TransactionTemplate(new DataSourceTransactionManager(jdbc.getDataSource()));
         transaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
-    public Optional<View> find(String publicId,String identity) {
-        if(!enabled(identity)||publicId==null||!publicId.matches("[a-f0-9]{32}"))return Optional.empty();
+    public Optional<View> find(String publicId,Authentication authentication) {
+        var account=boundActor(authentication);
+        String identity=account==null?null:account.getUsername();
+        if(account==null||!enabled(identity)||publicId==null||!publicId.matches("[a-f0-9]{32}"))return Optional.empty();
         try {
             var rows=jdbc.query("SELECT owner.*,("+OPERATOR+") AS can_operate FROM tickets owner"+ACTOR
                 +" WHERE owner.ticket_public_id=:public AND "+UNIQUE_ROOT+READ,
-                new MapSqlParameterSource("public",publicId).addValue("identity",identity.toLowerCase(Locale.ROOT)),
+                new MapSqlParameterSource("public",publicId).addValue("identity",identity.toLowerCase(Locale.ROOT)).addValue("readerId",account.getUserId()).addValue("readerName",identity),
                 (rs,row)->new View(new UiEventTicketScope(rs.getLong("user_id"),rs.getString("ticket_id"),rs.getString("ticket_public_id"),
                     "BUSINESS",rs.getLong("business_id")),rs.getString("status"),rs.getLong("business_work_revision"),
                     categories(rs.getString("business_categories")),rs.getBoolean("can_operate")));
             return rows.size()==1?Optional.of(rows.get(0)):Optional.empty();
         }catch(DataAccessException|IllegalArgumentException ex){return Optional.empty();}
     }
-    public List<Event> recent(UiEventTicketScope scope,String identity) {
-        if(!valid(scope,identity))return List.of();
+    public List<Event> recent(UiEventTicketScope scope,Authentication authentication) {
+        var account=boundActor(authentication);
+        String identity=account==null?null:account.getUsername();
+        if(account==null||!valid(scope,identity))return List.of();
         try{return jdbc.query("SELECT entry.* FROM tickets owner"+ACTOR+" JOIN business_ticket_work_events entry ON "
             +"ROW(entry.ticket_user_id,entry.ticket_id,entry.ticket_public_id,entry.business_id)"
             +"=ROW(owner.user_id,owner.ticket_id,owner.ticket_public_id,owner.business_id) WHERE "+OWNER+READ
-            +" ORDER BY entry.revision DESC LIMIT 10",args(scope,identity),
+            +" ORDER BY entry.revision DESC LIMIT 10",readArgs(scope,account),
             (rs,row)->new Event(rs.getLong("revision"),rs.getString("action"),rs.getString("from_status"),rs.getString("to_status"),
                 categories(rs.getString("previous_categories")),categories(rs.getString("categories")),
                 rs.getString("actor"),rs.getObject("created_at",OffsetDateTime.class)));
@@ -162,6 +166,9 @@ public class BusinessTicketWorkService {
     }
     private boolean enabled(String identity){return flags.isFoundationEnabled()&&flags.isUiSelector()&&identity!=null&&!identity.isBlank();}
     private boolean valid(UiEventTicketScope scope,String identity){return enabled(identity)&&scope!=null&&scope.isValid()&&"BUSINESS".equals(scope.scopeKind());}
+    private MapSqlParameterSource readArgs(UiEventTicketScope scope,PanelUserPrincipal account){
+        return args(scope,account.getUsername()).addValue("readerId",account.getUserId()).addValue("readerName",account.getUsername());
+    }
     private MapSqlParameterSource args(UiEventTicketScope scope,String identity) {
         return new MapSqlParameterSource("owner",scope.ticketUserId()).addValue("raw",scope.ticketId()).addValue("public",scope.ticketPublicId())
             .addValue("business",scope.businessId()).addValue("identity",identity.toLowerCase(Locale.ROOT));

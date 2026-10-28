@@ -24,13 +24,40 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальная source-сводка R205 имеют
+что production уже запускался. Эта оговорка и актуальная source-сводка R206 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
 
-Текущее source-уточнение R205 (2026-10-28): три BUSINESS readers —
+Текущее source-уточнение R206 (2026-10-28): все девять BUSINESS workbench reads
+Assignment.find/candidates/recent, Participant.revision/members/candidates/recent,
+Work.find/recent принимают тот же Authentication из controller. Требуются
+authenticated non-anonymous bound principal, positive session ID, exact raw name
+и principal status. Read JOIN связывает actor ID/raw name, прежний READ в том же
+SQL проверяет current enabled/non-blocked account/ambiguity/active business/grants.
+Нет String-only read APIs или rebind по reused name после refresh. VIEWER/OPERATE,
+candidate rules, full owner/legacy collision refusal, caps/revisions/snapshots,
+PAGE_DIALOGS/CSRF/flags сохранены. Тела writers не менялись; новых policy/grants/
+schema/UI нет. Гарантия statement-time: позднее чтение при revoke возвращает
+empty/null, уже законно прочитанные поля model не отзываются. Атомарность всей
+страницы или revoke после начала SQL snapshot не заявляется.
+Frozen 75 SQL + 56 real-login HTTP: baseline 72 failures/0 errors; те же bytes
+GREEN. Final 937 tests/14 suites + 15 BUSINESS JS scripts GREEN. Четыре прежние
+fixtures точно восстановлены inverse transforms; все 1333 Java inputs совпали
+с native, 11 code/test paths совпали sandbox/replay/native/main. Полная compile
+730 main/603 test. Testcontainers PG16.15, только тестовые схемы, 83 migrations
+без изменений; helper удалён. Source-only на этой машине от f94389ea4 (R205),
+parent aeff55ee6. Working web R204/image c1634138193d, worker R198; 18 containers
+не перезапускались и сохранили ID/images/config, одна web-реплика, health/readiness
+200/UP. Настройки не менялись; отдельно изменился hash штатного heartbeat-файла
+backup-policy-runner.status. Build/deploy/working migration/backfill/flags/grants
+не выполнялись. R205/R206 требуют отдельного web rollout. Все старые runtime/
+rollback/V83 backup checkpoint сохранены. Другие read/AI consumers, child/media/
+feedback/GENERAL, policy/AI/fleet и S6 остаются; эти девять readers закрыты.
+Task 🟡, historical S2B исключён R190.
+
+Историческое source-уточнение R205 (2026-10-28): три BUSINESS readers —
 assignment history, participant roster/history — получают Authentication.
 Требуются authenticated non-anonymous bound principal, positive session ID,
 exact raw username/status. Один SQL связывает reader ID/name/enabled/non-blocked
