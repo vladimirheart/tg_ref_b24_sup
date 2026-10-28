@@ -2,6 +2,10 @@ package com.example.panel.service;
 
 import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.support.PostgresqlJdbcTestSupport;
+import com.example.panel.security.PanelUserPrincipal;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.AuthorityUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.nio.file.Files;
@@ -21,6 +25,13 @@ class BusinessTicketParticipantReadPostgresTest {
     private BusinessTicketParticipantReadService read;
     private BusinessTicketParticipantService write;
     private final UiEventTicketScope owner=new UiEventTicketScope(42L,RAW,PUBLIC,"BUSINESS",11L);
+    // Login input resolves to the exact stored name; statement-time SQL still checks ambiguity.
+    private Authentication auth(String name) {
+        String stored="VIEWER".equals(name)?"viewer":name;
+        long id=switch(stored){case "operator"->1;case "viewer"->2;case "all-reader"->3;case "foreign"->4;case "none"->5;default->2;};
+        var principal=new PanelUserPrincipal(id,stored,"unused",true,AuthorityUtils.createAuthorityList("PAGE_DIALOGS"));
+        return UsernamePasswordAuthenticationToken.authenticated(principal,"unused",principal.getAuthorities());
+    }
     @BeforeEach void fixture() throws Exception {
         jdbc=PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType("business_participant_read");
         jdbc.execute("""
@@ -51,10 +62,10 @@ class BusinessTicketParticipantReadPostgresTest {
     }
     @Test void persistedRosterAndImmutableHistoryAreVisibleToReadersWithoutOperate() {
         var old=jdbc.queryForList("SELECT * FROM ticket_participants");
-        assertThat(read.find(PUBLIC,"viewer").orElseThrow().members()).isEmpty();
+        assertThat(read.find(PUBLIC,auth("viewer")).orElseThrow().members()).isEmpty();
         add();
         for(String identity:List.of("viewer","VIEWER","all-reader")) {
-            var roster=read.find(PUBLIC,identity).orElseThrow();
+            var roster=read.find(PUBLIC,auth(identity)).orElseThrow();
             assertThat(roster.owner()).isEqualTo(new BusinessTicketParticipantReadService.Owner("42",RAW,PUBLIC,"11"));
             assertThat(roster.revision()).isEqualTo(1);
             assertThat(roster.members()).singleElement().satisfies(member->{
@@ -63,8 +74,8 @@ class BusinessTicketParticipantReadPostgresTest {
             });
         }
         assertThat(write.change(owner,org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated(new com.example.panel.security.PanelUserPrincipal(1,"operator","unused",true,List.of()),null,List.of()),1,2L,false)).isTrue();
-        assertThat(read.find(PUBLIC,"viewer").orElseThrow().members()).isEmpty();
-        assertThat(read.history(PUBLIC,"viewer",null,50).orElseThrow().events())
+        assertThat(read.find(PUBLIC,auth("viewer")).orElseThrow().members()).isEmpty();
+        assertThat(read.history(PUBLIC,auth("viewer"),null,50).orElseThrow().events())
             .extracting(BusinessTicketParticipantReadService.Event::action).containsExactly("remove","add");
         assertThat(jdbc.queryForList("SELECT * FROM ticket_participants")).isEqualTo(old);
     }
@@ -76,9 +87,9 @@ class BusinessTicketParticipantReadPostgresTest {
             case "closed","resolved" -> jdbc.update("UPDATE tickets SET status=? WHERE user_id=42",change);
             case "no-legacy-table" -> jdbc.execute("DROP TABLE ticket_participants");
         }
-        assertThat(read.find(PUBLIC,"viewer").orElseThrow().members()).hasSize(1);
-        assertThat(read.history(PUBLIC,"viewer",null,50).orElseThrow().events()).hasSize(1);
-        assertThat(read.find("b".repeat(32),"all-reader").orElseThrow().members()).isEmpty();
+        assertThat(read.find(PUBLIC,auth("viewer")).orElseThrow().members()).hasSize(1);
+        assertThat(read.history(PUBLIC,auth("viewer"),null,50).orElseThrow().events()).hasSize(1);
+        assertThat(read.find("b".repeat(32),auth("all-reader")).orElseThrow().members()).isEmpty();
     }
     @ParameterizedTest @ValueSource(strings={"membership","all-grant","disabled","blocked","ambiguous","archived","role","general-grant","foreign","space"})
     void readersNeedCurrentUniqueEnabledUnblockedBusinessRead(String denied) {
@@ -95,8 +106,8 @@ class BusinessTicketParticipantReadPostgresTest {
             case "foreign" -> identity="foreign";
             case "space" -> identity=" viewer ";
         }
-        assertThat(read.find(PUBLIC,identity)).isEmpty();
-        assertThat(read.history(PUBLIC,identity,null,50)).isEmpty();
+        assertThat(read.find(PUBLIC,auth(identity))).isEmpty();
+        assertThat(read.history(PUBLIC,auth(identity),null,50)).isEmpty();
     }
     @ParameterizedTest @ValueSource(strings={"business","public","raw","user","general","unresolved","recreate","public-collision"})
     void rosterAndEventsCannotFollowAnotherOwnerOrGeneration(String change) {
@@ -112,11 +123,11 @@ class BusinessTicketParticipantReadPostgresTest {
             case "public-collision" -> jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,business_id) VALUES(99,'duplicate',?,22)",PUBLIC);
         }
         if(List.of("general","unresolved","public-collision").contains(change)) {
-            assertThat(read.find(publicId,identity)).isEmpty();
-            assertThat(read.history(publicId,identity,null,50)).isEmpty();
+            assertThat(read.find(publicId,auth(identity))).isEmpty();
+            assertThat(read.history(publicId,auth(identity),null,50)).isEmpty();
         } else {
-            assertThat(read.find(publicId,identity).orElseThrow().members()).isEmpty();
-            assertThat(read.history(publicId,identity,null,50).orElseThrow().events()).isEmpty();
+            assertThat(read.find(publicId,auth(identity)).orElseThrow().members()).isEmpty();
+            assertThat(read.history(publicId,auth(identity),null,50).orElseThrow().events()).isEmpty();
         }
         assertThat(jdbc.queryForObject("SELECT count(*) FROM business_ticket_participant_events",Long.class)).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM business_ticket_participants",Long.class)).isEqualTo(1);
@@ -133,29 +144,29 @@ class BusinessTicketParticipantReadPostgresTest {
             case "duplicate-name" -> jdbc.update("INSERT INTO users VALUES(6,'VIEWER',TRUE,FALSE)");
         }
         var before=jdbc.queryForList("SELECT * FROM business_memberships ORDER BY user_id");
-        var member=read.find(PUBLIC,"operator").orElseThrow().members().get(0);
+        var member=read.find(PUBLIC,auth("operator")).orElseThrow().members().get(0);
         assertThat(member.id()).isEqualTo(2);assertThat(member.snapshot()).isEqualTo("viewer");
         assertThat(member.eligible()).isEqualTo(change.equals("renamed")||change.equals("viewer"));
         if(change.equals("deleted-reused"))assertThat(member.username()).isNull();
         if(change.equals("renamed"))assertThat(member.username()).isEqualTo("<img src=x>");
-        assertThat(read.history(PUBLIC,"operator",null,50).orElseThrow().events().get(0).member()).isEqualTo("viewer");
+        assertThat(read.history(PUBLIC,auth("operator"),null,50).orElseThrow().events().get(0).member()).isEqualTo("viewer");
         assertThat(jdbc.queryForList("SELECT * FROM business_memberships ORDER BY user_id")).isEqualTo(before);
     }
     @Test void historyPagesAreNewestFirstBoundedAndNeverRepeatTheCursorRevision() {
         for(int i=1;i<=7;i++)event(i,i%2==0?"remove":"add");
-        var first=read.history(PUBLIC,"viewer",null,3).orElseThrow();
+        var first=read.history(PUBLIC,auth("viewer"),null,3).orElseThrow();
         assertThat(first.events()).extracting(BusinessTicketParticipantReadService.Event::revision).containsExactly(7L,6L,5L);
         assertThat(first.hasMore()).isTrue();assertThat(first.nextBeforeRevision()).isEqualTo(5);
-        var next=read.history(PUBLIC,"viewer",first.nextBeforeRevision(),3).orElseThrow();
+        var next=read.history(PUBLIC,auth("viewer"),first.nextBeforeRevision(),3).orElseThrow();
         assertThat(next.events()).extracting(BusinessTicketParticipantReadService.Event::revision).containsExactly(4L,3L,2L);
-        var last=read.history(PUBLIC,"viewer",next.nextBeforeRevision(),3).orElseThrow();
+        var last=read.history(PUBLIC,auth("viewer"),next.nextBeforeRevision(),3).orElseThrow();
         assertThat(last.events()).extracting(BusinessTicketParticipantReadService.Event::revision).containsExactly(1L);
         assertThat(last.hasMore()).isFalse();assertThat(last.nextBeforeRevision()).isNull();
-        assertThat(read.history(PUBLIC,"viewer",1L,100).orElseThrow().events()).isEmpty();
+        assertThat(read.history(PUBLIC,auth("viewer"),1L,100).orElseThrow().events()).isEmpty();
     }
     @Test void bigintsRemainExactAndDefaultHistoryIncludesMaximumRevision() throws Exception {
         event(Long.MAX_VALUE,"add");
-        var history=read.history(PUBLIC,"viewer",null,1).orElseThrow();
+        var history=read.history(PUBLIC,auth("viewer"),null,1).orElseThrow();
         assertThat(history.events().get(0).revision()).isEqualTo(Long.MAX_VALUE);
         var json=new ObjectMapper().registerModule(new JavaTimeModule()).readTree(new ObjectMapper().registerModule(new JavaTimeModule()).writeValueAsString(history));
         assertThat(json.get("revision").asText()).isEqualTo(Long.toString(Long.MAX_VALUE));
@@ -165,20 +176,20 @@ class BusinessTicketParticipantReadPostgresTest {
     @Test void rosterBoundIs200AndOverflowIsAnExplicitRefusal() {
         jdbc.execute("INSERT INTO business_ticket_participants(ticket_user_id,ticket_id,ticket_public_id,business_id,member_user_id,member,actor_user_id,actor,revision) "
             +"SELECT 42,'"+RAW+"','"+PUBLIC+"',11,n,'member-'||n,1,'operator',n FROM generate_series(1000,1199) n");
-        assertThat(read.find(PUBLIC,"viewer").orElseThrow().members()).hasSize(200);
+        assertThat(read.find(PUBLIC,auth("viewer")).orElseThrow().members()).hasSize(200);
         jdbc.update("INSERT INTO business_ticket_participants VALUES(42,?,?,11,1200,'overflow',1,'operator',1200,CURRENT_TIMESTAMP)",RAW,PUBLIC);
-        assertThatThrownBy(()->read.find(PUBLIC,"viewer")).isInstanceOf(BusinessTicketParticipantReadService.RosterTooLargeException.class);
+        assertThatThrownBy(()->read.find(PUBLIC,auth("viewer"))).isInstanceOf(BusinessTicketParticipantReadService.RosterTooLargeException.class);
     }
     @Test void missingCanonicalSchemaDoesNotBecomeAnEmptyOrLegacyRoster() {
         jdbc.execute("DROP TABLE business_ticket_participants");
-        assertThatThrownBy(()->read.find(PUBLIC,"viewer")).isInstanceOf(BusinessTicketParticipantReadService.ReadUnavailableException.class);
+        assertThatThrownBy(()->read.find(PUBLIC,auth("viewer"))).isInstanceOf(BusinessTicketParticipantReadService.ReadUnavailableException.class);
         jdbc.execute("DROP TABLE business_ticket_participant_events");
-        assertThatThrownBy(()->read.history(PUBLIC,"viewer",null,50)).isInstanceOf(BusinessTicketParticipantReadService.ReadUnavailableException.class);
+        assertThatThrownBy(()->read.history(PUBLIC,auth("viewer"),null,50)).isInstanceOf(BusinessTicketParticipantReadService.ReadUnavailableException.class);
     }
     @Test void invalidIdentityLocatorAndPagingDoNotOpenAnotherScope() {
-        assertThat(read.find("bad","viewer")).isEmpty();assertThat(read.find(PUBLIC,null)).isEmpty();
-        assertThat(read.history(null,"viewer",null,50)).isEmpty();
-        assertThatThrownBy(()->read.history(PUBLIC,"viewer",0L,50)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(()->read.history(PUBLIC,"viewer",null,101)).isInstanceOf(IllegalArgumentException.class);
+        assertThat(read.find("bad",auth("viewer"))).isEmpty();assertThat(read.find(PUBLIC,null)).isEmpty();
+        assertThat(read.history(null,auth("viewer"),null,50)).isEmpty();
+        assertThatThrownBy(()->read.history(PUBLIC,auth("viewer"),0L,50)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(()->read.history(PUBLIC,auth("viewer"),null,101)).isInstanceOf(IllegalArgumentException.class);
     }
 }

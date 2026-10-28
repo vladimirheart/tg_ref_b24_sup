@@ -23,7 +23,7 @@ public class BusinessTicketParticipantReadController {
     public ResponseEntity<BusinessTicketParticipantReadService.Roster> roster(@PathVariable String publicId,Authentication authentication) {
         requireFoundation();
         try {
-            return privateRead(service.find(publicId,identity(authentication)).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND)));
+            return privateRead(service.find(publicId,authentication).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND)));
         } catch (BusinessTicketParticipantReadService.RosterTooLargeException ex) {
             throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE,"Participant roster exceeds 200 members",ex);
         } catch (BusinessTicketParticipantReadService.ReadUnavailableException ex) {
@@ -43,14 +43,13 @@ public class BusinessTicketParticipantReadController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid participant history page",ex);
         }
         try {
-            return privateRead(service.history(publicId,identity(authentication),cursor,pageSize)
+            return privateRead(service.history(publicId,authentication,cursor,pageSize)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND)));
         } catch (BusinessTicketParticipantReadService.ReadUnavailableException ex) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"Participant data is unavailable",ex);
         }
     }
     private void requireFoundation() { if(!flags.isFoundationEnabled())throw new ResponseStatusException(HttpStatus.NOT_FOUND); }
-    private String identity(Authentication authentication) { return authentication==null?null:authentication.getName(); }
     private <T> ResponseEntity<T> privateRead(T body) {
         return ResponseEntity.ok().header(HttpHeaders.CACHE_CONTROL,"no-store").header("X-Content-Type-Options","nosniff").body(body);
     }

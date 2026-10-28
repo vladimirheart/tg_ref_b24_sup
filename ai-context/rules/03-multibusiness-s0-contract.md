@@ -24,13 +24,35 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальная source-сводка R204 имеют
+что production уже запускался. Эта оговорка и актуальная source-сводка R205 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
 
-Текущее source/runtime уточнение R204 (2026-10-28): BUSINESS work history reader
+Текущее source-уточнение R205 (2026-10-28): три BUSINESS readers —
+assignment history, participant roster/history — получают Authentication.
+Требуются authenticated non-anonymous bound principal, positive session ID,
+exact raw username/status. Один SQL связывает reader ID/name/enabled/non-blocked
+с прежним BUSINESS READ/ambiguity/active business/full owner; reused name/case
+change после refresh не подменяют читателя. String-only APIs удалены.
+Full-owner audit, manual/SLA snapshots/tie refusal, member eligibility, roster
+200/413, pagination/BIGINT/private headers, PAGE_DIALOGS/foundation сохранены.
+Нет schema/grants/UI/writer/policy changes. Atomic in-flight revocation после
+начала SQL snapshot не заявляется. Workbench find/recent/candidates и прочие
+read/AI consumers остаются отдельными границами, не закрыты этим reader scope.
+Frozen 93 SQL + 27 real-login HTTP cases: baseline 48 failures/0 errors;
+те же bytes GREEN. Итог 509 tests/10 suites + 15 BUSINESS JS scripts GREEN.
+Четыре прежние fixture sources восстановлены inverse transformations без
+ослабления assertions/case names; 10 code/test SHA совпали в candidate/replay/
+native/main. Штатный Testcontainers PG16.15, migration только test schemas.
+Source-only на этой машине, baseline aeff55ee6 (R204), parent 53e858df0.
+Рабочий web остаётся R204/image c1634138193d, worker R198. Все 18 Compose
+containers неизменны за R205; Docker/build/deploy/working migration/flags/grants
+не менялись. R205 rollout ещё нужен отдельно; R184/R198/R204 runtime evidence,
+rollback/V83 backup и исторический memory recovery R204 сохранены. Task 🟡.
+
+Подтверждённое source/runtime уточнение R204 (2026-10-28): BUSINESS work history reader
 получает Authentication, bound positive session ID и exact raw username/status.
 Один SQL проверяет текущий account + BUSINESS READ/ambiguity/active business.
 Rename/delete + reused name и case change после session refresh не подменяют

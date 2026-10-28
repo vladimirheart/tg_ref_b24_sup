@@ -1,6 +1,9 @@
 package com.example.panel.service;
 
 import com.example.panel.repository.NotificationBusinessAccessSql;
+import com.example.panel.security.PanelUserPrincipal;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import java.sql.ResultSet;
@@ -33,9 +36,10 @@ public class BusinessTicketParticipantReadService {
         """ + TUPLE + """
                    ) AS roster_revision
               FROM tickets owner
+              JOIN users reader ON reader.id=:readerId AND reader.username=:readerName
               CROSS JOIN (VALUES(CAST(:identity AS TEXT))) n(user_identity)
              WHERE owner.ticket_public_id=:publicId AND owner.is_general=FALSE
-               AND owner.business_id IS NOT NULL
+               AND owner.business_id IS NOT NULL AND reader.enabled=TRUE AND reader.is_blocked=FALSE
                AND 1=(SELECT count(*) FROM tickets same_public WHERE same_public.ticket_public_id=owner.ticket_public_id)
                AND (
         """ + NotificationBusinessAccessSql.CAN_READ_OWNER_BUSINESS + ") ) ";
@@ -47,8 +51,9 @@ public class BusinessTicketParticipantReadService {
         this.jdbc = new NamedParameterJdbcTemplate(jdbc);
     }
 
-    public Optional<Roster> find(String publicId, String identity) {
-        if (!valid(publicId, identity)) return Optional.empty();
+    public Optional<Roster> find(String publicId, Authentication authentication) {
+        var reader=boundReader(authentication);
+        if (!valid(publicId, reader)) return Optional.empty();
         try {
             return jdbc.query(ROOT + """
                 SELECT owner.*,member.member_user_id,member.member AS snapshot,member.created_at AS added_at,
@@ -63,7 +68,7 @@ public class BusinessTicketParticipantReadService {
                   ) member ON TRUE
                   LEFT JOIN users candidate ON candidate.id=member.member_user_id
                  ORDER BY member.revision,member.member_user_id
-                """, args(publicId, identity).addValue("memberLimit", MAX_MEMBERS + 1), rs -> {
+                """, args(publicId, reader).addValue("memberLimit", MAX_MEMBERS + 1), rs -> {
                     Owner owner = null;
                     long revision = 0;
                     var members = new ArrayList<Member>();
@@ -81,9 +86,10 @@ public class BusinessTicketParticipantReadService {
         } catch (DataAccessException ex) { throw new ReadUnavailableException(ex); }
     }
 
-    public Optional<History> history(String publicId, String identity, Long before, int limit) {
+    public Optional<History> history(String publicId, Authentication authentication, Long before, int limit) {
         if (limit < 1 || limit > 100 || before != null && before < 1) throw new IllegalArgumentException("Invalid participant history page");
-        if (!valid(publicId, identity)) return Optional.empty();
+        var reader=boundReader(authentication);
+        if (!valid(publicId, reader)) return Optional.empty();
         try {
             return jdbc.query(ROOT + """
                 SELECT owner.*,event.revision AS event_revision,event.action,event.member_user_id,
@@ -96,7 +102,7 @@ public class BusinessTicketParticipantReadService {
                        ORDER BY entry.revision DESC LIMIT :pageSize
                   ) event ON TRUE
                  ORDER BY event.revision DESC
-                """, args(publicId,identity).addValue("before",before,Types.BIGINT).addValue("pageSize",limit+1), rs -> {
+                """, args(publicId,reader).addValue("before",before,Types.BIGINT).addValue("pageSize",limit+1), rs -> {
                     Owner owner = null;
                     long revision = 0;
                     var events = new ArrayList<Event>();
@@ -116,11 +122,20 @@ public class BusinessTicketParticipantReadService {
         } catch (DataAccessException ex) { throw new ReadUnavailableException(ex); }
     }
 
-    private boolean valid(String publicId, String identity) {
-        return publicId != null && publicId.matches("[a-f0-9]{32}") && identity != null && !identity.isBlank();
+    private PanelUserPrincipal boundReader(Authentication authentication) {
+        if (authentication==null || !authentication.isAuthenticated() || authentication instanceof AnonymousAuthenticationToken
+            || !(authentication.getPrincipal() instanceof PanelUserPrincipal reader)
+            || reader.getUserId()<=0 || reader.getUsername().isBlank()
+            || !reader.isEnabled() || !reader.isAccountNonLocked()
+            || !reader.isAccountNonExpired() || !reader.isCredentialsNonExpired()) return null;
+        return reader;
     }
-    private MapSqlParameterSource args(String publicId,String identity) {
-        return new MapSqlParameterSource("publicId",publicId).addValue("identity",identity.toLowerCase(Locale.ROOT));
+    private boolean valid(String publicId, PanelUserPrincipal reader) {
+        return publicId != null && publicId.matches("[a-f0-9]{32}") && reader != null;
+    }
+    private MapSqlParameterSource args(String publicId,PanelUserPrincipal reader) {
+        return new MapSqlParameterSource("publicId",publicId).addValue("readerId",reader.getUserId()).addValue("readerName",reader.getUsername())
+            .addValue("identity",reader.getUsername().toLowerCase(Locale.ROOT));
     }
     private Owner owner(ResultSet rs) throws SQLException {
         return new Owner(rs.getString("user_id"),rs.getString("ticket_id"),rs.getString("ticket_public_id"),rs.getString("business_id"));

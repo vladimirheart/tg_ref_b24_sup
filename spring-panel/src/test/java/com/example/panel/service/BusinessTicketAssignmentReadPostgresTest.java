@@ -1,6 +1,10 @@
 package com.example.panel.service;
 
 import com.example.panel.support.PostgresqlJdbcTestSupport;
+import com.example.panel.security.PanelUserPrincipal;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.AuthorityUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.nio.file.Files;
@@ -17,6 +21,13 @@ class BusinessTicketAssignmentReadPostgresTest {
     private static final String RAW=" R170/Ю?%#+ ",PUBLIC="a".repeat(32);
     private JdbcTemplate jdbc;
     private BusinessTicketAssignmentReadService read;
+    // Login input resolves to the exact stored name; statement-time SQL still checks ambiguity.
+    private Authentication auth(String name) {
+        String stored="VIEWER".equals(name)?"viewer":name;
+        long id=switch(stored){case "operator"->1;case "viewer"->2;case "all-reader"->3;case "foreign"->4;case "none"->5;default->2;};
+        var principal=new PanelUserPrincipal(id,stored,"unused",true,AuthorityUtils.createAuthorityList("PAGE_DIALOGS"));
+        return UsernamePasswordAuthenticationToken.authenticated(principal,"unused",principal.getAuthorities());
+    }
     @BeforeEach void fixture() throws Exception {
         jdbc=PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType("business_assignment_read");
         jdbc.execute("""
@@ -44,12 +55,12 @@ class BusinessTicketAssignmentReadPostgresTest {
     private void sla(long revision) {
         jdbc.update("INSERT INTO scoped_sla_assignment_events(ticket_user_id,ticket_id,ticket_public_id,business_id,scope_kind,revision,previous_responsible,assignee,actor,source,route) VALUES(42,?,?,11,'BUSINESS',?,'Previous secret','sla target','scheduler','Source secret','Route secret')",RAW,PUBLIC,revision);
     }
-    private BusinessTicketAssignmentReadService.History history() { return read.history(PUBLIC,"viewer",null,50).orElseThrow(); }
+    private BusinessTicketAssignmentReadService.History history() { return read.history(PUBLIC,auth("viewer"),null,50).orElseThrow(); }
     @Test void mergesBothAuditsWithoutExposingLegacyResponsibleSourceRouteOrInferringSlaIds() throws Exception {
         manual(1);sla(2);
         var before=jdbc.queryForList("SELECT * FROM ticket_responsibles");
         for(String identity:List.of("viewer","VIEWER","all-reader")) {
-            var page=read.history(PUBLIC,identity,null,50).orElseThrow();
+            var page=read.history(PUBLIC,auth(identity),null,50).orElseThrow();
             assertThat(page.owner()).isEqualTo(new BusinessTicketAssignmentReadService.Owner("42",RAW,PUBLIC,"11"));
             assertThat(page.revision()).isEqualTo(1);assertThat(page.latestEventRevision()).isEqualTo(2);
             assertThat(page.events()).extracting(BusinessTicketAssignmentReadService.Event::origin).containsExactly("SLA","MANUAL");
@@ -69,7 +80,7 @@ class BusinessTicketAssignmentReadPostgresTest {
             case "no-legacy-table" -> jdbc.execute("DROP TABLE ticket_responsibles");
         }
         assertThat(history().events()).hasSize(2);
-        assertThat(read.history("b".repeat(32),"all-reader",null,50).orElseThrow().events()).isEmpty();
+        assertThat(read.history("b".repeat(32),auth("all-reader"),null,50).orElseThrow().events()).isEmpty();
     }
     @ParameterizedTest @ValueSource(strings={"membership","all-grant","disabled","blocked","ambiguous","archived","role","general-grant","foreign","space"})
     void currentReaderAccountAndBusinessReadAreRequired(String denied) {
@@ -86,7 +97,7 @@ class BusinessTicketAssignmentReadPostgresTest {
             case "foreign" -> identity="foreign";
             case "space" -> identity=" viewer ";
         }
-        assertThat(read.history(PUBLIC,identity,null,50)).isEmpty();
+        assertThat(read.history(PUBLIC,auth(identity),null,50)).isEmpty();
     }
     @ParameterizedTest @ValueSource(strings={"business","public","raw","user","general","unresolved","recreate","public-collision"})
     void auditCannotFollowAnotherFullOwnerOrGeneration(String change) {
@@ -101,7 +112,7 @@ class BusinessTicketAssignmentReadPostgresTest {
             case "recreate" -> {jdbc.update("DELETE FROM tickets WHERE user_id=42");publicId="c".repeat(32);jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,business_id) VALUES(42,?,?,11)",RAW,publicId);}
             case "public-collision" -> jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,business_id) VALUES(99,'duplicate',?,22)",PUBLIC);
         }
-        var page=read.history(publicId,"all-reader",null,50);
+        var page=read.history(publicId,auth("all-reader"),null,50);
         if(List.of("general","unresolved","public-collision").contains(change)) assertThat(page).isEmpty();
         else assertThat(page.orElseThrow().events()).isEmpty();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM business_ticket_assignment_events",Long.class)).isEqualTo(1);
@@ -109,16 +120,16 @@ class BusinessTicketAssignmentReadPostgresTest {
     }
     @Test void mixedHistoryPagesHaveStrictCursorAndStableSnapshotMetadata() {
         for(int i=1;i<=7;i++)if(i%2==0)sla(i);else manual(i);
-        var first=read.history(PUBLIC,"viewer",null,3).orElseThrow();
+        var first=read.history(PUBLIC,auth("viewer"),null,3).orElseThrow();
         assertThat(first.events()).extracting(BusinessTicketAssignmentReadService.Event::revision).containsExactly(7L,6L,5L);
         assertThat(first.hasMore()).isTrue();assertThat(first.nextBeforeRevision()).isEqualTo(5);
-        var next=read.history(PUBLIC,"viewer",first.nextBeforeRevision(),3).orElseThrow();
+        var next=read.history(PUBLIC,auth("viewer"),first.nextBeforeRevision(),3).orElseThrow();
         assertThat(next.events()).extracting(BusinessTicketAssignmentReadService.Event::revision).containsExactly(4L,3L,2L);
         assertThat(next.revision()).isEqualTo(first.revision());assertThat(next.latestEventRevision()).isEqualTo(7);
-        var last=read.history(PUBLIC,"viewer",next.nextBeforeRevision(),3).orElseThrow();
+        var last=read.history(PUBLIC,auth("viewer"),next.nextBeforeRevision(),3).orElseThrow();
         assertThat(last.events()).extracting(BusinessTicketAssignmentReadService.Event::revision).containsExactly(1L);
         assertThat(last.hasMore()).isFalse();assertThat(last.nextBeforeRevision()).isNull();
-        assertThat(read.history(PUBLIC,"viewer",1L,100).orElseThrow().events()).isEmpty();
+        assertThat(read.history(PUBLIC,auth("viewer"),1L,100).orElseThrow().events()).isEmpty();
         sla(8);assertThat(history().latestEventRevision()).isEqualTo(8);assertThat(history().revision()).isEqualTo(1);
     }
     @Test void maximumBigintsAndSnapshotsSurviveAccountRenameDeleteAndNameReuse() throws Exception {
@@ -132,7 +143,7 @@ class BusinessTicketAssignmentReadPostgresTest {
     }
     @Test void ambiguousCrossOriginRevisionFailsInsteadOfDroppingATiedEvent() {
         manual(1);sla(1);
-        assertThatThrownBy(()->read.history(PUBLIC,"viewer",null,1)).isInstanceOf(BusinessTicketAssignmentReadService.ReadUnavailableException.class);
+        assertThatThrownBy(()->read.history(PUBLIC,auth("viewer"),null,1)).isInstanceOf(BusinessTicketAssignmentReadService.ReadUnavailableException.class);
     }
     @ParameterizedTest @ValueSource(strings={"business_ticket_assignment_events","scoped_sla_assignment_events"})
     void missingCanonicalAuditIsUnavailableRatherThanEmpty(String table) {
@@ -141,8 +152,8 @@ class BusinessTicketAssignmentReadPostgresTest {
     }
     @Test void emptyHistoryAndInvalidInputsStayBounded() {
         assertThat(history().events()).isEmpty();assertThat(history().latestEventRevision()).isZero();
-        assertThat(read.history("bad","viewer",null,50)).isEmpty();assertThat(read.history(PUBLIC,null,null,50)).isEmpty();
-        assertThatThrownBy(()->read.history(PUBLIC,"viewer",0L,50)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(()->read.history(PUBLIC,"viewer",null,101)).isInstanceOf(IllegalArgumentException.class);
+        assertThat(read.history("bad",auth("viewer"),null,50)).isEmpty();assertThat(read.history(PUBLIC,null,null,50)).isEmpty();
+        assertThatThrownBy(()->read.history(PUBLIC,auth("viewer"),0L,50)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(()->read.history(PUBLIC,auth("viewer"),null,101)).isInstanceOf(IllegalArgumentException.class);
     }
 }

@@ -1,6 +1,9 @@
 package com.example.panel.service;
 
 import com.example.panel.repository.NotificationBusinessAccessSql;
+import com.example.panel.security.PanelUserPrincipal;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import java.sql.Types;
@@ -25,8 +28,10 @@ public class BusinessTicketAssignmentReadService {
     private static final String SQL = """
         WITH authorized_owner AS (
             SELECT owner.user_id,owner.ticket_id,owner.ticket_public_id,owner.business_id,owner.responsibility_revision
-              FROM tickets owner CROSS JOIN (VALUES(CAST(:identity AS TEXT))) n(user_identity)
+              FROM tickets owner JOIN users reader ON reader.id=:readerId AND reader.username=:readerName
+              CROSS JOIN (VALUES(CAST(:identity AS TEXT))) n(user_identity)
              WHERE owner.ticket_public_id=:publicId AND owner.is_general=FALSE AND owner.business_id IS NOT NULL
+               AND reader.enabled=TRUE AND reader.is_blocked=FALSE
                AND 1=(SELECT count(*) FROM tickets same_public WHERE same_public.ticket_public_id=owner.ticket_public_id)
                AND (
         """ + NotificationBusinessAccessSql.CAN_READ_OWNER_BUSINESS + """
@@ -56,12 +61,17 @@ public class BusinessTicketAssignmentReadService {
     private final NamedParameterJdbcTemplate jdbc;
     public BusinessTicketAssignmentReadService(JdbcTemplate jdbc) { this.jdbc=new NamedParameterJdbcTemplate(jdbc); }
 
-    public Optional<History> history(String publicId,String identity,Long before,int limit) {
+    public Optional<History> history(String publicId,Authentication authentication,Long before,int limit) {
         if(limit<1 || limit>100 || before!=null && before<1) throw new IllegalArgumentException("Invalid assignment history page");
-        if(publicId==null || !publicId.matches("[a-f0-9]{32}") || identity==null || identity.isBlank()) return Optional.empty();
+        if(publicId==null || !publicId.matches("[a-f0-9]{32}") || authentication==null || !authentication.isAuthenticated() || authentication instanceof AnonymousAuthenticationToken
+            || !(authentication.getPrincipal() instanceof PanelUserPrincipal reader)
+            || reader.getUserId()<=0 || reader.getUsername().isBlank()
+            || !reader.isEnabled() || !reader.isAccountNonLocked()
+            || !reader.isAccountNonExpired() || !reader.isCredentialsNonExpired()) return Optional.empty();
         try {
             return jdbc.query(SQL,new MapSqlParameterSource("publicId",publicId)
-                .addValue("identity",identity.toLowerCase(Locale.ROOT)).addValue("before",before,Types.BIGINT)
+                .addValue("readerId",reader.getUserId()).addValue("readerName",reader.getUsername())
+                .addValue("identity",reader.getUsername().toLowerCase(Locale.ROOT)).addValue("before",before,Types.BIGINT)
                 .addValue("pageSize",limit+1),rs->{
                     Owner owner=null;long revision=0,latest=0;
                     var events=new ArrayList<Event>();
