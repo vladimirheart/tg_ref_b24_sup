@@ -24,13 +24,41 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальная source-сводка R206 имеют
+что production уже запускался. Эта оговорка, source-сводка R206 и runtime R207 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
 
-Текущее source-уточнение R206 (2026-10-28): все девять BUSINESS workbench reads
+Текущий runtime checkpoint R207 (2026-10-28, 12:38 +03): на этой машине обновлён
+только panel-web до clean R206 commit c2ee116f3147297a28b20165a8f1ac0a2a19aa86.
+Одна реплика, healthy/restart=0, health/readiness 200/UP. Image 0e8a5171215f,
+container d262f92f80d5, JAR SHA 9d7ce559a89ffb9f; полный checkpoint в 01-278.
+Compose build → web-only up с --no-deps/--no-build/pull never. Старый R204 сохранён
+tag rollback-r207-web-20261028-c1634138193d; откат не делали. У остальных 17
+containers не изменились IDs/images/start/restarts/config: worker R198, bot-runner
+прежний. Docker/WSL не перезапускались. Web ENV/mounts совпали; полный HostConfig
+hash восстанавливается одной перестановкой четырёх Binds, других отличий нет.
+Compose/env/settings/locations/org_structure/backup policy не менялись; mutable
+backup daemon heartbeat явно исключён из утверждения равенства shared files.
+Flyway83 history/users/grants/roles/settings fingerprints совпали, web Flyway
+skip явный; migration/backfill/flags/domain writes не запускались.
+Сборка из pinned clean worktree с heap384/helper896 MiB, без параллельных tests:
+937/14 + 15 JS R206 повторно не запускались, source/reports проверены; 1333 Java
+inputs функционально совпали (620 EOL-only различий), восемь main class SHA
+точно совпали с tested. Image сохраняет R204 runtime/base/bot artifacts,
+копируется только новый JAR, его SHA совпал package/image/live.
+Финальные 26 live read checks GREEN, реальный login и logout; foundation на
+стенде выключен, положительный live BUSINESS workflow не заявляется. V1 probe
+ошибочно склеил URL и вызвал один ERROR; исправлен только скрипт, V2 повторён.
+0 WARN/0 иных ERROR; этот один ERROR сохранён в evidence, не скрыт.
+Старые R184/R198/R204 runtime/rollback/V83 backup сохранены. R205/R206 web rollout
+завершён, но другие identity/child/GENERAL/policy/AI/fleet/flags/S6 gates остаются;
+Task 🟡, historical S2B исключён R190. Этот checkpoint приоритетнее source-only
+состояния среды R206 ниже.
+
+Source-уточнение R206 (до rollout R207): все девять BUSINESS workbench reads
+
 Assignment.find/candidates/recent, Participant.revision/members/candidates/recent,
 Work.find/recent принимают тот же Authentication из controller. Требуются
 authenticated non-anonymous bound principal, positive session ID, exact raw name
