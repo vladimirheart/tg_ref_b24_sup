@@ -80,6 +80,7 @@ async function main() {
   let answersLoaded = 0;
   let workspaceLoaded = 0;
   let spansLoaded = 0;
+  let currentAssignmentLoaded = 0;
   const cardMessages = [];
   const cardContext = {
     generation: 4, cardRequest: 0, card, older: new Element(), history: new Element(),
@@ -90,6 +91,7 @@ async function main() {
     loadParticipants: () => {},
     loadSpans: () => { spansLoaded++; },
     loadAssignmentHistory: () => {},
+    loadCurrentAssignment: () => { currentAssignmentLoaded++; },
     loadWorkHistory: () => {},
     statusLabel: value => value, ticketTime, announce: message => cardMessages.push(message),
     document: { createElement: () => new Element() }, encodeURIComponent
@@ -107,6 +109,7 @@ async function main() {
   assert.equal(answersLoaded, 1);
   assert.equal(workspaceLoaded, 1);
   assert.equal(spansLoaded, 1);
+  assert.equal(currentAssignmentLoaded, 1);
   assert.equal(fields.get('[data-ticket-assignment]').href, '/business-dialog-assignment/' + publicId);
   assert.equal(fields.get('[data-ticket-assignment]').hidden, false);
 

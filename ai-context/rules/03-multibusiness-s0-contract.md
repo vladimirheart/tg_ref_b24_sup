@@ -30,7 +30,38 @@ production/рабочий в старых записях, именах Compose �
 
 ## Среда выполнения и сессии
 
-Актуальное уточнение R198 (2026-10-27): общий legacy/global employee catalog
+Source-уточнение R199 (2026-10-27): текущий BUSINESS responsible доступен через
+отдельный private READ endpoint и main card. Требуются bound reader ID/exact
+username/status, PAGE_DIALOGS, foundation и текущий BUSINESS READ.
+ASSIGNED требует live row + единственный raw root + одно MANUAL/SLA событие
+ровно текущей responsibility_revision с full-owner tuple и exact snapshot;
+history/raw row отдельно недостаточны. UNASSIGNED — только чистый revision=0,
+остальное UNVERIFIED без raw disclosure. Manual ID frozen, SLA ID не выводится.
+UI сохраняет string BIGINT, owner/revision checks, stale-response/XSS guards.
+134 tests / 6 suites и 15 Node scripts GREEN. Старый широкий HTTP fixture
+падает одинаково на R198 и R199: 122 failures/1 error из 190, требует отдельного
+ID-bound session обновления; assertions/filter не ослаблены.
+R199 source-only, новых migrations/flags/deploy нет. Работающие web/worker
+остаются на R198; checkpoint/backup/rollback ниже не менялись. Статус — 🟡.
+Актуальный runtime checkpoint R198 (2026-10-27, 22:53 +03): на машине
+C:\Users\SinicinVV\git_h\tg_ref_b24_sup обновлены panel-web и ops-worker до
+c3fa2777914095e91b783344072db01e10015682, по одной реплике, healthy/restarts=0.
+Worker обновлён также для фонового ID-bound automation credential registry.
+Одноразовый migrator применил V83 (82 → 83); штатный db-migrate не пересоздан.
+Прежняя migration history, users/roles/grants/settings сохранились; остальные
+16 Compose-контейнеров, ENV/mounts/HostConfig, flags/shared config не менялись.
+666 tests / 15 suites GREEN включают реальные PostgreSQL/JPA/Flyway R197 и
+window/Boolean R198 cases. Native Java inputs/deployed JAR сверены.
+Health/readiness, real admin login, channels/settings/preferences, employee
+options и automation history прошли HTTP-проверки; сессия закрыта.
+Web logs без WARN/ERROR; worker без ERROR, но с предупреждениями внешнего
+SSL-монитора, не блокирующими readiness. Мониторинг не отключался.
+Оба rollback images, прежний R184 rollback и проверенный восстановлением pg_dump
+сохранены. Детали — актуальный checkpoint в task-details/01-278.md и ignored
+.tmp/01-278-r198-rollout-20261027/. Старые name-keyed настройки/ключи не
+импортируются. Это не полная browser/provider/fleet/S6 приёмка. Статус — 🟡.
+
+Историческое source-уточнение R198 (2026-10-27): общий legacy/global employee catalog
 использует минимальную JDBC-проекцию вместо полного users SELECT; disabled,
 blocked и case-fold ambiguous accounts не предлагаются. Window count включает
 даже disabled/blocked соседей. Raw username остаётся точной строкой, label/order,

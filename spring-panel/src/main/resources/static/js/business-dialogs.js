@@ -50,6 +50,7 @@
   let assignmentLatest = null;
   let assignmentBefore = null;
   let assignmentLoading = false;
+  let currentAssignmentRevision = null;
   let workTicket = null;
   let workRevision = null;
   let workLatest = null;
@@ -81,7 +82,14 @@
     olderLoading = false;
     clearParticipants();
     clearAssignmentHistory();
+    clearCurrentAssignment();
     clearWorkHistory();
+  }
+
+  function clearCurrentAssignment(message = '') {
+    const field = card.querySelector('[data-ticket-current-assignment]');
+    if (field) field.textContent = message;
+    currentAssignmentRevision = null;
   }
 
   function clearParticipants(message = '') {
@@ -340,6 +348,48 @@
       owner.userId === String(ticket.userId) && owner.businessId === String(ticket.businessId);
   }
 
+  function currentAssignmentInteger(value, positive = false) {
+    return typeof value === 'string' && /^(0|[1-9][0-9]*)$/.test(value) &&
+      value.length <= 19 && (value.length < 19 || value <= '9223372036854775807') &&
+      (!positive || value !== '0');
+  }
+
+  async function loadCurrentAssignment(ticket, expectedGeneration, request) {
+    clearCurrentAssignment('Загрузка ответственного…');
+    const field = card.querySelector('[data-ticket-current-assignment]');
+    if (!field) return;
+    try {
+      const state = await getJson(`/api/business-scope/tickets/${encodeURIComponent(ticket.ticketPublicId)}/assignments/current`);
+      if (expectedGeneration !== generation || request !== cardRequest || currentTicketPublicId !== ticket.ticketPublicId) return;
+      if (!participantOwnerMatches(state.owner, ticket) || !currentAssignmentInteger(state.revision) ||
+          !['ASSIGNED', 'UNASSIGNED', 'UNVERIFIED'].includes(state.status)) throw new Error('Invalid current assignment');
+      let label;
+      if (state.status === 'ASSIGNED') {
+        const person = state.assignee;
+        if (state.revision === '0' || !person || typeof person.username !== 'string' || !person.username.trim() ||
+            typeof person.assignedAt !== 'string' ||
+            !(person.origin === 'MANUAL' && currentAssignmentInteger(person.id, true) ||
+              person.origin === 'SLA' && person.id == null)) throw new Error('Invalid assignee');
+        label = `${person.username}${person.id == null ? '' : ' · ID ' + person.id} · ` +
+          `${person.origin === 'SLA' ? 'SLA' : 'Вручную'} · ${ticketTime(person.assignedAt)}`;
+      } else {
+        if (state.assignee != null || state.status === 'UNASSIGNED' && state.revision !== '0') throw new Error('Unexpected assignee');
+        label = state.status === 'UNASSIGNED' ? 'Ответственный не назначен.' :
+          'Текущее назначение не подтверждено. Проверьте историю и обновите карточку.';
+      }
+      if (assignmentRevision !== null && assignmentRevision !== state.revision) {
+        clearCurrentAssignment('Назначение изменилось. Обновите карточку.');
+        clearAssignmentHistory('История назначений изменилась. Обновите карточку.');
+        return;
+      }
+      currentAssignmentRevision = state.revision;
+      field.textContent = label;
+    } catch (error) {
+      if (expectedGeneration === generation && request === cardRequest && currentTicketPublicId === ticket.ticketPublicId)
+        clearCurrentAssignment('Текущий ответственный недоступен. Проверьте доступ и обновите карточку.');
+    }
+  }
+
   function participantEventItem(entry) {
     const item = document.createElement('li');
     item.className = 'list-group-item text-break';
@@ -430,6 +480,11 @@
         return;
       }
       card.querySelector('[data-ticket-assignment-events]').append(...page.events.map(assignmentEventItem));
+      if (currentAssignmentRevision !== null && currentAssignmentRevision !== page.revision) {
+        clearCurrentAssignment('Назначение изменилось. Обновите карточку.');
+        clearAssignmentHistory('История назначений изменилась. Обновите карточку.');
+        return;
+      }
       card.querySelector('[data-ticket-assignment-status]').textContent = page.events.length
         ? 'Ручные и SLA-назначения. События показывают историю, а не текущего ответственного.'
         : 'Сохранённых назначений в этом бизнесе пока нет.';
@@ -455,6 +510,7 @@
       const page = await getJson(`/api/business-scope/tickets/${encodeURIComponent(ticket.ticketPublicId)}/assignments/history?limit=50&before=${encodeURIComponent(before)}`);
       if (expectedGeneration !== generation || request !== cardRequest || assignmentTicket !== ticket) return;
       if (!assignmentOwnerMatches(page.owner, ticket) || page.revision !== revision || page.latestEventRevision !== latest) {
+        clearCurrentAssignment('Назначение изменилось. Обновите карточку.');
         clearAssignmentHistory('История назначений изменилась. Обновите карточку.');
         return;
       }
@@ -623,6 +679,7 @@
       loadWorkspace(detail, expectedGeneration, request);
       loadParticipants(detail, expectedGeneration, request);
       loadAssignmentHistory(detail, expectedGeneration, request);
+      loadCurrentAssignment(detail, expectedGeneration, request);
       loadWorkHistory(detail, expectedGeneration, request);
       loadSpans(detail, expectedGeneration, request);
     } catch (error) {

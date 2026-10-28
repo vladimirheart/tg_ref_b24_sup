@@ -20,9 +20,11 @@ async function main(){
   const history={owner,revision:'9007199254740994',latestEventRevision:'9007199254740993',events:[event],hasMore:true,nextBeforeRevision:'9007199254740993'};
   const context={card:{querySelector(selector){if(!fields.has(selector))fields.set(selector,new Element());return fields.get(selector);}},
     generation:1,cardRequest:7,currentTicketPublicId:ticket.ticketPublicId,assignmentTicket:null,assignmentRevision:null,assignmentLatest:null,
-    assignmentBefore:null,assignmentLoading:false,encodeURIComponent,ticketTime:value=>value,
+    assignmentBefore:null,assignmentLoading:false,currentAssignmentRevision:null,encodeURIComponent,ticketTime:value=>value,
     document:{createElement:()=>new Element()},getJson:url=>new Promise((resolve,reject)=>pending.push({url,resolve,reject}))};
-  const api=vm.runInNewContext(`${source.slice(clearStart,clearEnd)}\n${source.slice(start,end)}\n({loadAssignmentHistory,loadOlderAssignments,clearAssignmentHistory})`,context);
+  const currentClearStart=source.indexOf('  function clearCurrentAssignment('),currentClearEnd=source.indexOf('  function clearParticipants(',currentClearStart);
+  assert(currentClearStart>0&&currentClearEnd>currentClearStart);
+  const api=vm.runInNewContext(`${source.slice(currentClearStart,currentClearEnd)}\n${source.slice(clearStart,clearEnd)}\n${source.slice(start,end)}\n({loadAssignmentHistory,loadOlderAssignments,clearAssignmentHistory})`,context);
   const events=()=>fields.get('[data-ticket-assignment-events]'),status=()=>fields.get('[data-ticket-assignment-status]'),button=()=>fields.get('[data-ticket-assignment-older]');
   async function load(value=history){const call=api.loadAssignmentHistory(ticket,context.generation,context.cardRequest);assert(pending[0].url.endsWith('/assignments/history?limit=50'));pending.shift().resolve(value);await call;}
   await load();assert.equal(events().children.length,1);assert.match(events().children[0].textContent,/Вручную.*9007199254740993.*<script>actor<\/script>.*<img src=x>/);
@@ -32,7 +34,8 @@ async function main(){
   pending.shift().resolve({...history,events:[{...event,origin:'SLA',action:'assign',revision:'9007199254740992'}],hasMore:false,nextBeforeRevision:null});
   await older;assert.equal(events().children.length,2);assert.match(events().children[1].textContent,/SLA/);assert.equal(button().hidden,true);assert.equal(button().disabled,false);
   for(const mismatch of [{revision:'9007199254740995'},{latestEventRevision:'9007199254740994'},{owner:{...owner,businessId:'22'}},{owner:{...owner,userId:'902'}},{owner:{...owner,ticketId:'raw'}},{owner:{...owner,ticketPublicId:'b'.repeat(32)}}]){
-    await load();const call=api.loadOlderAssignments();pending.shift().resolve({...history,...mismatch});await call;
+    await load();context.currentAssignmentRevision=history.revision;const call=api.loadOlderAssignments();pending.shift().resolve({...history,...mismatch});await call;
+    assert.equal(context.currentAssignmentRevision,null);
     assert.equal(events().children.length,0);assert.match(status().textContent,/изменилась/);assert.equal(button().hidden,true);
   }
   await load({...history,owner:{...owner,businessId:'22'}});assert.equal(events().children.length,0);
