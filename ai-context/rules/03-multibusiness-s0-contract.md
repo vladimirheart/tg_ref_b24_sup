@@ -24,13 +24,34 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальная сводка R198 имеют
+что production уже запускался. Эта оговорка и актуальная source-сводка R200 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
 
-Source-уточнение R199 (2026-10-27): текущий BUSINESS responsible доступен через
+Source-уточнение R200 (2026-10-28): BusinessTicketAssignmentHttpPostgresTest
+переведён на numeric-ID PanelUserPrincipal и DB authorities. Все прежние 190
+cases/assertions сохранены, literal padded accounts не подменяются соседями.
+Добавлены 11 account/page revoke/forged principal/reuse cases и настоящий
+form-login/JDBC SESSION/CSRF/current/history путь. 201 HTTP cases GREEN;
+всего 400 tests / 12 suites и 15 неизменённых BUSINESS Node scripts GREEN.
+Baseline 190 cases воспроизвёл прежние 122 failures/1 error. v2 ошибка только
+нового MockHttpSession fixture и v3 empty-cookie array исправлены cookie jar;
+отдельный real-login v4 и общий final v5 GREEN.
+Исполнение SQL — disposable native PostgreSQL 16.15 на loopback с временным
+ignored JDBC supplier bytecode adapter; tracked Testcontainers helper не изменён.
+Это не штатный Testcontainers runner или working/fleet acceptance. Production,
+UI, 83 migrations, permissions и dependencies R200 не меняет. Runtime R198/V83
+на другой машине, backup/rollback ниже сохранены; R199 source-only по checkpoint.
+Локальный Docker был ошибочно запущен и автоматически поднял 14 старых контейнеров,
+затем остановлен; их автоматические background writes не аудированы. Native
+tests используют отдельную временную БД. Remote deploy/restart не выполнялись.
+Текущая source/test машина C:\Users\sushi\Git_H\tg_ref_b24_sup, рабочая
+C:\Users\SinicinVV\git_h\tg_ref_b24_sup — другая машина/сессия.
+S3–S6/policy/AI/bots/fleet остаются открытыми, historical S2B снят R190, статус 🟡.
+
+Историческое source-уточнение R199 (2026-10-27): текущий BUSINESS responsible доступен через
 отдельный private READ endpoint и main card. Требуются bound reader ID/exact
 username/status, PAGE_DIALOGS, foundation и текущий BUSINESS READ.
 ASSIGNED требует live row + единственный raw root + одно MANUAL/SLA событие

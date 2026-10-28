@@ -36,7 +36,8 @@ class BusinessTicketAssignmentHttpPostgresTest {
     @ParameterizedTest @ValueSource(strings={"prefix","suffix","both","tab"})
     void spacedPrincipalCannotUseAnotherOperatorWorkbenchOrCommands(String variant) throws Exception {
         String forged=switch(variant){case "prefix"->" "+actor;case "suffix"->actor+" ";case "tab"->"\t"+actor+"\t";default->" "+actor+" ";};
-        if(variant.equals("both"))jdbc.update("INSERT INTO business_memberships(user_id,business_id,role_code) VALUES(?,?,'ADMIN')",account(forged),other);
+        long literalId=account(forged);
+        if(variant.equals("both"))jdbc.update("INSERT INTO business_memberships(user_id,business_id,role_code) VALUES(?,?,'ADMIN')",literalId,other);
         assertThat(service.change(scope,actor,0,targetId,false)).isTrue();
         assertThat(participants.change(scope,actor,0,viewerId,true)).isTrue();
         var assignment=jdbc.queryForList("SELECT * FROM ticket_responsibles WHERE ticket_id=?",raw);
@@ -681,8 +682,82 @@ class BusinessTicketAssignmentHttpPostgresTest {
             assertThat(old.queryForObject("SELECT count(*) FROM "+table,Long.class)).isZero();
     }
     private long account(String name){return jdbc.queryForObject("INSERT INTO users(username,password) VALUES(?,'unused') RETURNING id",Long.class,name);}
+    /** Fixture setup only: exact literal account and DB authorities captured before the request. */
     private MockHttpServletRequestBuilder auth(MockHttpServletRequestBuilder request,String identity,String... authorities){
-        return request.with(user(identity).authorities(Arrays.stream(authorities).map(SimpleGrantedAuthority::new).toList()));
+        var ids=jdbc.queryForList("SELECT id FROM users WHERE username = ?",Long.class,identity);
+        assertThat(ids).as("exact fixture account: %s",identity).hasSize(1);
+        long id=ids.get(0);
+        authorities(id,authorities);
+        var granted=Arrays.stream(authorities).map(SimpleGrantedAuthority::new).toList();
+        var principal=new com.example.panel.security.PanelUserPrincipal(id,identity,"unused",true,granted);
+        return request.with(user(principal));
+    }
+    private void authorities(long id,String... authorities){
+        jdbc.update("DELETE FROM user_authorities WHERE user_id=?",id);
+        for(String authority:authorities)jdbc.update("INSERT INTO user_authorities(user_id,authority) VALUES(?,?)",id,authority);
+    }
+    @ParameterizedTest @ValueSource(strings={"disabled","blocked","deleted","renamed","reused-name"})
+    void preparedBoundRequestsCannotSurviveAccountRevocation(String change) throws Exception {
+        var request=auth(get(url),actor,"PAGE_DIALOGS");
+        switch(change){
+            case "disabled"->jdbc.update("UPDATE users SET enabled=FALSE WHERE id=?",actorId);
+            case "blocked"->jdbc.update("UPDATE users SET is_blocked=TRUE WHERE id=?",actorId);
+            case "renamed"->jdbc.update("UPDATE users SET username=? WHERE id=?","renamed-"+actor,actorId);
+            default->{jdbc.update("DELETE FROM users WHERE id=?",actorId);if(change.equals("reused-name")){long replacement=account(actor);authorities(replacement,"PAGE_DIALOGS");jdbc.update("INSERT INTO business_memberships(user_id,business_id,role_code) VALUES(?,?,'OPERATOR')",replacement,business);}}
+        }
+        mvc.perform(request).andExpect(redirectedUrl("http://localhost/login"));
+        verify(service,never()).find(publicId,actor);
+        assertThat(events()).isZero();assertThat(memberEvents()).isZero();assertThat(outbox()).isZero();assertThat(revision()).isZero();
+        if(change.equals("reused-name"))mvc.perform(auth(get(url),actor,"PAGE_DIALOGS")).andExpect(status().isOk());
+    }
+    @ParameterizedTest @ValueSource(strings={"unbound","foreign-id","case-changed","padded"})
+    void unboundOrMismatchedPrincipalsCannotReachBusinessControllers(String kind) throws Exception {
+        authorities(actorId,"PAGE_DIALOGS");
+        var granted=List.of(new SimpleGrantedAuthority("PAGE_DIALOGS"));
+        var request=get(url);
+        if(kind.equals("unbound"))request.with(user(actor).authorities(granted));
+        else request.with(user(new com.example.panel.security.PanelUserPrincipal(kind.equals("foreign-id")?foreignId:actorId,
+            kind.equals("case-changed")?actor.toUpperCase(Locale.ROOT):kind.equals("padded")?" "+actor+" ":actor,"unused",true,granted)));
+        mvc.perform(request).andExpect(redirectedUrl("http://localhost/login"));
+        verify(service,never()).find(publicId,actor);
+        assertThat(events()).isZero();assertThat(memberEvents()).isZero();assertThat(outbox()).isZero();
+    }
+    @Test void preparedBoundRequestLosesARevokedPageAuthorityWithoutFixtureRepair() throws Exception {
+        var request=auth(get(url),actor,"PAGE_DIALOGS");
+        jdbc.update("DELETE FROM user_authorities WHERE user_id=?",actorId);
+        mvc.perform(request).andExpect(status().isForbidden());
+        verify(service,never()).find(publicId,actor);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM user_authorities WHERE user_id=?",Long.class,actorId)).isZero();
+        assertThat(events()).isZero();assertThat(outbox()).isZero();
+    }
+    @Test void realFormLoginCanWriteReadCurrentAndHistoryThenLosesThePageRight() throws Exception {
+        String password="fixture assignment session";
+        jdbc.update("UPDATE users SET password=? WHERE id=?",new com.example.panel.security.LegacyCompatiblePasswordEncoder().encode(password),actorId);
+        authorities(actorId,"PAGE_DIALOGS");
+        var login=mvc.perform(get("/login")).andExpect(status().isOk()).andReturn();
+        var signedIn=mvc.perform(post("/login").cookie(login.getResponse().getCookies())
+            .param("_csrf",hidden(login.getResponse().getContentAsString(),"_csrf")).param("username",actor).param("password",password))
+            .andExpect(redirectedUrl("/post-login")).andReturn();
+        var sessionCookie=signedIn.getResponse().getCookie("SESSION");
+        assertThat(sessionCookie).as("real JDBC-backed login session cookie").isNotNull();
+        var form=mvc.perform(get(url).cookie(sessionCookie)).andExpect(status().isOk()).andReturn();
+        String token=hidden(form.getResponse().getContentAsString(),"_csrf");
+        var cookieJar=new LinkedHashMap<String,jakarta.servlet.http.Cookie>();
+        for(var response:List.of(login,signedIn,form))for(var cookie:response.getResponse().getCookies()){
+            if(cookie.getMaxAge()==0)cookieJar.remove(cookie.getName());else cookieJar.put(cookie.getName(),cookie);
+        }
+        var requestCookies=cookieJar.values().toArray(jakarta.servlet.http.Cookie[]::new);
+        String current="/api/business-scope/tickets/"+publicId+"/assignments/current";
+        mvc.perform(get(current).cookie(sessionCookie)).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("UNASSIGNED"));
+        mvc.perform(command("take",0).cookie(requestCookies).param("_csrf",token)).andExpect(redirectedUrl(url));
+        mvc.perform(get(current).cookie(sessionCookie)).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ASSIGNED"))
+            .andExpect(jsonPath("$.assignee.id").value(Long.toString(actorId))).andExpect(jsonPath("$.assignee.username").value(actor));
+        mvc.perform(get("/api/business-scope/tickets/"+publicId+"/assignments/history").cookie(sessionCookie))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.events",hasSize(1)));
+        jdbc.update("DELETE FROM user_authorities WHERE user_id=?",actorId);
+        mvc.perform(get(current).cookie(sessionCookie)).andExpect(status().isForbidden());
+        mvc.perform(command("take",1).cookie(requestCookies).param("_csrf",token)).andExpect(status().isForbidden());
+        assertThat(events()).isEqualTo(1);assertThat(revision()).isEqualTo(1);assertThat(outbox()).isEqualTo(1);
     }
     private MockHttpServletRequestBuilder command(String action,long revision){
         return post(url+"/"+action).param("ownerId","901").param("rawId",raw).param("businessId",Long.toString(business))
