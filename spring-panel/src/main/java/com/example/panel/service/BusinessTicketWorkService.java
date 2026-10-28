@@ -2,6 +2,9 @@ package com.example.panel.service;
 
 import static com.example.panel.service.BusinessTicketAssignmentService.*;
 import com.example.panel.config.MultibusinessFeatureFlags;
+import com.example.panel.security.PanelUserPrincipal;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import com.example.panel.service.integration.LegacyTicketIdConcurrencyGuard;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,6 +22,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 /** Local human BUSINESS lifecycle. No raw category, activity, feedback, AI or provider workflow. */
 @Service
 public class BusinessTicketWorkService {
+    private static final String AUTHENTICATED_ACTOR=" CROSS JOIN (SELECT CAST(:identity AS TEXT) AS user_identity) n "
+        +" JOIN users actor ON actor.id=:authenticatedActorId AND actor.username=:authenticatedActorName ";
     private final NamedParameterJdbcTemplate jdbc;
     private final MultibusinessFeatureFlags flags;
     private final UiEventOutboxAppendService ids;
@@ -55,15 +60,18 @@ public class BusinessTicketWorkService {
                 rs.getString("actor"),rs.getObject("created_at",OffsetDateTime.class)));
         }catch(DataAccessException|IllegalArgumentException ex){return List.of();}
     }
-    public boolean change(UiEventTicketScope scope,String identity,long revision,String expectedStatus,String action,List<String> submitted) {
-        if(!valid(scope,identity)||revision<0||revision==Long.MAX_VALUE||!allowed(expectedStatus,action))return false;
+    public boolean change(UiEventTicketScope scope,Authentication authentication,long revision,String expectedStatus,String action,List<String> submitted) {
+        var account=boundActor(authentication);
+        if(account==null||!valid(scope,account.getUsername())||revision<0||revision==Long.MAX_VALUE||!allowed(expectedStatus,action))return false;
+        String identity=account.getUsername();
         final List<String> requested;
         try { requested=normalizeCategories(submitted); }catch(IllegalArgumentException ex){return false;}
         if(action.equals("close")&&requested.isEmpty()||action.equals("reopen")&&!requested.isEmpty())return false;
         String nextStatus=action.equals("close")?"resolved":action.equals("reopen")?"pending":expectedStatus;
         var params=args(scope,identity).addValue("revision",revision).addValue("expectedStatus",expectedStatus)
-            .addValue("nextStatus",nextStatus).addValue("action",action);
-        String from=" FROM tickets owner"+ACTOR+" JOIN businesses business ON business.id=owner.business_id"
+            .addValue("nextStatus",nextStatus).addValue("action",action)
+            .addValue("authenticatedActorId",account.getUserId()).addValue("authenticatedActorName",identity);
+        String from=" FROM tickets owner"+AUTHENTICATED_ACTOR+" JOIN businesses business ON business.id=owner.business_id"
             +" WHERE "+OWNER+READ+" AND "+OPERATOR;
         try{return Boolean.TRUE.equals(transaction.execute(tx->{
             guard.acquire(scope.ticketId());
@@ -91,7 +99,7 @@ public class BusinessTicketWorkService {
                     reopen_count=CASE WHEN :action='reopen' THEN COALESCE(owner.reopen_count,0)+1 ELSE owner.reopen_count END,
                     last_reopen_at=CASE WHEN :action='reopen' THEN CURRENT_TIMESTAMP ELSE owner.last_reopen_at END
                 FROM users actor CROSS JOIN (SELECT CAST(:identity AS TEXT) AS user_identity) n
-                WHERE lower(actor.username)=n.user_identity AND actor.id=:actorId AND
+                WHERE actor.id=:authenticatedActorId AND actor.username=:authenticatedActorName AND actor.id=:actorId AND
                 """+OWNER+READ+" AND "+OPERATOR+"""
                  AND owner.business_work_revision=:revision AND owner.status=:expectedStatus
                  AND owner.business_categories=CAST(:previousCategories AS JSONB)
@@ -121,6 +129,13 @@ public class BusinessTicketWorkService {
             }
             return true;
         }));}catch(DataAccessException|IllegalStateException|IllegalArgumentException ex){return false;}
+    }
+    private PanelUserPrincipal boundActor(Authentication authentication){
+        if(authentication==null||!authentication.isAuthenticated()||authentication instanceof AnonymousAuthenticationToken
+            ||!(authentication.getPrincipal() instanceof PanelUserPrincipal account)||account.getUserId()<=0
+            ||account.getUsername().isBlank()||!account.isEnabled()||!account.isAccountNonLocked()
+            ||!account.isAccountNonExpired()||!account.isCredentialsNonExpired())return null;
+        return account;
     }
     private boolean allowed(String status,String action) {
         return ("pending".equals(status)||"open".equals(status))&&("close".equals(action)||"categories".equals(action))

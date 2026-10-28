@@ -97,7 +97,7 @@ class BusinessTicketAssignmentHttpPostgresTest {
         mvc.perform(auth(get(path),viewer,"PAGE_DIALOGS")).andExpect(status().isNotFound());
     }
     @Test void workHistoryReadSurvivesRawCollisionAndDoesNotFollowBusinessTransfer() throws Exception {
-        assertThat(work.change(scope,actor,0,"open","categories",List.of("Own"))).isTrue();
+        assertThat(work.change(scope,boundActor(),0,"open","categories",List.of("Own"))).isTrue();
         jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,business_id) VALUES(902,?,?,?)",raw,UUID.randomUUID().toString().replace("-",""),other);
         String path="/api/business-scope/tickets/"+publicId+"/work/history";
         mvc.perform(auth(get(path),viewer,"PAGE_DIALOGS")).andExpect(status().isOk()).andExpect(jsonPath("$.events",hasSize(1)));
@@ -217,7 +217,7 @@ class BusinessTicketAssignmentHttpPostgresTest {
         assertThat(jdbc.queryForList("SELECT category FROM ticket_categories WHERE ticket_id=?",String.class,raw)).containsExactly("Legacy secret");
     }
     @Test void collidingRawIdStillReadsOnlyCanonicalCategoriesThroughHttp() throws Exception {
-        assertThat(work.change(scope,actor,0,"open","categories",List.of("Own"))).isTrue();
+        assertThat(work.change(scope,boundActor(),0,"open","categories",List.of("Own"))).isTrue();
         jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,business_id,business_categories) VALUES(902,?,?,?,'[\"Foreign\"]')",
             raw,UUID.randomUUID().toString().replace("-",""),other);
         mvc.perform(auth(get("/api/business-scope/tickets/"+publicId+"/workspace"),viewer,"PAGE_DIALOGS"))
@@ -227,7 +227,7 @@ class BusinessTicketAssignmentHttpPostgresTest {
             .andExpect(status().isOk()).andExpect(jsonPath("$",hasSize(1))).andExpect(jsonPath("$[0].categories",org.hamcrest.Matchers.contains("Own")));
     }
     @Test void categoryReadsAndSummaryRecheckCurrentBusinessAfterOwnerTransfer() throws Exception {
-        assertThat(work.change(scope,actor,0,"open","categories",List.of("Old owner"))).isTrue();
+        assertThat(work.change(scope,boundActor(),0,"open","categories",List.of("Old owner"))).isTrue();
         jdbc.update("UPDATE tickets SET business_id=? WHERE ticket_id=?",other,raw);
         mvc.perform(auth(get("/api/business-scope/tickets/"+publicId),viewer,"PAGE_DIALOGS")).andExpect(status().isNotFound());
         mvc.perform(auth(get("/api/business-scope/tickets/"+publicId),foreign,"PAGE_DIALOGS"))
@@ -236,7 +236,7 @@ class BusinessTicketAssignmentHttpPostgresTest {
             .andExpect(status().isOk()).andExpect(jsonPath("$",hasSize(0)));
     }
     @Test void revokedBusinessReaderCannotKeepCategoryReadsThroughAnOldSession() throws Exception {
-        assertThat(work.change(scope,actor,0,"open","categories",List.of("Private"))).isTrue();
+        assertThat(work.change(scope,boundActor(),0,"open","categories",List.of("Private"))).isTrue();
         jdbc.update("UPDATE business_memberships SET is_active=FALSE WHERE user_id=?",viewerId);
         mvc.perform(auth(get("/api/business-scope/tickets/"+publicId),viewer,"PAGE_DIALOGS")).andExpect(status().isNotFound());
         for(String suffix:List.of("","/page","/export","/categories"))
@@ -334,7 +334,8 @@ class BusinessTicketAssignmentHttpPostgresTest {
                 case "flag"->flags.setUiSelector(false);
             }
             return call.callRealMethod();
-        }).when(work).change(org.mockito.ArgumentMatchers.any(UiEventTicketScope.class),anyString(),anyLong(),anyString(),anyString(),anyList());
+        }).when(work).change(org.mockito.ArgumentMatchers.any(UiEventTicketScope.class),org.mockito.ArgumentMatchers.<org.springframework.security.core.Authentication>argThat(a->a!=null
+                && a.getPrincipal() instanceof com.example.panel.security.PanelUserPrincipal p && p.getUserId()==actorId && p.getUsername().equals(actor)),anyLong(),anyString(),anyString(),anyList());
         mvc.perform(auth(workCommand("close",0,"open","New"),actor,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
         assertThat(once).isTrue();assertThat(jdbc.queryForObject("SELECT count(*) FROM business_ticket_work_events WHERE ticket_id=?",Long.class,raw)).isZero();
         assertThat(outbox()).isZero();
@@ -342,7 +343,7 @@ class BusinessTicketAssignmentHttpPostgresTest {
     @Test void categoryMarkupIsEscapedOnReloadAndUnicodeLengthUsesCodePoints() throws Exception {
         String markup="<img src=x onerror=alert(1)>";
         String unicode="😀".repeat(160);
-        assertThat(work.change(scope,actor,0,"open","categories",List.of(markup,unicode))).isTrue();
+        assertThat(work.change(scope,boundActor(),0,"open","categories",List.of(markup,unicode))).isTrue();
         String html=mvc.perform(auth(get(url),viewer,"PAGE_DIALOGS")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         assertThat(html).contains("&lt;img").doesNotContain(markup);
         assertThat(work.find(publicId,viewer).orElseThrow().categories()).containsExactly(markup,unicode);
@@ -365,7 +366,7 @@ class BusinessTicketAssignmentHttpPostgresTest {
         assertThat(outbox()).isZero();
     }
     @Test void workHistoryDoesNotFollowBusinessOrNewGenerationAndDoesNotGrantRights() {
-        assertThat(work.change(scope,actor,0,"open","close",List.of("New"))).isTrue();
+        assertThat(work.change(scope,boundActor(),0,"open","close",List.of("New"))).isTrue();
         assertThat(work.recent(scope,viewer)).hasSize(1);
         jdbc.update("UPDATE tickets SET business_id=? WHERE ticket_id=?",other,raw);
         assertThat(work.find(publicId,foreign).orElseThrow().categories()).isEmpty();
@@ -789,6 +790,23 @@ class BusinessTicketAssignmentHttpPostgresTest {
         assertThat(once).isTrue();assertThat(memberEvents()).isEqualTo(beforeEvents);assertThat(outbox()).isEqualTo(beforeOutbox);
         assertThat(jdbc.queryForList("SELECT * FROM business_ticket_participants WHERE ticket_id=?",raw)).isEqualTo(before);
         assertThat(events()).isZero();assertThat(revision()).isZero();
+    }
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"close,renamed","reopen,renamed","categories,renamed","close,reused-name","reopen,reused-name","categories,reused-name","close,disabled","reopen,disabled","categories,disabled","close,blocked","reopen,blocked","categories,blocked"})
+    void workActorChangedAfterControllerReadCannotBeReboundByTheWriter(String action,String change) throws Exception {
+        if(action.equals("reopen"))jdbc.update("UPDATE tickets SET status='resolved',business_categories='[\"Existing\"]' WHERE ticket_id=?",raw);
+        var view=work.find(publicId,actor).orElseThrow();
+        var before=jdbc.queryForList("SELECT * FROM tickets WHERE ticket_id=?",raw);
+        var once=new java.util.concurrent.atomic.AtomicBoolean();
+        doAnswer(call->{Object result=call.callRealMethod();if(once.compareAndSet(false,true)){
+            if(change.equals("disabled"))jdbc.update("UPDATE users SET enabled=FALSE WHERE id=?",actorId);
+            else if(change.equals("blocked"))jdbc.update("UPDATE users SET is_blocked=TRUE WHERE id=?",actorId);
+            else{jdbc.update("UPDATE users SET username=? WHERE id=?","renamed-"+actor,actorId);if(change.equals("reused-name")){long replacement=account(actor);jdbc.update("INSERT INTO business_memberships(user_id,business_id,role_code) VALUES(?,?,'OPERATOR')",replacement,business);}}
+        }return result;}).when(work).find(publicId,actor);
+        mvc.perform(auth(workCommand(action,view.revision(),view.status(),action.equals("reopen")?"":"New"),actor,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
+        assertThat(once).isTrue();assertThat(outbox()).isZero();assertThat(events()).isZero();assertThat(memberEvents()).isZero();assertThat(revision()).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM business_ticket_work_events WHERE ticket_id=?",Long.class,raw)).isZero();
+        assertThat(jdbc.queryForList("SELECT * FROM tickets WHERE ticket_id=?",raw)).isEqualTo(before);
     }
     private org.springframework.security.core.Authentication boundParticipantActor(long id,String name){
         return org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated(

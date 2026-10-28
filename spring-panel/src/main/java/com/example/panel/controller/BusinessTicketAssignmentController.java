@@ -78,7 +78,7 @@ public class BusinessTicketAssignmentController {
         if(categoryText.length()>20000)throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         var expected=new UiEventTicketScope(ownerId,rawId,publicId,"BUSINESS",businessId);
         if(!current.scope().equals(expected)||current.revision()!=workRevision||!java.util.Objects.equals(current.status(),expectedStatus)
-                ||!work.change(expected,auth.getName(),workRevision,expectedStatus,action,categoryText.lines().toList()))
+                ||!work.change(expected,auth,workRevision,expectedStatus,action,categoryText.lines().toList()))
             throw new ResponseStatusException(HttpStatus.CONFLICT,"Данные или права изменились. Обновите страницу.");
         var redirect=new RedirectView("/business-dialog-assignment/"+publicId,true);
         redirect.setExposeModelAttributes(false);return redirect;

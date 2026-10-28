@@ -24,13 +24,36 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальная source-сводка R202 имеют
+что production уже запускался. Эта оговорка и актуальная source-сводка R203 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
 
-Source-уточнение R202 (2026-10-28): BUSINESS participant add/remove writer
+Source-уточнение R203 (2026-10-28): manual BUSINESS close/reopen/categories
+writer принимает Authentication с bound PanelUserPrincipal, positive session ID,
+exact raw username/status. Locking root SELECT, conditional UPDATE и confirmation
+после audit/outbox используют того же actor по ID/raw name. String-only API нет;
+rename/delete/reused name после controller read/advisory wait и case change между
+SQL boundaries не меняют автора. Отказ final UPDATE/confirmation откатывает root,
+categories/counters/revision/audit/outbox. READ/OPERATE/ambiguity/status, owner
+tuple/CAS/locks, category validation, reopen categories и PAGE_DIALOGS/CSRF/R189
+сохранены. Assignment/participant writers R201/R202 не менялись; name-based reads/
+AI и прочие consumers остаются следующими шагами. Atomic in-flight revocation
+за пределами проверенных SQL snapshots не заявляется; новых policy/grants нет.
+952 tests / 11 suites + 15 unchanged BUSINESS Node scripts GREEN.
+Frozen 97 SQL + 12 HTTP новых cases: 52 failures / 57 controls / 0 errors;
+с 213 прежними HTTP controls baseline 322/52/0. Final HTTP 225; три прежних fixture
+sources/assertions восстановлены точно через inverse transforms. Native PostgreSQL
+16.15 + explicit ignored R200 JDBC supplier, fresh schemas; Testcontainers/Docker
+Desktop не запускались. Test server остановлен, 83 migration sources неизменны.
+Source/test здесь; working project C:\Users\SinicinVV\git_h\tg_ref_b24_sup — другая
+машина/сессия. Runtime остаётся R198; R199–R203 rollout не подтверждён. Нужна новая
+сборка panel-web, новых migrations нет. Deploy/restart/working DB не выполнялись.
+Полные R184/R198 runtime и исторический R200 Docker incident сохранены. Task 🟡,
+historical S2B исключён R190.
+
+Историческое source-уточнение R202 (2026-10-28): BUSINESS participant add/remove writer
 принимает Authentication с bound PanelUserPrincipal; во всех writer actor joins
 требуется positive session user ID + exact raw username. Нет String-only writer
 или повторной привязки автора по lower(name) после controller read/advisory wait.

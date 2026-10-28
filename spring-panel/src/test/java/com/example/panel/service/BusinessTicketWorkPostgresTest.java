@@ -55,13 +55,19 @@ class BusinessTicketWorkPostgresTest {
             result.put(table,jdbc.queryForList("SELECT * FROM "+table+" ORDER BY ticket_id"));
         return result;
     }
+    /** Fixture identity captured without re-resolving a possibly renamed account. */
+    private org.springframework.security.core.Authentication boundActor(String name){
+        long id=name.equals("viewer")?2:name.equals("foreign")?3:1;
+        return org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated(
+            new com.example.panel.security.PanelUserPrincipal(id,name,"unused",true,List.of()),null,List.of());
+    }
     private boolean command(String action) {
-        return service.change(scope,"Operator",0,action.equals("reopen")?"resolved":"pending",action,action.equals("reopen")?List.of():List.of(" Billing ","Billing","Payment"));
+        return service.change(scope,boundActor("Operator"),0,action.equals("reopen")?"resolved":"pending",action,action.equals("reopen")?List.of():List.of(" Billing ","Billing","Payment"));
     }
     private void prepare(String action){if(action.equals("reopen"))jdbc.update("UPDATE tickets SET status='resolved' WHERE ticket_id=?",RAW);}
     private long revision(){return jdbc.queryForObject("SELECT business_work_revision FROM tickets WHERE ticket_id=?",Long.class,RAW);}
     private boolean currentCommand(String action) {
-        return service.change(scope,"Operator",revision(),action.equals("reopen")?"resolved":"pending",action,action.equals("reopen")?List.of():List.of(" Billing ","Billing","Payment"));
+        return service.change(scope,boundActor("Operator"),revision(),action.equals("reopen")?"resolved":"pending",action,action.equals("reopen")?List.of():List.of(" Billing ","Billing","Payment"));
     }
     @Test void closeReopenAndCategoriesAreAtomicVersionedAndDoNotEnterLegacyWorkflows() {
         var before=snapshot();
@@ -71,12 +77,12 @@ class BusinessTicketWorkPostgresTest {
         });
         assertThat(jdbc.queryForMap("SELECT closed_count,reopen_count,resolved_by,resolved_at FROM tickets WHERE ticket_id=?",RAW))
             .containsEntry("closed_count",5).containsEntry("reopen_count",7).containsEntry("resolved_by","Operator").doesNotContainValue(null);
-        assertThat(service.change(scope,"Operator",1,"resolved","reopen",List.of())).isTrue();
+        assertThat(service.change(scope,boundActor("Operator"),1,"resolved","reopen",List.of())).isTrue();
         assertThat(jdbc.queryForMap("SELECT status,closed_count,reopen_count,resolved_by,resolved_at FROM tickets WHERE ticket_id=?",RAW))
             .containsEntry("status","pending").containsEntry("closed_count",5).containsEntry("reopen_count",8).containsEntry("resolved_by",null).containsEntry("resolved_at",null);
-        assertThat(service.change(scope,"Operator",2,"pending","categories",List.of())).isTrue();
+        assertThat(service.change(scope,boundActor("Operator"),2,"pending","categories",List.of())).isTrue();
         assertThat(revision()).isEqualTo(3);
-        assertThat(service.change(scope,"Operator",3,"pending","categories",List.of())).isFalse();
+        assertThat(service.change(scope,boundActor("Operator"),3,"pending","categories",List.of())).isFalse();
         var events=service.recent(scope,"viewer");assertThat(events).extracting(BusinessTicketWorkService.Event::action).containsExactly("categories","reopen","close");
         assertThat(events.get(1).categories()).containsExactly("Billing","Payment");
         assertThat(jdbc.queryForList("SELECT ticket_user_id,ticket_id,ticket_public_id,ticket_scope_kind,ticket_business_id,event_type FROM ui_event_outbox"))
@@ -119,7 +125,7 @@ class BusinessTicketWorkPostgresTest {
     @ParameterizedTest @MethodSource("denials")
     void staleOrUnauthorizedCommandsNeverProduceWorkEvents(String action,String kind) {
         prepare(action);long expected=revision();mutate(kind);var before=snapshot();
-        assertThat(service.change(scope,"Operator",expected,action.equals("reopen")?"resolved":"pending",action,action.equals("reopen")?List.of():List.of("New"))).isFalse();
+        assertThat(service.change(scope,boundActor("Operator"),expected,action.equals("reopen")?"resolved":"pending",action,action.equals("reopen")?List.of():List.of("New"))).isFalse();
         assertThat(snapshot()).isEqualTo(before);
     }
     @ParameterizedTest @MethodSource("denials")
@@ -128,7 +134,7 @@ class BusinessTicketWorkPostgresTest {
         doAnswer(call->{String sql=call.getArgument(0);if(sql.startsWith("UPDATE tickets owner SET")&&once.compareAndSet(false,true))mutate(kind);return call.callRealMethod();})
             .when(named).query(anyString(),any(SqlParameterSource.class),any(RowMapper.class));
         ReflectionTestUtils.setField(service,"jdbc",named);
-        assertThat(service.change(scope,"Operator",expected,action.equals("reopen")?"resolved":"pending",action,action.equals("reopen")?List.of():List.of("New"))).isFalse();
+        assertThat(service.change(scope,boundActor("Operator"),expected,action.equals("reopen")?"resolved":"pending",action,action.equals("reopen")?List.of():List.of("New"))).isFalse();
         assertThat(once).isTrue();assertThat(snapshot()).isEqualTo(before);
     }
     @ParameterizedTest @ValueSource(strings={"audit","outbox","trigger"})
@@ -144,12 +150,12 @@ class BusinessTicketWorkPostgresTest {
     @ParameterizedTest @ValueSource(strings={"empty","long","too-many","null","control"})
     void invalidCategoriesCannotCloseOrChangeAnything(String kind) {
         List<String> values=switch(kind){case "empty"->List.of(" ");case "long"->List.of("x".repeat(161));case "too-many"->Collections.nCopies(51,"a");case "null"->Arrays.asList((String)null);default->List.of("bad\u0001value");};
-        var before=snapshot();assertThat(service.change(scope,"Operator",0,"pending","close",values)).isFalse();assertThat(snapshot()).isEqualTo(before);
+        var before=snapshot();assertThat(service.change(scope,boundActor("Operator"),0,"pending","close",values)).isFalse();assertThat(snapshot()).isEqualTo(before);
     }
     @ParameterizedTest @ValueSource(strings={"viewer","foreign"," Operator ","ai_agent","missing"})
     void readAndOperateAreSeparateAndPaddedPrincipalsCannotBorrowGrants(String actor) {
         assertThat(service.find(PUBLIC,actor).isPresent()).isEqualTo(actor.equals("viewer"));
-        assertThat(service.change(scope,actor,0,"pending","close",List.of("New"))).isFalse();
+        assertThat(service.change(scope,boundActor(actor),0,"pending","close",List.of("New"))).isFalse();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM business_ticket_work_events",Long.class)).isZero();
     }
     @ParameterizedTest @ValueSource(strings={"business","general","user","generation"})
@@ -170,7 +176,7 @@ class BusinessTicketWorkPostgresTest {
     }
     @Test void staleRevisionAndAFullStatusCycleCannotBeReplayed() {
         assertThat(command("close")).isTrue();
-        assertThat(service.change(scope,"Operator",1,"resolved","reopen",List.of())).isTrue();
+        assertThat(service.change(scope,boundActor("Operator"),1,"resolved","reopen",List.of())).isTrue();
         assertThat(command("close")).isFalse();assertThat(revision()).isEqualTo(2);
     }
     @ParameterizedTest @ValueSource(strings={"membership","all-grant","account","business","root"})
@@ -193,7 +199,7 @@ class BusinessTicketWorkPostgresTest {
                 default->"UPDATE tickets SET business_id=22 WHERE user_id=42";
             };
             try(var statement=connection.createStatement()){assertThat(statement.executeUpdate(sql)).isEqualTo(1);}
-            var future=CompletableFuture.supplyAsync(()->work.change(scope,"Operator",0,"pending","close",List.of("New")));
+            var future=CompletableFuture.supplyAsync(()->work.change(scope,boundActor("Operator"),0,"pending","close",List.of("New")));
             long deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(10);
             while(!Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE application_name=? AND wait_event_type='Lock')",Boolean.class,tag))) {
                 if(System.nanoTime()>deadline)throw new AssertionError("No real PostgreSQL lock wait for "+site);

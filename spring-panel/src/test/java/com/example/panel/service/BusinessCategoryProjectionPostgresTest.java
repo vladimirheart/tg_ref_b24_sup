@@ -63,9 +63,13 @@ class BusinessCategoryProjectionPostgresTest {
         work = new BusinessTicketWorkService(jdbc,flags,new UiEventOutboxAppendService(jdbc,new LegacyTicketIdJdbcGuard(jdbc)),new ObjectMapper());
     }
 
+    private org.springframework.security.core.Authentication boundActor(){
+        return org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated(
+            new com.example.panel.security.PanelUserPrincipal(1,"operator","unused",true,List.of()),null,List.of());
+    }
     private void save(List<String> categories) {
         var view=work.find(PUBLIC,"operator").orElseThrow();
-        assertThat(work.change(owner,"operator",view.revision(),view.status(),"categories",categories)).isTrue();
+        assertThat(work.change(owner,boundActor(),view.revision(),view.status(),"categories",categories)).isTrue();
     }
     private void allProjections(List<String> expected) {
         assertThat(read.findByPublicId(2L,PUBLIC).orElseThrow().categories()).isEqualTo(expected);
@@ -86,9 +90,9 @@ class BusinessCategoryProjectionPostgresTest {
         var expected=List.of("Delivery","<script>Markup</script>","😀".repeat(160));
         allProjections(expected);
         var view=work.find(PUBLIC,"operator").orElseThrow();
-        assertThat(work.change(owner,"operator",view.revision(),"open","close",expected)).isTrue();
+        assertThat(work.change(owner,boundActor(),view.revision(),"open","close",expected)).isTrue();
         allProjections(expected);
-        assertThat(work.change(owner,"operator",view.revision()+1,"resolved","reopen",List.of())).isTrue();
+        assertThat(work.change(owner,boundActor(),view.revision()+1,"resolved","reopen",List.of())).isTrue();
         allProjections(expected);
         save(List.of()); allProjections(List.of());
         assertThat(read.summarizeCategories(2L,BUSINESS)).isEmpty();
