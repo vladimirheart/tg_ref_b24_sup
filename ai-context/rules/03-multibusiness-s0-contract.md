@@ -24,7 +24,7 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R210 и runtime R207 имеют
+что production уже запускался. Эта оговорка, source-сводка R211 и runtime R207 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
@@ -56,6 +56,27 @@ inputs функционально совпали (620 EOL-only различий)
 завершён, но другие identity/child/GENERAL/policy/AI/fleet/flags/S6 gates остаются;
 Task 🟡, historical S2B исключён R190. Этот checkpoint приоритетнее source-only
 состояния среды R206 ниже.
+
+Source-уточнение R211 (четыре persistence read API, без rollout):
+findControl/canOperate/findState/findEvents получают bound Authentication, positive
+ID/exact raw name/status; SQL actor связан с обоими полями. String read overloads
+удалены; READ/OPERATE/current account/uniqueness/business/grants, full owner tuple,
+control/state matching, collision denial и event order/cap сохранены. Authorized
+absent-control defaults отличаются от denial Optional.empty. Поздний отказ одного
+чтения не отзывает уже прочитанные поля; atomic whole-page revocation не заявляется.
+Три writer bodies и workbench service неизменны; non-CAS/MEMORY/source/handoff
+String boundaries открыты. 314/9 suites +15 JS GREEN; frozen56 SQL+31 real-login
+HTTP RED87/30/0, те же bytes GREEN. V1 compile missing import, tests0; исправлен только
+import; три SQL owner fixtures исправлены в v3 без изменения triggers. SQL RED v3
+56/18/0 + HTTP v2 31/12/0, прежние evidence сохранены. 48 old calls адаптированы,
+assertions прежние.
+Native PG16.15/fresh schemas/ignored R200 supplier, JIT off only own process; server
+остановлен. Docker/Testcontainers не запускались;83 migrations неизменны. Source/test
+C:\Users\sushi\Git_H\tg_ref_b24_sup; рабочая машина/сессия другая:
+C:\Users\SinicinVV\git_h\tg_ref_b24_sup. Runtime R207/webR206/workerR198/foundation off,
+runtime/rollback/V83 blocks сохранены. Remote/build/restart/deploy/working migrations/
+flags не выполнялись. Нужен новый panel-web image, migrations нет. Task🟡, S2B снят
+R190; остальные AI/GENERAL/policy/privacy/delivery/fleet/flags/S6 gates открыты.
 
 Source-уточнение R210 (две AI read API, без rollout):
 Workbench resolve/messages получают bound Authentication, positive ID/exact raw

@@ -144,12 +144,12 @@ class ScopedDialogAiHttpPostgresTest {
         assertThat(draft.status()).isEqualTo(ScopedAiSourceService.Status.DRAFT);
         assertThat(draft.origin()).isEqualTo(scope);
         mvc.perform(auth(control(""),admin,true).with(csrf())).andExpect(redirectedUrl(root));
-        var control=persistence.findControl(scope,admin).orElseThrow();
+        var control=persistence.findControl(scope,com.example.panel.support.AiControlIdentityFixture.auth(adminId,admin)).orElseThrow();
         assertThat(control.aiDisabled()).isTrue();
         mvc.perform(auth(control(""),admin,true).with(csrf())).andExpect(status().isConflict());
         mvc.perform(auth(control(control.updatedAt(),"updated"),admin,true).with(csrf())).andExpect(redirectedUrl(root));
-        assertThat(persistence.findControl(scope,admin).orElseThrow().reason()).isEqualTo("updated");
-        assertThat(persistence.findEvents(scope,admin,10)).extracting(e->e.get("event_type")).contains("control_updated");
+        assertThat(persistence.findControl(scope,com.example.panel.support.AiControlIdentityFixture.auth(adminId,admin)).orElseThrow().reason()).isEqualTo("updated");
+        assertThat(persistence.findEvents(scope,com.example.panel.support.AiControlIdentityFixture.auth(adminId,admin),10)).extracting(e->e.get("event_type")).contains("control_updated");
     }
     @Test void viewerSeesReadOnlyAndCannotWrite() throws Exception {
         mvc.perform(auth(get(root),viewer,true)).andExpect(status().isOk())
@@ -171,7 +171,7 @@ class ScopedDialogAiHttpPostgresTest {
         mvc.perform(auth(control(""),admin,true)).andExpect(redirectedUrl("/error/403"));
         mvc.perform(auth(control(""),admin,true).with(csrf()).with(r->{r.setParameter("_csrf","bad");return r;}))
             .andExpect(redirectedUrl("/error/403"));
-        assertThat(persistence.findControl(scope,admin).orElseThrow().updatedAt()).isNull();
+        assertThat(persistence.findControl(scope,com.example.panel.support.AiControlIdentityFixture.auth(adminId,admin)).orElseThrow().updatedAt()).isNull();
     }
     @ParameterizedTest @ValueSource(strings={"foreign","blocked","revoked","general","unresolved","collision","missing"})
     void deniedBusinessOrOwnerDoesNotRevealDialogData(String state) throws Exception {
@@ -314,7 +314,7 @@ class ScopedDialogAiHttpPostgresTest {
         assertThat(draft.status()).isEqualTo(ScopedAiSourceService.Status.DRAFT);
         assertThat(draft.origin()).isEqualTo(scope);
         mvc.perform(control("").cookie(requestCookies).param("_csrf",token)).andExpect(redirectedUrl(root));
-        var current=persistence.findControl(scope,admin).orElseThrow();
+        var current=persistence.findControl(scope,com.example.panel.support.AiControlIdentityFixture.auth(adminId,admin)).orElseThrow();
         assertThat(jdbc.queryForMap("SELECT updated_by_user_id,updated_by FROM ticket_ai_scoped_control WHERE ticket_public_id=?",publicId))
             .containsEntry("updated_by_user_id",adminId).containsEntry("updated_by",admin);
         assertThat(jdbc.queryForMap("SELECT updated_by_user_id,updated_by FROM ai_scoped_sources WHERE business_id=? AND source_key=?",business,key))
@@ -324,7 +324,7 @@ class ScopedDialogAiHttpPostgresTest {
         mvc.perform(get(root).cookie(sessionCookie)).andExpect(status().isForbidden());
         mvc.perform(control(current.updatedAt()).cookie(requestCookies).param("_csrf",token)).andExpect(status().isForbidden());
         mvc.perform(memory(UUID.randomUUID().toString()).cookie(requestCookies).param("_csrf",token)).andExpect(status().isForbidden());
-        assertThat(persistence.findControl(scope,admin)).contains(current);
+        assertThat(persistence.findControl(scope,com.example.panel.support.AiControlIdentityFixture.auth(adminId,admin))).contains(current);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM ticket_ai_scoped_events WHERE ticket_public_id=?",Long.class,publicId)).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM ai_scoped_sources WHERE business_id=?",Long.class,business)).isEqualTo(1);
         mvc.perform(post("/logout").cookie(requestCookies).param("_csrf",token)).andExpect(status().is3xxRedirection());

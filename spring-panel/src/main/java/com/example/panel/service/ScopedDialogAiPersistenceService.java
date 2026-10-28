@@ -32,6 +32,7 @@ public class ScopedDialogAiPersistenceService {
             excluded.ticket_scope_kind,excluded.ticket_business_id)
         """;
     private static final String ACTOR = " CROSS JOIN (SELECT CAST(:identity AS TEXT) AS user_identity) n ";
+    private static final String READ_ACTOR = ACTOR + " JOIN users actor ON actor.id=:actorId AND actor.username=:actorName ";
     private static final String READ = " AND (" + NotificationBusinessAccessSql.CAN_READ_OWNER_BUSINESS + ")";
     private static final String OPERATE = """
         AND (EXISTS (SELECT 1 FROM business_memberships membership
@@ -94,21 +95,22 @@ public class ScopedDialogAiPersistenceService {
         }
     }
 
-    public Optional<Control> findControl(UiEventTicketScope scope, String identity) {
-        if (!valid(scope) || !StringUtils.hasText(identity)) return Optional.empty();
+    public Optional<Control> findControl(UiEventTicketScope scope, Authentication authentication) {
+        var account=boundControlActor(authentication);
+        if (account==null || !valid(scope)) return Optional.empty();
         try {
             var rows = jdbc.query("""
                 SELECT COALESCE(control.ai_disabled,FALSE) AS ai_disabled,
                        COALESCE(control.auto_reply_blocked,FALSE) AS auto_reply_blocked,
                        control.reason,control.updated_by,control.updated_at
                   FROM tickets owner
-                """ + ACTOR + """
+                """ + READ_ACTOR + """
                   LEFT JOIN ticket_ai_scoped_control control ON control.ticket_public_id=owner.ticket_public_id
                     AND control.scope_business_key=COALESCE(owner.business_id,0)
                  WHERE
                 """ + ScopedAiSql.CURRENT_OWNER + READ + " AND (control.ticket_public_id IS NULL OR ("
                     + ScopedAiSql.CONTROL_MATCHES_OWNER + "))",
-                parameters(scope, identity), (rs, row) -> new Control(rs.getBoolean("ai_disabled"),
+                readParameters(scope, account), (rs, row) -> new Control(rs.getBoolean("ai_disabled"),
                     rs.getBoolean("auto_reply_blocked"),rs.getString("reason"),rs.getString("updated_by"),rs.getString("updated_at")));
             return rows.size() == 1 ? Optional.of(rows.get(0)) : Optional.empty();
         } catch (DataAccessException ex) {
@@ -116,11 +118,12 @@ public class ScopedDialogAiPersistenceService {
         }
     }
 
-    public boolean canOperate(UiEventTicketScope scope,String identity) {
-        if (!valid(scope) || !"BUSINESS".equals(scope.scopeKind()) || identity==null || identity.isBlank()) return false;
-        String sql="SELECT EXISTS(SELECT 1 FROM tickets owner"+ACTOR
-            +" JOIN users actor ON lower(actor.username)=n.user_identity WHERE "+ScopedAiSql.CURRENT_OWNER+READ+OPERATE+")";
-        try { return Boolean.TRUE.equals(jdbc.queryForObject(sql,parameters(scope,identity),Boolean.class)); }
+    public boolean canOperate(UiEventTicketScope scope,Authentication authentication) {
+        var account=boundControlActor(authentication);
+        if (account==null || !valid(scope) || !"BUSINESS".equals(scope.scopeKind())) return false;
+        String sql="SELECT EXISTS(SELECT 1 FROM tickets owner"+READ_ACTOR
+            +" WHERE "+ScopedAiSql.CURRENT_OWNER+READ+OPERATE+")";
+        try { return Boolean.TRUE.equals(jdbc.queryForObject(sql,readParameters(scope,account),Boolean.class)); }
         catch (DataAccessException ex) { return false; }
     }
 
@@ -156,28 +159,29 @@ public class ScopedDialogAiPersistenceService {
         try { return jdbc.update(sql,args)==1; } catch (DataAccessException ex) { return false; }
     }
 
-    public Optional<Map<String, Object>> findState(UiEventTicketScope scope, String identity) {
+    public Optional<Map<String, Object>> findState(UiEventTicketScope scope, Authentication authentication) {
         var rows = readOwned("ticket_ai_scoped_state", "record.is_processing,record.mode,record.last_action,record.updated_at",
-            scope, identity, "", 1);
+            scope, authentication, "", 1);
         return rows.size() == 1 ? Optional.of(rows.get(0)) : Optional.empty();
     }
 
-    public List<Map<String, Object>> findEvents(UiEventTicketScope scope, String identity, int limit) {
+    public List<Map<String, Object>> findEvents(UiEventTicketScope scope, Authentication authentication, int limit) {
         return readOwned("ticket_ai_scoped_events", "record.id,record.event_type,record.decision_reason,record.created_at",
-            scope, identity, " ORDER BY record.id DESC", Math.max(1, Math.min(limit, 50)));
+            scope, authentication, " ORDER BY record.id DESC", Math.max(1, Math.min(limit, 50)));
     }
 
     private List<Map<String, Object>> readOwned(String table, String columns, UiEventTicketScope scope,
-                                                String identity, String ordering, int limit) {
-        if (!valid(scope) || !StringUtils.hasText(identity)) return List.of();
-        String sql = "SELECT " + columns + " FROM tickets owner" + ACTOR + " JOIN " + table + " record ON "
+                                                Authentication authentication, String ordering, int limit) {
+        var account=boundControlActor(authentication);
+        if (account==null || !valid(scope)) return List.of();
+        String sql = "SELECT " + columns + " FROM tickets owner" + READ_ACTOR + " JOIN " + table + " record ON "
             + "record.ticket_user_id=owner.user_id AND record.ticket_id=owner.ticket_id"
             + " AND record.ticket_public_id=owner.ticket_public_id"
             + " AND record.ticket_business_id IS NOT DISTINCT FROM owner.business_id"
             + " AND record.ticket_scope_kind=CASE WHEN owner.business_id IS NULL THEN 'UNRESOLVED' ELSE 'BUSINESS' END"
             + " WHERE " + ScopedAiSql.CURRENT_OWNER + READ + ordering + " LIMIT :limit";
         try {
-            return jdbc.queryForList(sql, parameters(scope, identity).addValue("limit", limit, Types.INTEGER));
+            return jdbc.queryForList(sql, readParameters(scope, account).addValue("limit", limit, Types.INTEGER));
         } catch (DataAccessException ex) {
             return List.of();
         }
@@ -193,6 +197,11 @@ public class ScopedDialogAiPersistenceService {
 
     private boolean valid(UiEventTicketScope scope) {
         return flags != null && scope != null && scope.isValid();
+    }
+
+    private MapSqlParameterSource readParameters(UiEventTicketScope scope, PanelUserPrincipal account) {
+        return parameters(scope,account.getUsername()).addValue("actorId",account.getUserId(),Types.BIGINT)
+            .addValue("actorName",account.getUsername(),Types.VARCHAR);
     }
 
     private MapSqlParameterSource parameters(UiEventTicketScope scope, String identity) {

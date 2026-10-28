@@ -99,7 +99,7 @@ class ScopedDialogAiWorkbenchPostgresTest {
         else jdbc.update("INSERT INTO business_access_grants VALUES(1,'ALL_BUSINESSES',?,TRUE)",role);
         boolean read=!role.equals("UNKNOWN"),operate=read&&!role.equals("VIEWER"),configure=role.equals("ADMIN");
         assertThat(work.resolve(scope.ticketPublicId(),boundControlActor()).isPresent()).isEqualTo(read);
-        assertThat(persistence.canOperate(scope,"admin")).isEqualTo(operate);
+        assertThat(persistence.canOperate(scope,boundControlActor())).isEqualTo(operate);
         assertThat(memory("admin",key())).isEqualTo(configure);
         assertThat(persistence.setControlExpected(scope,boundControlActor(),"",false,true,"reason")).isEqualTo(operate);
         assertThat(knowledge.record(scope,"refund")).isTrue();
@@ -143,16 +143,16 @@ class ScopedDialogAiWorkbenchPostgresTest {
     }
     @Test void controlCasAndAuditAreAtomicAndNeverEnableAutoReply() {
         assertThat(persistence.setControlExpected(scope,boundControlActor(),"",true,true,"pause")).isTrue();
-        var stamp=persistence.findControl(scope,"admin").orElseThrow().updatedAt();
+        var stamp=persistence.findControl(scope,boundControlActor()).orElseThrow().updatedAt();
         assertThat(persistence.setControlExpected(scope,boundControlActor(),"",false,false,"stale")).isFalse();
         assertThat(knowledge.record(scope,"refund")).isFalse();
         assertThat(persistence.setControlExpected(scope,boundControlActor(),stamp,false,true,"resume")).isTrue();
         assertThat(persistence.setControlExpected(scope,boundControlActor(),stamp,true,false,"old tab")).isFalse();
-        var current=persistence.findControl(scope,"admin").orElseThrow();
+        var current=persistence.findControl(scope,boundControlActor()).orElseThrow();
         assertThat(current.aiDisabled()).isFalse(); assertThat(current.autoReplyBlocked()).isTrue();
         jdbc.execute("ALTER TABLE ticket_ai_scoped_events ADD CONSTRAINT no_control CHECK(event_type<>'control_updated') NOT VALID");
         assertThat(persistence.setControlExpected(scope,boundControlActor(),current.updatedAt(),true,false,"audit failure")).isFalse();
-        assertThat(persistence.findControl(scope,"admin")).contains(current);
+        assertThat(persistence.findControl(scope,boundControlActor())).contains(current);
     }
     @Test void curationAuditEvidenceFailureRollsBackSourceAndAudit() {
         jdbc.execute("ALTER TABLE ai_scoped_memory_evidence ADD CONSTRAINT reject_evidence CHECK(source_id<0)");

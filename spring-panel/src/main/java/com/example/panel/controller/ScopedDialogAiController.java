@@ -34,12 +34,12 @@ public class ScopedDialogAiController {
     @GetMapping
     public String view(@PathVariable String publicId,Authentication auth,Model model,HttpServletResponse response) {
         UiEventTicketScope scope=scope(publicId,auth,response,null);
-        var control=persistence.findControl(scope,auth.getName()).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND));
+        var control=persistence.findControl(scope,auth).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND));
         model.addAttribute("publicId",publicId); model.addAttribute("businessId",scope.businessId());
         model.addAttribute("control",control);
-        model.addAttribute("canOperate",persistence.canOperate(scope,auth.getName()));
-        model.addAttribute("state",persistence.findState(scope,auth.getName()).orElse(null));
-        model.addAttribute("events",persistence.findEvents(scope,auth.getName(),10));
+        model.addAttribute("canOperate",persistence.canOperate(scope,auth));
+        model.addAttribute("state",persistence.findState(scope,auth).orElse(null));
+        model.addAttribute("events",persistence.findEvents(scope,auth,10));
         boolean library=auth.getAuthorities().stream().anyMatch(a->a.getAuthority().equals("PAGE_KNOWLEDGE_BASE"));
         model.addAttribute("library",library);
         model.addAttribute("canCurate",library && sources.canConfigure(scope.businessId(),auth.getName()));

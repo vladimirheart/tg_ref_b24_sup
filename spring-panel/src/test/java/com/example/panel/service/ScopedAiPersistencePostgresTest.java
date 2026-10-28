@@ -68,12 +68,12 @@ class ScopedAiPersistencePostgresTest {
         assertThat(service.recordHandoff(scope)).isTrue();
         boolean read = !role.equals("UNKNOWN");
         boolean operate = read && !role.equals("VIEWER");
-        assertThat(service.findControl(scope,"OPERATOR").isPresent()).isEqualTo(read);
-        assertThat(service.findState(scope,"operator").isPresent()).isEqualTo(read);
-        assertThat(service.findEvents(scope,"operator",1)).hasSize(read ? 1 : 0);
+        assertThat(service.findControl(scope,reader("OPERATOR")).isPresent()).isEqualTo(read);
+        assertThat(service.findState(scope,reader("operator")).isPresent()).isEqualTo(read);
+        assertThat(service.findEvents(scope,reader("operator"),1)).hasSize(read ? 1 : 0);
         assertThat(service.setControl(scope,"OPERATOR",true,true," reason ")).isEqualTo(operate);
         if (operate) {
-            assertThat(service.findControl(scope,"operator").orElseThrow())
+            assertThat(service.findControl(scope,reader("operator")).orElseThrow())
                 .extracting(ScopedDialogAiPersistenceService.Control::aiDisabled,
                     ScopedDialogAiPersistenceService.Control::autoReplyBlocked,
                     ScopedDialogAiPersistenceService.Control::reason,
@@ -82,7 +82,7 @@ class ScopedAiPersistencePostgresTest {
             assertThat(jdbc.queryForObject("SELECT updated_by_user_id FROM ticket_ai_scoped_control",Long.class)).isEqualTo(1L);
         }
         var beforeDenied=jdbc.queryForList("SELECT * FROM ticket_ai_scoped_control");
-        assertThat(service.findControl(scope," OPERATOR ")).isEmpty();
+        assertThat(service.findControl(scope,reader(" OPERATOR "))).isEmpty();
         assertThat(service.setControl(scope," OPERATOR ",false,false,"must not overwrite")).isFalse();
         assertThat(jdbc.queryForList("SELECT * FROM ticket_ai_scoped_control")).isEqualTo(beforeDenied);
 
@@ -100,7 +100,7 @@ class ScopedAiPersistencePostgresTest {
     void everyOperationReprovesCurrentActorAccessIncludingPreviouslyAuthorizedReads(String mutation) {
         assertThat(service.setControl(scope,"operator",false,false,"before")).isTrue();
         assertThat(service.recordHandoff(scope)).isTrue();
-        assertThat(service.findEvents(scope,"operator",1)).hasSize(1);
+        assertThat(service.findEvents(scope,reader("operator"),1)).hasSize(1);
         mutateActor(mutation);
         assertDenied(scope,"operator");
         assertThat(jdbc.queryForObject("SELECT reason FROM ticket_ai_scoped_control",String.class)).isEqualTo("before");
@@ -115,7 +115,7 @@ class ScopedAiPersistencePostgresTest {
             return new NamedParameterJdbcTemplate(jdbc).update(call.getArgument(0,String.class),call.getArgument(1,SqlParameterSource.class));
         }).when(observed).update(anyString(),any(SqlParameterSource.class));
         var guarded = new ScopedDialogAiPersistenceService(observed,flags);
-        assertThat(service.findControl(scope,"operator")).isPresent();
+        assertThat(service.findControl(scope,reader("operator"))).isPresent();
         assertThat(guarded.setControl(scope,"operator",true,true,"late")).isFalse();
         assertThat(count("control")).isZero();
     }
@@ -127,7 +127,7 @@ class ScopedAiPersistencePostgresTest {
         assertThat(service.setControl(scope,"operator",false,false,null)).isTrue();
         jdbc.update("UPDATE business_memberships SET is_active=TRUE,role_code='VIEWER' WHERE user_id=1");
         jdbc.update("UPDATE business_access_grants SET is_active=FALSE WHERE user_id=1");
-        assertThat(service.findControl(scope,"operator")).isPresent();
+        assertThat(service.findControl(scope,reader("operator"))).isPresent();
         assertThat(service.setControl(scope,"operator",true,true,null)).isFalse();
         jdbc.update("UPDATE businesses SET status='archived' WHERE id=1");
         assertDenied(scope,"all");
@@ -157,8 +157,8 @@ class ScopedAiPersistencePostgresTest {
                 .containsEntry("ticket_user_id",10L).containsEntry("ticket_id",id).containsEntry("ticket_public_id",PUBLIC)
                 .containsEntry("ticket_scope_kind","BUSINESS").containsEntry("ticket_business_id",1L);
         }
-        assertThat(service.findControl(scope,"operator").orElseThrow().reason()).hasSize(500);
-        assertThat(service.findState(scope,"viewer").orElseThrow()).containsEntry("is_processing",false)
+        assertThat(service.findControl(scope,reader("operator")).orElseThrow().reason()).hasSize(500);
+        assertThat(service.findState(scope,reader("viewer")).orElseThrow()).containsEntry("is_processing",false)
             .containsEntry("mode","escalate_only").containsEntry("last_action","operator_required");
     }
 
@@ -171,9 +171,9 @@ class ScopedAiPersistencePostgresTest {
         mutateOwner(mutation);
         var fresh = current();
         String actor = mutation.equals("business") ? "foreign" : "operator";
-        assertThat(service.findControl(fresh,actor).orElseThrow().aiDisabled()).isFalse();
-        assertThat(service.findState(fresh,actor)).isEmpty();
-        assertThat(service.findEvents(fresh,actor,50)).isEmpty();
+        assertThat(service.findControl(fresh,reader(actor)).orElseThrow().aiDisabled()).isFalse();
+        assertThat(service.findState(fresh,reader(actor))).isEmpty();
+        assertThat(service.findEvents(fresh,reader(actor),50)).isEmpty();
         assertThat(service.recordHandoff(fresh)).isTrue();
         assertThat(service.setControl(fresh,actor,false,false,"new")).isTrue();
         for (String table : List.of("control","state","events")) {
@@ -192,9 +192,9 @@ class ScopedAiPersistencePostgresTest {
         var original = snapshots();
         assertThat(service.recordHandoff(fresh)).isFalse();
         assertThat(service.setControl(fresh,"operator",true,true,"other")).isFalse();
-        assertThat(service.findControl(fresh,"operator")).isEmpty();
-        assertThat(service.findState(fresh,"operator")).isEmpty();
-        assertThat(service.findEvents(fresh,"operator",50)).isEmpty();
+        assertThat(service.findControl(fresh,reader("operator"))).isEmpty();
+        assertThat(service.findState(fresh,reader("operator"))).isEmpty();
+        assertThat(service.findEvents(fresh,reader("operator"),50)).isEmpty();
         assertThat(snapshots()).isEqualTo(original);
     }
 
@@ -220,7 +220,7 @@ class ScopedAiPersistencePostgresTest {
         assertThat(count("events")).isZero();
         assertThat(service.setControl(scope,"operator",false,true,null)).isTrue();
         assertThat(service.recordHandoff(scope)).isTrue();
-        assertThat(service.findControl(scope,"viewer").orElseThrow().autoReplyBlocked()).isTrue();
+        assertThat(service.findControl(scope,reader("viewer")).orElseThrow().autoReplyBlocked()).isTrue();
     }
 
     @ParameterizedTest
@@ -239,14 +239,14 @@ class ScopedAiPersistencePostgresTest {
         for (int i=0;i<55;i++) assertThat(service.recordHandoff(scope)).isTrue();
         var foreign = new UiEventTicketAccessService(jdbc,flags).captureScope(RAW.trim()).orElseThrow();
         assertThat(service.recordHandoff(foreign)).isTrue();
-        assertThat(service.findEvents(scope,"viewer",100)).hasSize(50);
-        var latest = service.findEvents(scope,"viewer",1);
+        assertThat(service.findEvents(scope,reader("viewer"),100)).hasSize(50);
+        var latest = service.findEvents(scope,reader("viewer"),1);
         assertThat(latest).hasSize(1);
         assertThat(latest.get(0).get("id")).isEqualTo(55L);
-        assertThat(service.findEvents(scope,"viewer",0)).hasSize(1);
-        assertThat(service.findEvents(foreign,"viewer",1)).isEmpty();
+        assertThat(service.findEvents(scope,reader("viewer"),0)).hasSize(1);
+        assertThat(service.findEvents(foreign,reader("viewer"),1)).isEmpty();
         jdbc.update("UPDATE business_memberships SET is_active=FALSE WHERE user_id=3");
-        assertThat(service.findEvents(scope,"viewer",1)).isEmpty();
+        assertThat(service.findEvents(scope,reader("viewer"),1)).isEmpty();
     }
 
     @ParameterizedTest
@@ -256,11 +256,11 @@ class ScopedAiPersistencePostgresTest {
         assertThat(service.recordHandoff(scope)).isFalse();
         if (table.equals("ticket_ai_scoped_control") || table.equals("tickets") || table.equals("businesses")) {
             assertThat(service.setControl(scope,"operator",true,true,"x")).isFalse();
-            assertThat(service.findControl(scope,"operator")).isEmpty();
+            assertThat(service.findControl(scope,reader("operator"))).isEmpty();
         }
         if (!table.equals("ticket_ai_scoped_control")) {
-            if (!table.equals("ticket_ai_scoped_events")) assertThat(service.findState(scope,"operator")).isEmpty();
-            if (!table.equals("ticket_ai_scoped_state")) assertThat(service.findEvents(scope,"operator",1)).isEmpty();
+            if (!table.equals("ticket_ai_scoped_events")) assertThat(service.findState(scope,reader("operator"))).isEmpty();
+            if (!table.equals("ticket_ai_scoped_state")) assertThat(service.findEvents(scope,reader("operator"),1)).isEmpty();
         }
     }
 
@@ -273,12 +273,25 @@ class ScopedAiPersistencePostgresTest {
                 new UiEventTicketScope(10L," ",PUBLIC,"BUSINESS",1L),new UiEventTicketScope(10L,RAW,PUBLIC,"UNRESOLVED",1L))) {
             assertThat(guarded.recordHandoff(invalid)).isFalse();
             assertThat(guarded.setControl(invalid,"operator",true,true,null)).isFalse();
-            assertThat(guarded.findControl(invalid,"operator")).isEmpty();
-            assertThat(guarded.findState(invalid,"operator")).isEmpty();
-            assertThat(guarded.findEvents(invalid,"operator",5)).isEmpty();
+            assertThat(guarded.findControl(invalid,reader("operator"))).isEmpty();
+            assertThat(guarded.findState(invalid,reader("operator"))).isEmpty();
+            assertThat(guarded.findEvents(invalid,reader("operator"),5)).isEmpty();
         }
         assertThat(new ScopedDialogAiPersistenceService(observed,null).recordHandoff(scope)).isFalse();
         verifyNoInteractions(observed);
+    }
+
+    /** Models the initial fixture login; subsequent reads retain this exact ID/raw name. */
+    private org.springframework.security.core.Authentication reader(String supplied) {
+        if(supplied==null)return org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated("",null,List.of());
+        return switch(supplied) {
+            case "operator","OPERATOR"->com.example.panel.support.AiControlIdentityFixture.auth(1,"operator");
+            case "foreign"->com.example.panel.support.AiControlIdentityFixture.auth(2,"foreign");
+            case "viewer"->com.example.panel.support.AiControlIdentityFixture.auth(3,"viewer");
+            case "admin"->com.example.panel.support.AiControlIdentityFixture.auth(4,"admin");
+            case "all"->com.example.panel.support.AiControlIdentityFixture.auth(5,"all");
+            default->org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated(supplied,null,List.of());
+        };
     }
 
     private UiEventTicketScope current() {
@@ -298,9 +311,9 @@ class ScopedAiPersistencePostgresTest {
 
     private void assertDenied(UiEventTicketScope target,String identity) {
         assertThat(service.setControl(target,identity,true,true,"denied")).isFalse();
-        assertThat(service.findControl(target,identity)).isEmpty();
-        assertThat(service.findState(target,identity)).isEmpty();
-        assertThat(service.findEvents(target,identity,1)).isEmpty();
+        assertThat(service.findControl(target,reader(identity))).isEmpty();
+        assertThat(service.findState(target,reader(identity))).isEmpty();
+        assertThat(service.findEvents(target,reader(identity),1)).isEmpty();
     }
 
     private void mutateActor(String mutation) {
