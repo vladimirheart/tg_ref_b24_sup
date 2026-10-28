@@ -62,9 +62,10 @@ public class ScopedDialogAiWorkbenchService {
             rs.getString("preview"),rs.getString("fingerprint"))); }
         catch (DataAccessException ex) { return List.of(); }
     }
-    public boolean createMemory(UiEventTicketScope scope,String identity,String key,long question,long answer,
+    public boolean createMemory(UiEventTicketScope scope,Authentication authentication,String key,long question,long answer,
                                 String questionHash,String answerHash,String title,String body,boolean reviewed) {
-        if (!valid(scope,identity) || !reviewed || question<1 || answer<=question || !hash(questionHash) || !hash(answerHash)
+        var account=boundReader(authentication);
+        if (account==null || !valid(scope,account.getUsername()) || !reviewed || question<1 || answer<=question || !hash(questionHash) || !hash(answerHash)
                 || key==null || !key.matches("[a-f0-9-]{36}") || title==null || title.isBlank() || title.length()>300
                 || body==null || body.isBlank() || body.length()>16000 || title.indexOf(0)>=0 || body.indexOf(0)>=0) return false;
         String sql="""
@@ -73,9 +74,9 @@ public class ScopedDialogAiWorkbenchService {
                     origin_ticket_user_id,origin_ticket_id,origin_ticket_public_id,origin_ticket_scope_kind,origin_ticket_business_id,
                     updated_by_user_id,updated_by)
                 SELECT owner.business_id,'MEMORY',:key,:title,:body,'DRAFT',1,owner.user_id,owner.ticket_id,
-                    owner.ticket_public_id,'BUSINESS',owner.business_id,actor.id,n.user_identity
+                    owner.ticket_public_id,'BUSINESS',owner.business_id,actor.id,actor.username
                 FROM tickets owner
-            """+ACTOR+" JOIN users actor ON lower(actor.username)=n.user_identity WHERE "+ScopedAiSql.CURRENT_OWNER+READ+CONFIGURE+"""
+            """+READ_ACTOR+" WHERE "+ScopedAiSql.CURRENT_OWNER+READ+CONFIGURE+"""
                 AND EXISTS (SELECT 1 FROM chat_history history WHERE
             """+TEXT_HISTORY+"""
                     AND history.id=:question AND history.sender='client' AND encode(sha256(convert_to(history.message,'UTF8')),'hex')=:questionHash)
@@ -91,7 +92,8 @@ public class ScopedDialogAiWorkbenchService {
             INSERT INTO ai_scoped_memory_evidence(source_id,question_history_id,answer_history_id,question_fingerprint,answer_fingerprint)
             SELECT changed.id,:question,:answer,:questionHash,:answerHash FROM changed JOIN audit ON audit.source_id=changed.id
             """;
-        var parameters=args(scope,identity).addValue("key",key,Types.VARCHAR).addValue("title",title.trim(),Types.VARCHAR)
+        var parameters=args(scope,account.getUsername()).addValue("actorId",account.getUserId(),Types.BIGINT)
+            .addValue("actorName",account.getUsername(),Types.VARCHAR).addValue("key",key,Types.VARCHAR).addValue("title",title.trim(),Types.VARCHAR)
             .addValue("body",body.trim(),Types.VARCHAR).addValue("question",question,Types.BIGINT).addValue("answer",answer,Types.BIGINT)
             .addValue("questionHash",questionHash,Types.VARCHAR).addValue("answerHash",answerHash,Types.VARCHAR);
         try { return jdbc.update(sql,parameters)==1; } catch (DataAccessException ex) { return false; }

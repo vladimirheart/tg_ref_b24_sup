@@ -24,7 +24,7 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R211 и runtime R207 имеют
+что production уже запускался. Эта оговорка, source-сводка R212 и runtime R207 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
@@ -56,6 +56,28 @@ inputs функционально совпали (620 EOL-only различий)
 завершён, но другие identity/child/GENERAL/policy/AI/fleet/flags/S6 gates остаются;
 Task 🟡, historical S2B исключён R190. Этот checkpoint приоритетнее source-only
 состояния среды R206 ниже.
+
+Source-уточнение R212 (MEMORY writer, без rollout):
+Workbench createMemory получает bound Authentication; positive ID/raw name/status
+и SQL actor.id/exact username проверяются вместе с READ/CONFIGURE/current account/
+owner/text evidence. Source и audit сохраняют raw имя, String-only overload удалён.
+ADMIN/ALL_BUSINESSES, PAGE_DIALOGS+KB/CSRF/flags/reviewed/DRAFT, content validation,
+idempotency и atomic source/audit/evidence rollback сохранены. Поздний отказ409/
+no-store без частичной записи; statement-time, не global post-snapshot revocation.
+Reads/helpers/persistence/source/handoff/UI/schema неизменны. 228/7 suites +15 JS
+GREEN; frozen51 SQL+25 real-login HTTP RED76/20/0, те же bytes GREEN.
+Setup v1:76 FK seed errors; v2 исправляет isolated seed TRUNCATE/ANALYZE;
+в v3 убраны только собственные rollback-test CHECK между scenarios после control
+failure в v2. Product constraints/triggers и SQL/HTTP assertions прежние; evidence
+сохранены. 7 old fixture calls
+адаптированы, assertions прежние. Native PG16.15/fresh schemas/ignored R200 supplier,
+server остановлен. Docker/Testcontainers не запускались;83 migrations неизменны.
+Source/test C:\Users\sushi\Git_H\tg_ref_b24_sup; рабочая машина/сессия другая:
+C:\Users\SinicinVV\git_h\tg_ref_b24_sup. Последний runtime R207/webR206/workerR198/
+foundation off и полные rollback/V83 blocks сохранены; deploy/restart/working
+migrations/flags не выполнялись. Нужен новый panel-web image, migrations нет.
+Прямой source MEMORY primitive, non-CAS controls/source/handoff и остальные
+policy/privacy/delivery/fleet/flags/S6 gates открыты; Task🟡, S2B снят R190.
 
 Source-уточнение R211 (четыре persistence read API, без rollout):
 findControl/canOperate/findState/findEvents получают bound Authentication, positive

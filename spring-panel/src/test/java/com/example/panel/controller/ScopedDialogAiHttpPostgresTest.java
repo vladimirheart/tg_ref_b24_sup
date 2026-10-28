@@ -207,7 +207,7 @@ class ScopedDialogAiHttpPostgresTest {
                 case "deleted"->jdbc.update("UPDATE chat_history SET deleted_at=CURRENT_TIMESTAMP WHERE id=?",aId);
             }
             return call.callRealMethod();
-        }).when(work).createMemory(eq(scope),eq(admin),anyString(),anyLong(),anyLong(),anyString(),anyString(),anyString(),anyString(),anyBoolean());
+        }).when(work).createMemory(eq(scope),org.mockito.ArgumentMatchers.<org.springframework.security.core.Authentication>argThat(a->a!=null && a.getPrincipal() instanceof com.example.panel.security.PanelUserPrincipal p && p.getUserId()==adminId && p.getUsername().equals(admin)), anyString(),anyLong(),anyLong(),anyString(),anyString(),anyString(),anyString(),anyBoolean());
         mvc.perform(auth(memory(UUID.randomUUID().toString()),admin,true).with(csrf())).andExpect(status().isConflict());
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ai_scoped_sources WHERE business_id=?",Integer.class,business)).isZero();
     }

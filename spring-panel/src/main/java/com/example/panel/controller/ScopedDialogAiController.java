@@ -68,7 +68,7 @@ public class ScopedDialogAiController {
         var scope=scope(publicId,auth,response,businessId);
         if (!sources.canConfigure(scope.businessId(),auth.getName())) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         var q=evidence(question); var a=evidence(answer);
-        if (!workbench.createMemory(scope,auth.getName(),key,q.id(),a.id(),q.hash(),a.hash(),title,body,reviewed)) conflict();
+        if (!workbench.createMemory(scope,auth,key,q.id(),a.id(),q.hash(),a.hash(),title,body,reviewed)) conflict();
         return redirect(publicId);
     }
     private UiEventTicketScope scope(String id,Authentication auth,HttpServletResponse response,Long expectedBusiness) {

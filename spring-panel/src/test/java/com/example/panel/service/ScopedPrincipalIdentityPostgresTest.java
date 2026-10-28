@@ -75,7 +75,7 @@ class ScopedPrincipalIdentityPostgresTest {
         assertThat(sources.revise(11L,"admin",KNOWLEDGE,"proof",1,"refund","PRIVATE Business A refund knowledge",APPROVED)).isTrue();
         approved=sources.find(11L,"admin",KNOWLEDGE,"proof").orElseThrow();
         questionHash=fingerprint(40);answerHash=fingerprint(41);
-        assertThat(workbench.createMemory(scope,"admin",key(),40,41,questionHash,answerHash,"reviewed","safe memory",true)).isTrue();
+        assertThat(workbench.createMemory(scope,assignmentAuthentication("admin"),key(),40,41,questionHash,answerHash,"reviewed","safe memory",true)).isTrue();
         assertThat(handoff.record(scope,"refund")).isTrue();
         assertThat(persistence.setControlExpected(scope,assignmentAuthentication("admin"),"",false,true,"original")).isTrue();
     }
@@ -126,7 +126,7 @@ class ScopedPrincipalIdentityPostgresTest {
         assertThat(participants.change(scope,assignmentAuthentication(actor),1,5L,true)).isFalse();
         assertThat(persistence.setControl(scope,actor,true,true,"forged")).isFalse();
         assertThat(persistence.setControlExpected(scope,assignmentAuthentication(actor),stamp,true,true,"forged")).isFalse();
-        assertThat(workbench.createMemory(scope,actor,key(),40,41,questionHash,answerHash,"forged","body",true)).isFalse();
+        assertThat(workbench.createMemory(scope,assignmentAuthentication(actor),key(),40,41,questionHash,answerHash,"forged","body",true)).isFalse();
         assertThat(sources.createKnowledge(11L,actor,key(),"forged","body")).isFalse();
         assertThat(sources.createMemory(scope,actor,key(),"forged","body")).isFalse();
         assertThat(sources.revise(11L,actor,KNOWLEDGE,"proof",2,"forged","body",ARCHIVED)).isFalse();
@@ -149,7 +149,7 @@ class ScopedPrincipalIdentityPostgresTest {
         assertThat(assignments.change(scope,assignmentAuthentication(actor),1,null,true)).isTrue();
         assertThat(participants.change(scope,assignmentAuthentication(actor),1,2L,false)).isTrue();
         assertThat(sources.createKnowledge(11L,actor,key(),"case","body")).isTrue();
-        assertThat(workbench.createMemory(scope,actor,key(),40,41,questionHash,answerHash,"case","body",true)).isTrue();
+        assertThat(workbench.createMemory(scope,assignmentAuthentication(actor),key(),40,41,questionHash,answerHash,"case","body",true)).isTrue();
         assertThat(persistence.setControl(scope,actor,false,true,"case")).isTrue();
         assertThat(jdbc.queryForObject("SELECT actor_user_id FROM business_ticket_assignment_events WHERE revision=2",Long.class)).isEqualTo(1);
     }
@@ -161,7 +161,7 @@ class ScopedPrincipalIdentityPostgresTest {
         assertThat(participants.change(other,assignmentAuthentication(actor),0,3L,true)).isTrue();
         assertThat(sources.createKnowledge(22L,actor,"own","refund","own refund")).isTrue();
         assertThat(sources.revise(22L,actor,KNOWLEDGE,"own",1,"refund","own refund",APPROVED)).isTrue();
-        assertThat(workbench.createMemory(other,actor,key(),50,51,fingerprint(50),fingerprint(51),"own","reviewed",true)).isTrue();
+        assertThat(workbench.createMemory(other,assignmentAuthentication(actor),key(),50,51,fingerprint(50),fingerprint(51),"own","reviewed",true)).isTrue();
         assertThat(persistence.setControlExpected(other,assignmentAuthentication(actor),"",false,true,"own")).isTrue();
         assertThat(handoff.record(other,"refund")).isTrue();assertThat(handoff.candidates(other,actor)).hasSize(1);
         assertThat(jdbc.queryForMap("SELECT actor_user_id,assignee_user_id,actor FROM business_ticket_assignment_events WHERE business_id=22"))
