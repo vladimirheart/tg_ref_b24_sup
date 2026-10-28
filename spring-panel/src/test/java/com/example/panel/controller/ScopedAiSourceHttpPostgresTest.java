@@ -138,8 +138,8 @@ class ScopedAiSourceHttpPostgresTest {
         membership(account(foreign),businessB,"ADMIN");
         jdbc.update("INSERT INTO user_authorities(user_id,authority) VALUES(?,'ROLE_ADMIN')",account(global));
         jdbc.update("INSERT INTO business_access_grants(user_id,grant_scope,role_code) VALUES(?,'ALL_BUSINESSES','ADMIN')",account(all));
-        assertThat(sources.createKnowledge(businessA,admin,KEY,"Title A <unsafe>",BODY)).isTrue();
-        assertThat(sources.createKnowledge(businessB,foreign,KEY,"Title B secret","PRIVATE_B_SECRET")).isTrue();
+        assertThat(sources.createKnowledge(businessA,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),KEY,"Title A <unsafe>",BODY)).isTrue();
+        assertThat(sources.createKnowledge(businessB,com.example.panel.support.AiControlIdentityFixture.login(jdbc,foreign),KEY,"Title B secret","PRIVATE_B_SECRET")).isTrue();
         sourceA=sources.find(businessA,admin,KNOWLEDGE,KEY).orElseThrow();
         sourceB=sources.find(businessB,foreign,KNOWLEDGE,KEY).orElseThrow();
         String raw=" private origin/Ю?% "+prefix;
@@ -284,7 +284,7 @@ class ScopedAiSourceHttpPostgresTest {
             boolean allowed=(Boolean)call.callRealMethod();
             if (mutation.equals("recreated")) {
                 jdbc.update("DELETE FROM ai_scoped_sources WHERE id=?",sourceA.id());
-                assertThat(sources.createKnowledge(businessA,admin,KEY,"Replacement","Replacement body")).isTrue();
+                assertThat(sources.createKnowledge(businessA,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),KEY,"Replacement","Replacement body")).isTrue();
             } else mutate(mutation);
             return allowed;
         }).when(sources).canConfigure(eq(businessA),eq(admin));
@@ -295,7 +295,7 @@ class ScopedAiSourceHttpPostgresTest {
 
     @Test
     void memoryCanBeReviewedButOriginChangeClosesExistingPageAndMutation() throws Exception {
-        assertThat(sources.createMemory(origin,admin,"memory","Memory title","Curated solution")).isTrue();
+        assertThat(sources.createMemory(origin,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),"memory","Memory title","Curated solution")).isTrue();
         Source memory=sources.find(businessA,admin,MEMORY,"memory").orElseThrow();
         mvc.perform(auth(edit(memory),admin)).andExpect(status().isOk())
             .andExpect(content().string(containsString("Решение из обращения")))
@@ -309,7 +309,7 @@ class ScopedAiSourceHttpPostgresTest {
 
     @Test
     void catalogPaginationAndFiltersKeepOneBusinessAndDoNotShowDraftBody() throws Exception {
-        for (int i=0;i<27;i++) assertThat(sources.createKnowledge(businessA,admin,"page-"+i,"Page title "+i,"Not catalog body")).isTrue();
+        for (int i=0;i<27;i++) assertThat(sources.createKnowledge(businessA,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),"page-"+i,"Page title "+i,"Not catalog body")).isTrue();
         var first=mvc.perform(auth(get(ROOT).param("businessId",Long.toString(businessA)).param("q","Page title"),viewer))
             .andExpect(status().isOk()).andReturn();
         String html=first.getResponse().getContentAsString();

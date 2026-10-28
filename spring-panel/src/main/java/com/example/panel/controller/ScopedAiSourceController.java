@@ -112,7 +112,7 @@ public class ScopedAiSourceController {
         selected(businessId,authentication);
         configure(businessId,authentication);
         validContent(key,title,body);
-        if (!sources.createKnowledge(businessId,actor(authentication),key,title,body)) conflict();
+        if (!sources.createKnowledge(businessId,authentication,key,title,body)) conflict();
         return redirect(businessId,Kind.KNOWLEDGE,key);
     }
 

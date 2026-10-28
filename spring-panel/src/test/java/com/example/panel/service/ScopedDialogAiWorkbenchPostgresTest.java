@@ -64,7 +64,7 @@ class ScopedDialogAiWorkbenchPostgresTest {
     private String key() { return UUID.randomUUID().toString(); }
     private boolean memory(String actor,String key) { return work.createMemory(scope,com.example.panel.support.AiControlIdentityFixture.auth(1,actor),key,40,41,qHash,aHash,"Resolved refund","curated without PII",true); }
     private void approved(long business,String actor,String key) {
-        assertThat(sources.createKnowledge(business,actor,key,"refund","refund approved")).isTrue();
+        assertThat(sources.createKnowledge(business,com.example.panel.support.AiControlIdentityFixture.login(jdbc,actor),key,"refund","refund approved")).isTrue();
         assertThat(sources.revise(business,actor,ScopedAiSourceService.Kind.KNOWLEDGE,key,1,"refund","refund approved",ScopedAiSourceService.Status.APPROVED)).isTrue();
     }
     @Test void fullCurationApprovalHandoffAndCurrentReferenceRead() {

@@ -24,7 +24,7 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R214 и runtime R207 имеют
+что production уже запускался. Эта оговорка, source-сводка R215 и runtime R207 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
@@ -56,6 +56,26 @@ inputs функционально совпали (620 EOL-only различий)
 завершён, но другие identity/child/GENERAL/policy/AI/fleet/flags/S6 gates остаются;
 Task 🟡, historical S2B исключён R190. Этот checkpoint приоритетнее source-only
 состояния среды R206 ниже.
+
+Source-уточнение R215 (create identity, без rollout):
+ScopedAiSourceService.createKnowledge/createMemory принимают bound Authentication;
+SQL INSERT требует session ID/exact raw name, current unique active account,
+active business/READ/ADMIN CONFIGURE, MEMORY origin tuple/collision denial.
+Source/create-event сохраняют numeric ID/raw name. String create overloads удалены;
+controller передаёт Authentication. DRAFT/revision1/content/key/idempotency/atomic
+audit rollback сохранены. Statement-time, без post-snapshot revocation guarantees.
+118 frozen new SQL/real-login cases: RED40/118, errors0; те же bytes GREEN.
+Итог344/7 selected suites GREEN, включая5 прежних fixtures. Setup v1 и его
+ошибка display_name сохранены; v2 чинит только test schema/lifecycle, assertions
+не менялись. 1346 cache inputs проверены; main/test compile, native PG16.15/fresh
+schemas/ignored R200 supplier. Test server остановлен; Docker/Testcontainers не
+запускались,83 migrations неизменны, Flyway только test schemas, JS не rerun.
+Source/test C:\Users\sushi\Git_H\tg_ref_b24_sup; рабочая машина/сессия другая:
+C:\Users\SinicinVV\git_h\tg_ref_b24_sup. Runtime R207/webR206/workerR198/foundation off,
+полные rollback/V83 blocks сохранены; deploy/restart/working migrations/flags нет.
+Нужен новый panel-web image, новых migrations нет. Source revise/read/configure/
+retrieval/handoff identity и child/GENERAL/policy/privacy/delivery/fleet/flags/S6
+gates открыты; Task🟡, historical S2B снят R190. UI/schema/policy неизменны.
 
 Source-уточнение R214 (test-only source HTTP fixture, без rollout):
 Source HTTP использует bound ID/exact raw name/DB page rights без request-time repair.

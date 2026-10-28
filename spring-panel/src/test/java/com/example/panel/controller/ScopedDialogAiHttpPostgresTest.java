@@ -44,7 +44,7 @@ class ScopedDialogAiHttpPostgresTest {
         String forged=switch(variant){case "prefix"->" "+admin;case "suffix"->admin+" ";case "tab"->"\t"+admin+"\t";default->" "+admin+" ";};
         long forgedId=account(forged);
         if(variant.equals("both"))jdbc.update("INSERT INTO business_memberships(user_id,business_id,role_code) VALUES(?,?,'ADMIN')",forgedId,other);
-        assertThat(sources.createKnowledge(business,admin,"principal-proof","refund","private refund knowledge")).isTrue();
+        assertThat(sources.createKnowledge(business,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),"principal-proof","refund","private refund knowledge")).isTrue();
         assertThat(sources.revise(business,admin,ScopedAiSourceService.Kind.KNOWLEDGE,"principal-proof",1,"refund","private refund knowledge",ScopedAiSourceService.Status.APPROVED)).isTrue();
         assertThat(knowledge.record(scope,"refund")).isTrue();
         mvc.perform(auth(get(root),forged,true)).andExpect(status().isNotFound());
@@ -227,7 +227,7 @@ class ScopedDialogAiHttpPostgresTest {
         mvc.perform(auth(control(""),admin,true).with(csrf())).andExpect(status().isNotFound());
     }
     @Test void approvedReferencesAppearButNotAfterRevisionOrArchive() throws Exception {
-        assertThat(sources.createKnowledge(business,admin,"proof","Approved <material>","refund")).isTrue();
+        assertThat(sources.createKnowledge(business,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),"proof","Approved <material>","refund")).isTrue();
         assertThat(sources.revise(business,admin,ScopedAiSourceService.Kind.KNOWLEDGE,"proof",1,"Approved <material>","refund",ScopedAiSourceService.Status.APPROVED)).isTrue();
         assertThat(knowledge.record(scope,"refund")).isTrue();
         mvc.perform(auth(get(root),admin,true)).andExpect(status().isOk()).andExpect(content().string(containsString("Approved &lt;material&gt;")));

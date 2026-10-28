@@ -35,6 +35,12 @@ public final class AiControlIdentityFixture {
         jdbc.update("INSERT INTO ticket_ai_scoped_control(ticket_user_id,ticket_id,ticket_public_id,ticket_scope_kind,ticket_business_id,ai_disabled,auto_reply_blocked,reason,updated_by_user_id,updated_by,updated_at) VALUES(42,?,?,'BUSINESS',11,FALSE,FALSE,'earlier',99,'earlier actor','2000-01-01T00:00:00Z')",RAW,PUBLIC);
         return jdbc.queryForObject("SELECT updated_at FROM ticket_ai_scoped_control",String.class);
     }
+    /** Models initial login only: unique case-insensitive lookup, stored raw name, no account/grant repair. */
+    public static Authentication login(JdbcTemplate jdbc,String supplied){
+        var rows=jdbc.queryForList("SELECT id,username FROM users WHERE lower(username)=lower(?) LIMIT 2",supplied);
+        return rows.size()==1?auth(((Number)rows.get(0).get("id")).longValue(),(String)rows.get(0).get("username"))
+            :UsernamePasswordAuthenticationToken.authenticated(supplied==null?"":supplied,null,List.of());
+    }
     public static Authentication auth(long id,String name){return UsernamePasswordAuthenticationToken.authenticated(new PanelUserPrincipal(id,name,"unused",true,List.of()),null,List.of());}
     public static Map<String,List<Map<String,Object>>> snapshot(JdbcTemplate jdbc){
         var result=new LinkedHashMap<String,List<Map<String,Object>>>();for(String table:List.of("tickets","ticket_ai_scoped_control","ticket_ai_scoped_state","ticket_ai_scoped_events"))result.put(table,jdbc.queryForList("SELECT * FROM "+table+" ORDER BY 1,2"));return result;

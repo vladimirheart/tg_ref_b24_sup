@@ -3,6 +3,9 @@ package com.example.panel.service;
 import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.repository.NotificationBusinessAccessSql;
 import com.example.panel.repository.ScopedAiSql;
+import com.example.panel.security.PanelUserPrincipal;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
@@ -55,20 +58,22 @@ public class ScopedAiSourceService {
         this.flags=flags;
     }
 
-    public boolean createKnowledge(Long businessId,String identity,String key,String title,String body) {
-        return create(businessId,identity,Kind.KNOWLEDGE,key,title,body,null);
+    public boolean createKnowledge(Long businessId,Authentication authentication,String key,String title,String body) {
+        return create(businessId,authentication,Kind.KNOWLEDGE,key,title,body,null);
     }
 
     /** Manually curated memory with a proven origin; this does not learn from legacy raw history. */
-    public boolean createMemory(UiEventTicketScope origin,String identity,String key,String title,String body) {
+    public boolean createMemory(UiEventTicketScope origin,Authentication authentication,String key,String title,String body) {
         if (!validScope(origin)) return false;
-        return create(origin.businessId(),identity,Kind.MEMORY,key,title,body,origin);
+        return create(origin.businessId(),authentication,Kind.MEMORY,key,title,body,origin);
     }
 
-    private boolean create(Long businessId,String identity,Kind kind,String key,String title,String body,UiEventTicketScope origin) {
-        if (!validActor(businessId,identity) || !validContent(key,title,body)) return false;
-        var args=parameters(businessId,identity,kind,key).addValue("title",title.trim(),Types.VARCHAR)
-            .addValue("body",body.trim(),Types.VARCHAR);
+    private boolean create(Long businessId,Authentication authentication,Kind kind,String key,String title,String body,UiEventTicketScope origin) {
+        var account=boundCreateActor(authentication);
+        if (account==null || !validActor(businessId,account.getUsername()) || !validContent(key,title,body)) return false;
+        var args=parameters(businessId,account.getUsername(),kind,key).addValue("title",title.trim(),Types.VARCHAR)
+            .addValue("body",body.trim(),Types.VARCHAR)
+            .addValue("actorId",account.getUserId(),Types.BIGINT).addValue("actorName",account.getUsername(),Types.VARCHAR);
         String from=" FROM (SELECT CAST(:businessId AS BIGINT) AS business_id) owner";
         String originValues="NULL,NULL,NULL,NULL,NULL";
         String proof="TRUE";
@@ -80,7 +85,7 @@ public class ScopedAiSourceService {
         }
         String sql="WITH changed AS (INSERT INTO ai_scoped_sources(business_id,source_kind,source_key,title,body,status,revision,"
             +ORIGIN_COLUMNS+",updated_by_user_id,updated_by) SELECT owner.business_id,:kind,:key,:title,:body,'DRAFT',1,"
-            +originValues+",actor.id,n.user_identity"+from+ACTOR+" JOIN users actor ON lower(actor.username)=n.user_identity WHERE "
+            +originValues+",actor.id,actor.username"+from+ACTOR+" JOIN users actor ON actor.id=:actorId AND actor.username=:actorName WHERE "
             +proof+READ+CONFIGURE+" ON CONFLICT (business_id,source_kind,source_key) DO NOTHING RETURNING *)"
             +auditInsert("create");
         return write(sql,args);
@@ -235,6 +240,14 @@ public class ScopedAiSourceService {
             rs.getLong("origin_ticket_business_id")) : null;
         return new Source(rs.getLong("id"),rs.getLong("business_id"),kind,rs.getString("source_key"),rs.getString("title"),
             rs.getString("body"),Status.valueOf(rs.getString("status")),rs.getLong("revision"),origin);
+    }
+
+    private PanelUserPrincipal boundCreateActor(Authentication authentication) {
+        if(authentication==null || !authentication.isAuthenticated() || authentication instanceof AnonymousAuthenticationToken
+            || !(authentication.getPrincipal() instanceof PanelUserPrincipal account) || account.getUserId()<=0
+            || account.getUsername().isBlank() || !account.isEnabled() || !account.isAccountNonLocked()
+            || !account.isAccountNonExpired() || !account.isCredentialsNonExpired()) return null;
+        return account;
     }
 
     private boolean validActor(Long businessId,String identity) {
