@@ -24,7 +24,7 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R213 и runtime R207 имеют
+что production уже запускался. Эта оговорка, source-сводка R214 и runtime R207 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
@@ -56,6 +56,25 @@ inputs функционально совпали (620 EOL-only различий)
 завершён, но другие identity/child/GENERAL/policy/AI/fleet/flags/S6 gates остаются;
 Task 🟡, historical S2B исключён R190. Этот checkpoint приоритетнее source-only
 состояния среды R206 ниже.
+
+Source-уточнение R214 (test-only source HTTP fixture, без rollout):
+Source HTTP использует bound ID/exact raw name/DB page rights без request-time repair.
+30 old case names сохранены; missing/disabled/blocked→302/login по R189, прежние
+business403/late SQL409/CSRF/CAS/privacy/opaque-key/escaping/origin checks сохранены.
+13 new cases:6 prepared account revoke/reuse,4 invalid principals,2 page revoke,
+1 actual JDBC SESSION/CSRF create/review/reload/revoke/logout. 75/2 suites GREEN
+(Source43+Session32); baseline30/30/0 после только datasource isolation, old auth/
+test methods/assertions неизменны тогда. Product/main/UI/schema/policy неизменны.
+Fixture имеет fresh schema/current-schema guard; прежние base mocks/properties
+сохранены. Tracked helper/base неизменны; native PG16.15/ignored R200 supplier,
+server остановлен. Docker/Testcontainers не запускались;83 migrations неизменны,
+Flyway только test schemas. JS не rerun, старые R213 evidence не считаются новым run.
+Source/test C:\Users\sushi\Git_H\tg_ref_b24_sup; рабочая машина/сессия другая:
+C:\Users\SinicinVV\git_h\tg_ref_b24_sup. Последний runtime R207/webR206/workerR198/
+foundation off и полные rollback/V83 blocks сохранены; deploy/restart/working
+migrations/flags не выполнялись. R214 не требует нового restart/build; прежние
+product changes этим test-only шагом не развёрнуты. Source SQL identity и прочие
+child/GENERAL/policy/privacy/delivery/fleet/flags/S6 gates открыты; Task🟡, S2B снят R190.
 
 Source-уточнение R213 (внутренний non-CAS control, без rollout):
 setControl получает bound Authentication; positive ID/raw name/status и SQL
