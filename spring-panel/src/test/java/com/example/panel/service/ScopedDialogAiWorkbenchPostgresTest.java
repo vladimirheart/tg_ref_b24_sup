@@ -68,9 +68,9 @@ class ScopedDialogAiWorkbenchPostgresTest {
         assertThat(sources.revise(business,actor,ScopedAiSourceService.Kind.KNOWLEDGE,key,1,"refund","refund approved",ScopedAiSourceService.Status.APPROVED)).isTrue();
     }
     @Test void fullCurationApprovalHandoffAndCurrentReferenceRead() {
-        assertThat(work.resolve(scope.ticketPublicId(),"admin")).contains(scope);
-        assertThat(work.resolve(scope.ticketPublicId(),"foreign")).isEmpty();
-        assertThat(work.messages(scope,"admin")).extracting(ScopedDialogAiWorkbenchService.Message::id).containsExactly(41L,40L);
+        assertThat(work.resolve(scope.ticketPublicId(),boundControlActor())).contains(scope);
+        assertThat(work.resolve(scope.ticketPublicId(),com.example.panel.support.AiControlIdentityFixture.auth(2,"foreign"))).isEmpty();
+        assertThat(work.messages(scope,boundControlActor())).extracting(ScopedDialogAiWorkbenchService.Message::id).containsExactly(41L,40L);
         String k=key();
         assertThat(memory("admin",k)).isTrue();
         var draft=sources.find(1L,"admin",ScopedAiSourceService.Kind.MEMORY,k).orElseThrow();
@@ -98,7 +98,7 @@ class ScopedDialogAiWorkbenchPostgresTest {
         if (grant.equals("membership")) jdbc.update("INSERT INTO business_memberships VALUES(1,1,?,TRUE)",role);
         else jdbc.update("INSERT INTO business_access_grants VALUES(1,'ALL_BUSINESSES',?,TRUE)",role);
         boolean read=!role.equals("UNKNOWN"),operate=read&&!role.equals("VIEWER"),configure=role.equals("ADMIN");
-        assertThat(work.resolve(scope.ticketPublicId(),"admin").isPresent()).isEqualTo(read);
+        assertThat(work.resolve(scope.ticketPublicId(),boundControlActor()).isPresent()).isEqualTo(read);
         assertThat(persistence.canOperate(scope,"admin")).isEqualTo(operate);
         assertThat(memory("admin",key())).isEqualTo(configure);
         assertThat(persistence.setControlExpected(scope,boundControlActor(),"",false,true,"reason")).isEqualTo(operate);
@@ -139,7 +139,7 @@ class ScopedDialogAiWorkbenchPostgresTest {
         }
         assertThat(memory("admin",key())).isFalse();
         assertThat(persistence.setControlExpected(scope,boundControlActor(),"",true,true,"reason")).isFalse();
-        assertThat(work.messages(scope,"admin")).isEmpty();
+        assertThat(work.messages(scope,boundControlActor())).isEmpty();
     }
     @Test void controlCasAndAuditAreAtomicAndNeverEnableAutoReply() {
         assertThat(persistence.setControlExpected(scope,boundControlActor(),"",true,true,"pause")).isTrue();

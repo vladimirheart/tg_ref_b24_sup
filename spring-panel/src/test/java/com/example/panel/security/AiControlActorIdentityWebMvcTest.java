@@ -67,7 +67,7 @@ class AiControlActorIdentityWebMvcTest {
     @ParameterizedTest @MethodSource("changes")
     void aChangedAccountAfterRefreshCannotTakeOverEitherControlBranch(String change,boolean present)throws Exception{
         String stamp=present?existing(jdbc):"";var session=login();var before=snapshot(jdbc);var fired=new java.util.concurrent.atomic.AtomicBoolean();
-        doAnswer(call->{Object result=call.callRealMethod();if(fired.compareAndSet(false,true))replace(jdbc,change);return result;}).when(workbench).resolve(PUBLIC,"caller");
+        doAnswer(call->{Object result=call.callRealMethod();if(fired.compareAndSet(false,true))replace(jdbc,change);return result;}).when(workbench).resolve(eq(PUBLIC),org.mockito.ArgumentMatchers.<org.springframework.security.core.Authentication>argThat(a->a!=null && a.getPrincipal() instanceof PanelUserPrincipal p && p.getUserId()==7 && p.getUsername().equals("caller")));
         mvc.perform(command(stamp).session(session).cookie(csrfCookie).param("_csrf",csrfValue)).andExpect(status().isConflict());assertThat(fired).isTrue();assertThat(snapshot(jdbc)).isEqualTo(before);
     }
     @ParameterizedTest @ValueSource(booleans={false,true})

@@ -193,7 +193,7 @@ class ScopedDialogAiHttpPostgresTest {
         mvc.perform(auth(get(root),actor,true)).andExpect(denied);
         mvc.perform(auth(memory(UUID.randomUUID().toString()),actor,true).with(csrf())).andExpect(denied);
         if(state.equals("blocked")) {
-            org.mockito.Mockito.verify(work,org.mockito.Mockito.never()).resolve(eq(publicId),anyString());
+            org.mockito.Mockito.verify(work,org.mockito.Mockito.never()).resolve(eq(publicId),org.mockito.ArgumentMatchers.<org.springframework.security.core.Authentication>any());
             assertNoDialogWrites();
         }
     }
@@ -252,7 +252,7 @@ class ScopedDialogAiHttpPostgresTest {
         mvc.perform(read).andExpect(redirectedUrl("http://localhost/login"));
         mvc.perform(control).andExpect(redirectedUrl("http://localhost/login"));
         mvc.perform(memory).andExpect(redirectedUrl("http://localhost/login"));
-        org.mockito.Mockito.verify(work,org.mockito.Mockito.never()).resolve(eq(publicId),anyString());
+        org.mockito.Mockito.verify(work,org.mockito.Mockito.never()).resolve(eq(publicId),org.mockito.ArgumentMatchers.<org.springframework.security.core.Authentication>any());
         assertNoDialogWrites();
         if(change.endsWith("reuse"))mvc.perform(auth(get(root),admin,true)).andExpect(status().isOk());
     }
@@ -266,7 +266,7 @@ class ScopedDialogAiHttpPostgresTest {
         mvc.perform(get(root).with(identity)).andExpect(redirectedUrl("http://localhost/login"));
         mvc.perform(control("").with(identity).with(csrf())).andExpect(redirectedUrl("http://localhost/login"));
         mvc.perform(memory(UUID.randomUUID().toString()).with(identity).with(csrf())).andExpect(redirectedUrl("http://localhost/login"));
-        org.mockito.Mockito.verify(work,org.mockito.Mockito.never()).resolve(eq(publicId),anyString());
+        org.mockito.Mockito.verify(work,org.mockito.Mockito.never()).resolve(eq(publicId),org.mockito.ArgumentMatchers.<org.springframework.security.core.Authentication>any());
         assertNoDialogWrites();
     }
     @ParameterizedTest @ValueSource(strings={"PAGE_DIALOGS","PAGE_KNOWLEDGE_BASE"})
@@ -279,7 +279,7 @@ class ScopedDialogAiHttpPostgresTest {
         if(authority.equals("PAGE_DIALOGS")) {
             mvc.perform(read).andExpect(status().isForbidden());
             mvc.perform(control).andExpect(status().isForbidden());
-            org.mockito.Mockito.verify(work,org.mockito.Mockito.never()).resolve(eq(publicId),anyString());
+            org.mockito.Mockito.verify(work,org.mockito.Mockito.never()).resolve(eq(publicId),org.mockito.ArgumentMatchers.<org.springframework.security.core.Authentication>any());
             assertNoDialogWrites();
         } else {
             mvc.perform(read).andExpect(status().isOk()).andExpect(content().string(not(containsString("data-memory-curation"))));

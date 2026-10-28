@@ -2,6 +2,9 @@ package com.example.panel.service;
 
 import com.example.panel.repository.NotificationBusinessAccessSql;
 import com.example.panel.repository.ScopedAiSql;
+import com.example.panel.security.PanelUserPrincipal;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import java.sql.Types;
 import java.util.List;
 import java.util.Locale;
@@ -16,6 +19,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class ScopedDialogAiWorkbenchService {
     private static final String ACTOR=" CROSS JOIN (SELECT CAST(:identity AS TEXT) AS user_identity) n ";
+    private static final String READ_ACTOR=ACTOR+" JOIN users actor ON actor.id=:actorId AND actor.username=:actorName ";
     private static final String READ=" AND ("+NotificationBusinessAccessSql.CAN_READ_OWNER_BUSINESS+")";
     private static final String CONFIGURE="""
         AND (EXISTS(SELECT 1 FROM business_memberships m WHERE m.user_id=actor.id
@@ -33,23 +37,28 @@ public class ScopedDialogAiWorkbenchService {
     private final NamedParameterJdbcTemplate jdbc;
     public ScopedDialogAiWorkbenchService(JdbcTemplate jdbc) { this.jdbc=new NamedParameterJdbcTemplate(jdbc); }
 
-    public Optional<UiEventTicketScope> resolve(String publicId,String identity) {
-        if (publicId==null || !publicId.matches("[0-9a-f]{32}") || identity==null || identity.isBlank()) return Optional.empty();
+    public Optional<UiEventTicketScope> resolve(String publicId,Authentication authentication) {
+        var account=boundReader(authentication);
+        if (account==null || publicId==null || !publicId.matches("[0-9a-f]{32}")) return Optional.empty();
+        String identity=account.getUsername();
         try {
-            var rows=jdbc.query("SELECT owner.* FROM tickets owner"+ACTOR
+            var rows=jdbc.query("SELECT owner.* FROM tickets owner"+READ_ACTOR
                 +" WHERE owner.ticket_public_id=:publicId AND owner.business_id IS NOT NULL AND owner.is_general=FALSE"
                 +" AND 1=(SELECT COUNT(*) FROM tickets c WHERE c.ticket_id=owner.ticket_id)"+READ,
-                new MapSqlParameterSource("publicId",publicId).addValue("identity",identity.toLowerCase(Locale.ROOT)),
+                new MapSqlParameterSource("publicId",publicId).addValue("identity",identity.toLowerCase(Locale.ROOT))
+                    .addValue("actorId",account.getUserId(),Types.BIGINT).addValue("actorName",identity,Types.VARCHAR),
                 (rs,row)->new UiEventTicketScope(rs.getLong("user_id"),rs.getString("ticket_id"),rs.getString("ticket_public_id"),"BUSINESS",rs.getLong("business_id")));
             return rows.size()==1 ? Optional.of(rows.get(0)) : Optional.empty();
         } catch (DataAccessException ex) { return Optional.empty(); }
     }
-    public List<Message> messages(UiEventTicketScope scope,String identity) {
-        if (!valid(scope,identity)) return List.of();
+    public List<Message> messages(UiEventTicketScope scope,Authentication authentication) {
+        var account=boundReader(authentication);
+        if (account==null || !valid(scope,account.getUsername())) return List.of();
         String sql="SELECT history.id,history.sender,LEFT(history.message,1000) AS preview,encode(sha256(convert_to(history.message,'UTF8')),'hex') AS fingerprint"
-            +" FROM tickets owner"+ACTOR+" JOIN chat_history history ON "+TEXT_HISTORY
+            +" FROM tickets owner"+READ_ACTOR+" JOIN chat_history history ON "+TEXT_HISTORY
             +" WHERE "+ScopedAiSql.CURRENT_OWNER+READ+" ORDER BY history.id DESC LIMIT 50";
-        try { return jdbc.query(sql,args(scope,identity),(rs,row)->new Message(rs.getLong("id"),rs.getString("sender"),
+        try { return jdbc.query(sql,args(scope,account.getUsername())
+            .addValue("actorId",account.getUserId(),Types.BIGINT).addValue("actorName",account.getUsername(),Types.VARCHAR),(rs,row)->new Message(rs.getLong("id"),rs.getString("sender"),
             rs.getString("preview"),rs.getString("fingerprint"))); }
         catch (DataAccessException ex) { return List.of(); }
     }
@@ -86,6 +95,13 @@ public class ScopedDialogAiWorkbenchService {
             .addValue("body",body.trim(),Types.VARCHAR).addValue("question",question,Types.BIGINT).addValue("answer",answer,Types.BIGINT)
             .addValue("questionHash",questionHash,Types.VARCHAR).addValue("answerHash",answerHash,Types.VARCHAR);
         try { return jdbc.update(sql,parameters)==1; } catch (DataAccessException ex) { return false; }
+    }
+    private PanelUserPrincipal boundReader(Authentication authentication) {
+        if(authentication==null || !authentication.isAuthenticated() || authentication instanceof AnonymousAuthenticationToken
+            || !(authentication.getPrincipal() instanceof PanelUserPrincipal account) || account.getUserId()<=0
+            || account.getUsername().isBlank() || !account.isEnabled() || !account.isAccountNonLocked()
+            || !account.isAccountNonExpired() || !account.isCredentialsNonExpired()) return null;
+        return account;
     }
     private boolean valid(UiEventTicketScope s,String a) {
         return s!=null && s.isValid() && "BUSINESS".equals(s.scopeKind()) && a!=null && !a.isBlank();

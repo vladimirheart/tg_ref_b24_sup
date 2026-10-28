@@ -102,8 +102,8 @@ class ScopedPrincipalIdentityPostgresTest {
             check.assertThat(participants.members(scope,assignmentAuthentication(actor))).as("participants").isEmpty();
             check.assertThat(participants.candidates(scope,assignmentAuthentication(actor))).as("participant candidates").isEmpty();
             check.assertThat(participants.recent(scope,assignmentAuthentication(actor))).as("participant history").isEmpty();
-            check.assertThat(workbench.resolve(PUBLIC,actor)).as("AI owner").isEmpty();
-            check.assertThat(workbench.messages(scope,actor)).as("curation messages").isEmpty();
+            check.assertThat(workbench.resolve(PUBLIC,assignmentAuthentication(actor))).as("AI owner").isEmpty();
+            check.assertThat(workbench.messages(scope,assignmentAuthentication(actor))).as("curation messages").isEmpty();
             check.assertThat(persistence.canOperate(scope,actor)).as("AI OPERATE").isFalse();
             check.assertThat(persistence.findControl(scope,actor)).as("AI controls").isEmpty();
             check.assertThat(persistence.findState(scope,actor)).as("AI state").isEmpty();
@@ -143,7 +143,7 @@ class ScopedPrincipalIdentityPostgresTest {
     @ParameterizedTest @ValueSource(strings={"ADMIN","AdMiN"})
     void caseInsensitiveCanonicalAccountKeepsItsOwnReadAndWriteRights(String actor) {
         assertThat(assignments.find(PUBLIC,assignmentAuthentication(actor))).isPresent();assertThat(participants.members(scope,assignmentAuthentication(actor))).hasSize(1);
-        assertThat(workbench.resolve(PUBLIC,actor)).contains(scope);assertThat(workbench.messages(scope,actor)).hasSize(2);
+        assertThat(workbench.resolve(PUBLIC,assignmentAuthentication(actor))).contains(scope);assertThat(workbench.messages(scope,assignmentAuthentication(actor))).hasSize(2);
         assertThat(persistence.canOperate(scope,actor)).isTrue();assertThat(sources.find(11L,actor,KNOWLEDGE,"proof")).isPresent();
         assertThat(handoff.candidates(scope,actor)).hasSize(1);
         assertThat(assignments.change(scope,assignmentAuthentication(actor),1,null,true)).isTrue();
@@ -155,7 +155,7 @@ class ScopedPrincipalIdentityPostgresTest {
     }
     @Test void literalSpacedAccountKeepsOnlyItsOwnBusinessAndNumericAuditIdentity() {
         String actor=" ADMIN ";
-        assertThat(assignments.find(OTHER,assignmentAuthentication(actor))).isPresent();assertThat(workbench.resolve(OTHER,actor)).contains(other);
+        assertThat(assignments.find(OTHER,assignmentAuthentication(actor))).isPresent();assertThat(workbench.resolve(OTHER,assignmentAuthentication(actor))).contains(other);
         deniedReads(actor);
         assertThat(assignments.change(other,assignmentAuthentication(actor),0,null,true)).isTrue();
         assertThat(participants.change(other,assignmentAuthentication(actor),0,3L,true)).isTrue();
@@ -168,7 +168,7 @@ class ScopedPrincipalIdentityPostgresTest {
             .containsEntry("actor_user_id",6L).containsEntry("assignee_user_id",6L).containsEntry("actor"," admin ");
         assertThat(jdbc.queryForMap("SELECT updated_by_user_id,updated_by FROM ai_scoped_sources WHERE business_id=22 AND source_kind='KNOWLEDGE'"))
             .containsEntry("updated_by_user_id",6L).containsEntry("updated_by"," admin ");
-        assertThat(workbench.resolve(OTHER,"admin")).isEmpty();
+        assertThat(workbench.resolve(OTHER,assignmentAuthentication("admin"))).isEmpty();
     }
     @ParameterizedTest @ValueSource(strings={"disabled","blocked","revoked","duplicate","archived"})
     void exactPrincipalStillNeedsCurrentUniqueEnabledAccountAndBusinessRights(String change) {
@@ -184,7 +184,7 @@ class ScopedPrincipalIdentityPostgresTest {
     @Test void missingCanonicalSchemaDoesNotCreateAliasesOrFallbackAuthority() {
         jdbc.execute("DROP TABLE business_memberships");
         assertThat(assignments.find(PUBLIC,assignmentAuthentication("admin"))).isEmpty();assertThat(participants.members(scope,assignmentAuthentication("admin"))).isEmpty();
-        assertThat(workbench.resolve(PUBLIC,"admin")).isEmpty();assertThat(persistence.canOperate(scope,"admin")).isFalse();
+        assertThat(workbench.resolve(PUBLIC,assignmentAuthentication("admin"))).isEmpty();assertThat(persistence.canOperate(scope,"admin")).isFalse();
         assertThat(sources.find(11L,"admin",KNOWLEDGE,"proof")).isEmpty();assertThat(handoff.candidates(scope,"admin")).isEmpty();
     }
 }

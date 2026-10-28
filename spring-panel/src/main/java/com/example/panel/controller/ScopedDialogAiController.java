@@ -43,7 +43,7 @@ public class ScopedDialogAiController {
         boolean library=auth.getAuthorities().stream().anyMatch(a->a.getAuthority().equals("PAGE_KNOWLEDGE_BASE"));
         model.addAttribute("library",library);
         model.addAttribute("canCurate",library && sources.canConfigure(scope.businessId(),auth.getName()));
-        model.addAttribute("messages",library ? workbench.messages(scope,auth.getName()) : java.util.List.of());
+        model.addAttribute("messages",library ? workbench.messages(scope,auth) : java.util.List.of());
         model.addAttribute("candidates",library ? knowledge.candidates(scope,auth.getName()) : java.util.List.of());
         model.addAttribute("sourceKey",UUID.randomUUID().toString());
         navigation.enrich(model,auth);
@@ -75,7 +75,7 @@ public class ScopedDialogAiController {
         response.setHeader("Cache-Control","no-store");
         if (!flags.isFoundationEnabled() || !flags.isUiSelector()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         if (auth==null || !auth.isAuthenticated()) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-        var s=workbench.resolve(id,auth.getName()).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND));
+        var s=workbench.resolve(id,auth).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND));
         if (expectedBusiness!=null && !expectedBusiness.equals(s.businessId())) conflict();
         return s;
     }

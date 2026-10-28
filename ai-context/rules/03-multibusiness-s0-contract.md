@@ -24,7 +24,7 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R209 и runtime R207 имеют
+что production уже запускался. Эта оговорка, source-сводка R210 и runtime R207 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
@@ -56,6 +56,25 @@ inputs функционально совпали (620 EOL-only различий)
 завершён, но другие identity/child/GENERAL/policy/AI/fleet/flags/S6 gates остаются;
 Task 🟡, historical S2B исключён R190. Этот checkpoint приоритетнее source-only
 состояния среды R206 ниже.
+
+Source-уточнение R210 (две AI read API, без rollout):
+Workbench resolve/messages получают bound Authentication, positive ID/exact raw
+username/status; SQL actor JOIN связан с обоими полями. String-only read overloads
+удалены; current READ/ambiguity/account/business/grants, canonical locator/full
+messages owner tuple, collision denial, text filters/preview/fingerprint/order/
+limit50 и PAGE_DIALOGS/KB/flags/private404 сохранены. Statement-time, не atomic
+whole-page revocation. Persistence reads/non-CAS/MEMORY/source/handoff остаются
+отдельными String boundaries; MEMORY writer и persistence service не менялись.
+249/7 suites +15 JS GREEN; frozen80 SQL+19 real-login HTTP RED99/32/0,
+те же bytes GREEN. Четыре прежних fixture assertions сохранены; R20935/R20817/
+R18932/workbench47/ScopedPrincipal19 включены. Native PG16.15, fresh test schemas,
+ignored R200 supplier, JIT off only own process; server остановлен. Docker/
+Testcontainers не запускались;83 migrations неизменны. Source/test здесь:
+C:\Users\sushi\Git_H\tg_ref_b24_sup; рабочая машина/сессия другая:
+C:\Users\SinicinVV\git_h\tg_ref_b24_sup. Runtime R207/webR206/workerR198/foundation
+off, checkpoints/rollback/V83 backups сохранены. Remote/build/restart/deploy/working
+migrations/flags не выполнялись. Нужна новая panel-web сборка; migrations нет.
+Task🟡, historical S2B снят R190; прочие identity/GENERAL/policy/fleet/S6 gates открыты.
 
 Source-уточнение R209 (test-only, без нового rollout):
 Долг прежней AI HTTP fixture закрыт:35 cases (22 прежних+13 новых),17 R208 HTTP,
