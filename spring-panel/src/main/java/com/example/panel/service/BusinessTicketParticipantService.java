@@ -3,6 +3,9 @@ package com.example.panel.service;
 import static com.example.panel.service.BusinessTicketAssignmentService.*;
 import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.repository.NotificationBusinessAccessSql;
+import com.example.panel.security.PanelUserPrincipal;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import com.example.panel.service.integration.LegacyTicketIdConcurrencyGuard;
 import java.sql.Types;
 import java.time.OffsetDateTime;
@@ -18,6 +21,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 /** New scoped roster. Membership never grants business access, changes assignment or invokes legacy callbacks. */
 @Service
 public class BusinessTicketParticipantService {
+    private static final String AUTHENTICATED_ACTOR=" CROSS JOIN (SELECT CAST(:identity AS TEXT) AS user_identity) n "
+        +" JOIN users actor ON actor.id=:authenticatedActorId AND actor.username=:authenticatedActorName ";
     private static final String TUPLE=" ROW(entry.ticket_user_id,entry.ticket_id,entry.ticket_public_id,entry.business_id)"
         +"=ROW(owner.user_id,owner.ticket_id,owner.ticket_public_id,owner.business_id) ";
     private static final String REVISION=" (SELECT COALESCE(max(entry.revision),0) FROM business_ticket_participant_events entry WHERE "+TUPLE+") ";
@@ -69,10 +74,13 @@ public class BusinessTicketParticipantService {
                 rs.getString("actor"),rs.getString("action"),rs.getObject("created_at",OffsetDateTime.class)));
         }catch(DataAccessException ex){return List.of();}
     }
-    public boolean change(UiEventTicketScope scope,String identity,long expectedRevision,Long memberId,boolean add) {
-        if(!valid(scope,identity)||expectedRevision<0||expectedRevision==Long.MAX_VALUE||memberId==null||memberId<=0)return false;
-        var params=args(scope,identity).addValue("revision",expectedRevision).addValue("memberId",memberId);
-        String rootFrom=" FROM tickets owner"+ACTOR+" JOIN businesses business ON business.id=owner.business_id"
+    public boolean change(UiEventTicketScope scope,Authentication authentication,long expectedRevision,Long memberId,boolean add) {
+        var account=boundActor(authentication);
+        if(account==null||!valid(scope,account.getUsername())||expectedRevision<0||expectedRevision==Long.MAX_VALUE||memberId==null||memberId<=0)return false;
+        String identity=account.getUsername();
+        var params=args(scope,identity).addValue("revision",expectedRevision).addValue("memberId",memberId)
+            .addValue("authenticatedActorId",account.getUserId()).addValue("authenticatedActorName",identity);
+        String rootFrom=" FROM tickets owner"+AUTHENTICATED_ACTOR+" JOIN businesses business ON business.id=owner.business_id"
             +" WHERE "+OWNER+READ+" AND "+OPEN+" AND "+OPERATOR;
         try{return Boolean.TRUE.equals(transaction.execute(tx->{
             guard.acquire(scope.ticketId());
@@ -93,13 +101,13 @@ public class BusinessTicketParticipantService {
             if(!valid(scope,identity)||revisions.size()!=1||revisions.get(0)!=expectedRevision)return false;
             List<String> names;
             if(add) {
-                names=jdbc.query("SELECT candidate.username FROM tickets owner"+ACTOR+" JOIN users candidate ON candidate.id=:memberId"
+                names=jdbc.query("SELECT candidate.username FROM tickets owner"+AUTHENTICATED_ACTOR+" JOIN users candidate ON candidate.id=:memberId"
                     +" WHERE "+OWNER+READ+" AND "+OPEN+" AND "+OPERATOR+" AND "+MEMBER_READ
                     +" AND (SELECT count(*) FROM business_ticket_participants entry WHERE "+TUPLE+")<200"
                     +" FOR SHARE OF candidate",params,(rs,row)->rs.getString(1));
             }else{
                 // Removal must remain possible after member disable/revocation/deletion.
-                names=jdbc.query("SELECT entry.member FROM tickets owner"+ACTOR+" JOIN business_ticket_participants entry ON "+TUPLE
+                names=jdbc.query("SELECT entry.member FROM tickets owner"+AUTHENTICATED_ACTOR+" JOIN business_ticket_participants entry ON "+TUPLE
                     +" WHERE "+OWNER+READ+" AND "+OPEN+" AND "+OPERATOR+" AND entry.member_user_id=:memberId",
                     params,(rs,row)->rs.getString(1));
             }
@@ -108,11 +116,11 @@ public class BusinessTicketParticipantService {
             int changed=add?jdbc.update("INSERT INTO business_ticket_participants(ticket_user_id,ticket_id,ticket_public_id,business_id,"
                     +"member_user_id,member,actor_user_id,actor,revision)"
                     +" SELECT owner.user_id,owner.ticket_id,owner.ticket_public_id,owner.business_id,candidate.id,candidate.username,actor.id,actor.username,:next"
-                    +" FROM tickets owner"+ACTOR+" JOIN users candidate ON candidate.id=:memberId"
+                    +" FROM tickets owner"+AUTHENTICATED_ACTOR+" JOIN users candidate ON candidate.id=:memberId"
                     +" WHERE "+OWNER+READ+" AND "+OPEN+" AND "+OPERATOR+" AND "+MEMBER_READ+" AND "+REVISION+"=:revision"
                     +" AND (SELECT count(*) FROM business_ticket_participants entry WHERE "+TUPLE+")<200"
                     +" ON CONFLICT DO NOTHING",params)
-                :jdbc.update("DELETE FROM business_ticket_participants entry USING tickets owner"+ACTOR+" WHERE "+TUPLE
+                :jdbc.update("DELETE FROM business_ticket_participants entry USING tickets owner"+AUTHENTICATED_ACTOR+" WHERE "+TUPLE
                     +" AND "+OWNER+READ+" AND "+OPEN+" AND "+OPERATOR+" AND "+REVISION+"=:revision AND entry.member_user_id=:memberId",params);
             if(changed!=1)return false;
             jdbc.update("INSERT INTO business_ticket_participant_events(ticket_user_id,ticket_id,ticket_public_id,business_id,revision,"
@@ -123,6 +131,13 @@ public class BusinessTicketParticipantService {
                 params.addValue("eventId",ids.nextEventId()).addValue("channel",root.channel(),Types.BIGINT));
             return true;
         }));}catch(DataAccessException|IllegalStateException ex){return false;}
+    }
+    private PanelUserPrincipal boundActor(Authentication authentication){
+        if(authentication==null||!authentication.isAuthenticated()||authentication instanceof AnonymousAuthenticationToken
+            ||!(authentication.getPrincipal() instanceof PanelUserPrincipal account)||account.getUserId()<=0
+            ||account.getUsername().isBlank()||!account.isEnabled()||!account.isAccountNonLocked()
+            ||!account.isAccountNonExpired()||!account.isCredentialsNonExpired())return null;
+        return account;
     }
     private boolean valid(UiEventTicketScope scope,String identity) {
         return flags.isFoundationEnabled()&&flags.isUiSelector()&&identity!=null&&!identity.isBlank()

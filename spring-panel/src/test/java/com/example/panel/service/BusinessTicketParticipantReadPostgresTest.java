@@ -45,7 +45,7 @@ class BusinessTicketParticipantReadPostgresTest {
         write=new BusinessTicketParticipantService(jdbc,flags,new UiEventOutboxAppendService(jdbc,new LegacyTicketIdJdbcGuard(jdbc)));
         read=new BusinessTicketParticipantReadService(jdbc);
     }
-    private void add() { assertThat(write.change(owner,"operator",0,2L,true)).isTrue(); }
+    private void add() { assertThat(write.change(owner,org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated(new com.example.panel.security.PanelUserPrincipal(1,"operator","unused",true,List.of()),null,List.of()),0,2L,true)).isTrue(); }
     private void event(long revision,String action) {
         jdbc.update("INSERT INTO business_ticket_participant_events(ticket_user_id,ticket_id,ticket_public_id,business_id,revision,member_user_id,member,actor_user_id,actor,action) VALUES(42,?, ?,11,?,2,'viewer',1,'operator',?)",RAW,PUBLIC,revision,action);
     }
@@ -62,7 +62,7 @@ class BusinessTicketParticipantReadPostgresTest {
                 assertThat(member.username()).isEqualTo("viewer");assertThat(member.eligible()).isTrue();
             });
         }
-        assertThat(write.change(owner,"operator",1,2L,false)).isTrue();
+        assertThat(write.change(owner,org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated(new com.example.panel.security.PanelUserPrincipal(1,"operator","unused",true,List.of()),null,List.of()),1,2L,false)).isTrue();
         assertThat(read.find(PUBLIC,"viewer").orElseThrow().members()).isEmpty();
         assertThat(read.history(PUBLIC,"viewer",null,50).orElseThrow().events())
             .extracting(BusinessTicketParticipantReadService.Event::action).containsExactly("remove","add");

@@ -62,7 +62,7 @@ public class BusinessTicketAssignmentController {
         var state=find(publicId,auth,response);
         if(!state.canOperate())throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         var expected=new UiEventTicketScope(ownerId,rawId,publicId,"BUSINESS",businessId);
-        if(!state.scope().equals(expected)||!participants.change(expected,auth.getName(),participantRevision,memberId,action.equals("add")))
+        if(!state.scope().equals(expected)||!participants.change(expected,auth,participantRevision,memberId,action.equals("add")))
             throw new ResponseStatusException(HttpStatus.CONFLICT,"Список или права изменились. Обновите страницу.");
         var redirect=new RedirectView("/business-dialog-assignment/"+publicId,true);
         redirect.setExposeModelAttributes(false);return redirect;
