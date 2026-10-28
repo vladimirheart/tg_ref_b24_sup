@@ -57,6 +57,10 @@ class ScopedDialogAiWorkbenchPostgresTest {
         qHash=jdbc.queryForObject("SELECT encode(sha256(convert_to(message,'UTF8')),'hex') FROM chat_history WHERE id=40",String.class);
         aHash=jdbc.queryForObject("SELECT encode(sha256(convert_to(message,'UTF8')),'hex') FROM chat_history WHERE id=41",String.class);
     }
+    private org.springframework.security.core.Authentication boundControlActor(){
+        return org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated(
+            new com.example.panel.security.PanelUserPrincipal(1,"admin","unused",true,java.util.List.of()),null,java.util.List.of());
+    }
     private String key() { return UUID.randomUUID().toString(); }
     private boolean memory(String actor,String key) { return work.createMemory(scope,actor,key,40,41,qHash,aHash,"Resolved refund","curated without PII",true); }
     private void approved(long business,String actor,String key) {
@@ -97,7 +101,7 @@ class ScopedDialogAiWorkbenchPostgresTest {
         assertThat(work.resolve(scope.ticketPublicId(),"admin").isPresent()).isEqualTo(read);
         assertThat(persistence.canOperate(scope,"admin")).isEqualTo(operate);
         assertThat(memory("admin",key())).isEqualTo(configure);
-        assertThat(persistence.setControlExpected(scope,"admin","",false,true,"reason")).isEqualTo(operate);
+        assertThat(persistence.setControlExpected(scope,boundControlActor(),"",false,true,"reason")).isEqualTo(operate);
         assertThat(knowledge.record(scope,"refund")).isTrue();
         assertThat(knowledge.candidates(scope,"admin")).hasSize(read?1:0);
     }
@@ -134,20 +138,20 @@ class ScopedDialogAiWorkbenchPostgresTest {
             case "archive"->jdbc.update("UPDATE businesses SET status='archived' WHERE id=1");
         }
         assertThat(memory("admin",key())).isFalse();
-        assertThat(persistence.setControlExpected(scope,"admin","",true,true,"reason")).isFalse();
+        assertThat(persistence.setControlExpected(scope,boundControlActor(),"",true,true,"reason")).isFalse();
         assertThat(work.messages(scope,"admin")).isEmpty();
     }
     @Test void controlCasAndAuditAreAtomicAndNeverEnableAutoReply() {
-        assertThat(persistence.setControlExpected(scope,"admin","",true,true,"pause")).isTrue();
+        assertThat(persistence.setControlExpected(scope,boundControlActor(),"",true,true,"pause")).isTrue();
         var stamp=persistence.findControl(scope,"admin").orElseThrow().updatedAt();
-        assertThat(persistence.setControlExpected(scope,"admin","",false,false,"stale")).isFalse();
+        assertThat(persistence.setControlExpected(scope,boundControlActor(),"",false,false,"stale")).isFalse();
         assertThat(knowledge.record(scope,"refund")).isFalse();
-        assertThat(persistence.setControlExpected(scope,"admin",stamp,false,true,"resume")).isTrue();
-        assertThat(persistence.setControlExpected(scope,"admin",stamp,true,false,"old tab")).isFalse();
+        assertThat(persistence.setControlExpected(scope,boundControlActor(),stamp,false,true,"resume")).isTrue();
+        assertThat(persistence.setControlExpected(scope,boundControlActor(),stamp,true,false,"old tab")).isFalse();
         var current=persistence.findControl(scope,"admin").orElseThrow();
         assertThat(current.aiDisabled()).isFalse(); assertThat(current.autoReplyBlocked()).isTrue();
         jdbc.execute("ALTER TABLE ticket_ai_scoped_events ADD CONSTRAINT no_control CHECK(event_type<>'control_updated') NOT VALID");
-        assertThat(persistence.setControlExpected(scope,"admin",current.updatedAt(),true,false,"audit failure")).isFalse();
+        assertThat(persistence.setControlExpected(scope,boundControlActor(),current.updatedAt(),true,false,"audit failure")).isFalse();
         assertThat(persistence.findControl(scope,"admin")).contains(current);
     }
     @Test void curationAuditEvidenceFailureRollsBackSourceAndAudit() {

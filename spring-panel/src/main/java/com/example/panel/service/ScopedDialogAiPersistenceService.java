@@ -3,6 +3,9 @@ package com.example.panel.service;
 import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.repository.NotificationBusinessAccessSql;
 import com.example.panel.repository.ScopedAiSql;
+import com.example.panel.security.PanelUserPrincipal;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import java.sql.Types;
 import java.util.List;
 import java.util.Locale;
@@ -122,24 +125,27 @@ public class ScopedDialogAiPersistenceService {
     }
 
     /** UI compare-and-set: absent and present controls are separate operations; stale forms never upsert. */
-    public boolean setControlExpected(UiEventTicketScope scope,String identity,String expectedUpdatedAt,
+    public boolean setControlExpected(UiEventTicketScope scope,Authentication authentication,String expectedUpdatedAt,
                                       boolean disabled,boolean blocked,String reason) {
-        if (!valid(scope) || !"BUSINESS".equals(scope.scopeKind()) || !StringUtils.hasText(identity)) return false;
+        var account=boundControlActor(authentication);
+        if (account==null || !valid(scope) || !"BUSINESS".equals(scope.scopeKind())) return false;
+        String identity=account.getUsername();
         var args=parameters(scope,identity).addValue("disabled",disabled,Types.BOOLEAN)
             .addValue("blocked",blocked,Types.BOOLEAN).addValue("reason",cut(reason),Types.VARCHAR)
-            .addValue("stamp",expectedUpdatedAt,Types.VARCHAR);
+            .addValue("stamp",expectedUpdatedAt,Types.VARCHAR)
+            .addValue("actorId",account.getUserId(),Types.BIGINT).addValue("actorName",identity,Types.VARCHAR);
         String changed;
         if (!StringUtils.hasText(expectedUpdatedAt)) {
             changed="INSERT INTO ticket_ai_scoped_control ("+OWNER_COLUMNS
                 +",ai_disabled,auto_reply_blocked,reason,updated_by_user_id,updated_by) SELECT "+OWNER_VALUES
-                +",:disabled,:blocked,:reason,actor.id,n.user_identity FROM tickets owner"+ACTOR
-                +" JOIN users actor ON lower(actor.username)=n.user_identity WHERE "+ScopedAiSql.CURRENT_OWNER
+                +",:disabled,:blocked,:reason,actor.id,actor.username FROM tickets owner"+ACTOR
+                +" JOIN users actor ON actor.id=:actorId AND actor.username=:actorName WHERE "+ScopedAiSql.CURRENT_OWNER
                 +READ+OPERATE+" ON CONFLICT (ticket_public_id,scope_business_key) DO NOTHING RETURNING "+OWNER_COLUMNS;
         } else {
             changed="UPDATE ticket_ai_scoped_control target SET ai_disabled=:disabled,auto_reply_blocked=:blocked,"
-                +"reason=:reason,updated_by_user_id=actor.id,updated_by=n.user_identity,"
+                +"reason=:reason,updated_by_user_id=actor.id,updated_by=actor.username,"
                 +"updated_at=GREATEST(clock_timestamp(),target.updated_at+INTERVAL '1 microsecond')"
-                +" FROM tickets owner"+ACTOR+" JOIN users actor ON lower(actor.username)=n.user_identity WHERE "
+                +" FROM tickets owner"+ACTOR+" JOIN users actor ON actor.id=:actorId AND actor.username=:actorName WHERE "
                 +ScopedAiSql.CURRENT_OWNER+READ+OPERATE
                 +" AND ROW(target.ticket_user_id,target.ticket_id,target.ticket_public_id,target.ticket_scope_kind,target.ticket_business_id)"
                 +" IS NOT DISTINCT FROM ROW(owner.user_id,owner.ticket_id,owner.ticket_public_id,'BUSINESS',owner.business_id)"
@@ -175,6 +181,14 @@ public class ScopedDialogAiPersistenceService {
         } catch (DataAccessException ex) {
             return List.of();
         }
+    }
+
+    private PanelUserPrincipal boundControlActor(Authentication authentication) {
+        if(authentication==null || !authentication.isAuthenticated() || authentication instanceof AnonymousAuthenticationToken
+            || !(authentication.getPrincipal() instanceof PanelUserPrincipal account) || account.getUserId()<=0
+            || account.getUsername().isBlank() || !account.isEnabled() || !account.isAccountNonLocked()
+            || !account.isAccountNonExpired() || !account.isCredentialsNonExpired()) return null;
+        return account;
     }
 
     private boolean valid(UiEventTicketScope scope) {

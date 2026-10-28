@@ -56,7 +56,7 @@ public class ScopedDialogAiController {
             @RequestParam(defaultValue="") String reason) {
         var scope=scope(publicId,auth,response,businessId);
         if (reason.length()>500 || expectedUpdatedAt.length()>100) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
-        if (!persistence.setControlExpected(scope,auth.getName(),expectedUpdatedAt,aiDisabled,autoReplyBlocked,reason)) conflict();
+        if (!persistence.setControlExpected(scope,auth,expectedUpdatedAt,aiDisabled,autoReplyBlocked,reason)) conflict();
         return redirect(publicId);
     }
     @PostMapping("/memory")

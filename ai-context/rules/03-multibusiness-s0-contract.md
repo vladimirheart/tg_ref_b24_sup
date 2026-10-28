@@ -24,7 +24,7 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R206 и runtime R207 имеют
+что production уже запускался. Эта оговорка, source-сводка R208 и runtime R207 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
@@ -56,6 +56,27 @@ inputs функционально совпали (620 EOL-only различий)
 завершён, но другие identity/child/GENERAL/policy/AI/fleet/flags/S6 gates остаются;
 Task 🟡, historical S2B исключён R190. Этот checkpoint приоритетнее source-only
 состояния среды R206 ниже.
+
+Source-уточнение R208 (source/test на другой машине, без нового rollout):
+UI AI control setControlExpected получает Authentication с bound session ID/exact
+raw username/status. INSERT и timestamp-CAS UPDATE связывают того же actor по
+обоим полям, updated_by сохраняет raw username. Reused login/case change после
+R189 refresh/owner lookup не меняют автора. READ/OPERATE/current account/uniqueness,
+owner tuple, stale form refusal, atomic control/event rollback, PAGE_DIALOGS/CSRF/
+flags сохранены. String-only overload этой UI API удалён; non-CAS setControl и
+остальные AI String reads/writers остаются отдельными открытыми границами.
+234 tests/6 suites + 15 BUSINESS JS GREEN; frozen61 SQL+17 real-login HTTP:
+RED78/35/0, те же финальные bytes GREEN. Новая login/CSRF fixture исправлена и
+повторно проверена на baseline; старые logs/reports сохранены. Отдельный прежний
+AI HTTP probe1/1/0 на исходном HEAD выявил unbound user(String) fixture vs R189;
+её assertion не менялся, весь старый HTTP suite не объявляется GREEN.
+Native PostgreSQL16.15, JIT off только в own test process, fresh schemas, explicit
+ignored R200 supplier; Testcontainers/Docker Desktop не запускались. Test server
+остановлен; 83 migrations неизменны. Current working runtime по-прежнему R207,
+webR206/workerR198, на C:\Users\SinicinVV\git_h\tg_ref_b24_sup. Source/test здесь:
+C:\Users\sushi\Git_H\tg_ref_b24_sup; remote/build/restart/deploy/working DB не
+выполнялись. Нужна новая panel-web сборка, не migration. Runtime/rollback/V83
+backups R184/R198/R204/R207 сохранены. Task🟡, historical S2B исключён R190.
 
 Source-уточнение R206 (до rollout R207): все девять BUSINESS workbench reads
 

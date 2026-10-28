@@ -77,7 +77,7 @@ class ScopedPrincipalIdentityPostgresTest {
         questionHash=fingerprint(40);answerHash=fingerprint(41);
         assertThat(workbench.createMemory(scope,"admin",key(),40,41,questionHash,answerHash,"reviewed","safe memory",true)).isTrue();
         assertThat(handoff.record(scope,"refund")).isTrue();
-        assertThat(persistence.setControlExpected(scope,"admin","",false,true,"original")).isTrue();
+        assertThat(persistence.setControlExpected(scope,assignmentAuthentication("admin"),"",false,true,"original")).isTrue();
     }
     /** Models initial case-insensitive login; the resulting principal always has the stored raw name. */
     private org.springframework.security.core.Authentication assignmentAuthentication(String supplied){
@@ -125,7 +125,7 @@ class ScopedPrincipalIdentityPostgresTest {
         assertThat(participants.change(scope,assignmentAuthentication(actor),1,2L,false)).isFalse();
         assertThat(participants.change(scope,assignmentAuthentication(actor),1,5L,true)).isFalse();
         assertThat(persistence.setControl(scope,actor,true,true,"forged")).isFalse();
-        assertThat(persistence.setControlExpected(scope,actor,stamp,true,true,"forged")).isFalse();
+        assertThat(persistence.setControlExpected(scope,assignmentAuthentication(actor),stamp,true,true,"forged")).isFalse();
         assertThat(workbench.createMemory(scope,actor,key(),40,41,questionHash,answerHash,"forged","body",true)).isFalse();
         assertThat(sources.createKnowledge(11L,actor,key(),"forged","body")).isFalse();
         assertThat(sources.createMemory(scope,actor,key(),"forged","body")).isFalse();
@@ -162,7 +162,7 @@ class ScopedPrincipalIdentityPostgresTest {
         assertThat(sources.createKnowledge(22L,actor,"own","refund","own refund")).isTrue();
         assertThat(sources.revise(22L,actor,KNOWLEDGE,"own",1,"refund","own refund",APPROVED)).isTrue();
         assertThat(workbench.createMemory(other,actor,key(),50,51,fingerprint(50),fingerprint(51),"own","reviewed",true)).isTrue();
-        assertThat(persistence.setControlExpected(other,actor,"",false,true,"own")).isTrue();
+        assertThat(persistence.setControlExpected(other,assignmentAuthentication(actor),"",false,true,"own")).isTrue();
         assertThat(handoff.record(other,"refund")).isTrue();assertThat(handoff.candidates(other,actor)).hasSize(1);
         assertThat(jdbc.queryForMap("SELECT actor_user_id,assignee_user_id,actor FROM business_ticket_assignment_events WHERE business_id=22"))
             .containsEntry("actor_user_id",6L).containsEntry("assignee_user_id",6L).containsEntry("actor"," admin ");

@@ -202,7 +202,7 @@ class ScopedDialogAiHttpPostgresTest {
     }
     @Test void lateControlGrantRevokeCannotUsePrecheckOrOverwrite() throws Exception {
         doAnswer(call->{jdbc.update("DELETE FROM business_memberships WHERE user_id=?",adminId);return call.callRealMethod();})
-            .when(persistence).setControlExpected(eq(scope),eq(admin),anyString(),anyBoolean(),anyBoolean(),anyString());
+            .when(persistence).setControlExpected(eq(scope),org.mockito.ArgumentMatchers.<org.springframework.security.core.Authentication>argThat(a->a!=null && a.getPrincipal() instanceof com.example.panel.security.PanelUserPrincipal p && p.getUserId()==adminId && p.getUsername().equals(admin)),anyString(),anyBoolean(),anyBoolean(),anyString());
         mvc.perform(auth(control(""),admin,true).with(csrf())).andExpect(status().isConflict());
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ticket_ai_scoped_control WHERE ticket_public_id=?",Integer.class,publicId)).isZero();
     }
