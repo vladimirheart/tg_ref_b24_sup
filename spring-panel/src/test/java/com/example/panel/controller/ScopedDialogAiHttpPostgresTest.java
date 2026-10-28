@@ -42,7 +42,8 @@ class ScopedDialogAiHttpPostgresTest {
     @ParameterizedTest @ValueSource(strings={"prefix","suffix","both","tab"})
     void spacedPrincipalCannotReadCurateOrControlAnotherBusinessDialog(String variant) throws Exception {
         String forged=switch(variant){case "prefix"->" "+admin;case "suffix"->admin+" ";case "tab"->"\t"+admin+"\t";default->" "+admin+" ";};
-        if(variant.equals("both"))jdbc.update("INSERT INTO business_memberships(user_id,business_id,role_code) VALUES(?,?,'ADMIN')",account(forged),other);
+        long forgedId=account(forged);
+        if(variant.equals("both"))jdbc.update("INSERT INTO business_memberships(user_id,business_id,role_code) VALUES(?,?,'ADMIN')",forgedId,other);
         assertThat(sources.createKnowledge(business,admin,"principal-proof","refund","private refund knowledge")).isTrue();
         assertThat(sources.revise(business,admin,ScopedAiSourceService.Kind.KNOWLEDGE,"principal-proof",1,"refund","private refund knowledge",ScopedAiSourceService.Status.APPROVED)).isTrue();
         assertThat(knowledge.record(scope,"refund")).isTrue();
@@ -159,7 +160,11 @@ class ScopedDialogAiHttpPostgresTest {
     }
     @Test void pageAuthorityAndActualCsrfAreRequired() throws Exception {
         mvc.perform(get(root)).andExpect(status().is3xxRedirection());
-        mvc.perform(get(root).with(user(admin).authorities(new SimpleGrantedAuthority("ROLE_ADMIN")))).andExpect(status().isForbidden());
+        String roleOnly=admin+"-role-only";long roleOnlyId=account(roleOnly);
+        jdbc.update("DELETE FROM user_authorities WHERE user_id=?",roleOnlyId);
+        jdbc.update("INSERT INTO user_authorities(user_id,authority) VALUES(?,'ROLE_ADMIN')",roleOnlyId);
+        mvc.perform(auth(get(root),roleOnly,false)).andExpect(status().isForbidden());
+        jdbc.update("DELETE FROM user_authorities WHERE user_id=? AND authority='PAGE_KNOWLEDGE_BASE'",adminId);
         mvc.perform(auth(get(root),admin,false)).andExpect(status().isOk())
             .andExpect(content().string(not(containsString("data-memory-curation"))));
         mvc.perform(auth(memory(UUID.randomUUID().toString()),admin,false).with(csrf())).andExpect(status().isForbidden());
@@ -183,8 +188,14 @@ class ScopedDialogAiHttpPostgresTest {
                 jdbc.update("DELETE FROM tickets WHERE ticket_public_id=?",publicId);
             }
         }
-        mvc.perform(auth(get(root),actor,true)).andExpect(status().isNotFound());
-        mvc.perform(auth(memory(UUID.randomUUID().toString()),actor,true).with(csrf())).andExpect(status().isNotFound());
+        // R189 revokes a blocked account before owner lookup; other cases still prove private 404.
+        var denied=state.equals("blocked")?redirectedUrl("http://localhost/login"):status().isNotFound();
+        mvc.perform(auth(get(root),actor,true)).andExpect(denied);
+        mvc.perform(auth(memory(UUID.randomUUID().toString()),actor,true).with(csrf())).andExpect(denied);
+        if(state.equals("blocked")) {
+            org.mockito.Mockito.verify(work,org.mockito.Mockito.never()).resolve(eq(publicId),anyString());
+            assertNoDialogWrites();
+        }
     }
     @ParameterizedTest @ValueSource(strings={"owner","grant","edit","deleted"})
     void lateCurationChangesAreReprovedInsideInsert(String mutation) throws Exception {
@@ -223,15 +234,125 @@ class ScopedDialogAiHttpPostgresTest {
         assertThat(sources.revise(business,admin,ScopedAiSourceService.Kind.KNOWLEDGE,"proof",2,"Approved <material>","refund",ScopedAiSourceService.Status.ARCHIVED)).isTrue();
         mvc.perform(auth(get(root),admin,true)).andExpect(status().isOk()).andExpect(content().string(not(containsString("Approved &lt;material&gt;"))));
     }
-    private long account(String name) { return jdbc.queryForObject("INSERT INTO users(username,password,enabled) VALUES(?,'unused',TRUE) RETURNING id",Long.class,name); }
+    @ParameterizedTest @ValueSource(strings={"disabled","blocked","deleted","renamed","rename-reuse","delete-reuse"})
+    void preparedBoundRequestsCannotSurviveAccountRevocation(String change) throws Exception {
+        var read=auth(get(root),admin,true);
+        var control=auth(control(""),admin,true).with(csrf());
+        var memory=auth(memory(UUID.randomUUID().toString()),admin,true).with(csrf());
+        switch(change) {
+            case "disabled"->jdbc.update("UPDATE users SET enabled=FALSE WHERE id=?",adminId);
+            case "blocked"->jdbc.update("UPDATE users SET is_blocked=TRUE WHERE id=?",adminId);
+            case "renamed","rename-reuse"->jdbc.update("UPDATE users SET username=? WHERE id=?","renamed-"+admin,adminId);
+            default->jdbc.update("DELETE FROM users WHERE id=?",adminId);
+        }
+        if(change.endsWith("reuse")) {
+            long replacement=account(admin);
+            jdbc.update("INSERT INTO business_memberships(user_id,business_id,role_code) VALUES(?,?,'ADMIN')",replacement,business);
+        }
+        mvc.perform(read).andExpect(redirectedUrl("http://localhost/login"));
+        mvc.perform(control).andExpect(redirectedUrl("http://localhost/login"));
+        mvc.perform(memory).andExpect(redirectedUrl("http://localhost/login"));
+        org.mockito.Mockito.verify(work,org.mockito.Mockito.never()).resolve(eq(publicId),anyString());
+        assertNoDialogWrites();
+        if(change.endsWith("reuse"))mvc.perform(auth(get(root),admin,true)).andExpect(status().isOk());
+    }
+    @ParameterizedTest @ValueSource(strings={"unbound","foreign-id","case-changed","padded"})
+    void unboundOrMismatchedPrincipalsCannotReachAiControllers(String kind) throws Exception {
+        var granted=java.util.List.of(new SimpleGrantedAuthority("PAGE_DIALOGS"),new SimpleGrantedAuthority("PAGE_KNOWLEDGE_BASE"));
+        long id=kind.equals("foreign-id")?jdbc.queryForObject("SELECT id FROM users WHERE username=?",Long.class,foreign):adminId;
+        String name=kind.equals("case-changed")?admin.toUpperCase(java.util.Locale.ROOT):kind.equals("padded")?" "+admin+" ":admin;
+        var principal=new com.example.panel.security.PanelUserPrincipal(id,name,"unused",true,granted);
+        RequestPostProcessor identity=kind.equals("unbound")?user(admin).authorities(granted):user(principal);
+        mvc.perform(get(root).with(identity)).andExpect(redirectedUrl("http://localhost/login"));
+        mvc.perform(control("").with(identity).with(csrf())).andExpect(redirectedUrl("http://localhost/login"));
+        mvc.perform(memory(UUID.randomUUID().toString()).with(identity).with(csrf())).andExpect(redirectedUrl("http://localhost/login"));
+        org.mockito.Mockito.verify(work,org.mockito.Mockito.never()).resolve(eq(publicId),anyString());
+        assertNoDialogWrites();
+    }
+    @ParameterizedTest @ValueSource(strings={"PAGE_DIALOGS","PAGE_KNOWLEDGE_BASE"})
+    void preparedRequestsLoseRevokedDbPageRightsWithoutFixtureRepair(String authority) throws Exception {
+        var read=auth(get(root),admin,true);
+        var control=auth(control(""),admin,true).with(csrf());
+        var memory=auth(memory(UUID.randomUUID().toString()),admin,true).with(csrf());
+        jdbc.update("DELETE FROM user_authorities WHERE user_id=? AND authority=?",adminId,authority);
+        mvc.perform(memory).andExpect(status().isForbidden());
+        if(authority.equals("PAGE_DIALOGS")) {
+            mvc.perform(read).andExpect(status().isForbidden());
+            mvc.perform(control).andExpect(status().isForbidden());
+            org.mockito.Mockito.verify(work,org.mockito.Mockito.never()).resolve(eq(publicId),anyString());
+            assertNoDialogWrites();
+        } else {
+            mvc.perform(read).andExpect(status().isOk()).andExpect(content().string(not(containsString("data-memory-curation"))));
+            mvc.perform(control).andExpect(redirectedUrl(root));
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM ticket_ai_scoped_events WHERE ticket_public_id=?",Long.class,publicId)).isEqualTo(1);
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM ai_scoped_sources WHERE business_id=?",Long.class,business)).isZero();
+        }
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM user_authorities WHERE user_id=? AND authority=?",Long.class,adminId,authority)).isZero();
+    }
+    @Test void realJdbcLoginCanCurateControlAndThenLosePageAccess() throws Exception {
+        String password="fixture AI HTTP session R209";
+        jdbc.update("UPDATE users SET password=? WHERE id=?",new com.example.panel.security.LegacyCompatiblePasswordEncoder().encode(password),adminId);
+        var login=mvc.perform(get("/login")).andExpect(status().isOk()).andReturn();
+        var signedIn=mvc.perform(post("/login").cookie(login.getResponse().getCookies())
+            .param("_csrf",hidden(login.getResponse().getContentAsString(),"_csrf"))
+            .param("username",admin.toUpperCase(java.util.Locale.ROOT)).param("password",password))
+            .andExpect(redirectedUrl("/post-login")).andReturn();
+        var sessionCookie=signedIn.getResponse().getCookie("SESSION");
+        assertThat(sessionCookie).as("real JDBC-backed login session cookie").isNotNull();
+        var opened=mvc.perform(get(root).cookie(sessionCookie)).andExpect(status().isOk())
+            .andExpect(header().string("Cache-Control",containsString("no-store")))
+            .andExpect(content().string(containsString("private &lt;script&gt;prompt&lt;/script&gt;")))
+            .andExpect(content().string(not(containsString("UNLINKED_SECRET")))).andReturn();
+        String html=opened.getResponse().getContentAsString(),key=hidden(html,"key"),token=hidden(html,"_csrf");
+        var cookies=new java.util.LinkedHashMap<String,Cookie>();
+        for(var response:java.util.List.of(login,signedIn,opened))for(var cookie:response.getResponse().getCookies()) {
+            if(cookie.getMaxAge()==0)cookies.remove(cookie.getName());else cookies.put(cookie.getName(),cookie);
+        }
+        Cookie[] requestCookies=cookies.values().toArray(Cookie[]::new);
+        mvc.perform(memory(key).cookie(requestCookies).param("_csrf",token)).andExpect(redirectedUrl(root));
+        var draft=sources.find(business,admin,ScopedAiSourceService.Kind.MEMORY,key).orElseThrow();
+        assertThat(draft.status()).isEqualTo(ScopedAiSourceService.Status.DRAFT);
+        assertThat(draft.origin()).isEqualTo(scope);
+        mvc.perform(control("").cookie(requestCookies).param("_csrf",token)).andExpect(redirectedUrl(root));
+        var current=persistence.findControl(scope,admin).orElseThrow();
+        assertThat(jdbc.queryForMap("SELECT updated_by_user_id,updated_by FROM ticket_ai_scoped_control WHERE ticket_public_id=?",publicId))
+            .containsEntry("updated_by_user_id",adminId).containsEntry("updated_by",admin);
+        assertThat(jdbc.queryForMap("SELECT updated_by_user_id,updated_by FROM ai_scoped_sources WHERE business_id=? AND source_key=?",business,key))
+            .containsEntry("updated_by_user_id",adminId).containsEntry("updated_by",admin);
+        mvc.perform(control("").cookie(requestCookies).param("_csrf",token)).andExpect(status().isConflict());
+        jdbc.update("DELETE FROM user_authorities WHERE user_id=?",adminId);
+        mvc.perform(get(root).cookie(sessionCookie)).andExpect(status().isForbidden());
+        mvc.perform(control(current.updatedAt()).cookie(requestCookies).param("_csrf",token)).andExpect(status().isForbidden());
+        mvc.perform(memory(UUID.randomUUID().toString()).cookie(requestCookies).param("_csrf",token)).andExpect(status().isForbidden());
+        assertThat(persistence.findControl(scope,admin)).contains(current);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM ticket_ai_scoped_events WHERE ticket_public_id=?",Long.class,publicId)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM ai_scoped_sources WHERE business_id=?",Long.class,business)).isEqualTo(1);
+        mvc.perform(post("/logout").cookie(requestCookies).param("_csrf",token)).andExpect(status().is3xxRedirection());
+        mvc.perform(get(root).cookie(sessionCookie)).andExpect(redirectedUrl("http://localhost/login"));
+    }
+    private void assertNoDialogWrites() {
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM ticket_ai_scoped_control WHERE ticket_public_id=?",Long.class,publicId)).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM ticket_ai_scoped_events WHERE ticket_public_id=?",Long.class,publicId)).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM ai_scoped_sources WHERE business_id=?",Long.class,business)).isZero();
+    }
+
+    private long account(String name) {
+        long id=jdbc.queryForObject("INSERT INTO users(username,password,enabled) VALUES(?,'unused',TRUE) RETURNING id",Long.class,name);
+        jdbc.update("INSERT INTO user_authorities(user_id,authority) VALUES(?,'PAGE_DIALOGS'),(?,'PAGE_KNOWLEDGE_BASE')",id,id);
+        return id;
+    }
     private long history(Long owner,String sender,String text,String type) {
         return jdbc.queryForObject("INSERT INTO chat_history(ticket_owner_user_id,ticket_id,sender,message,message_type) VALUES(?,?,?,?,?) RETURNING id",
             Long.class,owner,raw,sender,text,type);
     }
     private String fingerprint(long id) { return jdbc.queryForObject("SELECT encode(sha256(convert_to(message,'UTF8')),'hex') FROM chat_history WHERE id=?",String.class,id); }
     private MockHttpServletRequestBuilder auth(MockHttpServletRequestBuilder r,String actor,boolean library) {
-        return r.with(user(actor).authorities(library ? new SimpleGrantedAuthority[]{new SimpleGrantedAuthority("PAGE_DIALOGS"),new SimpleGrantedAuthority("PAGE_KNOWLEDGE_BASE")}
-            : new SimpleGrantedAuthority[]{new SimpleGrantedAuthority("PAGE_DIALOGS")}));
+        // Capture the exact fixture ID before request execution. R189 reads current DB rights itself.
+        var ids=jdbc.queryForList("SELECT id FROM users WHERE username=?",Long.class,actor);
+        assertThat(ids).as("exact fixture account: %s",actor).hasSize(1);
+        var granted=library?java.util.List.of(new SimpleGrantedAuthority("PAGE_DIALOGS"),new SimpleGrantedAuthority("PAGE_KNOWLEDGE_BASE"))
+            :java.util.List.of(new SimpleGrantedAuthority("PAGE_DIALOGS"));
+        return r.with(user(new com.example.panel.security.PanelUserPrincipal(ids.get(0),actor,"unused",true,granted)));
     }
     private MockHttpServletRequestBuilder control(String stamp) {
         return control(stamp,"review");

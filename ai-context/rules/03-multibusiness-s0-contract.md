@@ -24,7 +24,7 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R208 и runtime R207 имеют
+что production уже запускался. Эта оговорка, source-сводка R209 и runtime R207 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
@@ -56,6 +56,23 @@ inputs функционально совпали (620 EOL-only различий)
 завершён, но другие identity/child/GENERAL/policy/AI/fleet/flags/S6 gates остаются;
 Task 🟡, historical S2B исключён R190. Этот checkpoint приоритетнее source-only
 состояния среды R206 ниже.
+
+Source-уточнение R209 (test-only, без нового rollout):
+Долг прежней AI HTTP fixture закрыт:35 cases (22 прежних+13 новых),17 R208 HTTP,
+32 R189 session — всего84/3 suites GREEN. Baseline22/22 failures/0 errors;
+все прежние case names сохранены. Bound ID/exact raw account, DB page rights,
+без repair helper; blocked case теперь требует302/login до controller по R189,
+never(resolve)/zero writes. Прочие прежние privacy/404/CSRF/CAS assertions сохранены.
+Проверены revoke/reuse/mismatch и настоящий JDBC SESSION/CSRF login-memory-control-
+page-revoke-logout. Production/main/UI/schema/dependencies не менялись;83 migrations
+неизменны. Native PG16.15, fresh schemas, ignored R200 supplier; Docker/Testcontainers
+не запускались, test server остановлен. R208234/6+15JS — прежние evidence, не rerun.
+Source/test здесь C:\Users\sushi\Git_H\tg_ref_b24_sup; рабочий экземпляр на другой
+машине/сессии C:\Users\SinicinVV\git_h\tg_ref_b24_sup. Runtime R207/webR206/workerR198,
+foundation off и полные runtime/rollback/V83 blocks сохранены; deploy/restart/working
+migrations/flags не выполнялись. Для R209 перезапуск не нужен; product R208 требует
+отдельной panel-web сборки. Остальные AI identity/child/GENERAL/policy/fleet/S6
+gates открыты, task🟡; historical S2B снят R190.
 
 Source-уточнение R208 (source/test на другой машине, без нового rollout):
 UI AI control setControlExpected получает Authentication с bound session ID/exact
