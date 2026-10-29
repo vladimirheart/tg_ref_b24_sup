@@ -35,6 +35,7 @@ public class AttachmentService {
     private final AttachmentObjectStorageService objectStorageService;
     private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
     private final TicketAttachmentOwnerJdbcGuard attachmentOwnerGuard;
+    private final LegacyAttachmentReadAccess attachmentReadAccess;
     private final Path attachmentsRoot;
     private final Path knowledgeBaseRoot;
     public AttachmentService(PermissionService permissionService,
@@ -42,11 +43,13 @@ public class AttachmentService {
                               LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard,
                               TicketAttachmentOwnerJdbcGuard attachmentOwnerGuard,
                               @Value("${app.storage.attachments:attachments}") String attachmentsDir,
-                              @Value("${app.storage.knowledge-base:attachments/knowledge_base}") String knowledgeBaseDir) throws IOException {
+                              @Value("${app.storage.knowledge-base:attachments/knowledge_base}") String knowledgeBaseDir,
+                              LegacyAttachmentReadAccess attachmentReadAccess) throws IOException {
         this.permissionService = permissionService;
         this.objectStorageService = objectStorageService;
         this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
         this.attachmentOwnerGuard = attachmentOwnerGuard;
+        this.attachmentReadAccess = java.util.Objects.requireNonNull(attachmentReadAccess);
         this.attachmentsRoot = ensureDirectory(attachmentsDir);
         this.knowledgeBaseRoot = ensureDirectory(knowledgeBaseDir);
     }
@@ -60,7 +63,10 @@ public class AttachmentService {
                                                              String filename,
                                                              String rangeHeader) throws IOException {
         requireAuthority(authentication, "PAGE_DIALOGS");
-        if (QuestionnaireMediaStorageProof.isScoped(ticketId+"/"+filename) || !legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId) || !attachmentOwnerGuard.hasDirectOwner(ticketId, filename)) {
+        if (QuestionnaireMediaStorageProof.isScoped(ticketId+"/"+filename)
+                || !legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)
+                || !attachmentOwnerGuard.hasDirectOwner(ticketId, filename)
+                || !attachmentReadAccess.canRead(authentication, ticketId)) {
             return ResponseEntity.notFound().build();
         }
         AttachmentObjectStorageService.StoredBinary binary = objectStorageService.openDialogAttachment(ticketId, filename);
@@ -76,7 +82,7 @@ public class AttachmentService {
                                                                    String rangeHeader) throws IOException {
         requireAuthority(authentication, "PAGE_DIALOGS");
         String storageKey = AttachmentStorageKeyResolver.extractAttachmentsSuffix(path);
-        if (QuestionnaireMediaStorageProof.isScoped(StringUtils.hasText(storageKey)?storageKey:path) || !hasNonGeneralTicketForStorageKey(StringUtils.hasText(storageKey) ? storageKey : path)) {
+        if (QuestionnaireMediaStorageProof.isScoped(StringUtils.hasText(storageKey)?storageKey:path) || !hasNonGeneralTicketForStorageKey(authentication, StringUtils.hasText(storageKey) ? storageKey : path)) {
             return ResponseEntity.notFound().build();
         }
         AttachmentObjectStorageService.StoredBinary binary = openByStoredPath(path);
@@ -93,7 +99,7 @@ public class AttachmentService {
                                                                          String storageKey,
                                                                          String rangeHeader) throws IOException {
         requireAuthority(authentication, "PAGE_DIALOGS");
-        if (QuestionnaireMediaStorageProof.isScoped(storageKey) || !hasNonGeneralTicketForStorageKey(storageKey)) {
+        if (QuestionnaireMediaStorageProof.isScoped(storageKey) || !hasNonGeneralTicketForStorageKey(authentication, storageKey)) {
             return ResponseEntity.notFound().build();
         }
         AttachmentObjectStorageService.StoredBinary binary = objectStorageService.openDialogAttachmentByStorageKey(storageKey);
@@ -546,9 +552,10 @@ public class AttachmentService {
         }
     }
 
-    private boolean hasNonGeneralTicketForStorageKey(String rawStorageKey) {
+    private boolean hasNonGeneralTicketForStorageKey(Authentication authentication, String rawStorageKey) {
         String owner = attachmentOwnerGuard.resolveUniqueOwner(rawStorageKey);
-        return owner != null && legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(owner);
+        return owner != null && legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(owner)
+                && attachmentReadAccess.canRead(authentication, owner);
     }
 
     private boolean hasUniqueTicketForStorageKey(String rawStorageKey) {

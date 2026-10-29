@@ -81,6 +81,6 @@ class KnowledgeNotePhotoPersistencePostgresqlTest {
                 directory.resolve("passport").toString(), directory.resolve("avatars").toString());
         return new AttachmentService(new PermissionService(), storage,
                 mock(LegacyTicketIdJdbcGuard.class), mock(TicketAttachmentOwnerJdbcGuard.class),
-                attachments.toString(), knowledge.toString());
+                attachments.toString(), knowledge.toString(), com.example.panel.support.AttachmentReadAccessStub.permitted());
     }
 }

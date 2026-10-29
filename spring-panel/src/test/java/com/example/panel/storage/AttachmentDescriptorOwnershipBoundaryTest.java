@@ -146,7 +146,7 @@ class AttachmentDescriptorOwnershipBoundaryTest {
     private AttachmentService service(AttachmentObjectStorageService storage,
                                       LegacyTicketIdJdbcGuard tickets, TicketAttachmentOwnerJdbcGuard owner) throws Exception {
         return new AttachmentService(mock(PermissionService.class), storage, tickets, owner,
-                tempDir.resolve("attachments").toString(), tempDir.resolve("knowledge").toString());
+                tempDir.resolve("attachments").toString(), tempDir.resolve("knowledge").toString(), com.example.panel.support.AttachmentReadAccessStub.permitted());
     }
 
     private AttachmentObjectStorageService storage() throws Exception {

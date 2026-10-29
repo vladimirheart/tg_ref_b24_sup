@@ -151,7 +151,7 @@ class AttachmentTicketQueryHttpIntegrationTest {
         var tickets = new LegacyTicketIdJdbcGuard(jdbc);
         realService = new AttachmentService(permissions, storage, tickets,
                 new TicketAttachmentOwnerJdbcGuard(jdbc, tickets), root.toString(),
-                tempDir.resolve("knowledge").toString());
+                tempDir.resolve("knowledge").toString(), com.example.panel.support.AttachmentReadAccessStub.permitted());
         reader = new DialogConversationReadService(jdbc, realService, new PanelTimestampSqlSupport(), tickets);
         // Only the test wiring is mocked: controller calls delegate to real owner/JDBC/local_fs logic.
         when(attachments.downloadTicketAttachment(any(Authentication.class), anyString(), anyString(), nullable(String.class)))

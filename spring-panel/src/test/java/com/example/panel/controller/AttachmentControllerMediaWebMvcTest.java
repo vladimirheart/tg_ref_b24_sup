@@ -76,7 +76,7 @@ class AttachmentControllerMediaWebMvcTest {
                 ownerGuard,
                 attachmentsRoot.toString(),
                 knowledgeRoot.toString()
-        );
+        , com.example.panel.support.AttachmentReadAccessStub.permitted());
         MockMvc mockMvc = createMockMvc(new AttachmentController(attachmentService), authentication);
 
         String photoKey = "3d543ab982d2f414aa9dc8b135805291/2026/08/24/photo.jpg";
@@ -152,7 +152,7 @@ class AttachmentControllerMediaWebMvcTest {
         Authentication authentication = mock(Authentication.class);
         when(permissions.hasAuthority(authentication, "PAGE_DIALOGS")).thenReturn(true);
         AttachmentService service = new AttachmentService(permissions, storage, tickets, owner,
-                attachmentsRoot.toString(), knowledgeRoot.toString());
+                attachmentsRoot.toString(), knowledgeRoot.toString(), com.example.panel.support.AttachmentReadAccessStub.permitted());
         MockMvc mvc = createMockMvc(new AttachmentController(service), authentication);
         byte[] bytes = {0, 1, 2, 3, 4, 5};
         writeAttachment(attachmentsRoot, key, bytes);

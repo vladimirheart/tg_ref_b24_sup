@@ -56,7 +56,7 @@ class AttachmentDescriptorOwnershipPostgresqlTest {
         var tickets = new LegacyTicketIdJdbcGuard(jdbc);
         var owner = new TicketAttachmentOwnerJdbcGuard(jdbc, tickets);
         var service = spy(new AttachmentService(mock(PermissionService.class), storage, tickets, owner,
-                root.toString(), knowledge.toString()));
+                root.toString(), knowledge.toString(), com.example.panel.support.AttachmentReadAccessStub.permitted()));
         return new Fixture(jdbc, service, storage, root, tickets);
     }
 

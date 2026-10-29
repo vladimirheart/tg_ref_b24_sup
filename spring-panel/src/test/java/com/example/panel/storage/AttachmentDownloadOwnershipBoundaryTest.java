@@ -33,7 +33,7 @@ class AttachmentDownloadOwnershipBoundaryTest {
         when(storage.openDialogAttachmentByStorageKey(key)).thenReturn(binary(key));
         var jdbc = mock(JdbcTemplate.class);
         var service = new AttachmentService(permissions, storage, tickets, new TicketAttachmentOwnerJdbcGuard(jdbc, tickets),
-                tempDir.resolve("attachments").toString(), tempDir.resolve("knowledge").toString());
+                tempDir.resolve("attachments").toString(), tempDir.resolve("knowledge").toString(), com.example.panel.support.AttachmentReadAccessStub.permitted());
 
         assertThat(service.downloadTicketAttachmentByStorageKey(authentication, key).getStatusCode().value()).isEqualTo(404);
         verifyNoInteractions(storage);
@@ -53,7 +53,7 @@ class AttachmentDownloadOwnershipBoundaryTest {
         when(storage.openDialogAttachment("T", filename)).thenReturn(binary(filename));
         var jdbc = mock(JdbcTemplate.class);
         var service = new AttachmentService(permissions, storage, tickets, new TicketAttachmentOwnerJdbcGuard(jdbc, tickets),
-                tempDir.resolve("attachments").toString(), tempDir.resolve("knowledge").toString());
+                tempDir.resolve("attachments").toString(), tempDir.resolve("knowledge").toString(), com.example.panel.support.AttachmentReadAccessStub.permitted());
 
         assertThat(service.downloadTicketAttachment(authentication, "T", filename).getStatusCode().value()).isEqualTo(404);
         verifyNoInteractions(storage);
@@ -68,7 +68,7 @@ class AttachmentDownloadOwnershipBoundaryTest {
         var jdbc = mock(JdbcTemplate.class);
         var authentication = mock(Authentication.class);
         var service = new AttachmentService(permissions, storage, tickets, new TicketAttachmentOwnerJdbcGuard(jdbc, tickets),
-                tempDir.resolve("attachments").toString(), tempDir.resolve("knowledge").toString());
+                tempDir.resolve("attachments").toString(), tempDir.resolve("knowledge").toString(), com.example.panel.support.AttachmentReadAccessStub.permitted());
 
         assertThatThrownBy(() -> service.downloadTicketAttachmentByStorageKey(authentication, "T/photo.jpg"))
                 .isInstanceOf(SecurityException.class);

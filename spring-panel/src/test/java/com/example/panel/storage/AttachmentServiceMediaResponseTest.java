@@ -50,7 +50,7 @@ class AttachmentServiceMediaResponseTest {
                 ownerGuard,
                 tempDir.resolve("attachments").toString(),
                 tempDir.resolve("knowledge").toString()
-        );
+        , com.example.panel.support.AttachmentReadAccessStub.permitted());
 
         ResponseEntity<Resource> response = service.downloadTicketAttachmentByStorageKey(
                 authentication,
@@ -93,7 +93,7 @@ class AttachmentServiceMediaResponseTest {
                 ownerGuard,
                 tempDir.resolve("attachments-2").toString(),
                 tempDir.resolve("knowledge-2").toString()
-        );
+        , com.example.panel.support.AttachmentReadAccessStub.permitted());
 
         ResponseEntity<Resource> response = service.downloadTicketAttachmentByStorageKey(
                 authentication,
@@ -132,7 +132,7 @@ class AttachmentServiceMediaResponseTest {
                 ownerGuard,
                 tempDir.resolve("attachments-3").toString(),
                 tempDir.resolve("knowledge-3").toString()
-        );
+        , com.example.panel.support.AttachmentReadAccessStub.permitted());
 
         ResponseEntity<Resource> response = service.downloadTicketAttachmentByPath(
                 authentication,
@@ -161,7 +161,7 @@ class AttachmentServiceMediaResponseTest {
                 ownerGuard,
                 tempDir.resolve("attachments-4").toString(),
                 tempDir.resolve("knowledge-4").toString()
-        );
+        , com.example.panel.support.AttachmentReadAccessStub.permitted());
 
         ResponseEntity<Resource> directResponse = service.downloadTicketAttachment(
                 authentication,

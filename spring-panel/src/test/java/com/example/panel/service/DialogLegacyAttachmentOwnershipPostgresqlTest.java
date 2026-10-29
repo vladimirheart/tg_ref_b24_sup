@@ -73,7 +73,7 @@ class DialogLegacyAttachmentOwnershipPostgresqlTest {
         }
         var attachments = new AttachmentService(mock(PermissionService.class), storage, tickets,
                 new TicketAttachmentOwnerJdbcGuard(ownerJdbc, tickets), root.toString(),
-                tempDir.resolve("knowledge").toString());
+                tempDir.resolve("knowledge").toString(), com.example.panel.support.AttachmentReadAccessStub.permitted());
         return new Fixture(jdbc, new DialogConversationReadService(jdbc, attachments,
                 new PanelTimestampSqlSupport(), tickets), storage, root);
     }

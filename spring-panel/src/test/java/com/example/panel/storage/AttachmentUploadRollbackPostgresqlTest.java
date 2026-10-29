@@ -74,7 +74,7 @@ class AttachmentUploadRollbackPostgresqlTest {
         var permissions = mock(PermissionService.class);
         var authentication = mock(Authentication.class);
         when(permissions.hasAuthority(authentication, "PAGE_DIALOGS")).thenReturn(true);
-        var service = spy(new AttachmentService(permissions, storage, tickets, owner, root.toString(), knowledge.toString()));
+        var service = spy(new AttachmentService(permissions, storage, tickets, owner, root.toString(), knowledge.toString(), com.example.panel.support.AttachmentReadAccessStub.permitted()));
         return new Fixture(jdbc, service, storage, authentication, root);
     }
 

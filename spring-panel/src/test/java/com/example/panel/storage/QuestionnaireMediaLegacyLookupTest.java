@@ -16,7 +16,7 @@ class QuestionnaireMediaLegacyLookupTest {
         var permissions=mock(PermissionService.class);var storage=mock(AttachmentObjectStorageService.class);
         var tickets=mock(LegacyTicketIdJdbcGuard.class);var owner=mock(TicketAttachmentOwnerJdbcGuard.class);var actor=mock(Authentication.class);
         when(permissions.hasAuthority(actor,"PAGE_DIALOGS")).thenReturn(true);
-        var service=new AttachmentService(permissions,storage,tickets,owner,root.resolve("files").toString(),root.resolve("kb").toString());
+        var service=new AttachmentService(permissions,storage,tickets,owner,root.resolve("files").toString(),root.resolve("kb").toString(), com.example.panel.support.AttachmentReadAccessStub.permitted());
         assertThat(service.downloadTicketAttachmentByPath(actor,key).getStatusCode().value()).isEqualTo(404);
         if(!key.startsWith("C:")) {
             assertThat(service.downloadTicketAttachmentByStorageKey(actor,key).getStatusCode().value()).isEqualTo(404);

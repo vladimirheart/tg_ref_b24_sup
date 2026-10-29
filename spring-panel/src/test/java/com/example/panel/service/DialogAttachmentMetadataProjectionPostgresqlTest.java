@@ -58,7 +58,7 @@ class DialogAttachmentMetadataProjectionPostgresqlTest {
         var storage = mock(AttachmentObjectStorageService.class);
         var attachments = new AttachmentService(mock(PermissionService.class), storage, tickets,
                 new TicketAttachmentOwnerJdbcGuard(ownerJdbc, tickets), tempDir.resolve("attachments").toString(),
-                tempDir.resolve("knowledge").toString());
+                tempDir.resolve("knowledge").toString(), com.example.panel.support.AttachmentReadAccessStub.permitted());
         return new Fixture(jdbc, new DialogConversationReadService(jdbc, attachments,
                 new PanelTimestampSqlSupport(), tickets), storage, tickets, attachments);
     }

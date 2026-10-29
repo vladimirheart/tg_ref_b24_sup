@@ -24,11 +24,31 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R224 и runtime R223 имеют
+что production уже запускался. Эта оговорка, source-сводка R225 и runtime R223 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
+
+Source R225 (не развёрнут): AttachmentService требует LegacyAttachmentReadAccess
+для direct/path/key download families и всех4 legacy HTTP routes, после прежних
+page/metadata/owner guards, до local/S3 open. Только bound Authentication с
+positive ID/exact raw name/status; один SQL повторяет current own account/status/
+SQL-fold uniqueness, non-GENERAL/unique raw root и общий current business READ.
+SQL fold происходит от того же ID/raw-name row, без Java fold/name fallback.
+Active membership/ALL_BUSINESSES поддерживают все4 READ роли; глобальный admin
+не заменяет grant. UNRESOLVED только strictOFF/current account, GENERAL всегда
+закрыт, foundationOFF не bypass. Отказ/DB error — пустой404 без binary calls.
+Старого конструктора без guard нет; uploads/deletes/descriptors/knowledge/avatar
+не менялись. 546 selected tests/16 suites GREEN, frozen252(SQL180/HTTP72) на
+baseline155 failures/errors0, те же3 source/8 class hashes/cases. Прежние294 cases
+повторены;13 fixtures лишь добавляют19 dependency args, inverse/assertions прежние.
+1365 Java/83 SQL/1844 inputs проверены,4 CSS EOL-only; schema/flags/UI/JS прежние.
+Это current READ перед open, не транзакционный metadata/READ lock, не полная
+child business/generation attribution и не прекращение уже начатых streams
+при revoke. GENERAL String lookup/child/media/policies/AI/fleet/flags/S6 открыты.
+Runtime остаётся R223/webR222/workerR198/foundationOFF; не rebuild/deploy/migrate/
+backfill/queue/provider, rollback сохранён. Полные runtime gates ниже, Task🟡.
 
 Текущий runtime R223 — 29 октября,11:05+03, Windows/Docker SinicinVV:
 только panel-web обновлён до clean R222 aa69238ca88000e99b7503d4132485627713397f,

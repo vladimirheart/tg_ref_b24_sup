@@ -98,7 +98,7 @@ class LegacyGeneralTicketBoundaryPostgresIntegrationTest {
         when(owner.resolveUniqueOwner("GENERAL/file.png")).thenReturn("GENERAL");
         when(owner.hasDirectOwner("GENERAL", "file.png")).thenReturn(true);
         var attachments = new AttachmentService(permissions, storage, guard, owner,
-                tempDir.resolve("attachments").toString(), tempDir.resolve("knowledge").toString());
+                tempDir.resolve("attachments").toString(), tempDir.resolve("knowledge").toString(), com.example.panel.support.AttachmentReadAccessStub.permitted());
 
         // Path and by-ticket controllers share this direct facade; Range must not bypass it.
         assertThat(attachments.downloadTicketAttachment(actor, "GENERAL", "file.png").getStatusCode())
