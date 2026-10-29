@@ -24,11 +24,33 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R219 и runtime R216 имеют
+что production уже запускался. Эта оговорка, source-сводка R220 и runtime R216 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
+
+Source-уточнение R220 (workbench/persistence Unicode barrier, не развёрнуто):
+В 9 actor API двух сервисов READ_ACTOR требует ID/exact raw name/own enabled/
+not blocked/lower(actor.username)=n.user_identity. Обе CAS-ветки также используют
+этот JOIN. Java/PG fold mismatch отказывает вместо заимствования READ/status у
+соседа. READ/OPERATE/ADMIN CONFIGURE, owner tuple/collision, CAS/audit/evidence
+и trusted worker record SQL прежние; statement-time, без response-wide lock.
+327 tests /4 suites GREEN: 187 frozen SQL (baseline49/187 failures/errors0,
+138 controls), те же source/3 class hashes/case names; Workbench47/Persistence58/
+real-login DialogHTTP35. Старые tests/assertions/fixtures не менялись.
+1355 cached Java inputs проверены; новый test и 2 main скомпилированы, SHA/fresh
+reports проверены. Native PG16.15/fresh test schemas/ignored R200 supplier;
+own connection/server закрыты. Docker/Testcontainers не запускались, 83 migrations
+прежние, Flyway только tests; UI/JS/dependencies/flags прежние, JS не rerun.
+Source/test машина sushi; рабочая машина/сессия другая:
+C:\Users\SinicinVV\git_h\tg_ref_b24_sup. Последний документированный runtime R216:
+webR215/workerR198/foundationOFF; readinessUP, health503/inboundDLQ=1 остаётся gate.
+R217–R220 не в image, нужен новый web image; migrations/rollout/working flags нет.
+Full rollback/V83 blocks сохранены. Далее assignment/participant/work bound-ID/
+name-based READ audit; остальные child/GENERAL/policy/AI/fleet/flags/S6 gates
+открыты. Task🟡, historical S2B снятR190. Commit/push разрешены до конца29 октября,
+отдельный publisher после GREEN; runtime этим разрешением не выполняется.
 
 Source-уточнение R219 (retrieval/handoff readers, не развёрнуто):
 Source.retrieve/isCurrentCandidate и handoff.candidates принимают bound Auth;

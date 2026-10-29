@@ -32,7 +32,8 @@ public class ScopedDialogAiPersistenceService {
             excluded.ticket_scope_kind,excluded.ticket_business_id)
         """;
     private static final String ACTOR = " CROSS JOIN (SELECT CAST(:identity AS TEXT) AS user_identity) n ";
-    private static final String READ_ACTOR = ACTOR + " JOIN users actor ON actor.id=:actorId AND actor.username=:actorName ";
+    private static final String READ_ACTOR = ACTOR + " JOIN users actor ON actor.id=:actorId AND actor.username=:actorName "
+        + " AND actor.enabled=TRUE AND actor.is_blocked=FALSE AND lower(actor.username)=n.user_identity ";
     private static final String READ = " AND (" + NotificationBusinessAccessSql.CAN_READ_OWNER_BUSINESS + ")";
     private static final String OPERATE = """
         AND (EXISTS (SELECT 1 FROM business_memberships membership
@@ -142,14 +143,14 @@ public class ScopedDialogAiPersistenceService {
         if (!StringUtils.hasText(expectedUpdatedAt)) {
             changed="INSERT INTO ticket_ai_scoped_control ("+OWNER_COLUMNS
                 +",ai_disabled,auto_reply_blocked,reason,updated_by_user_id,updated_by) SELECT "+OWNER_VALUES
-                +",:disabled,:blocked,:reason,actor.id,actor.username FROM tickets owner"+ACTOR
-                +" JOIN users actor ON actor.id=:actorId AND actor.username=:actorName WHERE "+ScopedAiSql.CURRENT_OWNER
+                +",:disabled,:blocked,:reason,actor.id,actor.username FROM tickets owner"+READ_ACTOR
+                +" WHERE "+ScopedAiSql.CURRENT_OWNER
                 +READ+OPERATE+" ON CONFLICT (ticket_public_id,scope_business_key) DO NOTHING RETURNING "+OWNER_COLUMNS;
         } else {
             changed="UPDATE ticket_ai_scoped_control target SET ai_disabled=:disabled,auto_reply_blocked=:blocked,"
                 +"reason=:reason,updated_by_user_id=actor.id,updated_by=actor.username,"
                 +"updated_at=GREATEST(clock_timestamp(),target.updated_at+INTERVAL '1 microsecond')"
-                +" FROM tickets owner"+ACTOR+" JOIN users actor ON actor.id=:actorId AND actor.username=:actorName WHERE "
+                +" FROM tickets owner"+READ_ACTOR+" WHERE "
                 +ScopedAiSql.CURRENT_OWNER+READ+OPERATE
                 +" AND ROW(target.ticket_user_id,target.ticket_id,target.ticket_public_id,target.ticket_scope_kind,target.ticket_business_id)"
                 +" IS NOT DISTINCT FROM ROW(owner.user_id,owner.ticket_id,owner.ticket_public_id,'BUSINESS',owner.business_id)"

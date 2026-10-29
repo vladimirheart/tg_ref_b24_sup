@@ -19,7 +19,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class ScopedDialogAiWorkbenchService {
     private static final String ACTOR=" CROSS JOIN (SELECT CAST(:identity AS TEXT) AS user_identity) n ";
-    private static final String READ_ACTOR=ACTOR+" JOIN users actor ON actor.id=:actorId AND actor.username=:actorName ";
+    private static final String READ_ACTOR=ACTOR+" JOIN users actor ON actor.id=:actorId AND actor.username=:actorName "
+        +" AND actor.enabled=TRUE AND actor.is_blocked=FALSE AND lower(actor.username)=n.user_identity ";
     private static final String READ=" AND ("+NotificationBusinessAccessSql.CAN_READ_OWNER_BUSINESS+")";
     private static final String CONFIGURE="""
         AND (EXISTS(SELECT 1 FROM business_memberships m WHERE m.user_id=actor.id
