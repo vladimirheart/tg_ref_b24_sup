@@ -468,7 +468,7 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
 
         BusinessScopedTicketReadService service = new BusinessScopedTicketReadService(
                 jdbc, new BusinessAccessService(jdbc));
-        assertThat(service.requireAuthenticatedUserId("SUSHI-READER")).isEqualTo(1L);
+        assertThat(service.requireAuthenticatedUserId(com.example.panel.support.AiControlIdentityFixture.login(jdbc,"SUSHI-READER"))).isEqualTo(1L);
         assertThat(service.availableBusinesses(1L)).extracting(
                 BusinessScopedTicketReadService.BusinessOption::code).containsExactly("sushi");
         assertThat(service.listTickets(1L, BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 50, 0))
@@ -753,7 +753,7 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         BusinessScopedTicketReadService service = new BusinessScopedTicketReadService(
                 jdbc, new BusinessAccessService(jdbc));
 
-        assertThatThrownBy(() -> service.requireAuthenticatedUserId("member"))
+        assertThatThrownBy(() -> service.requireAuthenticatedUserId(com.example.panel.support.AiControlIdentityFixture.auth(1,"member")))
                 .isInstanceOf(AccessDeniedException.class);
         assertThat(service.listTickets(1L, new BusinessAccessService.OneBusiness(sushi), 50, 0))
                 .hasSize(1);
@@ -784,7 +784,7 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
 
     private JdbcTemplate freshSchema(String prefix) {
         JdbcTemplate jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType(prefix);
-        jdbc.execute("CREATE TABLE users (id BIGINT PRIMARY KEY, username TEXT NOT NULL UNIQUE)");
+        jdbc.execute("CREATE TABLE users (id BIGINT PRIMARY KEY, username TEXT NOT NULL UNIQUE, enabled BOOLEAN DEFAULT TRUE, is_blocked BOOLEAN DEFAULT FALSE)");
         jdbc.execute("CREATE TABLE channels (id BIGINT PRIMARY KEY)");
         jdbc.execute("CREATE TABLE tickets (user_id BIGINT NOT NULL, ticket_id TEXT NOT NULL, "
                 + "group_msg_id BIGINT, status TEXT DEFAULT 'pending', "

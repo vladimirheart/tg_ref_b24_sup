@@ -21,7 +21,7 @@ class ScopedQuestionnaireMediaDownloadTest {
         var storage=mock(AttachmentObjectStorageService.class);var business=mock(BusinessScopedTicketReadService.class);
         var read=mock(GeneralTicketReadService.class);var access=mock(GeneralTicketAccessService.class);
         var actor=new UsernamePasswordAuthenticationToken("reader","unused",List.of());
-        when(business.requireAuthenticatedUserId("reader")).thenReturn(9L);when(access.requireAuthenticatedUserId("reader")).thenReturn(9L);
+        when(business.requireAuthenticatedUserId(actor)).thenReturn(9L);when(access.requireAuthenticatedUserId("reader")).thenReturn(9L);
         var b=new BusinessScopedTicketReadService.AttachmentReference(key,"active.html",hash,(long)expected.length);
         var g=new GeneralTicketReadService.AttachmentReference(key,"active.html",hash,(long)expected.length);
         when(business.findAttachmentByPublicId(9L,"public",33)).thenReturn(Optional.of(b));when(read.attachment(9L,"public",33)).thenReturn(Optional.of(g));

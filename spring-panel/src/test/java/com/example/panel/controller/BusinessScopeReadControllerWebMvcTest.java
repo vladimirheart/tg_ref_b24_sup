@@ -32,7 +32,7 @@ class BusinessScopeReadControllerWebMvcTest {
 
     @Test void categorySummaryIsPrivateBoundedAndRequiresPageFoundationAndBusinessScope() throws Exception {
         when(flags.isFoundationEnabled()).thenReturn(true);
-        when(service.requireAuthenticatedUserId("operator")).thenReturn(1L);
+        when(service.requireAuthenticatedUserId(org.mockito.ArgumentMatchers.argThat((org.springframework.security.core.Authentication actor) -> actor != null && "operator".equals(actor.getName())))).thenReturn(1L);
         var context=new BusinessAccessService.OneBusiness(2L);
         when(service.summarizeCategories(1L,context)).thenReturn(List.of(
             new BusinessScopedTicketReadService.CategoryCount(2L,"sushi","Суши","Delivery",3)));
@@ -51,7 +51,7 @@ class BusinessScopeReadControllerWebMvcTest {
 
     @Test void categoriesFilterIsForwardedLiterallyAndInvalidValuesAreRejectedBeforeMockedReads() throws Exception {
         when(flags.isFoundationEnabled()).thenReturn(true);
-        when(service.requireAuthenticatedUserId("operator")).thenReturn(1L);
+        when(service.requireAuthenticatedUserId(org.mockito.ArgumentMatchers.argThat((org.springframework.security.core.Authentication actor) -> actor != null && "operator".equals(actor.getName())))).thenReturn(1L);
         String category="A%_'😀";
         var context=new BusinessAccessService.OneBusiness(2L);
         when(service.listTickets(1L,context,50,0,null,null,null,category)).thenReturn(List.of());
@@ -94,7 +94,7 @@ class BusinessScopeReadControllerWebMvcTest {
     @Test
     void availableBusinessesArePrivateAndStillRequireCurrentPageAndFoundation() throws Exception {
         when(flags.isFoundationEnabled()).thenReturn(true);
-        when(service.requireAuthenticatedUserId("operator")).thenReturn(1L);
+        when(service.requireAuthenticatedUserId(org.mockito.ArgumentMatchers.argThat((org.springframework.security.core.Authentication actor) -> actor != null && "operator".equals(actor.getName())))).thenReturn(1L);
         when(service.availableBusinesses(1L)).thenReturn(List.of(
                 new BusinessScopedTicketReadService.BusinessOption(2L, "sushi", "Суши")));
         String path = "/api/business-scope/businesses";
@@ -125,7 +125,7 @@ class BusinessScopeReadControllerWebMvcTest {
     @Test
     void directLookupReturnsNonDisclosingNotFoundOrAuthorizedTicket() throws Exception {
         when(flags.isFoundationEnabled()).thenReturn(true);
-        when(service.requireAuthenticatedUserId("operator")).thenReturn(1L);
+        when(service.requireAuthenticatedUserId(org.mockito.ArgumentMatchers.argThat((org.springframework.security.core.Authentication actor) -> actor != null && "operator".equals(actor.getName())))).thenReturn(1L);
         when(service.findByPublicId(1L, PUBLIC_ID)).thenReturn(Optional.empty());
         mvc.perform(get("/api/business-scope/tickets/" + PUBLIC_ID)
                 .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
@@ -153,7 +153,7 @@ class BusinessScopeReadControllerWebMvcTest {
     @Test
     void historyRequiresPageAndReturnsOnlyScopedSnapshot() throws Exception {
         when(flags.isFoundationEnabled()).thenReturn(true);
-        when(service.requireAuthenticatedUserId("operator")).thenReturn(1L);
+        when(service.requireAuthenticatedUserId(org.mockito.ArgumentMatchers.argThat((org.springframework.security.core.Authentication actor) -> actor != null && "operator".equals(actor.getName())))).thenReturn(1L);
         String path = "/api/business-scope/tickets/" + PUBLIC_ID + "/history";
         mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_SETTINGS")))
                 .andExpect(status().isForbidden());
@@ -203,7 +203,7 @@ class BusinessScopeReadControllerWebMvcTest {
     @Test
     void answersReturnOnlyVerifiedRelationWithinCurrentPageAndFoundation() throws Exception {
         when(flags.isFoundationEnabled()).thenReturn(true);
-        when(service.requireAuthenticatedUserId("operator")).thenReturn(1L);
+        when(service.requireAuthenticatedUserId(org.mockito.ArgumentMatchers.argThat((org.springframework.security.core.Authentication actor) -> actor != null && "operator".equals(actor.getName())))).thenReturn(1L);
         String path = "/api/business-scope/tickets/" + PUBLIC_ID + "/answers";
         var ticket = new BusinessScopedTicketReadService.TicketRow(
                 8L, "raw-ticket", PUBLIC_ID, 2L, "sushi", "Суши", "open",
@@ -243,7 +243,7 @@ class BusinessScopeReadControllerWebMvcTest {
     @Test
     void workspaceReturnsOnlyUnambiguousScopedData() throws Exception {
         when(flags.isFoundationEnabled()).thenReturn(true);
-        when(service.requireAuthenticatedUserId("operator")).thenReturn(1L);
+        when(service.requireAuthenticatedUserId(org.mockito.ArgumentMatchers.argThat((org.springframework.security.core.Authentication actor) -> actor != null && "operator".equals(actor.getName())))).thenReturn(1L);
         String path = "/api/business-scope/tickets/" + PUBLIC_ID + "/workspace";
         var ticket = new BusinessScopedTicketReadService.TicketRow(
                 8L, "raw-ticket", PUBLIC_ID, 2L, "sushi", "Суши", "open");
@@ -284,7 +284,7 @@ class BusinessScopeReadControllerWebMvcTest {
     @Test
     void spansReturnOnlyVerifiedIntervalsUnderDialogsPermission() throws Exception {
         when(flags.isFoundationEnabled()).thenReturn(true);
-        when(service.requireAuthenticatedUserId("operator")).thenReturn(1L);
+        when(service.requireAuthenticatedUserId(org.mockito.ArgumentMatchers.argThat((org.springframework.security.core.Authentication actor) -> actor != null && "operator".equals(actor.getName())))).thenReturn(1L);
         String path = "/api/business-scope/tickets/" + PUBLIC_ID + "/spans";
         var ticket = new BusinessScopedTicketReadService.TicketRow(
                 8L, "raw-ticket", PUBLIC_ID, 2L, "sushi", "Суши", "open");
@@ -322,7 +322,7 @@ class BusinessScopeReadControllerWebMvcTest {
     @Test
     void attachmentRequiresCurrentScopeAndReturnsOnlyVerifiedBinary() throws Exception {
         when(flags.isFoundationEnabled()).thenReturn(true);
-        when(service.requireAuthenticatedUserId("operator")).thenReturn(1L);
+        when(service.requireAuthenticatedUserId(org.mockito.ArgumentMatchers.argThat((org.springframework.security.core.Authentication actor) -> actor != null && "operator".equals(actor.getName())))).thenReturn(1L);
         String path = "/api/business-scope/tickets/" + PUBLIC_ID + "/history/7/attachment";
         mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_SETTINGS")))
                 .andExpect(status().isForbidden());
@@ -354,7 +354,7 @@ class BusinessScopeReadControllerWebMvcTest {
     @Test
     void listFiltersAreValidatedAndReturnedWithinSelectedBusiness() throws Exception {
         when(flags.isFoundationEnabled()).thenReturn(true);
-        when(service.requireAuthenticatedUserId("operator")).thenReturn(1L);
+        when(service.requireAuthenticatedUserId(org.mockito.ArgumentMatchers.argThat((org.springframework.security.core.Authentication actor) -> actor != null && "operator".equals(actor.getName())))).thenReturn(1L);
         var ticket = new BusinessScopedTicketReadService.TicketRow(
                 8L, "raw-ticket", PUBLIC_ID, 2L, "sushi", "Суши", "open",
                 CREATED_AT, "Иван", "Нет света");
@@ -430,7 +430,7 @@ class BusinessScopeReadControllerWebMvcTest {
     @Test
     void exportDownloadsCompleteFilteredJsonAndRejectsOversizedOrUnauthorizedRequests() throws Exception {
         when(flags.isFoundationEnabled()).thenReturn(true);
-        when(service.requireAuthenticatedUserId("operator")).thenReturn(1L);
+        when(service.requireAuthenticatedUserId(org.mockito.ArgumentMatchers.argThat((org.springframework.security.core.Authentication actor) -> actor != null && "operator".equals(actor.getName())))).thenReturn(1L);
         String path = "/api/business-scope/tickets/export";
         var context = new BusinessAccessService.OneBusiness(2L);
         var ticket = new BusinessScopedTicketReadService.TicketRow(
@@ -476,7 +476,7 @@ class BusinessScopeReadControllerWebMvcTest {
     @Test
     void summaryRequiresCurrentBusinessScopeAndFoundation() throws Exception {
         when(flags.isFoundationEnabled()).thenReturn(true);
-        when(service.requireAuthenticatedUserId("operator")).thenReturn(1L);
+        when(service.requireAuthenticatedUserId(org.mockito.ArgumentMatchers.argThat((org.springframework.security.core.Authentication actor) -> actor != null && "operator".equals(actor.getName())))).thenReturn(1L);
         String path = "/api/business-scope/tickets/summary";
         var counts = new BusinessScopedTicketReadService.BusinessTicketCounts(
                 2L, "sushi", "Суши", 2, 0, 1, 1, 0, 0);

@@ -47,14 +47,14 @@ public class BusinessScopeReadController {
     public ResponseEntity<List<BusinessScopedTicketReadService.BusinessOption>> businesses(Authentication authentication) {
         requireFoundation();
         return privateRead(readService.availableBusinesses(
-                readService.requireAuthenticatedUserId(username(authentication))));
+                readService.requireAuthenticatedUserId(authentication)));
     }
 
     @GetMapping("/tickets/summary")
     public ResponseEntity<BusinessScopedTicketReadService.TicketSummary> ticketSummary(
             Authentication authentication, @RequestParam("business_id") String businessId) {
         requireFoundation();
-        Long userId = readService.requireAuthenticatedUserId(username(authentication));
+        Long userId = readService.requireAuthenticatedUserId(authentication);
         return privateRead(readService.summarizeTickets(userId, requestedContext(businessId)));
     }
 
@@ -62,7 +62,7 @@ public class BusinessScopeReadController {
     public ResponseEntity<List<BusinessScopedTicketReadService.CategoryCount>> categorySummary(
             Authentication authentication, @RequestParam("business_id") String businessId) {
         requireFoundation();
-        Long userId = readService.requireAuthenticatedUserId(username(authentication));
+        Long userId = readService.requireAuthenticatedUserId(authentication);
         try {
             return privateRead(readService.summarizeCategories(userId, requestedContext(businessId)));
         } catch (BusinessScopedTicketReadService.CategorySummaryTooLargeException ex) {
@@ -82,7 +82,7 @@ public class BusinessScopeReadController {
             @RequestParam(required = false) String category) {
         requireFoundation();
         TicketQuery query = ticketQuery(limit, offset, status, ticketId, queryText);
-        Long userId = readService.requireAuthenticatedUserId(username(authentication));
+        Long userId = readService.requireAuthenticatedUserId(authentication);
         try {
             BusinessScopedTicketReadService.validateCategory(category);
             return privateRead(readService.listTickets(userId, requestedContext(businessId),
@@ -104,7 +104,7 @@ public class BusinessScopeReadController {
             @RequestParam(required = false) String category) {
         requireFoundation();
         TicketQuery query = ticketQuery(limit, offset, status, ticketId, queryText);
-        Long userId = readService.requireAuthenticatedUserId(username(authentication));
+        Long userId = readService.requireAuthenticatedUserId(authentication);
         try {
             BusinessScopedTicketReadService.validateCategory(category);
             return privateRead(readService.pageTickets(userId, requestedContext(businessId),
@@ -124,7 +124,7 @@ public class BusinessScopeReadController {
             @RequestParam(required = false) String category) {
         requireFoundation();
         validateTicketFilters(status, ticketId, queryText);
-        Long userId = readService.requireAuthenticatedUserId(username(authentication));
+        Long userId = readService.requireAuthenticatedUserId(authentication);
         try {
             BusinessScopedTicketReadService.validateCategory(category);
             List<BusinessScopedTicketReadService.TicketRow> rows = readService.exportTickets(
@@ -179,7 +179,7 @@ public class BusinessScopeReadController {
     public ResponseEntity<BusinessScopedTicketReadService.TicketRow> ticket(
             @PathVariable String publicId, Authentication authentication) {
         requireFoundation();
-        Long userId = readService.requireAuthenticatedUserId(username(authentication));
+        Long userId = readService.requireAuthenticatedUserId(authentication);
         return privateRead(readService.findByPublicId(userId, publicId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND)));
     }
@@ -205,7 +205,7 @@ public class BusinessScopeReadController {
         if (pageLimit > 100) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid history page bounds");
         }
-        Long userId = readService.requireAuthenticatedUserId(username(authentication));
+        Long userId = readService.requireAuthenticatedUserId(authentication);
         return privateRead(readService.findHistoryByPublicId(userId, publicId, beforeId, pageLimit)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND)));
     }
@@ -214,7 +214,7 @@ public class BusinessScopeReadController {
     public ResponseEntity<BusinessScopedTicketReadService.TicketAnswers> answers(
             @PathVariable String publicId, Authentication authentication) {
         requireFoundation();
-        Long userId = readService.requireAuthenticatedUserId(username(authentication));
+        Long userId = readService.requireAuthenticatedUserId(authentication);
         try {
             var snapshot = readService.findAnswersByPublicId(userId, publicId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
@@ -231,7 +231,7 @@ public class BusinessScopeReadController {
     public ResponseEntity<BusinessScopedTicketReadService.TicketWorkspace> workspace(
             @PathVariable String publicId, Authentication authentication) {
         requireFoundation();
-        Long userId = readService.requireAuthenticatedUserId(username(authentication));
+        Long userId = readService.requireAuthenticatedUserId(authentication);
         try {
             var snapshot = readService.findWorkspaceByPublicId(userId, publicId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
@@ -245,7 +245,7 @@ public class BusinessScopeReadController {
     public ResponseEntity<BusinessScopedTicketReadService.TicketSpans> spans(
             @PathVariable String publicId, Authentication authentication) {
         requireFoundation();
-        Long userId = readService.requireAuthenticatedUserId(username(authentication));
+        Long userId = readService.requireAuthenticatedUserId(authentication);
         try {
             var snapshot = readService.findSpansByPublicId(userId, publicId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
@@ -269,7 +269,7 @@ public class BusinessScopeReadController {
         } catch (NumberFormatException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid history ID", ex);
         }
-        Long userId = readService.requireAuthenticatedUserId(username(authentication));
+        Long userId = readService.requireAuthenticatedUserId(authentication);
         var reference = readService.findAttachmentByPublicId(userId, publicId, id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         AttachmentObjectStorageService.StoredBinary binary;
@@ -319,10 +319,6 @@ public class BusinessScopeReadController {
                 .header(HttpHeaders.CACHE_CONTROL, "no-store")
                 .header("X-Content-Type-Options", "nosniff")
                 .body(body);
-    }
-
-    private String username(Authentication authentication) {
-        return authentication != null ? authentication.getName() : null;
     }
 
     private BusinessAccessService.RequestedBusinessContext requestedContext(String businessId) {

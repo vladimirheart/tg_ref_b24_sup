@@ -1,6 +1,7 @@
 package com.example.panel.service;
 
 import com.example.panel.storage.AttachmentStorageKeyResolver;
+import com.example.panel.security.PanelUserPrincipal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
@@ -13,6 +14,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 /** Read side for canonical business tickets; legacy display labels are never an owner. */
@@ -35,13 +38,24 @@ public class BusinessScopedTicketReadService {
         this.accessService = accessService;
     }
 
-    public Long requireAuthenticatedUserId(String username) {
-        if (username == null || username.isBlank()) {
+    public Long requireAuthenticatedUserId(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()
+                || authentication instanceof AnonymousAuthenticationToken
+                || !(authentication.getPrincipal() instanceof PanelUserPrincipal account)
+                || account.getUserId() <= 0 || account.getUsername().isBlank()
+                || !account.isEnabled() || !account.isAccountNonLocked()
+                || !account.isAccountNonExpired() || !account.isCredentialsNonExpired()) {
             throw new AccessDeniedException("Authenticated user is required");
         }
         List<Long> ids = jdbcTemplate.query(
-                "SELECT id FROM users WHERE lower(username) = lower(?) LIMIT 2",
-                (rs, rowNum) -> rs.getLong("id"), username);
+                """
+                SELECT account.id FROM users account
+                 WHERE account.id = ? AND account.username = ?
+                   AND account.enabled = TRUE AND account.is_blocked = FALSE
+                   AND 1 = (SELECT COUNT(*) FROM users duplicate
+                            WHERE lower(duplicate.username) = lower(account.username))
+                """,
+                (rs, rowNum) -> rs.getLong("id"), account.getUserId(), account.getUsername());
         if (ids.size() != 1) {
             throw new AccessDeniedException("Authenticated user is not available");
         }

@@ -43,8 +43,7 @@ public class ManualBusinessTicketController {
         if (request == null || request.businessId() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Business is required");
         }
-        long actorUserId = readService.requireAuthenticatedUserId(
-                authentication == null ? null : authentication.getName());
+        long actorUserId = readService.requireAuthenticatedUserId(authentication);
         try {
             var created = service.create(actorUserId, request.businessId(),
                     request.clientName(), request.problem(), request.businessLocationId());

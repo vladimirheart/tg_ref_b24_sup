@@ -47,7 +47,7 @@ class ManualBusinessTicketControllerWebMvcTest {
         String body = "{\"businessId\":2,\"clientName\":\"Анна\",\"problem\":\"Вопрос\"}";
         when(flags.isFoundationEnabled()).thenReturn(true);
         when(flags.isManualTicketCreation()).thenReturn(true);
-        when(readService.requireAuthenticatedUserId("operator")).thenReturn(7L);
+        when(readService.requireAuthenticatedUserId(org.mockito.ArgumentMatchers.argThat((org.springframework.security.core.Authentication actor) -> actor != null && "operator".equals(actor.getName())))).thenReturn(7L);
         when(service.create(7L, 2L, "Анна", "Вопрос", null)).thenReturn(
                 new ManualBusinessTicketCreationService.CreatedTicket(
                         "0123456789abcdef0123456789abcdef", "manual-ticket", -10L, 2L));

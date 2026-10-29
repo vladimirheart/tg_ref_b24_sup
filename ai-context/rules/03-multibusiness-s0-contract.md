@@ -24,13 +24,43 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R222 и runtime R216 имеют
+что production уже запускался. Эта оговорка, source-сводка R224 и runtime R223 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
 
-Source-уточнение R222 (BUSINESS projection readers, не развёрнуто):
+Текущий runtime R223 — 29 октября,11:05+03, Windows/Docker SinicinVV:
+только panel-web обновлён до clean R222 aa69238ca88000e99b7503d4132485627713397f,
+image sha256:0558a3411df9aad28c98e7679d479feeb17f056535cd8c3d5c01f513aa60b8b9,
+web1 healthy/restart0. WorkerR198 и остальные17 containers прежние; ENV/mounts,
+Compose/env/shared inputs сохранены (exact mutable backup heartbeat отдельно),
+HostConfig отличается только доказанной Binds permutation. JAR/classes proof,
+1139 selected tests/11 suites GREEN,25 live read/access/readiness checks прошли.
+Readiness200UP/logs0WARN0ERROR; общий health503DOWN остаётся из-за прежнего DLQ1.
+Flyway/settings/accounts/grants fingerprints прежние,83 migrations/V83 уже была;
+миграции/backfill/flags/queue/provider не затрагивались, foundationOFF.
+Rollback iguana-panel:rollback-r223-web-20261029-b94104870164 сохранён, реальный
+откат не запускался. Полный checkpoint/evidence — task01-278 R223. Не закрытие S6.
+
+Source-уточнение R224 (пока не в image): canonical BUSINESS entry
+BusinessScopedTicketReadService.requireAuthenticatedUserId принимает Authentication.
+Требуются bound PanelUserPrincipal, positive ID/exact raw name/valid status;
+один SQL проверяет собственные ID/name/enabled/not blocked и прежнюю SQL-fold
+uniqueness. Нет name relookup/trim/Java fold/unbound fallback. Все12 canonical
+read callers и manual creation controller передают исходную Authentication.
+Page/flags/READ/OPERATE/owner/media proofs и downstream numeric-ID API прежние.
+99 tests/6 suites GREEN: frozen64(SQL41/real-loginHTTP23) на baseline25 failures,
+errors0; те же source/3 class hashes/cases, прежние35 cases и result assertions.
+4 fixtures адаптируют inputs/status schema, inverse baseline exact;1360 Java/
+83 migration inputs совпали,4 CSS EOL-only. Schema/UI/JS/grants/principal прежние.
+Гарантия — только entry account SQL, не post-entry/response/transaction lock или
+атомарная авторизация всех child reads/manual writes. Legacy AttachmentService
+downloads всё ещё требуют отдельного business READ до local/S3 open; GENERAL
+String lookup, child/media/feedback/realtime/policy/AI/fleet/flags/S6 остаются.
+Source apply отдельно от rollout R223; R224 не deploy, commit/push не выполнялись.
+
+Source-уточнение R222 (BUSINESS projection readers, до rollout R223):
 AssignmentRead/CurrentAssignmentRead/ParticipantRead/WorkRead требуют собственные
 ID/exact raw name/enabled/not blocked/lower(reader.username)=n.user_identity
 в authorized_owner. Четыре SQL guards охватывают 5 API: assignment history,
