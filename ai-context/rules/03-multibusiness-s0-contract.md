@@ -24,13 +24,80 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R215 и runtime R207 имеют
+что production уже запускался. Эта оговорка, source-сводка R218 и runtime R216 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
 
-Текущий runtime checkpoint R207 (2026-10-28, 12:38 +03): на этой машине обновлён
+Source-уточнение R218 (library read/configure и общий actor guard, не развёрнуто):
+Пять source APIs availableBusinesses/canConfigure/catalog/find/history получают
+Authentication с positive session ID/exact raw name; String-only overloads удалены,
+оба контроллера передают Authentication. SQL сохраняет READ vs ADMIN CONFIGURE,
+unique active account/business, MEMORY origin/collision и pre-limit scope filtering.
+Общий BOUND_ACTOR для5 readers и4 writers требует own ID/raw username/enabled/
+not blocked и lower(actor.username)=n.user_identity. При Java/PG fold mismatch
+нет подмены соседом, способ нормализации оставлен прежним с fail-closed отказом.
+U+0130/i+U+0307 gap подтверждён PostgreSQL16: intermediate783/12 GREEN, затем
+supplement27/22 assertion failures/0errors. Первый frozen RED188/87/0 на R217.
+Всего215 новых cases (163SQL+25 real-login HTTP+27 supplement), прежние595 cases.
+Финальный полный повтор810/13 GREEN, failures/errors/skips0. Те же3 frozen source
+files/8 class hashes/case names, freshness13 XML проверена до main apply.
+61 fixture identity argument/4 never matchers/1 exact session spy, inverse/assertions
+proof. Maven/JDK17/PostgreSQL16 Testcontainers/fresh schemas,1353 Java/83 migrations/
+1832 inputs проверены,4 generated CSS EOL-only. JS/UI/schema/policy не менялись.
+Statement-time, не response-wide lock: ранее разрешённый body не отзывается при
+позднем history denial. CAS/audit/прежняя read failure semantics сохранены.
+Baseline18a00b3dc+known R21712 paths; staging/commit/push/runtime mutations нет.
+RuntimeR216/webR215/workerR198/foundationOFF, R217/R218 не в image. Retrieval/
+handoff и прочие child/GENERAL/policy/privacy/delivery/fleet/S6 gates открыты,
+Task🟡, S2B снятR190. Полный текущий source/runtime checkpoint в01-278.
+
+Source-уточнение R217 (revise identity, ещё не развёрнуто):
+ScopedAiSourceService.revise/reviseExpected принимают bound Authentication вместо
+String identity; UPDATE требует session ID/exact raw name, current unique active
+account, business READ/ADMIN CONFIGURE и прежний MEMORY origin/collision proof.
+Source/revise-event сохраняют ID/raw name; controller передаёт Authentication.
+CAS/review/status/content/opaque key/audit rollback сохранены, late HTTP409/no-store.
+Общий create/revise principal guard, без String-only review overloads; statement-time,
+не global post-snapshot revocation. UI/schema/policy/retrieval/handoff не менялись.
+226 frozen cases (200SQL+26 real-login/CSRF): baseline RED78/226/errors0, те же
+source bytes/3 class hashes/case names GREEN. Всего570/9 selected tests GREEN,
+включая344/7 прежних. 34 fixture arguments/4 files — только initial-login helper,
+inverse baseline/assertions proof. Maven/JDK17, PostgreSQL16 Testcontainers/fresh
+schemas,1350 Java/83 migrations inputs проверены.1829 inputs:4 generated CSS
+отличаются только EOL после Sass, другие raw hashes совпали. JS не rerun.
+Compile import defect исправлен до freeze-v2; PS verifier metadata/array defects
+исправлены вv3 без изменения Java/tests, evidence сохранён. Same patch/replay/
+path/hash guards, без staging/commit/push. Runtime ниже R216 остаётся webR215,
+workerR198/foundationOFF; R217 не в image, нужен отдельный web build. Миграции/
+backfill/flags/working data не менялись. Read/configure/retrieval/handoff identity,
+child/GENERAL/policies/privacy/delivery/fleet/S6 gates открыты, Task🟡/S2B снятR190.
+
+Текущий runtime checkpoint R216 (2026-10-28, 23:04 +03): на рабочей машине обновлён
+только panel-web до clean R215 `18a00b3dc38ba7b2624cca40deda9be941a28c77`.
+Image b94104870164/container3449295889d1, одна реплика healthy/restart=0;
+JAR SHA059ec09a3ba0d831 совпал package/image/live, 1414 classes — tested bytecode.
+Compose/env и число реплик сохранены, build/dry-run/up только web с --no-deps.
+Rollback tag rollback-r216-web-20261028-0e8a5171215f сохраняет R206; старые R184/
+R198/R204/R207 rollback/backup сохранены. Остальные17 containers полностью
+неизменны: workerR198/bot-runner прежний, Docker/WSL не перезапускались.
+Web ENV/mounts совпали, HostConfig отличается только порядком4 Binds. Shared inputs
+не менялись (кроме явно исключённого backup heartbeat); Flyway83/settings/users/
+grants/roles fingerprints совпали. Web Flyway skip, 0 WARN/0 ERROR; migration/
+backfill/flags/domain writes не выполнялись. Все83 migration sources прежние.
+Свежий локальный повтор 344/7 existing tests GREEN, PostgreSQL16 Testcontainers,
+схемы изолированы от стенда. 25 live access/readiness checks GREEN, реальный login/
+logout и ROLE_ADMIN+PAGE_CHANNELS/PAGE_SETTINGS; foundation OFF сохранён.
+Общий health503/DOWN **не принят**: iguanaProduction degraded из-за inboundDLQ=1.
+Prometheus worker sample на19:55Z подтверждает этот backlog до web StartedAt19:59:41Z;
+db/redis/rabbit connection/storage/readiness UP. DLQ не consume/ack/purge/requeue;
+это отдельный operational gate. Полной runtime/provider приёмки не заявляется.
+Полный checkpoint/evidence в01-278/.tmp/01-278-r216-rollout. R208–R215 развёрнуты
+только в web; identity/child/GENERAL/policy/privacy/delivery/fleet/flags/S6 gates
+открыты, Task🟡, historical S2B снят R190. R207 ниже — исторический checkpoint.
+
+Предыдущий runtime checkpoint R207 (2026-10-28, 12:38 +03): на этой машине обновлён
 только panel-web до clean R206 commit c2ee116f3147297a28b20165a8f1ac0a2a19aa86.
 Одна реплика, healthy/restart=0, health/readiness 200/UP. Image 0e8a5171215f,
 container d262f92f80d5, JAR SHA 9d7ce559a89ffb9f; полный checkpoint в 01-278.

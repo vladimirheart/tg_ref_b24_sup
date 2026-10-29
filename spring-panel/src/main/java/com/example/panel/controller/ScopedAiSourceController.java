@@ -126,7 +126,7 @@ public class ScopedAiSourceController {
         configure(businessId,authentication);
         validContent(key,title,body);
         if (sourceId<1 || revision<1) badRequest();
-        if (!sources.reviseExpected(businessId,actor(authentication),kind,key,sourceId,revision,title,body,status)) conflict();
+        if (!sources.reviseExpected(businessId,authentication,kind,key,sourceId,revision,title,body,status)) conflict();
         return redirect(businessId,kind,key);
     }
 
@@ -150,9 +150,9 @@ public class ScopedAiSourceController {
         if (!flags.isFoundationEnabled() || !flags.isUiSelector()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
     }
 
-    private String actor(Authentication authentication) {
+    private Authentication actor(Authentication authentication) {
         if (authentication==null || !authentication.isAuthenticated()) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-        return authentication.getName();
+        return authentication;
     }
 
     private void validKey(String key) {

@@ -45,14 +45,14 @@ class ScopedDialogAiHttpPostgresTest {
         long forgedId=account(forged);
         if(variant.equals("both"))jdbc.update("INSERT INTO business_memberships(user_id,business_id,role_code) VALUES(?,?,'ADMIN')",forgedId,other);
         assertThat(sources.createKnowledge(business,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),"principal-proof","refund","private refund knowledge")).isTrue();
-        assertThat(sources.revise(business,admin,ScopedAiSourceService.Kind.KNOWLEDGE,"principal-proof",1,"refund","private refund knowledge",ScopedAiSourceService.Status.APPROVED)).isTrue();
+        assertThat(sources.revise(business,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),ScopedAiSourceService.Kind.KNOWLEDGE,"principal-proof",1,"refund","private refund knowledge",ScopedAiSourceService.Status.APPROVED)).isTrue();
         assertThat(knowledge.record(scope,"refund")).isTrue();
         mvc.perform(auth(get(root),forged,true)).andExpect(status().isNotFound());
         mvc.perform(auth(control(""),forged,true).with(csrf())).andExpect(status().isNotFound());
         mvc.perform(auth(memory(UUID.randomUUID().toString()),forged,true).with(csrf())).andExpect(status().isNotFound());
         assertThat(jdbc.queryForObject("SELECT count(*) FROM ticket_ai_scoped_control WHERE ticket_public_id=?",Long.class,publicId)).isZero();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM ai_scoped_sources WHERE business_id=?",Long.class,business)).isEqualTo(1);
-        assertThat(sources.find(business,admin,ScopedAiSourceService.Kind.KNOWLEDGE,"principal-proof").orElseThrow().revision()).isEqualTo(2);
+        assertThat(sources.find(business,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),ScopedAiSourceService.Kind.KNOWLEDGE,"principal-proof").orElseThrow().revision()).isEqualTo(2);
     }
     @Test void literalSpacedPrincipalCanControlAndCurateOnlyItsOwnDialog() throws Exception {
         String original=admin,spaced=" "+admin+" ";jdbc.update("UPDATE users SET username=? WHERE id=?",spaced,adminId);
@@ -140,7 +140,7 @@ class ScopedDialogAiHttpPostgresTest {
         Cookie[] cookies=opened.getResponse().getCookies();
         mvc.perform(auth(memory(key),admin,true).cookie(cookies).param("_csrf",token).param("status","APPROVED").param("actor",foreign))
             .andExpect(redirectedUrl(root));
-        var draft=sources.find(business,admin,ScopedAiSourceService.Kind.MEMORY,key).orElseThrow();
+        var draft=sources.find(business,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),ScopedAiSourceService.Kind.MEMORY,key).orElseThrow();
         assertThat(draft.status()).isEqualTo(ScopedAiSourceService.Status.DRAFT);
         assertThat(draft.origin()).isEqualTo(scope);
         mvc.perform(auth(control(""),admin,true).with(csrf())).andExpect(redirectedUrl(root));
@@ -228,10 +228,10 @@ class ScopedDialogAiHttpPostgresTest {
     }
     @Test void approvedReferencesAppearButNotAfterRevisionOrArchive() throws Exception {
         assertThat(sources.createKnowledge(business,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),"proof","Approved <material>","refund")).isTrue();
-        assertThat(sources.revise(business,admin,ScopedAiSourceService.Kind.KNOWLEDGE,"proof",1,"Approved <material>","refund",ScopedAiSourceService.Status.APPROVED)).isTrue();
+        assertThat(sources.revise(business,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),ScopedAiSourceService.Kind.KNOWLEDGE,"proof",1,"Approved <material>","refund",ScopedAiSourceService.Status.APPROVED)).isTrue();
         assertThat(knowledge.record(scope,"refund")).isTrue();
         mvc.perform(auth(get(root),admin,true)).andExpect(status().isOk()).andExpect(content().string(containsString("Approved &lt;material&gt;")));
-        assertThat(sources.revise(business,admin,ScopedAiSourceService.Kind.KNOWLEDGE,"proof",2,"Approved <material>","refund",ScopedAiSourceService.Status.ARCHIVED)).isTrue();
+        assertThat(sources.revise(business,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),ScopedAiSourceService.Kind.KNOWLEDGE,"proof",2,"Approved <material>","refund",ScopedAiSourceService.Status.ARCHIVED)).isTrue();
         mvc.perform(auth(get(root),admin,true)).andExpect(status().isOk()).andExpect(content().string(not(containsString("Approved &lt;material&gt;"))));
     }
     @ParameterizedTest @ValueSource(strings={"disabled","blocked","deleted","renamed","rename-reuse","delete-reuse"})
@@ -310,7 +310,7 @@ class ScopedDialogAiHttpPostgresTest {
         }
         Cookie[] requestCookies=cookies.values().toArray(Cookie[]::new);
         mvc.perform(memory(key).cookie(requestCookies).param("_csrf",token)).andExpect(redirectedUrl(root));
-        var draft=sources.find(business,admin,ScopedAiSourceService.Kind.MEMORY,key).orElseThrow();
+        var draft=sources.find(business,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),ScopedAiSourceService.Kind.MEMORY,key).orElseThrow();
         assertThat(draft.status()).isEqualTo(ScopedAiSourceService.Status.DRAFT);
         assertThat(draft.origin()).isEqualTo(scope);
         mvc.perform(control("").cookie(requestCookies).param("_csrf",token)).andExpect(redirectedUrl(root));

@@ -42,7 +42,7 @@ public class ScopedDialogAiController {
         model.addAttribute("events",persistence.findEvents(scope,auth,10));
         boolean library=auth.getAuthorities().stream().anyMatch(a->a.getAuthority().equals("PAGE_KNOWLEDGE_BASE"));
         model.addAttribute("library",library);
-        model.addAttribute("canCurate",library && sources.canConfigure(scope.businessId(),auth.getName()));
+        model.addAttribute("canCurate",library && sources.canConfigure(scope.businessId(),auth));
         model.addAttribute("messages",library ? workbench.messages(scope,auth) : java.util.List.of());
         model.addAttribute("candidates",library ? knowledge.candidates(scope,auth.getName()) : java.util.List.of());
         model.addAttribute("sourceKey",UUID.randomUUID().toString());
@@ -66,7 +66,7 @@ public class ScopedDialogAiController {
             @RequestParam String title,@RequestParam String body,
             @RequestParam(defaultValue="false") boolean reviewed) {
         var scope=scope(publicId,auth,response,businessId);
-        if (!sources.canConfigure(scope.businessId(),auth.getName())) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        if (!sources.canConfigure(scope.businessId(),auth)) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         var q=evidence(question); var a=evidence(answer);
         if (!workbench.createMemory(scope,auth,key,q.id(),a.id(),q.hash(),a.hash(),title,body,reviewed)) conflict();
         return redirect(publicId);

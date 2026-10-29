@@ -72,8 +72,8 @@ class ScopedPrincipalIdentityPostgresTest {
         assertThat(assignments.change(scope,assignmentAuthentication("admin"),0,5L,false)).isTrue();
         assertThat(participants.change(scope,assignmentAuthentication("admin"),0,2L,true)).isTrue();
         assertThat(sources.createKnowledge(11L,assignmentAuthentication("admin"),"proof","refund","PRIVATE Business A refund knowledge")).isTrue();
-        assertThat(sources.revise(11L,"admin",KNOWLEDGE,"proof",1,"refund","PRIVATE Business A refund knowledge",APPROVED)).isTrue();
-        approved=sources.find(11L,"admin",KNOWLEDGE,"proof").orElseThrow();
+        assertThat(sources.revise(11L,assignmentAuthentication("admin"),KNOWLEDGE,"proof",1,"refund","PRIVATE Business A refund knowledge",APPROVED)).isTrue();
+        approved=sources.find(11L,assignmentAuthentication("admin"),KNOWLEDGE,"proof").orElseThrow();
         questionHash=fingerprint(40);answerHash=fingerprint(41);
         assertThat(workbench.createMemory(scope,assignmentAuthentication("admin"),key(),40,41,questionHash,answerHash,"reviewed","safe memory",true)).isTrue();
         assertThat(handoff.record(scope,"refund")).isTrue();
@@ -108,11 +108,11 @@ class ScopedPrincipalIdentityPostgresTest {
             check.assertThat(persistence.findControl(scope,assignmentAuthentication(actor))).as("AI controls").isEmpty();
             check.assertThat(persistence.findState(scope,assignmentAuthentication(actor))).as("AI state").isEmpty();
             check.assertThat(persistence.findEvents(scope,assignmentAuthentication(actor),50)).as("AI events").isEmpty();
-            check.assertThat(sources.availableBusinesses(actor)).as("business choices").noneMatch(b->b.id()==11);
-            check.assertThat(sources.canConfigure(11L,actor)).as("CONFIGURE").isFalse();
-            check.assertThat(sources.catalog(11L,actor,null,null,"",null,50)).as("source catalog").isEmpty();
-            check.assertThat(sources.find(11L,actor,KNOWLEDGE,"proof")).as("source body").isEmpty();
-            check.assertThat(sources.history(11L,actor,KNOWLEDGE,"proof",50)).as("source history").isEmpty();
+            check.assertThat(sources.availableBusinesses(assignmentAuthentication(actor))).as("business choices").noneMatch(b->b.id()==11);
+            check.assertThat(sources.canConfigure(11L,assignmentAuthentication(actor))).as("CONFIGURE").isFalse();
+            check.assertThat(sources.catalog(11L,assignmentAuthentication(actor),null,null,"",null,50)).as("source catalog").isEmpty();
+            check.assertThat(sources.find(11L,assignmentAuthentication(actor),KNOWLEDGE,"proof")).as("source body").isEmpty();
+            check.assertThat(sources.history(11L,assignmentAuthentication(actor),KNOWLEDGE,"proof",50)).as("source history").isEmpty();
             check.assertThat(sources.retrieve(scope,actor,"refund",20)).as("retrieval").isEmpty();
             check.assertThat(sources.isCurrentCandidate(scope,actor,approved)).as("retrieved payload proof").isFalse();
             check.assertThat(handoff.candidates(scope,actor)).as("handoff evidence").isEmpty();
@@ -129,8 +129,8 @@ class ScopedPrincipalIdentityPostgresTest {
         assertThat(workbench.createMemory(scope,assignmentAuthentication(actor),key(),40,41,questionHash,answerHash,"forged","body",true)).isFalse();
         assertThat(sources.createKnowledge(11L,assignmentAuthentication(actor),key(),"forged","body")).isFalse();
         assertThat(sources.createMemory(scope,assignmentAuthentication(actor),key(),"forged","body")).isFalse();
-        assertThat(sources.revise(11L,actor,KNOWLEDGE,"proof",2,"forged","body",ARCHIVED)).isFalse();
-        assertThat(sources.reviseExpected(11L,actor,KNOWLEDGE,"proof",approved.id(),2,"forged","body",ARCHIVED)).isFalse();
+        assertThat(sources.revise(11L,assignmentAuthentication(actor),KNOWLEDGE,"proof",2,"forged","body",ARCHIVED)).isFalse();
+        assertThat(sources.reviseExpected(11L,assignmentAuthentication(actor),KNOWLEDGE,"proof",approved.id(),2,"forged","body",ARCHIVED)).isFalse();
     }
     @ParameterizedTest @ValueSource(strings={" admin","admin "," admin ","\tadmin\t","\nadmin\r"})
     void whitespacePrincipalCannotReadAnotherCanonicalAccount(String actor) {
@@ -144,7 +144,7 @@ class ScopedPrincipalIdentityPostgresTest {
     void caseInsensitiveCanonicalAccountKeepsItsOwnReadAndWriteRights(String actor) {
         assertThat(assignments.find(PUBLIC,assignmentAuthentication(actor))).isPresent();assertThat(participants.members(scope,assignmentAuthentication(actor))).hasSize(1);
         assertThat(workbench.resolve(PUBLIC,assignmentAuthentication(actor))).contains(scope);assertThat(workbench.messages(scope,assignmentAuthentication(actor))).hasSize(2);
-        assertThat(persistence.canOperate(scope,assignmentAuthentication(actor))).isTrue();assertThat(sources.find(11L,actor,KNOWLEDGE,"proof")).isPresent();
+        assertThat(persistence.canOperate(scope,assignmentAuthentication(actor))).isTrue();assertThat(sources.find(11L,assignmentAuthentication(actor),KNOWLEDGE,"proof")).isPresent();
         assertThat(handoff.candidates(scope,actor)).hasSize(1);
         assertThat(assignments.change(scope,assignmentAuthentication(actor),1,null,true)).isTrue();
         assertThat(participants.change(scope,assignmentAuthentication(actor),1,2L,false)).isTrue();
@@ -160,7 +160,7 @@ class ScopedPrincipalIdentityPostgresTest {
         assertThat(assignments.change(other,assignmentAuthentication(actor),0,null,true)).isTrue();
         assertThat(participants.change(other,assignmentAuthentication(actor),0,3L,true)).isTrue();
         assertThat(sources.createKnowledge(22L,assignmentAuthentication(actor),"own","refund","own refund")).isTrue();
-        assertThat(sources.revise(22L,actor,KNOWLEDGE,"own",1,"refund","own refund",APPROVED)).isTrue();
+        assertThat(sources.revise(22L,assignmentAuthentication(actor),KNOWLEDGE,"own",1,"refund","own refund",APPROVED)).isTrue();
         assertThat(workbench.createMemory(other,assignmentAuthentication(actor),key(),50,51,fingerprint(50),fingerprint(51),"own","reviewed",true)).isTrue();
         assertThat(persistence.setControlExpected(other,assignmentAuthentication(actor),"",false,true,"own")).isTrue();
         assertThat(handoff.record(other,"refund")).isTrue();assertThat(handoff.candidates(other,actor)).hasSize(1);
@@ -185,6 +185,6 @@ class ScopedPrincipalIdentityPostgresTest {
         jdbc.execute("DROP TABLE business_memberships");
         assertThat(assignments.find(PUBLIC,assignmentAuthentication("admin"))).isEmpty();assertThat(participants.members(scope,assignmentAuthentication("admin"))).isEmpty();
         assertThat(workbench.resolve(PUBLIC,assignmentAuthentication("admin"))).isEmpty();assertThat(persistence.canOperate(scope,assignmentAuthentication("admin"))).isFalse();
-        assertThat(sources.find(11L,"admin",KNOWLEDGE,"proof")).isEmpty();assertThat(handoff.candidates(scope,"admin")).isEmpty();
+        assertThat(sources.find(11L,assignmentAuthentication("admin"),KNOWLEDGE,"proof")).isEmpty();assertThat(handoff.candidates(scope,"admin")).isEmpty();
     }
 }

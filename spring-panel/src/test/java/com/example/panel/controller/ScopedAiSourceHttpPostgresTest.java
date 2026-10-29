@@ -93,7 +93,7 @@ class ScopedAiSourceHttpPostgresTest {
         mvc.perform(auth(create("principal-denied"),forged).with(csrf())).andExpect(status().isForbidden());
         mvc.perform(auth(revise(sourceA),forged).with(csrf())).andExpect(status().isForbidden());
         assertUnchanged(sourceA);
-        assertThat(sources.find(businessA,admin,KNOWLEDGE,"principal-denied")).isEmpty();
+        assertThat(sources.find(businessA,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),KNOWLEDGE,"principal-denied")).isEmpty();
     }
     @Test void literalSpacedPrincipalCanReviewOnlyItsOwnBusinessSources() throws Exception {
         String original=admin,spaced=" "+admin+" ";jdbc.update("UPDATE users SET username=? WHERE id=?",spaced,adminId);
@@ -102,10 +102,10 @@ class ScopedAiSourceHttpPostgresTest {
         mvc.perform(auth(edit(sourceA),original)).andExpect(status().isForbidden());
         mvc.perform(auth(create("literal-spaced"),spaced).with(csrf())).andExpect(status().is3xxRedirection());
         mvc.perform(auth(revise(sourceA),spaced).with(csrf())).andExpect(status().is3xxRedirection());
-        assertThat(sources.find(businessA,spaced,KNOWLEDGE,KEY).orElseThrow().revision()).isEqualTo(2);
+        assertThat(sources.find(businessA,com.example.panel.support.AiControlIdentityFixture.login(jdbc,spaced),KNOWLEDGE,KEY).orElseThrow().revision()).isEqualTo(2);
         assertThat(jdbc.queryForMap("SELECT updated_by_user_id,updated_by FROM ai_scoped_sources WHERE id=?",sourceA.id()))
             .containsEntry("updated_by_user_id",adminId).containsEntry("updated_by",spaced);
-        assertThat(sources.find(businessA,spaced,KNOWLEDGE,"literal-spaced")).isPresent();
+        assertThat(sources.find(businessA,com.example.panel.support.AiControlIdentityFixture.login(jdbc,spaced),KNOWLEDGE,"literal-spaced")).isPresent();
     }
 
     private static final AtomicLong IDS=new AtomicLong(9320000);
@@ -140,8 +140,8 @@ class ScopedAiSourceHttpPostgresTest {
         jdbc.update("INSERT INTO business_access_grants(user_id,grant_scope,role_code) VALUES(?,'ALL_BUSINESSES','ADMIN')",account(all));
         assertThat(sources.createKnowledge(businessA,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),KEY,"Title A <unsafe>",BODY)).isTrue();
         assertThat(sources.createKnowledge(businessB,com.example.panel.support.AiControlIdentityFixture.login(jdbc,foreign),KEY,"Title B secret","PRIVATE_B_SECRET")).isTrue();
-        sourceA=sources.find(businessA,admin,KNOWLEDGE,KEY).orElseThrow();
-        sourceB=sources.find(businessB,foreign,KNOWLEDGE,KEY).orElseThrow();
+        sourceA=sources.find(businessA,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),KNOWLEDGE,KEY).orElseThrow();
+        sourceB=sources.find(businessB,com.example.panel.support.AiControlIdentityFixture.login(jdbc,foreign),KNOWLEDGE,KEY).orElseThrow();
         String raw=" private origin/Ю?% "+prefix;
         String publicId=UUID.randomUUID().toString().replace("-","");
         long owner=IDS.incrementAndGet();
@@ -193,7 +193,7 @@ class ScopedAiSourceHttpPostgresTest {
         mvc.perform(auth(create("no-csrf"),admin)).andExpect(redirectedUrl("/error/403"));
         mvc.perform(auth(create("bad-csrf"),admin).with(csrf()).with(r->{r.setParameter("_csrf","invalid");return r;}))
             .andExpect(redirectedUrl("/error/403"));
-        assertThat(sources.find(businessA,admin,KNOWLEDGE,"no-csrf")).isEmpty();
+        assertThat(sources.find(businessA,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),KNOWLEDGE,"no-csrf")).isEmpty();
         assertUnchanged(sourceA);
     }
 
@@ -203,7 +203,7 @@ class ScopedAiSourceHttpPostgresTest {
         if(actor.equals("missing")) {
             var principal=new com.example.panel.security.PanelUserPrincipal(Long.MAX_VALUE,identity,"unused",true,List.of(new SimpleGrantedAuthority("PAGE_KNOWLEDGE_BASE")));
             for(var request:List.of(get(ROOT).param("businessId",Long.toString(businessA)),edit(sourceA),create("denied").with(csrf()),revise(sourceA).with(csrf())))mvc.perform(request.with(user(principal))).andExpect(redirectedUrl("http://localhost/login"));
-            org.mockito.Mockito.verify(sources,org.mockito.Mockito.never()).availableBusinesses(org.mockito.ArgumentMatchers.anyString());assertUnchanged(sourceA);return;
+            org.mockito.Mockito.verify(sources,org.mockito.Mockito.never()).availableBusinesses(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class));assertUnchanged(sourceA);return;
         }
         mvc.perform(auth(get(ROOT).param("businessId",Long.toString(businessA)),identity)).andExpect(status().isForbidden());
         mvc.perform(auth(edit(sourceA),identity)).andExpect(status().isForbidden());
@@ -224,10 +224,10 @@ class ScopedAiSourceHttpPostgresTest {
         var created=mvc.perform(auth(create(key),admin).cookie(cookies).param("_csrf",token)
                 .param("status","APPROVED").param("kind","MEMORY").param("actor",foreign))
             .andExpect(status().is3xxRedirection()).andReturn();
-        Source saved=sources.find(businessA,admin,KNOWLEDGE,key).orElseThrow();
+        Source saved=sources.find(businessA,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),KNOWLEDGE,key).orElseThrow();
         assertThat(saved.status()).isEqualTo(ScopedAiSourceService.Status.DRAFT);
         assertThat(saved.revision()).isEqualTo(1);
-        assertThat(sources.history(businessA,admin,KNOWLEDGE,key,1).get(0)).containsEntry("actor",admin);
+        assertThat(sources.history(businessA,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),KNOWLEDGE,key,1).get(0)).containsEntry("actor",admin);
         String location=created.getResponse().getRedirectedUrl();
         cookies=captureCookies(cookieJar,created);
         var rendered=mvc.perform(auth(get(URI.create(location)),admin).cookie(cookies))
@@ -241,7 +241,7 @@ class ScopedAiSourceHttpPostgresTest {
         cookies=captureCookies(cookieJar,rendered);
         var reviewed=mvc.perform(auth(revise(saved),admin).cookie(cookies).param("_csrf",hidden(html,"_csrf")))
             .andExpect(redirectedUrl(location)).andReturn();
-        Source approved=sources.find(businessA,admin,KNOWLEDGE,key).orElseThrow();
+        Source approved=sources.find(businessA,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),KNOWLEDGE,key).orElseThrow();
         assertThat(approved.status()).isEqualTo(APPROVED);
         assertThat(approved.revision()).isEqualTo(2);
         cookies=captureCookies(cookieJar,reviewed);
@@ -249,7 +249,7 @@ class ScopedAiSourceHttpPostgresTest {
         cookies=captureCookies(cookieJar,reopened);
         mvc.perform(auth(replace(revise(approved),"status","DRAFT"),admin).cookie(cookies)
             .param("_csrf",hidden(reopened.getResponse().getContentAsString(),"_csrf"))).andExpect(redirectedUrl(location));
-        Source draft=sources.find(businessA,admin,KNOWLEDGE,key).orElseThrow();
+        Source draft=sources.find(businessA,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),KNOWLEDGE,key).orElseThrow();
         assertThat(draft.revision()).isEqualTo(3);
         assertThat(draft.status()).isEqualTo(ScopedAiSourceService.Status.DRAFT);
         Files.writeString(Path.of("..","..","r132-ai-source-preview.html"),html);
@@ -263,7 +263,7 @@ class ScopedAiSourceHttpPostgresTest {
         mvc.perform(auth(revise(sourceA),admin).with(csrf())).andExpect(status().isConflict());
         mvc.perform(auth(replace(revise(sourceA),"businessId",Long.toString(businessB)),all).with(csrf())).andExpect(status().isConflict());
         assertUnchanged(sourceB);
-        assertThat(sources.find(businessA,admin,KNOWLEDGE,KEY).orElseThrow().revision()).isEqualTo(2);
+        assertThat(sources.find(businessA,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),KNOWLEDGE,KEY).orElseThrow().revision()).isEqualTo(2);
     }
 
     @ParameterizedTest @ValueSource(strings={"revoke","disabled","blocked","collision","archive"})
@@ -287,7 +287,7 @@ class ScopedAiSourceHttpPostgresTest {
                 assertThat(sources.createKnowledge(businessA,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),KEY,"Replacement","Replacement body")).isTrue();
             } else mutate(mutation);
             return allowed;
-        }).when(sources).canConfigure(eq(businessA),eq(admin));
+        }).when(sources).canConfigure(eq(businessA),org.mockito.ArgumentMatchers.argThat((org.springframework.security.core.Authentication actor)->actor!=null && actor.getPrincipal() instanceof com.example.panel.security.PanelUserPrincipal p && p.getUserId()==adminId && admin.equals(p.getUsername())));
         mvc.perform(auth(revise(sourceA),admin).with(csrf())).andExpect(status().isConflict());
         var row=jdbc.queryForMap("SELECT title,body,revision FROM ai_scoped_sources WHERE business_id=? AND source_key=?",businessA,KEY);
         assertThat(row).containsEntry("revision",1L).containsEntry("body",mutation.equals("recreated")?"Replacement body":BODY);
@@ -296,7 +296,7 @@ class ScopedAiSourceHttpPostgresTest {
     @Test
     void memoryCanBeReviewedButOriginChangeClosesExistingPageAndMutation() throws Exception {
         assertThat(sources.createMemory(origin,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),"memory","Memory title","Curated solution")).isTrue();
-        Source memory=sources.find(businessA,admin,MEMORY,"memory").orElseThrow();
+        Source memory=sources.find(businessA,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),MEMORY,"memory").orElseThrow();
         mvc.perform(auth(edit(memory),admin)).andExpect(status().isOk())
             .andExpect(content().string(containsString("Решение из обращения")))
             .andExpect(content().string(not(containsString(origin.ticketId()))));
@@ -391,7 +391,7 @@ class ScopedAiSourceHttpPostgresTest {
         switch(change){case "disabled"->jdbc.update("UPDATE users SET enabled=FALSE WHERE id=?",adminId);case "blocked"->jdbc.update("UPDATE users SET is_blocked=TRUE WHERE id=?",adminId);case "renamed","rename-reuse"->jdbc.update("UPDATE users SET username=? WHERE id=?","renamed-"+admin,adminId);default->jdbc.update("DELETE FROM users WHERE id=?",adminId);}
         if(change.endsWith("reuse"))membership(account(admin),businessA,"ADMIN");
         for(var request:requests)mvc.perform(request).andExpect(redirectedUrl("http://localhost/login"));
-        org.mockito.Mockito.verify(sources,org.mockito.Mockito.never()).availableBusinesses(org.mockito.ArgumentMatchers.anyString());
+        org.mockito.Mockito.verify(sources,org.mockito.Mockito.never()).availableBusinesses(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class));
         assertThat(sourceRows()).isEqualTo(before);
         if(change.endsWith("reuse"))mvc.perform(auth(edit(sourceA),admin)).andExpect(status().isOk());
     }
@@ -403,14 +403,14 @@ class ScopedAiSourceHttpPostgresTest {
         var principal=new com.example.panel.security.PanelUserPrincipal(id,name,"unused",true,granted);
         RequestPostProcessor identity=kind.equals("unbound")?user(admin).authorities(granted):user(principal);var before=sourceRows();
         for(var request:List.of(get(ROOT).param("businessId",Long.toString(businessA)),edit(sourceA),get(ROOT+"/new").param("businessId",Long.toString(businessA)),create("mismatched-principal").with(csrf()),revise(sourceA).with(csrf())))mvc.perform(request.with(identity)).andExpect(redirectedUrl("http://localhost/login"));
-        org.mockito.Mockito.verify(sources,org.mockito.Mockito.never()).availableBusinesses(org.mockito.ArgumentMatchers.anyString());assertThat(sourceRows()).isEqualTo(before);
+        org.mockito.Mockito.verify(sources,org.mockito.Mockito.never()).availableBusinesses(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class));assertThat(sourceRows()).isEqualTo(before);
     }
     @ParameterizedTest @ValueSource(strings={"removed","role-only"})
     void preparedRequestsLoseTheDbPageRightWithoutFixtureRepair(String mode)throws Exception {
         var requests=preparedRequests();var before=sourceRows();jdbc.update("DELETE FROM user_authorities WHERE user_id=? AND authority='PAGE_KNOWLEDGE_BASE'",adminId);
         if(mode.equals("role-only"))jdbc.update("INSERT INTO user_authorities(user_id,authority) VALUES(?,'ROLE_ADMIN')",adminId);
         for(var request:requests)mvc.perform(request).andExpect(status().isForbidden());
-        org.mockito.Mockito.verify(sources,org.mockito.Mockito.never()).availableBusinesses(org.mockito.ArgumentMatchers.anyString());assertThat(sourceRows()).isEqualTo(before);
+        org.mockito.Mockito.verify(sources,org.mockito.Mockito.never()).availableBusinesses(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class));assertThat(sourceRows()).isEqualTo(before);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM user_authorities WHERE user_id=? AND authority='PAGE_KNOWLEDGE_BASE'",Integer.class,adminId)).isZero();
     }
     @Test void realJdbcLoginCreatesReviewsReloadsAndThenLosesSourcePageAccess()throws Exception {
@@ -422,10 +422,10 @@ class ScopedAiSourceHttpPostgresTest {
         var form=mvc.perform(get(ROOT+"/new").param("businessId",Long.toString(businessA)).cookie(cookies.values().toArray(Cookie[]::new))).andExpect(status().isOk()).andReturn();remember(cookies,form);
         String html=form.getResponse().getContentAsString(),key=hidden(html,"key");
         var created=mvc.perform(create(key).cookie(cookies.values().toArray(Cookie[]::new)).param("_csrf",hidden(html,"_csrf"))).andExpect(status().is3xxRedirection()).andExpect(header().string("Cache-Control",containsString("no-store"))).andReturn();remember(cookies,created);
-        var draft=sources.find(businessA,admin,KNOWLEDGE,key).orElseThrow();assertThat(draft.status()).isEqualTo(ScopedAiSourceService.Status.DRAFT);
+        var draft=sources.find(businessA,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),KNOWLEDGE,key).orElseThrow();assertThat(draft.status()).isEqualTo(ScopedAiSourceService.Status.DRAFT);
         var opened=mvc.perform(get(URI.create(created.getResponse().getRedirectedUrl())).cookie(cookies.values().toArray(Cookie[]::new))).andExpect(status().isOk()).andExpect(content().string(not(containsString("PRIVATE_B_SECRET")))).andReturn();remember(cookies,opened);
         var reviewed=mvc.perform(revise(draft).cookie(cookies.values().toArray(Cookie[]::new)).param("_csrf",hidden(opened.getResponse().getContentAsString(),"_csrf"))).andExpect(status().is3xxRedirection()).andReturn();remember(cookies,reviewed);
-        var approved=sources.find(businessA,admin,KNOWLEDGE,key).orElseThrow();assertThat(approved.status()).isEqualTo(APPROVED);assertThat(approved.revision()).isEqualTo(2);
+        var approved=sources.find(businessA,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),KNOWLEDGE,key).orElseThrow();assertThat(approved.status()).isEqualTo(APPROVED);assertThat(approved.revision()).isEqualTo(2);
         assertThat(jdbc.queryForMap("SELECT updated_by_user_id,updated_by FROM ai_scoped_sources WHERE id=?",approved.id())).containsEntry("updated_by_user_id",adminId).containsEntry("updated_by",admin);
         assertThat(jdbc.queryForList("SELECT actor_user_id FROM ai_scoped_source_events WHERE source_id=? ORDER BY revision",Long.class,approved.id())).containsExactly(adminId,adminId);
         var reloaded=mvc.perform(get(URI.create(reviewed.getResponse().getRedirectedUrl())).cookie(cookies.values().toArray(Cookie[]::new))).andExpect(status().isOk()).andReturn();remember(cookies,reloaded);

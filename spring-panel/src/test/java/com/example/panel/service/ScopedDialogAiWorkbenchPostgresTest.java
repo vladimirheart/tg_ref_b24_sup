@@ -65,7 +65,7 @@ class ScopedDialogAiWorkbenchPostgresTest {
     private boolean memory(String actor,String key) { return work.createMemory(scope,com.example.panel.support.AiControlIdentityFixture.auth(1,actor),key,40,41,qHash,aHash,"Resolved refund","curated without PII",true); }
     private void approved(long business,String actor,String key) {
         assertThat(sources.createKnowledge(business,com.example.panel.support.AiControlIdentityFixture.login(jdbc,actor),key,"refund","refund approved")).isTrue();
-        assertThat(sources.revise(business,actor,ScopedAiSourceService.Kind.KNOWLEDGE,key,1,"refund","refund approved",ScopedAiSourceService.Status.APPROVED)).isTrue();
+        assertThat(sources.revise(business,com.example.panel.support.AiControlIdentityFixture.login(jdbc,actor),ScopedAiSourceService.Kind.KNOWLEDGE,key,1,"refund","refund approved",ScopedAiSourceService.Status.APPROVED)).isTrue();
     }
     @Test void fullCurationApprovalHandoffAndCurrentReferenceRead() {
         assertThat(work.resolve(scope.ticketPublicId(),boundControlActor())).contains(scope);
@@ -73,14 +73,14 @@ class ScopedDialogAiWorkbenchPostgresTest {
         assertThat(work.messages(scope,boundControlActor())).extracting(ScopedDialogAiWorkbenchService.Message::id).containsExactly(41L,40L);
         String k=key();
         assertThat(memory("admin",k)).isTrue();
-        var draft=sources.find(1L,"admin",ScopedAiSourceService.Kind.MEMORY,k).orElseThrow();
+        var draft=sources.find(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),ScopedAiSourceService.Kind.MEMORY,k).orElseThrow();
         assertThat(draft.status()).isEqualTo(ScopedAiSourceService.Status.DRAFT);
         assertThat(draft.origin()).isEqualTo(scope);
         assertThat(jdbc.queryForMap("SELECT question_history_id,answer_history_id FROM ai_scoped_memory_evidence"))
             .containsEntry("question_history_id",40L).containsEntry("answer_history_id",41L);
         assertThat(knowledge.record(scope,"curated")).isTrue();
         assertThat(knowledge.candidates(scope,"admin")).isEmpty();
-        assertThat(sources.reviseExpected(1L,"admin",draft.kind(),k,draft.id(),1,draft.title(),draft.body(),ScopedAiSourceService.Status.APPROVED)).isTrue();
+        assertThat(sources.reviseExpected(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),draft.kind(),k,draft.id(),1,draft.title(),draft.body(),ScopedAiSourceService.Status.APPROVED)).isTrue();
         assertThat(knowledge.record(scope,"curated")).isTrue();
         assertThat(knowledge.candidates(scope,"admin")).extracting(ScopedAiSourceService.Summary::id).containsExactly(draft.id());
         assertThat(knowledge.candidates(scope,"foreign")).isEmpty();
@@ -173,8 +173,8 @@ class ScopedDialogAiWorkbenchPostgresTest {
         assertThat(knowledge.record(scope,"refund")).isTrue();
         assertThat(knowledge.candidates(scope,"all")).hasSize(1);
         switch(mutation) {
-            case "revision"->sources.revise(1L,"admin",ScopedAiSourceService.Kind.KNOWLEDGE,"A",2,"refund","new",ScopedAiSourceService.Status.APPROVED);
-            case "archive"->sources.revise(1L,"admin",ScopedAiSourceService.Kind.KNOWLEDGE,"A",2,"refund","refund",ScopedAiSourceService.Status.ARCHIVED);
+            case "revision"->sources.revise(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),ScopedAiSourceService.Kind.KNOWLEDGE,"A",2,"refund","new",ScopedAiSourceService.Status.APPROVED);
+            case "archive"->sources.revise(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),ScopedAiSourceService.Kind.KNOWLEDGE,"A",2,"refund","refund",ScopedAiSourceService.Status.ARCHIVED);
             case "delete"->jdbc.update("DELETE FROM ai_scoped_sources WHERE business_id=1");
             case "origin","owner"->jdbc.update("UPDATE tickets SET business_id=2 WHERE ticket_id=?",RAW);
             case "disabled"->persistence.setControl(scope,com.example.panel.support.AiControlIdentityFixture.auth(3,"all"),true,true,"pause");
