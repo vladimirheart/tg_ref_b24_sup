@@ -24,11 +24,37 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R221 и runtime R216 имеют
+что production уже запускался. Эта оговорка, source-сводка R222 и runtime R216 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
+
+Source-уточнение R222 (BUSINESS projection readers, не развёрнуто):
+AssignmentRead/CurrentAssignmentRead/ParticipantRead/WorkRead требуют собственные
+ID/exact raw name/enabled/not blocked/lower(reader.username)=n.user_identity
+в authorized_owner. Четыре SQL guards охватывают 5 API: assignment history,
+current assignment, roster, participant history, work history. Java/PG Unicode
+fold mismatch закрывает чтение вместо заимствования READ у другого ID.
+READ/ALL_BUSINESSES (включая VIEWER), full owner/public uniqueness, MANUAL/SLA
+provenance, current diagnostics, roster bound/eligibility, cursors и 503 прежние;
+statement-time, без response-wide lock. Login normalization/API/UI/schema прежние.
+347 tests /10 suites GREEN одним selected run, failures/errors/skips0:
+150 frozen SQL (baseline15 failures/0 errors, controls135), те же source/3 class
+hashes/case names; прежние SQL29/38/35/32, MVC14/9/14/14, real-login identity12.
+20 SQL-boundary status/grant cases, BIGINT/private snapshots/read-only denial;
+старые tests/fixtures/assertions прежние. 1357 baseline Java inputs проверены,
+новый test/4 main compiled; native PG16.15/fresh schemas/ignored supplier,
+owned connection/server закрыты. Docker/Testcontainers не запускались, 83 migration
+sources прежние/SQL migrations только tests; JS не rerun.
+Source/test машина sushi; рабочий экземпляр на другой машине/сессии
+C:\Users\SinicinVV\git_h\tg_ref_b24_sup. Последний runtime R216/webR215/workerR198/
+foundationOFF/readinessUP/health503DLQ1; полные rollback/V83 blocks сохранены.
+R217–R222 требуют нового web image; новых migrations нет, V83 не повторять.
+Рабочие runtime/flags/queue/provider здесь не затрагивались. Четыре readers из
+плана R221 закрыты; сквозные child/media/edit/feedback/GENERAL/notification/
+realtime, policy/AI/fleet/flags/S6 gates открыты, Task🟡/S2B снятR190.
+Commit/push разрешены до конца29 октября, отдельный publisher после GREEN.
 
 Source-уточнение R221 (BUSINESS workbench Unicode barrier, не развёрнуто):
 Assignment/Participant/Work используют общий ACTOR_ACCOUNT: own enabled/not

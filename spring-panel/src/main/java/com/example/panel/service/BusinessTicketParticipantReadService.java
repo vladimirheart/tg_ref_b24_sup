@@ -40,6 +40,7 @@ public class BusinessTicketParticipantReadService {
               CROSS JOIN (VALUES(CAST(:identity AS TEXT))) n(user_identity)
              WHERE owner.ticket_public_id=:publicId AND owner.is_general=FALSE
                AND owner.business_id IS NOT NULL AND reader.enabled=TRUE AND reader.is_blocked=FALSE
+               AND lower(reader.username)=n.user_identity
                AND 1=(SELECT count(*) FROM tickets same_public WHERE same_public.ticket_public_id=owner.ticket_public_id)
                AND (
         """ + NotificationBusinessAccessSql.CAN_READ_OWNER_BUSINESS + ") ) ";
