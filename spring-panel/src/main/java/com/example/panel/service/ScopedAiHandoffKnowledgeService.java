@@ -3,6 +3,7 @@ package com.example.panel.service;
 import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.repository.NotificationBusinessAccessSql;
 import com.example.panel.repository.ScopedAiSql;
+import com.example.panel.security.PanelUserPrincipal;
 import java.sql.Types;
 import java.util.List;
 import java.util.Locale;
@@ -11,16 +12,24 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
 
 /** Trusted worker records references only. Actor reads reprove READ, approval/revision and origin. No auto-reply. */
 @Service
 public class ScopedAiHandoffKnowledgeService {
-    private final NamedParameterJdbcTemplate jdbc;
+    private final NamedParameterJdbcOperations jdbc;
     private final MultibusinessFeatureFlags flags;
     private final ScopedDialogAiPersistenceService persistence;
     private static final String COLS="ticket_user_id,ticket_id,ticket_public_id,ticket_scope_kind,ticket_business_id";
+    @Autowired
     public ScopedAiHandoffKnowledgeService(JdbcTemplate jdbc,MultibusinessFeatureFlags flags,ScopedDialogAiPersistenceService persistence) {
-        this.jdbc=new NamedParameterJdbcTemplate(jdbc); this.flags=flags; this.persistence=persistence;
+        this(new NamedParameterJdbcTemplate(jdbc),flags,persistence);
+    }
+    ScopedAiHandoffKnowledgeService(NamedParameterJdbcOperations jdbc,MultibusinessFeatureFlags flags,ScopedDialogAiPersistenceService persistence) {
+        this.jdbc=jdbc; this.flags=flags; this.persistence=persistence;
     }
     public boolean record(UiEventTicketScope scope,String message) {
         if (scope==null || !scope.isValid()) return false;
@@ -65,11 +74,14 @@ public class ScopedAiHandoffKnowledgeService {
         try { return Integer.valueOf(1).equals(jdbc.queryForObject(sql,args(scope).addValue("query",query,Types.VARCHAR),Integer.class)); }
         catch (DataAccessException ex) { return false; }
     }
-    public List<ScopedAiSourceService.Summary> candidates(UiEventTicketScope scope,String identity) {
-        if (scope==null || !scope.isValid() || !"BUSINESS".equals(scope.scopeKind()) || identity==null || identity.isBlank()) return List.of();
+    public List<ScopedAiSourceService.Summary> candidates(UiEventTicketScope scope,Authentication authentication) {
+        var account=boundActor(authentication);
+        if (flags==null || account==null || scope==null || !scope.isValid() || !"BUSINESS".equals(scope.scopeKind())) return List.of();
         String sql="""
             SELECT source.id,source.source_kind,source.source_key,source.title,source.status,source.revision
               FROM tickets owner CROSS JOIN (SELECT CAST(:identity AS TEXT) AS user_identity) n
+              JOIN users actor ON actor.id=:actorId AND actor.username=:actorName
+                AND actor.enabled=TRUE AND actor.is_blocked=FALSE AND lower(actor.username)=n.user_identity
               JOIN ticket_ai_scoped_events event ON event.ticket_user_id=owner.user_id AND event.ticket_id=owner.ticket_id
                 AND event.ticket_public_id=owner.ticket_public_id AND event.ticket_business_id=owner.business_id
                 AND event.ticket_scope_kind='BUSINESS'
@@ -85,10 +97,18 @@ public class ScopedAiHandoffKnowledgeService {
             ORDER BY source.id DESC LIMIT 3
             """;
         try {
-            return jdbc.query(sql,args(scope).addValue("identity",identity.toLowerCase(Locale.ROOT),Types.VARCHAR),
+            return jdbc.query(sql,args(scope).addValue("identity",account.getUsername().toLowerCase(Locale.ROOT),Types.VARCHAR)
+                    .addValue("actorId",account.getUserId(),Types.BIGINT).addValue("actorName",account.getUsername(),Types.VARCHAR),
                 (rs,row)->new ScopedAiSourceService.Summary(rs.getLong("id"),ScopedAiSourceService.Kind.valueOf(rs.getString("source_kind")),
                     rs.getString("source_key"),rs.getString("title"),ScopedAiSourceService.Status.valueOf(rs.getString("status")),rs.getLong("revision")));
         } catch (DataAccessException ex) { return List.of(); }
+    }
+    private PanelUserPrincipal boundActor(Authentication authentication) {
+        if(authentication==null || !authentication.isAuthenticated() || authentication instanceof AnonymousAuthenticationToken
+            || !(authentication.getPrincipal() instanceof PanelUserPrincipal account) || account.getUserId()<=0
+            || account.getUsername().isBlank() || !account.isEnabled() || !account.isAccountNonLocked()
+            || !account.isAccountNonExpired() || !account.isCredentialsNonExpired()) return null;
+        return account;
     }
     private MapSqlParameterSource args(UiEventTicketScope s) {
         return new MapSqlParameterSource().addValue("ticketUserId",s.ticketUserId(),Types.BIGINT)

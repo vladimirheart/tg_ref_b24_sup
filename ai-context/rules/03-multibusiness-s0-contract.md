@@ -24,11 +24,36 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R218 и runtime R216 имеют
+что production уже запускался. Эта оговорка, source-сводка R219 и runtime R216 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
+
+Source-уточнение R219 (retrieval/handoff readers, не развёрнуто):
+Source.retrieve/isCurrentCandidate и handoff.candidates принимают bound Auth;
+SQL требует ID/exact raw name/own status/совпадение Java-PG fold, с прежними READ,
+unique account/business/owner tuple/collision и source approval/payload/origin.
+Wrapper/controller сохраняют Authentication, String-only identity overloads закрыты.
+Все11 actor API Source теперь bound; latest handoff event/privacy/limits прежние.
+Trusted record и legacy retrieval SQL не менялись; autoReplyAllowed=false.
+Statement-time, без response-wide отзыва уже разрешённых control/messages.
+370/8 selected suites GREEN:155 new frozen cases RED61/155/errors0→те же sources/
+case names GREEN; прежние Source82/Workbench47/Principal19/Dialog35/Fold27/Legacy5.
+55 old identity arguments/3 fixtures, assertions и чужие candidate API сохранены;
+receiver-specific replay/inverse проверены. Compile-v2/v3 и prep NOTICE EOL false
+RED сохранены; только adapter repair, frozen assertions/product при нём не менялись.
+1353 Java inputs/cache1340/compile13+new2; main/test compile, SHA/fresh reports.
+Native PG16.15/fresh schemas/ignored R200 supplier, server/own connection закрыты;
+Docker/Testcontainers не запускались,83 migrations прежние, Flyway только tests.
+UI/SCSS/JS/policy/flags/dependencies прежние, JS не rerun. Source/test машина sushi;
+рабочая машина/сессия другая: C:\Users\SinicinVV\git_h\tg_ref_b24_sup.
+Runtime R216/webR215/workerR198/foundationOFF и full rollback/V83 blocks сохранены;
+health503/inboundDLQ=1 остаётся отдельным gate, readinessUP; очередь не трогали.
+R217–R219 не в image, нужен новый web image; rollout/working migrations/flags нет.
+Далее соседние bound-ID/fold paths и child/GENERAL/policies/privacy/delivery/fleet/
+flags/S6; Task🟡, S2B снятR190. Commit/push разрешены29 октября до конца суток;
+отдельный publisher после GREEN, без rollout/working migrations/flags.
 
 Source-уточнение R218 (library read/configure и общий actor guard, не развёрнуто):
 Пять source APIs availableBusinesses/canConfigure/catalog/find/history получают

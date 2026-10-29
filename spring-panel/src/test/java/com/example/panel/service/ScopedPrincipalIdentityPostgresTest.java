@@ -113,9 +113,9 @@ class ScopedPrincipalIdentityPostgresTest {
             check.assertThat(sources.catalog(11L,assignmentAuthentication(actor),null,null,"",null,50)).as("source catalog").isEmpty();
             check.assertThat(sources.find(11L,assignmentAuthentication(actor),KNOWLEDGE,"proof")).as("source body").isEmpty();
             check.assertThat(sources.history(11L,assignmentAuthentication(actor),KNOWLEDGE,"proof",50)).as("source history").isEmpty();
-            check.assertThat(sources.retrieve(scope,actor,"refund",20)).as("retrieval").isEmpty();
-            check.assertThat(sources.isCurrentCandidate(scope,actor,approved)).as("retrieved payload proof").isFalse();
-            check.assertThat(handoff.candidates(scope,actor)).as("handoff evidence").isEmpty();
+            check.assertThat(sources.retrieve(scope,assignmentAuthentication(actor),"refund",20)).as("retrieval").isEmpty();
+            check.assertThat(sources.isCurrentCandidate(scope,assignmentAuthentication(actor),approved)).as("retrieved payload proof").isFalse();
+            check.assertThat(handoff.candidates(scope,assignmentAuthentication(actor))).as("handoff evidence").isEmpty();
         });
     }
     private void deniedWrites(String actor) {
@@ -145,7 +145,7 @@ class ScopedPrincipalIdentityPostgresTest {
         assertThat(assignments.find(PUBLIC,assignmentAuthentication(actor))).isPresent();assertThat(participants.members(scope,assignmentAuthentication(actor))).hasSize(1);
         assertThat(workbench.resolve(PUBLIC,assignmentAuthentication(actor))).contains(scope);assertThat(workbench.messages(scope,assignmentAuthentication(actor))).hasSize(2);
         assertThat(persistence.canOperate(scope,assignmentAuthentication(actor))).isTrue();assertThat(sources.find(11L,assignmentAuthentication(actor),KNOWLEDGE,"proof")).isPresent();
-        assertThat(handoff.candidates(scope,actor)).hasSize(1);
+        assertThat(handoff.candidates(scope,assignmentAuthentication(actor))).hasSize(1);
         assertThat(assignments.change(scope,assignmentAuthentication(actor),1,null,true)).isTrue();
         assertThat(participants.change(scope,assignmentAuthentication(actor),1,2L,false)).isTrue();
         assertThat(sources.createKnowledge(11L,assignmentAuthentication(actor),key(),"case","body")).isTrue();
@@ -163,7 +163,7 @@ class ScopedPrincipalIdentityPostgresTest {
         assertThat(sources.revise(22L,assignmentAuthentication(actor),KNOWLEDGE,"own",1,"refund","own refund",APPROVED)).isTrue();
         assertThat(workbench.createMemory(other,assignmentAuthentication(actor),key(),50,51,fingerprint(50),fingerprint(51),"own","reviewed",true)).isTrue();
         assertThat(persistence.setControlExpected(other,assignmentAuthentication(actor),"",false,true,"own")).isTrue();
-        assertThat(handoff.record(other,"refund")).isTrue();assertThat(handoff.candidates(other,actor)).hasSize(1);
+        assertThat(handoff.record(other,"refund")).isTrue();assertThat(handoff.candidates(other,assignmentAuthentication(actor))).hasSize(1);
         assertThat(jdbc.queryForMap("SELECT actor_user_id,assignee_user_id,actor FROM business_ticket_assignment_events WHERE business_id=22"))
             .containsEntry("actor_user_id",6L).containsEntry("assignee_user_id",6L).containsEntry("actor"," admin ");
         assertThat(jdbc.queryForMap("SELECT updated_by_user_id,updated_by FROM ai_scoped_sources WHERE business_id=22 AND source_kind='KNOWLEDGE'"))
@@ -185,6 +185,6 @@ class ScopedPrincipalIdentityPostgresTest {
         jdbc.execute("DROP TABLE business_memberships");
         assertThat(assignments.find(PUBLIC,assignmentAuthentication("admin"))).isEmpty();assertThat(participants.members(scope,assignmentAuthentication("admin"))).isEmpty();
         assertThat(workbench.resolve(PUBLIC,assignmentAuthentication("admin"))).isEmpty();assertThat(persistence.canOperate(scope,assignmentAuthentication("admin"))).isFalse();
-        assertThat(sources.find(11L,assignmentAuthentication("admin"),KNOWLEDGE,"proof")).isEmpty();assertThat(handoff.candidates(scope,"admin")).isEmpty();
+        assertThat(sources.find(11L,assignmentAuthentication("admin"),KNOWLEDGE,"proof")).isEmpty();assertThat(handoff.candidates(scope,assignmentAuthentication("admin"))).isEmpty();
     }
 }

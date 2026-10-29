@@ -79,11 +79,11 @@ class ScopedDialogAiWorkbenchPostgresTest {
         assertThat(jdbc.queryForMap("SELECT question_history_id,answer_history_id FROM ai_scoped_memory_evidence"))
             .containsEntry("question_history_id",40L).containsEntry("answer_history_id",41L);
         assertThat(knowledge.record(scope,"curated")).isTrue();
-        assertThat(knowledge.candidates(scope,"admin")).isEmpty();
+        assertThat(knowledge.candidates(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"))).isEmpty();
         assertThat(sources.reviseExpected(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),draft.kind(),k,draft.id(),1,draft.title(),draft.body(),ScopedAiSourceService.Status.APPROVED)).isTrue();
         assertThat(knowledge.record(scope,"curated")).isTrue();
-        assertThat(knowledge.candidates(scope,"admin")).extracting(ScopedAiSourceService.Summary::id).containsExactly(draft.id());
-        assertThat(knowledge.candidates(scope,"foreign")).isEmpty();
+        assertThat(knowledge.candidates(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"))).extracting(ScopedAiSourceService.Summary::id).containsExactly(draft.id());
+        assertThat(knowledge.candidates(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"foreign"))).isEmpty();
         assertThat(jdbc.queryForObject("SELECT is_processing FROM ticket_ai_scoped_state",Boolean.class)).isFalse();
         assertThat(jdbc.queryForObject("SELECT mode FROM ticket_ai_scoped_state",String.class)).isEqualTo("escalate_only");
     }
@@ -103,7 +103,7 @@ class ScopedDialogAiWorkbenchPostgresTest {
         assertThat(memory("admin",key())).isEqualTo(configure);
         assertThat(persistence.setControlExpected(scope,boundControlActor(),"",false,true,"reason")).isEqualTo(operate);
         assertThat(knowledge.record(scope,"refund")).isTrue();
-        assertThat(knowledge.candidates(scope,"admin")).hasSize(read?1:0);
+        assertThat(knowledge.candidates(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"))).hasSize(read?1:0);
     }
     @ParameterizedTest @ValueSource(strings={"edit-question","edit-answer","delete","attachment","unlinked","foreign-owner","ai","reverse","fingerprint","no-review"})
     void evidenceMustStillBeTextualCurrentExactAndExplicitlyReviewed(String mutation) {
@@ -171,7 +171,7 @@ class ScopedDialogAiWorkbenchPostgresTest {
     void evidenceReadCannotResurrectChangedSourcesOrBroadenToOtherBusiness(String mutation) {
         approved(1,"admin","A"); approved(2,"foreign","B");
         assertThat(knowledge.record(scope,"refund")).isTrue();
-        assertThat(knowledge.candidates(scope,"all")).hasSize(1);
+        assertThat(knowledge.candidates(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"all"))).hasSize(1);
         switch(mutation) {
             case "revision"->sources.revise(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),ScopedAiSourceService.Kind.KNOWLEDGE,"A",2,"refund","new",ScopedAiSourceService.Status.APPROVED);
             case "archive"->sources.revise(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),ScopedAiSourceService.Kind.KNOWLEDGE,"A",2,"refund","refund",ScopedAiSourceService.Status.ARCHIVED);
@@ -180,16 +180,16 @@ class ScopedDialogAiWorkbenchPostgresTest {
             case "disabled"->persistence.setControl(scope,com.example.panel.support.AiControlIdentityFixture.auth(3,"all"),true,true,"pause");
             case "revoke"->jdbc.update("DELETE FROM business_access_grants WHERE user_id=3");
         }
-        assertThat(knowledge.candidates(scope,"all")).isEmpty();
+        assertThat(knowledge.candidates(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"all"))).isEmpty();
     }
     @Test void boundedLiteralQueryAndImmutableReferences() {
         approved(1,"admin","A");
-        assertThat(knowledge.record(scope,"%")).isTrue(); assertThat(knowledge.candidates(scope,"admin")).isEmpty();
-        assertThat(knowledge.record(scope,"refund")).isTrue(); assertThat(knowledge.candidates(scope,"admin")).hasSize(1);
+        assertThat(knowledge.record(scope,"%")).isTrue(); assertThat(knowledge.candidates(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"))).isEmpty();
+        assertThat(knowledge.record(scope,"refund")).isTrue(); assertThat(knowledge.candidates(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"))).hasSize(1);
         assertThatThrownBy(()->jdbc.update("UPDATE ai_scoped_handoff_evidence SET source_revision=999")).isInstanceOf(DataAccessException.class);
         assertThat(memory("admin",key())).isTrue();
         assertThatThrownBy(()->jdbc.update("UPDATE ai_scoped_memory_evidence SET question_history_id=1")).isInstanceOf(DataAccessException.class);
-        assertThat(knowledge.record(scope,"x".repeat(501))).isTrue(); assertThat(knowledge.candidates(scope,"admin")).isEmpty();
+        assertThat(knowledge.record(scope,"x".repeat(501))).isTrue(); assertThat(knowledge.candidates(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"))).isEmpty();
     }
     @ParameterizedTest @ValueSource(strings={"enabled","global-off","disabled","owner-changed"})
     void actualIncomingFlowUsesScopedKnowledgeWithoutMediaLlmOrRawRetrieval(String mode) {
@@ -212,7 +212,7 @@ class ScopedDialogAiWorkbenchPostgresTest {
         flow.processScopedIncomingClientMessage(scope,"refund","photo","private/object-key");
         if (mode.equals("enabled")) {
             verify(escalation).notifyScopedOperatorsEscalation(eq(scope),eq("refund"),any());
-            assertThat(knowledge.candidates(scope,"admin")).hasSize(1);
+            assertThat(knowledge.candidates(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"))).hasSize(1);
         } else verifyNoInteractions(escalation);
         verifyNoInteractions(retrieval,normalizer,llm,rawState,outcomes);
     }

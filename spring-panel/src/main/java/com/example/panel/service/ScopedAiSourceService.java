@@ -193,22 +193,24 @@ public class ScopedAiSourceService {
     }
 
     /** Only approved sources of this exact BUSINESS enter the result, before ordering/limit. */
-    public List<Source> retrieve(UiEventTicketScope scope,String identity,String query,int limit) {
-        if (!validScope(scope) || !StringUtils.hasText(identity) || !StringUtils.hasText(query) || query.length()>500) return List.of();
+    public List<Source> retrieve(UiEventTicketScope scope,Authentication authentication,String query,int limit) {
+        var account=boundActor(authentication);
+        if (account==null || !validScope(scope) || !StringUtils.hasText(query) || query.length()>500) return List.of();
         String sql="SELECT source.* FROM tickets owner JOIN ai_scoped_sources source ON source.business_id=owner.business_id"
-            +ACTOR+" WHERE "+ScopedAiSql.CURRENT_OWNER+READ+" AND ("+ScopedAiSql.CAN_ESCALATE+")"
+            +ACTOR+BOUND_ACTOR+" WHERE "+ScopedAiSql.CURRENT_OWNER+READ+" AND ("+ScopedAiSql.CAN_ESCALATE+")"
             +" AND source.status='APPROVED' AND "+CURRENT_ORIGIN
             +" AND POSITION(lower(:query) IN lower(source.title||' '||source.body))>0 ORDER BY source.updated_at DESC,source.id DESC LIMIT :limit";
-        var args=scopeParameters(parameters(scope.businessId(),identity,null,null),scope)
+        var args=scopeParameters(boundParameters(scope.businessId(),account,null,null),scope)
             .addValue("query",query.trim(),Types.VARCHAR).addValue("limit",bounded(limit,20),Types.INTEGER);
         return read(sql,args);
     }
 
     /** Reprove the exact retrieved payload and live authority before a future handoff. This is not a network lock. */
-    public boolean isCurrentCandidate(UiEventTicketScope scope,String identity,Source expected) {
-        if (!validScope(scope) || !StringUtils.hasText(identity) || expected==null || expected.kind()==null
+    public boolean isCurrentCandidate(UiEventTicketScope scope,Authentication authentication,Source expected) {
+        var account=boundActor(authentication);
+        if (account==null || !validScope(scope) || expected==null || expected.kind()==null
                 || expected.status()!=Status.APPROVED || !scope.businessId().equals(expected.businessId())) return false;
-        var args=scopeParameters(parameters(scope.businessId(),identity,expected.kind(),expected.key()),scope)
+        var args=scopeParameters(boundParameters(scope.businessId(),account,expected.kind(),expected.key()),scope)
             .addValue("sourceId",expected.id(),Types.BIGINT).addValue("revision",expected.revision(),Types.BIGINT)
             .addValue("title",expected.title(),Types.VARCHAR).addValue("body",expected.body(),Types.VARCHAR);
         UiEventTicketScope origin=expected.origin();
@@ -218,7 +220,7 @@ public class ScopedAiSourceService {
             .addValue("originKind",origin==null?null:origin.scopeKind(),Types.VARCHAR)
             .addValue("originBusiness",origin==null?null:origin.businessId(),Types.BIGINT);
         String sql="SELECT EXISTS (SELECT 1 FROM tickets owner JOIN ai_scoped_sources source ON source.business_id=owner.business_id"
-            +ACTOR+" WHERE "+ScopedAiSql.CURRENT_OWNER+READ+" AND ("+ScopedAiSql.CAN_ESCALATE+") AND "+SOURCE_KEY
+            +ACTOR+BOUND_ACTOR+" WHERE "+ScopedAiSql.CURRENT_OWNER+READ+" AND ("+ScopedAiSql.CAN_ESCALATE+") AND "+SOURCE_KEY
             +" AND source.id=:sourceId AND source.revision=:revision AND source.title=:title AND source.body=:body"
             +" AND source.status='APPROVED' AND "+CURRENT_ORIGIN
             +" AND ROW("+ORIGIN_COLUMNS+") IS NOT DISTINCT FROM ROW(CAST(:originUser AS BIGINT),CAST(:originRaw AS TEXT),"

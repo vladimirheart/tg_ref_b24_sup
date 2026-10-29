@@ -44,7 +44,7 @@ public class ScopedDialogAiController {
         model.addAttribute("library",library);
         model.addAttribute("canCurate",library && sources.canConfigure(scope.businessId(),auth));
         model.addAttribute("messages",library ? workbench.messages(scope,auth) : java.util.List.of());
-        model.addAttribute("candidates",library ? knowledge.candidates(scope,auth.getName()) : java.util.List.of());
+        model.addAttribute("candidates",library ? knowledge.candidates(scope,auth) : java.util.List.of());
         model.addAttribute("sourceKey",UUID.randomUUID().toString());
         navigation.enrich(model,auth);
         return "businesses/dialog-ai";

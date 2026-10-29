@@ -88,8 +88,8 @@ class ScopedAiSourcePostgresTest {
         assertThat(service.canConfigure(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"operator"))).isEqualTo(configure);
         assertThat(service.find(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"OPERATOR"),KNOWLEDGE,source.key()).isPresent()).isEqualTo(read);
         assertThat(service.history(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"operator"),KNOWLEDGE,source.key(),1)).hasSize(read?1:0);
-        assertThat(service.retrieve(scope,"operator","решения",1)).hasSize(read?1:0);
-        assertThat(service.isCurrentCandidate(scope,"operator",source)).isEqualTo(read);
+        assertThat(service.retrieve(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"operator"),"решения",1)).hasSize(read?1:0);
+        assertThat(service.isCurrentCandidate(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"operator"),source)).isEqualTo(read);
         assertThat(service.createKnowledge(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"operator"),"other","Title",BODY)).isEqualTo(configure);
         assertThat(service.createMemory(origin,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"operator"),"memory","Title",BODY)).isEqualTo(configure);
         assertThat(service.revise(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"operator"),KNOWLEDGE,source.key(),2,"Changed",BODY,APPROVED)).isEqualTo(configure);
@@ -105,8 +105,8 @@ class ScopedAiSourcePostgresTest {
     void globalAdminAndUnrelatedIdentitiesDoNotGainBusinessSourceAccess(String identity) {
         Source source=approved(KNOWLEDGE,"same-key");
         assertThat(service.find(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,identity),KNOWLEDGE,source.key())).isEmpty();
-        assertThat(service.retrieve(scope,identity,"решения",1)).isEmpty();
-        assertThat(service.isCurrentCandidate(scope,identity,source)).isFalse();
+        assertThat(service.retrieve(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,identity),"решения",1)).isEmpty();
+        assertThat(service.isCurrentCandidate(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,identity),source)).isFalse();
         assertThat(service.createKnowledge(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,identity),"other","Title",BODY)).isFalse();
         assertThat(service.revise(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,identity),KNOWLEDGE,source.key(),2,"Changed",BODY,APPROVED)).isFalse();
     }
@@ -116,17 +116,17 @@ class ScopedAiSourcePostgresTest {
         Source a=approved(KNOWLEDGE,"same-key");
         assertThat(service.createKnowledge(2L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"foreign"),"same-key","Business B",BODY+" B")).isTrue();
         assertThat(service.revise(2L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"foreign"),KNOWLEDGE,"same-key",1,"Business B",BODY+" B",APPROVED)).isTrue();
-        assertThat(service.retrieve(scope,"all-admin","решения",20)).containsExactly(a);
-        var b=service.retrieve(capture(RAW.trim()),"all-viewer","решения",20);
+        assertThat(service.retrieve(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"all-admin"),"решения",20)).containsExactly(a);
+        var b=service.retrieve(capture(RAW.trim()),com.example.panel.support.AiControlIdentityFixture.login(jdbc,"all-viewer"),"решения",20);
         assertThat(b).hasSize(1);
         assertThat(b.get(0).businessId()).isEqualTo(2L);
-        assertThat(service.isCurrentCandidate(scope,"all-admin",b.get(0))).isFalse();
+        assertThat(service.isCurrentCandidate(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"all-admin"),b.get(0))).isFalse();
         jdbc.execute("CREATE TABLE ai_agent_knowledge_unit(unit_key TEXT,body_text TEXT,business TEXT,status TEXT)");
         jdbc.execute("CREATE TABLE ai_agent_solution_memory(query_key TEXT,solution_text TEXT,scope_business TEXT,status TEXT)");
         jdbc.update("INSERT INTO ai_agent_knowledge_unit VALUES('same-key','legacy global secret',NULL,'active')");
         jdbc.update("INSERT INTO ai_agent_solution_memory VALUES('same-key','legacy memory secret','1','approved')");
-        assertThat(service.retrieve(scope,"all-admin","legacy",20)).isEmpty();
-        assertThat(service.retrieve(scope,"all-admin","решения",20)).containsExactly(a);
+        assertThat(service.retrieve(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"all-admin"),"legacy",20)).isEmpty();
+        assertThat(service.retrieve(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"all-admin"),"решения",20)).containsExactly(a);
     }
 
     @Test
@@ -149,8 +149,8 @@ class ScopedAiSourcePostgresTest {
         mutateActor(mutation);
         assertThat(service.find(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),KNOWLEDGE,"key")).isEmpty();
         assertThat(service.history(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),KNOWLEDGE,"key",5)).isEmpty();
-        assertThat(service.retrieve(scope,"admin","решения",1)).isEmpty();
-        assertThat(service.isCurrentCandidate(scope,"admin",source)).isFalse();
+        assertThat(service.retrieve(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),"решения",1)).isEmpty();
+        assertThat(service.isCurrentCandidate(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),source)).isFalse();
         assertThat(service.createKnowledge(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),"other","Title",BODY)).isFalse();
         assertThat(service.createMemory(origin,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),"memory","Title",BODY)).isFalse();
         assertThat(service.revise(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),KNOWLEDGE,"key",2,"Changed",BODY,APPROVED)).isFalse();
@@ -208,8 +208,8 @@ class ScopedAiSourcePostgresTest {
     void staleRequestOwnerCannotRetrieveOrRevalidateEvidence(String mutation) {
         Source source=approved(KNOWLEDGE,"key");
         mutateOwner(10,mutation);
-        assertThat(service.retrieve(scope,"all-admin","решения",1)).isEmpty();
-        assertThat(service.isCurrentCandidate(scope,"all-admin",source)).isFalse();
+        assertThat(service.retrieve(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"all-admin"),"решения",1)).isEmpty();
+        assertThat(service.isCurrentCandidate(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"all-admin"),source)).isFalse();
     }
 
     @ParameterizedTest @ValueSource(strings={"business","generation","tuple","raw","general","missing","collision","unresolved"})
@@ -220,8 +220,8 @@ class ScopedAiSourcePostgresTest {
         mutateOwner(30,mutation);
         assertThat(service.find(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"all-admin"),MEMORY,"same-key")).isEmpty();
         assertThat(service.history(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"all-admin"),MEMORY,"same-key",5)).isEmpty();
-        assertThat(service.retrieve(scope,"all-admin","решения",20)).containsExactly(knowledge);
-        assertThat(service.isCurrentCandidate(scope,"all-admin",memory)).isFalse();
+        assertThat(service.retrieve(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"all-admin"),"решения",20)).containsExactly(knowledge);
+        assertThat(service.isCurrentCandidate(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"all-admin"),memory)).isFalse();
         assertThat(service.createMemory(origin,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"all-admin"),"other","Title",BODY)).isFalse();
         assertThat(service.revise(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"all-admin"),MEMORY,"same-key",2,"Changed",BODY,APPROVED)).isFalse();
         assertThat(snapshots()).isEqualTo(before);
@@ -262,33 +262,33 @@ class ScopedAiSourcePostgresTest {
         var intents=mock(AiIntentService.class);
         var timestamps=mock(PanelTimestampSqlSupport.class);
         var facade=new AiRetrievalService(rawJdbc,intents,timestamps,service);
-        var result=facade.retrieveScoped(scope,"viewer","решения",1);
+        var result=facade.retrieveScoped(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"viewer"),"решения",1);
         assertThat(result.scope()).isEqualTo(scope);
         assertThat(result.candidates()).containsExactly(memory);
         assertThat(result.autoReplyAllowed()).isFalse();
         assertThat(memory.origin()).isEqualTo(origin);
         assertThat(memory.key()).isEqualTo(" opaque/key?% ");
         assertThat(memory.toString()).doesNotContain(BODY,ORIGIN,memory.key());
-        assertThat(service.isCurrentCandidate(scope,"viewer",memory)).isTrue();
-        assertThat(new AiRetrievalService(rawJdbc,intents,timestamps).retrieveScoped(scope,"viewer","решения",1).candidates()).isEmpty();
+        assertThat(service.isCurrentCandidate(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"viewer"),memory)).isTrue();
+        assertThat(new AiRetrievalService(rawJdbc,intents,timestamps).retrieveScoped(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"viewer"),"решения",1).candidates()).isEmpty();
         verifyNoInteractions(rawJdbc,intents,timestamps);
     }
 
     @Test
     void reviewAndCompareAndSetPreventStaleApprovalAndKeepBodyOutOfAudit() {
         assertThat(service.createKnowledge(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),"key","Title",BODY)).isTrue();
-        assertThat(service.retrieve(scope,"viewer","решения",1)).isEmpty();
+        assertThat(service.retrieve(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"viewer"),"решения",1)).isEmpty();
         assertThat(service.createKnowledge(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),"key","Other",BODY)).isFalse();
         assertThat(service.revise(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),KNOWLEDGE,"key",1,"Title",BODY,APPROVED)).isTrue();
-        Source original=service.retrieve(scope,"viewer","решения",1).get(0);
+        Source original=service.retrieve(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"viewer"),"решения",1).get(0);
         assertThat(service.revise(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),KNOWLEDGE,"key",2,"New title",BODY+" changed",DRAFT)).isTrue();
-        assertThat(service.retrieve(scope,"viewer","решения",1)).isEmpty();
-        assertThat(service.isCurrentCandidate(scope,"viewer",original)).isFalse();
+        assertThat(service.retrieve(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"viewer"),"решения",1)).isEmpty();
+        assertThat(service.isCurrentCandidate(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"viewer"),original)).isFalse();
         assertThat(service.revise(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),KNOWLEDGE,"key",2,"Stale",BODY,APPROVED)).isFalse();
         assertThat(service.revise(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),KNOWLEDGE,"key",3,"New title",BODY+" changed",APPROVED)).isTrue();
-        assertThat(service.retrieve(scope,"viewer","решения",1).get(0).revision()).isEqualTo(4);
+        assertThat(service.retrieve(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"viewer"),"решения",1).get(0).revision()).isEqualTo(4);
         assertThat(service.revise(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),KNOWLEDGE,"key",4,"New title",BODY,ARCHIVED)).isTrue();
-        assertThat(service.retrieve(scope,"viewer","решения",1)).isEmpty();
+        assertThat(service.retrieve(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"viewer"),"решения",1)).isEmpty();
         var history=service.history(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"viewer"),KNOWLEDGE,"key",2);
         assertThat(history).hasSize(2);
         assertThat(history.get(0)).containsEntry("revision",5L).containsEntry("status","ARCHIVED");
@@ -311,14 +311,14 @@ class ScopedAiSourcePostgresTest {
         jdbc.update("INSERT INTO ai_scoped_sources(business_id,source_kind,source_key,title,body,status,revision,updated_by_user_id,updated_by)"
             +" SELECT 2,'KNOWLEDGE','foreign-'||i,'Title',?,'APPROVED',1,5,'foreign' FROM generate_series(1,30) i",BODY);
         assertThat(service.createKnowledge(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),"draft","Title",BODY)).isTrue();
-        assertThat(service.retrieve(scope,"all-admin","решения",1)).containsExactly(a);
-        assertThat(service.retrieve(scope,"all-admin","%_",20)).isEmpty();
+        assertThat(service.retrieve(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"all-admin"),"решения",1)).containsExactly(a);
+        assertThat(service.retrieve(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"all-admin"),"%_",20)).isEmpty();
         assertThat(service.createKnowledge(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),"literal","Title","Ответ с %_ буквально")).isTrue();
         assertThat(service.revise(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),KNOWLEDGE,"literal",1,"Title","Ответ с %_ буквально",APPROVED)).isTrue();
-        assertThat(service.retrieve(scope,"viewer","%_",1)).extracting(Source::key).containsExactly("literal");
+        assertThat(service.retrieve(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"viewer"),"%_",1)).extracting(Source::key).containsExactly("literal");
         for (int i=0;i<21;i++) approved(KNOWLEDGE,"extra-"+i);
-        assertThat(service.retrieve(scope,"all-admin","решения",200)).hasSize(20);
-        assertThat(service.retrieve(scope,"all-admin","решения",0)).hasSize(1);
+        assertThat(service.retrieve(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"all-admin"),"решения",200)).hasSize(20);
+        assertThat(service.retrieve(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"all-admin"),"решения",0)).hasSize(1);
     }
 
     @ParameterizedTest @ValueSource(strings={"actor","request_owner","origin_owner","control","revision","status"})
@@ -337,7 +337,7 @@ class ScopedAiSourcePostgresTest {
             }
             return new NamedParameterJdbcTemplate(jdbc).queryForObject(call.getArgument(0,String.class),call.getArgument(1,SqlParameterSource.class),Boolean.class);
         }).when(observed).queryForObject(anyString(),any(SqlParameterSource.class),eq(Boolean.class));
-        assertThat(new ScopedAiSourceService(observed,flags).isCurrentCandidate(scope,"admin",source)).isFalse();
+        assertThat(new ScopedAiSourceService(observed,flags).isCurrentCandidate(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),source)).isFalse();
     }
 
     @Test
@@ -350,11 +350,11 @@ class ScopedAiSourcePostgresTest {
                 new Source(a.id(),a.businessId(),a.kind(),a.key(),a.title(),a.body(),a.status(),a.revision(),scope),
                 new Source(a.id(),a.businessId(),a.kind(),a.key(),a.title(),a.body(),a.status(),a.revision(),null),
                 new Source(a.id(),2L,a.kind(),a.key(),a.title(),a.body(),a.status(),a.revision(),a.origin()))) {
-            assertThat(service.isCurrentCandidate(scope,"all-admin",forged)).isFalse();
+            assertThat(service.isCurrentCandidate(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"all-admin"),forged)).isFalse();
         }
         disableAi();
-        assertThat(service.retrieve(scope,"all-admin","решения",1)).isEmpty();
-        assertThat(service.isCurrentCandidate(scope,"all-admin",a)).isFalse();
+        assertThat(service.retrieve(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"all-admin"),"решения",1)).isEmpty();
+        assertThat(service.isCurrentCandidate(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"all-admin"),a)).isFalse();
         assertThat(service.find(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"viewer"),MEMORY,"key")).isPresent();
     }
 
@@ -362,8 +362,8 @@ class ScopedAiSourcePostgresTest {
     void missingRelevantSchemaNeverOpensLegacyFallback(String table) {
         Source source=approved(KNOWLEDGE,"key");
         jdbc.execute("DROP TABLE "+table+" CASCADE");
-        assertThat(service.retrieve(scope,"all-admin","решения",1)).isEmpty();
-        assertThat(service.isCurrentCandidate(scope,"all-admin",source)).isFalse();
+        assertThat(service.retrieve(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"all-admin"),"решения",1)).isEmpty();
+        assertThat(service.isCurrentCandidate(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"all-admin"),source)).isFalse();
         if (!table.equals("tickets") && !table.equals("ticket_ai_scoped_control")) {
             assertThat(service.createKnowledge(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),"other","Title",BODY)).isFalse();
             assertThat(service.find(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),KNOWLEDGE,"key")).isEmpty();
@@ -377,8 +377,8 @@ class ScopedAiSourcePostgresTest {
         for (var invalid:Arrays.asList(null,new UiEventTicketScope(10L,RAW,PUBLIC,"GENERAL",null),
                 new UiEventTicketScope(10L,RAW,PUBLIC,"UNRESOLVED",null),new UiEventTicketScope(10L,RAW,null,"BUSINESS",1L))) {
             assertThat(guarded.createMemory(invalid,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),"key","Title",BODY)).isFalse();
-            assertThat(guarded.retrieve(invalid,"admin","решения",1)).isEmpty();
-            assertThat(guarded.isCurrentCandidate(invalid,"admin",null)).isFalse();
+            assertThat(guarded.retrieve(invalid,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),"решения",1)).isEmpty();
+            assertThat(guarded.isCurrentCandidate(invalid,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),null)).isFalse();
         }
         assertThat(guarded.createKnowledge(null,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),"key","Title",BODY)).isFalse();
         assertThat(guarded.createKnowledge(0L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),"key","Title",BODY)).isFalse();
@@ -390,13 +390,13 @@ class ScopedAiSourcePostgresTest {
         assertThat(guarded.revise(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),KNOWLEDGE,"key",0,"Title",BODY,APPROVED)).isFalse();
         assertThat(guarded.find(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),KNOWLEDGE," ")).isEmpty();
         assertThat(guarded.history(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),null,"key",1)).isEmpty();
-        assertThat(guarded.retrieve(scope,"admin"," ",1)).isEmpty();
+        assertThat(guarded.retrieve(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin")," ",1)).isEmpty();
         assertThat(guarded.availableBusinesses(com.example.panel.support.AiControlIdentityFixture.login(jdbc," "))).isEmpty();
         assertThat(guarded.canConfigure(null,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"))).isFalse();
         assertThat(guarded.catalog(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),null,null,null,null,1)).isEmpty();
         assertThat(guarded.catalog(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),null,null,"",0L,1)).isEmpty();
         assertThat(guarded.reviseExpected(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),KNOWLEDGE,"key",0,1,"Title",BODY,DRAFT)).isFalse();
-        assertThat(new ScopedAiSourceService(observed,null).retrieve(scope,"admin","решения",1)).isEmpty();
+        assertThat(new ScopedAiSourceService(observed,null).retrieve(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),"решения",1)).isEmpty();
         verifyNoInteractions(observed);
     }
 

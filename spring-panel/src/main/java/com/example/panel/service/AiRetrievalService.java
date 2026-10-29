@@ -6,6 +6,7 @@ import com.example.panel.support.PanelTimestampSqlSupport;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.security.core.Authentication;
 import org.springframework.util.StringUtils;
 
 import java.nio.charset.StandardCharsets;
@@ -55,8 +56,8 @@ public class AiRetrievalService {
     }
 
     /** Actor-authorized curated evidence only; no legacy context, intent policy, scoring or auto-reply authorization. */
-    public ScopedRetrievalResult retrieveScoped(UiEventTicketScope scope,String identity,String query,int limit) {
-        return new ScopedRetrievalResult(scope,scopedSources==null ? List.of() : scopedSources.retrieve(scope,identity,query,limit),false);
+    public ScopedRetrievalResult retrieveScoped(UiEventTicketScope scope,Authentication authentication,String query,int limit) {
+        return new ScopedRetrievalResult(scope,scopedSources==null ? List.of() : scopedSources.retrieve(scope,authentication,query,limit),false);
     }
 
     public record ScopedRetrievalResult(UiEventTicketScope scope,List<ScopedAiSourceService.Source> candidates,boolean autoReplyAllowed) {
