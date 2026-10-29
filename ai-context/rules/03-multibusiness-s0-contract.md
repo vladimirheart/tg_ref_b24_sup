@@ -24,13 +24,38 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R225 и runtime R223 имеют
+что production уже запускался. Эта оговорка, source-сводка R226 и runtime R223 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
 
-Source R225 (не развёрнут): AttachmentService требует LegacyAttachmentReadAccess
+Source R226 (не развёрнут): GENERAL read/access/page entry получает исходную
+Authentication вместо повторного String lookup. GeneralTicketAccessService
+проверяет bound PanelUserPrincipal/positive ID/exact raw name/principal status;
+один SQL повторяет собственные ID/name/enabled, прежний COALESCE(blocked,FALSE)
+и SQL-fold uniqueness. Без String overload/trim/Java fold/name fallback; login
+не менялся. Все12 входов (5 REST reads/queue page/5 admin APIs/admin page)
+проверяют bound current account. У accounts/READ grant/revoke/admin page guard
+добавлен; PAGE_DIALOGS/ROLE_ADMIN+PAGE_SETTINGS/flags/CSRF прежние. Entry guard
+не требует GENERAL READ, admin без READ управляет чужими grants. GENERAL
+READ/OPERATE SQL, nullable blocked policy и отсутствие data bypass прежние.
+237 targeted tests/7 suites GREEN:148 frozen SQL34/real-login HTTP114 на baseline
+60 assertion failures/errors0, те же3 sources/5 class hashes/cases;89 прежних
+cases повторены. Три fixtures меняют6 inputs+2 imports, inverse/assertions exact.
+1368 Java/83 SQL/1847 inputs проверены;4 generated CSS EOL-only. Расширенный
+прогон779/14 не GREEN:89 failures в4 старых наборах. Все89 повторены на исходном
+baseline (135 cases):86 unbound session fixture/R189 login redirect и3 старых
+SELECT * migration snapshots против добавленных колонок. Их assertions/файлы
+не менялись; это отдельный тестовый долг, не скрытый GREEN общего набора.
+Гарантия — account SQL на entry, не response/transaction lock или атомарная
+проверка полномочий при поздней записи grant. GENERAL work/write/SSE String
+callers, post-entry/child/media/provenance/policy/AI/fleet/flags/S6 остаются.
+Scope13/source-only: runtimeR223/webR222/workerR198/foundationOFF/readinessUP,
+health503DLQ1, без rebuild/restart/migrate/backfill/flags/queue/provider.
+Rollback сохранён, задача🟡; подробные проверки и остаток — task01-278 R226.
+
+Source R225 (исторический пакет до R226, не развёрнут): AttachmentService требует LegacyAttachmentReadAccess
 для direct/path/key download families и всех4 legacy HTTP routes, после прежних
 page/metadata/owner guards, до local/S3 open. Только bound Authentication с
 positive ID/exact raw name/status; один SQL повторяет current own account/status/

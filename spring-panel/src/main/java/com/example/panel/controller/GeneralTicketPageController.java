@@ -28,7 +28,7 @@ public class GeneralTicketPageController {
     @PreAuthorize("hasAuthority('PAGE_DIALOGS')")
     public String queue(Authentication authentication, Model model) {
         requireEnabled();
-        long userId=access.requireAuthenticatedUserId(authentication.getName());
+        long userId=access.requireAuthenticatedUserId(authentication);
         access.requireRead(userId);
         model.addAttribute("canCreateGeneral",flags.isManualTicketCreation()&&access.canOperate(userId));
         navigation.enrich(model, authentication);
@@ -40,6 +40,7 @@ public class GeneralTicketPageController {
     @PreAuthorize("hasAuthority('PAGE_SETTINGS') and hasAuthority('ROLE_ADMIN')")
     public String access(Authentication authentication, Model model) {
         requireEnabled();
+        access.requireAuthenticatedUserId(authentication);
         navigation.enrich(model, authentication);
         model.addAttribute("activePage", "settings");
         return "general/access";

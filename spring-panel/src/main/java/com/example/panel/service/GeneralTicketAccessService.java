@@ -1,8 +1,11 @@
 package com.example.panel.service;
 
+import com.example.panel.security.PanelUserPrincipal;
 import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 /** Read-only GENERAL grant; neither a business membership nor a system administrator bypass. */
@@ -26,13 +29,18 @@ public class GeneralTicketAccessService {
         this.jdbc = jdbc;
     }
 
-    public long requireAuthenticatedUserId(String username) {
-        if (username == null || username.isBlank()) {
+    public long requireAuthenticatedUserId(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()
+                || authentication instanceof AnonymousAuthenticationToken
+                || !(authentication.getPrincipal() instanceof PanelUserPrincipal account)
+                || account.getUserId() <= 0 || account.getUsername().isBlank()
+                || !account.isEnabled() || !account.isAccountNonLocked()
+                || !account.isAccountNonExpired() || !account.isCredentialsNonExpired()) {
             throw new AccessDeniedException("Authenticated user is required");
         }
-        List<Long> ids = jdbc.query("SELECT account.id FROM users account WHERE lower(account.username) = lower(?) AND "
+        List<Long> ids = jdbc.query("SELECT account.id FROM users account WHERE account.id = ? AND account.username = ? AND "
                 + CURRENT_ACCOUNT + " LIMIT 2",
-            (rs, row) -> rs.getLong("id"), username);
+            (rs, row) -> rs.getLong("id"), account.getUserId(), account.getUsername());
         if (ids.size() != 1) {
             throw new AccessDeniedException("Authenticated user is not available");
         }

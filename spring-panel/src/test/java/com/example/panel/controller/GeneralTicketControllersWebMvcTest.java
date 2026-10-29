@@ -48,7 +48,7 @@ class GeneralTicketControllersWebMvcTest {
 
     @BeforeEach
     void actor() {
-        when(access.requireAuthenticatedUserId("reader")).thenReturn(1L);
+        when(access.requireAuthenticatedUserId(org.mockito.ArgumentMatchers.argThat(actor -> actor != null && "reader".equals(actor.getName())))).thenReturn(1L);
     }
 
     @Test

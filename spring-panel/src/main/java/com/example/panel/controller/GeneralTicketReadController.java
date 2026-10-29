@@ -146,7 +146,7 @@ public class GeneralTicketReadController {
         if (!flags.isFoundationEnabled() || !flags.isGeneralTicketQueue()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
-        return access.requireAuthenticatedUserId(authentication != null ? authentication.getName() : null);
+        return access.requireAuthenticatedUserId(authentication);
     }
 
     private <T> ResponseEntity<T> privateRead(T body) {

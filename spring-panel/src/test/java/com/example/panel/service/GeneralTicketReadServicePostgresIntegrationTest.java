@@ -12,6 +12,8 @@ import org.springframework.security.access.AccessDeniedException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static com.example.panel.support.AiControlIdentityFixture.auth;
+import static com.example.panel.support.AiControlIdentityFixture.login;
 
 class GeneralTicketReadServicePostgresIntegrationTest {
     private static JdbcTemplate jdbc;
@@ -47,7 +49,7 @@ class GeneralTicketReadServicePostgresIntegrationTest {
         assertThat(access.canRead(-1L)).isFalse();
         assertThat(access.accounts()).filteredOn(a -> a.userId() == userId)
             .singleElement().extracting(GeneralTicketAccessService.AccountAccess::canRead).isEqualTo(false);
-        assertThatThrownBy(() -> access.requireAuthenticatedUserId("missing-user"))
+        assertThatThrownBy(() -> access.requireAuthenticatedUserId(login(jdbc, "missing-user")))
             .isInstanceOf(AccessDeniedException.class);
     }
 
@@ -63,7 +65,7 @@ class GeneralTicketReadServicePostgresIntegrationTest {
         assertThatThrownBy(() -> service.page(reader, 50, 0, null, token)).isInstanceOf(AccessDeniedException.class);
         assertThat(access.grantRead(reader)).isTrue();
         assertThat(access.grantRead(reader)).isTrue();
-        assertThat(access.requireAuthenticatedUserId("USER-" + reader)).isEqualTo(reader);
+        assertThat(access.requireAuthenticatedUserId(login(jdbc, "USER-" + reader))).isEqualTo(reader);
         assertThat(service.find(reader, id)).isPresent();
         assertThat(access.revokeRead(reader)).isTrue();
         assertThat(access.revokeRead(reader)).isTrue();
@@ -81,7 +83,7 @@ class GeneralTicketReadServicePostgresIntegrationTest {
         jdbc.update("UPDATE users SET enabled = FALSE WHERE id = ?", reader);
         assertThat(access.canRead(reader)).isFalse();
         assertThat(service.find(reader, id)).isEmpty();
-        assertThatThrownBy(() -> access.requireAuthenticatedUserId("user-" + reader))
+        assertThatThrownBy(() -> access.requireAuthenticatedUserId(auth(reader, "user-" + reader)))
             .isInstanceOf(AccessDeniedException.class);
     }
 
@@ -193,7 +195,7 @@ class GeneralTicketReadServicePostgresIntegrationTest {
         if (mutation.equals("blocked")) jdbc.update("UPDATE users SET is_blocked=TRUE WHERE id=?", reader);
         else jdbc.update("INSERT INTO users(username,password,enabled) VALUES(?,'unused',FALSE)", "USER-" + reader);
         assertThat(access.canRead(reader)).isFalse();
-        assertThatThrownBy(() -> access.requireAuthenticatedUserId("user-" + reader)).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> access.requireAuthenticatedUserId(auth(reader, "user-" + reader))).isInstanceOf(AccessDeniedException.class);
         assertThat(service.find(reader, id)).isEmpty();
         assertThat(service.history(reader, id, null, 50)).isEmpty();
         assertThat(service.answers(reader, id)).isEmpty();
