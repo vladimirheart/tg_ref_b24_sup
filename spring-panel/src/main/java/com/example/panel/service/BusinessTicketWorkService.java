@@ -23,7 +23,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Service
 public class BusinessTicketWorkService {
     private static final String AUTHENTICATED_ACTOR=" CROSS JOIN (SELECT CAST(:identity AS TEXT) AS user_identity) n "
-        +" JOIN users actor ON actor.id=:authenticatedActorId AND actor.username=:authenticatedActorName ";
+        +" JOIN users actor ON actor.id=:authenticatedActorId AND actor.username=:authenticatedActorName AND "+ACTOR_ACCOUNT;
     private final NamedParameterJdbcTemplate jdbc;
     private final MultibusinessFeatureFlags flags;
     private final UiEventOutboxAppendService ids;
@@ -104,7 +104,7 @@ public class BusinessTicketWorkService {
                     last_reopen_at=CASE WHEN :action='reopen' THEN CURRENT_TIMESTAMP ELSE owner.last_reopen_at END
                 FROM users actor CROSS JOIN (SELECT CAST(:identity AS TEXT) AS user_identity) n
                 WHERE actor.id=:authenticatedActorId AND actor.username=:authenticatedActorName AND actor.id=:actorId AND
-                """+OWNER+READ+" AND "+OPERATOR+"""
+                """+ACTOR_ACCOUNT+" AND "+OWNER+READ+" AND "+OPERATOR+"""
                  AND owner.business_work_revision=:revision AND owner.status=:expectedStatus
                  AND owner.business_categories=CAST(:previousCategories AS JSONB)
                  AND owner.channel_id IS NOT DISTINCT FROM CAST(:channel AS BIGINT) AND :enabled=TRUE

@@ -20,10 +20,11 @@ import org.springframework.transaction.support.TransactionTemplate;
 /** Human BUSINESS assignment only. No legacy workflow, provider, AI or participant side effects. */
 @Service
 public class BusinessTicketAssignmentService {
+    static final String ACTOR_ACCOUNT=" actor.enabled=TRUE AND actor.is_blocked=FALSE AND lower(actor.username)=n.user_identity ";
     static final String ACTOR=" CROSS JOIN (SELECT CAST(:identity AS TEXT) AS user_identity) n "
-        +" JOIN users actor ON actor.id=:readerId AND actor.username=:readerName ";
+        +" JOIN users actor ON actor.id=:readerId AND actor.username=:readerName AND "+ACTOR_ACCOUNT;
     private static final String AUTHENTICATED_ACTOR=" CROSS JOIN (SELECT CAST(:identity AS TEXT) AS user_identity) n "
-        +" JOIN users actor ON actor.id=:authenticatedActorId AND actor.username=:authenticatedActorName ";
+        +" JOIN users actor ON actor.id=:authenticatedActorId AND actor.username=:authenticatedActorName AND "+ACTOR_ACCOUNT;
     static final String READ=" AND ("+NotificationBusinessAccessSql.CAN_READ_OWNER_BUSINESS+")";
     static final String UNIQUE_ROOT=" owner.is_general=FALSE AND owner.business_id IS NOT NULL "
         +" AND 1=(SELECT count(*) FROM tickets collision WHERE collision.ticket_id=owner.ticket_id) ";

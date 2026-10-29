@@ -22,7 +22,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Service
 public class BusinessTicketParticipantService {
     private static final String AUTHENTICATED_ACTOR=" CROSS JOIN (SELECT CAST(:identity AS TEXT) AS user_identity) n "
-        +" JOIN users actor ON actor.id=:authenticatedActorId AND actor.username=:authenticatedActorName ";
+        +" JOIN users actor ON actor.id=:authenticatedActorId AND actor.username=:authenticatedActorName AND "+ACTOR_ACCOUNT;
     private static final String TUPLE=" ROW(entry.ticket_user_id,entry.ticket_id,entry.ticket_public_id,entry.business_id)"
         +"=ROW(owner.user_id,owner.ticket_id,owner.ticket_public_id,owner.business_id) ";
     private static final String REVISION=" (SELECT COALESCE(max(entry.revision),0) FROM business_ticket_participant_events entry WHERE "+TUPLE+") ";

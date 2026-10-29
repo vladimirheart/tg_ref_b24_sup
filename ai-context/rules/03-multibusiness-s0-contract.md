@@ -24,11 +24,37 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R220 и runtime R216 имеют
+что production уже запускался. Эта оговорка, source-сводка R221 и runtime R216 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
+
+Source-уточнение R221 (BUSINESS workbench Unicode barrier, не развёрнуто):
+Assignment/Participant/Work используют общий ACTOR_ACCOUNT: own enabled/not
+blocked/lower(actor.username)=n.user_identity рядом с ID/exact raw-name JOIN.
+Он применяется к readers/authenticated writers и прямо в финальном work UPDATE;
+все 3 main скомпилированы вместе, оба import callers получили новый ACTOR.
+12 actor API/16 веток, READ/OPERATE/ALL, owner tuple/collision, target eligibility,
+revision/advisory/row/grant locks, atomic audit/outbox/legacy boundaries прежние.
+774 tests /6 suites GREEN: 275 frozen SQL (baseline44 failures/errors0, controls231),
+те же source/3 class hashes/case names; actor36/66/97, Reader75, HTTP225 повторены.
+Сводно: v2 полный774/0 failures/1 SSL-connect fixture timeout; 708 cases5 suites
+GREEN v2 + отдельно Participant66 GREEN v3. XML/log v2 и source/classes/provider
+сохранены, retry без изменений code/tests; полного clean rerun774 не заявлено.
+SQL-boundary status/rollback проверены; writer callbacks внутри writer transaction,
+без post-lock/global revocation обещания. Старые tests/fixtures/assertions прежние.
+1356 cached Java inputs проверены, новый test и 3 main compiled, SHA/fresh reports.
+Native PG16.15/fresh schemas/ignored supplier, own connection/server закрыты;
+Docker/Testcontainers не запускались, 83 migrations прежние/Flyway только tests.
+UI/JS/schema/dependencies/flags прежние, JS не rerun. Source/test машина sushi,
+рабочий экземпляр на другой машине/сессии C:\Users\SinicinVV\git_h\tg_ref_b24_sup.
+Последний runtime R216/webR215/workerR198/foundationOFF, readinessUP/health503DLQ1;
+full rollback/V83 blocks сохранены. R217–R221 требуют нового web image; новых
+migrations нет, V83 не повторять. Runtime/flags/queue здесь не менялись.
+Далее четыре отдельных projection READ services; остальные child/GENERAL/policy/
+AI/fleet/flags/S6 gates открыты, Task🟡/S2B снятR190. Отдельный publisher использует
+разрешение commit/push до конца29 октября после GREEN; runtime не включён.
 
 Source-уточнение R220 (workbench/persistence Unicode barrier, не развёрнуто):
 В 9 actor API двух сервисов READ_ACTOR требует ID/exact raw name/own enabled/
