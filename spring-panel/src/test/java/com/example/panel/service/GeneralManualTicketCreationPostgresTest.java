@@ -190,8 +190,20 @@ class GeneralManualTicketCreationPostgresTest {
         var first=businessService.create(actor,business,"Бизнес-клиент","Бизнес-вопрос",null);
         upgrade.update("INSERT INTO tickets(user_id,ticket_id,status,is_general,general_selection_source) VALUES(99,'prior-general','pending',TRUE,'GENERAL_CHANNEL')");
         var before=upgrade.queryForList("SELECT * FROM tickets ORDER BY user_id");
+        // Compare every pre-upgrade column; verify every added column separately below.
+        String oldColumns=before.get(0).keySet().stream().map(column->"\""+column.replace("\"","\"\"")+"\"")
+            .collect(java.util.stream.Collectors.joining(","));
         org.flywaydb.core.Flyway.configure().dataSource(upgrade.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").load().migrate();
-        assertThat(upgrade.queryForList("SELECT * FROM tickets ORDER BY user_id")).isEqualTo(before);
+        assertThat(upgrade.queryForList("SELECT "+oldColumns+" FROM tickets ORDER BY user_id")).isEqualTo(before);
+        var expectedColumns=new java.util.HashSet<>(before.get(0).keySet());
+        expectedColumns.addAll(java.util.List.of("business_selection_source","questionnaire_catalog_sha256","questionnaire_version","responsibility_revision","business_work_revision","business_categories"));
+        assertThat(upgrade.queryForList("SELECT * FROM tickets")).allSatisfy(row->
+            assertThat(row.keySet()).containsExactlyInAnyOrderElementsOf(expectedColumns));
+        assertThat(upgrade.queryForList("SELECT business_selection_source,questionnaire_catalog_sha256,questionnaire_version,"
+            +"responsibility_revision,business_work_revision,business_categories::text AS categories FROM tickets"))
+            .allSatisfy(row->assertThat(row).containsEntry("business_selection_source",null).containsEntry("questionnaire_catalog_sha256",null)
+                .containsEntry("questionnaire_version",null).containsEntry("responsibility_revision",0L)
+                .containsEntry("business_work_revision",0L).containsEntry("categories","[]"));
         assertThat(upgrade.queryForObject("SELECT COUNT(*) FROM manual_general_clients",Integer.class)).isZero();
         var grants=new GeneralTicketAccessService(upgrade);grants.grantRead(actor);grants.grantOperate(actor);
         var general=new GeneralManualTicketCreationService(upgrade,flags,new UiEventOutboxAppendService(upgrade,new LegacyTicketIdJdbcGuard(upgrade)));

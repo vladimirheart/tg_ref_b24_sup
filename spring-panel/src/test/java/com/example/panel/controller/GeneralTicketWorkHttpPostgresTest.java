@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.service.*;
+import com.example.panel.security.PanelUserPrincipal;
 import com.example.panel.support.PostgresqlJdbcTestSupport;
 import jakarta.servlet.http.Cookie;
 import java.nio.file.Files;
@@ -707,7 +708,31 @@ class GeneralTicketWorkHttpPostgresTest {
     }
     private long account(String name) {return jdbc.queryForObject("INSERT INTO users(username,password,enabled) VALUES(?,'unused',TRUE) RETURNING id",Long.class,name);}
     private MockHttpServletRequestBuilder actor(MockHttpServletRequestBuilder request,String name,String...authorities) {
-        return request.with(user(name).authorities(java.util.Arrays.stream(authorities).map(org.springframework.security.core.authority.SimpleGrantedAuthority::new).toArray(org.springframework.security.core.GrantedAuthority[]::new)));
+        long id=jdbc.queryForObject("SELECT id FROM users WHERE username=?",Long.class,name);
+        jdbc.update("DELETE FROM user_authorities WHERE user_id=?",id);
+        for(String authority:authorities)jdbc.update("INSERT INTO user_authorities(user_id,authority) VALUES(?,?)",id,authority);
+        return request.with(user(new PanelUserPrincipal(id,name,"unused",true,java.util.Arrays.stream(authorities)
+            .map(org.springframework.security.core.authority.SimpleGrantedAuthority::new).toList())));
+    }
+    @Test void unboundSessionStillRedirectsToLogin() throws Exception {
+        mvc.perform(get(root).with(user(worker).authorities(new org.springframework.security.core.authority.SimpleGrantedAuthority("PAGE_DIALOGS"))))
+            .andExpect(redirectedUrl("http://localhost/login"));
+    }
+    @Test void boundFixtureStillRefreshesRevokedPageAuthorities() throws Exception {
+        var request=actor(get(root),worker,"PAGE_DIALOGS");
+        jdbc.update("DELETE FROM user_authorities WHERE user_id=?",workerId);
+        mvc.perform(request).andExpect(status().isForbidden());
+    }
+    @ParameterizedTest @ValueSource(strings={"disabled","blocked","renamed","deleted"})
+    void boundFixtureStillRejectsAccountChangesBeforeTheRequest(String mode) throws Exception {
+        var request=actor(get(root),worker,"PAGE_DIALOGS");
+        switch(mode){
+            case "disabled"->jdbc.update("UPDATE users SET enabled=FALSE WHERE id=?",workerId);
+            case "blocked"->jdbc.update("UPDATE users SET is_blocked=TRUE WHERE id=?",workerId);
+            case "renamed"->jdbc.update("UPDATE users SET username=username||'-renamed' WHERE id=?",workerId);
+            default->jdbc.update("DELETE FROM users WHERE id=?",workerId);
+        }
+        mvc.perform(request).andExpect(redirectedUrl("http://localhost/login"));
     }
     private MockHttpServletRequestBuilder change(String version,String from,String to) {return post(root+"/status").param("revision",version).param("expectedStatus",from).param("nextStatus",to);}
     private RequestPostProcessor csrf() {return request->{

@@ -24,11 +24,34 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R226 и runtime R223 имеют
+что production уже запускался. Эта оговорка, source-сводка R227 и runtime R223 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
+
+Source R227 (tests/docs): восстановлены четыре GENERAL suites из долга R226.
+Work HTTP actor fixture использует bound ID/exact raw-name principal и реальные
+DB authorities для R189; filters не mock/skip, прежние HTTP assertions сохранены.
+Шесть новых cases: unbound, page revoke, disabled/blocked/rename/delete.
+Три upgrades V69/V70/V71→V83 сравнивают все прежние values/history/grants,
+exact old+6 column set и все новые defaults/null provenance; без скрытия drift.
+Fresh baseline 343/89 failures/0 errors; после fixes 586 tests /11 suites
+GREEN, failures/errors/skips0: 343+6 и237 unchanged entry/read/media cases.
+148 identity cases R226 повторены; main/unmodified test class hashes прежние.
+R226779/14 остаётся historical non-GREEN, полного779 rerun не заявлено.
+Full compile731/637,1368 Java/83 migrations;4 tests recompiled. V1 setup176 errors
+(Maven перезаписал native helper/Testcontainers без Docker) сохранены, provider
+mtime/class восстановлены; v2 baseline/v3 GREEN nativePG16.15/fresh schemas,
+ignored supplier SHA/version/exact-directory guards. Docker/containers не
+запускались, owned server остановлен. Product/schema/UI/flags прежние, JS не rerun.
+Source/test C:\Users\sushi\Git_H\tg_ref_b24_sup; рабочая машина/сессия другая:
+C:\Users\SinicinVV\git_h\tg_ref_b24_sup. RuntimeR223/webR222/workerR198/
+foundationOFF/readiness200UP/health503DLQ1, rollback/V83 blocks сохранены.
+R224–R226 требуют нового web image; R227 tests/docs не требует rollout.
+Working DB/restart/migrate/flags/provider/queue не затрагивались. Далее GENERAL
+work/write/SSE ID-bound package, post-entry/child/media/policy/AI/fleet/S6;
+Task🟡/S2B снятR190. Отдельный Git publisher до конца29 октября после GREEN.
 
 Source R226 (не развёрнут): GENERAL read/access/page entry получает исходную
 Authentication вместо повторного String lookup. GeneralTicketAccessService
