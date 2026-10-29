@@ -44,22 +44,22 @@ public class GeneralTicketWorkController {
         model.addAttribute("revision",state.revision());model.addAttribute("canOperate",state.canOperate());
         model.addAttribute("replyRequestKey",java.util.UUID.randomUUID().toString().replace("-",""));
         model.addAttribute("replyDestination",state.canOperate()
-            ?replies.destinationFingerprint(state.scope(),auth.getName(),state.revision()).orElse(null):null);
-        model.addAttribute("replies",replies.recent(state.scope(),auth.getName()));
-        model.addAttribute("replyChangeTargets",changes.targets(state.scope(),auth.getName(),state.revision()));
-        model.addAttribute("replyChanges",changes.recent(state.scope(),auth.getName()));
+            ?replies.destinationFingerprint(state.scope(),auth,state.revision()).orElse(null):null);
+        model.addAttribute("replies",replies.recent(state.scope(),auth));
+        model.addAttribute("replyChangeTargets",changes.targets(state.scope(),auth,state.revision()));
+        model.addAttribute("replyChanges",changes.recent(state.scope(),auth));
         model.addAttribute("documentRequestKey",java.util.UUID.randomUUID().toString().replace("-",""));
-        model.addAttribute("documentDestination",state.canOperate()?documents.destinationFingerprint(state.scope(),auth.getName(),state.revision()).orElse(null):null);
-        model.addAttribute("documentReplies",documents.recent(state.scope(),auth.getName()));
-        model.addAttribute("workTime",time.summary(state.scope(),auth.getName()).orElse(null));
-        model.addAttribute("workIntervals",time.recent(state.scope(),auth.getName()));
-        model.addAttribute("assignment",assignments.current(state.scope(),auth.getName()).orElse(null));
-        model.addAttribute("assignmentCandidates",assignments.candidates(state.scope(),auth.getName()));
-        model.addAttribute("assignmentEvents",assignments.recent(state.scope(),auth.getName()));
-        model.addAttribute("participantRevision",participants.revision(state.scope(),auth.getName()).orElse(null));
-        model.addAttribute("participants",participants.members(state.scope(),auth.getName()));
-        model.addAttribute("participantCandidates",participants.candidates(state.scope(),auth.getName(),state.revision()));
-        model.addAttribute("participantEvents",participants.recent(state.scope(),auth.getName()));
+        model.addAttribute("documentDestination",state.canOperate()?documents.destinationFingerprint(state.scope(),auth,state.revision()).orElse(null):null);
+        model.addAttribute("documentReplies",documents.recent(state.scope(),auth));
+        model.addAttribute("workTime",time.summary(state.scope(),auth).orElse(null));
+        model.addAttribute("workIntervals",time.recent(state.scope(),auth));
+        model.addAttribute("assignment",assignments.current(state.scope(),auth).orElse(null));
+        model.addAttribute("assignmentCandidates",assignments.candidates(state.scope(),auth));
+        model.addAttribute("assignmentEvents",assignments.recent(state.scope(),auth));
+        model.addAttribute("participantRevision",participants.revision(state.scope(),auth).orElse(null));
+        model.addAttribute("participants",participants.members(state.scope(),auth));
+        model.addAttribute("participantCandidates",participants.candidates(state.scope(),auth,state.revision()));
+        model.addAttribute("participantEvents",participants.recent(state.scope(),auth));
         navigation.enrich(model,auth);return "general/work";
     }
     @PostMapping("/status")
@@ -68,7 +68,7 @@ public class GeneralTicketWorkController {
         var state=find(publicId,auth,response);
         if (!state.canOperate()) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         long version=version(revision);
-        if (!work.transition(state.scope(),auth.getName(),version,expectedStatus,nextStatus))
+        if (!work.transition(state.scope(),auth,version,expectedStatus,nextStatus))
             throw new ResponseStatusException(HttpStatus.CONFLICT,"Данные или права изменились. Обновите страницу.");
         var redirect=new RedirectView("/general-dialog-work/"+publicId,true);redirect.setExposeModelAttributes(false);return redirect;
     }
@@ -78,7 +78,7 @@ public class GeneralTicketWorkController {
         var state=find(publicId,auth,response);
         if (!state.canOperate()) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         if (!GeneralTicketReplyService.validInput(requestKey,message)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
-        if (!replies.submit(state.scope(),auth.getName(),version(revision),requestKey,message,destination))
+        if (!replies.submit(state.scope(),auth,version(revision),requestKey,message,destination))
             throw new ResponseStatusException(HttpStatus.CONFLICT,"Данные, канал или права изменились. Обновите страницу.");
         var redirect=new RedirectView("/general-dialog-work/"+publicId,true);redirect.setExposeModelAttributes(false);return redirect;
     }
@@ -89,7 +89,7 @@ public class GeneralTicketWorkController {
         var state=find(publicId,auth,response);
         if(!state.canOperate())throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         if(!GeneralTicketDocumentReplyService.validInput(requestKey,caption,file))throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
-        if(!documents.submit(state.scope(),auth.getName(),version(revision),requestKey,caption,file,destination))
+        if(!documents.submit(state.scope(),auth,version(revision),requestKey,caption,file,destination))
             throw new ResponseStatusException(HttpStatus.CONFLICT,"Файл, данные, канал или права изменились. Обновите страницу.");
         var redirect=new RedirectView("/general-dialog-work/"+publicId,true);redirect.setExposeModelAttributes(false);return redirect;
     }
@@ -101,7 +101,7 @@ public class GeneralTicketWorkController {
         if (!state.canOperate()) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         if (!GeneralTicketReplyChangeService.validInput(requestKey,sourceKey,expected,action,message))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
-        if (!changes.submit(state.scope(),auth.getName(),version(revision),requestKey,sourceKey,expected,action,message))
+        if (!changes.submit(state.scope(),auth,version(revision),requestKey,sourceKey,expected,action,message))
             throw new ResponseStatusException(HttpStatus.CONFLICT,"Сообщение, данные или права изменились. Обновите страницу.");
         var redirect=new RedirectView("/general-dialog-work/"+publicId,true);redirect.setExposeModelAttributes(false);return redirect;
     }
@@ -111,7 +111,7 @@ public class GeneralTicketWorkController {
         var state=find(publicId,auth,response);
         if(!state.canOperate()) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         long target=version(assigneeId);
-        if(!assignments.assign(state.scope(),auth.getName(),version(revision),version(assignmentRevision),target==0?null:target))
+        if(!assignments.assign(state.scope(),auth,version(revision),version(assignmentRevision),target==0?null:target))
             throw new ResponseStatusException(HttpStatus.CONFLICT,"Назначение, данные или права изменились. Обновите страницу.");
         var redirect=new RedirectView("/general-dialog-work/"+publicId,true);redirect.setExposeModelAttributes(false);return redirect;
     }
@@ -120,7 +120,7 @@ public class GeneralTicketWorkController {
             @RequestParam String revision,@RequestParam String participantRevision,@RequestParam String memberId) {
         var state=find(publicId,auth,response);
         if(!state.canOperate())throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-        if(!participants.change(state.scope(),auth.getName(),version(revision),version(participantRevision),version(memberId),action.equals("add")))
+        if(!participants.change(state.scope(),auth,version(revision),version(participantRevision),version(memberId),action.equals("add")))
             throw new ResponseStatusException(HttpStatus.CONFLICT,"Список, данные или права изменились. Обновите страницу.");
         var redirect=new RedirectView("/general-dialog-work/"+publicId,true);redirect.setExposeModelAttributes(false);return redirect;
     }
@@ -132,6 +132,6 @@ public class GeneralTicketWorkController {
     }
     private GeneralTicketWorkService.View find(String id,Authentication auth,HttpServletResponse response) {
         response.setHeader("Cache-Control","no-store");
-        return work.find(id,auth==null?null:auth.getName()).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND));
+        return work.find(id,auth).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND));
     }
 }

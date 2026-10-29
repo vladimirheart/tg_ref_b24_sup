@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import org.springframework.security.core.Authentication;
+
 import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.entity.Channel;
 import com.example.panel.storage.AttachmentObjectStorageService;
@@ -53,15 +55,24 @@ public class GeneralTicketDocumentReplyService {
             &&GeneralTicketReplyService.validInput(key,name)
             &&(caption.isBlank()||GeneralTicketReplyService.validInput(key,caption));
     }
-    public Optional<String> destinationFingerprint(GeneralTicketEventScope scope,String identity,long revision) {
+    public Optional<String> destinationFingerprint(GeneralTicketEventScope scope,Authentication authentication,long revision) {
+        return destinationFingerprint(scope,GeneralTicketActor.from(authentication),revision);
+    }
+    private Optional<String> destinationFingerprint(GeneralTicketEventScope scope,GeneralTicketActor identity,long revision) {
         try {return transaction.execute(tx->capture(scope,identity,revision).map(Destination::digest));}
         catch(RuntimeException ex){return Optional.empty();}
     }
-    public boolean submit(GeneralTicketEventScope scope,String identity,long revision,String key,String caption,MultipartFile file,String destination) {
+    public boolean submit(GeneralTicketEventScope scope,Authentication authentication,long revision,String key,String caption,MultipartFile file,String destination) {
+        return submit(scope,GeneralTicketActor.from(authentication),revision,key,caption,file,destination);
+    }
+    private boolean submit(GeneralTicketEventScope scope,GeneralTicketActor identity,long revision,String key,String caption,MultipartFile file,String destination) {
         if(!prepare(scope,identity,revision,key,caption,file,destination)) return false;
         dispatch(key);return true;
     }
-    boolean prepare(GeneralTicketEventScope scope,String identity,long revision,String key,String caption,MultipartFile file,String destination) {
+    boolean prepare(GeneralTicketEventScope scope,Authentication authentication,long revision,String key,String caption,MultipartFile file,String destination) {
+        return prepare(scope,GeneralTicketActor.from(authentication),revision,key,caption,file,destination);
+    }
+    private boolean prepare(GeneralTicketEventScope scope,GeneralTicketActor identity,long revision,String key,String caption,MultipartFile file,String destination) {
         if(!allowed(scope,identity)||revision<0||!validInput(key,caption,file)||destination==null||!destination.matches("[a-f0-9]{64}"))return false;
         final byte[] payload;
         try(var in=file.getInputStream()) {
@@ -103,10 +114,10 @@ public class GeneralTicketDocumentReplyService {
         });}catch(RuntimeException ex){return;}
         if(claimed==null||claimed.isEmpty())return;var a=claimed.get();
         try{transaction.executeWithoutResult(tx->{
-            var target=capture(a.scope(),a.actor(),a.revision());
+            var target=capture(a.scope(),GeneralTicketActor.stored(a.actorId(),a.actor()),a.revision());
             if(target.isEmpty()||!a.matches(target.get())||!a.sha().equals(sha256(a.payload()))){finish(key,a,"CANCELLED",null,null);return;}
             var result=transport.sendTelegramDocumentGuarded(target.get().channel(),a.scope().ticketUserId(),new FrozenFile(a.name(),a.payload()),a.caption(),
-                ()->capture(a.scope(),a.actor(),a.revision()).filter(a::matches).isPresent());
+                ()->capture(a.scope(),GeneralTicketActor.stored(a.actorId(),a.actor()),a.revision()).filter(a::matches).isPresent());
             if(result==null||!result.success()||result.telegramMessageId()==null||result.telegramMessageId()<=0){
                 finish(key,a,result!=null&&"scope_denied".equals(result.classification())?"CANCELLED":"UNKNOWN",null,null);return;
             }
@@ -115,7 +126,7 @@ public class GeneralTicketDocumentReplyService {
                 if(binary==null||!a.storageKey().equals(binary.logicalKey())||binary.size()!=a.payload().length||binary.inputStream()==null
                         ||!a.sha().equals(sha256(binary.inputStream().readNBytes(MAX_BYTES+1))))throw new IOException("Document storage integrity mismatch");
             }catch(IOException ex){throw new IllegalStateException("Document storage unavailable",ex);}
-            var args=params(a.scope(),a.actor()).addValue("caption",a.caption()).addValue("storageKey",a.storageKey())
+            var args=params(a.scope(),GeneralTicketActor.stored(a.actorId(),a.actor())).addValue("caption",a.caption()).addValue("storageKey",a.storageKey())
                 .addValue("channelId",a.channelId()).addValue("providerId",result.telegramMessageId());
             Long historyId=sql.queryForObject("""
                 INSERT INTO chat_history(user_id,sender,message,timestamp,ticket_id,message_type,attachment,channel_id,tg_message_id,ticket_owner_user_id,ticket_public_id)
@@ -133,26 +144,29 @@ public class GeneralTicketDocumentReplyService {
             catch(RuntimeException ignored){/* Durable SENDING also requires manual reconciliation; never auto-retry. */}
         }
     }
-    public List<Reply> recent(GeneralTicketEventScope scope,String identity) {
+    public List<Reply> recent(GeneralTicketEventScope scope,Authentication authentication) {
+        return recent(scope,GeneralTicketActor.from(authentication));
+    }
+    private List<Reply> recent(GeneralTicketEventScope scope,GeneralTicketActor identity) {
         if(!allowed(scope,identity))return List.of();
         try{return sql.query("""
             SELECT document.original_name,document.caption,document.state,document.created_at,document.chat_history_id
             FROM general_ticket_document_replies document JOIN tickets ticket ON ticket.user_id=document.ticket_user_id
                 AND ticket.ticket_id=document.ticket_id AND ticket.ticket_public_id=document.ticket_public_id
-            JOIN users account ON lower(account.username)=lower(:identity) WHERE
+            JOIN users account ON account.id=:authenticatedActorId AND account.username=:identity WHERE
             """+OWNER+" AND "+GeneralTicketAccessService.READ_ACCOUNT+"""
             ORDER BY document.created_at DESC,document.request_key LIMIT 20
             """,params(scope,identity),(rs,row)->new Reply(rs.getString("original_name"),rs.getString("caption"),rs.getString("state"),
                 rs.getObject("created_at",OffsetDateTime.class),rs.getObject("chat_history_id",Long.class)));
         }catch(RuntimeException ex){return List.of();}
     }
-    private Optional<Destination> capture(GeneralTicketEventScope scope,String identity,long revision){
+    private Optional<Destination> capture(GeneralTicketEventScope scope,GeneralTicketActor identity,long revision){
         if(!allowed(scope,identity)||revision<0)return Optional.empty();
         var rows=sql.query("SELECT account.id AS actor_id,destination.*,"+DIGEST+" AS digest "+"""
             FROM tickets ticket JOIN messages root ON root.group_msg_id=ticket.group_msg_id AND root.user_id=ticket.user_id
                 AND root.ticket_id=ticket.ticket_id AND root.channel_id=ticket.channel_id
             JOIN channels destination ON destination.id=ticket.channel_id
-            JOIN users account ON lower(account.username)=lower(:identity)
+            JOIN users account ON account.id=:authenticatedActorId AND account.username=:identity
             JOIN general_ticket_read_grants read_access ON read_access.user_id=account.id AND read_access.is_active=TRUE
             JOIN general_ticket_operate_grants operation ON operation.user_id=account.id AND operation.is_active=TRUE
             WHERE
@@ -177,14 +191,14 @@ public class GeneralTicketDocumentReplyService {
         if(sql.update("""
             INSERT INTO ui_event_outbox(id,event_type,ticket_id,channel_id,created_at,ticket_user_id,ticket_public_id,ticket_scope_kind,ticket_business_id)
             VALUES(:eventId,'operator_reply_changed',:ticketId,:channelId,CURRENT_TIMESTAMP,:ownerId,:publicId,'GENERAL',NULL)
-            """,params(a.scope(),a.actor()).addValue("eventId",ids.nextEventId()).addValue("channelId",a.channelId()))!=1)throw new IllegalStateException("Document event unavailable");
+            """,params(a.scope(),GeneralTicketActor.stored(a.actorId(),a.actor())).addValue("eventId",ids.nextEventId()).addValue("channelId",a.channelId()))!=1)throw new IllegalStateException("Document event unavailable");
     }
     private void audit(String key,String state,long actor){
         if(sql.update("INSERT INTO general_ticket_document_events(request_key,state,actor_user_id) VALUES(:key,:state,:actorId)",
             new MapSqlParameterSource("key",key).addValue("state",state).addValue("actorId",actor))!=1)throw new IllegalStateException("Document audit unavailable");
     }
-    private boolean allowed(GeneralTicketEventScope scope,String identity){return flags.isFoundationEnabled()&&flags.isGeneralTicketQueue()&&scope!=null&&scope.isValid()&&identity!=null&&!identity.isBlank();}
-    private MapSqlParameterSource params(GeneralTicketEventScope scope,String identity){return new MapSqlParameterSource("ownerId",scope.ticketUserId()).addValue("ticketId",scope.ticketId()).addValue("publicId",scope.ticketPublicId()).addValue("identity",identity);}
+    private boolean allowed(GeneralTicketEventScope scope,GeneralTicketActor identity){return flags.isFoundationEnabled()&&flags.isGeneralTicketQueue()&&scope!=null&&scope.isValid()&&identity!=null&&identity.valid();}
+    private MapSqlParameterSource params(GeneralTicketEventScope scope,GeneralTicketActor identity){return new MapSqlParameterSource("ownerId",scope.ticketUserId()).addValue("ticketId",scope.ticketId()).addValue("publicId",scope.ticketPublicId()).addValue("identity",identity.username()).addValue("authenticatedActorId",identity.userId());}
     public static String sha256(byte[] bytes){try{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));}catch(java.security.NoSuchAlgorithmException ex){throw new IllegalStateException(ex);}}
     public record Reply(String name,String caption,String state,OffsetDateTime createdAt,Long historyId){}
     private record Destination(long actorId,Channel channel,String digest){@Override public String toString(){return "GeneralDocumentDestination";}}

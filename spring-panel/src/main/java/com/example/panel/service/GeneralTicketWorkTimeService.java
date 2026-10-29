@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import org.springframework.security.core.Authentication;
+
 import com.example.panel.config.MultibusinessFeatureFlags;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -22,7 +24,7 @@ public class GeneralTicketWorkTimeService {
         FROM tickets ticket CROSS JOIN users account
         LEFT JOIN general_ticket_work_intervals span ON span.ticket_user_id=ticket.user_id
             AND span.ticket_id=ticket.ticket_id AND span.ticket_public_id=ticket.ticket_public_id
-        WHERE lower(account.username)=lower(:identity) AND
+        WHERE account.id=:authenticatedActorId AND account.username=:identity AND
         """+OWNER+" AND "+GeneralTicketAccessService.READ_ACCOUNT;
     private static final String ACTIVE="span.outcome='OPEN' AND ticket.status='open' "
         +"AND span.opened_revision=ticket.general_work_revision AND span.started_at<=CURRENT_TIMESTAMP";
@@ -32,7 +34,10 @@ public class GeneralTicketWorkTimeService {
     public GeneralTicketWorkTimeService(JdbcTemplate jdbc,MultibusinessFeatureFlags flags) {
         this.jdbc=new NamedParameterJdbcTemplate(jdbc);this.flags=flags;
     }
-    public Optional<Summary> summary(GeneralTicketEventScope scope,String identity) {
+    public Optional<Summary> summary(GeneralTicketEventScope scope,Authentication authentication) {
+        return summary(scope,GeneralTicketActor.from(authentication));
+    }
+    private Optional<Summary> summary(GeneralTicketEventScope scope,GeneralTicketActor identity) {
         if (!allowed(scope,identity)) return Optional.empty();
         try { return jdbc.query("""
             SELECT COALESCE(FLOOR(SUM(EXTRACT(EPOCH FROM (span.ended_at-span.started_at)))
@@ -50,7 +55,10 @@ public class GeneralTicketWorkTimeService {
                 rs.getObject("active_started_at",OffsetDateTime.class))).stream().findFirst();
         } catch (DataAccessException ex) { return Optional.empty(); }
     }
-    public List<Interval> recent(GeneralTicketEventScope scope,String identity) {
+    public List<Interval> recent(GeneralTicketEventScope scope,Authentication authentication) {
+        return recent(scope,GeneralTicketActor.from(authentication));
+    }
+    private List<Interval> recent(GeneralTicketEventScope scope,GeneralTicketActor identity) {
         if (!allowed(scope,identity)) return List.of();
         try { return jdbc.query("""
             SELECT span.started_at,span.ended_at,span.started_by,span.ended_by,
@@ -64,12 +72,12 @@ public class GeneralTicketWorkTimeService {
                 rs.getString("started_by"),rs.getString("ended_by"),rs.getString("display_outcome"),rs.getLong("completed_seconds")));
         } catch (DataAccessException ex) { return List.of(); }
     }
-    private boolean allowed(GeneralTicketEventScope scope,String identity) {
-        return flags.isFoundationEnabled()&&flags.isGeneralTicketQueue()&&scope!=null&&scope.isValid()&&identity!=null&&!identity.isBlank();
+    private boolean allowed(GeneralTicketEventScope scope,GeneralTicketActor identity) {
+        return flags.isFoundationEnabled()&&flags.isGeneralTicketQueue()&&scope!=null&&scope.isValid()&&identity!=null&&identity.valid();
     }
-    private MapSqlParameterSource params(GeneralTicketEventScope scope,String identity) {
+    private MapSqlParameterSource params(GeneralTicketEventScope scope,GeneralTicketActor identity) {
         return new MapSqlParameterSource("ownerId",scope.ticketUserId()).addValue("ticketId",scope.ticketId())
-            .addValue("publicId",scope.ticketPublicId()).addValue("identity",identity);
+            .addValue("publicId",scope.ticketPublicId()).addValue("identity",identity.username()).addValue("authenticatedActorId",identity.userId());
     }
     public record Summary(long completedSeconds,long completedIntervals,long invalidIntervals,
             OffsetDateTime observedSince,OffsetDateTime activeStartedAt) { }

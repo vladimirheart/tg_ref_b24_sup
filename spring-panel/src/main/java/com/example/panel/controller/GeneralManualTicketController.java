@@ -30,13 +30,13 @@ public class GeneralManualTicketController {
             @RequestParam String requestKey,@RequestParam String clientName,@RequestParam String problem) {
         requireAllowed(auth,response);
         if(!GeneralManualTicketCreationService.validInput(requestKey,clientName,problem))throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
-        String id=service.create(auth.getName(),requestKey,clientName,problem)
+        String id=service.create(auth,requestKey,clientName,problem)
             .orElseThrow(()->new ResponseStatusException(HttpStatus.CONFLICT,"Данные или права изменились. Обновите форму."));
         var redirect=new RedirectView("/general-dialog-work/"+id,true);redirect.setExposeModelAttributes(false);return redirect;
     }
     private void requireAllowed(Authentication auth,HttpServletResponse response) {
         response.setHeader("Cache-Control","no-store");response.setHeader("X-Content-Type-Options","nosniff");
         if(!service.enabled())throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-        if(!service.canCreate(auth==null?null:auth.getName()))throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        if(!service.canCreate(auth))throw new ResponseStatusException(HttpStatus.FORBIDDEN);
     }
 }

@@ -24,11 +24,39 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R227 и runtime R223 имеют
+что production уже запускался. Эта оговорка, source-сводка R228 и runtime R223 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
+
+Source R228 (не развёрнут): GENERAL work/write/SSE принимает исходный
+Authentication и immutable numeric ID/exact raw-name snapshot. 9 services/29 actor
+entries,3 controllers; String fallback отсутствует. Owning SQL связывает account
+по ID+raw name и сохраняет CURRENT/READ/OPERATE/fold-uniqueness policy. Durable
+dispatch использует сохранённую пару; SSE delivery/heartbeat удерживают actor key,
+не следуют за повторно использованным именем. Redis/public payload, URL, schema,
+UI/flags/admin policy прежние. Boundary tests мутируют fixture перед SQL, не
+доказывают внешний revoke после lock. 1287 tests /13 suites GREEN,
+529 frozen new cases; unchanged product RED 232 failures/0 errors,
+controls297. 9 old fixture files адаптированы к Authentication без
+ослабления result assertions; GENERAL real-login/HTTP/SQL/realtime/Redis повторены.
+Setup v1 529 identity-insert errors, v2 smoke19 JDBC-array snapshot failures и
+v4 full32 NOT-NULL setup errors сохранены; fixture исправлен до product edits,
+nullable compatibility probe снимает/восстанавливает constraint только test users.
+v3 smoke32 GREEN/v5 full RED0 errors.
+Verified R227 compile cache1368Java/2221classes, changed sources recompiled;
+nativePG16.15/test schemas/ignored supplier guards, Docker не запускался, owned
+server остановлен. Scope27; migration83/UI/deps/flags unchanged.
+Source/test машина C:\Users\sushi\Git_H\tg_ref_b24_sup; рабочий экземпляр на другой
+машине/сессии C:\Users\SinicinVV\git_h\tg_ref_b24_sup. Последний документированный
+runtimeR223: webR222/workerR198/foundationOFF/readiness200UP/health503DOWN из-за
+прежнего inboundDLQ1. Полные R184/R198/R204/R207/R216/R223 runtime/rollback/V83
+blocks сохранены. Working DB/deploy/restart/flags/provider/queue не затрагивались;
+V83 не повторять. R224–R226 и R228 требуют будущего panel-web image; R227 tests/docs
+отдельного rollout не требует. Никакого подтверждения развёртывания R228 здесь нет.
+Остаток: admin grant atomicity, child/media/policy/AI/fleet/flags/S6/DLQ gate;
+S2B снятR190/Task🟡. Отдельный Git publisher до конца29 октября после GREEN.
 
 Source R227 (tests/docs): восстановлены четыре GENERAL suites из долга R226.
 Work HTTP actor fixture использует bound ID/exact raw-name principal и реальные

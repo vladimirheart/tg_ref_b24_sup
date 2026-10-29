@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import org.springframework.security.core.Authentication;
+
 import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.runtime.UiEventFanoutMode;
 import com.example.panel.runtime.UiEventFanoutProperties;
@@ -39,15 +41,18 @@ public class GeneralTicketRealtimeService implements MessageListener {
     private final UiEventFanoutProperties fanout;
     private final StringRedisTemplate redis;
     private final ObjectMapper mapper;
-    private final ConcurrentHashMap<String, CopyOnWriteArraySet<SseEmitter>> emittersByUser = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<GeneralTicketActor, CopyOnWriteArraySet<SseEmitter>> emittersByUser = new ConcurrentHashMap<>();
 
     public GeneralTicketRealtimeService(JdbcTemplate jdbc, MultibusinessFeatureFlags flags, UiEventFanoutProperties fanout,
                                        StringRedisTemplate redis, ObjectMapper mapper) {
         this.jdbc = new NamedParameterJdbcTemplate(jdbc); this.flags = flags; this.fanout = fanout;
         this.redis = redis; this.mapper = mapper;
     }
-    public SseEmitter connect(String identity) {
-        String actor = normalize(identity);
+    public SseEmitter connect(Authentication authentication) {
+        return connect(GeneralTicketActor.from(authentication));
+    }
+    private SseEmitter connect(GeneralTicketActor identity) {
+        GeneralTicketActor actor = identity;
         if (!canRead(actor, null)) throw new AccessDeniedException("Нет доступа к обращениям без бизнеса");
         var emitter = new SseEmitter(0L);
         emittersByUser.computeIfAbsent(actor, key -> new CopyOnWriteArraySet<>()).add(emitter);
@@ -88,7 +93,7 @@ public class GeneralTicketRealtimeService implements MessageListener {
             for (SseEmitter emitter : emitters) send(actor, emitter, "ping", Map.of("emittedAt", Instant.now().toString()), null);
         });
     }
-    private void send(String actor, SseEmitter emitter, String name, Map<String, Object> payload, GeneralTicketEventScope scope) {
+    private void send(GeneralTicketActor actor, SseEmitter emitter, String name, Map<String, Object> payload, GeneralTicketEventScope scope) {
         // One current snapshot per emitter, including additional connections of the same account.
         if (!canRead(actor, scope)) {
             if (scope == null) {
@@ -107,23 +112,26 @@ public class GeneralTicketRealtimeService implements MessageListener {
             args(scope), Boolean.class)); }
         catch (DataAccessException ex) { return false; }
     }
-    boolean canRead(String identity, GeneralTicketEventScope scope) {
-        if (!enabled() || identity == null || identity.isBlank() || (scope != null && !scope.isValid())) return false;
+    boolean canRead(Authentication authentication, GeneralTicketEventScope scope) {
+        return canRead(GeneralTicketActor.from(authentication),scope);
+    }
+    private boolean canRead(GeneralTicketActor identity, GeneralTicketEventScope scope) {
+        if (!enabled() || identity == null || !identity.valid() || (scope != null && !scope.isValid())) return false;
         var args = scope == null ? new MapSqlParameterSource() : args(scope);
         String owner = scope == null ? "" : " AND EXISTS(SELECT 1 FROM tickets ticket WHERE " + OWNER + ")";
-        try { return Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM users account WHERE lower(account.username)=:identity AND "
-            + GeneralTicketAccessService.READ_ACCOUNT + owner + ")", args.addValue("identity", normalize(identity)), Boolean.class)); }
+        try { return Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM users account WHERE account.id=:authenticatedActorId AND account.username=:identity AND "
+            + GeneralTicketAccessService.READ_ACCOUNT + owner + ")", identity.bind(args), Boolean.class)); }
         catch (DataAccessException ex) { return false; }
     }
     private boolean enabled() { return flags.isFoundationEnabled() && flags.isGeneralTicketQueue(); }
-    private String normalize(String identity) { return identity == null ? "" : identity.toLowerCase(Locale.ROOT); }
+    // Account identity is kept exact by GeneralTicketActor.
     private MapSqlParameterSource args(GeneralTicketEventScope scope) {
         return new MapSqlParameterSource("ownerId", scope.ticketUserId()).addValue("ticketId", scope.ticketId()).addValue("publicId", scope.ticketPublicId());
     }
-    private void unregister(String actor, SseEmitter emitter) {
+    private void unregister(GeneralTicketActor actor, SseEmitter emitter) {
         emittersByUser.computeIfPresent(actor, (key, entries) -> { entries.remove(emitter); return entries.isEmpty() ? null : entries; });
     }
-    private void close(String actor, SseEmitter emitter) {
+    private void close(GeneralTicketActor actor, SseEmitter emitter) {
         unregister(actor, emitter);
         try { emitter.complete(); } catch (RuntimeException ignored) { /* Already disconnected. */ }
     }

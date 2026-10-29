@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import static com.example.panel.support.GeneralTicketActorTestSupport.auth;
 import static org.assertj.core.api.Assertions.*;
 import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.support.PostgresqlJdbcTestSupport;
@@ -39,7 +40,7 @@ class GeneralManualTicketCreationPostgresTest {
         access=new GeneralTicketAccessService(jdbc);access.grantOperate(1);access.grantOperate(3);
         service=new GeneralManualTicketCreationService(jdbc,flags,new UiEventOutboxAppendService(jdbc,new LegacyTicketIdJdbcGuard(jdbc)));
     }
-    private java.util.Optional<String> create(){return service.create("worker",KEY,"  Анна  ","  Помощь\nСрочно  ");}
+    private java.util.Optional<String> create(){return service.create(auth(jdbc,"worker"),KEY,"  Анна  ","  Помощь\nСрочно  ");}
     private int count(String table){return jdbc.queryForObject("SELECT COUNT(*) FROM "+table,Integer.class);}
     private void emptyWrites(){for(String table:new String[]{"manual_general_clients","general_manual_ticket_requests","tickets","messages","chat_history","ui_event_outbox"})assertThat(count(table)).as(table).isZero();}
     @Test void createsOneLocalGeneralRootNoteAndFrozenOutboxWithoutBusinessOrChannel() {
@@ -64,14 +65,14 @@ class GeneralManualTicketCreationPostgresTest {
         assertThat(read.find(4,id)).isEmpty();
         var scope=new GeneralTicketEventScope(owner,(String)row.get("ticket_id"),id);
         var work=new GeneralTicketWorkService(jdbc,new UiEventOutboxAppendService(jdbc,new LegacyTicketIdJdbcGuard(jdbc)),flags);
-        assertThat(work.transition(scope,"worker",0,"pending","open")).isTrue();assertThat(count("general_ticket_work_intervals")).isEqualTo(1);
+        assertThat(work.transition(scope,auth(jdbc,"worker"),0,"pending","open")).isTrue();assertThat(count("general_ticket_work_intervals")).isEqualTo(1);
     }
     @Test void duplicateKeyReturnsOnlyTheSameActorsSameInputAndCurrentOwner() {
         String id=create().orElseThrow();long sequence=jdbc.queryForObject("SELECT last_value FROM manual_client_user_id_seq",Long.class);
-        assertThat(create()).contains(id);assertThat(service.create("WORKER",KEY,"Анна","Помощь\nСрочно")).contains(id);
-        assertThat(service.create("other",KEY,"Анна","Помощь\nСрочно")).isEmpty();
-        assertThat(service.create("worker",KEY,"Другое имя","Помощь\nСрочно")).isEmpty();
-        assertThat(service.create("worker",KEY,"Анна","Другая проблема")).isEmpty();
+        assertThat(create()).contains(id);assertThat(service.create(auth(jdbc,"WORKER"),KEY,"Анна","Помощь\nСрочно")).contains(id);
+        assertThat(service.create(auth(jdbc,"other"),KEY,"Анна","Помощь\nСрочно")).isEmpty();
+        assertThat(service.create(auth(jdbc,"worker"),KEY,"Другое имя","Помощь\nСрочно")).isEmpty();
+        assertThat(service.create(auth(jdbc,"worker"),KEY,"Анна","Другая проблема")).isEmpty();
         assertThat(count("tickets")).isEqualTo(1);assertThat(count("manual_general_clients")).isEqualTo(1);assertThat(count("ui_event_outbox")).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT last_value FROM manual_client_user_id_seq",Long.class)).isEqualTo(sequence);
         assertThatThrownBy(()->jdbc.update("UPDATE general_manual_ticket_requests SET actor='changed'" )).isInstanceOf(DataAccessException.class);
@@ -93,7 +94,7 @@ class GeneralManualTicketCreationPostgresTest {
             case "queue"->flags.setGeneralTicketQueue(false);
             case "manual"->flags.setManualTicketCreation(false);
         }
-        assertThat(service.canCreate(identity)).isFalse();assertThat(service.create(identity,KEY,"Клиент","Проблема")).isEmpty();emptyWrites();
+        assertThat(service.canCreate(auth(jdbc,identity))).isFalse();assertThat(service.create(auth(jdbc,identity),KEY,"Клиент","Проблема")).isEmpty();emptyWrites();
         assertThat(jdbc.queryForObject("SELECT is_called FROM manual_client_user_id_seq",Boolean.class)).isFalse();
     }
     @ParameterizedTest @ValueSource(strings={"key","name-empty","name-long","name-control","problem-empty","problem-long","problem-control","surrogate"})
@@ -105,7 +106,7 @@ class GeneralManualTicketCreationPostgresTest {
             case "problem-control"->problem="a\u0000b";case "surrogate"->problem="\ud800";
         }
         assertThat(GeneralManualTicketCreationService.validInput(key,name,problem)).isFalse();
-        assertThat(service.create("worker",key,name,problem)).isEmpty();emptyWrites();
+        assertThat(service.create(auth(jdbc,"worker"),key,name,problem)).isEmpty();emptyWrites();
         assertThat(jdbc.queryForObject("SELECT is_called FROM manual_client_user_id_seq",Boolean.class)).isFalse();
     }
     @ParameterizedTest @ValueSource(strings={"client","message","root","history","request","outbox"})
@@ -168,15 +169,15 @@ class GeneralManualTicketCreationPostgresTest {
         var options=new java.util.Properties();options.setProperty("stringtype","unspecified");alternate.setConnectionProperties(options);
         var untyped=new JdbcTemplate(alternate);
         var other=new GeneralManualTicketCreationService(untyped,flags,new UiEventOutboxAppendService(untyped,new LegacyTicketIdJdbcGuard(untyped)));
-        String id=other.create("worker",KEY,"Анна","Проблема").orElseThrow();
-        assertThat(service.create("worker",KEY,"Анна","Проблема")).contains(id);
+        String id=other.create(auth(untyped,"worker"),KEY,"Анна","Проблема").orElseThrow();
+        assertThat(service.create(auth(jdbc,"worker"),KEY,"Анна","Проблема")).contains(id);
         assertThat(count("tickets")).isEqualTo(1);assertThat(count("manual_general_clients")).isEqualTo(1);
     }
     @Test void occupiedNegativeIdsAreSkippedAndAllocationFailureCannotLeaveRows() {
         long first=jdbc.queryForObject("SELECT last_value FROM manual_client_user_id_seq",Long.class);
         for(int i=0;i<32;i++)jdbc.update("INSERT INTO bot_users VALUES(?)",first+i);
         assertThat(create()).isEmpty();emptyWrites();
-        String id=service.create("worker","b".repeat(32),"Новый","Новая проблема").orElseThrow();
+        String id=service.create(auth(jdbc,"worker"),"b".repeat(32),"Новый","Новая проблема").orElseThrow();
         assertThat(jdbc.queryForObject("SELECT user_id FROM tickets WHERE ticket_public_id=?",Long.class,id)).isEqualTo(first+32);
     }
     @Test void upgradeFromV69PreservesExistingSourcesAndBothManualNamespacesStayDistinct() {
@@ -207,7 +208,7 @@ class GeneralManualTicketCreationPostgresTest {
         assertThat(upgrade.queryForObject("SELECT COUNT(*) FROM manual_general_clients",Integer.class)).isZero();
         var grants=new GeneralTicketAccessService(upgrade);grants.grantRead(actor);grants.grantOperate(actor);
         var general=new GeneralManualTicketCreationService(upgrade,flags,new UiEventOutboxAppendService(upgrade,new LegacyTicketIdJdbcGuard(upgrade)));
-        String id=general.create("operator",KEY,"Общий клиент","Общий вопрос").orElseThrow();
+        String id=general.create(auth(upgrade,"operator"),KEY,"Общий клиент","Общий вопрос").orElseThrow();
         long generalId=upgrade.queryForObject("SELECT user_id FROM tickets WHERE ticket_public_id=?",Long.class,id);
         var last=businessService.create(actor,business,"Ещё бизнес-клиент","Вопрос",null);
         assertThat(java.util.Set.of(first.clientUserId(),generalId,last.clientUserId())).hasSize(3);

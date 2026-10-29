@@ -57,7 +57,7 @@ class GeneralTicketControllersWebMvcTest {
         mvc.perform(get(path).with(user("reader").authorities(() -> "PAGE_DIALOGS"))).andExpect(status().isNotFound());
         enable();
         mvc.perform(get(path).with(user("admin").authorities(() -> "ROLE_ADMIN"))).andExpect(status().isForbidden());
-        when(realtime.connect("reader")).thenThrow(new AccessDeniedException("No GENERAL grant"));
+        when(realtime.connect(org.mockito.ArgumentMatchers.argThat(a->a!=null&&a.getName().equals("reader")))).thenThrow(new AccessDeniedException("No GENERAL grant"));
         mvc.perform(get(path).with(user("reader").authorities(() -> "PAGE_DIALOGS"))).andExpect(status().isForbidden());
     }
 
@@ -66,14 +66,14 @@ class GeneralTicketControllersWebMvcTest {
         enable();
         var emitter = new org.springframework.web.servlet.mvc.method.annotation.SseEmitter(0L);
         emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event().name("connected").data(java.util.Map.of("connected", true)));
-        when(realtime.connect("reader")).thenReturn(emitter);
+        when(realtime.connect(org.mockito.ArgumentMatchers.argThat(a->a!=null&&a.getName().equals("reader")))).thenReturn(emitter);
         mvc.perform(get("/api/general-tickets/events/stream?user=other").with(user("reader").authorities(() -> "PAGE_DIALOGS")))
             .andExpect(status().isOk()).andExpect(request().asyncStarted())
             .andExpect(header().string("Cache-Control", "no-store"))
             .andExpect(header().string("X-Accel-Buffering", "no"))
             .andExpect(content().contentTypeCompatibleWith("text/event-stream"));
-        verify(realtime).connect("reader");
-        verify(realtime, never()).connect("other");
+        verify(realtime).connect(org.mockito.ArgumentMatchers.argThat(a->a!=null&&a.getName().equals("reader")));
+        verify(realtime, never()).connect(org.mockito.ArgumentMatchers.argThat(a->a!=null&&a.getName().equals("other")));
         emitter.complete();
     }
 

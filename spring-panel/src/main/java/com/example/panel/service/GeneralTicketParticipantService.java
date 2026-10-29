@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import org.springframework.security.core.Authentication;
+
 import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.service.integration.LegacyTicketIdConcurrencyGuard;
 import java.sql.Types;
@@ -20,7 +22,7 @@ public class GeneralTicketParticipantService {
     private static final String OWNER=" ticket.user_id=:owner AND ticket.ticket_id=:raw AND ticket.ticket_public_id=:public"
         +" AND ticket.is_general=TRUE AND ticket.business_id IS NULL"
         +" AND 1=(SELECT count(*) FROM tickets collision WHERE collision.ticket_id=ticket.ticket_id)"
-        +" AND lower(account.username)=lower(:identity) ";
+        +" AND account.id=:authenticatedActorId AND account.username=:identity ";
     private static final String READ=" AND "+GeneralTicketAccessService.READ_ACCOUNT;
     private static final String WRITE=" AND "+GeneralTicketAccessService.OPERATE_ACCOUNT
         +" AND lower(btrim(account.username))<>'ai_agent' AND ticket.status IN ('pending','open') AND ticket.general_work_revision=:ownerRevision ";
@@ -41,7 +43,10 @@ public class GeneralTicketParticipantService {
         transaction=new TransactionTemplate(new DataSourceTransactionManager(jdbc.getDataSource()));
         transaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
-    public Optional<Long> revision(GeneralTicketEventScope scope,String identity) {
+    public Optional<Long> revision(GeneralTicketEventScope scope,Authentication authentication) {
+        return revision(scope,GeneralTicketActor.from(authentication));
+    }
+    private Optional<Long> revision(GeneralTicketEventScope scope,GeneralTicketActor identity) {
         if(!valid(scope,identity))return Optional.empty();
         try {
             var rows=jdbc.query("SELECT "+REVISION+" FROM tickets ticket"+ACTOR+" WHERE "+OWNER+READ,args(scope,identity),
@@ -49,7 +54,10 @@ public class GeneralTicketParticipantService {
             return rows.size()==1?Optional.of(rows.get(0)):Optional.empty();
         }catch(DataAccessException ex){return Optional.empty();}
     }
-    public List<Member> members(GeneralTicketEventScope scope,String identity) {
+    public List<Member> members(GeneralTicketEventScope scope,Authentication authentication) {
+        return members(scope,GeneralTicketActor.from(authentication));
+    }
+    private List<Member> members(GeneralTicketEventScope scope,GeneralTicketActor identity) {
         if(!valid(scope,identity))return List.of();
         try{return jdbc.query("SELECT entry.member_user_id,entry.member,candidate.username,("+TARGET+") AS eligible"
             +" FROM tickets ticket"+ACTOR+" JOIN general_ticket_participants entry ON "+TUPLE
@@ -58,7 +66,10 @@ public class GeneralTicketParticipantService {
             (rs,row)->new Member(rs.getLong("member_user_id"),rs.getString("member"),rs.getString("username"),rs.getBoolean("eligible")));
         }catch(DataAccessException ex){return List.of();}
     }
-    public List<Candidate> candidates(GeneralTicketEventScope scope,String identity,long ownerRevision) {
+    public List<Candidate> candidates(GeneralTicketEventScope scope,Authentication authentication,long ownerRevision) {
+        return candidates(scope,GeneralTicketActor.from(authentication),ownerRevision);
+    }
+    private List<Candidate> candidates(GeneralTicketEventScope scope,GeneralTicketActor identity,long ownerRevision) {
         if(!valid(scope,identity)||ownerRevision<0)return List.of();
         try{return jdbc.query("SELECT candidate.id,candidate.username FROM tickets ticket"+ACTOR+" CROSS JOIN users candidate"
             +" WHERE "+OWNER+WRITE+" AND "+TARGET
@@ -67,7 +78,10 @@ public class GeneralTicketParticipantService {
             (rs,row)->new Candidate(rs.getLong("id"),rs.getString("username")));
         }catch(DataAccessException ex){return List.of();}
     }
-    public List<Event> recent(GeneralTicketEventScope scope,String identity) {
+    public List<Event> recent(GeneralTicketEventScope scope,Authentication authentication) {
+        return recent(scope,GeneralTicketActor.from(authentication));
+    }
+    private List<Event> recent(GeneralTicketEventScope scope,GeneralTicketActor identity) {
         if(!valid(scope,identity))return List.of();
         try{return jdbc.query("SELECT entry.* FROM tickets ticket"+ACTOR+" JOIN general_ticket_participant_events entry ON "+TUPLE
             +" WHERE "+OWNER+READ+" ORDER BY entry.revision DESC LIMIT 10",args(scope,identity),
@@ -75,7 +89,10 @@ public class GeneralTicketParticipantService {
                 rs.getString("actor"),rs.getString("action"),rs.getObject("created_at",OffsetDateTime.class)));
         }catch(DataAccessException ex){return List.of();}
     }
-    public boolean change(GeneralTicketEventScope scope,String identity,long ownerRevision,long expectedRevision,Long memberId,boolean add) {
+    public boolean change(GeneralTicketEventScope scope,Authentication authentication,long ownerRevision,long expectedRevision,Long memberId,boolean add) {
+        return change(scope,GeneralTicketActor.from(authentication),ownerRevision,expectedRevision,memberId,add);
+    }
+    private boolean change(GeneralTicketEventScope scope,GeneralTicketActor identity,long ownerRevision,long expectedRevision,Long memberId,boolean add) {
         if(!valid(scope,identity)||ownerRevision<0||expectedRevision<0||expectedRevision==Long.MAX_VALUE||memberId==null||memberId<=0)return false;
         var params=args(scope,identity).addValue("ownerRevision",ownerRevision).addValue("revision",expectedRevision).addValue("memberId",memberId);
         try{return Boolean.TRUE.equals(transaction.execute(tx->{
@@ -119,12 +136,12 @@ public class GeneralTicketParticipantService {
             return true;
         }));}catch(DataAccessException|IllegalStateException ex){return false;}
     }
-    private boolean valid(GeneralTicketEventScope scope,String identity) {
-        return flags.isFoundationEnabled()&&flags.isGeneralTicketQueue()&&identity!=null&&!identity.isBlank()&&scope!=null&&scope.isValid();
+    private boolean valid(GeneralTicketEventScope scope,GeneralTicketActor identity) {
+        return flags.isFoundationEnabled()&&flags.isGeneralTicketQueue()&&identity!=null&&identity.valid()&&scope!=null&&scope.isValid();
     }
-    private MapSqlParameterSource args(GeneralTicketEventScope scope,String identity) {
+    private MapSqlParameterSource args(GeneralTicketEventScope scope,GeneralTicketActor identity) {
         return new MapSqlParameterSource("owner",scope.ticketUserId()).addValue("raw",scope.ticketId()).addValue("public",scope.ticketPublicId())
-            .addValue("identity",identity);
+            .addValue("identity",identity.username()).addValue("authenticatedActorId",identity.userId());
     }
     public record Candidate(long id,String username){}
     public record Member(long id,String snapshot,String username,boolean eligible){}

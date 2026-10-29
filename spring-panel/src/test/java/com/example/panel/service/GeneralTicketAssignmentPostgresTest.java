@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import static com.example.panel.support.GeneralTicketActorTestSupport.auth;
 import static org.assertj.core.api.Assertions.*;
 import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.support.PostgresqlJdbcTestSupport;
@@ -41,17 +42,17 @@ class GeneralTicketAssignmentPostgresTest {
         var ids=new UiEventOutboxAppendService(jdbc,new LegacyTicketIdJdbcGuard(jdbc));
         assignments=new GeneralTicketAssignmentService(jdbc,flags,ids);work=new GeneralTicketWorkService(jdbc,ids,flags);
     }
-    private boolean assign(long revision,Long target){return assignments.assign(scope,"worker",0,revision,target);}
+    private boolean assign(long revision,Long target){return assignments.assign(scope,auth(jdbc,"worker"),0,revision,target);}
     @Test void explicitAssignmentReplacementAndRemovalAreVersionedAndDoNotTouchLegacyOrRoot() {
         var root=jdbc.queryForList("SELECT * FROM tickets");
-        assertThat(assignments.current(scope,"reader").orElseThrow().revision()).isZero();
-        assertThat(assignments.current(scope,"reader").orElseThrow().assignee()).isNull();
-        assertThat(assignments.candidates(scope,"worker")).extracting(GeneralTicketAssignmentService.Candidate::userId).containsExactly(3L,1L);
-        assertThat(assignments.candidates(scope,"reader")).isEmpty();assertThat(assignments.candidates(scope,"admin")).isEmpty();
+        assertThat(assignments.current(scope,auth(jdbc,"reader")).orElseThrow().revision()).isZero();
+        assertThat(assignments.current(scope,auth(jdbc,"reader")).orElseThrow().assignee()).isNull();
+        assertThat(assignments.candidates(scope,auth(jdbc,"worker"))).extracting(GeneralTicketAssignmentService.Candidate::userId).containsExactly(3L,1L);
+        assertThat(assignments.candidates(scope,auth(jdbc,"reader"))).isEmpty();assertThat(assignments.candidates(scope,auth(jdbc,"admin"))).isEmpty();
         assertThat(assign(0,4L)).isFalse();assertThat(assign(0,2L)).isFalse();assertThat(assign(0,null)).isFalse();
         assertThat(assign(0,1L)).isTrue();assertThat(assign(0,3L)).isFalse();assertThat(assign(1,1L)).isFalse();
         assertThat(assign(1,3L)).isTrue();assertThat(assign(2,null)).isTrue();assertThat(assign(3,null)).isFalse();
-        assertThat(assignments.recent(scope,"reader")).extracting(GeneralTicketAssignmentService.Event::assignee).containsExactly(null,"candidate","worker");
+        assertThat(assignments.recent(scope,auth(jdbc,"reader"))).extracting(GeneralTicketAssignmentService.Event::assignee).containsExactly(null,"candidate","worker");
         assertThat(jdbc.queryForList("SELECT * FROM tickets")).isEqualTo(root);
         assertThat(jdbc.queryForObject("SELECT responsible FROM ticket_responsibles",String.class)).isEqualTo("legacy-staff");
         assertThat(jdbc.queryForList("SELECT event_type,ticket_scope_kind,ticket_business_id,message_text,ticket_id,ticket_user_id,ticket_public_id FROM ui_event_outbox"))
@@ -78,15 +79,15 @@ class GeneralTicketAssignmentPostgresTest {
             case "flag"->flags.setGeneralTicketQueue(false);
             case "principal"->identity=" worker ";
         }
-        assertThat(assignments.assign(scope,identity,0,1,3L)).isFalse();
-        assertThat(assignments.candidates(scope,identity)).isEmpty();
-        if(mutation.equals("operate")) {assertThat(assignments.current(scope,identity)).isPresent();assertThat(assignments.recent(scope,identity)).hasSize(1);}
-        else {assertThat(assignments.current(scope,identity)).isEmpty();assertThat(assignments.recent(scope,identity)).isEmpty();}
+        assertThat(assignments.assign(scope,auth(jdbc,identity),0,1,3L)).isFalse();
+        assertThat(assignments.candidates(scope,auth(jdbc,identity))).isEmpty();
+        if(mutation.equals("operate")) {assertThat(assignments.current(scope,auth(jdbc,identity))).isPresent();assertThat(assignments.recent(scope,auth(jdbc,identity))).hasSize(1);}
+        else {assertThat(assignments.current(scope,auth(jdbc,identity))).isEmpty();assertThat(assignments.recent(scope,auth(jdbc,identity))).isEmpty();}
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_assignment_events",Integer.class)).isEqualTo(1);
     }
     @ParameterizedTest @ValueSource(strings={"read","operate","disabled","blocked","duplicate","missing","blank"})
     void candidateEligibilityIsRecheckedInsideTheMutation(String mutation) {
-        assertThat(assignments.candidates(scope,"worker")).hasSize(2);
+        assertThat(assignments.candidates(scope,auth(jdbc,"worker"))).hasSize(2);
         switch(mutation) {
             case "read"->access.revokeRead(3);
             case "operate"->access.revokeOperate(3);
@@ -96,7 +97,7 @@ class GeneralTicketAssignmentPostgresTest {
             case "missing"->jdbc.update("DELETE FROM users WHERE id=3");
             case "blank"->jdbc.update("UPDATE users SET username=' ' WHERE id=3");
         }
-        assertThat(assign(0,3L)).isFalse();assertThat(assignments.candidates(scope,"worker"))
+        assertThat(assign(0,3L)).isFalse();assertThat(assignments.candidates(scope,auth(jdbc,"worker")))
             .extracting(GeneralTicketAssignmentService.Candidate::userId).containsExactly(1L);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_assignment_events",Integer.class)).isZero();
     }
@@ -105,34 +106,34 @@ class GeneralTicketAssignmentPostgresTest {
         long ownerVersion=input.equals("negative-owner")?-1:0;
         long version=input.equals("negative-assignment")?-1:input.equals("max-assignment")?Long.MAX_VALUE:0;
         Long target=input.equals("negative-target")?-1L:input.equals("zero-target")?0L:3L;
-        assertThat(assignments.assign(scope,"worker",ownerVersion,version,target)).isFalse();
+        assertThat(assignments.assign(scope,auth(jdbc,"worker"),ownerVersion,version,target)).isFalse();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_assignment_events",Integer.class)).isZero();
     }
     @Test void negativeTicketUserIdsKeepTheirExactOwner() {
         jdbc.update("UPDATE tickets SET user_id=-10");
         var negative=new GeneralTicketEventScope(-10L,RAW,PUBLIC);
-        assertThat(assignments.assign(negative,"worker",1,0,3L)).isTrue();
-        assertThat(assignments.current(negative,"reader").orElseThrow().assignee()).isEqualTo("candidate");
-        assertThat(assignments.current(scope,"reader")).isEmpty();
+        assertThat(assignments.assign(negative,auth(jdbc,"worker"),1,0,3L)).isTrue();
+        assertThat(assignments.current(negative,auth(jdbc,"reader")).orElseThrow().assignee()).isEqualTo("candidate");
+        assertThat(assignments.current(scope,auth(jdbc,"reader"))).isEmpty();
     }
     @Test void assignmentAbaRejectsAnOldFormEvenAfterReturningToTheSameAssignee() {
         assertThat(assign(0,1L)).isTrue();assertThat(assign(1,3L)).isTrue();assertThat(assign(2,1L)).isTrue();
-        assertThat(assign(1,3L)).isFalse();assertThat(assignments.current(scope,"reader").orElseThrow().revision()).isEqualTo(3);
+        assertThat(assign(1,3L)).isFalse();assertThat(assignments.current(scope,auth(jdbc,"reader")).orElseThrow().revision()).isEqualTo(3);
     }
     @Test void revokedAssigneeStaysHistoricalAndCanBeReplacedWithoutRestoringRights() {
         assertThat(assign(0,3L)).isTrue();access.revokeRead(3);
-        var state=assignments.current(scope,"reader").orElseThrow();
+        var state=assignments.current(scope,auth(jdbc,"reader")).orElseThrow();
         assertThat(state.assignee()).isEqualTo("candidate");assertThat(state.eligible()).isFalse();
         assertThat(assign(1,1L)).isTrue();assertThat(access.canRead(3L)).isFalse();
-        assertThat(assignments.recent(scope,"reader").get(1).assignee()).isEqualTo("candidate");
+        assertThat(assignments.recent(scope,auth(jdbc,"reader")).get(1).assignee()).isEqualTo("candidate");
     }
     @ParameterizedTest @ValueSource(strings={"closed","resolved","aba"})
     void closedAndStatusChangedFormsCannotAssign(String mutation) {
         jdbc.update("UPDATE tickets SET status=?",mutation.equals("aba")?"open":mutation);
         if(mutation.equals("aba"))jdbc.update("UPDATE tickets SET status='pending'");
         assertThat(assign(0,3L)).isFalse();
-        if(!mutation.equals("aba"))assertThat(assignments.assign(scope,"worker",1,0,3L)).isFalse();
-        assertThat(assignments.current(scope,"reader")).isPresent();
+        if(!mutation.equals("aba"))assertThat(assignments.assign(scope,auth(jdbc,"worker"),1,0,3L)).isFalse();
+        assertThat(assignments.current(scope,auth(jdbc,"reader"))).isPresent();
     }
     @ParameterizedTest @ValueSource(strings={"tuple","generation","raw"})
     void aNewOwnerOrGenerationDoesNotInheritAssignment(String mutation) {
@@ -143,17 +144,17 @@ class GeneralTicketAssignmentPostgresTest {
             case "raw"->{raw=RAW.trim();jdbc.update("UPDATE tickets SET ticket_id=?",raw);}
         }
         var next=new GeneralTicketEventScope(owner,raw,id);
-        assertThat(assignments.current(scope,"reader")).isEmpty();
-        assertThat(assignments.current(next,"reader").orElseThrow().revision()).isZero();
-        assertThat(assignments.recent(next,"reader")).isEmpty();
-        assertThat(assignments.assign(next,"worker",1,0,1L)).isTrue();
+        assertThat(assignments.current(scope,auth(jdbc,"reader"))).isEmpty();
+        assertThat(assignments.current(next,auth(jdbc,"reader")).orElseThrow().revision()).isZero();
+        assertThat(assignments.recent(next,auth(jdbc,"reader"))).isEmpty();
+        assertThat(assignments.assign(next,auth(jdbc,"worker"),1,0,1L)).isTrue();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_assignment_events",Integer.class)).isEqualTo(2);
     }
     @Test void historyAndCurrentSelectionFilterFullOwnerBeforeLimit() {
         for(int i=1;i<=13;i++)seed(10,RAW,PUBLIC,i);
         for(int i=1;i<=20;i++){seed(99,RAW,PUBLIC,i);seed(10,RAW,"b".repeat(32),i);seed(10,RAW.trim(),PUBLIC,i);}
-        assertThat(assignments.current(scope,"reader").orElseThrow().revision()).isEqualTo(13);
-        assertThat(assignments.recent(scope,"reader")).extracting(GeneralTicketAssignmentService.Event::revision)
+        assertThat(assignments.current(scope,auth(jdbc,"reader")).orElseThrow().revision()).isEqualTo(13);
+        assertThat(assignments.recent(scope,auth(jdbc,"reader"))).extracting(GeneralTicketAssignmentService.Event::revision)
             .containsExactly(13L,12L,11L,10L,9L,8L,7L,6L,5L,4L);
     }
     private void seed(long owner,String raw,String id,int revision) {
@@ -204,18 +205,18 @@ class GeneralTicketAssignmentPostgresTest {
         } finally {pool.shutdownNow();}
     }
     @Test void assignmentDoesNotInterruptAnObservedWorkInterval() {
-        assertThat(work.transition(scope,"worker",0,"pending","open")).isTrue();
+        assertThat(work.transition(scope,auth(jdbc,"worker"),0,"pending","open")).isTrue();
         var before=jdbc.queryForList("SELECT * FROM general_ticket_work_intervals");
-        assertThat(assignments.assign(scope,"worker",1,0,3L)).isTrue();
-        assertThat(work.find(PUBLIC,"worker").orElseThrow().revision()).isEqualTo(1);
+        assertThat(assignments.assign(scope,auth(jdbc,"worker"),1,0,3L)).isTrue();
+        assertThat(work.find(PUBLIC,auth(jdbc,"worker")).orElseThrow().revision()).isEqualTo(1);
         assertThat(jdbc.queryForList("SELECT * FROM general_ticket_work_intervals")).isEqualTo(before);
-        assertThat(work.transition(scope,"worker",1,"open","closed")).isTrue();
+        assertThat(work.transition(scope,auth(jdbc,"worker"),1,"open","closed")).isTrue();
         assertThat(jdbc.queryForObject("SELECT outcome FROM general_ticket_work_intervals",String.class)).isEqualTo("COMPLETED");
     }
     @Test void missingAssignmentSchemaCannotFallBackToLegacyResponsibility() {
         jdbc.execute("DROP TABLE general_ticket_assignment_events");
-        assertThat(assign(0,3L)).isFalse();assertThat(assignments.current(scope,"reader")).isEmpty();
-        assertThat(assignments.recent(scope,"reader")).isEmpty();
+        assertThat(assign(0,3L)).isFalse();assertThat(assignments.current(scope,auth(jdbc,"reader"))).isEmpty();
+        assertThat(assignments.recent(scope,auth(jdbc,"reader"))).isEmpty();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ui_event_outbox",Integer.class)).isZero();
         assertThat(jdbc.queryForObject("SELECT responsible FROM ticket_responsibles",String.class)).isEqualTo("legacy-staff");
     }

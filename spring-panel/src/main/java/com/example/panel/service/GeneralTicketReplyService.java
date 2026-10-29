@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import org.springframework.security.core.Authentication;
+
 import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.entity.Channel;
 import java.time.OffsetDateTime;
@@ -51,16 +53,25 @@ public class GeneralTicketReplyService {
         }
         return true;
     }
-    public Optional<String> destinationFingerprint(GeneralTicketEventScope scope,String identity,long revision) {
+    public Optional<String> destinationFingerprint(GeneralTicketEventScope scope,Authentication authentication,long revision) {
+        return destinationFingerprint(scope,GeneralTicketActor.from(authentication),revision);
+    }
+    private Optional<String> destinationFingerprint(GeneralTicketEventScope scope,GeneralTicketActor identity,long revision) {
         try { return transaction.execute(tx->capture(scope,identity,revision).map(Destination::digest)); }
         catch (RuntimeException ex) { return Optional.empty(); }
     }
-    public boolean submit(GeneralTicketEventScope scope,String identity,long revision,String key,String message,String expectedDestination) {
+    public boolean submit(GeneralTicketEventScope scope,Authentication authentication,long revision,String key,String message,String expectedDestination) {
+        return submit(scope,GeneralTicketActor.from(authentication),revision,key,message,expectedDestination);
+    }
+    private boolean submit(GeneralTicketEventScope scope,GeneralTicketActor identity,long revision,String key,String message,String expectedDestination) {
         if (!prepare(scope,identity,revision,key,message,expectedDestination)) return false;
         dispatch(key);
         return true; // Accepted is not a promise of provider delivery; the persisted state is shown separately.
     }
-    boolean prepare(GeneralTicketEventScope scope,String identity,long revision,String key,String message,String expectedDestination) {
+    boolean prepare(GeneralTicketEventScope scope,Authentication authentication,long revision,String key,String message,String expectedDestination) {
+        return prepare(scope,GeneralTicketActor.from(authentication),revision,key,message,expectedDestination);
+    }
+    private boolean prepare(GeneralTicketEventScope scope,GeneralTicketActor identity,long revision,String key,String message,String expectedDestination) {
         if (!validInput(key,message) || revision<0 || expectedDestination==null || !expectedDestination.matches("[a-f0-9]{64}")) return false;
         try { return Boolean.TRUE.equals(transaction.execute(tx->{
             var target=capture(scope,identity,revision);
@@ -99,17 +110,17 @@ public class GeneralTicketReplyService {
         if (claimed==null || claimed.isEmpty()) return;
         var attempt=claimed.get();
         try { transaction.executeWithoutResult(tx->{
-            var target=capture(attempt.scope(),attempt.actor(),attempt.revision());
+            var target=capture(attempt.scope(),GeneralTicketActor.stored(attempt.actorId(),attempt.actor()),attempt.revision());
             if (target.isEmpty() || !attempt.matches(target.get())) {
                 finish(key,attempt,"CANCELLED",null);return;
             }
             var destination=target.get();
             var result=transport.sendTextGuarded(destination.channel(),attempt.scope().ticketUserId(),attempt.message(),null,
-                ()->capture(attempt.scope(),attempt.actor(),attempt.revision()).filter(attempt::matches).isPresent());
+                ()->capture(attempt.scope(),GeneralTicketActor.stored(attempt.actorId(),attempt.actor()),attempt.revision()).filter(attempt::matches).isPresent());
             if (result==null || !result.success()) {
                 finish(key,attempt,result!=null && "scope_denied".equals(result.classification())?"CANCELLED":"UNKNOWN",null);return;
             }
-            var args=params(attempt.scope(),attempt.actor()).addValue("message",attempt.message())
+            var args=params(attempt.scope(),GeneralTicketActor.stored(attempt.actorId(),attempt.actor())).addValue("message",attempt.message())
                 .addValue("channelId",attempt.channelId()).addValue("providerId",result.telegramMessageId());
             Long historyId=sql.queryForObject("""
                 INSERT INTO chat_history(user_id,sender,message,timestamp,ticket_id,message_type,
@@ -124,21 +135,24 @@ public class GeneralTicketReplyService {
             catch (RuntimeException ignored) { /* SENDING also requires manual reconciliation, never auto-retry. */ }
         }
     }
-    public List<Reply> recent(GeneralTicketEventScope scope,String identity) {
-        if (!enabled() || scope==null || !scope.isValid() || identity==null || identity.isBlank()) return List.of();
+    public List<Reply> recent(GeneralTicketEventScope scope,Authentication authentication) {
+        return recent(scope,GeneralTicketActor.from(authentication));
+    }
+    private List<Reply> recent(GeneralTicketEventScope scope,GeneralTicketActor identity) {
+        if (!enabled() || scope==null || !scope.isValid() || identity==null || !identity.valid()) return List.of();
         try { return sql.query("""
             SELECT reply.request_key,reply.message,reply.state,reply.created_at
             FROM general_ticket_text_replies reply JOIN tickets ticket
               ON ticket.user_id=reply.ticket_user_id AND ticket.ticket_id=reply.ticket_id AND ticket.ticket_public_id=reply.ticket_public_id
-            CROSS JOIN users account WHERE lower(account.username)=lower(:identity) AND
+            CROSS JOIN users account WHERE account.id=:authenticatedActorId AND account.username=:identity AND
             """+OWNER+" AND "+GeneralTicketAccessService.READ_ACCOUNT+"""
             ORDER BY reply.created_at DESC,reply.request_key LIMIT 20
             """,params(scope,identity),(rs,row)->new Reply(rs.getString("request_key"),rs.getString("message"),
                 rs.getString("state"),rs.getObject("created_at",OffsetDateTime.class)));
         } catch (RuntimeException ex) { return List.of(); }
     }
-    private Optional<Destination> capture(GeneralTicketEventScope scope,String identity,long revision) {
-        if (!enabled() || scope==null || !scope.isValid() || identity==null || identity.isBlank()) return Optional.empty();
+    private Optional<Destination> capture(GeneralTicketEventScope scope,GeneralTicketActor identity,long revision) {
+        if (!enabled() || scope==null || !scope.isValid() || identity==null || !identity.valid()) return Optional.empty();
         var rows=sql.query("""
             SELECT account.id AS actor_id,destination.id,destination.token,destination.platform,
                 destination.platform_config,destination.delivery_settings,destination.credential_id,
@@ -147,7 +161,7 @@ public class GeneralTicketReplyService {
             JOIN messages root ON root.group_msg_id=ticket.group_msg_id AND root.user_id=ticket.user_id
                 AND root.ticket_id=ticket.ticket_id AND root.channel_id=ticket.channel_id
             JOIN channels destination ON destination.id=ticket.channel_id
-            JOIN users account ON lower(account.username)=lower(:identity)
+            JOIN users account ON account.id=:authenticatedActorId AND account.username=:identity
             JOIN general_ticket_read_grants read_access ON read_access.user_id=account.id AND read_access.is_active=TRUE
             JOIN general_ticket_operate_grants operation ON operation.user_id=account.id AND operation.is_active=TRUE
             WHERE
@@ -176,16 +190,16 @@ public class GeneralTicketReplyService {
             INSERT INTO ui_event_outbox(id,event_type,ticket_id,channel_id,created_at,
                 ticket_user_id,ticket_public_id,ticket_scope_kind,ticket_business_id)
             VALUES(:eventId,'operator_reply_changed',:ticketId,:channelId,CURRENT_TIMESTAMP,:ownerId,:publicId,'GENERAL',NULL)
-            """,params(attempt.scope(),attempt.actor()).addValue("eventId",ids.nextEventId()).addValue("channelId",attempt.channelId()));
+            """,params(attempt.scope(),GeneralTicketActor.stored(attempt.actorId(),attempt.actor())).addValue("eventId",ids.nextEventId()).addValue("channelId",attempt.channelId()));
     }
     private void audit(String key,String state,long actorId) {
         sql.update("INSERT INTO general_ticket_reply_events(request_key,state,actor_user_id) VALUES(:key,:state,:actorId)",
             new MapSqlParameterSource("key",key).addValue("state",state).addValue("actorId",actorId));
     }
     private boolean enabled() { return flags.isFoundationEnabled()&&flags.isGeneralTicketQueue(); }
-    private MapSqlParameterSource params(GeneralTicketEventScope scope,String identity) {
+    private MapSqlParameterSource params(GeneralTicketEventScope scope,GeneralTicketActor identity) {
         return new MapSqlParameterSource("ownerId",scope.ticketUserId()).addValue("ticketId",scope.ticketId())
-            .addValue("publicId",scope.ticketPublicId()).addValue("identity",identity);
+            .addValue("publicId",scope.ticketPublicId()).addValue("identity",identity.username()).addValue("authenticatedActorId",identity.userId());
     }
     public record Reply(String requestKey,String message,String state,OffsetDateTime createdAt) { }
     private record Destination(long actorId,Channel channel,String digest) {

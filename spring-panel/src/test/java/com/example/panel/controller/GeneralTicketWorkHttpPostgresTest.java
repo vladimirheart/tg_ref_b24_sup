@@ -1,5 +1,6 @@
 package com.example.panel.controller;
 
+import static com.example.panel.support.GeneralTicketActorTestSupport.auth;
 import static org.assertj.core.api.Assertions.*;
 import static org.hamcrest.Matchers.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -98,8 +99,8 @@ class GeneralTicketWorkHttpPostgresTest {
         mvc.perform(actor(post(root+"/status").param("revision",hidden(html,"revision")).param("expectedStatus",hidden(html,"expectedStatus"))
             .param("nextStatus",hidden(html,"nextStatus")).param("_csrf",hidden(html,"_csrf")).cookie(opened.getResponse().getCookies()),worker,"PAGE_DIALOGS"))
             .andExpect(redirectedUrl(root));
-        assertThat(work.find(publicId,worker).orElseThrow().revision()).isEqualTo(1);
-        assertThat(work.find(publicId,worker).orElseThrow().status()).isEqualTo("open");
+        assertThat(work.find(publicId,auth(jdbc,worker)).orElseThrow().revision()).isEqualTo(1);
+        assertThat(work.find(publicId,auth(jdbc,worker)).orElseThrow().status()).isEqualTo("open");
         mvc.perform(actor(change("0","pending","open"),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_work_events WHERE ticket_public_id=?",Integer.class,publicId)).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT ticket_scope_kind FROM ui_event_outbox WHERE ticket_public_id=?",String.class,publicId)).isEqualTo("GENERAL");
@@ -124,7 +125,7 @@ class GeneralTicketWorkHttpPostgresTest {
     @ParameterizedTest @MethodSource("lateChanges")
     void lateChangesAfterControllerPrecheckAreReprovedInsideWrite(String mutation,String from,String to) throws Exception {
         jdbc.update("UPDATE tickets SET status=? WHERE ticket_public_id=?",from,publicId);
-        long version=work.find(publicId,worker).orElseThrow().revision();
+        long version=work.find(publicId,auth(jdbc,worker)).orElseThrow().revision();
         var scope=new GeneralTicketEventScope(owner,raw,publicId);
         doAnswer(call->{
             switch(mutation) {
@@ -133,7 +134,7 @@ class GeneralTicketWorkHttpPostgresTest {
                 case "owner"->jdbc.update("UPDATE tickets SET is_general=FALSE,general_selection_source=NULL WHERE ticket_public_id=?",publicId);
                 case "revision"->{jdbc.update("UPDATE tickets SET status='open' WHERE ticket_public_id=?",publicId);jdbc.update("UPDATE tickets SET status='pending' WHERE ticket_public_id=?",publicId);}
             } return call.callRealMethod();
-        }).when(work).transition(eq(scope),eq(worker),anyLong(),anyString(),anyString());
+        }).when(work).transition(eq(scope),org.mockito.ArgumentMatchers.argThat(a->a!=null&&a.getName().equals(worker)&&a.getPrincipal() instanceof com.example.panel.security.PanelUserPrincipal p&&p.getUserId()==workerId),anyLong(),anyString(),anyString());
         mvc.perform(actor(change(Long.toString(version),from,to),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_work_events WHERE ticket_public_id=?",Integer.class,publicId)).isZero();
     }
@@ -142,12 +143,12 @@ class GeneralTicketWorkHttpPostgresTest {
         access.revokeOperate(workerId);
         mvc.perform(actor(put(target+"/operate"),admin,"PAGE_SETTINGS","ROLE_ADMIN"))
             .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false));
-        assertThat(work.find(publicId,worker).orElseThrow().canOperate()).isFalse();
+        assertThat(work.find(publicId,auth(jdbc,worker)).orElseThrow().canOperate()).isFalse();
         mvc.perform(actor(put(target+"/operate"),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isForbidden());
         mvc.perform(actor(put(target+"/operate"),admin,"PAGE_SETTINGS","ROLE_ADMIN").with(csrf())).andExpect(status().isNoContent());
         mvc.perform(actor(delete(target),admin,"PAGE_SETTINGS","ROLE_ADMIN").with(csrf())).andExpect(status().isNoContent());
         mvc.perform(actor(put(target),admin,"PAGE_SETTINGS","ROLE_ADMIN").with(csrf())).andExpect(status().isNoContent());
-        assertThat(work.find(publicId,worker).orElseThrow().canOperate()).isFalse();
+        assertThat(work.find(publicId,auth(jdbc,worker)).orElseThrow().canOperate()).isFalse();
         mvc.perform(actor(put("/api/general-ticket-admin/access/"+account("no-read-"+IDS.incrementAndGet())+"/operate"),admin,"PAGE_SETTINGS","ROLE_ADMIN").with(csrf()))
             .andExpect(status().isConflict());
     }
@@ -168,7 +169,7 @@ class GeneralTicketWorkHttpPostgresTest {
         var viewed=mvc.perform(actor(get(root).cookie(cookies),worker,"PAGE_DIALOGS")).andExpect(status().isOk()).andReturn();
         String closedHtml=viewed.getResponse().getContentAsString();
         assertThat(closedHtml).contains("data-general-reopen").doesNotContain("data-general-close","id=\"generalReplyMessage\"");
-        assertThat(work.find(publicId,worker).orElseThrow().status()).isEqualTo("closed");
+        assertThat(work.find(publicId,auth(jdbc,worker)).orElseThrow().status()).isEqualTo("closed");
         mvc.perform(actor(post(root+"/reply").param("revision","0").param("requestKey",hidden(html,"requestKey"))
             .param("destination",hidden(html,"destination")).param("message","Stale reply"),worker,"PAGE_DIALOGS").with(csrf()))
             .andExpect(status().isConflict());
@@ -179,8 +180,8 @@ class GeneralTicketWorkHttpPostgresTest {
         cookies=captureCookies(jar,reopened);
         var reloaded=mvc.perform(actor(get(root).cookie(cookies),worker,"PAGE_DIALOGS")).andExpect(status().isOk()).andReturn();
         assertThat(reloaded.getResponse().getContentAsString()).contains("data-general-close","id=\"generalReplyMessage\"");
-        assertThat(work.find(publicId,worker).orElseThrow().status()).isEqualTo("pending");
-        assertThat(work.find(publicId,worker).orElseThrow().revision()).isEqualTo(2);
+        assertThat(work.find(publicId,auth(jdbc,worker)).orElseThrow().status()).isEqualTo("pending");
+        assertThat(work.find(publicId,auth(jdbc,worker)).orElseThrow().revision()).isEqualTo(2);
         mvc.perform(actor(change("0","pending","closed"),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_work_events WHERE ticket_public_id=?",Integer.class,publicId)).isEqualTo(2);
         verifyNoInteractions(replyTransport);
@@ -188,14 +189,14 @@ class GeneralTicketWorkHttpPostgresTest {
     @ParameterizedTest @CsvSource({"pending,closed","closed,pending"})
     void closeAndReopenRequireTheirOwnPageCsrfAndOperate(String from,String to) throws Exception {
         jdbc.update("UPDATE tickets SET status=? WHERE ticket_public_id=?",from,publicId);
-        String version=Long.toString(work.find(publicId,worker).orElseThrow().revision());
+        String version=Long.toString(work.find(publicId,auth(jdbc,worker)).orElseThrow().revision());
         mvc.perform(actor(change(version,from,to),worker,"PAGE_DIALOGS")).andExpect(redirectedUrl("/error/403"));
         mvc.perform(actor(change(version,from,to),reader,"PAGE_DIALOGS").with(csrf())).andExpect(status().isForbidden());
         mvc.perform(actor(change(version,from,to),worker,"ROLE_ADMIN").with(csrf())).andExpect(status().isForbidden());
         mvc.perform(actor(get(root),reader,"PAGE_DIALOGS")).andExpect(status().isOk())
             .andExpect(content().string(not(containsString("data-general-close"))))
             .andExpect(content().string(not(containsString("data-general-reopen"))));
-        assertThat(work.find(publicId,worker).orElseThrow().status()).isEqualTo(from);
+        assertThat(work.find(publicId,auth(jdbc,worker)).orElseThrow().status()).isEqualTo(from);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_work_events WHERE ticket_public_id=?",Integer.class,publicId)).isZero();
         verifyNoInteractions(replyTransport);
     }
@@ -247,8 +248,8 @@ class GeneralTicketWorkHttpPostgresTest {
         mvc.perform(actor(assignPost(hidden(currentForm,"revision"),hidden(currentForm,"assignmentRevision"),"0")
             .param("_csrf",hidden(currentForm,"_csrf")).cookie(captureCookies(jar,current)),worker,"PAGE_DIALOGS"))
             .andExpect(redirectedUrl(root));
-        assertThat(assignments.current(new GeneralTicketEventScope(owner,raw,publicId),reader).orElseThrow().assignee()).isNull();
-        assertThat(work.find(publicId,worker).orElseThrow().revision()).isZero();
+        assertThat(assignments.current(new GeneralTicketEventScope(owner,raw,publicId),auth(jdbc,reader)).orElseThrow().assignee()).isNull();
+        assertThat(work.find(publicId,auth(jdbc,worker)).orElseThrow().revision()).isZero();
         verifyNoInteractions(replyTransport);
     }
     @Test void assignmentRequiresPageCsrfOperateAndCurrentTargetRights() throws Exception {
@@ -277,11 +278,11 @@ class GeneralTicketWorkHttpPostgresTest {
                 case "target-operate"->access.revokeOperate(target);
                 case "owner"->jdbc.update("UPDATE tickets SET is_general=FALSE,general_selection_source=NULL WHERE ticket_public_id=?",publicId);
                 case "revision"->jdbc.update("UPDATE tickets SET status='open' WHERE ticket_public_id=?",publicId);
-                case "assignment"->assertThat(assignments.assign(scope,worker,0,0,workerId)).isTrue();
+                case "assignment"->assertThat(assignments.assign(scope,auth(jdbc,worker),0,0,workerId)).isTrue();
                 case "flag"->flags.setGeneralTicketQueue(false);
             }
             return call.callRealMethod();
-        }).when(assignments).assign(eq(scope),eq(worker),eq(0L),eq(0L),eq(Long.valueOf(target)));
+        }).when(assignments).assign(eq(scope),org.mockito.ArgumentMatchers.argThat(a->a!=null&&a.getName().equals(worker)&&a.getPrincipal() instanceof com.example.panel.security.PanelUserPrincipal p&&p.getUserId()==workerId),eq(0L),eq(0L),eq(Long.valueOf(target)));
         mvc.perform(actor(assignPost("0","0",Long.toString(target)),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_assignment_events WHERE ticket_public_id=?",Integer.class,publicId))
             .isEqualTo(mutation.equals("assignment")?1:0);
@@ -346,7 +347,7 @@ class GeneralTicketWorkHttpPostgresTest {
                 case "queue"->flags.setGeneralTicketQueue(false);
             }
             return call.callRealMethod();
-        }).when(manual).create(eq(worker),eq(key),anyString(),anyString());
+        }).when(manual).create(org.mockito.ArgumentMatchers.argThat(a->a!=null&&a.getName().equals(worker)&&a.getPrincipal() instanceof com.example.panel.security.PanelUserPrincipal p&&p.getUserId()==workerId),eq(key),anyString(),anyString());
         mvc.perform(actor(manualPost(key,"Клиент","Вопрос"),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_manual_ticket_requests WHERE request_key=?",Integer.class,key)).isZero();
         verifyNoInteractions(replyTransport);
@@ -404,7 +405,7 @@ class GeneralTicketWorkHttpPostgresTest {
                 case "flag"->flags.setGeneralTicketQueue(false);
             }
             return call.callRealMethod();
-        }).when(replies).submit(eq(scope),eq(worker),anyLong(),anyString(),anyString(),anyString());
+        }).when(replies).submit(eq(scope),org.mockito.ArgumentMatchers.argThat(a->a!=null&&a.getName().equals(worker)&&a.getPrincipal() instanceof com.example.panel.security.PanelUserPrincipal p&&p.getUserId()==workerId),anyLong(),anyString(),anyString(),anyString());
         mvc.perform(actor(replyPost(),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
         verifyNoInteractions(replyTransport);
     }
@@ -424,7 +425,7 @@ class GeneralTicketWorkHttpPostgresTest {
     }
     private MockHttpServletRequestBuilder replyPost(String key,String message) {
         return post(root+"/reply").param("revision","0").param("requestKey",key).param("message",message)
-            .param("destination",replies.destinationFingerprint(new GeneralTicketEventScope(owner,raw,publicId),worker,0).orElse("0".repeat(64)));
+            .param("destination",replies.destinationFingerprint(new GeneralTicketEventScope(owner,raw,publicId),auth(jdbc,worker),0).orElse("0".repeat(64)));
     }
     @Test void staleDestinationFormCannotSilentlyUseReconfiguredChannel() throws Exception {
         replyDestination();
@@ -457,10 +458,10 @@ class GeneralTicketWorkHttpPostgresTest {
         var opened=mvc.perform(actor(get(root),worker,"PAGE_DIALOGS")).andExpect(status().isOk()).andReturn();
         String html=opened.getResponse().getContentAsString();
         assertThat(html).contains("data-general-participants","id=\"generalParticipant\"").doesNotContain(raw,"name=\"ownerId\"","name=\"rawId\"");
-        assertThat(participants.members(participantScope(),worker)).isEmpty();
+        assertThat(participants.members(participantScope(),auth(jdbc,worker))).isEmpty();
         mvc.perform(actor(participantCommand("add",hidden(html,"revision"),hidden(html,"participantRevision"),Long.toString(readerId))
             .param("_csrf",hidden(html,"_csrf")).cookie(opened.getResponse().getCookies()),worker,"PAGE_DIALOGS")).andExpect(redirectedUrl(root));
-        assertThat(participants.members(participantScope(),reader)).singleElement().satisfies(m->{assertThat(m.id()).isEqualTo(readerId);assertThat(m.eligible()).isTrue();});
+        assertThat(participants.members(participantScope(),auth(jdbc,reader))).singleElement().satisfies(m->{assertThat(m.id()).isEqualTo(readerId);assertThat(m.eligible()).isTrue();});
         assertThat(access.canOperate(readerId)).isFalse();
         var read=mvc.perform(actor(get(root),reader,"PAGE_DIALOGS")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         assertThat(read).contains(reader).doesNotContain("id=\"generalParticipant\"","/participants/remove",raw);
@@ -471,13 +472,13 @@ class GeneralTicketWorkHttpPostgresTest {
             .containsEntry("event_type","participants_changed").containsEntry("ticket_scope_kind","GENERAL").containsEntry("ticket_business_id",null)
             .containsEntry("ticket_user_id",owner).containsEntry("ticket_public_id",publicId);
         mvc.perform(actor(participantCommand("remove","0","1",Long.toString(readerId)),worker,"PAGE_DIALOGS").with(csrf())).andExpect(redirectedUrl(root));
-        assertThat(participants.members(participantScope(),worker)).isEmpty();
-        assertThat(participants.revision(participantScope(),worker)).contains(2L);
+        assertThat(participants.members(participantScope(),auth(jdbc,worker))).isEmpty();
+        assertThat(participants.revision(participantScope(),auth(jdbc,worker))).contains(2L);
         assertThat(jdbc.queryForList("SELECT * FROM ticket_participants WHERE ticket_id=?",raw)).isEqualTo(legacyRows);
-        assertThat(work.find(publicId,worker).orElseThrow().revision()).isZero();
+        assertThat(work.find(publicId,auth(jdbc,worker)).orElseThrow().revision()).isZero();
         for(String table:new String[]{"ticket_responsibles","general_ticket_assignment_events","general_ticket_work_events","dialog_action_audit"})
             assertThat(jdbc.queryForObject("SELECT count(*) FROM "+table+" WHERE "+(table.startsWith("general_")?"ticket_public_id":"ticket_id")+"=?",Long.class,table.startsWith("general_")?publicId:raw)).isZero();
-        verifyNoInteractions(replyTransport);verify(documents,never()).submit(any(),anyString(),anyLong(),anyString(),anyString(),any(),anyString());
+        verifyNoInteractions(replyTransport);verify(documents,never()).submit(any(),org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class),anyLong(),anyString(),anyString(),any(),anyString());
     }
     @Test void participantPageCsrfReadAndOperateAreIndependent() throws Exception {
         mvc.perform(actor(participantCommand("add","0","0",Long.toString(readerId)),worker,"PAGE_DIALOGS")).andExpect(redirectedUrl("/error/403"));
@@ -522,7 +523,7 @@ class GeneralTicketWorkHttpPostgresTest {
             case "flag"->flags.setGeneralTicketQueue(false);
             case "foundation"->flags.getFoundation().setEnabled(false);
         }
-        assertThat(participants.change(expected,identity,0,0,readerId,true)).isFalse();
+        assertThat(participants.change(expected,auth(jdbc,identity),0,0,readerId,true)).isFalse();
         assertThat(participantEvents()).isZero();assertThat(participantOutbox()).isZero();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM general_ticket_participants WHERE ticket_public_id=?",Long.class,publicId)).isZero();
     }
@@ -531,14 +532,14 @@ class GeneralTicketWorkHttpPostgresTest {
         doAnswer(call->{switch(mutation){
             case "read"->access.revokeRead(workerId);case "operate"->access.revokeOperate(workerId);
             case "member-read"->access.revokeRead(readerId);case "revision"->jdbc.update("UPDATE tickets SET status='open' WHERE ticket_public_id=?",publicId);
-        }return call.callRealMethod();}).when(participants).change(eq(participantScope()),eq(worker),eq(0L),eq(0L),eq(readerId),eq(true));
+        }return call.callRealMethod();}).when(participants).change(eq(participantScope()),org.mockito.ArgumentMatchers.argThat(a->a!=null&&a.getName().equals(worker)&&a.getPrincipal() instanceof com.example.panel.security.PanelUserPrincipal p&&p.getUserId()==workerId),eq(0L),eq(0L),eq(readerId),eq(true));
         mvc.perform(actor(participantCommand("add","0","0",Long.toString(readerId)),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
         assertThat(participantEvents()).isZero();assertThat(participantOutbox()).isZero();
     }
     @ParameterizedTest @CsvSource({"add,actor","add,member","add,owner","add,collision","remove,actor","remove,owner","remove,collision"})
     void finalParticipantSqlRepeatsProofAtTheJdbcBoundary(String action,String mutation) {
         boolean add=action.equals("add");
-        if(!add)assertThat(participants.change(participantScope(),worker,0,0,readerId,true)).isTrue();
+        if(!add)assertThat(participants.change(participantScope(),auth(jdbc,worker),0,0,readerId,true)).isTrue();
         var before=jdbc.queryForList("SELECT * FROM general_ticket_participants WHERE ticket_public_id=?",publicId);
         var observed=spy(jdbc);var injected=new java.util.concurrent.atomic.AtomicBoolean();
         doAnswer(call->{
@@ -554,7 +555,7 @@ class GeneralTicketWorkHttpPostgresTest {
             return call.callRealMethod();
         }).when(observed).update(org.mockito.ArgumentMatchers.any(org.springframework.jdbc.core.PreparedStatementCreator.class));
         var writer=new GeneralTicketParticipantService(observed,flags,participantOutboxIds);
-        assertThat(writer.change(participantScope(),worker,0,add?0:1,readerId,add)).isFalse();assertThat(injected).isTrue();
+        assertThat(writer.change(participantScope(),auth(observed,worker),0,add?0:1,readerId,add)).isFalse();assertThat(injected).isTrue();
         assertThat(jdbc.queryForList("SELECT * FROM general_ticket_participants WHERE ticket_public_id=?",publicId)).isEqualTo(before);
         assertThat(participantEvents()).isEqualTo(add?0:1);assertThat(participantOutbox()).isEqualTo(add?0:1);
     }
@@ -575,7 +576,7 @@ class GeneralTicketWorkHttpPostgresTest {
                 update.executeUpdate();
             }
             var started=new java.util.concurrent.CountDownLatch(1);
-            var pending=pool.submit(()->{started.countDown();return participants.change(participantScope(),worker,0,0,readerId,true);});
+            var pending=pool.submit(()->{started.countDown();return participants.change(participantScope(),auth(jdbc,worker),0,0,readerId,true);});
             assertThat(started.await(5,java.util.concurrent.TimeUnit.SECONDS)).isTrue();
             assertThatThrownBy(()->pending.get(150,java.util.concurrent.TimeUnit.MILLISECONDS)).isInstanceOf(java.util.concurrent.TimeoutException.class);
             connection.commit();assertThat(pending.get(10,java.util.concurrent.TimeUnit.SECONDS)).isFalse();
@@ -585,50 +586,50 @@ class GeneralTicketWorkHttpPostgresTest {
     }
     @Test void concurrentParticipantFormsHaveOneWinnerAndAbaNeverReusesARevision()throws Exception {
         var start=new java.util.concurrent.CountDownLatch(1);
-        java.util.function.Supplier<Boolean> attempt=()->{try{start.await();}catch(InterruptedException ex){throw new IllegalStateException(ex);}return participants.change(participantScope(),worker,0,0,readerId,true);};
+        java.util.function.Supplier<Boolean> attempt=()->{try{start.await();}catch(InterruptedException ex){throw new IllegalStateException(ex);}return participants.change(participantScope(),auth(jdbc,worker),0,0,readerId,true);};
         var a=java.util.concurrent.CompletableFuture.supplyAsync(attempt);var b=java.util.concurrent.CompletableFuture.supplyAsync(attempt);start.countDown();
         assertThat(java.util.List.of(a.get(15,java.util.concurrent.TimeUnit.SECONDS),b.get(15,java.util.concurrent.TimeUnit.SECONDS))).containsExactlyInAnyOrder(true,false);
-        assertThat(participants.change(participantScope(),worker,0,1,readerId,true)).isFalse();
-        assertThat(participants.change(participantScope(),worker,0,1,workerId,false)).isFalse();
-        assertThat(participants.change(participantScope(),worker,0,1,readerId,false)).isTrue();
-        assertThat(participants.change(participantScope(),worker,0,0,readerId,true)).isFalse();
-        assertThat(participants.change(participantScope(),worker,0,2,readerId,true)).isTrue();
+        assertThat(participants.change(participantScope(),auth(jdbc,worker),0,1,readerId,true)).isFalse();
+        assertThat(participants.change(participantScope(),auth(jdbc,worker),0,1,workerId,false)).isFalse();
+        assertThat(participants.change(participantScope(),auth(jdbc,worker),0,1,readerId,false)).isTrue();
+        assertThat(participants.change(participantScope(),auth(jdbc,worker),0,0,readerId,true)).isFalse();
+        assertThat(participants.change(participantScope(),auth(jdbc,worker),0,2,readerId,true)).isTrue();
         assertThat(participantEvents()).isEqualTo(3);assertThat(participantOutbox()).isEqualTo(3);
     }
     @ParameterizedTest @ValueSource(strings={"audit","outbox"})
     void failedParticipantAuditOrOutboxRollsBackAddAndRemove(String failure) {
-        assertThat(participants.change(participantScope(),worker,0,0,readerId,true)).isTrue();
+        assertThat(participants.change(participantScope(),auth(jdbc,worker),0,0,readerId,true)).isTrue();
         String table=failure.equals("audit")?"general_ticket_participant_events":"ui_event_outbox";
         jdbc.execute("CREATE FUNCTION fail_r165_insert() RETURNS TRIGGER LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'synthetic R165 failure'; END; $$");
         jdbc.execute("CREATE TRIGGER fail_r165_insert BEFORE INSERT ON "+table+" FOR EACH ROW EXECUTE FUNCTION fail_r165_insert()");
         try {
-            assertThat(participants.change(participantScope(),worker,0,1,workerId,true)).isFalse();
-            assertThat(participants.change(participantScope(),worker,0,1,readerId,false)).isFalse();
-            assertThat(participants.members(participantScope(),worker)).extracting(GeneralTicketParticipantService.Member::id).containsExactly(readerId);
-            assertThat(participants.revision(participantScope(),worker)).contains(1L);
+            assertThat(participants.change(participantScope(),auth(jdbc,worker),0,1,workerId,true)).isFalse();
+            assertThat(participants.change(participantScope(),auth(jdbc,worker),0,1,readerId,false)).isFalse();
+            assertThat(participants.members(participantScope(),auth(jdbc,worker))).extracting(GeneralTicketParticipantService.Member::id).containsExactly(readerId);
+            assertThat(participants.revision(participantScope(),auth(jdbc,worker))).contains(1L);
             assertThat(participantEvents()).isEqualTo(1);assertThat(participantOutbox()).isEqualTo(1);
         }finally{jdbc.execute("DROP TRIGGER fail_r165_insert ON "+table);jdbc.execute("DROP FUNCTION fail_r165_insert()");}
-        assertThat(participants.change(participantScope(),worker,0,1,readerId,false)).isTrue();
+        assertThat(participants.change(participantScope(),auth(jdbc,worker),0,1,readerId,false)).isTrue();
     }
     @ParameterizedTest @ValueSource(strings={"read","disabled","deleted"})
     void operatorCanRemoveAnInaccessibleOrDeletedGeneralMember(String kind) {
-        assertThat(participants.change(participantScope(),worker,0,0,readerId,true)).isTrue();
+        assertThat(participants.change(participantScope(),auth(jdbc,worker),0,0,readerId,true)).isTrue();
         if(kind.equals("read"))access.revokeRead(readerId);
         if(kind.equals("disabled"))jdbc.update("UPDATE users SET enabled=FALSE WHERE id=?",readerId);
         if(kind.equals("deleted"))jdbc.update("DELETE FROM users WHERE id=?",readerId);
-        assertThat(participants.members(participantScope(),worker)).singleElement().satisfies(m->assertThat(m.eligible()).isFalse());
-        assertThat(participants.change(participantScope(),worker,0,1,readerId,false)).isTrue();
-        assertThat(participants.members(participantScope(),worker)).isEmpty();
+        assertThat(participants.members(participantScope(),auth(jdbc,worker))).singleElement().satisfies(m->assertThat(m.eligible()).isFalse());
+        assertThat(participants.change(participantScope(),auth(jdbc,worker),0,1,readerId,false)).isTrue();
+        assertThat(participants.members(participantScope(),auth(jdbc,worker))).isEmpty();
     }
     @Test void numericMembershipDoesNotTransferOnRenameOrReusedUsername() {
-        assertThat(participants.change(participantScope(),worker,0,0,readerId,true)).isTrue();
+        assertThat(participants.change(participantScope(),auth(jdbc,worker),0,0,readerId,true)).isTrue();
         String renamed=reader+" renamed";jdbc.update("UPDATE users SET username=? WHERE id=?",renamed,readerId);
         long reused=account(reader);access.grantRead(reused);
-        assertThat(participants.members(participantScope(),worker)).singleElement().satisfies(m->{assertThat(m.id()).isEqualTo(readerId);assertThat(m.username()).isEqualTo(renamed);});
-        assertThat(participants.candidates(participantScope(),worker,0)).extracting(GeneralTicketParticipantService.Candidate::id).contains(reused).doesNotContain(readerId);
+        assertThat(participants.members(participantScope(),auth(jdbc,worker))).singleElement().satisfies(m->{assertThat(m.id()).isEqualTo(readerId);assertThat(m.username()).isEqualTo(renamed);});
+        assertThat(participants.candidates(participantScope(),auth(jdbc,worker),0)).extracting(GeneralTicketParticipantService.Candidate::id).contains(reused).doesNotContain(readerId);
     }
     @Test void participantHistoryIdentityAndGenerationAreIsolated() {
-        assertThat(participants.change(participantScope(),worker,0,0,readerId,true)).isTrue();
+        assertThat(participants.change(participantScope(),auth(jdbc,worker),0,0,readerId,true)).isTrue();
         assertThatThrownBy(()->jdbc.update("UPDATE general_ticket_participants SET member_user_id=? WHERE ticket_public_id=?",workerId,publicId)).isInstanceOf(RuntimeException.class);
         assertThatThrownBy(()->jdbc.update("UPDATE general_ticket_participant_events SET actor='changed' WHERE ticket_public_id=?",publicId)).isInstanceOf(RuntimeException.class);
         assertThatThrownBy(()->jdbc.update("DELETE FROM general_ticket_participant_events WHERE ticket_public_id=?",publicId)).isInstanceOf(RuntimeException.class);
@@ -636,18 +637,18 @@ class GeneralTicketWorkHttpPostgresTest {
         String next=UUID.randomUUID().toString().replace("-","");
         jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,is_general,general_selection_source,status) VALUES(?,?,?,TRUE,'GENERAL_CHANNEL','pending')",owner,raw,next);
         var newScope=new GeneralTicketEventScope(owner,raw,next);
-        assertThat(participants.members(newScope,worker)).isEmpty();assertThat(participants.recent(newScope,worker)).isEmpty();
-        assertThat(participants.revision(newScope,worker)).contains(0L);assertThat(participants.revision(participantScope(),worker)).isEmpty();
+        assertThat(participants.members(newScope,auth(jdbc,worker))).isEmpty();assertThat(participants.recent(newScope,auth(jdbc,worker))).isEmpty();
+        assertThat(participants.revision(newScope,auth(jdbc,worker))).contains(0L);assertThat(participants.revision(participantScope(),auth(jdbc,worker))).isEmpty();
     }
     @Test void statusAndAssignmentRevisionsRemainIndependentOfTheRoster()throws Exception {
-        assertThat(assignments.assign(participantScope(),worker,0,0,workerId)).isTrue();
-        assertThat(participants.change(participantScope(),worker,0,0,readerId,true)).isTrue();
-        assertThat(work.transition(participantScope(),worker,0,"pending","open")).isTrue();
-        assertThat(participants.change(participantScope(),worker,0,1,readerId,false)).isFalse();
-        assertThat(participants.change(participantScope(),worker,1,1,readerId,false)).isTrue();
-        assertThat(assignments.current(participantScope(),worker).orElseThrow().revision()).isEqualTo(1);
-        assertThat(work.find(publicId,worker).orElseThrow().revision()).isEqualTo(1);
-        assertThat(participants.revision(participantScope(),worker)).contains(2L);
+        assertThat(assignments.assign(participantScope(),auth(jdbc,worker),0,0,workerId)).isTrue();
+        assertThat(participants.change(participantScope(),auth(jdbc,worker),0,0,readerId,true)).isTrue();
+        assertThat(work.transition(participantScope(),auth(jdbc,worker),0,"pending","open")).isTrue();
+        assertThat(participants.change(participantScope(),auth(jdbc,worker),0,1,readerId,false)).isFalse();
+        assertThat(participants.change(participantScope(),auth(jdbc,worker),1,1,readerId,false)).isTrue();
+        assertThat(assignments.current(participantScope(),auth(jdbc,worker)).orElseThrow().revision()).isEqualTo(1);
+        assertThat(work.find(publicId,auth(jdbc,worker)).orElseThrow().revision()).isEqualTo(1);
+        assertThat(participants.revision(participantScope(),auth(jdbc,worker))).contains(2L);
         jdbc.update("UPDATE tickets SET status='closed' WHERE ticket_public_id=?",publicId);
         var html=mvc.perform(actor(get(root),worker,"PAGE_DIALOGS")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         assertThat(html).doesNotContain("id=\"generalParticipant\"","/participants/remove");
@@ -659,11 +660,11 @@ class GeneralTicketWorkHttpPostgresTest {
             +" SELECT ?,?,?,id,username,?,?,row_number() OVER(ORDER BY id),0 FROM users WHERE username LIKE ?",owner,raw,publicId,workerId,worker,worker+"-bound-%");
         jdbc.update("INSERT INTO general_ticket_participant_events(ticket_user_id,ticket_id,ticket_public_id,revision,owner_revision,member_user_id,member,actor_user_id,actor,action)"
             +" SELECT ticket_user_id,ticket_id,ticket_public_id,revision,owner_revision,member_user_id,member,actor_user_id,actor,'add' FROM general_ticket_participants WHERE ticket_public_id=?",publicId);
-        assertThat(participants.members(participantScope(),worker)).hasSize(200);
-        assertThat(participants.change(participantScope(),worker,0,200,readerId,true)).isFalse();
-        assertThat(participants.change(participantScope(),worker,0,200,participants.members(participantScope(),worker).get(0).id(),false)).isTrue();
-        assertThat(participants.change(participantScope(),worker,0,201,readerId,true)).isTrue();
-        assertThat(participants.members(participantScope(),worker)).hasSize(200);
+        assertThat(participants.members(participantScope(),auth(jdbc,worker))).hasSize(200);
+        assertThat(participants.change(participantScope(),auth(jdbc,worker),0,200,readerId,true)).isFalse();
+        assertThat(participants.change(participantScope(),auth(jdbc,worker),0,200,participants.members(participantScope(),auth(jdbc,worker)).get(0).id(),false)).isTrue();
+        assertThat(participants.change(participantScope(),auth(jdbc,worker),0,201,readerId,true)).isTrue();
+        assertThat(participants.members(participantScope(),auth(jdbc,worker))).hasSize(200);
     }
     @ParameterizedTest @ValueSource(strings={"roster","events"})
     void missingGeneralParticipantSchemaCannotWriteOrAdoptLegacyRows(String kind) {
@@ -671,7 +672,7 @@ class GeneralTicketWorkHttpPostgresTest {
         String table=kind.equals("roster")?"general_ticket_participants":"general_ticket_participant_events";
         jdbc.execute("ALTER TABLE "+table+" RENAME TO r165_hidden_participants");
         try {
-            assertThat(participants.change(participantScope(),worker,0,0,readerId,true)).isFalse();
+            assertThat(participants.change(participantScope(),auth(jdbc,worker),0,0,readerId,true)).isFalse();
             assertThat(participantOutbox()).isZero();
             assertThat(jdbc.queryForObject("SELECT count(*) FROM ticket_participants WHERE ticket_id=?",Long.class,raw)).isEqualTo(1);
         }finally{jdbc.execute("ALTER TABLE r165_hidden_participants RENAME TO "+table);}
@@ -745,7 +746,7 @@ class GeneralTicketWorkHttpPostgresTest {
     private String confirmedReply() {
         replyDestination();String key=UUID.randomUUID().toString().replace("-","");
         var scope=new GeneralTicketEventScope(owner,raw,publicId);
-        assertThat(replies.submit(scope,worker,0,key,"Original text",replies.destinationFingerprint(scope,worker,0).orElseThrow())).isTrue();
+        assertThat(replies.submit(scope,auth(jdbc,worker),0,key,"Original text",replies.destinationFingerprint(scope,auth(jdbc,worker),0).orElseThrow())).isTrue();
         clearInvocations(replyTransport);
         doAnswer(call->{
             assertThat(((java.util.function.BooleanSupplier)call.getArgument(4)).getAsBoolean()).isTrue();
@@ -777,7 +778,7 @@ class GeneralTicketWorkHttpPostgresTest {
         if("EDIT".equals(action))history.andExpect(jsonPath("$.entries[0].message").value(message));else history.andExpect(jsonPath("$.entries").isEmpty());
     }
     private MockHttpServletRequestBuilder changeReplyPost(String sourceKey) {
-        var target=changes.targets(new GeneralTicketEventScope(owner,raw,publicId),worker,0).get(0);
+        var target=changes.targets(new GeneralTicketEventScope(owner,raw,publicId),auth(jdbc,worker),0).get(0);
         return post(root+"/reply-change").param("revision","0").param("requestKey",UUID.randomUUID().toString().replace("-",""))
             .param("sourceKey",sourceKey).param("expected",target.fingerprint()).param("action","EDIT").param("message","Changed");
     }
@@ -804,7 +805,7 @@ class GeneralTicketWorkHttpPostgresTest {
                 case "content"->jdbc.update("UPDATE chat_history SET message='changed elsewhere' WHERE ticket_public_id=?",publicId);
             }
             return call.callRealMethod();
-        }).when(changes).submit(eq(scope),eq(worker),anyLong(),anyString(),anyString(),anyString(),anyString(),anyString());
+        }).when(changes).submit(eq(scope),org.mockito.ArgumentMatchers.argThat(a->a!=null&&a.getName().equals(worker)&&a.getPrincipal() instanceof com.example.panel.security.PanelUserPrincipal p&&p.getUserId()==workerId),anyLong(),anyString(),anyString(),anyString(),anyString(),anyString());
         mvc.perform(actor(post,worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());verifyNoInteractions(replyTransport);
     }
     @Test void ambiguousChangeIsVisibleAndHidesFurtherCommands() throws Exception {
@@ -822,7 +823,7 @@ class GeneralTicketWorkHttpPostgresTest {
         doAnswer(call->{assertThat(((java.util.function.BooleanSupplier)call.getArgument(4)).getAsBoolean()).isTrue();
             return DialogReplyTransportService.DialogReplyTransportResult.success(301L,1L);
         }).when(replyTransport).sendTelegramDocumentGuarded(any(),anyLong(),any(),anyString(),any());
-        return documents.destinationFingerprint(new GeneralTicketEventScope(owner,raw,publicId),worker,0).orElseThrow();
+        return documents.destinationFingerprint(new GeneralTicketEventScope(owner,raw,publicId),auth(jdbc,worker),0).orElseThrow();
     }
     private MockHttpServletRequestBuilder documentPost(String key,String fingerprint){
         return multipart(root+"/document").file(new org.springframework.mock.web.MockMultipartFile("file","Отчёт.pdf","text/html",new byte[]{0,1,2,-1,10}))
@@ -862,7 +863,7 @@ class GeneralTicketWorkHttpPostgresTest {
             case "revision"->jdbc.update("UPDATE tickets SET status='open' WHERE ticket_public_id=?",publicId);
             case "flag"->flags.setGeneralTicketQueue(false);
             case "channel"->jdbc.update("UPDATE channels SET token=? WHERE id=(SELECT channel_id FROM tickets WHERE ticket_public_id=?)","rotated-"+publicId,publicId);
-        }return call.callRealMethod();}).when(documents).submit(eq(scope),eq(worker),anyLong(),anyString(),anyString(),any(),anyString());
+        }return call.callRealMethod();}).when(documents).submit(eq(scope),org.mockito.ArgumentMatchers.argThat(a->a!=null&&a.getName().equals(worker)&&a.getPrincipal() instanceof com.example.panel.security.PanelUserPrincipal p&&p.getUserId()==workerId),anyLong(),anyString(),anyString(),any(),anyString());
         mvc.perform(actor(documentPost(key,fingerprint),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_document_replies WHERE request_key=?",Integer.class,key)).isZero();verifyNoInteractions(replyTransport);
     }

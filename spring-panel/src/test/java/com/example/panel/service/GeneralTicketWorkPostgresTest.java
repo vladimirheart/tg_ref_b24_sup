@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import static com.example.panel.support.GeneralTicketActorTestSupport.auth;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import com.example.panel.config.MultibusinessFeatureFlags;
@@ -48,11 +49,11 @@ class GeneralTicketWorkPostgresTest {
         time=new GeneralTicketWorkTimeService(jdbc,flags);
         scope=new GeneralTicketEventScope(10L,RAW,PUBLIC);
     }
-    private boolean change(long revision,String from,String to) { return work.transition(scope,"worker",revision,from,to); }
+    private boolean change(long revision,String from,String to) { return work.transition(scope,auth(jdbc,"worker"),revision,from,to); }
     @Test void triageIsAtomicVersionedAndOnlyProducesGeneralMetadataOutbox() {
-        assertThat(work.find(PUBLIC,"WORKER").orElseThrow().canOperate()).isTrue();
+        assertThat(work.find(PUBLIC,auth(jdbc,"WORKER")).orElseThrow().canOperate()).isTrue();
         assertThat(change(0,"pending","open")).isTrue();
-        assertThat(work.find(PUBLIC,"worker").orElseThrow().revision()).isEqualTo(1);
+        assertThat(work.find(PUBLIC,auth(jdbc,"worker")).orElseThrow().revision()).isEqualTo(1);
         assertThat(change(0,"pending","open")).isFalse();
         assertThat(change(1,"open","pending")).isTrue();
         assertThat(change(0,"pending","open")).isFalse(); // ABA status is not sufficient.
@@ -70,7 +71,7 @@ class GeneralTicketWorkPostgresTest {
     @ParameterizedTest @MethodSource("mutations")
     void currentOwnerAndBothRightsAreRequiredAtMutation(String mutation,String from,String to) {
         jdbc.update("UPDATE tickets SET status=?",from);
-        long revision=work.find(PUBLIC,"worker").orElseThrow().revision();
+        long revision=work.find(PUBLIC,auth(jdbc,"worker")).orElseThrow().revision();
         switch(mutation) {
             case "read"->jdbc.update("UPDATE general_ticket_read_grants SET is_active=FALSE WHERE user_id=1");
             case "operate"->jdbc.update("UPDATE general_ticket_operate_grants SET is_active=FALSE WHERE user_id=1");
@@ -97,20 +98,20 @@ class GeneralTicketWorkPostgresTest {
         if(state.equals("negative")) {to="open";revision=-1;}
         if(state.equals("closed-to-open")) {from="closed";to="open";}
         assertThat(change(revision,from,to)).isFalse();
-        assertThat(work.find(PUBLIC,"worker").orElseThrow().revision()).isZero();
+        assertThat(work.find(PUBLIC,auth(jdbc,"worker")).orElseThrow().revision()).isZero();
     }
     @Test void readersAndSystemBusinessPrincipalsNeverInheritOperate() {
-        assertThat(work.find(PUBLIC,"reader").orElseThrow().canOperate()).isFalse();
-        assertThat(work.transition(scope,"reader",0,"pending","open")).isFalse();
-        assertThat(work.find(PUBLIC,"other")).isEmpty();
+        assertThat(work.find(PUBLIC,auth(jdbc,"reader")).orElseThrow().canOperate()).isFalse();
+        assertThat(work.transition(scope,auth(jdbc,"reader"),0,"pending","open")).isFalse();
+        assertThat(work.find(PUBLIC,auth(jdbc,"other"))).isEmpty();
         assertThat(access.grantOperate(3)).isFalse();
         jdbc.update("INSERT INTO users VALUES(4,' worker ',TRUE,FALSE)");
-        assertThat(work.find(PUBLIC," worker ")).isEmpty();
+        assertThat(work.find(PUBLIC,auth(jdbc," worker "))).isEmpty();
     }
     @Test void revokingReadRevokesOperateAndReadRestoreDoesNotRestoreWrite() {
         assertThat(access.revokeRead(1)).isTrue();
         assertThat(access.grantRead(1)).isTrue();
-        assertThat(work.find(PUBLIC,"worker").orElseThrow().canOperate()).isFalse();
+        assertThat(work.find(PUBLIC,auth(jdbc,"worker")).orElseThrow().canOperate()).isFalse();
         assertThat(change(0,"pending","open")).isFalse();
         assertThat(access.grantOperate(1)).isTrue();
         assertThat(change(0,"pending","open")).isTrue();
@@ -133,7 +134,7 @@ class GeneralTicketWorkPostgresTest {
     @ParameterizedTest @CsvSource({"audit,pending,open","outbox,pending,open","audit,pending,closed","outbox,pending,closed","audit,closed,pending","outbox,closed,pending"})
     void anyDownstreamFailureRollsBackStatusRevisionAuditAndOutbox(String failure,String from,String to) {
         jdbc.update("UPDATE tickets SET status=?",from);
-        long revision=work.find(PUBLIC,"worker").orElseThrow().revision();
+        long revision=work.find(PUBLIC,auth(jdbc,"worker")).orElseThrow().revision();
         var before=jdbc.queryForList("SELECT * FROM tickets");
         if(failure.equals("audit"))jdbc.execute("ALTER TABLE general_ticket_work_events ADD CONSTRAINT reject_audit CHECK(revision<0)");
         else jdbc.execute("ALTER TABLE ui_event_outbox ADD CONSTRAINT reject_event CHECK(id<0)");
@@ -197,42 +198,42 @@ class GeneralTicketWorkPostgresTest {
     @Test void revisionIsDatabaseMaintainedForLegacyWritersAndAuditCannotChange() {
         jdbc.update("UPDATE tickets SET status='open'");
         jdbc.update("UPDATE tickets SET status='pending'");
-        assertThat(work.find(PUBLIC,"worker").orElseThrow().revision()).isEqualTo(2);
+        assertThat(work.find(PUBLIC,auth(jdbc,"worker")).orElseThrow().revision()).isEqualTo(2);
         assertThat(change(0,"pending","open")).isFalse();
         assertThatThrownBy(()->jdbc.update("UPDATE tickets SET general_work_revision=0")).isInstanceOf(DataAccessException.class);
         assertThat(change(2,"pending","open")).isTrue();
         assertThatThrownBy(()->jdbc.update("UPDATE general_ticket_work_events SET actor='forged'")).isInstanceOf(DataAccessException.class);
         jdbc.update("UPDATE tickets SET is_general=FALSE,business_id=1");
         jdbc.update("UPDATE tickets SET is_general=TRUE,business_id=NULL");
-        assertThat(work.find(PUBLIC,"worker").orElseThrow().revision()).isEqualTo(5);
+        assertThat(work.find(PUBLIC,auth(jdbc,"worker")).orElseThrow().revision()).isEqualTo(5);
     }
     @Test void observedIntervalsFollowOnlyNewManualOpenAndCloseCycles() {
         jdbc.execute("ALTER TABLE tickets ADD work_time_total_sec BIGINT DEFAULT 90000");
         jdbc.execute("CREATE TABLE ticket_spans(ticket_id TEXT,duration_seconds INT)");
         jdbc.update("INSERT INTO ticket_spans VALUES(?,90000)",RAW);
-        assertThat(time.summary(scope,"reader").orElseThrow().observedSince()).isNull();
+        assertThat(time.summary(scope,auth(jdbc,"reader")).orElseThrow().observedSince()).isNull();
         assertThat(change(0,"pending","open")).isTrue();
-        var active=time.summary(scope,"reader").orElseThrow();
+        var active=time.summary(scope,auth(jdbc,"reader")).orElseThrow();
         assertThat(active.activeStartedAt()).isNotNull();
         assertThat(active.completedSeconds()).isZero();
         assertThat(active.completedIntervals()).isZero();
         assertThat(change(1,"open","closed")).isTrue();
-        var completed=time.summary(scope,"reader").orElseThrow();
+        var completed=time.summary(scope,auth(jdbc,"reader")).orElseThrow();
         assertThat(completed.activeStartedAt()).isNull();
         assertThat(completed.completedIntervals()).isEqualTo(1);
         assertThat(completed.invalidIntervals()).isZero();
-        assertThat(time.recent(scope,"reader")).singleElement().satisfies(row->{
+        assertThat(time.recent(scope,auth(jdbc,"reader"))).singleElement().satisfies(row->{
             assertThat(row.outcome()).isEqualTo("COMPLETED");
             assertThat(row.startedBy()).isEqualTo("worker");assertThat(row.endedBy()).isEqualTo("worker");
             assertThat(row.endedAt()).isAfterOrEqualTo(row.startedAt());
         });
         assertThat(change(2,"closed","pending")).isTrue();
         assertThat(change(3,"pending","closed")).isTrue();
-        assertThat(time.recent(scope,"worker")).hasSize(1);
+        assertThat(time.recent(scope,auth(jdbc,"worker"))).hasSize(1);
         assertThat(jdbc.queryForObject("SELECT work_time_total_sec FROM tickets",Long.class)).isEqualTo(90000);
         assertThat(jdbc.queryForObject("SELECT duration_seconds FROM ticket_spans",Integer.class)).isEqualTo(90000);
         assertThat(access.revokeOperate(1)).isTrue();
-        assertThat(time.summary(scope,"worker")).isPresent(); // READ suffices for observed time.
+        assertThat(time.summary(scope,auth(jdbc,"worker"))).isPresent(); // READ suffices for observed time.
     }
     @Test void concurrentFormsCreateOneIntervalAndOneAuditForOneVersion() throws Exception {
         var executor=Executors.newFixedThreadPool(2);var ready=new CyclicBarrier(2);
@@ -249,23 +250,23 @@ class GeneralTicketWorkPostgresTest {
     @Test void anExistingOpenTicketDoesNotAcquireInventedTimeWhenClosed() {
         jdbc.update("UPDATE tickets SET status='open'");
         assertThat(change(1,"open","closed")).isTrue();
-        assertThat(time.recent(scope,"worker")).isEmpty();
-        assertThat(time.summary(scope,"worker").orElseThrow().completedSeconds()).isZero();
+        assertThat(time.recent(scope,auth(jdbc,"worker"))).isEmpty();
+        assertThat(time.summary(scope,auth(jdbc,"worker")).orElseThrow().completedSeconds()).isZero();
     }
     @Test void externalStatusAbaInvalidatesAnOldIntervalBeforeAnotherOneStarts() {
         assertThat(change(0,"pending","open")).isTrue();
         jdbc.update("UPDATE tickets SET status='pending'");
         jdbc.update("UPDATE tickets SET status='open'");
-        assertThat(time.summary(scope,"reader").orElseThrow().activeStartedAt()).isNull();
-        assertThat(time.recent(scope,"reader").get(0).outcome()).isEqualTo("UNCONFIRMED");
+        assertThat(time.summary(scope,auth(jdbc,"reader")).orElseThrow().activeStartedAt()).isNull();
+        assertThat(time.recent(scope,auth(jdbc,"reader")).get(0).outcome()).isEqualTo("UNCONFIRMED");
         jdbc.update("UPDATE tickets SET status='pending'");
         assertThat(change(4,"pending","open")).isTrue();
-        assertThat(time.recent(scope,"reader")).extracting(GeneralTicketWorkTimeService.Interval::outcome)
+        assertThat(time.recent(scope,auth(jdbc,"reader"))).extracting(GeneralTicketWorkTimeService.Interval::outcome)
             .containsExactly("OPEN","INVALIDATED");
         assertThat(jdbc.queryForObject("SELECT invalid_reason FROM general_ticket_work_intervals WHERE outcome='INVALIDATED'",String.class))
             .isEqualTo("STATE_CHANGED");
         assertThat(change(5,"open","pending")).isTrue();
-        var summary=time.summary(scope,"reader").orElseThrow();
+        var summary=time.summary(scope,auth(jdbc,"reader")).orElseThrow();
         assertThat(summary.completedIntervals()).isEqualTo(1);assertThat(summary.invalidIntervals()).isEqualTo(1);
     }
     @ParameterizedTest @ValueSource(strings={"read","disabled","blocked","duplicate","missing-account","business","unresolved","tuple","generation","collision","missing-owner","flag","principal"})
@@ -287,7 +288,7 @@ class GeneralTicketWorkPostgresTest {
             case "flag"->flags.setGeneralTicketQueue(false);
             case "principal"->identity=" worker ";
         }
-        assertThat(time.summary(scope,identity)).isEmpty();assertThat(time.recent(scope,identity)).isEmpty();
+        assertThat(time.summary(scope,auth(jdbc,identity))).isEmpty();assertThat(time.recent(scope,auth(jdbc,identity))).isEmpty();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_work_intervals",Integer.class)).isEqualTo(1);
     }
     @Test void summaryAndHistoryFilterBeforeAggregationAndLimitAndSumFractionalSeconds() {
@@ -297,12 +298,12 @@ class GeneralTicketWorkPostgresTest {
             seedCompleted(10,RAW,"b".repeat(32),i*2+1);
             seedCompleted(10,RAW.trim(),PUBLIC,i*2+1);
         }
-        var summary=time.summary(scope,"READER").orElseThrow();
+        var summary=time.summary(scope,auth(jdbc,"READER")).orElseThrow();
         assertThat(summary.completedIntervals()).isEqualTo(13);assertThat(summary.completedSeconds()).isEqualTo(7);
-        assertThat(time.recent(scope,"reader")).hasSize(10).allSatisfy(row->assertThat(row.completedSeconds()).isZero());
+        assertThat(time.recent(scope,auth(jdbc,"reader"))).hasSize(10).allSatisfy(row->assertThat(row.completedSeconds()).isZero());
         jdbc.update("UPDATE tickets SET user_id=99");
-        assertThat(time.summary(scope,"reader")).isEmpty();
-        assertThat(time.summary(new GeneralTicketEventScope(99L,RAW,PUBLIC),"reader").orElseThrow().completedIntervals()).isEqualTo(14);
+        assertThat(time.summary(scope,auth(jdbc,"reader"))).isEmpty();
+        assertThat(time.summary(new GeneralTicketEventScope(99L,RAW,PUBLIC),auth(jdbc,"reader")).orElseThrow().completedIntervals()).isEqualTo(14);
     }
     private void seedCompleted(long owner,String raw,String publicId,int revision) {
         jdbc.update("""
@@ -346,11 +347,11 @@ class GeneralTicketWorkPostgresTest {
     @Test void aClockRegressionCannotCreateNegativeOrConfirmedDuration() {
         jdbc.update("UPDATE tickets SET status='open'");
         jdbc.update("INSERT INTO general_ticket_work_intervals(ticket_user_id,ticket_id,ticket_public_id,opened_revision,started_at,started_by_user_id,started_by) VALUES(10,?,?,1,CURRENT_TIMESTAMP+INTERVAL '1 day',1,'worker')",RAW,PUBLIC);
-        assertThat(time.summary(scope,"worker").orElseThrow().activeStartedAt()).isNull();
+        assertThat(time.summary(scope,auth(jdbc,"worker")).orElseThrow().activeStartedAt()).isNull();
         assertThat(change(1,"open","closed")).isTrue();
         assertThat(jdbc.queryForMap("SELECT outcome,invalid_reason,ended_at>=started_at AS nonnegative FROM general_ticket_work_intervals"))
             .containsEntry("outcome","INVALIDATED").containsEntry("invalid_reason","CLOCK_REGRESSION").containsEntry("nonnegative",true);
-        assertThat(time.summary(scope,"worker").orElseThrow().completedSeconds()).isZero();
+        assertThat(time.summary(scope,auth(jdbc,"worker")).orElseThrow().completedSeconds()).isZero();
     }
     @Test void upgradeFromV67KeepsLegacyTimeAndExistingRootsAndAuditUnchanged() {
         var upgrade=PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType("general_interval_upgrade");
@@ -400,7 +401,7 @@ class GeneralTicketWorkPostgresTest {
         jdbc.execute("DROP TABLE general_ticket_work_intervals");
         var before=jdbc.queryForList("SELECT * FROM tickets");
         assertThat(change(0,"pending","open")).isFalse();
-        assertThat(time.summary(scope,"reader")).isEmpty();assertThat(time.recent(scope,"reader")).isEmpty();
+        assertThat(time.summary(scope,auth(jdbc,"reader"))).isEmpty();assertThat(time.recent(scope,auth(jdbc,"reader"))).isEmpty();
         assertThat(jdbc.queryForList("SELECT * FROM tickets")).isEqualTo(before);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_work_events",Integer.class)).isZero();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ui_event_outbox",Integer.class)).isZero();

@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import org.springframework.security.core.Authentication;
+
 import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.entity.Channel;
 import java.time.OffsetDateTime;
@@ -43,7 +45,7 @@ public class GeneralTicketReplyChangeService {
             AND history.sender='operator' AND history.message_type='operator_message' AND history.attachment IS NULL
             AND history.tg_message_id>0
         JOIN channels destination ON destination.id=ticket.channel_id
-        JOIN users account ON lower(account.username)=lower(:identity)
+        JOIN users account ON account.id=:authenticatedActorId AND account.username=:identity
         JOIN general_ticket_read_grants read_access ON read_access.user_id=account.id AND read_access.is_active=TRUE
         JOIN general_ticket_operate_grants operation ON operation.user_id=account.id AND operation.is_active=TRUE
         WHERE
@@ -72,7 +74,10 @@ public class GeneralTicketReplyChangeService {
             && expected!=null && expected.matches("[a-f0-9]{64}")
             && ("DELETE".equals(action)?"".equals(message):"EDIT".equals(action)&&GeneralTicketReplyService.validInput(key,message));
     }
-    public List<Target> targets(GeneralTicketEventScope scope,String identity,long revision) {
+    public List<Target> targets(GeneralTicketEventScope scope,Authentication authentication,long revision) {
+        return targets(scope,GeneralTicketActor.from(authentication),revision);
+    }
+    private List<Target> targets(GeneralTicketEventScope scope,GeneralTicketActor identity,long revision) {
         if (!allowed(scope,identity,revision)) return List.of();
         try { return sql.query("SELECT reply.request_key,history.message,"+CONTENT+" AS fingerprint "+TARGET+"""
             AND history.deleted_at IS NULL AND NOT EXISTS(SELECT 1 FROM general_ticket_reply_changes inflight
@@ -82,25 +87,36 @@ public class GeneralTicketReplyChangeService {
                 rs.getString("fingerprint"),UUID.randomUUID().toString().replace("-","")));
         } catch (RuntimeException ex) { return List.of(); }
     }
-    public List<Change> recent(GeneralTicketEventScope scope,String identity) {
+    public List<Change> recent(GeneralTicketEventScope scope,Authentication authentication) {
+        return recent(scope,GeneralTicketActor.from(authentication));
+    }
+    private List<Change> recent(GeneralTicketEventScope scope,GeneralTicketActor identity) {
         if (!allowed(scope,identity,0)) return List.of();
         try { return sql.query("""
             SELECT command.action,command.state,command.created_at FROM general_ticket_reply_changes command
             JOIN tickets ticket ON ticket.user_id=command.ticket_user_id AND ticket.ticket_id=command.ticket_id
                 AND ticket.ticket_public_id=command.ticket_public_id
-            JOIN users account ON lower(account.username)=lower(:identity) WHERE
+            JOIN users account ON account.id=:authenticatedActorId AND account.username=:identity WHERE
             """+OWNER+" AND "+GeneralTicketAccessService.READ_ACCOUNT+"""
             ORDER BY command.created_at DESC,command.request_key LIMIT 20
             """,params(scope,identity,0),(rs,row)->new Change(rs.getString("action"),rs.getString("state"),
                 rs.getObject("created_at",OffsetDateTime.class)));
         } catch (RuntimeException ex) { return List.of(); }
     }
-    public boolean submit(GeneralTicketEventScope scope,String identity,long revision,String key,String sourceKey,
+    public boolean submit(GeneralTicketEventScope scope,Authentication authentication,long revision,String key,String sourceKey,
+            String expected,String action,String message) {
+        return submit(scope,GeneralTicketActor.from(authentication),revision,key,sourceKey,expected,action,message);
+    }
+    private boolean submit(GeneralTicketEventScope scope,GeneralTicketActor identity,long revision,String key,String sourceKey,
             String expected,String action,String message) {
         if (!prepare(scope,identity,revision,key,sourceKey,expected,action,message)) return false;
         dispatch(key);return true;
     }
-    boolean prepare(GeneralTicketEventScope scope,String identity,long revision,String key,String sourceKey,
+    boolean prepare(GeneralTicketEventScope scope,Authentication authentication,long revision,String key,String sourceKey,
+            String expected,String action,String message) {
+        return prepare(scope,GeneralTicketActor.from(authentication),revision,key,sourceKey,expected,action,message);
+    }
+    private boolean prepare(GeneralTicketEventScope scope,GeneralTicketActor identity,long revision,String key,String sourceKey,
             String expected,String action,String message) {
         if (!allowed(scope,identity,revision) || !validInput(key,sourceKey,expected,action,message)) return false;
         try { return Boolean.TRUE.equals(transaction.execute(tx->{
@@ -144,10 +160,10 @@ public class GeneralTicketReplyChangeService {
         if (claimed==null || claimed.isEmpty()) return;
         var attempt=claimed.get();
         try { transaction.executeWithoutResult(tx->{
-            var target=capture(attempt.scope(),attempt.actor(),attempt.revision(),attempt.sourceKey());
+            var target=capture(attempt.scope(),GeneralTicketActor.stored(attempt.actorId(),attempt.actor()),attempt.revision(),attempt.sourceKey());
             if (target.isEmpty() || !attempt.matches(target.get())) { finish(key,attempt,"CANCELLED");return; }
             var t=target.get();
-            java.util.function.BooleanSupplier guard=()->capture(attempt.scope(),attempt.actor(),attempt.revision(),attempt.sourceKey())
+            java.util.function.BooleanSupplier guard=()->capture(attempt.scope(),GeneralTicketActor.stored(attempt.actorId(),attempt.actor()),attempt.revision(),attempt.sourceKey())
                 .filter(attempt::matches).isPresent();
             var result="EDIT".equals(attempt.action())
                 ?transport.editTelegramMessageGuarded(t.channel(),attempt.scope().ticketUserId(),t.providerId(),attempt.message(),guard)
@@ -157,7 +173,7 @@ public class GeneralTicketReplyChangeService {
             }
             String update="EDIT".equals(attempt.action())?"message=:message,edited_at=clock_timestamp()":"deleted_at=clock_timestamp()";
             if (sql.update("UPDATE chat_history SET "+update+" WHERE id=:historyId AND ticket_owner_user_id=:ownerId AND ticket_id=:ticketId AND ticket_public_id=:publicId",
-                params(attempt.scope(),attempt.actor(),attempt.revision()).addValue("historyId",t.historyId()).addValue("message",attempt.message()))!=1)
+                params(attempt.scope(),GeneralTicketActor.stored(attempt.actorId(),attempt.actor()),attempt.revision()).addValue("historyId",t.historyId()).addValue("message",attempt.message()))!=1)
                 throw new IllegalStateException("GENERAL history change was not recorded");
             finish(key,attempt,"APPLIED");
         }); } catch (RuntimeException ex) {
@@ -166,7 +182,7 @@ public class GeneralTicketReplyChangeService {
             catch (RuntimeException ignored) { /* SENDING remains a durable reconciliation gate. */ }
         }
     }
-    private Optional<Captured> capture(GeneralTicketEventScope scope,String identity,long revision,String sourceKey) {
+    private Optional<Captured> capture(GeneralTicketEventScope scope,GeneralTicketActor identity,long revision,String sourceKey) {
         if (!allowed(scope,identity,revision)) return Optional.empty();
         var rows=sql.query("SELECT account.id AS actor_id,destination.*,history.id AS history_id,history.tg_message_id,history.message,history.deleted_at,"
             +DESTINATION+" AS digest,"+CONTENT+" AS fingerprint "+TARGET+"""
@@ -188,7 +204,7 @@ public class GeneralTicketReplyChangeService {
         if (sql.update("""
             INSERT INTO ui_event_outbox(id,event_type,ticket_id,channel_id,created_at,ticket_user_id,ticket_public_id,ticket_scope_kind,ticket_business_id)
             VALUES(:eventId,'operator_reply_changed',:ticketId,:channelId,CURRENT_TIMESTAMP,:ownerId,:publicId,'GENERAL',NULL)
-            """,params(attempt.scope(),attempt.actor(),attempt.revision()).addValue("eventId",ids.nextEventId()).addValue("channelId",attempt.channelId()))!=1)
+            """,params(attempt.scope(),GeneralTicketActor.stored(attempt.actorId(),attempt.actor()),attempt.revision()).addValue("eventId",ids.nextEventId()).addValue("channelId",attempt.channelId()))!=1)
             throw new IllegalStateException("GENERAL change event unavailable");
     }
     private void audit(String key,String state,long actorId) {
@@ -196,13 +212,13 @@ public class GeneralTicketReplyChangeService {
             new MapSqlParameterSource("key",key).addValue("state",state).addValue("actorId",actorId))!=1)
             throw new IllegalStateException("GENERAL change audit unavailable");
     }
-    private boolean allowed(GeneralTicketEventScope scope,String identity,long revision) {
+    private boolean allowed(GeneralTicketEventScope scope,GeneralTicketActor identity,long revision) {
         return flags.isFoundationEnabled()&&flags.isGeneralTicketQueue()&&scope!=null&&scope.isValid()
-            &&identity!=null&&!identity.isBlank()&&revision>=0;
+            &&identity!=null&&identity.valid()&&revision>=0;
     }
-    private MapSqlParameterSource params(GeneralTicketEventScope scope,String identity,long revision) {
+    private MapSqlParameterSource params(GeneralTicketEventScope scope,GeneralTicketActor identity,long revision) {
         return new MapSqlParameterSource("ownerId",scope.ticketUserId()).addValue("ticketId",scope.ticketId())
-            .addValue("publicId",scope.ticketPublicId()).addValue("identity",identity).addValue("revision",revision);
+            .addValue("publicId",scope.ticketPublicId()).addValue("identity",identity.username()).addValue("authenticatedActorId",identity.userId()).addValue("revision",revision);
     }
     public record Target(String sourceKey,String message,String fingerprint,String requestKey) { }
     public record Change(String action,String state,OffsetDateTime createdAt) { }

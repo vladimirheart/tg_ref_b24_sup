@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import static com.example.panel.support.GeneralTicketActorTestSupport.auth;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -52,9 +53,9 @@ class GeneralTicketReplyChangePostgresTest {
             assertThat(((BooleanSupplier)call.getArgument(3)).getAsBoolean()).isTrue();return DialogReplyTransportService.DialogReplyTransportResult.success(77L,1L);
         });
         replies=new GeneralTicketReplyService(jdbc,flags,transport,ids());changes=service(transport);
-        assertThat(replies.submit(scope,actor,0,sourceKey,"Original",replies.destinationFingerprint(scope,actor,0).orElseThrow())).isTrue();
+        assertThat(replies.submit(scope,auth(jdbc,actor),0,sourceKey,"Original",replies.destinationFingerprint(scope,auth(jdbc,actor),0).orElseThrow())).isTrue();
         historyId=jdbc.queryForObject("SELECT chat_history_id FROM general_ticket_text_replies WHERE request_key=?",Long.class,sourceKey);
-        expected=changes.targets(scope,actor,0).get(0).fingerprint();clearInvocations(transport);
+        expected=changes.targets(scope,auth(jdbc,actor),0).get(0).fingerprint();clearInvocations(transport);
     }
     @AfterEach void restoreUniqueTestToken() {
         jdbc.update("UPDATE channels SET token=? WHERE id=?","fake-token-"+owner,channelId);
@@ -62,7 +63,7 @@ class GeneralTicketReplyChangePostgresTest {
     private UiEventOutboxAppendService ids() {return new UiEventOutboxAppendService(jdbc,new LegacyTicketIdJdbcGuard(jdbc));}
     private GeneralTicketReplyChangeService service(DialogReplyTransportService provider) {return new GeneralTicketReplyChangeService(jdbc,flags,provider,ids());}
     private static String key() {return UUID.randomUUID().toString().replace("-","");}
-    private boolean submit(String action,String text) {return changes.submit(scope,actor,0,key,sourceKey,expected,action,text);}
+    private boolean submit(String action,String text) {return changes.submit(scope,auth(jdbc,actor),0,key,sourceKey,expected,action,text);}
     private String state() {return jdbc.queryForObject("SELECT state FROM general_ticket_reply_changes WHERE request_key=?",String.class,key);}
     private String text() {return jdbc.queryForObject("SELECT message FROM chat_history WHERE id=?",String.class,historyId);}
     @ParameterizedTest @ValueSource(strings={"EDIT","DELETE"})
@@ -77,10 +78,10 @@ class GeneralTicketReplyChangePostgresTest {
         if ("EDIT".equals(action)) {
             assertThat(text()).isEqualTo(message);verify(transport,times(1)).editTelegramMessageGuarded(any(),eq(owner),eq(77L),eq(message),any());
             assertThat(jdbc.queryForObject("SELECT edited_at IS NOT NULL FROM chat_history WHERE id=?",Boolean.class,historyId)).isTrue();
-            assertThat(changes.targets(scope,actor,0)).singleElement().extracting(GeneralTicketReplyChangeService.Target::message).isEqualTo(message);
+            assertThat(changes.targets(scope,auth(jdbc,actor),0)).singleElement().extracting(GeneralTicketReplyChangeService.Target::message).isEqualTo(message);
         } else {
             verify(transport,times(1)).deleteTelegramMessageGuarded(any(),eq(owner),eq(77L),any());
-            assertThat(changes.targets(scope,actor,0)).isEmpty();
+            assertThat(changes.targets(scope,auth(jdbc,actor),0)).isEmpty();
         }
         var history=new GeneralTicketReadService(jdbc,access).history(accountId,scope.ticketPublicId(),null,50).orElseThrow().entries();
         if ("EDIT".equals(action)) assertThat(history).singleElement().extracting(GeneralTicketReadService.HistoryEntry::message).isEqualTo(message);
@@ -88,7 +89,7 @@ class GeneralTicketReplyChangePostgresTest {
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ui_event_outbox WHERE ticket_public_id=?",Integer.class,scope.ticketPublicId())).isEqualTo(2);
         assertThat(jdbc.queryForList("SELECT ticket_scope_kind,ticket_business_id,message_text,attachment FROM ui_event_outbox WHERE ticket_public_id=?",scope.ticketPublicId()))
             .allSatisfy(row->assertThat(row).containsEntry("ticket_scope_kind","GENERAL").containsEntry("ticket_business_id",null).containsEntry("message_text",null).containsEntry("attachment",null));
-        assertThat(changes.recent(scope,actor)).singleElement().extracting(GeneralTicketReplyChangeService.Change::state).isEqualTo("APPLIED");
+        assertThat(changes.recent(scope,auth(jdbc,actor))).singleElement().extracting(GeneralTicketReplyChangeService.Change::state).isEqualTo("APPLIED");
         assertThat(submit(action,"other")).isFalse();
     }
     @ParameterizedTest @ValueSource(strings={"read","operate","disabled","blocked","duplicate","missing-account","unresolved","business","generation","owner","collision","root","root-channel","channel","token","vk","max","closed","revision","foundation","flag","history-owner","history-generation","history-user","history-ticket","history-channel","client","note","attachment","deleted","provider","duplicate-provider","content","destination-config","token-rotation"})
@@ -98,7 +99,7 @@ class GeneralTicketReplyChangePostgresTest {
     }
     @ParameterizedTest @ValueSource(strings={"read","operate","disabled","blocked","duplicate","missing-account","unresolved","business","generation","owner","collision","root","root-channel","channel","token","vk","max","closed","revision","foundation","flag","history-owner","history-generation","history-user","history-ticket","history-channel","client","note","attachment","deleted","provider","duplicate-provider","content","destination-config","token-rotation"})
     void queuedChangeCannotRecaptureChangedDataOrDeliveryTarget(String mutation) {
-        assertThat(changes.prepare(scope,actor,0,key,sourceKey,expected,"DELETE","")).isTrue();
+        assertThat(changes.prepare(scope,auth(jdbc,actor),0,key,sourceKey,expected,"DELETE","")).isTrue();
         mutate(mutation);changes.dispatch(key);assertThat(state()).isEqualTo("CANCELLED");verifyNoInteractions(transport);
     }
     private void mutate(String mutation) {
@@ -164,14 +165,14 @@ class GeneralTicketReplyChangePostgresTest {
     @Test void newCommandCanFollowConfirmedEditButStaleContentAndReusedKeyCannotOverwrite() {
         assertThat(submit("EDIT","First")).isTrue();key=key();
         assertThat(submit("EDIT","Second")).isFalse();
-        expected=changes.targets(scope,actor,0).get(0).fingerprint();assertThat(submit("EDIT","Second")).isTrue();
+        expected=changes.targets(scope,auth(jdbc,actor),0).get(0).fingerprint();assertThat(submit("EDIT","Second")).isTrue();
         assertThat(text()).isEqualTo("Second");
     }
     @Test void keyAndSnapshotAreBoundToCanonicalActorAndAction() {
-        assertThat(changes.prepare(scope,actor,0,key,sourceKey,expected,"EDIT","Changed")).isTrue();
+        assertThat(changes.prepare(scope,auth(jdbc,actor),0,key,sourceKey,expected,"EDIT","Changed")).isTrue();
         String other=actor+"-other";long otherId=jdbc.queryForObject("INSERT INTO users(username,password,enabled) VALUES(?,'unused',TRUE) RETURNING id",Long.class,other);
         access.grantRead(otherId);access.grantOperate(otherId);
-        assertThat(changes.prepare(scope,other,0,key,sourceKey,expected,"EDIT","Changed")).isFalse();
+        assertThat(changes.prepare(scope,auth(jdbc,other),0,key,sourceKey,expected,"EDIT","Changed")).isFalse();
         assertThat(submit("DELETE","")).isFalse();verifyNoInteractions(transport);
         assertThatThrownBy(()->jdbc.update("UPDATE general_ticket_reply_changes SET message='replacement',state='SENDING' WHERE request_key=?",key)).isInstanceOf(RuntimeException.class);
         assertThatThrownBy(()->jdbc.update("DELETE FROM general_ticket_reply_changes WHERE request_key=?",key)).isInstanceOf(RuntimeException.class);
@@ -183,7 +184,7 @@ class GeneralTicketReplyChangePostgresTest {
         doThrow(new IllegalStateException("synthetic timeout")).when(transport).deleteTelegramMessageGuarded(any(),anyLong(),anyLong(),any());
         String message="EDIT".equals(action)?"Changed":"";
         assertThat(submit(action,message)).isTrue();assertThat(state()).isEqualTo("UNKNOWN");assertThat(text()).isEqualTo("Original");
-        assertThat(submit(action,message)).isTrue();assertThat(changes.targets(scope,actor,0)).isEmpty();
+        assertThat(submit(action,message)).isTrue();assertThat(changes.targets(scope,auth(jdbc,actor),0)).isEmpty();
         key=key();assertThat(submit("EDIT","Other")).isFalse();
         if("EDIT".equals(action))verify(transport,times(1)).editTelegramMessageGuarded(any(),anyLong(),anyLong(),anyString(),any());
         else verify(transport,times(1)).deleteTelegramMessageGuarded(any(),anyLong(),anyLong(),any());
@@ -214,7 +215,7 @@ class GeneralTicketReplyChangePostgresTest {
         var pool=Executors.newFixedThreadPool(2);var start=new CountDownLatch(1);String otherKey=key();
         try {
             var a=pool.submit(()->{start.await();return submit("EDIT","Concurrent A");});
-            var b=pool.submit(()->{start.await();return changes.submit(scope,actor,0,otherKey,sourceKey,expected,"DELETE","");});
+            var b=pool.submit(()->{start.await();return changes.submit(scope,auth(jdbc,actor),0,otherKey,sourceKey,expected,"DELETE","");});
             start.countDown();assertThat(java.util.List.of(a.get(20,TimeUnit.SECONDS),b.get(20,TimeUnit.SECONDS)))
                 .containsExactlyInAnyOrder(true,false);
             assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_reply_changes WHERE source_request_key=?",Integer.class,sourceKey)).isEqualTo(1);
@@ -258,7 +259,7 @@ class GeneralTicketReplyChangePostgresTest {
     }
     @Test void missingSchemaFailsClosed() {
         jdbc.execute("ALTER TABLE general_ticket_reply_changes RENAME TO hidden_general_changes");
-        try {assertThat(submit("EDIT","Changed")).isFalse();assertThat(changes.targets(scope,actor,0)).isEmpty();assertThat(changes.recent(scope,actor)).isEmpty();}
+        try {assertThat(submit("EDIT","Changed")).isFalse();assertThat(changes.targets(scope,auth(jdbc,actor),0)).isEmpty();assertThat(changes.recent(scope,auth(jdbc,actor))).isEmpty();}
         finally {jdbc.execute("ALTER TABLE hidden_general_changes RENAME TO general_ticket_reply_changes");}
     }
     @Test void upgradeFromV70PreservesExistingTicketsHistoryAndGrants() {

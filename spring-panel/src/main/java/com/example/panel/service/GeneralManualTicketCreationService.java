@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import org.springframework.security.core.Authentication;
+
 import com.example.panel.config.MultibusinessFeatureFlags;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,11 +29,14 @@ public class GeneralManualTicketCreationService {
         transaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
     public boolean enabled() {return flags.isFoundationEnabled()&&flags.isGeneralTicketQueue()&&flags.isManualTicketCreation();}
-    public boolean canCreate(String identity) {
-        if(!enabled()||identity==null||identity.isBlank())return false;
-        try {return Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM users account WHERE lower(account.username)=lower(:identity) AND "
+    public boolean canCreate(Authentication authentication) {
+        return canCreate(GeneralTicketActor.from(authentication));
+    }
+    private boolean canCreate(GeneralTicketActor identity) {
+        if(!enabled()||identity==null||!identity.valid())return false;
+        try {return Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM users account WHERE account.id=:authenticatedActorId AND account.username=:identity AND "
             +GeneralTicketAccessService.OPERATE_ACCOUNT+" AND general_ticket_selection_source_allowed('MANUAL'))",
-            new MapSqlParameterSource("identity",identity),Boolean.class));
+            identity.bind(new MapSqlParameterSource()),Boolean.class));
         } catch(DataAccessException ex) {return false;}
     }
     public static boolean validInput(String key,String name,String problem) {
@@ -47,16 +52,19 @@ public class GeneralManualTicketCreationService {
         }
         return true;
     }
-    public Optional<String> create(String identity,String key,String clientName,String problem) {
-        if(!enabled()||identity==null||identity.isBlank()||!validInput(key,clientName,problem))return Optional.empty();
-        var args=new MapSqlParameterSource("identity",identity).addValue("key",key)
+    public Optional<String> create(Authentication authentication,String key,String clientName,String problem) {
+        return create(GeneralTicketActor.from(authentication),key,clientName,problem);
+    }
+    private Optional<String> create(GeneralTicketActor identity,String key,String clientName,String problem) {
+        if(!enabled()||identity==null||!identity.valid()||!validInput(key,clientName,problem))return Optional.empty();
+        var args=identity.bind(new MapSqlParameterSource()).addValue("key",key)
             .addValue("name",clientName.strip()).addValue("problem",problem.strip());
         try {return transaction.execute(tx->{
             var actors=jdbc.query("""
                 SELECT account.id,account.username FROM users account
                 JOIN general_ticket_read_grants read_access ON read_access.user_id=account.id AND read_access.is_active=TRUE
                 JOIN general_ticket_operate_grants operation ON operation.user_id=account.id AND operation.is_active=TRUE
-                WHERE lower(account.username)=lower(:identity) AND
+                WHERE account.id=:authenticatedActorId AND account.username=:identity AND
                 """+GeneralTicketAccessService.CURRENT_ACCOUNT+"""
                 AND general_ticket_selection_source_allowed('MANUAL')
                 FOR SHARE OF account,read_access,operation
@@ -86,7 +94,7 @@ public class GeneralManualTicketCreationService {
             args.addValue("clientId",clientId).addValue("publicId",publicId).addValue("ticketId","general-manual-"+publicId)
                 .addValue("actorId",actor.id()).addValue("actor",actor.name()).addValue("fingerprint",fingerprint);
             int inserted=jdbc.update("INSERT INTO manual_general_clients(user_id,display_name,created_by_user_id) "
-                +"SELECT :clientId,:name,account.id FROM users account WHERE account.id=:actorId AND lower(account.username)=lower(:identity) AND "
+                +"SELECT :clientId,:name,account.id FROM users account WHERE account.id=:actorId AND account.id=:authenticatedActorId AND account.username=:identity AND "
                 +GeneralTicketAccessService.OPERATE_ACCOUNT,args);
             if(inserted!=1||!enabled())throw new IllegalStateException("GENERAL creation access changed");
             jdbc.update("""

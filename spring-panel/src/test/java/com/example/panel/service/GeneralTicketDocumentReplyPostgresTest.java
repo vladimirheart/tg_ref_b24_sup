@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import static com.example.panel.support.GeneralTicketActorTestSupport.auth;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -58,14 +59,14 @@ class GeneralTicketDocumentReplyPostgresTest {
             return DialogReplyTransportService.DialogReplyTransportResult.success(77L,1L);
         });
         documents=new GeneralTicketDocumentReplyService(jdbc,flags,transport,storage,new UiEventOutboxAppendService(jdbc,new LegacyTicketIdJdbcGuard(jdbc)));
-        destination=documents.destinationFingerprint(scope,actor,0).orElseThrow();clearInvocations(storage);
+        destination=documents.destinationFingerprint(scope,auth(jdbc,actor),0).orElseThrow();clearInvocations(storage);
     }
     @AfterEach void restoreUniqueToken(){jdbc.update("UPDATE channels SET token=? WHERE id=?","fake-document-"+owner,channel);}
     private void root(String publicId){jdbc.update("INSERT INTO tickets(user_id,ticket_id,group_msg_id,channel_id,ticket_public_id,is_general,general_selection_source,status) VALUES(?,?,?,?,?,TRUE,'GENERAL_CHANNEL','pending')",owner,raw,owner,channel,publicId);}
     private static String key(){return UUID.randomUUID().toString().replace("-","");}
     private MultipartFile file(){return new MockMultipartFile("file","Отчёт 😀.pdf","text/html",bytes);}
-    private boolean prepare(){return documents.prepare(scope,actor,0,key," Подпись ",file(),destination);}
-    private boolean submit(){return documents.submit(scope,actor,0,key," Подпись ",file(),destination);}
+    private boolean prepare(){return documents.prepare(scope,auth(jdbc,actor),0,key," Подпись ",file(),destination);}
+    private boolean submit(){return documents.submit(scope,auth(jdbc,actor),0,key," Подпись ",file(),destination);}
     private String state(){return jdbc.queryForObject("SELECT state FROM general_ticket_document_replies WHERE request_key=?",String.class,key);}
     private long historyId(){return jdbc.queryForObject("SELECT chat_history_id FROM general_ticket_document_replies WHERE request_key=?",Long.class,key);}
     private int history(){return jdbc.queryForObject("SELECT COUNT(*) FROM chat_history WHERE ticket_public_id=?",Integer.class,scope.ticketPublicId());}
@@ -85,7 +86,7 @@ class GeneralTicketDocumentReplyPostgresTest {
         assertThat(jdbc.queryForList("SELECT state FROM general_ticket_document_events WHERE request_key=? ORDER BY id",String.class,key)).containsExactly("QUEUED","SENDING","SENT");
         assertThat(jdbc.queryForMap("SELECT ticket_scope_kind,ticket_business_id,message_text,attachment FROM ui_event_outbox WHERE ticket_public_id=?",scope.ticketPublicId()))
             .containsEntry("ticket_scope_kind","GENERAL").containsEntry("ticket_business_id",null).containsEntry("message_text",null).containsEntry("attachment",null);
-        assertThat(documents.recent(scope,actor)).singleElement().extracting(GeneralTicketDocumentReplyService.Reply::name).isEqualTo("Отчёт 😀.pdf");
+        assertThat(documents.recent(scope,auth(jdbc,actor))).singleElement().extracting(GeneralTicketDocumentReplyService.Reply::name).isEqualTo("Отчёт 😀.pdf");
     }
     @ParameterizedTest @ValueSource(strings={"read","operate","disabled","blocked","duplicate","missing-account","unresolved","business","generation","owner","collision","root","root-channel","channel","blank-token","vk","max","closed","revision","foundation","flag","manual","configuration","rotation","raw-id"})
     void prepareProvesCurrentScopeGrantsDestinationAndProviderOrigin(String mutation){
@@ -122,11 +123,11 @@ class GeneralTicketDocumentReplyPostgresTest {
     }}
     @Test void keyCannotChangeActorFilenameCaptionOrBytesAndAuditCannotBeRewritten(){
         assertThat(prepare()).isTrue();
-        assertThat(documents.prepare(scope,actor,0,key,"Other",file(),destination)).isFalse();
-        assertThat(documents.prepare(scope,actor,0,key,"Подпись",new MockMultipartFile("file","other.pdf","application/pdf",bytes),destination)).isFalse();
-        assertThat(documents.prepare(scope,actor,0,key,"Подпись",new MockMultipartFile("file","Отчёт 😀.pdf","application/pdf",new byte[]{9}),destination)).isFalse();
+        assertThat(documents.prepare(scope,auth(jdbc,actor),0,key,"Other",file(),destination)).isFalse();
+        assertThat(documents.prepare(scope,auth(jdbc,actor),0,key,"Подпись",new MockMultipartFile("file","other.pdf","application/pdf",bytes),destination)).isFalse();
+        assertThat(documents.prepare(scope,auth(jdbc,actor),0,key,"Подпись",new MockMultipartFile("file","Отчёт 😀.pdf","application/pdf",new byte[]{9}),destination)).isFalse();
         String other=actor+"-other";long id=jdbc.queryForObject("INSERT INTO users(username,password,enabled) VALUES(?,'unused',TRUE) RETURNING id",Long.class,other);
-        access.grantRead(id);access.grantOperate(id);assertThat(documents.prepare(scope,other,0,key,"Подпись",file(),destination)).isFalse();
+        access.grantRead(id);access.grantOperate(id);assertThat(documents.prepare(scope,auth(jdbc,other),0,key,"Подпись",file(),destination)).isFalse();
         assertThatThrownBy(()->jdbc.update("UPDATE general_ticket_document_replies SET original_name='tampered',state='SENDING' WHERE request_key=?",key)).isInstanceOf(RuntimeException.class);
         assertThatThrownBy(()->jdbc.update("DELETE FROM general_ticket_document_replies WHERE request_key=?",key)).isInstanceOf(RuntimeException.class);
         assertThatThrownBy(()->jdbc.update("DELETE FROM general_ticket_document_events WHERE request_key=?",key)).isInstanceOf(RuntimeException.class);
@@ -180,7 +181,7 @@ class GeneralTicketDocumentReplyPostgresTest {
         String publicId=scope.ticketPublicId();jdbc.update("DELETE FROM tickets WHERE ticket_public_id=?",publicId);
         raw=publicId;jdbc.update("UPDATE messages SET ticket_id=? WHERE group_msg_id=?",raw,owner);
         scope=new GeneralTicketEventScope(owner,raw,publicId);root(publicId);
-        destination=documents.destinationFingerprint(scope,actor,0).orElseThrow();assertThat(submit()).isTrue();
+        destination=documents.destinationFingerprint(scope,auth(jdbc,actor),0).orElseThrow();assertThat(submit()).isTrue();
         jdbc.update("UPDATE chat_history SET message_type='operator_message' WHERE id=?",historyId());
         assertThat(new GeneralTicketReadService(jdbc,access).attachment(actorId,publicId,historyId())).isEmpty();
     }
@@ -200,9 +201,9 @@ class GeneralTicketDocumentReplyPostgresTest {
         assertThat(GeneralTicketDocumentReplyService.validInput(key,"x".repeat(1025),file())).isFalse();
         MultipartFile liar=mock(MultipartFile.class);when(liar.getSize()).thenReturn(2L);when(liar.getOriginalFilename()).thenReturn("file.bin");
         when(liar.getInputStream()).thenReturn(new ByteArrayInputStream(bytes));
-        assertThat(documents.prepare(scope,actor,0,key,"",liar,destination)).isFalse();
+        assertThat(documents.prepare(scope,auth(jdbc,actor),0,key,"",liar,destination)).isFalse();
         when(liar.getInputStream()).thenReturn(new ByteArrayInputStream(new byte[GeneralTicketDocumentReplyService.MAX_BYTES+2]));
-        assertThat(documents.prepare(scope,actor,0,key,"",liar,destination)).isFalse();
+        assertThat(documents.prepare(scope,auth(jdbc,actor),0,key,"",liar,destination)).isFalse();
         when(liar.getSize()).thenReturn((long)GeneralTicketDocumentReplyService.MAX_BYTES+1);
         assertThat(GeneralTicketDocumentReplyService.validInput(key,"",liar)).isFalse();verifyNoInteractions(transport,storage);
     }
@@ -216,7 +217,7 @@ class GeneralTicketDocumentReplyPostgresTest {
     }
     @Test void missingRegistryFailsClosedIncludingTheLegacyDownloadPath(){
         jdbc.execute("ALTER TABLE general_ticket_document_replies RENAME TO hidden_document_intents");
-        try{assertThat(submit()).isFalse();assertThat(documents.recent(scope,actor)).isEmpty();
+        try{assertThat(submit()).isFalse();assertThat(documents.recent(scope,auth(jdbc,actor))).isEmpty();
             assertThat(new GeneralTicketReadService(jdbc,access).attachment(actorId,scope.ticketPublicId(),1)).isEmpty();verifyNoInteractions(transport,storage);
         }finally{jdbc.execute("ALTER TABLE hidden_document_intents RENAME TO general_ticket_document_replies");}
     }

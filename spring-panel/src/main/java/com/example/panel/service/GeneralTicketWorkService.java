@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import org.springframework.security.core.Authentication;
+
 import com.example.panel.config.MultibusinessFeatureFlags;
 import java.sql.Types;
 import java.util.Optional;
@@ -22,18 +24,24 @@ public class GeneralTicketWorkService {
     public GeneralTicketWorkService(JdbcTemplate jdbc,UiEventOutboxAppendService ids,MultibusinessFeatureFlags flags) {
         this.jdbc=new NamedParameterJdbcTemplate(jdbc);this.ids=ids;this.flags=flags;
     }
-    public Optional<View> find(String publicId,String identity) {
-        if (!enabled() || publicId==null || !publicId.matches("[a-f0-9]{32}") || identity==null || identity.isBlank()) return Optional.empty();
+    public Optional<View> find(String publicId,Authentication authentication) {
+        return find(publicId,GeneralTicketActor.from(authentication));
+    }
+    private Optional<View> find(String publicId,GeneralTicketActor identity) {
+        if (!enabled() || publicId==null || !publicId.matches("[a-f0-9]{32}") || identity==null || !identity.valid()) return Optional.empty();
         String sql="SELECT ticket.*,EXISTS(SELECT 1 FROM general_ticket_operate_grants operation WHERE operation.user_id=account.id AND operation.is_active=TRUE) AS can_operate "
-            + "FROM tickets ticket CROSS JOIN users account WHERE ticket.ticket_public_id=:publicId AND lower(account.username)=lower(:identity) AND "
+            + "FROM tickets ticket CROSS JOIN users account WHERE ticket.ticket_public_id=:publicId AND account.id=:authenticatedActorId AND account.username=:identity AND "
             + OWNER+" AND "+GeneralTicketAccessService.READ_ACCOUNT;
-        try { return jdbc.query(sql,new MapSqlParameterSource("publicId",publicId).addValue("identity",identity),
+        try { return jdbc.query(sql,new MapSqlParameterSource("publicId",publicId).addValue("identity",identity.username()).addValue("authenticatedActorId",identity.userId()),
             (rs,row)->new View(new GeneralTicketEventScope(rs.getLong("user_id"),rs.getString("ticket_id"),rs.getString("ticket_public_id")),
                 rs.getString("status"),rs.getLong("general_work_revision"),rs.getBoolean("can_operate"))).stream().findFirst(); }
         catch (DataAccessException ex) { return Optional.empty(); }
     }
-    public boolean transition(GeneralTicketEventScope scope,String identity,long revision,String expectedStatus,String nextStatus) {
-        if (!enabled() || scope==null || !scope.isValid() || identity==null || identity.isBlank() || revision<0
+    public boolean transition(GeneralTicketEventScope scope,Authentication authentication,long revision,String expectedStatus,String nextStatus) {
+        return transition(scope,GeneralTicketActor.from(authentication),revision,expectedStatus,nextStatus);
+    }
+    private boolean transition(GeneralTicketEventScope scope,GeneralTicketActor identity,long revision,String expectedStatus,String nextStatus) {
+        if (!enabled() || scope==null || !scope.isValid() || identity==null || !identity.valid() || revision<0
                 || !allowedTransition(expectedStatus,nextStatus)) return false;
         String sql="""
             WITH changed AS (
@@ -49,7 +57,7 @@ public class GeneralTicketWorkService {
                 WHERE ticket.user_id=:ownerId AND ticket.ticket_id=:ticketId AND ticket.ticket_public_id=:publicId
                   AND ticket.general_work_revision=:revision AND ticket.status=:expectedStatus
                   AND general_ticket_transition_allowed(ticket.status,:nextStatus)
-                  AND lower(account.username)=lower(:identity) AND
+                  AND account.id=:authenticatedActorId AND account.username=:identity AND
             """+OWNER+" AND "+GeneralTicketAccessService.OPERATE_ACCOUNT+"""
                 RETURNING ticket.user_id,ticket.ticket_id,ticket.ticket_public_id,ticket.channel_id,
                     ticket.general_work_revision,account.id AS actor_id,account.username AS actor,clock_timestamp() AS changed_at
@@ -67,7 +75,7 @@ public class GeneralTicketWorkService {
                 JOIN audit ON audit.ticket_public_id=changed.ticket_public_id AND audit.revision=changed.general_work_revision
             """;
         var args=new MapSqlParameterSource("ownerId",scope.ticketUserId()).addValue("ticketId",scope.ticketId(),Types.VARCHAR)
-            .addValue("publicId",scope.ticketPublicId(),Types.VARCHAR).addValue("identity",identity,Types.VARCHAR)
+            .addValue("publicId",scope.ticketPublicId(),Types.VARCHAR).addValue("identity",identity.username(),Types.VARCHAR).addValue("authenticatedActorId",identity.userId(),Types.BIGINT)
             .addValue("revision",revision,Types.BIGINT).addValue("expectedStatus",expectedStatus,Types.VARCHAR)
             .addValue("nextStatus",nextStatus,Types.VARCHAR).addValue("eventId",ids.nextEventId(),Types.BIGINT);
         try { return jdbc.update(sql,args)==1; } catch (DataAccessException ex) { return false; }

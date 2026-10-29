@@ -24,6 +24,6 @@ public class GeneralTicketStreamController {
     public ResponseEntity<SseEmitter> stream(Authentication auth) {
         if (!flags.isFoundationEnabled() || !flags.isGeneralTicketQueue()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         return ResponseEntity.ok().header("Cache-Control", "no-store").header("X-Accel-Buffering", "no")
-            .body(realtime.connect(auth == null ? null : auth.getName()));
+            .body(realtime.connect(auth));
     }
 }

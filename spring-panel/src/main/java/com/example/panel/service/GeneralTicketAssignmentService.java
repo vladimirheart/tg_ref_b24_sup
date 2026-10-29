@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import org.springframework.security.core.Authentication;
+
 import com.example.panel.config.MultibusinessFeatureFlags;
 import java.sql.Types;
 import java.time.OffsetDateTime;
@@ -40,44 +42,56 @@ public class GeneralTicketAssignmentService {
         transaction=new TransactionTemplate(new DataSourceTransactionManager(jdbc.getDataSource()));
         transaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
-    public Optional<State> current(GeneralTicketEventScope scope,String identity) {
+    public Optional<State> current(GeneralTicketEventScope scope,Authentication authentication) {
+        return current(scope,GeneralTicketActor.from(authentication));
+    }
+    private Optional<State> current(GeneralTicketEventScope scope,GeneralTicketActor identity) {
         if (!allowed(scope,identity)) return Optional.empty();
         try { return jdbc.query("""
             SELECT COALESCE(entry.revision,0) AS revision,entry.assignee_user_id,entry.assignee,
                 EXISTS(SELECT 1 FROM users candidate WHERE candidate.id=entry.assignee_user_id AND
             """+TARGET+") AS eligible FROM tickets ticket CROSS JOIN users account "+LATEST
-            +" WHERE lower(account.username)=lower(:identity) AND "+OWNER+" AND "+GeneralTicketAccessService.READ_ACCOUNT,
+            +" WHERE account.id=:authenticatedActorId AND account.username=:identity AND "+OWNER+" AND "+GeneralTicketAccessService.READ_ACCOUNT,
             params(scope,identity),(rs,row)->new State(rs.getLong("revision"),rs.getObject("assignee_user_id",Long.class),
                 rs.getString("assignee"),rs.getBoolean("eligible"))).stream().findFirst();
         } catch (DataAccessException ex) { return Optional.empty(); }
     }
-    public List<Candidate> candidates(GeneralTicketEventScope scope,String identity) {
+    public List<Candidate> candidates(GeneralTicketEventScope scope,Authentication authentication) {
+        return candidates(scope,GeneralTicketActor.from(authentication));
+    }
+    private List<Candidate> candidates(GeneralTicketEventScope scope,GeneralTicketActor identity) {
         if (!allowed(scope,identity)) return List.of();
         try { return jdbc.query("SELECT candidate.id,candidate.username FROM tickets ticket CROSS JOIN users account CROSS JOIN users candidate "
-            +"WHERE lower(account.username)=lower(:identity) AND "+OWNER+" AND "+GeneralTicketAccessService.OPERATE_ACCOUNT
+            +"WHERE account.id=:authenticatedActorId AND account.username=:identity AND "+OWNER+" AND "+GeneralTicketAccessService.OPERATE_ACCOUNT
             +" AND ticket.status IN ('pending','open') AND "+TARGET+" ORDER BY lower(candidate.username),candidate.id LIMIT 200",
             params(scope,identity),(rs,row)->new Candidate(rs.getLong("id"),rs.getString("username")));
         } catch (DataAccessException ex) { return List.of(); }
     }
-    public List<Event> recent(GeneralTicketEventScope scope,String identity) {
+    public List<Event> recent(GeneralTicketEventScope scope,Authentication authentication) {
+        return recent(scope,GeneralTicketActor.from(authentication));
+    }
+    private List<Event> recent(GeneralTicketEventScope scope,GeneralTicketActor identity) {
         if (!allowed(scope,identity)) return List.of();
         try { return jdbc.query("""
             SELECT entry.revision,entry.assignee,entry.actor,entry.created_at FROM tickets ticket
             JOIN general_ticket_assignment_events entry ON entry.ticket_user_id=ticket.user_id AND entry.ticket_id=ticket.ticket_id
                 AND entry.ticket_public_id=ticket.ticket_public_id CROSS JOIN users account
-            WHERE lower(account.username)=lower(:identity) AND
+            WHERE account.id=:authenticatedActorId AND account.username=:identity AND
             """+OWNER+" AND "+GeneralTicketAccessService.READ_ACCOUNT+" ORDER BY entry.revision DESC LIMIT 10",
             params(scope,identity),(rs,row)->new Event(rs.getLong("revision"),rs.getString("assignee"),rs.getString("actor"),
                 rs.getObject("created_at",OffsetDateTime.class)));
         } catch (DataAccessException ex) { return List.of(); }
     }
-    public boolean assign(GeneralTicketEventScope scope,String identity,long ownerRevision,long assignmentRevision,Long targetId) {
+    public boolean assign(GeneralTicketEventScope scope,Authentication authentication,long ownerRevision,long assignmentRevision,Long targetId) {
+        return assign(scope,GeneralTicketActor.from(authentication),ownerRevision,assignmentRevision,targetId);
+    }
+    private boolean assign(GeneralTicketEventScope scope,GeneralTicketActor identity,long ownerRevision,long assignmentRevision,Long targetId) {
         if (!allowed(scope,identity)||ownerRevision<0||assignmentRevision<0||assignmentRevision==Long.MAX_VALUE||targetId!=null&&targetId<=0) return false;
         try { return Boolean.TRUE.equals(transaction.execute(tx->{
             // The root lock serializes assignment CAS with other assignments and all status/owner writers.
             var roots=jdbc.query("""
                 SELECT ticket.channel_id,account.id AS actor_id,account.username AS actor FROM tickets ticket
-                JOIN users account ON lower(account.username)=lower(:identity)
+                JOIN users account ON account.id=:authenticatedActorId AND account.username=:identity
                 JOIN general_ticket_read_grants read_access ON read_access.user_id=account.id AND read_access.is_active=TRUE
                 JOIN general_ticket_operate_grants operation ON operation.user_id=account.id AND operation.is_active=TRUE
                 WHERE
@@ -122,12 +136,12 @@ public class GeneralTicketAssignmentService {
             return true;
         })); } catch (RuntimeException ex) { return false; }
     }
-    private boolean allowed(GeneralTicketEventScope scope,String identity) {
-        return flags.isFoundationEnabled()&&flags.isGeneralTicketQueue()&&scope!=null&&scope.isValid()&&identity!=null&&!identity.isBlank();
+    private boolean allowed(GeneralTicketEventScope scope,GeneralTicketActor identity) {
+        return flags.isFoundationEnabled()&&flags.isGeneralTicketQueue()&&scope!=null&&scope.isValid()&&identity!=null&&identity.valid();
     }
-    private MapSqlParameterSource params(GeneralTicketEventScope scope,String identity) {
+    private MapSqlParameterSource params(GeneralTicketEventScope scope,GeneralTicketActor identity) {
         return new MapSqlParameterSource("ownerId",scope.ticketUserId()).addValue("ticketId",scope.ticketId())
-            .addValue("publicId",scope.ticketPublicId()).addValue("identity",identity);
+            .addValue("publicId",scope.ticketPublicId()).addValue("identity",identity.username()).addValue("authenticatedActorId",identity.userId());
     }
     public record State(long revision,Long assigneeUserId,String assignee,boolean eligible) { }
     public record Candidate(long userId,String username) { }

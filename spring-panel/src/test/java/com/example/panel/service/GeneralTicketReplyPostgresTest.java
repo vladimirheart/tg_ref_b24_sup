@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import static com.example.panel.support.GeneralTicketActorTestSupport.auth;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -59,8 +60,8 @@ class GeneralTicketReplyPostgresTest {
         return new GeneralTicketReplyService(jdbc,flags,provider,new UiEventOutboxAppendService(jdbc,new LegacyTicketIdJdbcGuard(jdbc)));
     }
     private static String key() { return UUID.randomUUID().toString().replace("-",""); }
-    private String fingerprint() { return replies.destinationFingerprint(scope,actor,0).orElse("0".repeat(64)); }
-    private boolean submit(String text) { return replies.submit(scope,actor,0,key,text,fingerprint()); }
+    private String fingerprint() { return replies.destinationFingerprint(scope,auth(jdbc,actor),0).orElse("0".repeat(64)); }
+    private boolean submit(String text) { return replies.submit(scope,auth(jdbc,actor),0,key,text,fingerprint()); }
     private String state() { return jdbc.queryForObject("SELECT state FROM general_ticket_text_replies WHERE request_key=?",String.class,key); }
     private int history() { return jdbc.queryForObject("SELECT COUNT(*) FROM chat_history WHERE ticket_public_id=?",Integer.class,scope.ticketPublicId()); }
     @ParameterizedTest @ValueSource(strings={"telegram","vk","max"})
@@ -77,7 +78,7 @@ class GeneralTicketReplyPostgresTest {
             .containsExactly("QUEUED","SENDING","SENT");
         assertThat(jdbc.queryForMap("SELECT ticket_scope_kind,ticket_business_id,message_text,attachment FROM ui_event_outbox WHERE ticket_public_id=?",scope.ticketPublicId()))
             .containsEntry("ticket_scope_kind","GENERAL").containsEntry("ticket_business_id",null).containsEntry("message_text",null).containsEntry("attachment",null);
-        assertThat(replies.recent(scope,actor)).singleElement().extracting(GeneralTicketReplyService.Reply::message).isEqualTo(text);
+        assertThat(replies.recent(scope,auth(jdbc,actor))).singleElement().extracting(GeneralTicketReplyService.Reply::message).isEqualTo(text);
         assertThat(submit("different")).isFalse();
     }
     @ParameterizedTest @ValueSource(strings={"read","operate","disabled","blocked","duplicate","missing-account","unresolved","business","generation","owner","collision","root","root-channel","channel","token","platform","null-platform","closed","resolved","revision","flag","principal"})
@@ -89,7 +90,7 @@ class GeneralTicketReplyPostgresTest {
     }
     @ParameterizedTest @ValueSource(strings={"read","operate","disabled","blocked","duplicate","missing-account","unresolved","business","generation","owner","collision","root","root-channel","channel","token","platform","null-platform","closed","resolved","revision","flag","destination-config","token-rotation","platform-rebind","channel-rebind"})
     void queuedReplyNeverRecapturesNewOwnerOrChannelAfterRevocation(String mutation) {
-        assertThat(replies.prepare(scope,actor,0,key,"Ответ",fingerprint())).isTrue();
+        assertThat(replies.prepare(scope,auth(jdbc,actor),0,key,"Ответ",fingerprint())).isTrue();
         mutate(mutation);replies.dispatch(key);
         assertThat(state()).isEqualTo("CANCELLED");assertThat(history()).isZero();
         verifyNoInteractions(transport);
@@ -192,16 +193,16 @@ class GeneralTicketReplyPostgresTest {
         return new GeneralTicketWorkService(jdbc,new UiEventOutboxAppendService(jdbc,new LegacyTicketIdJdbcGuard(jdbc)),flags);
     }
     @Test void closingCancelsQueuedReplyAndReopeningDoesNotReviveItsOldRevision() {
-        assertThat(replies.prepare(scope,actor,0,key,"Old queued reply",fingerprint())).isTrue();
-        assertThat(work().transition(scope,actor,0,"pending","closed")).isTrue();
-        assertThat(replies.destinationFingerprint(scope,actor,1)).isEmpty();
+        assertThat(replies.prepare(scope,auth(jdbc,actor),0,key,"Old queued reply",fingerprint())).isTrue();
+        assertThat(work().transition(scope,auth(jdbc,actor),0,"pending","closed")).isTrue();
+        assertThat(replies.destinationFingerprint(scope,auth(jdbc,actor),1)).isEmpty();
         replies.dispatch(key);
         assertThat(state()).isEqualTo("CANCELLED");
-        assertThat(work().transition(scope,actor,1,"closed","pending")).isTrue();
+        assertThat(work().transition(scope,auth(jdbc,actor),1,"closed","pending")).isTrue();
         replies.dispatch(key);
         verifyNoInteractions(transport);assertThat(history()).isZero();
-        assertThat(replies.prepare(scope,actor,2,key,"Old queued reply",replies.destinationFingerprint(scope,actor,2).orElseThrow())).isFalse();
-        assertThat(replies.submit(scope,actor,2,key(),"Fresh reviewed reply",replies.destinationFingerprint(scope,actor,2).orElseThrow())).isTrue();
+        assertThat(replies.prepare(scope,auth(jdbc,actor),2,key,"Old queued reply",replies.destinationFingerprint(scope,auth(jdbc,actor),2).orElseThrow())).isFalse();
+        assertThat(replies.submit(scope,auth(jdbc,actor),2,key(),"Fresh reviewed reply",replies.destinationFingerprint(scope,auth(jdbc,actor),2).orElseThrow())).isTrue();
         verify(transport,times(1)).sendTextGuarded(any(),eq(owner),eq("Fresh reviewed reply"),isNull(),any());
         assertThat(history()).isEqualTo(1);
     }
@@ -215,12 +216,12 @@ class GeneralTicketReplyPostgresTest {
         }).when(transport).sendTextGuarded(any(),anyLong(),anyString(),isNull(),any());
         try {
             var sent=executor.submit(()->submit("In progress reply"));assertThat(entered.await(10,TimeUnit.SECONDS)).isTrue();
-            var closed=executor.submit(()->{closing.countDown();return work().transition(scope,actor,0,"pending","closed");});
+            var closed=executor.submit(()->{closing.countDown();return work().transition(scope,auth(jdbc,actor),0,"pending","closed");});
             assertThat(closing.await(10,TimeUnit.SECONDS)).isTrue();
             assertThatThrownBy(()->closed.get(150,TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
             release.countDown();assertThat(sent.get(15,TimeUnit.SECONDS)).isTrue();assertThat(closed.get(15,TimeUnit.SECONDS)).isTrue();
             assertThat(state()).isEqualTo("SENT");assertThat(history()).isEqualTo(1);
-            assertThat(work().find(scope.ticketPublicId(),actor).orElseThrow().status()).isEqualTo("closed");
+            assertThat(work().find(scope.ticketPublicId(),auth(jdbc,actor)).orElseThrow().status()).isEqualTo("closed");
             replies.dispatch(key);verify(transport,times(1)).sendTextGuarded(any(),anyLong(),anyString(),isNull(),any());
         } finally {release.countDown();executor.shutdownNow();}
     }
@@ -229,23 +230,23 @@ class GeneralTicketReplyPostgresTest {
         assertThatThrownBy(()->jdbc.update("UPDATE general_ticket_text_replies SET message='forged' WHERE request_key=?",key)).isInstanceOf(DataAccessException.class);
         assertThatThrownBy(()->jdbc.update("UPDATE general_ticket_text_replies SET state='QUEUED',chat_history_id=NULL WHERE request_key=?",key)).isInstanceOf(DataAccessException.class);
         assertThatThrownBy(()->jdbc.update("UPDATE general_ticket_reply_events SET actor_user_id=1 WHERE request_key=?",key)).isInstanceOf(DataAccessException.class);
-        assertThat(replies.recent(scope,"missing-account")).isEmpty();
-        access.revokeRead(accountId);assertThat(replies.recent(scope,actor)).isEmpty();
+        assertThat(replies.recent(scope,auth(jdbc,"missing-account"))).isEmpty();
+        access.revokeRead(accountId);assertThat(replies.recent(scope,auth(jdbc,actor))).isEmpty();
         access.grantRead(accountId);
         jdbc.update("UPDATE tickets SET is_general=FALSE,general_selection_source=NULL WHERE ticket_public_id=?",scope.ticketPublicId());
-        assertThat(replies.recent(scope,actor)).isEmpty();
+        assertThat(replies.recent(scope,auth(jdbc,actor))).isEmpty();
     }
     @Test void idempotencyKeyCannotBeReusedAcrossActorsOrPublicOwners() {
-        assertThat(replies.prepare(scope,actor,0,key,"Ответ",fingerprint())).isTrue();
+        assertThat(replies.prepare(scope,auth(jdbc,actor),0,key,"Ответ",fingerprint())).isTrue();
         String secondActor=actor+"-other";
         long second=jdbc.queryForObject("INSERT INTO users(username,password,enabled) VALUES(?,'unused',TRUE) RETURNING id",Long.class,secondActor);
         access.grantRead(second);assertThat(access.grantOperate(second)).isTrue();
-        assertThat(replies.submit(scope,secondActor,0,key,"Ответ",fingerprint())).isFalse();
+        assertThat(replies.submit(scope,auth(jdbc,secondActor),0,key,"Ответ",fingerprint())).isFalse();
         String otherRaw=raw+"-other";var otherScope=new GeneralTicketEventScope(owner,otherRaw,key());
         jdbc.update("INSERT INTO messages(group_msg_id,user_id,ticket_id,channel_id) VALUES(?,?,?,?)",owner+100000,owner,otherRaw,channelId);
         jdbc.update("INSERT INTO tickets(user_id,ticket_id,group_msg_id,channel_id,ticket_public_id,is_general,general_selection_source,status) VALUES(?,?,?,?,?,TRUE,'GENERAL_CHANNEL','pending')",
             owner,otherRaw,owner+100000,channelId,otherScope.ticketPublicId());
-        assertThat(replies.submit(otherScope,actor,0,key,"Ответ",fingerprint())).isFalse();
+        assertThat(replies.submit(otherScope,auth(jdbc,actor),0,key,"Ответ",fingerprint())).isFalse();
         verifyNoInteractions(transport);
         assertThat(submit("Ответ")).isTrue();
         verify(transport,times(1)).sendTextGuarded(any(),anyLong(),anyString(),isNull(),any());

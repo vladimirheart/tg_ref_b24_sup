@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import static com.example.panel.support.GeneralTicketActorTestSupport.auth;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -57,16 +58,16 @@ class GeneralTicketRealtimePostgresTest {
     private UiEventTicketScope captured() { return new UiEventTicketScope(10L,RAW,PUBLIC,"GENERAL",null); }
     @SuppressWarnings("unchecked")
     private SseEmitter register(String actor) {
-        var map=(ConcurrentHashMap<String,CopyOnWriteArraySet<SseEmitter>>)ReflectionTestUtils.getField(service,"emittersByUser");
         var emitter=mock(SseEmitter.class);
-        map.computeIfAbsent(actor,k->new CopyOnWriteArraySet<>()).add(emitter);return emitter;
+        com.example.panel.support.GeneralTicketActorTestSupport.register(service,
+            auth(jdbc,actor),emitter);return emitter;
     }
     @ParameterizedTest @ValueSource(strings={"ticket_created","client_message_created","client_message_edited","operator_message_edited","feedback_created","ticket_closed_auto","ticket_closed","ticket_reopened","ticket_status_changed","operator_reply_changed","assignment_changed","participants_changed"})
     void onlyExplicitGeneralReaderReceivesEachWhitelistedEvent(String event) throws Exception {
         var reader=register("reader");var all=register("other");
         service.publish(captured(),event);
         verify(reader).send(any(SseEmitter.SseEventBuilder.class));verifyNoInteractions(all,redis);
-        assertThat(service.canRead("READER",scope)).isTrue();
+        assertThat(service.canRead(auth(jdbc,"READER"),scope)).isTrue();
         assertThat(captured().isValid()).isFalse(); // Never widen legacy scope validation.
     }
     @ParameterizedTest @ValueSource(strings={"revoke","delete-grant","delete-account","disabled","blocked","case-collision","missing-schema","flag"})
@@ -84,7 +85,7 @@ class GeneralTicketRealtimePostgresTest {
         }
         service.deliver(new GeneralTicketRealtimeService.Event(1,scope,"feedback_created"));
         verifyNoInteractions(reader);
-        assertThatThrownBy(()->service.connect("reader")).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(()->service.connect(auth(jdbc,"reader"))).isInstanceOf(AccessDeniedException.class);
         service.sendHeartbeat();verify(reader).complete();
         clearInvocations(reader);service.sendHeartbeat();verifyNoInteractions(reader);
     }
@@ -122,9 +123,9 @@ class GeneralTicketRealtimePostgresTest {
     }
     @Test void paddedPrincipalCannotBorrowAnotherCanonicalAccountsGrant() {
         jdbc.update("INSERT INTO users VALUES(3,' reader ',TRUE,FALSE)");
-        assertThat(service.canRead(" reader ",scope)).isFalse();
-        assertThatThrownBy(()->service.connect(" reader ")).isInstanceOf(AccessDeniedException.class);
-        assertThat(service.canRead("reader",scope)).isTrue();
+        assertThat(service.canRead(auth(jdbc," reader "),scope)).isFalse();
+        assertThatThrownBy(()->service.connect(auth(jdbc," reader "))).isInstanceOf(AccessDeniedException.class);
+        assertThat(service.canRead(auth(jdbc,"reader"),scope)).isTrue();
     }
     @ParameterizedTest @ValueSource(strings={"feedback_created","participants_changed"})
     void browserReceivesOnlyPublicInvalidationAndNoRawOwnerOrText(String eventType) throws Exception {
