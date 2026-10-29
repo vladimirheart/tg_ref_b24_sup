@@ -180,9 +180,9 @@ class GeneralTicketControllersWebMvcTest {
         }
         mvc.perform(put(path).with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")))
             .andExpect(status().isForbidden());
-        verify(access, never()).grantRead(5L);
-        when(access.grantRead(5L)).thenReturn(true);
-        when(access.revokeRead(5L)).thenReturn(true);
+        verify(access, never()).grantRead(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class),org.mockito.ArgumentMatchers.eq(5L));
+        when(access.grantRead(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class),org.mockito.ArgumentMatchers.eq(5L))).thenReturn(true);
+        when(access.revokeRead(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class),org.mockito.ArgumentMatchers.eq(5L))).thenReturn(true);
         mvc.perform(put(path).with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")).with(csrf()))
             .andExpect(status().isNoContent());
         mvc.perform(delete(path).with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")).with(csrf()))
@@ -198,7 +198,7 @@ class GeneralTicketControllersWebMvcTest {
     @Test
     void adminAccountListingIsPrivateAndDoesNotRequireAReadGrant() throws Exception {
         enable();
-        when(access.accounts()).thenReturn(List.of(new GeneralTicketAccessService.AccountAccess(5, "operator", false)));
+        when(access.accounts(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class))).thenReturn(List.of(new GeneralTicketAccessService.AccountAccess(5, "operator", false)));
         mvc.perform(get("/api/general-ticket-admin/access")
                 .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")))
             .andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))

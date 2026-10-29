@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import static com.example.panel.support.GeneralTicketAdminTestSupport.administrator;
 import static com.example.panel.support.GeneralTicketActorTestSupport.auth;
 import static org.assertj.core.api.Assertions.*;
 import com.example.panel.config.MultibusinessFeatureFlags;
@@ -38,7 +39,7 @@ class GeneralTicketAssignmentPostgresTest {
         jdbc.update("INSERT INTO general_ticket_read_grants VALUES(1,TRUE,NULL),(2,TRUE,NULL),(3,TRUE,NULL)");
         jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,is_general,status,channel_id) VALUES(10,?,?,TRUE,'pending',9)",RAW,PUBLIC);
         flags=new MultibusinessFeatureFlags();flags.getFoundation().setEnabled(true);flags.setGeneralTicketQueue(true);
-        access=new GeneralTicketAccessService(jdbc);access.grantOperate(1);access.grantOperate(3);
+        access=new GeneralTicketAccessService(jdbc);access.grantOperate(administrator(jdbc),1);access.grantOperate(administrator(jdbc),3);
         var ids=new UiEventOutboxAppendService(jdbc,new LegacyTicketIdJdbcGuard(jdbc));
         assignments=new GeneralTicketAssignmentService(jdbc,flags,ids);work=new GeneralTicketWorkService(jdbc,ids,flags);
     }
@@ -64,8 +65,8 @@ class GeneralTicketAssignmentPostgresTest {
     void everyReadAndWriteReprovesOwnerAndCurrentAccount(String mutation) {
         assertThat(assign(0,1L)).isTrue();String identity="worker";
         switch(mutation) {
-            case "read"->access.revokeRead(1);
-            case "operate"->access.revokeOperate(1);
+            case "read"->access.revokeRead(administrator(jdbc),1);
+            case "operate"->access.revokeOperate(administrator(jdbc),1);
             case "disabled"->jdbc.update("UPDATE users SET enabled=FALSE WHERE id=1");
             case "blocked"->jdbc.update("UPDATE users SET is_blocked=TRUE WHERE id=1");
             case "duplicate"->jdbc.update("INSERT INTO users VALUES(5,'WORKER',FALSE,FALSE)");
@@ -89,8 +90,8 @@ class GeneralTicketAssignmentPostgresTest {
     void candidateEligibilityIsRecheckedInsideTheMutation(String mutation) {
         assertThat(assignments.candidates(scope,auth(jdbc,"worker"))).hasSize(2);
         switch(mutation) {
-            case "read"->access.revokeRead(3);
-            case "operate"->access.revokeOperate(3);
+            case "read"->access.revokeRead(administrator(jdbc),3);
+            case "operate"->access.revokeOperate(administrator(jdbc),3);
             case "disabled"->jdbc.update("UPDATE users SET enabled=FALSE WHERE id=3");
             case "blocked"->jdbc.update("UPDATE users SET is_blocked=TRUE WHERE id=3");
             case "duplicate"->jdbc.update("INSERT INTO users VALUES(5,'CANDIDATE',FALSE,FALSE)");
@@ -121,7 +122,7 @@ class GeneralTicketAssignmentPostgresTest {
         assertThat(assign(1,3L)).isFalse();assertThat(assignments.current(scope,auth(jdbc,"reader")).orElseThrow().revision()).isEqualTo(3);
     }
     @Test void revokedAssigneeStaysHistoricalAndCanBeReplacedWithoutRestoringRights() {
-        assertThat(assign(0,3L)).isTrue();access.revokeRead(3);
+        assertThat(assign(0,3L)).isTrue();access.revokeRead(administrator(jdbc),3);
         var state=assignments.current(scope,auth(jdbc,"reader")).orElseThrow();
         assertThat(state.assignee()).isEqualTo("candidate");assertThat(state.eligible()).isFalse();
         assertThat(assign(1,1L)).isTrue();assertThat(access.canRead(3L)).isFalse();

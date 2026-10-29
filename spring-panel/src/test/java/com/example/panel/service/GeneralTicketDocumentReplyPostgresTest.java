@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import static com.example.panel.support.GeneralTicketAdminTestSupport.administrator;
 import static com.example.panel.support.GeneralTicketActorTestSupport.auth;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -46,7 +47,7 @@ class GeneralTicketDocumentReplyPostgresTest {
         jdbc.update("INSERT INTO messages(group_msg_id,user_id,ticket_id,channel_id) VALUES(?,?,?,?)",owner,owner,raw,channel);
         root(scope.ticketPublicId());
         flags=new MultibusinessFeatureFlags();flags.getFoundation().setEnabled(true);flags.setGeneralTicketQueue(true);
-        access=new GeneralTicketAccessService(jdbc);access.grantRead(actorId);access.grantOperate(actorId);
+        access=new GeneralTicketAccessService(jdbc);access.grantRead(administrator(jdbc),actorId);access.grantOperate(administrator(jdbc),actorId);
         transport=mock(DialogReplyTransportService.class);storage=mock(AttachmentObjectStorageService.class);
         when(storage.providerLabel()).thenReturn("s3");
         when(storage.storeDialogAttachment(anyString(),anyString(),anyString(),any())).thenAnswer(call->{
@@ -98,7 +99,7 @@ class GeneralTicketDocumentReplyPostgresTest {
         assertThat(prepare()).isTrue();mutate(mutation);documents.dispatch(key);assertThat(state()).isEqualTo("CANCELLED");assertThat(history()).isZero();verifyNoInteractions(transport,storage);
     }
     private void mutate(String mutation){switch(mutation){
-        case "read"->access.revokeRead(actorId);case "operate"->access.revokeOperate(actorId);
+        case "read"->access.revokeRead(administrator(jdbc),actorId);case "operate"->access.revokeOperate(administrator(jdbc),actorId);
         case "disabled"->jdbc.update("UPDATE users SET enabled=FALSE WHERE id=?",actorId);
         case "blocked"->jdbc.update("UPDATE users SET is_blocked=TRUE WHERE id=?",actorId);
         case "duplicate"->jdbc.update("INSERT INTO users(username,password,enabled) VALUES(?,'unused',TRUE)",actor.toUpperCase());
@@ -127,7 +128,7 @@ class GeneralTicketDocumentReplyPostgresTest {
         assertThat(documents.prepare(scope,auth(jdbc,actor),0,key,"Подпись",new MockMultipartFile("file","other.pdf","application/pdf",bytes),destination)).isFalse();
         assertThat(documents.prepare(scope,auth(jdbc,actor),0,key,"Подпись",new MockMultipartFile("file","Отчёт 😀.pdf","application/pdf",new byte[]{9}),destination)).isFalse();
         String other=actor+"-other";long id=jdbc.queryForObject("INSERT INTO users(username,password,enabled) VALUES(?,'unused',TRUE) RETURNING id",Long.class,other);
-        access.grantRead(id);access.grantOperate(id);assertThat(documents.prepare(scope,auth(jdbc,other),0,key,"Подпись",file(),destination)).isFalse();
+        access.grantRead(administrator(jdbc),id);access.grantOperate(administrator(jdbc),id);assertThat(documents.prepare(scope,auth(jdbc,other),0,key,"Подпись",file(),destination)).isFalse();
         assertThatThrownBy(()->jdbc.update("UPDATE general_ticket_document_replies SET original_name='tampered',state='SENDING' WHERE request_key=?",key)).isInstanceOf(RuntimeException.class);
         assertThatThrownBy(()->jdbc.update("DELETE FROM general_ticket_document_replies WHERE request_key=?",key)).isInstanceOf(RuntimeException.class);
         assertThatThrownBy(()->jdbc.update("DELETE FROM general_ticket_document_events WHERE request_key=?",key)).isInstanceOf(RuntimeException.class);
@@ -155,7 +156,7 @@ class GeneralTicketDocumentReplyPostgresTest {
     void downloadReferenceRequiresCurrentReadCanonicalFileGenerationAndMetadata(String mutation){
         assertThat(submit()).isTrue();long h=historyId();
         switch(mutation){
-            case "read"->access.revokeRead(actorId);
+            case "read"->access.revokeRead(administrator(jdbc),actorId);
             case "scope"->jdbc.update("UPDATE tickets SET is_general=FALSE,general_selection_source=NULL WHERE ticket_public_id=?",scope.ticketPublicId());
             case "owner"->jdbc.update("UPDATE chat_history SET ticket_owner_user_id=NULL WHERE id=?",h);
             case "generation"->jdbc.update("UPDATE chat_history SET ticket_public_id=? WHERE id=?",key(),h);
@@ -187,7 +188,7 @@ class GeneralTicketDocumentReplyPostgresTest {
     }
     @Test void grantRevocationWaitsForProviderBoundaryAndPreventsTheNextIntent()throws Exception{
         var pool=Executors.newSingleThreadExecutor();var started=new CountDownLatch(1);final Future<?>[] revoked=new Future<?>[1];
-        doAnswer(call->{revoked[0]=pool.submit(()->{started.countDown();access.revokeOperate(actorId);});
+        doAnswer(call->{revoked[0]=pool.submit(()->{started.countDown();access.revokeOperate(administrator(jdbc),actorId);});
             assertThat(started.await(5,TimeUnit.SECONDS)).isTrue();
             assertThatThrownBy(()->revoked[0].get(150,TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
             assertThat(((BooleanSupplier)call.getArgument(4)).getAsBoolean()).isTrue();return DialogReplyTransportService.DialogReplyTransportResult.success(77L,1L);
@@ -209,7 +210,7 @@ class GeneralTicketDocumentReplyPostgresTest {
     }
     @Test void actualNetworkBoundaryRechecksGrantAfterCreatingHttpClient()throws Exception{
         var network=mock(IntegrationNetworkService.class);var client=mock(java.net.http.HttpClient.class);
-        when(network.createChannelHttpClient(any(),any())).thenAnswer(call->{access.revokeOperate(actorId);return client;});
+        when(network.createChannelHttpClient(any(),any())).thenAnswer(call->{access.revokeOperate(administrator(jdbc),actorId);return client;});
         var guarded=new DialogReplyTransportService(mock(com.example.panel.repository.ChannelRepository.class),network,new com.fasterxml.jackson.databind.ObjectMapper());
         documents=new GeneralTicketDocumentReplyService(jdbc,flags,guarded,storage,new UiEventOutboxAppendService(jdbc,new LegacyTicketIdJdbcGuard(jdbc)));
         assertThat(submit()).isTrue();assertThat(state()).isEqualTo("CANCELLED");

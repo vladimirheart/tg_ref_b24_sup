@@ -34,7 +34,7 @@ public class GeneralTicketAccessController {
     public ResponseEntity<List<GeneralTicketAccessService.AccountAccess>> accounts(Authentication actor) {
         requireEnabled();
         access.requireAuthenticatedUserId(actor);
-        return ResponseEntity.ok().header("Cache-Control", "no-store").body(access.accounts());
+        return ResponseEntity.ok().header("Cache-Control", "no-store").body(access.accounts(actor));
     }
 
     @PutMapping("/{userId}")
@@ -42,7 +42,7 @@ public class GeneralTicketAccessController {
         requireEnabled();
         access.requireAuthenticatedUserId(actor);
         if (userId <= 0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
-        if (!access.grantRead(userId)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        if (!access.grantRead(actor,userId)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         log.info("GENERAL ticket READ granted: actor={}, userId={}", actor.getName(), userId);
         return ResponseEntity.noContent().build();
     }
@@ -52,7 +52,7 @@ public class GeneralTicketAccessController {
         requireEnabled();
         access.requireAuthenticatedUserId(actor);
         if (userId <= 0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
-        if (!access.revokeRead(userId)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        if (!access.revokeRead(actor,userId)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         log.info("GENERAL ticket READ revoked: actor={}, userId={}", actor.getName(), userId);
         return ResponseEntity.noContent().build();
     }
@@ -62,7 +62,7 @@ public class GeneralTicketAccessController {
         requireEnabled();
         access.requireAuthenticatedUserId(actor);
         if (userId <= 0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
-        if (!access.grantOperate(userId)) throw new ResponseStatusException(HttpStatus.CONFLICT,"Требуется действующий GENERAL READ");
+        if (!access.grantOperate(actor,userId)) throw new ResponseStatusException(HttpStatus.CONFLICT,"Требуется действующий GENERAL READ");
         log.info("GENERAL ticket OPERATE granted: actor={}, userId={}",actor.getName(),userId);
         return ResponseEntity.noContent().build();
     }
@@ -71,7 +71,7 @@ public class GeneralTicketAccessController {
         requireEnabled();
         access.requireAuthenticatedUserId(actor);
         if (userId <= 0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
-        if (!access.revokeOperate(userId)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        if (!access.revokeOperate(actor,userId)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         log.info("GENERAL ticket OPERATE revoked: actor={}, userId={}",actor.getName(),userId);
         return ResponseEntity.noContent().build();
     }

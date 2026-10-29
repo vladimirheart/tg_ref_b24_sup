@@ -11,6 +11,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.*;
 import org.springframework.security.core.Authentication;
+import static com.example.panel.support.GeneralTicketAdminTestSupport.administrator;
 import static com.example.panel.support.GeneralEntryIdentityFixture.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -61,8 +62,8 @@ class GeneralEntryIdentityPostgresTest {
         jdbc.execute("TRUNCATE general_ticket_read_grants,general_ticket_operate_grants");
         assertThat(resolve(access,auth(7,"caller"))).isEqualTo(7);
         assertThat(access.canRead(7L)).isFalse();assertThat(access.canOperate(7L)).isFalse();
-        assertThat(access.grantOperate(7)).isFalse();assertThat(access.grantRead(7)).isTrue();
-        assertThat(access.grantOperate(7)).isTrue();assertThat(access.revokeRead(7)).isTrue();
+        assertThat(access.grantOperate(administrator(jdbc),7)).isFalse();assertThat(access.grantRead(administrator(jdbc),7)).isTrue();
+        assertThat(access.grantOperate(administrator(jdbc),7)).isTrue();assertThat(access.revokeRead(administrator(jdbc),7)).isTrue();
         assertThat(access.canRead(7L)).isFalse();assertThat(access.canOperate(7L)).isFalse();
     }
     @Test void databaseFailureIsNotAUsernameFallback() {

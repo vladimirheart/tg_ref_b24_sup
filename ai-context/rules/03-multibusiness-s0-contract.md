@@ -24,11 +24,40 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R228 и runtime R223 имеют
+что production уже запускался. Эта оговорка, source-сводка R229 и runtime R223 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
+
+Source R229 (не развёрнут):5 GENERAL grant/list entries принимают исходный
+Authentication, без actorless public fallback. Owning SQL проверяет current
+ID/raw name/status/ambiguity и effective ROLE_ADMIN+PAGE_SETTINGS: direct,
+assigned-role, mixed. Новый PanelRolePermissionSnapshot использует существующие
+UserRepositoryUserDetailsService page parsers; SQL сверяет role ID/raw values/
+current assignment и блокирует account/authority/role rows до конца statement.
+Snapshot read не является разрешением; изменения после capture закрыты SQL proof.
+GENERAL READ не требуется админу и не назначается ему автоматически. Target READ/
+OPERATE eligibility, revoke cascade/idempotency/URL/payload/flags/CSRF прежние;
+late deny403. 1108 tests /14 suites GREEN:365 frozen new cases и743
+existing (30 selected media/followup included), errors/failures/skips0.
+Expanded unchanged baseline365/200failures/0errors; frozen source/class/cases same.
+30 backend Lock-wait races и15 role snapshot→SQL mutations проверены. Scope20:
+3 main/11 old+3 new tests/task/S0/changelog. Старые assertions не ослаблены;
+fixture admin отдельный, recipient roles не меняются. R228529 не rerun,
+их source/class/CURRENT/READ/OPERATE прежние. V2 interrupted after direct-only
+role coverage gap; partial XML/log retained,13 sandbox files restored before
+180 extra role cases/v3 RED; final v4 GREEN. Verified1371Java/2226class cache,
+changed sources recompiled/nativePG16.15/test schemas/ignored supplier guards;
+Docker не запускался, owned server остановлен. Schema83/UI/deps/flags unchanged.
+Source/test машина C:\Users\sushi\Git_H\tg_ref_b24_sup; рабочий экземпляр на другой
+машине/сессии C:\Users\SinicinVV\git_h\tg_ref_b24_sup. Последний документированный
+runtimeR223: webR222/workerR198/foundationOFF/readiness200UP/health503DOWN из-за
+прежнего inboundDLQ1. Полные R184/R198/R204/R207/R216/R223 runtime/rollback/V83
+blocks сохранены. Working DB/deploy/restart/flags/provider/queue не затрагивались;
+V83 не повторять. R224–R226 и R228–R229 требуют будущего panel-web image;
+R227 tests/docs отдельного rollout не требует. Развёртывание R229 не заявляется.
+Остаток: child/media/policy/AI/fleet/flags/S6/DLQ; Task🟡/S2B снятR190.
 
 Source R228 (не развёрнут): GENERAL work/write/SSE принимает исходный
 Authentication и immutable numeric ID/exact raw-name snapshot. 9 services/29 actor

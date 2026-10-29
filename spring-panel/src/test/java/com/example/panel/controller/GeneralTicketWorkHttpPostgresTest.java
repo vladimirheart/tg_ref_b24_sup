@@ -1,5 +1,6 @@
 package com.example.panel.controller;
 
+import static com.example.panel.support.GeneralTicketAdminTestSupport.administrator;
 import static com.example.panel.support.GeneralTicketActorTestSupport.auth;
 import static org.assertj.core.api.Assertions.*;
 import static org.hamcrest.Matchers.*;
@@ -85,7 +86,7 @@ class GeneralTicketWorkHttpPostgresTest {
         flags.getFoundation().setEnabled(true);flags.setGeneralTicketQueue(true);
         String prefix="r135-"+IDS.incrementAndGet();worker=prefix+"-worker";reader=prefix+"-reader";admin=prefix+"-admin";
         workerId=account(worker);readerId=account(reader);account(admin);
-        access.grantRead(workerId);access.grantRead(readerId);assertThat(access.grantOperate(workerId)).isTrue();
+        access.grantRead(administrator(jdbc),workerId);access.grantRead(administrator(jdbc),readerId);assertThat(access.grantOperate(administrator(jdbc),workerId)).isTrue();
         publicId=UUID.randomUUID().toString().replace("-","");raw="private "+prefix;owner=IDS.incrementAndGet();
         jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,is_general,general_selection_source,status) VALUES(?,?,?,TRUE,'GENERAL_CHANNEL','pending')",owner,raw,publicId);
         root="/general-dialog-work/"+publicId;
@@ -129,8 +130,8 @@ class GeneralTicketWorkHttpPostgresTest {
         var scope=new GeneralTicketEventScope(owner,raw,publicId);
         doAnswer(call->{
             switch(mutation) {
-                case "operate"->access.revokeOperate(workerId);
-                case "read"->access.revokeRead(workerId);
+                case "operate"->access.revokeOperate(administrator(jdbc),workerId);
+                case "read"->access.revokeRead(administrator(jdbc),workerId);
                 case "owner"->jdbc.update("UPDATE tickets SET is_general=FALSE,general_selection_source=NULL WHERE ticket_public_id=?",publicId);
                 case "revision"->{jdbc.update("UPDATE tickets SET status='open' WHERE ticket_public_id=?",publicId);jdbc.update("UPDATE tickets SET status='pending' WHERE ticket_public_id=?",publicId);}
             } return call.callRealMethod();
@@ -140,7 +141,7 @@ class GeneralTicketWorkHttpPostgresTest {
     }
     @Test void administratorManagesSeparateOperateAndReadRestoreDoesNotRestoreIt() throws Exception {
         String target="/api/general-ticket-admin/access/"+workerId;
-        access.revokeOperate(workerId);
+        access.revokeOperate(administrator(jdbc),workerId);
         mvc.perform(actor(put(target+"/operate"),admin,"PAGE_SETTINGS","ROLE_ADMIN"))
             .andExpect(status().isForbidden()).andExpect(jsonPath("$.success").value(false));
         assertThat(work.find(publicId,auth(jdbc,worker)).orElseThrow().canOperate()).isFalse();
@@ -223,13 +224,13 @@ class GeneralTicketWorkHttpPostgresTest {
             .andExpect(content().string(not(containsString("data-general-active-interval"))))
             .andExpect(content().string(not(containsString("87654"))));
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM general_ticket_work_intervals WHERE ticket_public_id=? AND outcome='COMPLETED'",Integer.class,publicId)).isEqualTo(1);
-        access.revokeRead(readerId);
+        access.revokeRead(administrator(jdbc),readerId);
         mvc.perform(actor(get(root),reader,"PAGE_DIALOGS")).andExpect(status().isNotFound());
         verifyNoInteractions(replyTransport);
     }
     @Test void renderedAssignmentFormUsesActualCsrfAndReadOnlyHistory() throws Exception {
         String targetName="<staff-"+IDS.incrementAndGet()+">";long target=account(targetName);
-        access.grantRead(target);access.grantOperate(target);
+        access.grantRead(administrator(jdbc),target);access.grantOperate(administrator(jdbc),target);
         var jar=new LinkedHashMap<String,Cookie>();
         var initial=mvc.perform(actor(get(root),worker,"PAGE_DIALOGS")).andExpect(status().isOk()).andReturn();
         String html=initial.getResponse().getContentAsString();String assignmentForm=form(html,"data-general-assignment-form");
@@ -241,7 +242,7 @@ class GeneralTicketWorkHttpPostgresTest {
         mvc.perform(actor(get(root),reader,"PAGE_DIALOGS")).andExpect(status().isOk())
             .andExpect(content().string(containsString("&lt;staff-")))
             .andExpect(content().string(not(containsString("data-general-assignment-form"))));
-        access.revokeRead(target);
+        access.revokeRead(administrator(jdbc),target);
         var current=mvc.perform(actor(get(root).cookie(captureCookies(jar,saved)),worker,"PAGE_DIALOGS")).andExpect(status().isOk()).andReturn();
         String currentForm=form(current.getResponse().getContentAsString(),"data-general-assignment-form");
         assertThat(current.getResponse().getContentAsString()).contains("больше нет действующих прав GENERAL");
@@ -268,14 +269,14 @@ class GeneralTicketWorkHttpPostgresTest {
     }
     @ParameterizedTest @ValueSource(strings={"actor-read","actor-operate","target-read","target-operate","owner","revision","assignment","flag"})
     void assignmentReprovesChangesAfterControllerPrecheck(String mutation) throws Exception {
-        long target=account("assign-target-"+IDS.incrementAndGet());access.grantRead(target);access.grantOperate(target);
+        long target=account("assign-target-"+IDS.incrementAndGet());access.grantRead(administrator(jdbc),target);access.grantOperate(administrator(jdbc),target);
         var scope=new GeneralTicketEventScope(owner,raw,publicId);
         doAnswer(call->{
             switch(mutation) {
-                case "actor-read"->access.revokeRead(workerId);
-                case "actor-operate"->access.revokeOperate(workerId);
-                case "target-read"->access.revokeRead(target);
-                case "target-operate"->access.revokeOperate(target);
+                case "actor-read"->access.revokeRead(administrator(jdbc),workerId);
+                case "actor-operate"->access.revokeOperate(administrator(jdbc),workerId);
+                case "target-read"->access.revokeRead(administrator(jdbc),target);
+                case "target-operate"->access.revokeOperate(administrator(jdbc),target);
                 case "owner"->jdbc.update("UPDATE tickets SET is_general=FALSE,general_selection_source=NULL WHERE ticket_public_id=?",publicId);
                 case "revision"->jdbc.update("UPDATE tickets SET status='open' WHERE ticket_public_id=?",publicId);
                 case "assignment"->assertThat(assignments.assign(scope,auth(jdbc,worker),0,0,workerId)).isTrue();
@@ -339,7 +340,7 @@ class GeneralTicketWorkHttpPostgresTest {
         flags.setManualTicketCreation(true);String key=UUID.randomUUID().toString().replace("-","");
         doAnswer(call->{
             switch(mutation) {
-                case "read"->access.revokeRead(workerId);case "operate"->access.revokeOperate(workerId);
+                case "read"->access.revokeRead(administrator(jdbc),workerId);case "operate"->access.revokeOperate(administrator(jdbc),workerId);
                 case "disabled"->jdbc.update("UPDATE users SET enabled=FALSE WHERE id=?",workerId);
                 case "duplicate"->account(worker.toUpperCase(java.util.Locale.ROOT));
                 case "manual"->flags.setManualTicketCreation(false);
@@ -397,8 +398,8 @@ class GeneralTicketWorkHttpPostgresTest {
         replyDestination();var scope=new GeneralTicketEventScope(owner,raw,publicId);
         doAnswer(call->{
             switch(mutation) {
-                case "read"->access.revokeRead(workerId);
-                case "operate"->access.revokeOperate(workerId);
+                case "read"->access.revokeRead(administrator(jdbc),workerId);
+                case "operate"->access.revokeOperate(administrator(jdbc),workerId);
                 case "owner"->jdbc.update("UPDATE tickets SET is_general=FALSE,general_selection_source=NULL WHERE ticket_public_id=?",publicId);
                 case "channel"->jdbc.update("UPDATE channels SET is_active=FALSE WHERE id=(SELECT channel_id FROM tickets WHERE ticket_public_id=?)",publicId);
                 case "revision"->jdbc.update("UPDATE tickets SET status='open' WHERE ticket_public_id=?",publicId);
@@ -500,18 +501,18 @@ class GeneralTicketWorkHttpPostgresTest {
     void participantMutationsRequireCurrentGeneralOwnerAndIndependentGrants(String mutation) {
         var expected=participantScope();String identity=worker;
         switch(mutation){
-            case "member-read"->access.revokeRead(readerId);
+            case "member-read"->access.revokeRead(administrator(jdbc),readerId);
             case "member-disabled"->jdbc.update("UPDATE users SET enabled=FALSE WHERE id=?",readerId);
             case "member-blocked"->jdbc.update("UPDATE users SET is_blocked=TRUE WHERE id=?",readerId);
             case "member-duplicate"->account(reader.toUpperCase(java.util.Locale.ROOT));
-            case "member-business-only"->{access.revokeRead(readerId);jdbc.update("INSERT INTO business_access_grants(user_id,grant_scope,role_code) VALUES(?,'ALL_BUSINESSES','ADMIN')",readerId);}
+            case "member-business-only"->{access.revokeRead(administrator(jdbc),readerId);jdbc.update("INSERT INTO business_access_grants(user_id,grant_scope,role_code) VALUES(?,'ALL_BUSINESSES','ADMIN')",readerId);}
             case "member-ai"->jdbc.update("UPDATE users SET username=' AI_AGENT ' WHERE id=?",readerId);
-            case "actor-read"->access.revokeRead(workerId);
-            case "actor-operate"->access.revokeOperate(workerId);
+            case "actor-read"->access.revokeRead(administrator(jdbc),workerId);
+            case "actor-operate"->access.revokeOperate(administrator(jdbc),workerId);
             case "actor-disabled"->jdbc.update("UPDATE users SET enabled=FALSE WHERE id=?",workerId);
             case "actor-blocked"->jdbc.update("UPDATE users SET is_blocked=TRUE WHERE id=?",workerId);
             case "actor-duplicate"->account(worker.toUpperCase(java.util.Locale.ROOT));
-            case "actor-business-only"->{access.revokeRead(workerId);jdbc.update("INSERT INTO business_access_grants(user_id,grant_scope,role_code) VALUES(?,'ALL_BUSINESSES','ADMIN')",workerId);}
+            case "actor-business-only"->{access.revokeRead(administrator(jdbc),workerId);jdbc.update("INSERT INTO business_access_grants(user_id,grant_scope,role_code) VALUES(?,'ALL_BUSINESSES','ADMIN')",workerId);}
             case "actor-ai"->{identity=" AI_AGENT  ";jdbc.update("UPDATE users SET username=? WHERE id=?",identity,workerId);}
             case "padded-principal"->identity=" "+worker+" ";
             case "owner"->jdbc.update("UPDATE tickets SET user_id=? WHERE ticket_public_id=?",owner+1000000,publicId);
@@ -530,8 +531,8 @@ class GeneralTicketWorkHttpPostgresTest {
     @ParameterizedTest @ValueSource(strings={"read","operate","member-read","revision"})
     void participantControllerReadIsNotFinalAuthority(String mutation)throws Exception {
         doAnswer(call->{switch(mutation){
-            case "read"->access.revokeRead(workerId);case "operate"->access.revokeOperate(workerId);
-            case "member-read"->access.revokeRead(readerId);case "revision"->jdbc.update("UPDATE tickets SET status='open' WHERE ticket_public_id=?",publicId);
+            case "read"->access.revokeRead(administrator(jdbc),workerId);case "operate"->access.revokeOperate(administrator(jdbc),workerId);
+            case "member-read"->access.revokeRead(administrator(jdbc),readerId);case "revision"->jdbc.update("UPDATE tickets SET status='open' WHERE ticket_public_id=?",publicId);
         }return call.callRealMethod();}).when(participants).change(eq(participantScope()),org.mockito.ArgumentMatchers.argThat(a->a!=null&&a.getName().equals(worker)&&a.getPrincipal() instanceof com.example.panel.security.PanelUserPrincipal p&&p.getUserId()==workerId),eq(0L),eq(0L),eq(readerId),eq(true));
         mvc.perform(actor(participantCommand("add","0","0",Long.toString(readerId)),worker,"PAGE_DIALOGS").with(csrf())).andExpect(status().isConflict());
         assertThat(participantEvents()).isZero();assertThat(participantOutbox()).isZero();
@@ -547,8 +548,8 @@ class GeneralTicketWorkHttpPostgresTest {
             String sql=((org.springframework.jdbc.core.SqlProvider)creator).getSql();
             if((sql.startsWith("INSERT INTO general_ticket_participants")||sql.startsWith("DELETE FROM general_ticket_participants"))&&injected.compareAndSet(false,true)){
                 // Same test transaction: deterministic final-statement injection, not a grant lock bypass.
-                if(mutation.equals("actor"))access.revokeOperate(workerId);
-                if(mutation.equals("member"))access.revokeRead(readerId);
+                if(mutation.equals("actor"))access.revokeOperate(administrator(jdbc),workerId);
+                if(mutation.equals("member"))access.revokeRead(administrator(jdbc),readerId);
                 if(mutation.equals("owner"))jdbc.update("UPDATE tickets SET user_id=? WHERE ticket_public_id=?",owner+1000000,publicId);
                 if(mutation.equals("collision"))jdbc.update("INSERT INTO tickets(user_id,ticket_id,status) VALUES(?,?,'open')",owner+1,raw);
             }
@@ -614,7 +615,7 @@ class GeneralTicketWorkHttpPostgresTest {
     @ParameterizedTest @ValueSource(strings={"read","disabled","deleted"})
     void operatorCanRemoveAnInaccessibleOrDeletedGeneralMember(String kind) {
         assertThat(participants.change(participantScope(),auth(jdbc,worker),0,0,readerId,true)).isTrue();
-        if(kind.equals("read"))access.revokeRead(readerId);
+        if(kind.equals("read"))access.revokeRead(administrator(jdbc),readerId);
         if(kind.equals("disabled"))jdbc.update("UPDATE users SET enabled=FALSE WHERE id=?",readerId);
         if(kind.equals("deleted"))jdbc.update("DELETE FROM users WHERE id=?",readerId);
         assertThat(participants.members(participantScope(),auth(jdbc,worker))).singleElement().satisfies(m->assertThat(m.eligible()).isFalse());
@@ -624,7 +625,7 @@ class GeneralTicketWorkHttpPostgresTest {
     @Test void numericMembershipDoesNotTransferOnRenameOrReusedUsername() {
         assertThat(participants.change(participantScope(),auth(jdbc,worker),0,0,readerId,true)).isTrue();
         String renamed=reader+" renamed";jdbc.update("UPDATE users SET username=? WHERE id=?",renamed,readerId);
-        long reused=account(reader);access.grantRead(reused);
+        long reused=account(reader);access.grantRead(administrator(jdbc),reused);
         assertThat(participants.members(participantScope(),auth(jdbc,worker))).singleElement().satisfies(m->{assertThat(m.id()).isEqualTo(readerId);assertThat(m.username()).isEqualTo(renamed);});
         assertThat(participants.candidates(participantScope(),auth(jdbc,worker),0)).extracting(GeneralTicketParticipantService.Candidate::id).contains(reused).doesNotContain(readerId);
     }
@@ -796,8 +797,8 @@ class GeneralTicketWorkHttpPostgresTest {
         String source=confirmedReply();var post=changeReplyPost(source);var scope=new GeneralTicketEventScope(owner,raw,publicId);
         doAnswer(call->{
             switch(mutation) {
-                case "read"->access.revokeRead(workerId);
-                case "operate"->access.revokeOperate(workerId);
+                case "read"->access.revokeRead(administrator(jdbc),workerId);
+                case "operate"->access.revokeOperate(administrator(jdbc),workerId);
                 case "owner"->jdbc.update("UPDATE tickets SET is_general=FALSE,general_selection_source=NULL WHERE ticket_public_id=?",publicId);
                 case "revision"->jdbc.update("UPDATE tickets SET status='open' WHERE ticket_public_id=?",publicId);
                 case "flag"->flags.setGeneralTicketQueue(false);
@@ -858,7 +859,7 @@ class GeneralTicketWorkHttpPostgresTest {
     void documentReprovesLateChangesBeforePersistingOrSending(String mutation)throws Exception{
         String fingerprint=documentDestination();String key=UUID.randomUUID().toString().replace("-","");var scope=new GeneralTicketEventScope(owner,raw,publicId);
         doAnswer(call->{switch(mutation){
-            case "read"->access.revokeRead(workerId);case "operate"->access.revokeOperate(workerId);
+            case "read"->access.revokeRead(administrator(jdbc),workerId);case "operate"->access.revokeOperate(administrator(jdbc),workerId);
             case "scope"->jdbc.update("UPDATE tickets SET is_general=FALSE,general_selection_source=NULL WHERE ticket_public_id=?",publicId);
             case "revision"->jdbc.update("UPDATE tickets SET status='open' WHERE ticket_public_id=?",publicId);
             case "flag"->flags.setGeneralTicketQueue(false);
@@ -876,7 +877,7 @@ class GeneralTicketWorkHttpPostgresTest {
         switch(mutation){
             case "bytes"->documentObjects.put(object,new byte[5]);case "size"->documentObjects.put(object,new byte[2]);
             case "metadata"->jdbc.update("UPDATE chat_attachment_metadata SET content_hash='bad' WHERE chat_history_id=?",history);
-            case "late-read"->doAnswer(call->{access.revokeRead(readerId);byte[] bytes=documentObjects.get(object);
+            case "late-read"->doAnswer(call->{access.revokeRead(administrator(jdbc),readerId);byte[] bytes=documentObjects.get(object);
                 return new com.example.panel.storage.AttachmentObjectStorageService.StoredBinary(object,"application/octet-stream",bytes.length,new java.io.ByteArrayInputStream(bytes));
             }).when(documentStorage).openDialogAttachmentByStorageKey(eq(object));
         }

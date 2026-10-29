@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
 
+import static com.example.panel.support.GeneralTicketAdminTestSupport.administrator;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
@@ -47,7 +48,7 @@ class GeneralTicketReadServicePostgresIntegrationTest {
         assertThat(access.canRead(userId)).isFalse();
         assertThat(access.canRead(null)).isFalse();
         assertThat(access.canRead(-1L)).isFalse();
-        assertThat(access.accounts()).filteredOn(a -> a.userId() == userId)
+        assertThat(access.accounts(administrator(jdbc))).filteredOn(a -> a.userId() == userId)
             .singleElement().extracting(GeneralTicketAccessService.AccountAccess::canRead).isEqualTo(false);
         assertThatThrownBy(() -> access.requireAuthenticatedUserId(login(jdbc, "missing-user")))
             .isInstanceOf(AccessDeniedException.class);
@@ -63,12 +64,12 @@ class GeneralTicketReadServicePostgresIntegrationTest {
         assertThat(access.canRead(reader)).isFalse();
         assertThat(service.find(reader, id)).isEmpty();
         assertThatThrownBy(() -> service.page(reader, 50, 0, null, token)).isInstanceOf(AccessDeniedException.class);
-        assertThat(access.grantRead(reader)).isTrue();
-        assertThat(access.grantRead(reader)).isTrue();
+        assertThat(access.grantRead(administrator(jdbc),reader)).isTrue();
+        assertThat(access.grantRead(administrator(jdbc),reader)).isTrue();
         assertThat(access.requireAuthenticatedUserId(login(jdbc, "USER-" + reader))).isEqualTo(reader);
         assertThat(service.find(reader, id)).isPresent();
-        assertThat(access.revokeRead(reader)).isTrue();
-        assertThat(access.revokeRead(reader)).isTrue();
+        assertThat(access.revokeRead(administrator(jdbc),reader)).isTrue();
+        assertThat(access.revokeRead(administrator(jdbc),reader)).isTrue();
         assertThat(service.find(reader, id)).isEmpty();
         assertThat(service.history(reader, id, null, 50)).isEmpty();
         assertThat(service.answers(reader, id)).isEmpty();
@@ -76,9 +77,9 @@ class GeneralTicketReadServicePostgresIntegrationTest {
         // Simulates revocation after an early permission check: SQL itself must still deny data.
         GeneralTicketReadService racing = new GeneralTicketReadService(jdbc, mock(GeneralTicketAccessService.class));
         assertThat(racing.page(reader, 50, 0, null, token).tickets()).isEmpty();
-        assertThat(access.grantRead(Long.MAX_VALUE)).isFalse();
-        assertThatThrownBy(() -> access.grantRead(0)).isInstanceOf(IllegalArgumentException.class);
-        assertThat(access.grantRead(reader)).isTrue();
+        assertThat(access.grantRead(administrator(jdbc),Long.MAX_VALUE)).isFalse();
+        assertThatThrownBy(() -> access.grantRead(administrator(jdbc),0)).isInstanceOf(IllegalArgumentException.class);
+        assertThat(access.grantRead(administrator(jdbc),reader)).isTrue();
         assertThat(service.find(reader, id)).isPresent();
         jdbc.update("UPDATE users SET enabled = FALSE WHERE id = ?", reader);
         assertThat(access.canRead(reader)).isFalse();
@@ -90,7 +91,7 @@ class GeneralTicketReadServicePostgresIntegrationTest {
     @Test
     void queueFiltersCanonicalGeneralTicketsWithStablePagination() {
         long reader = account();
-        access.grantRead(reader);
+        access.grantRead(administrator(jdbc),reader);
         String token = token();
         String first = ticket(token + "-a", 201, true, null, "open", "Иван", "Проблема");
         String second = ticket(token + "-b", 202, true, null, "closed", "Иван", "Решена");
@@ -125,7 +126,7 @@ class GeneralTicketReadServicePostgresIntegrationTest {
     @Test
     void historyUsesCompositeOwnerIgnoresHistoricalChannelAndPaginatesWithoutDeletedRows() {
         long reader = account();
-        access.grantRead(reader);
+        access.grantRead(administrator(jdbc),reader);
         String raw = token();
         String id = ticket(raw, 301, true, null, "open", "Client", "Help");
         long old = history(raw, 301L, "old", null);
@@ -152,7 +153,7 @@ class GeneralTicketReadServicePostgresIntegrationTest {
     @Test
     void answersAndAttachmentsRequireExactUnambiguousRelationsAndCurrentGrant() {
         long reader = account();
-        access.grantRead(reader);
+        access.grantRead(administrator(jdbc),reader);
         String raw = token();
         String id = ticket(raw, 401, true, null, "open", "Client", "Help");
         jdbc.update("INSERT INTO ticket_attributes(ticket_id, question_id, attribute_key, input_type, question_text, value_text) "
@@ -179,7 +180,7 @@ class GeneralTicketReadServicePostgresIntegrationTest {
         assertThat(service.answers(reader, id).orElseThrow().relationVerified()).isFalse();
         assertThat(service.answers(reader, id).orElseThrow().answers()).isEmpty();
         assertThat(service.attachment(reader, id, historyId)).isEmpty();
-        access.revokeRead(reader);
+        access.revokeRead(administrator(jdbc),reader);
         assertThat(service.answers(reader, id)).isEmpty();
         assertThat(service.attachment(reader, id, historyId)).isEmpty();
     }
@@ -188,7 +189,7 @@ class GeneralTicketReadServicePostgresIntegrationTest {
     @org.junit.jupiter.params.provider.ValueSource(strings = {"blocked", "duplicate"})
     void blockedOrAmbiguousAccountCannotReadAnyGeneralSurface(String mutation) {
         long reader = account();
-        access.grantRead(reader);
+        access.grantRead(administrator(jdbc),reader);
         String raw = token();
         String id = ticket(raw, reader, true, null, "open", "Client", "Help");
         assertThat(service.find(reader, id)).isPresent();

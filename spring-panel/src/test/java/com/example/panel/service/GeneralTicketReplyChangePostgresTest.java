@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import static com.example.panel.support.GeneralTicketAdminTestSupport.administrator;
 import static com.example.panel.support.GeneralTicketActorTestSupport.auth;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -43,7 +44,7 @@ class GeneralTicketReplyChangePostgresTest {
         jdbc.update("INSERT INTO tickets(user_id,ticket_id,group_msg_id,channel_id,ticket_public_id,is_general,general_selection_source,status) VALUES(?,?,?,?,?,TRUE,'GENERAL_CHANNEL','pending')",
             owner,raw,owner,channelId,scope.ticketPublicId());
         flags=new MultibusinessFeatureFlags();flags.getFoundation().setEnabled(true);flags.setGeneralTicketQueue(true);
-        access=new GeneralTicketAccessService(jdbc);access.grantRead(accountId);assertThat(access.grantOperate(accountId)).isTrue();
+        access=new GeneralTicketAccessService(jdbc);access.grantRead(administrator(jdbc),accountId);assertThat(access.grantOperate(administrator(jdbc),accountId)).isTrue();
         transport=mock(DialogReplyTransportService.class);
         when(transport.sendTextGuarded(any(),anyLong(),anyString(),isNull(),any())).thenReturn(DialogReplyTransportService.DialogReplyTransportResult.success(77L,1L));
         when(transport.editTelegramMessageGuarded(any(),anyLong(),anyLong(),anyString(),any())).thenAnswer(call->{
@@ -104,8 +105,8 @@ class GeneralTicketReplyChangePostgresTest {
     }
     private void mutate(String mutation) {
         switch(mutation) {
-            case "read"->access.revokeRead(accountId);
-            case "operate"->access.revokeOperate(accountId);
+            case "read"->access.revokeRead(administrator(jdbc),accountId);
+            case "operate"->access.revokeOperate(administrator(jdbc),accountId);
             case "disabled"->jdbc.update("UPDATE users SET enabled=FALSE WHERE id=?",accountId);
             case "blocked"->jdbc.update("UPDATE users SET is_blocked=TRUE WHERE id=?",accountId);
             case "duplicate"->jdbc.update("INSERT INTO users(username,password,enabled) VALUES(?,'unused',TRUE)",actor.toUpperCase());
@@ -171,7 +172,7 @@ class GeneralTicketReplyChangePostgresTest {
     @Test void keyAndSnapshotAreBoundToCanonicalActorAndAction() {
         assertThat(changes.prepare(scope,auth(jdbc,actor),0,key,sourceKey,expected,"EDIT","Changed")).isTrue();
         String other=actor+"-other";long otherId=jdbc.queryForObject("INSERT INTO users(username,password,enabled) VALUES(?,'unused',TRUE) RETURNING id",Long.class,other);
-        access.grantRead(otherId);access.grantOperate(otherId);
+        access.grantRead(administrator(jdbc),otherId);access.grantOperate(administrator(jdbc),otherId);
         assertThat(changes.prepare(scope,auth(jdbc,other),0,key,sourceKey,expected,"EDIT","Changed")).isFalse();
         assertThat(submit("DELETE","")).isFalse();verifyNoInteractions(transport);
         assertThatThrownBy(()->jdbc.update("UPDATE general_ticket_reply_changes SET message='replacement',state='SENDING' WHERE request_key=?",key)).isInstanceOf(RuntimeException.class);
@@ -226,7 +227,7 @@ class GeneralTicketReplyChangePostgresTest {
     @Test void grantIsLockedAcrossProviderCallAndRevocationBlocksNextIntent() throws Exception {
         var pool=Executors.newSingleThreadExecutor();var started=new CountDownLatch(1);final Future<?>[] revocation=new Future<?>[1];
         doAnswer(call->{
-            revocation[0]=pool.submit(()->{started.countDown();access.revokeOperate(accountId);});
+            revocation[0]=pool.submit(()->{started.countDown();access.revokeOperate(administrator(jdbc),accountId);});
             assertThat(started.await(5,TimeUnit.SECONDS)).isTrue();
             assertThatThrownBy(()->revocation[0].get(150,TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
             assertThat(((BooleanSupplier)call.getArgument(4)).getAsBoolean()).isTrue();return DialogReplyTransportService.DialogReplyTransportResult.success(77L,1L);
@@ -237,7 +238,7 @@ class GeneralTicketReplyChangePostgresTest {
     @ParameterizedTest @ValueSource(strings={"EDIT","DELETE"})
     void actualTransportRechecksGuardAfterNetworkClientConstruction(String action) throws Exception {
         var network=mock(IntegrationNetworkService.class);var client=mock(HttpClient.class);
-        when(network.createChannelHttpClient(any(),any())).thenAnswer(call->{access.revokeOperate(accountId);return client;});
+        when(network.createChannelHttpClient(any(),any())).thenAnswer(call->{access.revokeOperate(administrator(jdbc),accountId);return client;});
         changes=service(new DialogReplyTransportService(mock(ChannelRepository.class),network,new ObjectMapper()));
         assertThat(submit(action,"EDIT".equals(action)?"Changed":"")).isTrue();assertThat(state()).isEqualTo("CANCELLED");
         verify(client,never()).send(any(),any(HttpResponse.BodyHandler.class));assertThat(text()).isEqualTo("Original");

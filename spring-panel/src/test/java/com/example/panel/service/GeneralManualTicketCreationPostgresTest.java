@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import static com.example.panel.support.GeneralTicketAdminTestSupport.administrator;
 import static com.example.panel.support.GeneralTicketActorTestSupport.auth;
 import static org.assertj.core.api.Assertions.*;
 import com.example.panel.config.MultibusinessFeatureFlags;
@@ -37,7 +38,7 @@ class GeneralManualTicketCreationPostgresTest {
         jdbc.update("INSERT INTO users VALUES(1,'worker',TRUE,FALSE),(2,'reader',TRUE,FALSE),(3,'other',TRUE,FALSE),(4,'admin',TRUE,FALSE)");
         jdbc.update("INSERT INTO general_ticket_read_grants VALUES(1,TRUE,NULL),(2,TRUE,NULL),(3,TRUE,NULL)");
         flags=new MultibusinessFeatureFlags();flags.getFoundation().setEnabled(true);flags.setGeneralTicketQueue(true);flags.setManualTicketCreation(true);
-        access=new GeneralTicketAccessService(jdbc);access.grantOperate(1);access.grantOperate(3);
+        access=new GeneralTicketAccessService(jdbc);access.grantOperate(administrator(jdbc),1);access.grantOperate(administrator(jdbc),3);
         service=new GeneralManualTicketCreationService(jdbc,flags,new UiEventOutboxAppendService(jdbc,new LegacyTicketIdJdbcGuard(jdbc)));
     }
     private java.util.Optional<String> create(){return service.create(auth(jdbc,"worker"),KEY,"  Анна  ","  Помощь\nСрочно  ");}
@@ -77,14 +78,14 @@ class GeneralManualTicketCreationPostgresTest {
         assertThat(jdbc.queryForObject("SELECT last_value FROM manual_client_user_id_seq",Long.class)).isEqualTo(sequence);
         assertThatThrownBy(()->jdbc.update("UPDATE general_manual_ticket_requests SET actor='changed'" )).isInstanceOf(DataAccessException.class);
         jdbc.update("UPDATE tickets SET status='closed'");assertThat(create()).contains(id);
-        access.revokeRead(1);assertThat(create()).isEmpty();assertThat(count("tickets")).isEqualTo(1);
+        access.revokeRead(administrator(jdbc),1);assertThat(create()).isEmpty();assertThat(count("tickets")).isEqualTo(1);
     }
     @ParameterizedTest @ValueSource(strings={"read","operate","disabled","blocked","duplicate","missing","principal","foundation","queue","manual"})
     void currentActorAndAllFlagsAreRequiredBeforeAllocation(String mutation) {
         String identity="worker";
         switch(mutation) {
-            case "read"->access.revokeRead(1);
-            case "operate"->access.revokeOperate(1);
+            case "read"->access.revokeRead(administrator(jdbc),1);
+            case "operate"->access.revokeOperate(administrator(jdbc),1);
             case "disabled"->jdbc.update("UPDATE users SET enabled=FALSE WHERE id=1");
             case "blocked"->jdbc.update("UPDATE users SET is_blocked=TRUE WHERE id=1");
             case "duplicate"->jdbc.update("INSERT INTO users VALUES(5,'WORKER',FALSE,FALSE)");
@@ -206,7 +207,7 @@ class GeneralManualTicketCreationPostgresTest {
                 .containsEntry("questionnaire_version",null).containsEntry("responsibility_revision",0L)
                 .containsEntry("business_work_revision",0L).containsEntry("categories","[]"));
         assertThat(upgrade.queryForObject("SELECT COUNT(*) FROM manual_general_clients",Integer.class)).isZero();
-        var grants=new GeneralTicketAccessService(upgrade);grants.grantRead(actor);grants.grantOperate(actor);
+        var grants=new GeneralTicketAccessService(upgrade);grants.grantRead(administrator(upgrade),actor);grants.grantOperate(administrator(upgrade),actor);
         var general=new GeneralManualTicketCreationService(upgrade,flags,new UiEventOutboxAppendService(upgrade,new LegacyTicketIdJdbcGuard(upgrade)));
         String id=general.create(auth(upgrade,"operator"),KEY,"Общий клиент","Общий вопрос").orElseThrow();
         long generalId=upgrade.queryForObject("SELECT user_id FROM tickets WHERE ticket_public_id=?",Long.class,id);

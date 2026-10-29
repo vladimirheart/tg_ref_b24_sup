@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import static com.example.panel.support.GeneralTicketAdminTestSupport.administrator;
 import static com.example.panel.support.GeneralTicketActorTestSupport.auth;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -45,7 +46,7 @@ class GeneralTicketReplyPostgresTest {
         jdbc.update("INSERT INTO tickets(user_id,ticket_id,group_msg_id,channel_id,ticket_public_id,is_general,general_selection_source,status) VALUES(?,?,?,?,?,TRUE,'GENERAL_CHANNEL','pending')",
             owner,raw,id,channelId,scope.ticketPublicId());
         flags=new MultibusinessFeatureFlags();flags.getFoundation().setEnabled(true);flags.setGeneralTicketQueue(true);
-        access=new GeneralTicketAccessService(jdbc);access.grantRead(accountId);assertThat(access.grantOperate(accountId)).isTrue();
+        access=new GeneralTicketAccessService(jdbc);access.grantRead(administrator(jdbc),accountId);assertThat(access.grantOperate(administrator(jdbc),accountId)).isTrue();
         transport=mock(DialogReplyTransportService.class);
         when(transport.sendTextGuarded(any(),anyLong(),anyString(),isNull(),any())).thenAnswer(call->{
             assertThat(((BooleanSupplier)call.getArgument(4)).getAsBoolean()).isTrue();
@@ -99,7 +100,7 @@ class GeneralTicketReplyPostgresTest {
     private void mutate(String mutation) {
         switch(mutation) {
             case "read"->jdbc.update("UPDATE general_ticket_read_grants SET is_active=FALSE WHERE user_id=?",accountId);
-            case "operate"->access.revokeOperate(accountId);
+            case "operate"->access.revokeOperate(administrator(jdbc),accountId);
             case "disabled"->jdbc.update("UPDATE users SET enabled=FALSE WHERE id=?",accountId);
             case "blocked"->jdbc.update("UPDATE users SET is_blocked=TRUE WHERE id=?",accountId);
             case "duplicate"->jdbc.update("INSERT INTO users(username,password,enabled) VALUES(?,'unused',FALSE)",actor.toUpperCase(java.util.Locale.ROOT));
@@ -231,8 +232,8 @@ class GeneralTicketReplyPostgresTest {
         assertThatThrownBy(()->jdbc.update("UPDATE general_ticket_text_replies SET state='QUEUED',chat_history_id=NULL WHERE request_key=?",key)).isInstanceOf(DataAccessException.class);
         assertThatThrownBy(()->jdbc.update("UPDATE general_ticket_reply_events SET actor_user_id=1 WHERE request_key=?",key)).isInstanceOf(DataAccessException.class);
         assertThat(replies.recent(scope,auth(jdbc,"missing-account"))).isEmpty();
-        access.revokeRead(accountId);assertThat(replies.recent(scope,auth(jdbc,actor))).isEmpty();
-        access.grantRead(accountId);
+        access.revokeRead(administrator(jdbc),accountId);assertThat(replies.recent(scope,auth(jdbc,actor))).isEmpty();
+        access.grantRead(administrator(jdbc),accountId);
         jdbc.update("UPDATE tickets SET is_general=FALSE,general_selection_source=NULL WHERE ticket_public_id=?",scope.ticketPublicId());
         assertThat(replies.recent(scope,auth(jdbc,actor))).isEmpty();
     }
@@ -240,7 +241,7 @@ class GeneralTicketReplyPostgresTest {
         assertThat(replies.prepare(scope,auth(jdbc,actor),0,key,"Ответ",fingerprint())).isTrue();
         String secondActor=actor+"-other";
         long second=jdbc.queryForObject("INSERT INTO users(username,password,enabled) VALUES(?,'unused',TRUE) RETURNING id",Long.class,secondActor);
-        access.grantRead(second);assertThat(access.grantOperate(second)).isTrue();
+        access.grantRead(administrator(jdbc),second);assertThat(access.grantOperate(administrator(jdbc),second)).isTrue();
         assertThat(replies.submit(scope,auth(jdbc,secondActor),0,key,"Ответ",fingerprint())).isFalse();
         String otherRaw=raw+"-other";var otherScope=new GeneralTicketEventScope(owner,otherRaw,key());
         jdbc.update("INSERT INTO messages(group_msg_id,user_id,ticket_id,channel_id) VALUES(?,?,?,?)",owner+100000,owner,otherRaw,channelId);

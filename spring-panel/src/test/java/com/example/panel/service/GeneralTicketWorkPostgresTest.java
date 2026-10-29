@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import static com.example.panel.support.GeneralTicketAdminTestSupport.administrator;
 import static com.example.panel.support.GeneralTicketActorTestSupport.auth;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -44,7 +45,7 @@ class GeneralTicketWorkPostgresTest {
         jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,is_general,business_id,status,channel_id) VALUES(10,?,?,TRUE,NULL,'pending',9)",RAW,PUBLIC);
         flags=new MultibusinessFeatureFlags();flags.getFoundation().setEnabled(true);flags.setGeneralTicketQueue(true);
         access=new GeneralTicketAccessService(jdbc);
-        assertThat(access.grantOperate(1)).isTrue();
+        assertThat(access.grantOperate(administrator(jdbc),1)).isTrue();
         work=new GeneralTicketWorkService(jdbc,new UiEventOutboxAppendService(jdbc,new LegacyTicketIdJdbcGuard(jdbc)),flags);
         time=new GeneralTicketWorkTimeService(jdbc,flags);
         scope=new GeneralTicketEventScope(10L,RAW,PUBLIC);
@@ -104,18 +105,18 @@ class GeneralTicketWorkPostgresTest {
         assertThat(work.find(PUBLIC,auth(jdbc,"reader")).orElseThrow().canOperate()).isFalse();
         assertThat(work.transition(scope,auth(jdbc,"reader"),0,"pending","open")).isFalse();
         assertThat(work.find(PUBLIC,auth(jdbc,"other"))).isEmpty();
-        assertThat(access.grantOperate(3)).isFalse();
+        assertThat(access.grantOperate(administrator(jdbc),3)).isFalse();
         jdbc.update("INSERT INTO users VALUES(4,' worker ',TRUE,FALSE)");
         assertThat(work.find(PUBLIC,auth(jdbc," worker "))).isEmpty();
     }
     @Test void revokingReadRevokesOperateAndReadRestoreDoesNotRestoreWrite() {
-        assertThat(access.revokeRead(1)).isTrue();
-        assertThat(access.grantRead(1)).isTrue();
+        assertThat(access.revokeRead(administrator(jdbc),1)).isTrue();
+        assertThat(access.grantRead(administrator(jdbc),1)).isTrue();
         assertThat(work.find(PUBLIC,auth(jdbc,"worker")).orElseThrow().canOperate()).isFalse();
         assertThat(change(0,"pending","open")).isFalse();
-        assertThat(access.grantOperate(1)).isTrue();
+        assertThat(access.grantOperate(administrator(jdbc),1)).isTrue();
         assertThat(change(0,"pending","open")).isTrue();
-        assertThat(access.revokeOperate(1)).isTrue();
+        assertThat(access.revokeOperate(administrator(jdbc),1)).isTrue();
         assertThat(access.canRead(1L)).isTrue();
     }
     @Test void concurrentOperateGrantWaitsForReadRevocationAndCannotResurrectWrite() throws Exception {
@@ -124,7 +125,7 @@ class GeneralTicketWorkPostgresTest {
             connection.setAutoCommit(false);
             try(var update=connection.prepareStatement("UPDATE general_ticket_read_grants SET is_active=FALSE WHERE user_id=2")) {update.executeUpdate();}
             var started=new CountDownLatch(1);
-            var grant=executor.submit(()->{started.countDown();return access.grantOperate(2);});
+            var grant=executor.submit(()->{started.countDown();return access.grantOperate(administrator(jdbc),2);});
             assertThat(started.await(5,TimeUnit.SECONDS)).isTrue();
             assertThatThrownBy(()->grant.get(100,TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
             connection.commit();
@@ -232,7 +233,7 @@ class GeneralTicketWorkPostgresTest {
         assertThat(time.recent(scope,auth(jdbc,"worker"))).hasSize(1);
         assertThat(jdbc.queryForObject("SELECT work_time_total_sec FROM tickets",Long.class)).isEqualTo(90000);
         assertThat(jdbc.queryForObject("SELECT duration_seconds FROM ticket_spans",Integer.class)).isEqualTo(90000);
-        assertThat(access.revokeOperate(1)).isTrue();
+        assertThat(access.revokeOperate(administrator(jdbc),1)).isTrue();
         assertThat(time.summary(scope,auth(jdbc,"worker"))).isPresent(); // READ suffices for observed time.
     }
     @Test void concurrentFormsCreateOneIntervalAndOneAuditForOneVersion() throws Exception {
@@ -274,7 +275,7 @@ class GeneralTicketWorkPostgresTest {
         assertThat(change(0,"pending","open")).isTrue();
         String identity="worker";
         switch(mutation) {
-            case "read"->access.revokeRead(1);
+            case "read"->access.revokeRead(administrator(jdbc),1);
             case "disabled"->jdbc.update("UPDATE users SET enabled=FALSE WHERE id=1");
             case "blocked"->jdbc.update("UPDATE users SET is_blocked=TRUE WHERE id=1");
             case "duplicate"->jdbc.update("INSERT INTO users VALUES(4,'WORKER',FALSE,FALSE)");
