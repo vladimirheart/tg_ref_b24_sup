@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
 
+import static com.example.panel.support.BusinessChildActorFixture.stored;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
@@ -34,9 +35,9 @@ class ManualBusinessTicketCreationServicePostgresIntegrationTest {
         ManualBusinessTicketCreationService service = new ManualBusinessTicketCreationService(
                 jdbc, new BusinessAccessService(jdbc));
 
-        var first = service.create(1L, sushi, "  Анна  ", "  Нужна помощь\nСрочно  ", locationId);
-        var second = service.create(1L, sushi, "Борис", "Второе обращение", null);
-        var third = service.create(1L, bliny, "Анна", "Другое направление", null);
+        var first = service.create(stored(jdbc,1L), sushi, "  Анна  ", "  Нужна помощь\nСрочно  ", locationId);
+        var second = service.create(stored(jdbc,1L), sushi, "Борис", "Второе обращение", null);
+        var third = service.create(stored(jdbc,1L), bliny, "Анна", "Другое направление", null);
 
         assertThat(first.clientUserId()).isNegative().isNotEqualTo(second.clientUserId());
         assertThat(second.clientUserId()).isNotEqualTo(third.clientUserId());
@@ -64,10 +65,10 @@ class ManualBusinessTicketCreationServicePostgresIntegrationTest {
 
         BusinessScopedTicketReadService read = new BusinessScopedTicketReadService(
                 jdbc, new BusinessAccessService(jdbc));
-        assertThat(read.listTickets(1L, new BusinessAccessService.OneBusiness(sushi), 50, 0))
+        assertThat(read.listTickets(stored(jdbc,1L), new BusinessAccessService.OneBusiness(sushi), 50, 0))
                 .extracting(BusinessScopedTicketReadService.TicketRow::ticketId)
                 .containsExactlyInAnyOrder(first.ticketId(), second.ticketId());
-        assertThat(read.listTickets(1L, new BusinessAccessService.OneBusiness(bliny), 50, 0))
+        assertThat(read.listTickets(stored(jdbc,1L), new BusinessAccessService.OneBusiness(bliny), 50, 0))
                 .extracting(BusinessScopedTicketReadService.TicketRow::ticketId)
                 .containsExactly(third.ticketId());
     }
@@ -87,15 +88,15 @@ class ManualBusinessTicketCreationServicePostgresIntegrationTest {
         ManualBusinessTicketCreationService service = new ManualBusinessTicketCreationService(
                 jdbc, new BusinessAccessService(jdbc));
 
-        assertThatThrownBy(() -> service.create(1L, sushi, "Клиент", "Проблема", null))
+        assertThatThrownBy(() -> service.create(stored(jdbc,1L), sushi, "Клиент", "Проблема", null))
                 .isInstanceOf(AccessDeniedException.class);
         ManualBusinessTicketCreationService staleAccessService = new ManualBusinessTicketCreationService(
                 jdbc, mock(BusinessAccessService.class));
-        assertThatThrownBy(() -> staleAccessService.create(1L, sushi, "Клиент", "Проблема", null))
+        assertThatThrownBy(() -> staleAccessService.create(stored(jdbc,1L), sushi, "Клиент", "Проблема", null))
                 .isInstanceOf(AccessDeniedException.class);
-        assertThatThrownBy(() -> service.create(2L, sushi, "Клиент", "Проблема", foreignLocation))
+        assertThatThrownBy(() -> service.create(stored(jdbc,2L), sushi, "Клиент", "Проблема", foreignLocation))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> service.create(2L, sushi, " ", "Проблема", null))
+        assertThatThrownBy(() -> service.create(stored(jdbc,2L), sushi, " ", "Проблема", null))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM manual_business_clients", Integer.class)).isZero();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM tickets", Integer.class)).isZero();
@@ -103,7 +104,7 @@ class ManualBusinessTicketCreationServicePostgresIntegrationTest {
 
     private JdbcTemplate freshSchema(String prefix) throws Exception {
         JdbcTemplate jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType(prefix);
-        jdbc.execute("CREATE TABLE users (id BIGINT PRIMARY KEY, username TEXT NOT NULL UNIQUE)");
+        jdbc.execute("CREATE TABLE users (id BIGINT PRIMARY KEY, username TEXT NOT NULL UNIQUE, enabled BOOLEAN DEFAULT TRUE, is_blocked BOOLEAN DEFAULT FALSE)");
         jdbc.execute("CREATE TABLE channels (id BIGINT PRIMARY KEY)");
         jdbc.execute("""
                 CREATE TABLE tickets (

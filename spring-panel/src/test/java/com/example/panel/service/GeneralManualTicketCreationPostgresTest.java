@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import static com.example.panel.support.BusinessChildActorFixture.stored;
 import static com.example.panel.support.GeneralTicketAdminTestSupport.administrator;
 import static com.example.panel.support.GeneralTicketActorTestSupport.auth;
 import static org.assertj.core.api.Assertions.*;
@@ -189,7 +190,7 @@ class GeneralManualTicketCreationPostgresTest {
         long business=upgrade.queryForObject("SELECT id FROM businesses WHERE code='sushi'",Long.class);
         upgrade.update("INSERT INTO business_memberships(user_id,business_id,role_code) VALUES(?,?,'OPERATOR')",actor,business);
         var businessService=new ManualBusinessTicketCreationService(upgrade,new BusinessAccessService(upgrade));
-        var first=businessService.create(actor,business,"Бизнес-клиент","Бизнес-вопрос",null);
+        var first=businessService.create(stored(upgrade,actor),business,"Бизнес-клиент","Бизнес-вопрос",null);
         upgrade.update("INSERT INTO tickets(user_id,ticket_id,status,is_general,general_selection_source) VALUES(99,'prior-general','pending',TRUE,'GENERAL_CHANNEL')");
         var before=upgrade.queryForList("SELECT * FROM tickets ORDER BY user_id");
         // Compare every pre-upgrade column; verify every added column separately below.
@@ -211,7 +212,7 @@ class GeneralManualTicketCreationPostgresTest {
         var general=new GeneralManualTicketCreationService(upgrade,flags,new UiEventOutboxAppendService(upgrade,new LegacyTicketIdJdbcGuard(upgrade)));
         String id=general.create(auth(upgrade,"operator"),KEY,"Общий клиент","Общий вопрос").orElseThrow();
         long generalId=upgrade.queryForObject("SELECT user_id FROM tickets WHERE ticket_public_id=?",Long.class,id);
-        var last=businessService.create(actor,business,"Ещё бизнес-клиент","Вопрос",null);
+        var last=businessService.create(stored(upgrade,actor),business,"Ещё бизнес-клиент","Вопрос",null);
         assertThat(java.util.Set.of(first.clientUserId(),generalId,last.clientUserId())).hasSize(3);
         assertThat(upgrade.queryForObject("SELECT COUNT(*) FROM manual_business_clients",Integer.class)).isEqualTo(2);
         assertThat(upgrade.queryForObject("SELECT COUNT(*) FROM manual_general_clients",Integer.class)).isEqualTo(1);

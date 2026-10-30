@@ -74,9 +74,9 @@ class BusinessCategoryProjectionPostgresTest {
     }
     private void allProjections(List<String> expected) {
         assertThat(read.findByPublicId(stored(jdbc,2L),PUBLIC).orElseThrow().categories()).isEqualTo(expected);
-        assertThat(read.listTickets(2L,BUSINESS,50,0).get(0).categories()).isEqualTo(expected);
-        assertThat(read.pageTickets(2L,BUSINESS,50,0,null,null).tickets().get(0).categories()).isEqualTo(expected);
-        assertThat(read.exportTickets(2L,BUSINESS,null,null,null).get(0).categories()).isEqualTo(expected);
+        assertThat(read.listTickets(stored(jdbc,2L),BUSINESS,50,0).get(0).categories()).isEqualTo(expected);
+        assertThat(read.pageTickets(stored(jdbc,2L),BUSINESS,50,0,null,null).tickets().get(0).categories()).isEqualTo(expected);
+        assertThat(read.exportTickets(stored(jdbc,2L),BUSINESS,null,null,null).get(0).categories()).isEqualTo(expected);
         var workspace=read.findWorkspaceByPublicId(stored(jdbc,2L),PUBLIC).orElseThrow();
         assertThat(workspace.categories()).isEqualTo(expected);
         assertThat(workspace.ticket().categories()).isEqualTo(expected);
@@ -96,7 +96,7 @@ class BusinessCategoryProjectionPostgresTest {
         assertThat(work.change(owner,boundActor(),view.revision()+1,"resolved","reopen",List.of())).isTrue();
         allProjections(expected);
         save(List.of()); allProjections(List.of());
-        assertThat(read.summarizeCategories(2L,BUSINESS)).isEmpty();
+        assertThat(read.summarizeCategories(stored(jdbc,2L),BUSINESS)).isEmpty();
         assertThat(jdbc.queryForList("SELECT * FROM ticket_categories ORDER BY ticket_id")).isEqualTo(legacy);
     }
     @Test void collidingRawIdsCannotMixCanonicalCategoriesOrSuppressTheirRead() {
@@ -105,9 +105,9 @@ class BusinessCategoryProjectionPostgresTest {
         jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,business_id,business_categories) VALUES(99,?,?,22,'[\"Collision\"]')",RAW,"c".repeat(32));
         allProjections(List.of("Own"));
         assertThat(read.findWorkspaceByPublicId(stored(jdbc,2L),PUBLIC).orElseThrow().relationVerified()).isFalse();
-        var counts=read.summarizeCategories(3L,BusinessAccessService.AllAccessibleBusinesses.INSTANCE);
+        var counts=read.summarizeCategories(stored(jdbc,3L),BusinessAccessService.AllAccessibleBusinesses.INSTANCE);
         assertThat(counts).extracting(BusinessScopedTicketReadService.CategoryCount::category).containsExactly("Own","Collision","Foreign");
-        assertThat(read.exportTickets(2L,BUSINESS,null,null,null,"Foreign")).isEmpty();
+        assertThat(read.exportTickets(stored(jdbc,2L),BUSINESS,null,null,null,"Foreign")).isEmpty();
     }
     static java.util.stream.Stream<String> exactCategories() {
         return java.util.stream.Stream.of("Delivery","A%_B","O'Reilly","<img src=x>","😀".repeat(160));
@@ -115,18 +115,18 @@ class BusinessCategoryProjectionPostgresTest {
     @ParameterizedTest @MethodSource("exactCategories")
     void exactFilterIsLiteralCaseSensitiveAndSharedByListPageAndExport(String category) {
         save(List.of(category,"Other"));
-        assertThat(read.listTickets(2L,BUSINESS,50,0,"open",RAW,null,category)).hasSize(1);
-        assertThat(read.pageTickets(2L,BUSINESS,1,0,null,PUBLIC,null,category).tickets()).hasSize(1);
-        assertThat(read.exportTickets(2L,BUSINESS,null,null,null,category)).hasSize(1);
-        assertThat(read.listTickets(2L,BUSINESS,50,0,null,null,null,"Missing "+category.hashCode())).isEmpty();
-        assertThat(read.listTickets(2L,BUSINESS,50,0,"closed",null,null,category)).isEmpty();
-        assertThat(read.listTickets(2L,BUSINESS,50,0,null,null,null,"Legacy secret")).isEmpty();
+        assertThat(read.listTickets(stored(jdbc,2L),BUSINESS,50,0,"open",RAW,null,category)).hasSize(1);
+        assertThat(read.pageTickets(stored(jdbc,2L),BUSINESS,1,0,null,PUBLIC,null,category).tickets()).hasSize(1);
+        assertThat(read.exportTickets(stored(jdbc,2L),BUSINESS,null,null,null,category)).hasSize(1);
+        assertThat(read.listTickets(stored(jdbc,2L),BUSINESS,50,0,null,null,null,"Missing "+category.hashCode())).isEmpty();
+        assertThat(read.listTickets(stored(jdbc,2L),BUSINESS,50,0,"closed",null,null,category)).isEmpty();
+        assertThat(read.listTickets(stored(jdbc,2L),BUSINESS,50,0,null,null,null,"Legacy secret")).isEmpty();
     }
     @Test void searchUsesCanonicalCategorySubstringsWithoutLegacyFallback() {
         save(List.of("DeLiVeRy 50%_"));
-        assertThat(read.listTickets(2L,BUSINESS,50,0,null,null,"livery 50%_")).hasSize(1);
-        assertThat(read.listTickets(2L,BUSINESS,50,0,null,null,"Legacy secret")).isEmpty();
-        assertThat(read.exportTickets(2L,BUSINESS,null,null,"livery","Different")).isEmpty();
+        assertThat(read.listTickets(stored(jdbc,2L),BUSINESS,50,0,null,null,"livery 50%_")).hasSize(1);
+        assertThat(read.listTickets(stored(jdbc,2L),BUSINESS,50,0,null,null,"Legacy secret")).isEmpty();
+        assertThat(read.exportTickets(stored(jdbc,2L),BUSINESS,null,null,"livery","Different")).isEmpty();
     }
     @ParameterizedTest @ValueSource(strings={"business","public","raw","user","general","unresolved","recreate"})
     void categoriesDoNotFollowAnotherOwnerOrGeneration(String change) {
@@ -141,8 +141,8 @@ class BusinessCategoryProjectionPostgresTest {
             case "recreate" -> {jdbc.update("DELETE FROM tickets WHERE user_id=42");jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,business_id) VALUES(42,?,?,11)",RAW,"c".repeat(32));}
         }
         var all=BusinessAccessService.AllAccessibleBusinesses.INSTANCE;
-        assertThat(read.summarizeCategories(3L,all)).isEmpty();
-        assertThat(read.exportTickets(3L,all,null,null,null)).allSatisfy(t->assertThat(t.categories()).isEmpty());
+        assertThat(read.summarizeCategories(stored(jdbc,3L),all)).isEmpty();
+        assertThat(read.exportTickets(stored(jdbc,3L),all,null,null,null)).allSatisfy(t->assertThat(t.categories()).isEmpty());
         assertThat(jdbc.queryForObject("SELECT count(*) FROM business_ticket_work_events",Long.class)).isEqualTo(1);
     }
     @ParameterizedTest @ValueSource(strings={"membership","all-grant","archived"})
@@ -156,8 +156,8 @@ class BusinessCategoryProjectionPostgresTest {
         else if(denied.equals("membership"))jdbc.update("UPDATE business_memberships SET is_active=FALSE WHERE user_id=2");
         else jdbc.update("UPDATE businesses SET status='archived' WHERE id=11");
         var service=new BusinessScopedTicketReadService(jdbc,stale);
-        assertThat(service.summarizeCategories(reader,BUSINESS)).isEmpty();
-        assertThat(service.exportTickets(reader,BUSINESS,null,null,null,"Private")).isEmpty();
+        assertThat(service.summarizeCategories(stored(jdbc,reader),BUSINESS)).isEmpty();
+        assertThat(service.exportTickets(stored(jdbc,reader),BUSINESS,null,null,null,"Private")).isEmpty();
         assertThat(service.findByPublicId(stored(jdbc,reader),PUBLIC)).isEmpty();
         assertThat(service.findWorkspaceByPublicId(stored(jdbc,reader),PUBLIC)).isEmpty();
         assertThat(service.findHistoryByPublicId(stored(jdbc,reader),PUBLIC,null,50)).isEmpty();
@@ -168,19 +168,19 @@ class BusinessCategoryProjectionPostgresTest {
         save(List.of("Shared","Own"));
         jdbc.update("UPDATE tickets SET business_categories='[\"Shared\",\"Foreign\"]' WHERE user_id=88");
         jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,business_id,business_categories) VALUES(100,'third',?,11,'[\"Shared\"]')","d".repeat(32));
-        assertThat(read.summarizeCategories(2L,BUSINESS)).containsExactly(
+        assertThat(read.summarizeCategories(stored(jdbc,2L),BUSINESS)).containsExactly(
             new BusinessScopedTicketReadService.CategoryCount(11,"one","Same name","Own",1),
             new BusinessScopedTicketReadService.CategoryCount(11,"one","Same name","Shared",2));
-        assertThat(read.summarizeCategories(3L,BusinessAccessService.AllAccessibleBusinesses.INSTANCE)).hasSize(4);
-        assertThat(read.summarizeCategories(5L,BusinessAccessService.AllAccessibleBusinesses.INSTANCE)).isEmpty();
-        assertThatThrownBy(()->read.summarizeCategories(2L,new BusinessAccessService.OneBusiness(22L))).isInstanceOf(AccessDeniedException.class);
+        assertThat(read.summarizeCategories(stored(jdbc,3L),BusinessAccessService.AllAccessibleBusinesses.INSTANCE)).hasSize(4);
+        assertThat(read.summarizeCategories(stored(jdbc,5L),BusinessAccessService.AllAccessibleBusinesses.INSTANCE)).isEmpty();
+        assertThatThrownBy(()->read.summarizeCategories(stored(jdbc,2L),new BusinessAccessService.OneBusiness(22L))).isInstanceOf(AccessDeniedException.class);
     }
     @Test void summaryRejectsOverflowInsteadOfReturningPartialCounts() {
         jdbc.execute("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,business_id,business_categories) "
             +"SELECT n,'bulk-'||n,lpad(to_hex(n),32,'0'),11,jsonb_build_array('category-'||n) FROM generate_series(1000,1999) n");
-        assertThat(read.summarizeCategories(2L,BUSINESS)).hasSize(1000);
+        assertThat(read.summarizeCategories(stored(jdbc,2L),BUSINESS)).hasSize(1000);
         jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,business_id,business_categories) VALUES(2000,'overflow',?,11,'[\"overflow\"]')","e".repeat(32));
-        assertThatThrownBy(()->read.summarizeCategories(2L,BUSINESS)).isInstanceOf(BusinessScopedTicketReadService.CategorySummaryTooLargeException.class);
+        assertThatThrownBy(()->read.summarizeCategories(stored(jdbc,2L),BUSINESS)).isInstanceOf(BusinessScopedTicketReadService.CategorySummaryTooLargeException.class);
     }
     @Test void readModelDoesNotDependOnTheLegacyCategoryTable() {
         save(List.of("Own")); jdbc.execute("DROP TABLE ticket_categories");

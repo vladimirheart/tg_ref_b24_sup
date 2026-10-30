@@ -114,7 +114,7 @@ class GeneralTicketReadServicePostgresIntegrationTest {
             + "VALUES (?, 'ALL_BUSINESSES', 'VIEWER')", reader);
         BusinessScopedTicketReadService businessRead = new BusinessScopedTicketReadService(jdbc, new BusinessAccessService(jdbc));
         assertThat(businessRead.findByPublicId(stored(jdbc,reader), first)).isEmpty();
-        assertThat(businessRead.pageTickets(reader, BusinessAccessService.AllAccessibleBusinesses.INSTANCE,
+        assertThat(businessRead.pageTickets(stored(jdbc,reader), BusinessAccessService.AllAccessibleBusinesses.INSTANCE,
             50, 0, null, token + "-business", null).tickets()).extracting(BusinessScopedTicketReadService.TicketRow::ticketPublicId)
             .containsExactly(businessId);
         assertThat(service.find(auth(reader, "user-" + reader), token)).isEmpty();

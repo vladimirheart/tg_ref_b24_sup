@@ -1,6 +1,9 @@
 package com.example.panel.service;
 
 import com.example.panel.service.BusinessAccessService.BusinessCapability;
+import com.example.panel.security.PanelUserPrincipal;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -24,9 +27,12 @@ public class ManualBusinessTicketCreationService {
     }
 
     @Transactional
-    public CreatedTicket create(long actorUserId, long businessId, String clientName,
+    public CreatedTicket create(Authentication authentication, long businessId, String clientName,
                                 String problem, Long businessLocationId) {
-        if (actorUserId <= 0 || businessId <= 0) {
+        ManualActor actor = ManualActor.from(authentication);
+        if (actor == null) throw new AccessDeniedException("Authenticated user is required");
+        long actorUserId = actor.userId();
+        if (businessId <= 0) {
             throw new IllegalArgumentException("Business and operator are required");
         }
         String name = normalized(clientName, 200, "Client name", false);
@@ -42,6 +48,13 @@ public class ManualBusinessTicketCreationService {
                 SELECT ?, business.id, ?, ?
                   FROM businesses business
                  WHERE business.id = ? AND business.status = 'active'
+                   AND EXISTS (
+                       SELECT 1 FROM users account
+                        WHERE account.id = ? AND account.username = ?
+                          AND account.enabled = TRUE AND account.is_blocked = FALSE
+                          AND 1 = (SELECT COUNT(*) FROM users duplicate
+                                   WHERE lower(duplicate.username) = lower(account.username))
+                   )
                    AND (EXISTS (
                        SELECT 1 FROM business_memberships membership
                         WHERE membership.business_id = business.id
@@ -56,7 +69,7 @@ public class ManualBusinessTicketCreationService {
                    ))
                 RETURNING user_id
                 """, (rs, row) -> rs.getLong("user_id"),
-                clientUserId, name, actorUserId, businessId, actorUserId, actorUserId);
+                clientUserId, name, actorUserId, businessId, actorUserId, actor.username(), actorUserId, actorUserId);
         if (createdClients.size() != 1) {
             throw new AccessDeniedException("Нет доступа к выбранному бизнесу");
         }
@@ -132,6 +145,20 @@ public class ManualBusinessTicketCreationService {
             throw new IllegalArgumentException("Invalid " + field.toLowerCase());
         }
         return trimmed;
+    }
+
+    /** Original account identity; the owning INSERT validates its current state. */
+    private record ManualActor(long userId, String username) {
+        static ManualActor from(Authentication authentication) {
+            if (authentication == null || !authentication.isAuthenticated()
+                    || authentication instanceof AnonymousAuthenticationToken
+                    || !(authentication.getPrincipal() instanceof PanelUserPrincipal account)
+                    || account.getUserId() <= 0 || account.getUsername() == null || account.getUsername().isBlank()
+                    || !account.isEnabled() || !account.isAccountNonLocked()
+                    || !account.isAccountNonExpired() || !account.isCredentialsNonExpired()) return null;
+            return new ManualActor(account.getUserId(), account.getUsername());
+        }
+        @Override public String toString() { return "BusinessManualActor"; }
     }
 
     private record Location(String locationType, String city, String locationName) {

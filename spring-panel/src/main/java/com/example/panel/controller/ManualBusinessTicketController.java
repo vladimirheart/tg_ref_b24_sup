@@ -45,7 +45,7 @@ public class ManualBusinessTicketController {
         }
         long actorUserId = readService.requireAuthenticatedUserId(authentication);
         try {
-            var created = service.create(actorUserId, request.businessId(),
+            var created = service.create(authentication, request.businessId(),
                     request.clientName(), request.problem(), request.businessLocationId());
             log.info("Manual business ticket created: actor={}, businessId={}, publicId={}",
                     actorUserId, created.businessId(), created.ticketPublicId());

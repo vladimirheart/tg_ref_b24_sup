@@ -50,18 +50,18 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         BusinessScopedTicketReadService service = new BusinessScopedTicketReadService(
                 jdbc, new BusinessAccessService(jdbc));
         var all = BusinessAccessService.AllAccessibleBusinesses.INSTANCE;
-        assertThat(service.listTickets(1L, all, 50, 0))
+        assertThat(service.listTickets(stored(jdbc,1L), all, 50, 0))
                 .extracting(BusinessScopedTicketReadService.TicketRow::ticketId)
                 .containsExactly("new", "tie-a", "tie-b", "old");
-        var first = service.pageTickets(1L, all, 2, 0, null, null);
+        var first = service.pageTickets(stored(jdbc,1L), all, 2, 0, null, null);
         assertThat(first.tickets()).extracting(BusinessScopedTicketReadService.TicketRow::ticketId)
                 .containsExactly("new", "tie-a");
         assertThat(first.hasMore()).isTrue();
-        var last = service.pageTickets(1L, all, 2, 2, null, null);
+        var last = service.pageTickets(stored(jdbc,1L), all, 2, 2, null, null);
         assertThat(last.tickets()).extracting(BusinessScopedTicketReadService.TicketRow::ticketId)
                 .containsExactly("tie-b", "old");
         assertThat(last.hasMore()).isFalse();
-        assertThat(service.exportTickets(1L, all, null, null, null))
+        assertThat(service.exportTickets(stored(jdbc,1L), all, null, null, null))
                 .extracting(BusinessScopedTicketReadService.TicketRow::ticketId)
                 .containsExactly("new", "tie-a", "tie-b", "old");
         assertThat(service.findByPublicId(stored(jdbc,1L), publicId).orElseThrow().createdAt())
@@ -69,9 +69,9 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         var resolved = service.findByPublicId(stored(jdbc,1L), publicId).orElseThrow();
         assertThat(resolved.resolvedAt()).isEqualTo(OffsetDateTime.parse("2026-10-15T12:00:00Z"));
         assertThat(resolved.resolvedBy()).hasSize(200).startsWith("Оператор <script>");
-        assertThat(service.listTickets(1L, all, 50, 0).get(0).resolvedAt())
+        assertThat(service.listTickets(stored(jdbc,1L), all, 50, 0).get(0).resolvedAt())
                 .isEqualTo(resolved.resolvedAt());
-        assertThat(service.exportTickets(1L, all, null, null, null).get(0).resolvedBy())
+        assertThat(service.exportTickets(stored(jdbc,1L), all, null, null, null).get(0).resolvedBy())
                 .isEqualTo(resolved.resolvedBy());
         jdbc.update("UPDATE tickets SET status = 'open' WHERE ticket_id = 'new'");
         var reopened = service.findByPublicId(stored(jdbc,1L), publicId).orElseThrow();
@@ -470,67 +470,65 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         BusinessScopedTicketReadService service = new BusinessScopedTicketReadService(
                 jdbc, new BusinessAccessService(jdbc));
         assertThat(service.requireAuthenticatedUserId(com.example.panel.support.AiControlIdentityFixture.login(jdbc,"SUSHI-READER"))).isEqualTo(1L);
-        assertThat(service.availableBusinesses(1L)).extracting(
+        assertThat(service.availableBusinesses(stored(jdbc,1L))).extracting(
                 BusinessScopedTicketReadService.BusinessOption::code).containsExactly("sushi");
-        assertThat(service.listTickets(1L, BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 50, 0))
+        assertThat(service.listTickets(stored(jdbc,1L), BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 50, 0))
                 .extracting(BusinessScopedTicketReadService.TicketRow::ticketPublicId)
                 .containsExactly("0123456789abcdef0123456789abcdef");
         assertThat(service.findByPublicId(stored(jdbc,1L), "0123456789abcdef0123456789abcdef"))
                 .get().extracting(BusinessScopedTicketReadService.TicketRow::businessId).isEqualTo(sushi);
         assertThat(service.findByPublicId(stored(jdbc,1L), "fedcba9876543210fedcba9876543210")).isEmpty();
         assertThat(service.findByPublicId(stored(jdbc,1L), "same")).isEmpty();
-        assertThatThrownBy(() -> service.listTickets(
-                1L, new BusinessAccessService.OneBusiness(bliny), 50, 0))
+        assertThatThrownBy(() -> service.listTickets(stored(jdbc,1L), new BusinessAccessService.OneBusiness(bliny), 50, 0))
                 .isInstanceOf(AccessDeniedException.class);
 
-        List<BusinessScopedTicketReadService.TicketRow> all = service.listTickets(
-                2L, BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 50, 0);
+        List<BusinessScopedTicketReadService.TicketRow> all = service.listTickets(stored(jdbc,2L), BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 50, 0);
         assertThat(all).extracting(BusinessScopedTicketReadService.TicketRow::businessId)
                 .containsExactly(sushi, bliny, autoservice);
         assertThat(all).extracting(BusinessScopedTicketReadService.TicketRow::ticketId)
                 .containsExactly("same", "same", "new-direction");
         assertThat(all).extracting(BusinessScopedTicketReadService.TicketRow::status)
                 .containsExactly("open", "resolved", "closed");
-        var firstPage = service.pageTickets(2L,
+        var firstPage = service.pageTickets(stored(jdbc,2L),
                 BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 2, 0, null, null);
         assertThat(firstPage.tickets()).extracting(BusinessScopedTicketReadService.TicketRow::businessId)
                 .containsExactly(sushi, bliny);
         assertThat(firstPage.hasMore()).isTrue();
-        var lastPage = service.pageTickets(2L,
+        var lastPage = service.pageTickets(stored(jdbc,2L),
                 BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 2, 2, null, null);
         assertThat(lastPage.tickets()).extracting(BusinessScopedTicketReadService.TicketRow::businessId)
                 .containsExactly(autoservice);
         assertThat(lastPage.hasMore()).isFalse();
-        assertThat(service.pageTickets(2L,
+        assertThat(service.pageTickets(stored(jdbc,2L),
                 BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 3, 0, null, null).hasMore()).isFalse();
-        assertThat(service.pageTickets(2L,
+        assertThat(service.pageTickets(stored(jdbc,2L),
                 BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 1, 0, "open", null).hasMore()).isFalse();
-        assertThat(service.pageTickets(1L,
+        assertThat(service.pageTickets(stored(jdbc,1L),
                 BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 1, 0, null,
                 "fedcba9876543210fedcba9876543210").tickets()).isEmpty();
-        assertThat(service.listTickets(2L, BusinessAccessService.AllAccessibleBusinesses.INSTANCE,
+        assertThat(service.listTickets(stored(jdbc,2L), BusinessAccessService.AllAccessibleBusinesses.INSTANCE,
                 50, 0, "open", null)).extracting(BusinessScopedTicketReadService.TicketRow::businessId)
                 .containsExactly(sushi);
-        assertThat(service.listTickets(2L, BusinessAccessService.AllAccessibleBusinesses.INSTANCE,
+        assertThat(service.listTickets(stored(jdbc,2L), BusinessAccessService.AllAccessibleBusinesses.INSTANCE,
                 50, 0, null, "same")).extracting(BusinessScopedTicketReadService.TicketRow::businessId)
                 .containsExactly(sushi, bliny);
-        assertThat(service.listTickets(2L, BusinessAccessService.AllAccessibleBusinesses.INSTANCE,
+        assertThat(service.listTickets(stored(jdbc,2L), BusinessAccessService.AllAccessibleBusinesses.INSTANCE,
                 50, 0, null, "fedcba9876543210fedcba9876543210"))
                 .extracting(BusinessScopedTicketReadService.TicketRow::businessId).containsExactly(bliny);
-        assertThat(service.listTickets(1L, BusinessAccessService.AllAccessibleBusinesses.INSTANCE,
+        assertThat(service.listTickets(stored(jdbc,1L), BusinessAccessService.AllAccessibleBusinesses.INSTANCE,
                 50, 0, null, "fedcba9876543210fedcba9876543210")).isEmpty();
-        assertThatThrownBy(() -> service.listTickets(2L,
+        assertThatThrownBy(() -> service.listTickets(stored(jdbc,2L),
                 BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 50, 0, "invalid", null))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> service.listTickets(2L,
+        assertThatThrownBy(() -> service.listTickets(stored(jdbc,2L),
                 BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 50, 0, null, "same\n"))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThat(service.availableBusinesses(2L)).extracting(
+        assertThat(service.availableBusinesses(stored(jdbc,2L))).extracting(
                 BusinessScopedTicketReadService.BusinessOption::code)
                 .containsExactly("sushi", "bliny", "autoservice");
-        assertThat(service.listTickets(3L, BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 50, 0))
+        assertThat(service.listTickets(stored(jdbc,3L), BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 50, 0))
                 .isEmpty();
-        assertThat(service.listTickets(2L, new BusinessAccessService.OneBusiness(bliny), 50, 0))
+        assertThat(service.listTickets(stored(jdbc,2L), new BusinessAccessService.OneBusiness(bliny), 50, 0))
                 .extracting(BusinessScopedTicketReadService.TicketRow::userId).containsExactly(2L);
         assertThat(service.findByPublicId(stored(jdbc,2L), "fedcba9876543210fedcba9876543210"))
                 .get().extracting(BusinessScopedTicketReadService.TicketRow::businessId).isEqualTo(bliny);
@@ -538,25 +536,25 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
             jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id) VALUES (2, ?, ?)",
                     "bulk-" + i, sushi);
         }
-        assertThat(service.pageTickets(2L,
+        assertThat(service.pageTickets(stored(jdbc,2L),
                 BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 100, 0, null, null).hasMore()).isTrue();
-        var maxLastPage = service.pageTickets(2L,
+        var maxLastPage = service.pageTickets(stored(jdbc,2L),
                 BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 100, 100, null, null);
         assertThat(maxLastPage.tickets()).hasSize(1);
         assertThat(maxLastPage.hasMore()).isFalse();
 
         BusinessAdministrationService admin = new BusinessAdministrationService(jdbc);
         assertThat(admin.setBusinessStatus(sushi, "archived")).isTrue();
-        assertThat(service.availableBusinesses(1L)).isEmpty();
-        assertThat(service.listTickets(1L,
+        assertThat(service.availableBusinesses(stored(jdbc,1L))).isEmpty();
+        assertThat(service.listTickets(stored(jdbc,1L),
                 BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 50, 0)).isEmpty();
         assertThat(service.findByPublicId(stored(jdbc,1L), "0123456789abcdef0123456789abcdef")).isEmpty();
-        assertThat(service.pageTickets(2L,
+        assertThat(service.pageTickets(stored(jdbc,2L),
                 BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 50, 0, null, null).tickets())
                 .extracting(BusinessScopedTicketReadService.TicketRow::businessId)
                 .containsExactly(bliny, autoservice);
         assertThat(admin.setBusinessStatus(sushi, "active")).isTrue();
-        assertThat(service.availableBusinesses(1L)).extracting(
+        assertThat(service.availableBusinesses(stored(jdbc,1L))).extracting(
                 BusinessScopedTicketReadService.BusinessOption::code).containsExactly("sushi");
         assertThat(service.findByPublicId(stored(jdbc,1L), "0123456789abcdef0123456789abcdef")).isPresent();
     }
@@ -591,40 +589,40 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         jdbc.update("UPDATE tickets SET ticket_public_id = '0123456789abcdef0123456789abcdef' WHERE user_id = 11");
         assertThat(service.findByPublicId(stored(jdbc,1L), "0123456789abcdef0123456789abcdef")
                 .orElseThrow().clientName()).isEqualTo("Иван");
-        assertThat(service.listTickets(1L, all, 50, 0).stream()
+        assertThat(service.listTickets(stored(jdbc,1L), all, 50, 0).stream()
                 .filter(row -> row.userId() == 11L).findFirst().orElseThrow().problemPreview())
                 .isEqualTo("Нет света");
-        assertThat(service.listTickets(1L, all, 50, 0).stream()
+        assertThat(service.listTickets(stored(jdbc,1L), all, 50, 0).stream()
                 .filter(row -> row.userId() == 55L).findFirst().orElseThrow().clientName()).isNull();
-        assertThat(service.listTickets(1L, all, 50, 0).stream()
+        assertThat(service.listTickets(stored(jdbc,1L), all, 50, 0).stream()
                 .filter(row -> row.userId() == 77L).findFirst().orElseThrow().problemPreview()).isNull();
 
-        assertThat(service.listTickets(1L, all, 50, 0, null, null, " иВан "))
+        assertThat(service.listTickets(stored(jdbc,1L), all, 50, 0, null, null, " иВан "))
                 .extracting(BusinessScopedTicketReadService.TicketRow::userId).containsExactly(11L);
-        assertThat(service.listTickets(1L, all, 50, 0, null, null, "интернета")).isEmpty();
-        assertThat(service.listTickets(2L, all, 50, 0, null, null, "секрет")).isEmpty();
-        assertThat(service.exportTickets(1L, all, "open", null, " иВан "))
+        assertThat(service.listTickets(stored(jdbc,1L), all, 50, 0, null, null, "интернета")).isEmpty();
+        assertThat(service.listTickets(stored(jdbc,2L), all, 50, 0, null, null, "секрет")).isEmpty();
+        assertThat(service.exportTickets(stored(jdbc,1L), all, "open", null, " иВан "))
                 .extracting(BusinessScopedTicketReadService.TicketRow::userId).containsExactly(11L);
-        assertThat(service.exportTickets(2L, all, "open", "same", "Иван"))
+        assertThat(service.exportTickets(stored(jdbc,2L), all, "open", "same", "Иван"))
                 .extracting(BusinessScopedTicketReadService.TicketRow::userId).containsExactly(11L, 22L);
-        assertThat(service.exportTickets(2L, all, null, null, "секрет")).isEmpty();
-        assertThat(service.listTickets(2L, all, 50, 0, null, null, "%_"))
+        assertThat(service.exportTickets(stored(jdbc,2L), all, null, null, "секрет")).isEmpty();
+        assertThat(service.listTickets(stored(jdbc,2L), all, 50, 0, null, null, "%_"))
                 .extracting(BusinessScopedTicketReadService.TicketRow::userId).containsExactly(33L);
-        var first = service.pageTickets(2L, all, 1, 0, "open", null, "Иван");
+        var first = service.pageTickets(stored(jdbc,2L), all, 1, 0, "open", null, "Иван");
         assertThat(first.tickets()).extracting(BusinessScopedTicketReadService.TicketRow::userId)
                 .containsExactly(11L);
         assertThat(first.hasMore()).isTrue();
-        var second = service.pageTickets(2L, all, 1, 1, "open", null, "Иван");
+        var second = service.pageTickets(stored(jdbc,2L), all, 1, 1, "open", null, "Иван");
         assertThat(second.tickets()).extracting(BusinessScopedTicketReadService.TicketRow::userId)
                 .containsExactly(22L);
         assertThat(second.hasMore()).isFalse();
-        assertThat(service.pageTickets(2L, all, 1, 0, "resolved", "other", "Скидка").tickets())
+        assertThat(service.pageTickets(stored(jdbc,2L), all, 1, 0, "resolved", "other", "Скидка").tickets())
                 .extracting(BusinessScopedTicketReadService.TicketRow::userId).containsExactly(33L);
-        assertThatThrownBy(() -> service.pageTickets(2L, all, 1, 0, null, null, "  "))
+        assertThatThrownBy(() -> service.pageTickets(stored(jdbc,2L), all, 1, 0, null, null, "  "))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> service.pageTickets(2L, all, 1, 0, null, null, "bad\n"))
+        assertThatThrownBy(() -> service.pageTickets(stored(jdbc,2L), all, 1, 0, null, null, "bad\n"))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> service.pageTickets(2L, all, 1, 0, null, null, "x".repeat(101)))
+        assertThatThrownBy(() -> service.pageTickets(stored(jdbc,2L), all, 1, 0, null, null, "x".repeat(101)))
                 .isInstanceOf(IllegalArgumentException.class);
 
         jdbc.update("UPDATE business_memberships SET is_active = FALSE WHERE user_id = 1");
@@ -632,17 +630,17 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         when(staleAccess.requireSelectedBusiness(eq(1L), any()))
                 .thenReturn(new BusinessAccessService.SelectedBusinessScope(Set.of(sushi), sushi));
         assertThat(new BusinessScopedTicketReadService(jdbc, staleAccess)
-                .listTickets(1L, all, 50, 0, null, null, "Иван")).isEmpty();
+                .listTickets(stored(jdbc,1L), all, 50, 0, null, null, "Иван")).isEmpty();
         assertThat(new BusinessScopedTicketReadService(jdbc, staleAccess)
-                .exportTickets(1L, all, null, null, "Иван")).isEmpty();
+                .exportTickets(stored(jdbc,1L), all, null, null, "Иван")).isEmpty();
         jdbc.update("UPDATE businesses SET status = 'archived' WHERE id = ?", bliny);
-        assertThat(service.listTickets(2L, all, 50, 0, null, null, "Иван"))
+        assertThat(service.listTickets(stored(jdbc,2L), all, 50, 0, null, null, "Иван"))
                 .extracting(BusinessScopedTicketReadService.TicketRow::userId).containsExactly(11L);
-        assertThat(service.exportTickets(2L, all, null, null, "Иван"))
+        assertThat(service.exportTickets(stored(jdbc,2L), all, null, null, "Иван"))
                 .extracting(BusinessScopedTicketReadService.TicketRow::userId).containsExactly(11L);
         jdbc.update("UPDATE messages SET client_name = ?, problem = ? WHERE group_msg_id = 101",
                 "И".repeat(205), "П".repeat(505) + "TAIL");
-        var fullTextMatch = service.exportTickets(2L, all, null, null, "tail");
+        var fullTextMatch = service.exportTickets(stored(jdbc,2L), all, null, null, "tail");
         assertThat(fullTextMatch).hasSize(1);
         assertThat(fullTextMatch.get(0).clientName()).hasSize(200);
         assertThat(fullTextMatch.get(0).problemPreview()).hasSize(500);
@@ -666,30 +664,30 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
                 jdbc, new BusinessAccessService(jdbc));
         var all = BusinessAccessService.AllAccessibleBusinesses.INSTANCE;
 
-        assertThat(service.exportTickets(1L, all, null, null, null)).hasSize(1000);
-        assertThat(service.exportTickets(1L, new BusinessAccessService.OneBusiness(sushi),
+        assertThat(service.exportTickets(stored(jdbc,1L), all, null, null, null)).hasSize(1000);
+        assertThat(service.exportTickets(stored(jdbc,1L), new BusinessAccessService.OneBusiness(sushi),
                 "pending", "ticket-1", null)).hasSize(1);
-        assertThatThrownBy(() -> service.exportTickets(1L,
+        assertThatThrownBy(() -> service.exportTickets(stored(jdbc,1L),
                 new BusinessAccessService.OneBusiness(bliny), null, null, null))
                 .isInstanceOf(AccessDeniedException.class);
-        assertThatThrownBy(() -> service.exportTickets(2L, all, null, null, null))
+        assertThatThrownBy(() -> service.exportTickets(stored(jdbc,2L), all, null, null, null))
                 .isInstanceOf(BusinessScopedTicketReadService.ExportTooLargeException.class);
-        assertThat(service.exportTickets(2L, new BusinessAccessService.OneBusiness(bliny),
+        assertThat(service.exportTickets(stored(jdbc,2L), new BusinessAccessService.OneBusiness(bliny),
                 null, null, null)).extracting(BusinessScopedTicketReadService.TicketRow::ticketId)
                 .containsExactly("other");
-        assertThatThrownBy(() -> service.exportTickets(1L, all, "invalid", null, null))
+        assertThatThrownBy(() -> service.exportTickets(stored(jdbc,1L), all, "invalid", null, null))
                 .isInstanceOf(IllegalArgumentException.class);
 
         jdbc.update("UPDATE business_memberships SET is_active = FALSE WHERE user_id = 1");
-        assertThat(service.exportTickets(1L, all, null, null, null)).isEmpty();
-        assertThatThrownBy(() -> service.exportTickets(1L,
+        assertThat(service.exportTickets(stored(jdbc,1L), all, null, null, null)).isEmpty();
+        assertThatThrownBy(() -> service.exportTickets(stored(jdbc,1L),
                 new BusinessAccessService.OneBusiness(sushi), null, null, null))
                 .isInstanceOf(AccessDeniedException.class);
         BusinessAccessService staleAccess = mock(BusinessAccessService.class);
         when(staleAccess.requireSelectedBusiness(eq(1L), any()))
                 .thenReturn(new BusinessAccessService.SelectedBusinessScope(Set.of(sushi), sushi));
         assertThat(new BusinessScopedTicketReadService(jdbc, staleAccess)
-                .exportTickets(1L, all, null, null, null)).isEmpty();
+                .exportTickets(stored(jdbc,1L), all, null, null, null)).isEmpty();
     }
 
     @Test
@@ -709,15 +707,15 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         BusinessAccessService access = new BusinessAccessService(jdbc);
         BusinessScopedTicketReadService service = new BusinessScopedTicketReadService(jdbc, access);
 
-        var direct = service.summarizeTickets(1L, new BusinessAccessService.OneBusiness(sushi));
+        var direct = service.summarizeTickets(stored(jdbc,1L), new BusinessAccessService.OneBusiness(sushi));
         assertThat(direct.total()).isEqualTo(1);
         assertThat(direct.open()).isEqualTo(1);
         assertThat(direct.businesses()).extracting(BusinessScopedTicketReadService.BusinessTicketCounts::businessId)
                 .containsExactly(sushi);
-        assertThatThrownBy(() -> service.summarizeTickets(1L, new BusinessAccessService.OneBusiness(bliny)))
+        assertThatThrownBy(() -> service.summarizeTickets(stored(jdbc,1L), new BusinessAccessService.OneBusiness(bliny)))
                 .isInstanceOf(AccessDeniedException.class);
 
-        var all = service.summarizeTickets(2L, BusinessAccessService.AllAccessibleBusinesses.INSTANCE);
+        var all = service.summarizeTickets(stored(jdbc,2L), BusinessAccessService.AllAccessibleBusinesses.INSTANCE);
         assertThat(all.total()).isEqualTo(2);
         assertThat(all.open()).isEqualTo(1);
         assertThat(all.other()).isEqualTo(1);
@@ -729,18 +727,17 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
 
         BusinessAdministrationService admin = new BusinessAdministrationService(jdbc);
         assertThat(admin.setBusinessStatus(bliny, "archived")).isTrue();
-        var archived = service.summarizeTickets(2L, BusinessAccessService.AllAccessibleBusinesses.INSTANCE);
+        var archived = service.summarizeTickets(stored(jdbc,2L), BusinessAccessService.AllAccessibleBusinesses.INSTANCE);
         assertThat(archived.total()).isEqualTo(1);
         assertThat(archived.businesses()).extracting(BusinessScopedTicketReadService.BusinessTicketCounts::businessId)
                 .containsExactly(sushi, flowers);
         jdbc.update("UPDATE business_memberships SET is_active = FALSE WHERE user_id = 1");
-        assertThat(service.summarizeTickets(1L, BusinessAccessService.AllAccessibleBusinesses.INSTANCE))
+        assertThat(service.summarizeTickets(stored(jdbc,1L), BusinessAccessService.AllAccessibleBusinesses.INSTANCE))
                 .isEqualTo(new BusinessScopedTicketReadService.TicketSummary(0, 0, 0, 0, 0, 0, List.of()));
         BusinessAccessService staleAccess = mock(BusinessAccessService.class);
         when(staleAccess.requireSelectedBusiness(eq(1L), any()))
                 .thenReturn(new BusinessAccessService.SelectedBusinessScope(Set.of(sushi), sushi));
-        assertThat(new BusinessScopedTicketReadService(jdbc, staleAccess).summarizeTickets(
-                1L, new BusinessAccessService.OneBusiness(sushi)).total()).isZero();
+        assertThat(new BusinessScopedTicketReadService(jdbc, staleAccess).summarizeTickets(stored(jdbc,1L), new BusinessAccessService.OneBusiness(sushi)).total()).isZero();
     }
 
     @Test
@@ -756,16 +753,17 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
 
         assertThatThrownBy(() -> service.requireAuthenticatedUserId(com.example.panel.support.AiControlIdentityFixture.auth(1,"member")))
                 .isInstanceOf(AccessDeniedException.class);
-        assertThat(service.listTickets(1L, new BusinessAccessService.OneBusiness(sushi), 50, 0))
+        assertThat(service.listTickets(stored(jdbc,1L), new BusinessAccessService.OneBusiness(sushi), 50, 0))
+                .isEmpty();
+        jdbc.update("UPDATE users SET username = 'other-member' WHERE id = 2");
+        assertThat(service.listTickets(stored(jdbc,1L), new BusinessAccessService.OneBusiness(sushi), 50, 0))
                 .hasSize(1);
         jdbc.update("UPDATE business_memberships SET is_active = FALSE WHERE user_id = 1");
-        assertThatThrownBy(() -> service.listTickets(
-                1L, new BusinessAccessService.OneBusiness(sushi), 50, 0))
+        assertThatThrownBy(() -> service.listTickets(stored(jdbc,1L), new BusinessAccessService.OneBusiness(sushi), 50, 0))
                 .isInstanceOf(AccessDeniedException.class);
-        assertThatThrownBy(() -> service.pageTickets(
-                1L, new BusinessAccessService.OneBusiness(sushi), 50, 0, null, null))
+        assertThatThrownBy(() -> service.pageTickets(stored(jdbc,1L), new BusinessAccessService.OneBusiness(sushi), 50, 0, null, null))
                 .isInstanceOf(AccessDeniedException.class);
-        assertThat(service.availableBusinesses(1L)).isEmpty();
+        assertThat(service.availableBusinesses(stored(jdbc,1L))).isEmpty();
         assertThat(service.findByPublicId(stored(jdbc,1L), "0123456789abcdef0123456789abcdef")).isEmpty();
 
         BusinessAccessService staleAccess = mock(BusinessAccessService.class);
@@ -773,13 +771,10 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         when(staleAccess.requireSelectedBusiness(eq(1L), any()))
                 .thenReturn(new BusinessAccessService.SelectedBusinessScope(Set.of(sushi), sushi));
         BusinessScopedTicketReadService staleService = new BusinessScopedTicketReadService(jdbc, staleAccess);
-        assertThat(staleService.availableBusinesses(1L)).isEmpty();
-        assertThat(staleService.listTickets(
-                1L, new BusinessAccessService.OneBusiness(sushi), 50, 0)).isEmpty();
-        assertThat(staleService.listTickets(
-                1L, new BusinessAccessService.OneBusiness(sushi), 50, 0, "pending", "ticket")).isEmpty();
-        assertThat(staleService.pageTickets(
-                1L, new BusinessAccessService.OneBusiness(sushi), 50, 0, null, null))
+        assertThat(staleService.availableBusinesses(stored(jdbc,1L))).isEmpty();
+        assertThat(staleService.listTickets(stored(jdbc,1L), new BusinessAccessService.OneBusiness(sushi), 50, 0)).isEmpty();
+        assertThat(staleService.listTickets(stored(jdbc,1L), new BusinessAccessService.OneBusiness(sushi), 50, 0, "pending", "ticket")).isEmpty();
+        assertThat(staleService.pageTickets(stored(jdbc,1L), new BusinessAccessService.OneBusiness(sushi), 50, 0, null, null))
                 .isEqualTo(new BusinessScopedTicketReadService.TicketPage(List.of(), false));
     }
 

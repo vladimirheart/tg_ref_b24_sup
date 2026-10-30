@@ -49,8 +49,8 @@ class BusinessReadEntryIdentityWebMvcTest {
         jdbc.update("INSERT INTO user_authorities(user_id,authority) VALUES(7,'PAGE_DIALOGS')");
         reset(shared,creation);when(shared.loadSettings()).thenReturn(Map.of());
         flags.getFoundation().setEnabled(true);flags.setManualTicketCreation(true);
-        doReturn(List.of(new BusinessScopedTicketReadService.BusinessOption(11,"private","PRIVATE BUSINESS"))).when(reads).availableBusinesses(anyLong());
-        when(creation.create(anyLong(),eq(11L),eq("Fixture"),eq("Fixture"),isNull()))
+        doReturn(List.of(new BusinessScopedTicketReadService.BusinessOption(11,"private","PRIVATE BUSINESS"))).when(reads).availableBusinesses(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class));
+        when(creation.create(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), eq(11L), eq("Fixture"), eq("Fixture"), isNull()))
             .thenReturn(new ManualBusinessTicketCreationService.CreatedTicket("a".repeat(32),"fixture",-7,11));
     }
     private MockHttpSession login(String name)throws Exception {
@@ -89,13 +89,13 @@ class BusinessReadEntryIdentityWebMvcTest {
             }
         },fired);
         mvc.perform(request(write,session)).andExpect(status().isForbidden()).andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("PRIVATE BUSINESS"))));
-        assertThat(fired).isTrue();verify(reads,never()).availableBusinesses(anyLong());verifyNoInteractions(creation);
+        assertThat(fired).isTrue();verify(reads,never()).availableBusinesses(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class));verifyNoInteractions(creation);
     }
     @ParameterizedTest @CsvSource({"caller,false","Caller,false","' caller ',false","caller,true","Caller,true","' caller ',true"})
     void exactLoginUsesOnlyItsBoundId(String name,boolean write)throws Exception {
         jdbc.update("UPDATE users SET username=? WHERE id=7",name);var session=login(name);
         mvc.perform(request(write,session)).andExpect(status().is(write?201:200)).andExpect(header().string("Cache-Control","no-store"));
-        if(write)verify(creation).create(7L,11L,"Fixture","Fixture",null);else verify(reads).availableBusinesses(7L);
+        if(write)verify(creation).create(org.mockito.ArgumentMatchers.argThat((org.springframework.security.core.Authentication a) -> a != null && a.getPrincipal() instanceof com.example.panel.security.PanelUserPrincipal p && p.getUserId() == 7L && p.getUsername().equals(name)), org.mockito.ArgumentMatchers.eq(11L), org.mockito.ArgumentMatchers.eq("Fixture"), org.mockito.ArgumentMatchers.eq("Fixture"), org.mockito.ArgumentMatchers.eq(null));else verify(reads).availableBusinesses(org.mockito.ArgumentMatchers.argThat((org.springframework.security.core.Authentication a) -> a != null && a.getPrincipal() instanceof com.example.panel.security.PanelUserPrincipal p && p.getUserId() == 7L && p.getUsername().equals(name)));
     }
     @ParameterizedTest @CsvSource({"anonymous,false","page,false","flag,false","anonymous,true","page,true","flag,true"})
     void existingRequestGatesStillRunBeforeEntry(String gate,boolean write)throws Exception {

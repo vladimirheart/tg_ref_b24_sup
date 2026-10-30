@@ -34,14 +34,14 @@ class BusinessScopeReadControllerWebMvcTest {
         when(flags.isFoundationEnabled()).thenReturn(true);
         when(service.requireAuthenticatedUserId(org.mockito.ArgumentMatchers.argThat((org.springframework.security.core.Authentication actor) -> actor != null && "operator".equals(actor.getName())))).thenReturn(1L);
         var context=new BusinessAccessService.OneBusiness(2L);
-        when(service.summarizeCategories(1L,context)).thenReturn(List.of(
+        when(service.summarizeCategories(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(context))).thenReturn(List.of(
             new BusinessScopedTicketReadService.CategoryCount(2L,"sushi","Суши","Delivery",3)));
         String path="/api/business-scope/tickets/categories";
         mvc.perform(get(path).param("business_id","2").with(user("operator").authorities(()->"PAGE_DIALOGS")))
             .andExpect(status().isOk()).andExpect(header().string("Cache-Control","no-store"))
             .andExpect(header().string("X-Content-Type-Options","nosniff"))
             .andExpect(jsonPath("$[0].category").value("Delivery")).andExpect(jsonPath("$[0].total").value(3));
-        when(service.summarizeCategories(1L,context)).thenThrow(new BusinessScopedTicketReadService.CategorySummaryTooLargeException());
+        when(service.summarizeCategories(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(context))).thenThrow(new BusinessScopedTicketReadService.CategorySummaryTooLargeException());
         mvc.perform(get(path).param("business_id","2").with(user("operator").authorities(()->"PAGE_DIALOGS"))).andExpect(status().isPayloadTooLarge());
         mvc.perform(get(path).param("business_id","bad").with(user("operator").authorities(()->"PAGE_DIALOGS"))).andExpect(status().isForbidden());
         mvc.perform(get(path).param("business_id","2").with(user("operator").authorities(()->"PAGE_SETTINGS"))).andExpect(status().isForbidden());
@@ -54,10 +54,10 @@ class BusinessScopeReadControllerWebMvcTest {
         when(service.requireAuthenticatedUserId(org.mockito.ArgumentMatchers.argThat((org.springframework.security.core.Authentication actor) -> actor != null && "operator".equals(actor.getName())))).thenReturn(1L);
         String category="A%_'😀";
         var context=new BusinessAccessService.OneBusiness(2L);
-        when(service.listTickets(1L,context,50,0,null,null,null,category)).thenReturn(List.of());
-        when(service.pageTickets(1L,context,50,0,null,null,null,category))
+        when(service.listTickets(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(context), org.mockito.ArgumentMatchers.eq(50), org.mockito.ArgumentMatchers.eq(0), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq(category))).thenReturn(List.of());
+        when(service.pageTickets(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(context), org.mockito.ArgumentMatchers.eq(50), org.mockito.ArgumentMatchers.eq(0), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq(category)))
             .thenReturn(new BusinessScopedTicketReadService.TicketPage(List.of(),false));
-        when(service.exportTickets(1L,context,null,null,null,category)).thenReturn(List.of());
+        when(service.exportTickets(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(context), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq(category))).thenReturn(List.of());
         for(String suffix:List.of("","/page","/export")) {
             String path="/api/business-scope/tickets"+suffix;
             mvc.perform(get(path).param("business_id","2").param("category",category)
@@ -66,9 +66,9 @@ class BusinessScopeReadControllerWebMvcTest {
                 mvc.perform(get(path).param("business_id","2").param("category",invalid)
                     .with(user("operator").authorities(()->"PAGE_DIALOGS"))).andExpect(status().isBadRequest());
         }
-        org.mockito.Mockito.verify(service).listTickets(1L,context,50,0,null,null,null,category);
-        org.mockito.Mockito.verify(service).pageTickets(1L,context,50,0,null,null,null,category);
-        org.mockito.Mockito.verify(service).exportTickets(1L,context,null,null,null,category);
+        org.mockito.Mockito.verify(service).listTickets(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(context), org.mockito.ArgumentMatchers.eq(50), org.mockito.ArgumentMatchers.eq(0), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq(category));
+        org.mockito.Mockito.verify(service).pageTickets(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(context), org.mockito.ArgumentMatchers.eq(50), org.mockito.ArgumentMatchers.eq(0), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq(category));
+        org.mockito.Mockito.verify(service).exportTickets(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(context), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq(category));
     }
 
     private static final String PUBLIC_ID = "0123456789abcdef0123456789abcdef";
@@ -95,7 +95,7 @@ class BusinessScopeReadControllerWebMvcTest {
     void availableBusinessesArePrivateAndStillRequireCurrentPageAndFoundation() throws Exception {
         when(flags.isFoundationEnabled()).thenReturn(true);
         when(service.requireAuthenticatedUserId(org.mockito.ArgumentMatchers.argThat((org.springframework.security.core.Authentication actor) -> actor != null && "operator".equals(actor.getName())))).thenReturn(1L);
-        when(service.availableBusinesses(1L)).thenReturn(List.of(
+        when(service.availableBusinesses(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class))).thenReturn(List.of(
                 new BusinessScopedTicketReadService.BusinessOption(2L, "sushi", "Суши")));
         String path = "/api/business-scope/businesses";
         mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
@@ -358,8 +358,7 @@ class BusinessScopeReadControllerWebMvcTest {
         var ticket = new BusinessScopedTicketReadService.TicketRow(
                 8L, "raw-ticket", PUBLIC_ID, 2L, "sushi", "Суши", "open",
                 CREATED_AT, "Иван", "Нет света");
-        when(service.listTickets(1L, new BusinessAccessService.OneBusiness(2L),
-                50, 0, "open", PUBLIC_ID, null, null)).thenReturn(List.of(ticket));
+        when(service.listTickets(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(new BusinessAccessService.OneBusiness(2L)), org.mockito.ArgumentMatchers.eq(50), org.mockito.ArgumentMatchers.eq(0), org.mockito.ArgumentMatchers.eq("open"), org.mockito.ArgumentMatchers.eq(PUBLIC_ID), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq(null))).thenReturn(List.of(ticket));
         String path = "/api/business-scope/tickets";
         mvc.perform(get(path).param("business_id", "2").param("status", "open")
                 .param("ticket", PUBLIC_ID).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
@@ -388,8 +387,7 @@ class BusinessScopeReadControllerWebMvcTest {
                 .andExpect(status().isBadRequest());
 
         String pagePath = path + "/page";
-        when(service.pageTickets(1L, new BusinessAccessService.OneBusiness(2L),
-                50, 0, "open", PUBLIC_ID, null, null)).thenReturn(
+        when(service.pageTickets(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(new BusinessAccessService.OneBusiness(2L)), org.mockito.ArgumentMatchers.eq(50), org.mockito.ArgumentMatchers.eq(0), org.mockito.ArgumentMatchers.eq("open"), org.mockito.ArgumentMatchers.eq(PUBLIC_ID), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq(null))).thenReturn(
                 new BusinessScopedTicketReadService.TicketPage(List.of(ticket), false));
         mvc.perform(get(pagePath).param("business_id", "2").param("status", "open")
                 .param("ticket", PUBLIC_ID).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
@@ -399,8 +397,7 @@ class BusinessScopeReadControllerWebMvcTest {
                 .andExpect(jsonPath("$.tickets[0].ticketId").value("raw-ticket"))
                 .andExpect(jsonPath("$.tickets[0].clientName").value("Иван"))
                 .andExpect(jsonPath("$.hasMore").value(false));
-        when(service.pageTickets(1L, new BusinessAccessService.OneBusiness(2L),
-                50, 0, "open", null, "проблема", null)).thenReturn(
+        when(service.pageTickets(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(new BusinessAccessService.OneBusiness(2L)), org.mockito.ArgumentMatchers.eq(50), org.mockito.ArgumentMatchers.eq(0), org.mockito.ArgumentMatchers.eq("open"), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq("проблема"), org.mockito.ArgumentMatchers.eq(null))).thenReturn(
                 new BusinessScopedTicketReadService.TicketPage(List.of(ticket), false));
         mvc.perform(get(pagePath).param("business_id", "2").param("status", "open")
                 .param("q", "проблема").with(user("operator").authorities(() -> "PAGE_DIALOGS")))
@@ -436,7 +433,7 @@ class BusinessScopeReadControllerWebMvcTest {
         var ticket = new BusinessScopedTicketReadService.TicketRow(
                 8L, "raw-ticket", PUBLIC_ID, 2L, "sushi", "Суши", "open",
                 CREATED_AT, "Иван", "Нет света");
-        when(service.exportTickets(1L, context, "open", null, "Иван", null))
+        when(service.exportTickets(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(context), org.mockito.ArgumentMatchers.eq("open"), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq("Иван"), org.mockito.ArgumentMatchers.eq(null)))
                 .thenReturn(List.of(ticket));
         mvc.perform(get(path).param("business_id", "2").param("status", "open")
                 .param("q", "Иван").with(user("operator").authorities(() -> "PAGE_DIALOGS")))
@@ -456,7 +453,7 @@ class BusinessScopeReadControllerWebMvcTest {
         mvc.perform(get(path).param("business_id", "2").param("status", "bad")
                 .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isBadRequest());
-        when(service.exportTickets(1L, context, null, null, null, null))
+        when(service.exportTickets(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(context), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq(null)))
                 .thenThrow(new BusinessScopedTicketReadService.ExportTooLargeException());
         mvc.perform(get(path).param("business_id", "2")
                 .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
@@ -480,7 +477,7 @@ class BusinessScopeReadControllerWebMvcTest {
         String path = "/api/business-scope/tickets/summary";
         var counts = new BusinessScopedTicketReadService.BusinessTicketCounts(
                 2L, "sushi", "Суши", 2, 0, 1, 1, 0, 0);
-        when(service.summarizeTickets(1L, new BusinessAccessService.OneBusiness(2L)))
+        when(service.summarizeTickets(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(new BusinessAccessService.OneBusiness(2L))))
                 .thenReturn(new BusinessScopedTicketReadService.TicketSummary(
                         2, 0, 1, 1, 0, 0, List.of(counts)));
         mvc.perform(get(path).param("business_id", "2")
@@ -494,7 +491,7 @@ class BusinessScopeReadControllerWebMvcTest {
         mvc.perform(get(path).param("business_id", "invalid")
                 .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isForbidden());
-        when(service.summarizeTickets(1L, new BusinessAccessService.OneBusiness(9L)))
+        when(service.summarizeTickets(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(new BusinessAccessService.OneBusiness(9L))))
                 .thenThrow(new org.springframework.security.access.AccessDeniedException("Forbidden"));
         mvc.perform(get(path).param("business_id", "9")
                 .with(user("operator").authorities(() -> "PAGE_DIALOGS")))

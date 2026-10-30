@@ -63,8 +63,10 @@ public class BusinessScopedTicketReadService {
         return ids.get(0);
     }
 
-    public List<BusinessOption> availableBusinesses(Long userId) {
-        Set<Long> ids = accessService.resolveAccessibleBusinessIds(userId);
+    public List<BusinessOption> availableBusinesses(Authentication authentication) {
+        ReadActor actor = ReadActor.from(authentication);
+        if (actor == null) return List.of();
+        Set<Long> ids = accessService.resolveAccessibleBusinessIds(actor.userId());
         if (ids.isEmpty()) {
             return List.of();
         }
@@ -72,6 +74,13 @@ public class BusinessScopedTicketReadService {
                 SELECT business.id, business.code, business.display_name
                   FROM businesses business
                  WHERE business.id IN (:businessIds) AND business.status = 'active'
+                   AND EXISTS (
+                       SELECT 1 FROM users reader
+                        WHERE reader.id = :userId AND reader.username = :readerUsername
+                          AND reader.enabled = TRUE AND reader.is_blocked = FALSE
+                          AND 1 = (SELECT COUNT(*) FROM users duplicate
+                                   WHERE lower(duplicate.username) = lower(reader.username))
+                   )
                    AND (EXISTS (
                        SELECT 1 FROM business_memberships membership
                         WHERE membership.business_id = business.id
@@ -84,15 +93,18 @@ public class BusinessScopedTicketReadService {
                    ))
                  ORDER BY business.id
                 """, new MapSqlParameterSource()
-                        .addValue("businessIds", ids).addValue("userId", userId),
+                        .addValue("businessIds", ids).addValue("userId", actor.userId(), Types.BIGINT)
+                        .addValue("readerUsername", actor.username(), Types.VARCHAR),
                 (rs, rowNum) -> new BusinessOption(
                         rs.getLong("id"), rs.getString("code"), rs.getString("display_name")));
     }
 
     /** Counts only canonical tickets in currently authorized active businesses, including empty businesses. */
-    public TicketSummary summarizeTickets(Long userId,
+    public TicketSummary summarizeTickets(Authentication authentication,
                                           BusinessAccessService.RequestedBusinessContext context) {
-        Set<Long> ids = accessService.requireSelectedBusiness(userId, context).businessIds();
+        ReadActor actor = ReadActor.from(authentication);
+        if (actor == null) return new TicketSummary(0, 0, 0, 0, 0, 0, List.of());
+        Set<Long> ids = accessService.requireSelectedBusiness(actor.userId(), context).businessIds();
         if (ids.isEmpty()) {
             return new TicketSummary(0, 0, 0, 0, 0, 0, List.of());
         }
@@ -106,6 +118,13 @@ public class BusinessScopedTicketReadService {
                   FROM businesses business
                   LEFT JOIN tickets ticket ON ticket.business_id = business.id
                  WHERE business.id IN (:businessIds) AND business.status = 'active'
+                   AND EXISTS (
+                       SELECT 1 FROM users reader
+                        WHERE reader.id = :userId AND reader.username = :readerUsername
+                          AND reader.enabled = TRUE AND reader.is_blocked = FALSE
+                          AND 1 = (SELECT COUNT(*) FROM users duplicate
+                                   WHERE lower(duplicate.username) = lower(reader.username))
+                   )
                    AND (EXISTS (
                        SELECT 1 FROM business_memberships membership
                         WHERE membership.business_id = business.id
@@ -118,7 +137,8 @@ public class BusinessScopedTicketReadService {
                    ))
                  GROUP BY business.id, business.code, business.display_name
                  ORDER BY business.id
-                """, new MapSqlParameterSource().addValue("businessIds", ids).addValue("userId", userId),
+                """, new MapSqlParameterSource().addValue("businessIds", ids).addValue("userId", actor.userId(), Types.BIGINT)
+                        .addValue("readerUsername", actor.username(), Types.VARCHAR),
                 (rs, rowNum) -> {
                     long total = rs.getLong("total");
                     long pending = rs.getLong("pending");
@@ -142,9 +162,11 @@ public class BusinessScopedTicketReadService {
     }
 
     /** One count per canonical owner/category; never joins legacy ticket_categories. */
-    public List<CategoryCount> summarizeCategories(Long userId,
+    public List<CategoryCount> summarizeCategories(Authentication authentication,
             BusinessAccessService.RequestedBusinessContext context) {
-        Set<Long> ids = accessService.requireSelectedBusiness(userId, context).businessIds();
+        ReadActor actor = ReadActor.from(authentication);
+        if (actor == null) return List.of();
+        Set<Long> ids = accessService.requireSelectedBusiness(actor.userId(), context).businessIds();
         if (ids.isEmpty()) return List.of();
         List<CategoryCount> result = namedJdbcTemplate.query("""
                 SELECT business.id AS business_id, business.code AS business_code,
@@ -154,6 +176,13 @@ public class BusinessScopedTicketReadService {
                   JOIN businesses business ON business.id = ticket.business_id
                   CROSS JOIN LATERAL jsonb_array_elements_text(ticket.business_categories) category(value)
                  WHERE ticket.business_id IN (:businessIds) AND business.status = 'active'
+                   AND EXISTS (
+                       SELECT 1 FROM users reader
+                        WHERE reader.id = :userId AND reader.username = :readerUsername
+                          AND reader.enabled = TRUE AND reader.is_blocked = FALSE
+                          AND 1 = (SELECT COUNT(*) FROM users duplicate
+                                   WHERE lower(duplicate.username) = lower(reader.username))
+                   )
                    AND (EXISTS (
                        SELECT 1 FROM business_memberships membership
                         WHERE membership.business_id = business.id
@@ -167,7 +196,8 @@ public class BusinessScopedTicketReadService {
                  GROUP BY business.id, business.code, business.display_name, category.value
                  ORDER BY business.id, category.value COLLATE "C"
                  LIMIT :summaryLimit
-                """, new MapSqlParameterSource().addValue("businessIds", ids).addValue("userId", userId)
+                """, new MapSqlParameterSource().addValue("businessIds", ids).addValue("userId", actor.userId(), Types.BIGINT)
+                        .addValue("readerUsername", actor.username(), Types.VARCHAR)
                         .addValue("summaryLimit", MAX_CATEGORY_SUMMARY + 1),
                 (rs, rowNum) -> new CategoryCount(rs.getLong("business_id"), rs.getString("business_code"),
                         rs.getString("business_name"), rs.getString("category"), rs.getLong("total")));
@@ -175,71 +205,77 @@ public class BusinessScopedTicketReadService {
         return result;
     }
 
-    public List<TicketRow> listTickets(Long userId,
+    public List<TicketRow> listTickets(Authentication authentication,
                                        BusinessAccessService.RequestedBusinessContext context,
                                        int limit,
                                        int offset) {
-        return listTickets(userId, context, limit, offset, null, null);
+        return listTickets(authentication, context, limit, offset, null, null);
     }
 
-    public List<TicketRow> listTickets(Long userId,
+    public List<TicketRow> listTickets(Authentication authentication,
                                        BusinessAccessService.RequestedBusinessContext context,
                                        int limit, int offset, String status, String ticketId) {
-        return listTickets(userId, context, limit, offset, status, ticketId, null);
+        return listTickets(authentication, context, limit, offset, status, ticketId, null);
     }
 
-    public List<TicketRow> listTickets(Long userId,
+    public List<TicketRow> listTickets(Authentication authentication,
                                        BusinessAccessService.RequestedBusinessContext context,
                                        int limit, int offset, String status, String ticketId, String query) {
-        return listTickets(userId, context, limit, offset, status, ticketId, query, null);
+        return listTickets(authentication, context, limit, offset, status, ticketId, query, null);
     }
 
-    public List<TicketRow> listTickets(Long userId,
+    public List<TicketRow> listTickets(Authentication authentication,
             BusinessAccessService.RequestedBusinessContext context,
             int limit, int offset, String status, String ticketId, String query, String category) {
         validateTicketPage(limit, offset, status, ticketId, query);
         validateCategory(category);
-        Set<Long> ids = accessService.requireSelectedBusiness(userId, context).businessIds();
-        return queryTickets(userId, ids, limit, offset, status, ticketId, query, category);
+        ReadActor actor = ReadActor.from(authentication);
+        if (actor == null) return List.of();
+        Set<Long> ids = accessService.requireSelectedBusiness(actor.userId(), context).businessIds();
+        return queryTickets(actor, ids, limit, offset, status, ticketId, query, category);
     }
 
-    public TicketPage pageTickets(Long userId,
+    public TicketPage pageTickets(Authentication authentication,
                                   BusinessAccessService.RequestedBusinessContext context,
                                   int limit, int offset, String status, String ticketId) {
-        return pageTickets(userId, context, limit, offset, status, ticketId, null);
+        return pageTickets(authentication, context, limit, offset, status, ticketId, null);
     }
 
-    public TicketPage pageTickets(Long userId,
+    public TicketPage pageTickets(Authentication authentication,
                                   BusinessAccessService.RequestedBusinessContext context,
                                   int limit, int offset, String status, String ticketId, String query) {
-        return pageTickets(userId, context, limit, offset, status, ticketId, query, null);
+        return pageTickets(authentication, context, limit, offset, status, ticketId, query, null);
     }
 
-    public TicketPage pageTickets(Long userId,
+    public TicketPage pageTickets(Authentication authentication,
             BusinessAccessService.RequestedBusinessContext context,
             int limit, int offset, String status, String ticketId, String query, String category) {
         validateTicketPage(limit, offset, status, ticketId, query);
         validateCategory(category);
-        Set<Long> ids = accessService.requireSelectedBusiness(userId, context).businessIds();
-        List<TicketRow> rows = queryTickets(userId, ids, limit + 1, offset, status, ticketId, query, category);
+        ReadActor actor = ReadActor.from(authentication);
+        if (actor == null) return new TicketPage(List.of(), false);
+        Set<Long> ids = accessService.requireSelectedBusiness(actor.userId(), context).businessIds();
+        List<TicketRow> rows = queryTickets(actor, ids, limit + 1, offset, status, ticketId, query, category);
         boolean hasMore = rows.size() > limit;
         return new TicketPage(hasMore ? List.copyOf(rows.subList(0, limit)) : rows, hasMore);
     }
 
     /** Exports a complete filtered snapshot or refuses it; never returns a silently truncated file. */
-    public List<TicketRow> exportTickets(Long userId,
+    public List<TicketRow> exportTickets(Authentication authentication,
                                          BusinessAccessService.RequestedBusinessContext context,
                                          String status, String ticketId, String query) {
-        return exportTickets(userId, context, status, ticketId, query, null);
+        return exportTickets(authentication, context, status, ticketId, query, null);
     }
 
-    public List<TicketRow> exportTickets(Long userId,
+    public List<TicketRow> exportTickets(Authentication authentication,
             BusinessAccessService.RequestedBusinessContext context,
             String status, String ticketId, String query, String category) {
         validateTicketFilters(status, ticketId, query);
         validateCategory(category);
-        Set<Long> ids = accessService.requireSelectedBusiness(userId, context).businessIds();
-        List<TicketRow> rows = queryTickets(userId, ids, MAX_EXPORT_TICKETS + 1, 0,
+        ReadActor actor = ReadActor.from(authentication);
+        if (actor == null) return List.of();
+        Set<Long> ids = accessService.requireSelectedBusiness(actor.userId(), context).businessIds();
+        List<TicketRow> rows = queryTickets(actor, ids, MAX_EXPORT_TICKETS + 1, 0,
                 status, ticketId, query, category);
         if (rows.size() > MAX_EXPORT_TICKETS) {
             throw new ExportTooLargeException();
@@ -275,7 +311,7 @@ public class BusinessScopedTicketReadService {
         }
     }
 
-    private List<TicketRow> queryTickets(Long userId, Set<Long> ids,
+    private List<TicketRow> queryTickets(ReadActor actor, Set<Long> ids,
             int limit, int offset, String status, String ticketId, String query, String category) {
         if (ids.isEmpty()) {
             return List.of();
@@ -295,6 +331,13 @@ public class BusinessScopedTicketReadService {
                        AND root.user_id = ticket.user_id AND root.ticket_id = ticket.ticket_id
                  WHERE ticket.business_id IN (:businessIds)
                    AND business.status = 'active'
+                   AND EXISTS (
+                       SELECT 1 FROM users reader
+                        WHERE reader.id = :userId AND reader.username = :readerUsername
+                          AND reader.enabled = TRUE AND reader.is_blocked = FALSE
+                          AND 1 = (SELECT COUNT(*) FROM users duplicate
+                                   WHERE lower(duplicate.username) = lower(reader.username))
+                   )
                    AND (EXISTS (
                        SELECT 1 FROM business_memberships membership
                         WHERE membership.business_id = business.id
@@ -321,7 +364,8 @@ public class BusinessScopedTicketReadService {
                 """;
         return namedJdbcTemplate.query(sql, new MapSqlParameterSource()
                         .addValue("businessIds", ids)
-                        .addValue("userId", userId)
+                        .addValue("userId", actor.userId(), Types.BIGINT)
+                        .addValue("readerUsername", actor.username(), Types.VARCHAR)
                         .addValue("status", status)
                         .addValue("ticketId", ticketId)
                         .addValue("query", query == null ? null : query.strip())
