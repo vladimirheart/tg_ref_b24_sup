@@ -2,7 +2,7 @@ package com.example.panel.service;
 
 import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.repository.NotificationBusinessAccessSql;
-import java.util.Locale;
+import org.springframework.security.core.Authentication;
 import java.util.Optional;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -16,8 +16,12 @@ public class UiEventTicketAccessService {
     private static final String CAN_READ_TICKET = """
         SELECT EXISTS (
             SELECT 1 FROM tickets owner
-            CROSS JOIN (VALUES (CAST(? AS TEXT))) AS n(user_identity)
-             WHERE owner.user_id = ? AND owner.ticket_id = ? AND owner.ticket_public_id = ?
+            JOIN users subscriber ON subscriber.id = ? AND subscriber.username = ?
+            CROSS JOIN LATERAL (VALUES (lower(subscriber.username))) AS n(user_identity)
+             WHERE subscriber.enabled = TRUE AND subscriber.is_blocked = FALSE
+               AND 1 = (SELECT COUNT(*) FROM users duplicate
+                        WHERE lower(duplicate.username) = lower(subscriber.username))
+               AND owner.user_id = ? AND owner.ticket_id = ? AND owner.ticket_public_id = ?
                AND owner.business_id IS NOT DISTINCT FROM CAST(? AS BIGINT)
                AND CASE WHEN owner.business_id IS NULL THEN 'UNRESOLVED' ELSE 'BUSINESS' END = ?
                AND owner.is_general = FALSE
@@ -81,14 +85,18 @@ public class UiEventTicketAccessService {
         }
     }
 
-    public boolean canReadTicket(String userIdentity, UiEventTicketScope scope) {
-        if (!StringUtils.hasText(userIdentity) || scope == null || !scope.isValid()) {
+    public boolean canReadTicket(Authentication authentication, UiEventTicketScope scope) {
+        return canReadTicketForRecipient(UiEventRecipient.from(authentication), scope);
+    }
+
+    boolean canReadTicketForRecipient(UiEventRecipient recipient, UiEventTicketScope scope) {
+        if (recipient == null || scope == null || !scope.isValid()) {
             return false;
         }
         try {
             // The queued owner must still match; broad grants cannot authorize an obsolete payload.
             return Boolean.TRUE.equals(jdbcTemplate.queryForObject(CAN_READ_TICKET, Boolean.class,
-                userIdentity.toLowerCase(Locale.ROOT), scope.ticketUserId(), scope.ticketId(),
+                recipient.userId(), recipient.username(), scope.ticketUserId(), scope.ticketId(),
                 scope.ticketPublicId(), scope.businessId(), scope.scopeKind(), scope.ticketId(), flags.isStrictReadScope()));
         } catch (DataAccessException ex) {
             return false;

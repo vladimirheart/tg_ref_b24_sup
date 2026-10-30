@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import static com.example.panel.service.UiEventActorFixture.stored;
+import static com.example.panel.service.UiEventActorFixture.key;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -73,11 +75,11 @@ class UiEventTicketScopePostgresIntegrationTest {
         stream.deliverFanoutEvent(queued);
 
         verifyNoInteractions(reader);
-        assertThat(access.canReadTicket("all-reader", scope)).isFalse();
+        assertThat(access.canReadTicket(stored(jdbc,"all-reader"), scope)).isFalse();
         if (List.of("business", "recreated", "tuple").contains(mutation)) {
             UiEventTicketScope current = access.captureScope("T-A").orElseThrow();
             assertThat(current).isNotEqualTo(scope);
-            assertThat(access.canReadTicket("all-reader", current)).isTrue();
+            assertThat(access.canReadTicket(stored(jdbc,"all-reader"), current)).isTrue();
         }
     }
 
@@ -282,9 +284,9 @@ class UiEventTicketScopePostgresIntegrationTest {
 
     @SuppressWarnings("unchecked")
     private SseEmitter register() {
-        var emitters = (Map<String, CopyOnWriteArraySet<SseEmitter>>) ReflectionTestUtils.getField(stream, "emittersByUser");
+        var emitters = (Map<Object, CopyOnWriteArraySet<SseEmitter>>) ReflectionTestUtils.getField(stream, "emittersByUser");
         SseEmitter emitter = mock(SseEmitter.class);
-        emitters.computeIfAbsent("all-reader", key -> new CopyOnWriteArraySet<>()).add(emitter);
+        emitters.computeIfAbsent(key(stored(jdbc,"all-reader")), key -> new CopyOnWriteArraySet<>()).add(emitter);
         return emitter;
     }
 }

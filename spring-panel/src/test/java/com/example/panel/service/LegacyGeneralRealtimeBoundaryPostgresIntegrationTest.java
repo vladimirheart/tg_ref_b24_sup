@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import static com.example.panel.service.UiEventActorFixture.stored;
+import static com.example.panel.service.UiEventActorFixture.key;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -60,7 +62,7 @@ class LegacyGeneralRealtimeBoundaryPostgresIntegrationTest {
         UiEventStreamService stream = new UiEventStreamService(mock(UiEventFanoutPublisher.class),
             new LegacyTicketIdJdbcGuard(jdbc), readableRecipient());
         SseEmitter emitter = register(stream);
-        String target = "targeted".equals(delivery) ? " GENERAL-READER " : null;
+        String target = "targeted".equals(delivery) ? "GENERAL-READER" : null;
 
         for (String id : List.of("T-GENERAL", "T-MIXED", "T-UNKNOWN", "T-MISSING", "T-EXACT")) {
             stream.deliverFanoutEvent(envelope(target, name,
@@ -68,6 +70,8 @@ class LegacyGeneralRealtimeBoundaryPostgresIntegrationTest {
         }
         verifyNoInteractions(emitter);
 
+        stream.deliverFanoutEvent(envelope(" GENERAL-READER ", name, Map.of("ticketId", " T-EXACT ")));
+        verifyNoInteractions(emitter);
         stream.deliverFanoutEvent(envelope(target, name, Map.of("ticketId", " T-EXACT ")));
         verify(emitter).send(any(SseEmitter.SseEventBuilder.class));
     }
@@ -166,7 +170,7 @@ class LegacyGeneralRealtimeBoundaryPostgresIntegrationTest {
     // These cases isolate the existing marker/identity boundary; business READ has its own real SQL matrix.
     private UiEventTicketAccessService readableRecipient() {
         UiEventTicketAccessService access = mock(UiEventTicketAccessService.class);
-        when(access.canReadTicket(anyString(), any(UiEventTicketScope.class))).thenReturn(true);
+        when(access.canReadTicketForRecipient(any(UiEventRecipient.class), any(UiEventTicketScope.class))).thenReturn(true);
         when(access.captureScope(anyString())).thenAnswer(call -> Optional.of(scope(call.getArgument(0))));
         return access;
     }
@@ -197,9 +201,9 @@ class LegacyGeneralRealtimeBoundaryPostgresIntegrationTest {
 
     @SuppressWarnings("unchecked")
     private SseEmitter register(UiEventStreamService stream) {
-        var emitters = (Map<String, CopyOnWriteArraySet<SseEmitter>>) ReflectionTestUtils.getField(stream, "emittersByUser");
+        var emitters = (Map<Object, CopyOnWriteArraySet<SseEmitter>>) ReflectionTestUtils.getField(stream, "emittersByUser");
         SseEmitter emitter = mock(SseEmitter.class);
-        emitters.put("general-reader", new CopyOnWriteArraySet<>(List.of(emitter)));
+        emitters.put(key(com.example.panel.service.UiEventActorFixture.auth(1,"general-reader")), new CopyOnWriteArraySet<>(List.of(emitter)));
         return emitter;
     }
 }

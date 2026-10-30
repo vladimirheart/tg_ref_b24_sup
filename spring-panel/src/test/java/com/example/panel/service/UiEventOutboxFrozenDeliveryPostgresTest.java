@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import static com.example.panel.service.UiEventActorFixture.stored;
+import static com.example.panel.service.UiEventActorFixture.key;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
@@ -118,9 +120,9 @@ class UiEventOutboxFrozenDeliveryPostgresTest {
         publisher = mock(UiEventFanoutPublisher.class);
         stream = new UiEventStreamService(publisher, guard, access);
         reader = mock(SseEmitter.class);
-        Map<String, CopyOnWriteArraySet<SseEmitter>> emitters =
-            (Map<String, CopyOnWriteArraySet<SseEmitter>>) ReflectionTestUtils.getField(stream, "emittersByUser");
-        emitters.put("all-reader", new CopyOnWriteArraySet<>(List.of(reader)));
+        Map<Object, CopyOnWriteArraySet<SseEmitter>> emitters =
+            (Map<Object, CopyOnWriteArraySet<SseEmitter>>) ReflectionTestUtils.getField(stream, "emittersByUser");
+        emitters.put(key(stored(jdbc,"all-reader")), new CopyOnWriteArraySet<>(List.of(reader)));
         repository = mock(NotificationRepository.class);
         observed = spy(jdbc);
         doAnswer(call -> {
@@ -238,7 +240,7 @@ class UiEventOutboxFrozenDeliveryPostgresTest {
         verify(access, never()).captureScope(anyString());
         assertCursorAdvanced();
         if (List.of("business", "recreated", "tuple").contains(mutation))
-            assertThat(access.canReadTicket("all-reader", access.captureScope(RAW).orElseThrow())).isTrue();
+            assertThat(access.canReadTicket(stored(jdbc,"all-reader"), access.captureScope(RAW).orElseThrow())).isTrue();
     }
 
     @ParameterizedTest

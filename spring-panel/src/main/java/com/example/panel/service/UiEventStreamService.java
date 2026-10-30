@@ -10,6 +10,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import org.springframework.stereotype.Service;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -21,7 +23,7 @@ public class UiEventStreamService {
     private final UiEventFanoutPublisher fanoutPublisher;
     private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
     private final UiEventTicketAccessService ticketAccess;
-    private final ConcurrentHashMap<String, CopyOnWriteArraySet<SseEmitter>> emittersByUser =
+    private final ConcurrentHashMap<UiEventRecipient, CopyOnWriteArraySet<SseEmitter>> emittersByUser =
         new ConcurrentHashMap<>();
 
     public UiEventStreamService(UiEventFanoutPublisher fanoutPublisher,
@@ -32,14 +34,15 @@ public class UiEventStreamService {
         this.ticketAccess = ticketAccess;
     }
 
-    public SseEmitter connect(String userIdentity) {
-        String identity = normalizeIdentity(userIdentity);
+    public SseEmitter connect(Authentication authentication) {
+        UiEventRecipient recipient = UiEventRecipient.from(authentication);
+        if (recipient == null) throw new AccessDeniedException("Authenticated user is required");
         SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT_MS);
-        emittersByUser.computeIfAbsent(identity, key -> new CopyOnWriteArraySet<>()).add(emitter);
-        emitter.onCompletion(() -> unregister(identity, emitter));
-        emitter.onTimeout(() -> unregister(identity, emitter));
-        emitter.onError(error -> unregister(identity, emitter));
-        sendToEmitter(identity, emitter, "connected", Map.of(
+        emittersByUser.computeIfAbsent(recipient, key -> new CopyOnWriteArraySet<>()).add(emitter);
+        emitter.onCompletion(() -> unregister(recipient, emitter));
+        emitter.onTimeout(() -> unregister(recipient, emitter));
+        emitter.onError(error -> unregister(recipient, emitter));
+        sendToEmitter(recipient, emitter, "connected", Map.of(
             "connected", true,
             "emittedAt", nowUtc()
         ), null);
@@ -147,12 +150,12 @@ public class UiEventStreamService {
         if (!canDeliverLegacyEvent(eventName, payload, scope)) {
             return;
         }
-        emittersByUser.forEach((identity, emitters) -> {
+        emittersByUser.forEach((recipient, emitters) -> {
             if (emitters == null || emitters.isEmpty()) {
                 return;
             }
             for (SseEmitter emitter : emitters) {
-                sendToEmitter(identity, emitter, eventName, payload, scope);
+                sendToEmitter(recipient, emitter, eventName, payload, scope);
             }
         });
     }
@@ -161,16 +164,16 @@ public class UiEventStreamService {
         if (!canDeliverLegacyEvent(eventName, payload, scope)) {
             return;
         }
-        Set<SseEmitter> emitters = emittersByUser.get(identity);
-        if (emitters == null || emitters.isEmpty()) {
-            return;
-        }
-        for (SseEmitter emitter : emitters) {
-            sendToEmitter(identity, emitter, eventName, payload, scope);
-        }
+        emittersByUser.forEach((recipient, emitters) -> {
+            if (recipient.routingKey().equals(identity)) {
+                for (SseEmitter emitter : emitters) {
+                    sendToEmitter(recipient, emitter, eventName, payload, scope);
+                }
+            }
+        });
     }
 
-    private void sendToEmitter(String identity,
+    private void sendToEmitter(UiEventRecipient recipient,
                                SseEmitter emitter,
                                String eventName,
                                Map<String, Object> payload,
@@ -178,7 +181,7 @@ public class UiEventStreamService {
         if (isTicketBound(eventName, payload, scope)) {
             Object ticketId = payload != null ? payload.get("ticketId") : null;
             if (!(ticketId instanceof String rawId) || scope == null || !rawId.equals(scope.ticketId())
-                    || !ticketAccess.canReadTicket(identity, scope)) {
+                    || !ticketAccess.canReadTicketForRecipient(recipient, scope)) {
                 return;
             }
         }
@@ -187,7 +190,7 @@ public class UiEventStreamService {
                 .name(eventName)
                 .data(payload));
         } catch (IOException | IllegalStateException ex) {
-            unregister(identity, emitter);
+            unregister(recipient, emitter);
             try {
                 emitter.complete();
             } catch (RuntimeException ignored) {
@@ -196,15 +199,14 @@ public class UiEventStreamService {
         }
     }
 
-    private void unregister(String userIdentity, SseEmitter emitter) {
-        String identity = normalizeIdentity(userIdentity);
-        CopyOnWriteArraySet<SseEmitter> emitters = emittersByUser.get(identity);
+    private void unregister(UiEventRecipient recipient, SseEmitter emitter) {
+        CopyOnWriteArraySet<SseEmitter> emitters = emittersByUser.get(recipient);
         if (emitters == null) {
             return;
         }
         emitters.remove(emitter);
         if (emitters.isEmpty()) {
-            emittersByUser.remove(identity, emitters);
+            emittersByUser.remove(recipient, emitters);
         }
     }
 

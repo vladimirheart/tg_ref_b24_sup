@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import static com.example.panel.service.UiEventActorFixture.stored;
+import static com.example.panel.service.UiEventActorFixture.key;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -241,14 +243,14 @@ class UiEventBusinessAccessPostgresIntegrationTest {
     }
 
     private boolean canRead(String identity, String ticketId) {
-        return access.canReadTicket(identity, access.captureScope(ticketId).orElse(null));
+        return access.canReadTicket(stored(jdbc,identity), access.captureScope(ticketId).orElse(null));
     }
 
     @SuppressWarnings("unchecked")
     private SseEmitter register(String identity) {
-        var emitters = (Map<String, CopyOnWriteArraySet<SseEmitter>>) ReflectionTestUtils.getField(stream, "emittersByUser");
+        var emitters = (Map<Object, CopyOnWriteArraySet<SseEmitter>>) ReflectionTestUtils.getField(stream, "emittersByUser");
         SseEmitter emitter = mock(SseEmitter.class);
-        emitters.computeIfAbsent(identity, key -> new CopyOnWriteArraySet<>()).add(emitter);
+        emitters.computeIfAbsent(key(stored(jdbc,identity)), key -> new CopyOnWriteArraySet<>()).add(emitter);
         return emitter;
     }
 }

@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import static com.example.panel.service.UiEventActorFixture.stored;
+import static com.example.panel.service.UiEventActorFixture.key;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
@@ -46,7 +48,7 @@ class UiEventPrincipalIdentityPostgresTest {
     void whitespacePrincipalCannotReceiveAnotherAccountsBusinessEvents(String identity) {
         SseEmitter forged = connect(identity), canonical = connect("READER");
         var scope = access.captureScope(" T-A ").orElseThrow();
-        assertThat(access.canReadTicket(identity,scope)).isFalse();
+        assertThat(access.canReadTicket(stored(jdbc,identity),scope)).isFalse();
         stream.publishDialogsChanged("private",scope.ticketId());
         stream.deliverFanoutEvent(envelope(null,"dialog_history_changed",scope));
         stream.deliverFanoutEvent(envelope("READER","dialogs_changed",scope));
@@ -95,8 +97,8 @@ class UiEventPrincipalIdentityPostgresTest {
     void genuineSpacedAccountKeepsItsOwnGrantAndLosesItImmediately(String mutation) {
         SseEmitter spaced = connect(" READER "), plain = connect("reader");
         var own = access.captureScope("T-B").orElseThrow();
-        assertThat(access.canReadTicket(" READER ",own)).isTrue();
-        assertThat(access.canReadTicket("reader",own)).isFalse();
+        assertThat(access.canReadTicket(stored(jdbc," READER "),own)).isTrue();
+        assertThat(access.canReadTicket(stored(jdbc,"reader"),own)).isFalse();
         stream.publishDialogHistoryChanged("T-B",7L,"own");
         assertThat(payloads(spaced)).hasSize(1);assertThat(payloads(plain)).isEmpty();clear(spaced);
         switch(mutation) {
@@ -128,7 +130,7 @@ class UiEventPrincipalIdentityPostgresTest {
     private UiEventFanoutEnvelope envelope(String target,String name,UiEventTicketScope scope) {
         return new UiEventFanoutEnvelope("queued","worker",target,name,Map.of("ticketId",scope.ticketId()),scope);
     }
-    private SseEmitter connect(String identity) { var emitter=stream.connect(identity);clear(emitter);return emitter; }
+    private SseEmitter connect(String identity) { var emitter=stream.connect(stored(jdbc,identity));clear(emitter);return emitter; }
     private Collection<?> pending(SseEmitter emitter) { return (Collection<?>)ReflectionTestUtils.getField(emitter,"earlySendAttempts"); }
     private void clear(SseEmitter emitter) { pending(emitter).clear(); }
     @SuppressWarnings("unchecked") private List<Map<String,Object>> payloads(SseEmitter emitter) {
