@@ -1,5 +1,6 @@
 package com.example.panel.service.integration;
 
+import static com.example.panel.support.BusinessChildActorFixture.stored;
 import static com.example.panel.support.GeneralTicketAdminTestSupport.administrator;
 import static org.assertj.core.api.Assertions.*;
 import com.example.panel.config.MultibusinessFeatureFlags;
@@ -359,12 +360,12 @@ class SelectedBusinessTicketCreationPostgresTest {
         for(int slot=0;slot<3;slot++) {
             String key=input.mediaBatch().get(slot).attachmentPath();
             if(general) assertThat(generalRead.attachment(r230Reader(reader),r153PublicId(),ids.get(slot)).orElseThrow().storageKey()).isEqualTo(key);
-            else assertThat(businessRead.findAttachmentByPublicId(reader,r153PublicId(),ids.get(slot)).orElseThrow().storageKey()).isEqualTo(key);
+            else assertThat(businessRead.findAttachmentByPublicId(stored(jdbc,reader),r153PublicId(),ids.get(slot)).orElseThrow().storageKey()).isEqualTo(key);
             var metadata=jdbc.queryForMap("SELECT size,content_hash FROM chat_attachment_metadata WHERE chat_history_id=?",ids.get(slot));
             assertThat(((Number)metadata.get("size")).longValue()).isEqualTo(R153_BYTES.length);assertThat(metadata.get("content_hash")).isNotNull();
         }
         if(general){generalAccess.revokeRead(administrator(jdbc),reader);assertThat(generalRead.attachment(r230Reader(reader),r153PublicId(),ids.get(0))).isEmpty();}
-        else{jdbc.update("UPDATE business_access_grants SET is_active=FALSE WHERE user_id=?",reader);assertThat(businessRead.findAttachmentByPublicId(reader,r153PublicId(),ids.get(0))).isEmpty();}
+        else{jdbc.update("UPDATE business_access_grants SET is_active=FALSE WHERE user_id=?",reader);assertThat(businessRead.findAttachmentByPublicId(stored(jdbc,reader),r153PublicId(),ids.get(0))).isEmpty();}
         jdbc.update("UPDATE tickets SET status='closed' WHERE ticket_id=?",event.ticketId());flags.setTicketWriteRequiresBusiness(false);
         for(var item:input.mediaBatch())r153Write(item.attachmentPath(),new byte[]{1,2});
         r156Ingest(input);assertThat(count("chat_history")).isEqualTo(6);assertThat(inboxStatus(input.eventId())).isEqualTo("processed");
@@ -461,9 +462,9 @@ class SelectedBusinessTicketCreationPostgresTest {
         assertThat(((Number)row.get("size")).longValue()).isEqualTo(R153_BYTES.length);assertThat(row.get("content_hash")).isNotNull();
         long reader=r153Reader(general),history=((Number)row.get("id")).longValue();
         if(general) assertThat(generalRead.attachment(r230Reader(reader),r153PublicId(),history).orElseThrow().storageKey()).isEqualTo(key);
-        else assertThat(businessRead.findAttachmentByPublicId(reader,r153PublicId(),history).orElseThrow().storageKey()).isEqualTo(key);
+        else assertThat(businessRead.findAttachmentByPublicId(stored(jdbc,reader),r153PublicId(),history).orElseThrow().storageKey()).isEqualTo(key);
         if(general) {generalAccess.revokeRead(administrator(jdbc),reader);assertThat(generalRead.attachment(r230Reader(reader),r153PublicId(),history)).isEmpty();}
-        else {jdbc.update("UPDATE business_access_grants SET is_active=FALSE WHERE user_id=?",reader);assertThat(businessRead.findAttachmentByPublicId(reader,r153PublicId(),history)).isEmpty();}
+        else {jdbc.update("UPDATE business_access_grants SET is_active=FALSE WHERE user_id=?",reader);assertThat(businessRead.findAttachmentByPublicId(stored(jdbc,reader),r153PublicId(),history)).isEmpty();}
         jdbc.update("UPDATE tickets SET status='closed' WHERE ticket_id=?",event.ticketId());flags.setTicketWriteRequiresBusiness(false);
         r153Write(key,"changed bytes".getBytes(java.nio.charset.StandardCharsets.UTF_8));r155Ingest(input);
         assertThat(count("chat_history")).isEqualTo(2);assertThat(inboxStatus(input.eventId())).isEqualTo("processed");
@@ -787,7 +788,7 @@ class SelectedBusinessTicketCreationPostgresTest {
         return com.example.panel.support.GeneralEntryIdentityFixture.auth(id,jdbc.queryForObject("SELECT username FROM users WHERE id=?",String.class,id));
     }
     private boolean r153Readable(boolean general,long reader) {
-        return general?generalRead.attachment(r230Reader(reader),r153PublicId(),r153HistoryId()).isPresent():businessRead.findAttachmentByPublicId(reader,r153PublicId(),r153HistoryId()).isPresent();
+        return general?generalRead.attachment(r230Reader(reader),r153PublicId(),r153HistoryId()).isPresent():businessRead.findAttachmentByPublicId(stored(jdbc,reader),r153PublicId(),r153HistoryId()).isPresent();
     }
     @ParameterizedTest @ValueSource(booleans={false,true})
     void v4MediaIsReadableOnlyThroughCurrentScopedGrantWithItsFrozenProof(boolean general) throws Exception {
@@ -796,7 +797,7 @@ class SelectedBusinessTicketCreationPostgresTest {
             var ref=generalRead.attachment(r230Reader(reader),r153PublicId(),r153HistoryId()).orElseThrow();assertThat(ref.storageKey()).isEqualTo(r153Key);assertThat(ref.sha256()).isNotNull();assertThat(ref.size()).isEqualTo(R153_BYTES.length);
             generalAccess.revokeRead(administrator(jdbc),reader);
         } else {
-            var ref=businessRead.findAttachmentByPublicId(reader,r153PublicId(),r153HistoryId()).orElseThrow();assertThat(ref.storageKey()).isEqualTo(r153Key);assertThat(ref.sha256()).isNotNull();assertThat(ref.size()).isEqualTo(R153_BYTES.length);
+            var ref=businessRead.findAttachmentByPublicId(stored(jdbc,reader),r153PublicId(),r153HistoryId()).orElseThrow();assertThat(ref.storageKey()).isEqualTo(r153Key);assertThat(ref.sha256()).isNotNull();assertThat(ref.size()).isEqualTo(R153_BYTES.length);
             jdbc.update("UPDATE business_access_grants SET is_active=FALSE WHERE user_id=?",reader);
         }
         assertThat(r153Readable(general,reader)).isFalse();
@@ -881,7 +882,7 @@ class SelectedBusinessTicketCreationPostgresTest {
         r154VkMedia(general);ingest(event);long reader=r153Reader(general);assertThat(r153Readable(general,reader)).isTrue();
         jdbc.update("UPDATE business_channel_bindings SET is_active=FALSE WHERE channel_id=?",channel);assertThat(r153Readable(general,reader)).isTrue();
         if(general){var ref=generalRead.attachment(r230Reader(reader),r153PublicId(),r153HistoryId()).orElseThrow();assertThat(ref.storageKey()).isEqualTo(r154Keys.get(0));assertThat(ref.sha256()).isNotNull();generalAccess.revokeRead(administrator(jdbc),reader);}
-        else {var ref=businessRead.findAttachmentByPublicId(reader,r153PublicId(),r153HistoryId()).orElseThrow();assertThat(ref.storageKey()).isEqualTo(r154Keys.get(0));assertThat(ref.sha256()).isNotNull();jdbc.update("UPDATE business_access_grants SET is_active=FALSE WHERE user_id=?",reader);}
+        else {var ref=businessRead.findAttachmentByPublicId(stored(jdbc,reader),r153PublicId(),r153HistoryId()).orElseThrow();assertThat(ref.storageKey()).isEqualTo(r154Keys.get(0));assertThat(ref.sha256()).isNotNull();jdbc.update("UPDATE business_access_grants SET is_active=FALSE WHERE user_id=?",reader);}
         assertThat(r153Readable(general,reader)).isFalse();
     }
     @ParameterizedTest @org.junit.jupiter.params.provider.CsvSource({"false,provider","true,provider","false,platform","true,platform","false,hash","true,hash","false,size","true,size","false,duplicate","true,duplicate"})

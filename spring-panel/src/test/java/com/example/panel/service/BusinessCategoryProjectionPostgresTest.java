@@ -15,6 +15,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
 
+import static com.example.panel.support.BusinessChildActorFixture.stored;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -72,16 +73,16 @@ class BusinessCategoryProjectionPostgresTest {
         assertThat(work.change(owner,boundActor(),view.revision(),view.status(),"categories",categories)).isTrue();
     }
     private void allProjections(List<String> expected) {
-        assertThat(read.findByPublicId(2L,PUBLIC).orElseThrow().categories()).isEqualTo(expected);
+        assertThat(read.findByPublicId(stored(jdbc,2L),PUBLIC).orElseThrow().categories()).isEqualTo(expected);
         assertThat(read.listTickets(2L,BUSINESS,50,0).get(0).categories()).isEqualTo(expected);
         assertThat(read.pageTickets(2L,BUSINESS,50,0,null,null).tickets().get(0).categories()).isEqualTo(expected);
         assertThat(read.exportTickets(2L,BUSINESS,null,null,null).get(0).categories()).isEqualTo(expected);
-        var workspace=read.findWorkspaceByPublicId(2L,PUBLIC).orElseThrow();
+        var workspace=read.findWorkspaceByPublicId(stored(jdbc,2L),PUBLIC).orElseThrow();
         assertThat(workspace.categories()).isEqualTo(expected);
         assertThat(workspace.ticket().categories()).isEqualTo(expected);
-        assertThat(read.findHistoryByPublicId(2L,PUBLIC,null,50).orElseThrow().ticket().categories()).isEqualTo(expected);
-        assertThat(read.findAnswersByPublicId(2L,PUBLIC).orElseThrow().ticket().categories()).isEqualTo(expected);
-        assertThat(read.findSpansByPublicId(2L,PUBLIC).orElseThrow().ticket().categories()).isEqualTo(expected);
+        assertThat(read.findHistoryByPublicId(stored(jdbc,2L),PUBLIC,null,50).orElseThrow().ticket().categories()).isEqualTo(expected);
+        assertThat(read.findAnswersByPublicId(stored(jdbc,2L),PUBLIC).orElseThrow().ticket().categories()).isEqualTo(expected);
+        assertThat(read.findSpansByPublicId(stored(jdbc,2L),PUBLIC).orElseThrow().ticket().categories()).isEqualTo(expected);
     }
     @Test void saveCloseReopenClearAndEveryReadUseTheSameCanonicalCategories() {
         var legacy=jdbc.queryForList("SELECT * FROM ticket_categories ORDER BY ticket_id");
@@ -103,7 +104,7 @@ class BusinessCategoryProjectionPostgresTest {
         jdbc.update("UPDATE tickets SET business_categories='[\"Foreign\"]' WHERE user_id=88");
         jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,business_id,business_categories) VALUES(99,?,?,22,'[\"Collision\"]')",RAW,"c".repeat(32));
         allProjections(List.of("Own"));
-        assertThat(read.findWorkspaceByPublicId(2L,PUBLIC).orElseThrow().relationVerified()).isFalse();
+        assertThat(read.findWorkspaceByPublicId(stored(jdbc,2L),PUBLIC).orElseThrow().relationVerified()).isFalse();
         var counts=read.summarizeCategories(3L,BusinessAccessService.AllAccessibleBusinesses.INSTANCE);
         assertThat(counts).extracting(BusinessScopedTicketReadService.CategoryCount::category).containsExactly("Own","Collision","Foreign");
         assertThat(read.exportTickets(2L,BUSINESS,null,null,null,"Foreign")).isEmpty();
@@ -157,11 +158,11 @@ class BusinessCategoryProjectionPostgresTest {
         var service=new BusinessScopedTicketReadService(jdbc,stale);
         assertThat(service.summarizeCategories(reader,BUSINESS)).isEmpty();
         assertThat(service.exportTickets(reader,BUSINESS,null,null,null,"Private")).isEmpty();
-        assertThat(service.findByPublicId(reader,PUBLIC)).isEmpty();
-        assertThat(service.findWorkspaceByPublicId(reader,PUBLIC)).isEmpty();
-        assertThat(service.findHistoryByPublicId(reader,PUBLIC,null,50)).isEmpty();
-        assertThat(service.findAnswersByPublicId(reader,PUBLIC)).isEmpty();
-        assertThat(service.findSpansByPublicId(reader,PUBLIC)).isEmpty();
+        assertThat(service.findByPublicId(stored(jdbc,reader),PUBLIC)).isEmpty();
+        assertThat(service.findWorkspaceByPublicId(stored(jdbc,reader),PUBLIC)).isEmpty();
+        assertThat(service.findHistoryByPublicId(stored(jdbc,reader),PUBLIC,null,50)).isEmpty();
+        assertThat(service.findAnswersByPublicId(stored(jdbc,reader),PUBLIC)).isEmpty();
+        assertThat(service.findSpansByPublicId(stored(jdbc,reader),PUBLIC)).isEmpty();
     }
     @Test void summaryCountsTicketsPerBusinessAndNeverCombinesEqualBusinessLabels() {
         save(List.of("Shared","Own"));

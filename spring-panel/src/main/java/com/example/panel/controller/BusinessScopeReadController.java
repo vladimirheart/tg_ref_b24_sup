@@ -179,8 +179,8 @@ public class BusinessScopeReadController {
     public ResponseEntity<BusinessScopedTicketReadService.TicketRow> ticket(
             @PathVariable String publicId, Authentication authentication) {
         requireFoundation();
-        Long userId = readService.requireAuthenticatedUserId(authentication);
-        return privateRead(readService.findByPublicId(userId, publicId)
+        readService.requireAuthenticatedUserId(authentication);
+        return privateRead(readService.findByPublicId(authentication, publicId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND)));
     }
 
@@ -205,8 +205,8 @@ public class BusinessScopeReadController {
         if (pageLimit > 100) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid history page bounds");
         }
-        Long userId = readService.requireAuthenticatedUserId(authentication);
-        return privateRead(readService.findHistoryByPublicId(userId, publicId, beforeId, pageLimit)
+        readService.requireAuthenticatedUserId(authentication);
+        return privateRead(readService.findHistoryByPublicId(authentication, publicId, beforeId, pageLimit)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND)));
     }
 
@@ -214,9 +214,9 @@ public class BusinessScopeReadController {
     public ResponseEntity<BusinessScopedTicketReadService.TicketAnswers> answers(
             @PathVariable String publicId, Authentication authentication) {
         requireFoundation();
-        Long userId = readService.requireAuthenticatedUserId(authentication);
+        readService.requireAuthenticatedUserId(authentication);
         try {
-            var snapshot = readService.findAnswersByPublicId(userId, publicId)
+            var snapshot = readService.findAnswersByPublicId(authentication, publicId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
             return ResponseEntity.ok()
                     .header(HttpHeaders.CACHE_CONTROL, "no-store")
@@ -231,9 +231,9 @@ public class BusinessScopeReadController {
     public ResponseEntity<BusinessScopedTicketReadService.TicketWorkspace> workspace(
             @PathVariable String publicId, Authentication authentication) {
         requireFoundation();
-        Long userId = readService.requireAuthenticatedUserId(authentication);
+        readService.requireAuthenticatedUserId(authentication);
         try {
-            var snapshot = readService.findWorkspaceByPublicId(userId, publicId)
+            var snapshot = readService.findWorkspaceByPublicId(authentication, publicId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
             return privateRead(snapshot);
         } catch (BusinessScopedTicketReadService.WorkspaceLimitExceededException ex) {
@@ -245,9 +245,9 @@ public class BusinessScopeReadController {
     public ResponseEntity<BusinessScopedTicketReadService.TicketSpans> spans(
             @PathVariable String publicId, Authentication authentication) {
         requireFoundation();
-        Long userId = readService.requireAuthenticatedUserId(authentication);
+        readService.requireAuthenticatedUserId(authentication);
         try {
-            var snapshot = readService.findSpansByPublicId(userId, publicId)
+            var snapshot = readService.findSpansByPublicId(authentication, publicId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
             return privateRead(snapshot);
         } catch (BusinessScopedTicketReadService.SpanLimitExceededException ex) {
@@ -269,8 +269,8 @@ public class BusinessScopeReadController {
         } catch (NumberFormatException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid history ID", ex);
         }
-        Long userId = readService.requireAuthenticatedUserId(authentication);
-        var reference = readService.findAttachmentByPublicId(userId, publicId, id)
+        readService.requireAuthenticatedUserId(authentication);
+        var reference = readService.findAttachmentByPublicId(authentication, publicId, id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         AttachmentObjectStorageService.StoredBinary binary;
         try {
@@ -283,7 +283,7 @@ public class BusinessScopeReadController {
             byte[] bytes;
             try(binary) {bytes=com.example.panel.storage.QuestionnaireMediaStorageProof.read(binary,reference.sha256(),reference.size());}
             catch(IOException ex) {throw new ResponseStatusException(HttpStatus.NOT_FOUND);}
-            if(readService.findAttachmentByPublicId(userId,publicId,id).filter(reference::equals).isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+            if(readService.findAttachmentByPublicId(authentication,publicId,id).filter(reference::equals).isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
             return ResponseEntity.ok().header(HttpHeaders.CONTENT_DISPOSITION,ContentDisposition.attachment().filename(filename,StandardCharsets.UTF_8).build().toString())
                 .header(HttpHeaders.CACHE_CONTROL,"no-store").header("X-Content-Type-Options","nosniff")
                 .contentType(MediaType.APPLICATION_OCTET_STREAM).contentLength(bytes.length).body(new org.springframework.core.io.ByteArrayResource(bytes));

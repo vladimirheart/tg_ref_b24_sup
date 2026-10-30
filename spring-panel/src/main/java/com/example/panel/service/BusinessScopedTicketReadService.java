@@ -3,6 +3,7 @@ package com.example.panel.service;
 import com.example.panel.storage.AttachmentStorageKeyResolver;
 import com.example.panel.security.PanelUserPrincipal;
 import java.sql.ResultSet;
+import java.sql.Types;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -330,11 +331,15 @@ public class BusinessScopedTicketReadService {
                 (rs, rowNum) -> ticketRow(rs));
     }
 
-    public Optional<TicketRow> findByPublicId(Long userId, String publicId) {
-        if (publicId == null || !PUBLIC_ID.matcher(publicId).matches()) {
+    public Optional<TicketRow> findByPublicId(Authentication authentication, String publicId) {
+        return findByPublicId(ReadActor.from(authentication), publicId);
+    }
+
+    private Optional<TicketRow> findByPublicId(ReadActor actor, String publicId) {
+        if (actor == null || publicId == null || !PUBLIC_ID.matcher(publicId).matches()) {
             return Optional.empty();
         }
-        Set<Long> ids = accessService.resolveAccessibleBusinessIds(userId);
+        Set<Long> ids = accessService.resolveAccessibleBusinessIds(actor.userId());
         if (ids.isEmpty()) {
             return Optional.empty();
         }
@@ -352,6 +357,11 @@ public class BusinessScopedTicketReadService {
                   LEFT JOIN messages root ON root.group_msg_id = ticket.group_msg_id
                        AND root.user_id = ticket.user_id AND root.ticket_id = ticket.ticket_id
                  WHERE ticket.ticket_public_id = :publicId
+                   AND EXISTS (SELECT 1 FROM users reader
+                       WHERE reader.id = :userId AND reader.username = :readerUsername
+                         AND reader.enabled = TRUE AND reader.is_blocked = FALSE
+                         AND 1 = (SELECT COUNT(*) FROM users duplicate
+                                  WHERE lower(duplicate.username) = lower(reader.username)))
                    AND ticket.business_id IN (:businessIds)
                    AND business.status = 'active'
                    AND (EXISTS (
@@ -364,10 +374,10 @@ public class BusinessScopedTicketReadService {
                           AND access_grant.grant_scope = 'ALL_BUSINESSES'
                           AND access_grant.is_active = TRUE
                    ))
-                """, new MapSqlParameterSource()
+                """, actor.bind(new MapSqlParameterSource())
                         .addValue("publicId", publicId)
                         .addValue("businessIds", ids)
-                        .addValue("userId", userId),
+                        .addValue("userId", actor.userId(), Types.BIGINT),
                 (rs, rowNum) -> ticketRow(rs));
         return rows.stream().findFirst();
     }
@@ -376,15 +386,20 @@ public class BusinessScopedTicketReadService {
      * Only history stamped with the exact canonical ticket tuple is readable.
      * Legacy rows with a bare ticket_id remain unclassified, even if that ID is unique today.
      */
-    public Optional<TicketHistory> findHistoryByPublicId(Long userId, String publicId,
+    public Optional<TicketHistory> findHistoryByPublicId(Authentication authentication, String publicId,
+                                                          Long beforeId, int limit) {
+        return findHistoryByPublicId(ReadActor.from(authentication), publicId, beforeId, limit);
+    }
+
+    private Optional<TicketHistory> findHistoryByPublicId(ReadActor actor, String publicId,
                                                           Long beforeId, int limit) {
         if (limit < 1 || limit > 100 || (beforeId != null && beforeId < 1)) {
             throw new IllegalArgumentException("Invalid history page bounds");
         }
-        if (publicId == null || !PUBLIC_ID.matcher(publicId).matches()) {
+        if (actor == null || publicId == null || !PUBLIC_ID.matcher(publicId).matches()) {
             return Optional.empty();
         }
-        Set<Long> ids = accessService.resolveAccessibleBusinessIds(userId);
+        Set<Long> ids = accessService.resolveAccessibleBusinessIds(actor.userId());
         if (ids.isEmpty()) {
             return Optional.empty();
         }
@@ -415,6 +430,11 @@ public class BusinessScopedTicketReadService {
                        LIMIT :pageSize
                   ) history ON TRUE
                  WHERE ticket.ticket_public_id = :publicId
+                   AND EXISTS (SELECT 1 FROM users reader
+                       WHERE reader.id = :userId AND reader.username = :readerUsername
+                         AND reader.enabled = TRUE AND reader.is_blocked = FALSE
+                         AND 1 = (SELECT COUNT(*) FROM users duplicate
+                                  WHERE lower(duplicate.username) = lower(reader.username)))
                    AND ticket.business_id IN (:businessIds)
                    AND business.status = 'active'
                    AND (EXISTS (
@@ -428,10 +448,10 @@ public class BusinessScopedTicketReadService {
                           AND access_grant.is_active = TRUE
                    ))
                  ORDER BY history.id ASC NULLS LAST
-                """, new MapSqlParameterSource()
+                """, actor.bind(new MapSqlParameterSource())
                         .addValue("publicId", publicId)
                         .addValue("businessIds", ids)
-                        .addValue("userId", userId)
+                        .addValue("userId", actor.userId(), Types.BIGINT)
                         .addValue("beforeId", beforeId == null ? Long.MAX_VALUE : beforeId)
                         .addValue("pageSize", limit + 1),
                 rs -> {
@@ -462,11 +482,15 @@ public class BusinessScopedTicketReadService {
     }
 
     /** Legacy attributes have only a raw ticket ID; expose them only when that ID has one owner. */
-    public Optional<TicketAnswers> findAnswersByPublicId(Long userId, String publicId) {
-        if (publicId == null || !PUBLIC_ID.matcher(publicId).matches()) {
+    public Optional<TicketAnswers> findAnswersByPublicId(Authentication authentication, String publicId) {
+        return findAnswersByPublicId(ReadActor.from(authentication), publicId);
+    }
+
+    private Optional<TicketAnswers> findAnswersByPublicId(ReadActor actor, String publicId) {
+        if (actor == null || publicId == null || !PUBLIC_ID.matcher(publicId).matches()) {
             return Optional.empty();
         }
-        Set<Long> ids = accessService.resolveAccessibleBusinessIds(userId);
+        Set<Long> ids = accessService.resolveAccessibleBusinessIds(actor.userId());
         if (ids.isEmpty()) {
             return Optional.empty();
         }
@@ -487,6 +511,11 @@ public class BusinessScopedTicketReadService {
                       LEFT JOIN messages root ON root.group_msg_id = ticket.group_msg_id
                            AND root.user_id = ticket.user_id AND root.ticket_id = ticket.ticket_id
                      WHERE ticket.ticket_public_id = :publicId
+                   AND EXISTS (SELECT 1 FROM users reader
+                       WHERE reader.id = :userId AND reader.username = :readerUsername
+                         AND reader.enabled = TRUE AND reader.is_blocked = FALSE
+                         AND 1 = (SELECT COUNT(*) FROM users duplicate
+                                  WHERE lower(duplicate.username) = lower(reader.username)))
                        AND ticket.business_id IN (:businessIds)
                        AND business.status = 'active'
                        AND (EXISTS (
@@ -514,10 +543,10 @@ public class BusinessScopedTicketReadService {
                        LIMIT :answerLimit
                   ) answer ON TRUE
                  ORDER BY answer.question_id NULLS LAST
-                """, new MapSqlParameterSource()
+                """, actor.bind(new MapSqlParameterSource())
                         .addValue("publicId", publicId)
                         .addValue("businessIds", ids)
-                        .addValue("userId", userId)
+                        .addValue("userId", actor.userId(), Types.BIGINT)
                         .addValue("answerLimit", MAX_TICKET_ANSWERS + 1),
                 rs -> {
                     TicketRow ticket = null;
@@ -545,11 +574,15 @@ public class BusinessScopedTicketReadService {
     }
 
     /** Canonical categories and legacy responsible only; roster data has its own full-owner API. */
-    public Optional<TicketWorkspace> findWorkspaceByPublicId(Long userId, String publicId) {
-        if (publicId == null || !PUBLIC_ID.matcher(publicId).matches()) {
+    public Optional<TicketWorkspace> findWorkspaceByPublicId(Authentication authentication, String publicId) {
+        return findWorkspaceByPublicId(ReadActor.from(authentication), publicId);
+    }
+
+    private Optional<TicketWorkspace> findWorkspaceByPublicId(ReadActor actor, String publicId) {
+        if (actor == null || publicId == null || !PUBLIC_ID.matcher(publicId).matches()) {
             return Optional.empty();
         }
-        Set<Long> ids = accessService.resolveAccessibleBusinessIds(userId);
+        Set<Long> ids = accessService.resolveAccessibleBusinessIds(actor.userId());
         if (ids.isEmpty()) {
             return Optional.empty();
         }
@@ -570,6 +603,11 @@ public class BusinessScopedTicketReadService {
                       LEFT JOIN messages root ON root.group_msg_id = ticket.group_msg_id
                            AND root.user_id = ticket.user_id AND root.ticket_id = ticket.ticket_id
                      WHERE ticket.ticket_public_id = :publicId
+                   AND EXISTS (SELECT 1 FROM users reader
+                       WHERE reader.id = :userId AND reader.username = :readerUsername
+                         AND reader.enabled = TRUE AND reader.is_blocked = FALSE
+                         AND 1 = (SELECT COUNT(*) FROM users duplicate
+                                  WHERE lower(duplicate.username) = lower(reader.username)))
                        AND ticket.business_id IN (:businessIds)
                        AND business.status = 'active'
                        AND (EXISTS (
@@ -591,10 +629,10 @@ public class BusinessScopedTicketReadService {
                        WHERE r.ticket_id = ticket.ticket_id AND ticket.relation_verified
                   ) item ON TRUE
                  ORDER BY item.entry_kind, item.entry_value
-                """, new MapSqlParameterSource()
+                """, actor.bind(new MapSqlParameterSource())
                         .addValue("publicId", publicId)
                         .addValue("businessIds", ids)
-                        .addValue("userId", userId),
+                        .addValue("userId", actor.userId(), Types.BIGINT),
                 rs -> {
                     TicketRow ticket = null;
                     boolean relationVerified = false;
@@ -618,11 +656,15 @@ public class BusinessScopedTicketReadService {
     }
 
     /** Legacy work intervals use a bare ticket ID and are readable only for its unique owner. */
-    public Optional<TicketSpans> findSpansByPublicId(Long userId, String publicId) {
-        if (publicId == null || !PUBLIC_ID.matcher(publicId).matches()) {
+    public Optional<TicketSpans> findSpansByPublicId(Authentication authentication, String publicId) {
+        return findSpansByPublicId(ReadActor.from(authentication), publicId);
+    }
+
+    private Optional<TicketSpans> findSpansByPublicId(ReadActor actor, String publicId) {
+        if (actor == null || publicId == null || !PUBLIC_ID.matcher(publicId).matches()) {
             return Optional.empty();
         }
-        Set<Long> ids = accessService.resolveAccessibleBusinessIds(userId);
+        Set<Long> ids = accessService.resolveAccessibleBusinessIds(actor.userId());
         if (ids.isEmpty()) {
             return Optional.empty();
         }
@@ -643,6 +685,11 @@ public class BusinessScopedTicketReadService {
                       LEFT JOIN messages root ON root.group_msg_id = ticket.group_msg_id
                            AND root.user_id = ticket.user_id AND root.ticket_id = ticket.ticket_id
                      WHERE ticket.ticket_public_id = :publicId
+                   AND EXISTS (SELECT 1 FROM users reader
+                       WHERE reader.id = :userId AND reader.username = :readerUsername
+                         AND reader.enabled = TRUE AND reader.is_blocked = FALSE
+                         AND 1 = (SELECT COUNT(*) FROM users duplicate
+                                  WHERE lower(duplicate.username) = lower(reader.username)))
                        AND ticket.business_id IN (:businessIds)
                        AND business.status = 'active'
                        AND (EXISTS (
@@ -669,10 +716,10 @@ public class BusinessScopedTicketReadService {
                        LIMIT :spanLimit
                   ) span ON TRUE
                  ORDER BY span.span_no NULLS LAST, span.id NULLS LAST
-                """, new MapSqlParameterSource()
+                """, actor.bind(new MapSqlParameterSource())
                         .addValue("publicId", publicId)
                         .addValue("businessIds", ids)
-                        .addValue("userId", userId)
+                        .addValue("userId", actor.userId(), Types.BIGINT)
                         .addValue("spanLimit", MAX_TICKET_SPANS + 1),
                 rs -> {
                     TicketRow ticket = null;
@@ -701,19 +748,23 @@ public class BusinessScopedTicketReadService {
     }
 
     /** A binary locator is issued only for one explicit history owner and unambiguous storage key. */
-    public Optional<AttachmentReference> findAttachmentByPublicId(Long userId, String publicId, long historyId) {
-        if (historyId < 1 || publicId == null || !PUBLIC_ID.matcher(publicId).matches()) {
+    public Optional<AttachmentReference> findAttachmentByPublicId(Authentication authentication, String publicId, long historyId) {
+        return findAttachmentByPublicId(ReadActor.from(authentication), publicId, historyId);
+    }
+
+    private Optional<AttachmentReference> findAttachmentByPublicId(ReadActor actor, String publicId, long historyId) {
+        if (actor == null || historyId < 1 || publicId == null || !PUBLIC_ID.matcher(publicId).matches()) {
             return Optional.empty();
         }
-        Set<Long> ids = accessService.resolveAccessibleBusinessIds(userId);
+        Set<Long> ids = accessService.resolveAccessibleBusinessIds(actor.userId());
         if (ids.isEmpty()) {
             return Optional.empty();
         }
-        return attachmentRows(userId,publicId,historyId,ids,true)
-            .or(()->attachmentRows(userId,publicId,historyId,ids,false));
+        return attachmentRows(actor,publicId,historyId,ids,true)
+            .or(()->attachmentRows(actor,publicId,historyId,ids,false));
     }
 
-    private Optional<AttachmentReference> attachmentRows(Long userId,String publicId,long historyId,Set<Long> ids,boolean withProof) {
+    private Optional<AttachmentReference> attachmentRows(ReadActor actor,String publicId,long historyId,Set<Long> ids,boolean withProof) {
         try {
         List<AttachmentReference> rows = namedJdbcTemplate.query("""
                 SELECT ticket.ticket_id, history.attachment, metadata.storage_key,
@@ -734,6 +785,11 @@ public class BusinessScopedTicketReadService {
                        AND metadata.storage_provider IN ('local_fs', 's3')
                        AND metadata.storage_key IS NOT NULL
                  WHERE ticket.ticket_public_id = :publicId
+                   AND EXISTS (SELECT 1 FROM users reader
+                       WHERE reader.id = :userId AND reader.username = :readerUsername
+                         AND reader.enabled = TRUE AND reader.is_blocked = FALSE
+                         AND 1 = (SELECT COUNT(*) FROM users duplicate
+                                  WHERE lower(duplicate.username) = lower(reader.username)))
                    AND ticket.business_id IN (:businessIds)
                    AND business.status = 'active'
                    AND (SELECT COUNT(*) FROM tickets same_id
@@ -753,11 +809,11 @@ public class BusinessScopedTicketReadService {
                           AND access_grant.grant_scope = 'ALL_BUSINESSES'
                           AND access_grant.is_active = TRUE
                    ))
-                """.formatted(withProof?", metadata.content_hash, metadata.size,\n                       ticket.user_id AS proof_user, ticket.business_id AS proof_business,\n                       ticket.channel_id AS proof_channel, ticket.questionnaire_catalog_sha256 AS proof_catalog,\n                       COALESCE(ticket.business_selection_source,ticket.general_selection_source) AS proof_source,\n                       proof_channel.platform AS proof_platform, history.channel_id AS proof_history_channel,\n                       metadata.channel_id AS proof_metadata_channel, history.tg_message_id AS proof_provider":"",withProof?" LEFT JOIN channels proof_channel ON proof_channel.id=ticket.channel_id":""), new MapSqlParameterSource()
+                """.formatted(withProof?", metadata.content_hash, metadata.size,\n                       ticket.user_id AS proof_user, ticket.business_id AS proof_business,\n                       ticket.channel_id AS proof_channel, ticket.questionnaire_catalog_sha256 AS proof_catalog,\n                       COALESCE(ticket.business_selection_source,ticket.general_selection_source) AS proof_source,\n                       proof_channel.platform AS proof_platform, history.channel_id AS proof_history_channel,\n                       metadata.channel_id AS proof_metadata_channel, history.tg_message_id AS proof_provider":"",withProof?" LEFT JOIN channels proof_channel ON proof_channel.id=ticket.channel_id":""), actor.bind(new MapSqlParameterSource())
                         .addValue("historyId", historyId)
                         .addValue("publicId", publicId)
                         .addValue("businessIds", ids)
-                        .addValue("userId", userId),
+                        .addValue("userId", actor.userId(), Types.BIGINT),
                 (rs, rowNum) -> {
                     String ticketId = rs.getString("ticket_id");
                     String rawReference = rs.getString("attachment");
@@ -781,6 +837,19 @@ public class BusinessScopedTicketReadService {
             if(withProof) return Optional.empty(); // A legacy schema cannot authorize the new namespace.
             throw ex;
         }
+    }
+
+    /** Immutable principal identity. Each child SELECT checks current account and business rights. */
+    private record ReadActor(long userId,String username) {
+        static ReadActor from(Authentication authentication) {
+            if(authentication==null||!authentication.isAuthenticated()||authentication instanceof AnonymousAuthenticationToken
+                    ||!(authentication.getPrincipal() instanceof PanelUserPrincipal account)
+                    ||account.getUserId()<=0||account.getUsername()==null||account.getUsername().isBlank()
+                    ||!account.isEnabled()||!account.isAccountNonLocked()||!account.isAccountNonExpired()||!account.isCredentialsNonExpired())return null;
+            return new ReadActor(account.getUserId(),account.getUsername());
+        }
+        MapSqlParameterSource bind(MapSqlParameterSource parameters){return parameters.addValue("readerUsername",username,Types.VARCHAR);}
+        @Override public String toString(){return "BusinessReadActor";}
     }
 
     private boolean safeStorageKey(String ticketId, String storageKey) {

@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
 
+import static com.example.panel.support.BusinessChildActorFixture.stored;
 import static com.example.panel.support.GeneralTicketAdminTestSupport.administrator;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -112,7 +113,7 @@ class GeneralTicketReadServicePostgresIntegrationTest {
         jdbc.update("INSERT INTO business_access_grants(user_id, grant_scope, role_code) "
             + "VALUES (?, 'ALL_BUSINESSES', 'VIEWER')", reader);
         BusinessScopedTicketReadService businessRead = new BusinessScopedTicketReadService(jdbc, new BusinessAccessService(jdbc));
-        assertThat(businessRead.findByPublicId(reader, first)).isEmpty();
+        assertThat(businessRead.findByPublicId(stored(jdbc,reader), first)).isEmpty();
         assertThat(businessRead.pageTickets(reader, BusinessAccessService.AllAccessibleBusinesses.INSTANCE,
             50, 0, null, token + "-business", null).tickets()).extracting(BusinessScopedTicketReadService.TicketRow::ticketPublicId)
             .containsExactly(businessId);

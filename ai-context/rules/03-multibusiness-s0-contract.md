@@ -24,11 +24,79 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R230 и runtime R223 имеют
+что production уже запускался. Эта оговорка, source-сводка R231 и runtime R223 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
+
+Source R231 (не развёрнут):6 BUSINESS card/child/media entries принимают исходный
+Authentication и private immutable ID/exact raw-name snapshot, без Long fallback.
+Каждый owning SELECT проверяет current enabled/strict blockedFALSE/fold uniqueness
+и прежний business scope. Controller сохраняет early entry и тот же actor после
+hashed bytes; fallback/metadata/owner/limits/statuses/private headers прежние.
+Catalog/list/summary/export/manual-create остаются следующим отдельным пакетом.
+567 tests /10 suites GREEN одним selected run:412 новых (308 SQL/104 real-login
+HTTP) и155 прежних cases. Включены R224 entry SQL41/HTTP23, old controller13,
+download8/category21/read12/GENERAL read7 и30 selected GENERAL/BUSINESS media/
+followup cases из6 methods. Frozen baseline на unchanged product:412 cases/
+232 assertion failures/0 errors/180 controls; все positive controls GREEN.
+Финальный baseline v3 повторён на UTF8/ICU und; дополнительно прежний search
+control1 GREEN на неизменённом product. Source/class/cases новых412 те же, чтоv1.
+Те же new source/class SHA и case names до/после. 6 прежних fixtures адаптируют
+102 API-input/import edits с checked replay/inverse; result assertions прежние.
+SQL:8 surfaces, membership/ALL sources, raw names/BIGINT>2^53/Long.MAX,
+stale/unbound/current disabled/blocked/NULL/duplicate identity, scope revoke,
+business archive;96 pre-statement mutations и4 legacy fallback mutations.
+HTTP: real form login/R189/real controller+SQL,64 late changes,8 storage rechecks,
+16 positives/flags/page right. Прежний R230 run780 и его334 новых остаются
+историческими и не суммируются с этим run; новый R231 содержит412.
+R228529/R229365 и R230334 целиком не rerun; их неизменённые sources/classes
+проверены, GENERAL read7/download subset/media30 повторены явно выше.
+
+Maven wrapper/JDK17, verified R230 cache1378 Java/2242 classes;2 main и6 old
+fixtures recompiled, frozen3 test sources/classes прежние; не затронутые product/
+test class hashes прежние, кроме явно pinned ignored native supplier variant.
+Native PostgreSQL16.15/loopback54167/fresh schemas в отдельной scratch database
+iguana_r231_unicode (UTF8/ICU und), ignored R231 supplier с SHA/version/exact
+data-directory/locale/Unicode-search guards. Original R200 adapter source и
+его C database сохранены; class substitution проверяется отдельно. Tracked supplier/83 migrations
+не менялись; existing migrations только в test schemas. Docker не запускался,
+owned PG остановлен, artifacts retained; JS не rerun. Scope14:2 main/6 existing
+tests/3 new tests/task/S0/append-only changelog. UI/schema/deps/flags прежние.
+Preview v1 method pattern пропустил card и fixture scanner — var mock receiver;
+оба guards остановились до записи. V2 previews проверили6 methods/6 files;
+исходные operators/JSON сохранены. Final v4 GREEN, exact scope/content/
+source/class/XML/log/replay/inverse proof перед отдельным root apply.
+
+Первый selected v2:567/1 failure/0 errors, все новые412 GREEN, общий run RED.
+Единственный прежний textSearch test ожидал caseless Cyrillic Иван/иВан; native
+C database lower оставлял1048, search0. На ICU und lower1080/search1; root search/
+catalog implementation побайтно прежний. Создана отдельная owned scratch DB,
+не менялись product SQL/collations/migrations/тестовые assertions. Все8 sandbox
+product/fixture files восстановлены checked inverse, новый ignored adapter
+compiled с pinned source/class; прежние v1/v2 XML/log/JSON сохранены. Baselinev3
+на unchanged product дал те же232 RED и positive search1 GREEN, затем тот же
+product/fixture transform повторён для финального v4. Это recovery test
+environment, не фиксация GREEN по частям из failed run. Proof-emitter v1
+остановился до записи из-за повторного substring guard; v2 исправлен и сохранён.
+
+Source/test машина C:\Users\sushi\Git_H\tg_ref_b24_sup; рабочий экземпляр на другой
+машине/сессии C:\Users\SinicinVV\git_h\tg_ref_b24_sup. Последний документированный
+runtimeR223: webR222/workerR198/foundationOFF/readiness200UP/health503DOWN из-за
+прежнего inboundDLQ1. Полные R184/R198/R204/R207/R216/R223 runtime/rollback/V83
+blocks сохранены. Working DB/deploy/restart/flags/provider/queue не затрагивались;
+V83 не повторять. R224–R226 и R228–R231 требуют будущего panel-web image;
+R227 tests/docs отдельного rollout не требует. Развёртывание R231 не заявляется.
+Далее — BUSINESS catalog/list/summary/export/manual-create late actor binding,
+оставшиеся edit/feedback/realtime/admin boundaries, PENDING product policies
+task/project/system/global, AI privacy/context/retention/delivery, совместимый
+fleet/flags/S6 acceptance и операционный DLQ gate. S2B снятR190. Общий статус — 🟡.
+R230 опубликован 56daeb6cb1be2b07de6c17a90381edb6e78c1094; его прежние записи об истёкшем разрешении
+описывают подготовку до ответа владельца. Владелец затем разрешил commit/push
+до конца30 октября Europe/Moscow (2026-10-30T21:00:00Z); это разрешение действует
+и для текущего продолжения. Source apply, отдельный Git publisher и рабочий
+deployment разделены; фактические Git-флаги — r231-result/final.json.
 
 Source R230 (не развёрнут):5 GENERAL read entries принимают исходный
 Authentication; immutable ID/exact raw-name snapshot проходит через root/child/

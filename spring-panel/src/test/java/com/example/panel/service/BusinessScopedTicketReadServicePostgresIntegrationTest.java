@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
 
+import static com.example.panel.support.BusinessChildActorFixture.stored;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -63,9 +64,9 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         assertThat(service.exportTickets(1L, all, null, null, null))
                 .extracting(BusinessScopedTicketReadService.TicketRow::ticketId)
                 .containsExactly("new", "tie-a", "tie-b", "old");
-        assertThat(service.findByPublicId(1L, publicId).orElseThrow().createdAt())
+        assertThat(service.findByPublicId(stored(jdbc,1L), publicId).orElseThrow().createdAt())
                 .isEqualTo(OffsetDateTime.parse("2026-10-15T11:00:00Z"));
-        var resolved = service.findByPublicId(1L, publicId).orElseThrow();
+        var resolved = service.findByPublicId(stored(jdbc,1L), publicId).orElseThrow();
         assertThat(resolved.resolvedAt()).isEqualTo(OffsetDateTime.parse("2026-10-15T12:00:00Z"));
         assertThat(resolved.resolvedBy()).hasSize(200).startsWith("Оператор <script>");
         assertThat(service.listTickets(1L, all, 50, 0).get(0).resolvedAt())
@@ -73,7 +74,7 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         assertThat(service.exportTickets(1L, all, null, null, null).get(0).resolvedBy())
                 .isEqualTo(resolved.resolvedBy());
         jdbc.update("UPDATE tickets SET status = 'open' WHERE ticket_id = 'new'");
-        var reopened = service.findByPublicId(1L, publicId).orElseThrow();
+        var reopened = service.findByPublicId(stored(jdbc,1L), publicId).orElseThrow();
         assertThat(reopened.resolvedAt()).isNull();
         assertThat(reopened.resolvedBy()).isNull();
     }
@@ -113,16 +114,16 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
 
         BusinessScopedTicketReadService service = new BusinessScopedTicketReadService(
                 jdbc, new BusinessAccessService(jdbc));
-        assertThat(service.findHistoryByPublicId(1L, sushiId, null, 50)).get()
+        assertThat(service.findHistoryByPublicId(stored(jdbc,1L), sushiId, null, 50)).get()
                 .extracting(snapshot -> snapshot.entries().get(0).message()).isEqualTo("sushi");
-        assertThat(service.findHistoryByPublicId(1L, sushiId, null, 50).orElseThrow().ticket().clientName())
+        assertThat(service.findHistoryByPublicId(stored(jdbc,1L), sushiId, null, 50).orElseThrow().ticket().clientName())
                 .isEqualTo("Иван");
-        assertThat(service.findHistoryByPublicId(1L, blinyId, null, 50)).isEmpty();
-        assertThat(service.findHistoryByPublicId(2L, blinyId, null, 50)).get()
+        assertThat(service.findHistoryByPublicId(stored(jdbc,1L), blinyId, null, 50)).isEmpty();
+        assertThat(service.findHistoryByPublicId(stored(jdbc,2L), blinyId, null, 50)).get()
                 .extracting(snapshot -> snapshot.entries().get(0).message()).isEqualTo("bliny");
-        assertThat(service.findHistoryByPublicId(1L, "same", null, 50)).isEmpty();
+        assertThat(service.findHistoryByPublicId(stored(jdbc,1L), "same", null, 50)).isEmpty();
         jdbc.update("UPDATE business_memberships SET is_active = FALSE WHERE user_id = 1");
-        assertThat(service.findHistoryByPublicId(1L, sushiId, null, 50)).isEmpty();
+        assertThat(service.findHistoryByPublicId(stored(jdbc,1L), sushiId, null, 50)).isEmpty();
     }
 
     @Test
@@ -153,25 +154,25 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
 
         BusinessScopedTicketReadService service = new BusinessScopedTicketReadService(
                 jdbc, new BusinessAccessService(jdbc));
-        var first = service.findHistoryByPublicId(1L, publicId, null, 2).orElseThrow();
+        var first = service.findHistoryByPublicId(stored(jdbc,1L), publicId, null, 2).orElseThrow();
         assertThat(first.entries()).extracting(BusinessScopedTicketReadService.HistoryEntry::message)
                 .containsExactly("d", "e");
         assertThat(first.hasMore()).isTrue();
         assertThat(first.nextBeforeId()).isEqualTo(first.entries().get(0).id());
         jdbc.update("INSERT INTO chat_history(ticket_id, ticket_owner_user_id, message) VALUES ('same', 11, 'late')");
-        var second = service.findHistoryByPublicId(1L, publicId, first.nextBeforeId(), 2).orElseThrow();
+        var second = service.findHistoryByPublicId(stored(jdbc,1L), publicId, first.nextBeforeId(), 2).orElseThrow();
         assertThat(second.entries()).extracting(BusinessScopedTicketReadService.HistoryEntry::message)
                 .containsExactly("b", "c");
         assertThat(second.hasMore()).isTrue();
-        var third = service.findHistoryByPublicId(1L, publicId, second.nextBeforeId(), 2).orElseThrow();
+        var third = service.findHistoryByPublicId(stored(jdbc,1L), publicId, second.nextBeforeId(), 2).orElseThrow();
         assertThat(third.entries()).extracting(BusinessScopedTicketReadService.HistoryEntry::message)
                 .containsExactly("a");
         assertThat(third.hasMore()).isFalse();
         assertThat(third.nextBeforeId()).isNull();
-        assertThat(service.findHistoryByPublicId(1L, publicId, third.entries().get(0).id(), 2)
+        assertThat(service.findHistoryByPublicId(stored(jdbc,1L), publicId, third.entries().get(0).id(), 2)
                 .orElseThrow().entries()).isEmpty();
         jdbc.update("UPDATE business_memberships SET is_active = FALSE WHERE user_id = 1");
-        assertThat(service.findHistoryByPublicId(1L, publicId, first.nextBeforeId(), 2)).isEmpty();
+        assertThat(service.findHistoryByPublicId(stored(jdbc,1L), publicId, first.nextBeforeId(), 2)).isEmpty();
     }
 
     @Test
@@ -214,18 +215,18 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
                 """, historyId);
         BusinessScopedTicketReadService service = new BusinessScopedTicketReadService(
                 jdbc, new BusinessAccessService(jdbc));
-        assertThat(service.findAttachmentByPublicId(1L, publicId, historyId))
+        assertThat(service.findAttachmentByPublicId(stored(jdbc,1L), publicId, historyId))
                 .get().extracting(BusinessScopedTicketReadService.AttachmentReference::storageKey)
                 .isEqualTo("same/file.bin");
-        assertThat(service.findAttachmentByPublicId(2L, publicId, historyId)).isEmpty();
-        assertThat(service.findAttachmentByPublicId(1L, publicId, historyId + 100)).isEmpty();
+        assertThat(service.findAttachmentByPublicId(stored(jdbc,2L), publicId, historyId)).isEmpty();
+        assertThat(service.findAttachmentByPublicId(stored(jdbc,1L), publicId, historyId + 100)).isEmpty();
 
         jdbc.update("UPDATE chat_attachment_metadata SET storage_key = 'other/file.bin'");
-        assertThat(service.findAttachmentByPublicId(1L, publicId, historyId)).isEmpty();
+        assertThat(service.findAttachmentByPublicId(stored(jdbc,1L), publicId, historyId)).isEmpty();
         jdbc.update("UPDATE chat_attachment_metadata SET storage_key = 'same/file.bin', storage_provider = 'external_url'");
-        assertThat(service.findAttachmentByPublicId(1L, publicId, historyId)).isEmpty();
+        assertThat(service.findAttachmentByPublicId(stored(jdbc,1L), publicId, historyId)).isEmpty();
         jdbc.update("UPDATE chat_attachment_metadata SET storage_provider = 'local_fs', deleted_at = CURRENT_TIMESTAMP");
-        assertThat(service.findAttachmentByPublicId(1L, publicId, historyId)).isEmpty();
+        assertThat(service.findAttachmentByPublicId(stored(jdbc,1L), publicId, historyId)).isEmpty();
         jdbc.update("UPDATE chat_attachment_metadata SET deleted_at = NULL");
 
         jdbc.update("INSERT INTO chat_history(ticket_id, ticket_owner_user_id, message, attachment) VALUES ('same', 11, 'duplicate', 'file.bin')");
@@ -237,14 +238,14 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
                 ) VALUES (?, 'same', 'same/file.bin', 'other.pdf',
                           'local_fs', 'dialog_attachment', 'normalized', 'available')
                 """, duplicateId);
-        assertThat(service.findAttachmentByPublicId(1L, publicId, historyId)).isEmpty();
+        assertThat(service.findAttachmentByPublicId(stored(jdbc,1L), publicId, historyId)).isEmpty();
         jdbc.update("DELETE FROM chat_attachment_metadata WHERE chat_history_id = ?", duplicateId);
 
         jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id) VALUES (22, 'same', ?)", bliny);
-        assertThat(service.findAttachmentByPublicId(1L, publicId, historyId)).isEmpty();
+        assertThat(service.findAttachmentByPublicId(stored(jdbc,1L), publicId, historyId)).isEmpty();
         jdbc.update("DELETE FROM tickets WHERE user_id = 22 AND ticket_id = 'same'");
         jdbc.update("UPDATE business_memberships SET is_active = FALSE WHERE user_id = 1");
-        assertThat(service.findAttachmentByPublicId(1L, publicId, historyId)).isEmpty();
+        assertThat(service.findAttachmentByPublicId(stored(jdbc,1L), publicId, historyId)).isEmpty();
     }
 
     @Test
@@ -278,39 +279,39 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         BusinessScopedTicketReadService service = new BusinessScopedTicketReadService(
                 jdbc, new BusinessAccessService(jdbc));
 
-        var readable = service.findAnswersByPublicId(1L, publicId).orElseThrow();
+        var readable = service.findAnswersByPublicId(stored(jdbc,1L), publicId).orElseThrow();
         assertThat(readable.relationVerified()).isTrue();
         assertThat(readable.ticket().clientName()).isEqualTo("Иван");
         assertThat(readable.answers()).extracting(BusinessScopedTicketReadService.AnswerEntry::questionId)
                 .containsExactly("q1", "q2");
         assertThat(readable.answers().get(1).valueText()).isEqualTo("<script>адрес</script>");
-        assertThat(service.findAnswersByPublicId(1L, manyId)).isEmpty();
-        assertThat(service.findAnswersByPublicId(1L, blinyId)).isEmpty();
-        assertThat(service.findAnswersByPublicId(2L, blinyId).orElseThrow().relationVerified()).isTrue();
-        assertThat(service.findAnswersByPublicId(1L, "bad-id")).isEmpty();
+        assertThat(service.findAnswersByPublicId(stored(jdbc,1L), manyId)).isEmpty();
+        assertThat(service.findAnswersByPublicId(stored(jdbc,1L), blinyId)).isEmpty();
+        assertThat(service.findAnswersByPublicId(stored(jdbc,2L), blinyId).orElseThrow().relationVerified()).isTrue();
+        assertThat(service.findAnswersByPublicId(stored(jdbc,1L), "bad-id")).isEmpty();
 
         jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id) VALUES (22, 'same', ?)", bliny);
-        var ambiguous = service.findAnswersByPublicId(1L, publicId).orElseThrow();
+        var ambiguous = service.findAnswersByPublicId(stored(jdbc,1L), publicId).orElseThrow();
         assertThat(ambiguous.relationVerified()).isFalse();
         assertThat(ambiguous.answers()).isEmpty();
-        assertThat(service.findAnswersByPublicId(2L, publicId).orElseThrow().answers()).isEmpty();
+        assertThat(service.findAnswersByPublicId(stored(jdbc,2L), publicId).orElseThrow().answers()).isEmpty();
 
         jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id, ticket_public_id) VALUES (33, 'many', ?, ?)", sushi, manyId);
         jdbc.update("INSERT INTO ticket_attributes(ticket_id, question_id, input_type) "
                 + "SELECT 'many', 'q-' || n, 'text' FROM generate_series(1, 101) n");
-        assertThatThrownBy(() -> service.findAnswersByPublicId(1L, manyId))
+        assertThatThrownBy(() -> service.findAnswersByPublicId(stored(jdbc,1L), manyId))
                 .isInstanceOf(BusinessScopedTicketReadService.AnswerLimitExceededException.class);
         jdbc.update("DELETE FROM ticket_attributes WHERE ticket_id = 'many' AND question_id = 'q-101'");
-        assertThat(service.findAnswersByPublicId(1L, manyId).orElseThrow().answers()).hasSize(100);
+        assertThat(service.findAnswersByPublicId(stored(jdbc,1L), manyId).orElseThrow().answers()).hasSize(100);
 
         jdbc.update("UPDATE business_memberships SET is_active = FALSE WHERE user_id = 1");
-        assertThat(service.findAnswersByPublicId(1L, publicId)).isEmpty();
+        assertThat(service.findAnswersByPublicId(stored(jdbc,1L), publicId)).isEmpty();
         BusinessAccessService staleAccess = mock(BusinessAccessService.class);
         when(staleAccess.resolveAccessibleBusinessIds(1L)).thenReturn(Set.of(sushi));
         assertThat(new BusinessScopedTicketReadService(jdbc, staleAccess)
-                .findAnswersByPublicId(1L, publicId)).isEmpty();
+                .findAnswersByPublicId(stored(jdbc,1L), publicId)).isEmpty();
         jdbc.update("UPDATE businesses SET status = 'archived' WHERE id = ?", sushi);
-        assertThat(service.findAnswersByPublicId(2L, publicId)).isEmpty();
+        assertThat(service.findAnswersByPublicId(stored(jdbc,2L), publicId)).isEmpty();
     }
 
     @Test
@@ -344,7 +345,7 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
 
         BusinessScopedTicketReadService service = new BusinessScopedTicketReadService(
                 jdbc, new BusinessAccessService(jdbc));
-        var workspace = service.findWorkspaceByPublicId(1L, publicId).orElseThrow();
+        var workspace = service.findWorkspaceByPublicId(stored(jdbc,1L), publicId).orElseThrow();
         assertThat(workspace.relationVerified()).isTrue();
         assertThat(workspace.responsible()).isEqualTo("operator-a");
         // V81 canonical categories start empty; raw categories are never imported by reads.
@@ -354,12 +355,12 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         assertThat(workspace.participants()).isEmpty();
         assertThat(jdbc.queryForList("SELECT username FROM ticket_participants WHERE ticket_id='sushi-raw' ORDER BY username",String.class))
                 .containsExactly("alice","bob");
-        assertThat(service.findWorkspaceByPublicId(1L, otherPublicId)).isEmpty();
-        assertThat(service.findWorkspaceByPublicId(2L, otherPublicId).orElseThrow().responsible())
+        assertThat(service.findWorkspaceByPublicId(stored(jdbc,1L), otherPublicId)).isEmpty();
+        assertThat(service.findWorkspaceByPublicId(stored(jdbc,2L), otherPublicId).orElseThrow().responsible())
                 .isEqualTo("operator-b");
 
         jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id) VALUES (33, 'sushi-raw', ?)", bliny);
-        var ambiguous = service.findWorkspaceByPublicId(1L, publicId).orElseThrow();
+        var ambiguous = service.findWorkspaceByPublicId(stored(jdbc,1L), publicId).orElseThrow();
         assertThat(ambiguous.relationVerified()).isFalse();
         assertThat(ambiguous.responsible()).isNull();
         assertThat(ambiguous.categories()).isEmpty();
@@ -369,16 +370,16 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
             jdbc.update("INSERT INTO ticket_participants(ticket_id, username) VALUES ('sushi-raw', ?)",
                     "extra-" + i);
         }
-        assertThat(service.findWorkspaceByPublicId(1L, publicId).orElseThrow().participants()).isEmpty();
-        assertThat(service.findWorkspaceByPublicId(1L, publicId).orElseThrow().responsible()).isEqualTo("operator-a");
+        assertThat(service.findWorkspaceByPublicId(stored(jdbc,1L), publicId).orElseThrow().participants()).isEmpty();
+        assertThat(service.findWorkspaceByPublicId(stored(jdbc,1L), publicId).orElseThrow().responsible()).isEqualTo("operator-a");
         assertThat(jdbc.queryForObject("SELECT count(*) FROM ticket_participants WHERE ticket_id='sushi-raw'",Integer.class))
                 .isGreaterThan(BusinessScopedTicketReadService.MAX_WORKSPACE_ITEMS);
         BusinessAccessService staleAccess = mock(BusinessAccessService.class);
         when(staleAccess.resolveAccessibleBusinessIds(1L)).thenReturn(Set.of(sushi));
         BusinessScopedTicketReadService staleService = new BusinessScopedTicketReadService(jdbc, staleAccess);
         jdbc.update("UPDATE business_memberships SET is_active = FALSE WHERE user_id = 1");
-        assertThat(service.findWorkspaceByPublicId(1L, publicId)).isEmpty();
-        assertThat(staleService.findWorkspaceByPublicId(1L, publicId)).isEmpty();
+        assertThat(service.findWorkspaceByPublicId(stored(jdbc,1L), publicId)).isEmpty();
+        assertThat(staleService.findWorkspaceByPublicId(stored(jdbc,1L), publicId)).isEmpty();
     }
 
     @Test
@@ -413,7 +414,7 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         BusinessScopedTicketReadService service = new BusinessScopedTicketReadService(
                 jdbc, new BusinessAccessService(jdbc));
 
-        var snapshot = service.findSpansByPublicId(1L, publicId).orElseThrow();
+        var snapshot = service.findSpansByPublicId(stored(jdbc,1L), publicId).orElseThrow();
         assertThat(snapshot.relationVerified()).isTrue();
         assertThat(snapshot.spans()).extracting(BusinessScopedTicketReadService.SpanEntry::spanNo)
                 .containsExactly(1, 2);
@@ -421,14 +422,14 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         assertThat(snapshot.spans().get(0).startedAt())
                 .isEqualTo(OffsetDateTime.parse("2026-10-15T10:00:00Z"));
         assertThat(snapshot.spans().get(1).endedAt()).isNull();
-        assertThat(service.findSpansByPublicId(1L, otherPublicId)).isEmpty();
-        assertThat(service.findSpansByPublicId(2L, otherPublicId).orElseThrow().spans())
+        assertThat(service.findSpansByPublicId(stored(jdbc,1L), otherPublicId)).isEmpty();
+        assertThat(service.findSpansByPublicId(stored(jdbc,2L), otherPublicId).orElseThrow().spans())
                 .hasSize(1);
-        assertThat(service.findSpansByPublicId(1L, "bad")).isEmpty();
+        assertThat(service.findSpansByPublicId(stored(jdbc,1L), "bad")).isEmpty();
 
         jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id) "
                 + "VALUES (33, 'sushi-raw', ?)", bliny);
-        var ambiguous = service.findSpansByPublicId(1L, publicId).orElseThrow();
+        var ambiguous = service.findSpansByPublicId(stored(jdbc,1L), publicId).orElseThrow();
         assertThat(ambiguous.relationVerified()).isFalse();
         assertThat(ambiguous.spans()).isEmpty();
         jdbc.update("DELETE FROM tickets WHERE user_id = 33 AND ticket_id = 'sushi-raw'");
@@ -436,15 +437,15 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         jdbc.update("INSERT INTO ticket_spans(ticket_id, span_no, started_at) "
                 + "SELECT 'sushi-raw', n, '2026-10-15T12:00:00Z' "
                 + "FROM generate_series(3, 101) n");
-        assertThatThrownBy(() -> service.findSpansByPublicId(1L, publicId))
+        assertThatThrownBy(() -> service.findSpansByPublicId(stored(jdbc,1L), publicId))
                 .isInstanceOf(BusinessScopedTicketReadService.SpanLimitExceededException.class);
 
         BusinessAccessService staleAccess = mock(BusinessAccessService.class);
         when(staleAccess.resolveAccessibleBusinessIds(1L)).thenReturn(Set.of(sushi));
         BusinessScopedTicketReadService staleService = new BusinessScopedTicketReadService(jdbc, staleAccess);
         jdbc.update("UPDATE business_memberships SET is_active = FALSE WHERE user_id = 1");
-        assertThat(service.findSpansByPublicId(1L, publicId)).isEmpty();
-        assertThat(staleService.findSpansByPublicId(1L, publicId)).isEmpty();
+        assertThat(service.findSpansByPublicId(stored(jdbc,1L), publicId)).isEmpty();
+        assertThat(staleService.findSpansByPublicId(stored(jdbc,1L), publicId)).isEmpty();
     }
 
     @Test
@@ -474,10 +475,10 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         assertThat(service.listTickets(1L, BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 50, 0))
                 .extracting(BusinessScopedTicketReadService.TicketRow::ticketPublicId)
                 .containsExactly("0123456789abcdef0123456789abcdef");
-        assertThat(service.findByPublicId(1L, "0123456789abcdef0123456789abcdef"))
+        assertThat(service.findByPublicId(stored(jdbc,1L), "0123456789abcdef0123456789abcdef"))
                 .get().extracting(BusinessScopedTicketReadService.TicketRow::businessId).isEqualTo(sushi);
-        assertThat(service.findByPublicId(1L, "fedcba9876543210fedcba9876543210")).isEmpty();
-        assertThat(service.findByPublicId(1L, "same")).isEmpty();
+        assertThat(service.findByPublicId(stored(jdbc,1L), "fedcba9876543210fedcba9876543210")).isEmpty();
+        assertThat(service.findByPublicId(stored(jdbc,1L), "same")).isEmpty();
         assertThatThrownBy(() -> service.listTickets(
                 1L, new BusinessAccessService.OneBusiness(bliny), 50, 0))
                 .isInstanceOf(AccessDeniedException.class);
@@ -531,7 +532,7 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
                 .isEmpty();
         assertThat(service.listTickets(2L, new BusinessAccessService.OneBusiness(bliny), 50, 0))
                 .extracting(BusinessScopedTicketReadService.TicketRow::userId).containsExactly(2L);
-        assertThat(service.findByPublicId(2L, "fedcba9876543210fedcba9876543210"))
+        assertThat(service.findByPublicId(stored(jdbc,2L), "fedcba9876543210fedcba9876543210"))
                 .get().extracting(BusinessScopedTicketReadService.TicketRow::businessId).isEqualTo(bliny);
         for (int i = 0; i < 98; i++) {
             jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id) VALUES (2, ?, ?)",
@@ -549,7 +550,7 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         assertThat(service.availableBusinesses(1L)).isEmpty();
         assertThat(service.listTickets(1L,
                 BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 50, 0)).isEmpty();
-        assertThat(service.findByPublicId(1L, "0123456789abcdef0123456789abcdef")).isEmpty();
+        assertThat(service.findByPublicId(stored(jdbc,1L), "0123456789abcdef0123456789abcdef")).isEmpty();
         assertThat(service.pageTickets(2L,
                 BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 50, 0, null, null).tickets())
                 .extracting(BusinessScopedTicketReadService.TicketRow::businessId)
@@ -557,7 +558,7 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         assertThat(admin.setBusinessStatus(sushi, "active")).isTrue();
         assertThat(service.availableBusinesses(1L)).extracting(
                 BusinessScopedTicketReadService.BusinessOption::code).containsExactly("sushi");
-        assertThat(service.findByPublicId(1L, "0123456789abcdef0123456789abcdef")).isPresent();
+        assertThat(service.findByPublicId(stored(jdbc,1L), "0123456789abcdef0123456789abcdef")).isPresent();
     }
 
     @Test
@@ -588,7 +589,7 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         var all = BusinessAccessService.AllAccessibleBusinesses.INSTANCE;
 
         jdbc.update("UPDATE tickets SET ticket_public_id = '0123456789abcdef0123456789abcdef' WHERE user_id = 11");
-        assertThat(service.findByPublicId(1L, "0123456789abcdef0123456789abcdef")
+        assertThat(service.findByPublicId(stored(jdbc,1L), "0123456789abcdef0123456789abcdef")
                 .orElseThrow().clientName()).isEqualTo("Иван");
         assertThat(service.listTickets(1L, all, 50, 0).stream()
                 .filter(row -> row.userId() == 11L).findFirst().orElseThrow().problemPreview())
@@ -645,7 +646,7 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         assertThat(fullTextMatch).hasSize(1);
         assertThat(fullTextMatch.get(0).clientName()).hasSize(200);
         assertThat(fullTextMatch.get(0).problemPreview()).hasSize(500);
-        assertThat(service.findByPublicId(2L, "0123456789abcdef0123456789abcdef")
+        assertThat(service.findByPublicId(stored(jdbc,2L), "0123456789abcdef0123456789abcdef")
                 .orElseThrow().problemPreview()).hasSize(500);
     }
 
@@ -765,7 +766,7 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
                 1L, new BusinessAccessService.OneBusiness(sushi), 50, 0, null, null))
                 .isInstanceOf(AccessDeniedException.class);
         assertThat(service.availableBusinesses(1L)).isEmpty();
-        assertThat(service.findByPublicId(1L, "0123456789abcdef0123456789abcdef")).isEmpty();
+        assertThat(service.findByPublicId(stored(jdbc,1L), "0123456789abcdef0123456789abcdef")).isEmpty();
 
         BusinessAccessService staleAccess = mock(BusinessAccessService.class);
         when(staleAccess.resolveAccessibleBusinessIds(1L)).thenReturn(Set.of(sushi));

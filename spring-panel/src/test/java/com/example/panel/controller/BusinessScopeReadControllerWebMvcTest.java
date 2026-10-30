@@ -126,12 +126,12 @@ class BusinessScopeReadControllerWebMvcTest {
     void directLookupReturnsNonDisclosingNotFoundOrAuthorizedTicket() throws Exception {
         when(flags.isFoundationEnabled()).thenReturn(true);
         when(service.requireAuthenticatedUserId(org.mockito.ArgumentMatchers.argThat((org.springframework.security.core.Authentication actor) -> actor != null && "operator".equals(actor.getName())))).thenReturn(1L);
-        when(service.findByPublicId(1L, PUBLIC_ID)).thenReturn(Optional.empty());
+        when(service.findByPublicId(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(PUBLIC_ID))).thenReturn(Optional.empty());
         mvc.perform(get("/api/business-scope/tickets/" + PUBLIC_ID)
                 .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isNotFound());
 
-        when(service.findByPublicId(1L, PUBLIC_ID)).thenReturn(Optional.of(
+        when(service.findByPublicId(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(PUBLIC_ID))).thenReturn(Optional.of(
                 new BusinessScopedTicketReadService.TicketRow(
                         8L, "raw-ticket", PUBLIC_ID, 2L, "sushi", "Суши", "resolved",
                         CREATED_AT, OffsetDateTime.parse("2026-10-15T12:00:00Z"),
@@ -162,7 +162,7 @@ class BusinessScopeReadControllerWebMvcTest {
         var ticket = new BusinessScopedTicketReadService.TicketRow(
                 8L, "raw-ticket", PUBLIC_ID, 2L, "sushi", "Суши", "open",
                 CREATED_AT, "Иван", "Нет света");
-        when(service.findHistoryByPublicId(1L, PUBLIC_ID, null, 50)).thenReturn(Optional.of(
+        when(service.findHistoryByPublicId(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(PUBLIC_ID), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq(50))).thenReturn(Optional.of(
                 new BusinessScopedTicketReadService.TicketHistory(ticket, List.of(
                         new BusinessScopedTicketReadService.HistoryEntry(
                                 3L, "client", "Здравствуйте", null, "text", false)), true, 3L)));
@@ -176,7 +176,7 @@ class BusinessScopeReadControllerWebMvcTest {
                 .andExpect(jsonPath("$.entries[0].message").value("Здравствуйте"))
                 .andExpect(jsonPath("$.hasMore").value(true))
                 .andExpect(jsonPath("$.nextBeforeId").value(3));
-        when(service.findHistoryByPublicId(1L, PUBLIC_ID, 3L, 2)).thenReturn(Optional.of(
+        when(service.findHistoryByPublicId(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(PUBLIC_ID), org.mockito.ArgumentMatchers.eq(3L), org.mockito.ArgumentMatchers.eq(2))).thenReturn(Optional.of(
                 new BusinessScopedTicketReadService.TicketHistory(ticket, List.of(), false, null)));
         mvc.perform(get(path).param("before", "3").param("limit", "2")
                 .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
@@ -208,10 +208,10 @@ class BusinessScopeReadControllerWebMvcTest {
         var ticket = new BusinessScopedTicketReadService.TicketRow(
                 8L, "raw-ticket", PUBLIC_ID, 2L, "sushi", "Суши", "open",
                 CREATED_AT, "Иван", "Нет света");
-        when(service.findAnswersByPublicId(1L, PUBLIC_ID)).thenReturn(Optional.empty());
+        when(service.findAnswersByPublicId(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(PUBLIC_ID))).thenReturn(Optional.empty());
         mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isNotFound());
-        when(service.findAnswersByPublicId(1L, PUBLIC_ID)).thenReturn(Optional.of(
+        when(service.findAnswersByPublicId(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(PUBLIC_ID))).thenReturn(Optional.of(
                 new BusinessScopedTicketReadService.TicketAnswers(ticket, true, List.of(
                         new BusinessScopedTicketReadService.AnswerEntry(
                                 "q1", "Причина", "text", null, "<script>безопасный текст</script>")))));
@@ -223,13 +223,13 @@ class BusinessScopeReadControllerWebMvcTest {
                 .andExpect(jsonPath("$.ticket.problemPreview").value("Нет света"))
                 .andExpect(jsonPath("$.relationVerified").value(true))
                 .andExpect(jsonPath("$.answers[0].valueText").value("<script>безопасный текст</script>"));
-        when(service.findAnswersByPublicId(1L, PUBLIC_ID)).thenReturn(Optional.of(
+        when(service.findAnswersByPublicId(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(PUBLIC_ID))).thenReturn(Optional.of(
                 new BusinessScopedTicketReadService.TicketAnswers(ticket, false, List.of())));
         mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.relationVerified").value(false))
                 .andExpect(jsonPath("$.answers").isEmpty());
-        when(service.findAnswersByPublicId(1L, PUBLIC_ID))
+        when(service.findAnswersByPublicId(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(PUBLIC_ID)))
                 .thenThrow(new BusinessScopedTicketReadService.AnswerLimitExceededException());
         mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isPayloadTooLarge());
@@ -247,10 +247,10 @@ class BusinessScopeReadControllerWebMvcTest {
         String path = "/api/business-scope/tickets/" + PUBLIC_ID + "/workspace";
         var ticket = new BusinessScopedTicketReadService.TicketRow(
                 8L, "raw-ticket", PUBLIC_ID, 2L, "sushi", "Суши", "open");
-        when(service.findWorkspaceByPublicId(1L, PUBLIC_ID)).thenReturn(Optional.empty());
+        when(service.findWorkspaceByPublicId(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(PUBLIC_ID))).thenReturn(Optional.empty());
         mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isNotFound());
-        when(service.findWorkspaceByPublicId(1L, PUBLIC_ID)).thenReturn(Optional.of(
+        when(service.findWorkspaceByPublicId(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(PUBLIC_ID))).thenReturn(Optional.of(
                 new BusinessScopedTicketReadService.TicketWorkspace(ticket, true, "operator-a",
                         List.of("Доставка"), List.of("alice"))));
         mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
@@ -262,7 +262,7 @@ class BusinessScopeReadControllerWebMvcTest {
                 .andExpect(jsonPath("$.responsible").value("operator-a"))
                 .andExpect(jsonPath("$.categories[0]").value("Доставка"))
                 .andExpect(jsonPath("$.participants[0]").value("alice"));
-        when(service.findWorkspaceByPublicId(1L, PUBLIC_ID)).thenReturn(Optional.of(
+        when(service.findWorkspaceByPublicId(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(PUBLIC_ID))).thenReturn(Optional.of(
                 new BusinessScopedTicketReadService.TicketWorkspace(ticket, false, null,
                         List.of(), List.of())));
         mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
@@ -270,7 +270,7 @@ class BusinessScopeReadControllerWebMvcTest {
                 .andExpect(jsonPath("$.relationVerified").value(false))
                 .andExpect(jsonPath("$.categories").isEmpty())
                 .andExpect(jsonPath("$.participants").isEmpty());
-        when(service.findWorkspaceByPublicId(1L, PUBLIC_ID))
+        when(service.findWorkspaceByPublicId(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(PUBLIC_ID)))
                 .thenThrow(new BusinessScopedTicketReadService.WorkspaceLimitExceededException());
         mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isPayloadTooLarge());
@@ -290,7 +290,7 @@ class BusinessScopeReadControllerWebMvcTest {
                 8L, "raw-ticket", PUBLIC_ID, 2L, "sushi", "Суши", "open");
         mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isNotFound());
-        when(service.findSpansByPublicId(1L, PUBLIC_ID)).thenReturn(Optional.of(
+        when(service.findSpansByPublicId(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(PUBLIC_ID))).thenReturn(Optional.of(
                 new BusinessScopedTicketReadService.TicketSpans(ticket, true, List.of(
                         new BusinessScopedTicketReadService.SpanEntry(1, CREATED_AT,
                                 OffsetDateTime.parse("2026-10-15T10:16:30Z"), 60)))));
@@ -302,13 +302,13 @@ class BusinessScopeReadControllerWebMvcTest {
                 .andExpect(jsonPath("$.relationVerified").value(true))
                 .andExpect(jsonPath("$.spans[0].spanNo").value(1))
                 .andExpect(jsonPath("$.spans[0].durationSeconds").value(60));
-        when(service.findSpansByPublicId(1L, PUBLIC_ID)).thenReturn(Optional.of(
+        when(service.findSpansByPublicId(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(PUBLIC_ID))).thenReturn(Optional.of(
                 new BusinessScopedTicketReadService.TicketSpans(ticket, false, List.of())));
         mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.relationVerified").value(false))
                 .andExpect(jsonPath("$.spans").isEmpty());
-        when(service.findSpansByPublicId(1L, PUBLIC_ID))
+        when(service.findSpansByPublicId(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(PUBLIC_ID)))
                 .thenThrow(new BusinessScopedTicketReadService.SpanLimitExceededException());
         mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isPayloadTooLarge());
@@ -333,7 +333,7 @@ class BusinessScopeReadControllerWebMvcTest {
                 .andExpect(status().isBadRequest());
         var reference = new BusinessScopedTicketReadService.AttachmentReference(
                 "ticket/file.bin", "../document.txt");
-        when(service.findAttachmentByPublicId(1L, PUBLIC_ID, 7L)).thenReturn(Optional.of(reference));
+        when(service.findAttachmentByPublicId(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(PUBLIC_ID), org.mockito.ArgumentMatchers.eq(7L))).thenReturn(Optional.of(reference));
         byte[] contents = "verified".getBytes(StandardCharsets.UTF_8);
         when(objectStorageService.openDialogAttachmentByStorageKey("ticket/file.bin"))
                 .thenReturn(new AttachmentObjectStorageService.StoredBinary(
