@@ -66,16 +66,27 @@ public class BotRuntimeTicketWriteService {
             return new MutationResult(false, true);
         }
         int updated = jdbcTemplate.update("""
-                UPDATE tickets
+                UPDATE tickets AS owner
                    SET status = 'pending',
                        resolved_at = NULL,
                        resolved_by = NULL,
-                       reopen_count = COALESCE(reopen_count, 0) + 1,
+                       reopen_count = COALESCE(owner.reopen_count, 0) + 1,
                        last_reopen_at = CURRENT_TIMESTAMP
-                 WHERE ticket_id = ?
-                   AND lower(COALESCE(status, '')) IN ('resolved', 'closed')
+                 WHERE owner.ticket_id = ?
+                   AND owner.user_id IS NOT DISTINCT FROM CAST(? AS BIGINT)
+                   AND owner.channel_id IS NOT DISTINCT FROM CAST(? AS BIGINT)
+                   AND owner.ticket_public_id IS NOT DISTINCT FROM CAST(? AS TEXT)
+                   AND owner.business_id IS NOT DISTINCT FROM CAST(? AS BIGINT)
+                   AND owner.is_general IS NOT DISTINCT FROM CAST(? AS BOOLEAN)
+                   AND 1 = (SELECT COUNT(*) FROM tickets candidate WHERE candidate.ticket_id = owner.ticket_id)
+                   AND lower(COALESCE(owner.status, '')) IN ('resolved', 'closed')
                 """,
-                ticket.ticketId()
+                ticket.ticketId(),
+                ticket.userId(),
+                ticket.channelId(),
+                ticket.publicId(),
+                ticket.businessId(),
+                ticket.general()
         );
         if (updated > 0) {
             dialogReplyTargetService.touchTicketActivity(ticket.ticketId(), ticket.userIdentity());
@@ -156,28 +167,46 @@ public class BotRuntimeTicketWriteService {
             return new MutationResult(false, false);
         }
         ClientMessageSnapshot snapshot = loadClientMessage(channelId, telegramMessageId);
-        if (snapshot == null || !matchesTicketContext(
-                loadTicket(snapshot.ticketId()), snapshot.userId(), snapshot.channelId())) {
+        TicketSnapshot ticket = snapshot != null ? loadTicket(snapshot.ticketId()) : null;
+        if (snapshot == null || !matchesTicketContext(ticket, snapshot.userId(), snapshot.channelId())) {
             return new MutationResult(false, false);
         }
         int updated = jdbcTemplate.update("""
-                UPDATE chat_history
-                   SET original_message = COALESCE(original_message, message),
+                UPDATE chat_history AS history
+                   SET original_message = COALESCE(history.original_message, history.message),
                        message = ?,
                        edited_at = CURRENT_TIMESTAMP
-                 WHERE id = ?
-                   AND ticket_id = ?
-                   AND user_id = ?
-                   AND channel_id = ?
-                   AND tg_message_id = ?
-                   AND sender = 'client'
+                 WHERE history.id = ?
+                   AND history.ticket_id = ?
+                   AND history.user_id = ?
+                   AND history.channel_id = ?
+                   AND history.tg_message_id = ?
+                   AND history.sender = 'client'
+                   AND 1 = (SELECT COUNT(*) FROM chat_history candidate
+                             WHERE candidate.channel_id = history.channel_id
+                               AND candidate.tg_message_id = history.tg_message_id
+                               AND candidate.sender = 'client')
+                   AND EXISTS (
+                       SELECT 1 FROM tickets owner
+                        WHERE owner.ticket_id = history.ticket_id
+                          AND owner.user_id = history.user_id
+                          AND owner.channel_id = history.channel_id
+                          AND owner.ticket_public_id IS NOT DISTINCT FROM CAST(? AS TEXT)
+                          AND owner.business_id IS NOT DISTINCT FROM CAST(? AS BIGINT)
+                          AND owner.is_general IS NOT DISTINCT FROM CAST(? AS BOOLEAN)
+                          AND 1 = (SELECT COUNT(*) FROM tickets candidate WHERE candidate.ticket_id = owner.ticket_id)
+                        FOR SHARE OF owner
+                   )
                 """,
                 message.trim(),
                 snapshot.id(),
                 snapshot.ticketId(),
                 snapshot.userId(),
                 channelId,
-                telegramMessageId
+                telegramMessageId,
+                ticket.publicId(),
+                ticket.businessId(),
+                ticket.general()
         );
         if (updated > 0) {
             uiEventOutboxAppendService.publishClientMessageEdited(snapshot.ticketId(), snapshot.channelId(), message);
@@ -299,7 +328,7 @@ public class BotRuntimeTicketWriteService {
             return null;
         }
         return jdbcTemplate.query("""
-                SELECT ticket_id, status, user_id, channel_id
+                SELECT ticket_id, status, user_id, channel_id, ticket_public_id, business_id, is_general
                   FROM tickets
                  WHERE ticket_id = ?
                  LIMIT 2
@@ -312,7 +341,10 @@ public class BotRuntimeTicketWriteService {
                         rs.getString("ticket_id"),
                         rs.getString("status"),
                         rs.getObject("user_id") != null ? rs.getLong("user_id") : null,
-                        rs.getObject("channel_id") != null ? rs.getLong("channel_id") : null
+                        rs.getObject("channel_id") != null ? rs.getLong("channel_id") : null,
+                        rs.getString("ticket_public_id"),
+                        rs.getObject("business_id", Long.class),
+                        rs.getObject("is_general", Boolean.class)
                     );
                     return rs.next() ? null : ticket;
                 },
@@ -394,7 +426,10 @@ public class BotRuntimeTicketWriteService {
     private record TicketSnapshot(String ticketId,
                                   String status,
                                   Long userId,
-                                  Long channelId) {
+                                  Long channelId,
+                                  String publicId,
+                                  Long businessId,
+                                  Boolean general) {
         private String userIdentity() {
             return userId != null ? Long.toString(userId) : null;
         }

@@ -24,7 +24,7 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R236 и runtime R235 имеют
+что production уже запускался. Эта оговорка, source-сводка R237 и runtime R235 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
@@ -52,7 +52,29 @@ FoundationOFF; Flyway/settings/users/authorities/roles fingerprints прежни
 operator Authentication), оставшиеся child/media/delivery, PENDING policy/AI
 privacy/context/retention и fleet/provider acceptance. S2B снятR190, задача🟡.
 
-Source R236 (ещё не развёрнут), актуальная source-сводка:
+Source R237 (ещё не развёрнут), актуальная source-сводка:
+Bot-runtime root snapshot сохраняет также exact public ID/business ID/GENERAL.
+Owning reopen UPDATE повторяет весь root tuple и raw-ID uniqueness; client-edit
+UPDATE — root tuple/uniqueness и channel/provider/client history uniqueness.
+Nullable markers/projection сравниваются без scope inference. Client root
+FOR SHARE удерживается до transaction end/outbox handoff; reopen держит строку
+своим UPDATE. Два независимых connection tests подтверждают lock timeout55P03
+во время handoff и освобождение после commit. Owning deny не пишет downstream,
+сохранён прежний нулевой MutationResult(false,true); grants/token/URI/body прежние.
+Frozen RED157/109 assertion failures/0 errors/skips,48 controls; GREEN346/5 suites,
+157 новых+189 прежних cases,0 failures/errors/skips, tests/assertions не ослаблены.
+Scripted boundary matrix не является полным concurrent MVCC/phantom/ABA proof;
+controller filters=false не доказывает security chain. Verified R235 JAR/R236
+1421 classes, incremental1 main/6 test sources,1417 unrelated classes прежние.
+Все18 рабочих containers/config/DB fingerprints прежние, backup heartbeat отдельно;
+web R234/readinessUP/health503DLQ1. Owned640MiB helper удалён, rollback сохранён.
+Migration/backfill/flags/queue/provider/worker/bot/deploy не выполнялись.
+Далее frozen outbox context/pending/JPA feedback, relay/operator-edit/activity
+owning bindings, child attribution и full-tuple ABA/phantom boundaries; epoch
+протокол не введён. PENDING/S6 прежние, S2B снятR190, задача🟡.
+Task01-278 R237/evidence .tmp/01-278-r237-evidence/, scope5; commit/push/deploy=false.
+
+Source R236 (ещё не развёрнут):
 BotRuntimeTicketWriteService.loadTicket повторно доказывает однозначность в
 owning SELECT: LIMIT2/extractor отвергает вторую строку, даже если ранний
 hasUniqueTicket видел только одну. Общий resolver обслуживает reopen/relay/
