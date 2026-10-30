@@ -45,9 +45,9 @@ public class GeneralTicketReadController {
     public ResponseEntity<GeneralTicketReadService.TicketPage> page(Authentication authentication,
             @RequestParam(defaultValue = "50") String limit, @RequestParam(defaultValue = "0") String offset,
             @RequestParam(required = false) String status, @RequestParam(name = "q", required = false) String query) {
-        long userId = userId(authentication);
+        requireCurrentActor(authentication);
         try {
-            return privateRead(service.page(userId, number(limit, false), number(offset, true), status, query));
+            return privateRead(service.page(authentication, number(limit, false), number(offset, true), status, query));
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid ticket query", ex);
         }
@@ -56,7 +56,8 @@ public class GeneralTicketReadController {
     @GetMapping("/{publicId}")
     public ResponseEntity<GeneralTicketReadService.TicketRow> ticket(@PathVariable String publicId,
             Authentication authentication) {
-        return privateRead(service.find(userId(authentication), publicId)
+        requireCurrentActor(authentication);
+        return privateRead(service.find(authentication, publicId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND)));
     }
 
@@ -64,14 +65,14 @@ public class GeneralTicketReadController {
     public ResponseEntity<GeneralTicketReadService.TicketHistory> history(@PathVariable String publicId,
             Authentication authentication, @RequestParam(defaultValue = "50") String limit,
             @RequestParam(required = false) String before) {
-        long userId = userId(authentication);
+        requireCurrentActor(authentication);
         try {
             Long cursor = null;
             if (before != null) {
                 if (!before.matches("[1-9][0-9]*")) throw new IllegalArgumentException();
                 cursor = Long.parseLong(before);
             }
-            return privateRead(service.history(userId, publicId, cursor, number(limit, false))
+            return privateRead(service.history(authentication, publicId, cursor, number(limit, false))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND)));
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid history query", ex);
@@ -81,9 +82,9 @@ public class GeneralTicketReadController {
     @GetMapping("/{publicId}/answers")
     public ResponseEntity<GeneralTicketReadService.TicketAnswers> answers(@PathVariable String publicId,
             Authentication authentication) {
-        long userId = userId(authentication);
+        requireCurrentActor(authentication);
         try {
-            return privateRead(service.answers(userId, publicId)
+            return privateRead(service.answers(authentication, publicId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND)));
         } catch (GeneralTicketReadService.AnswerLimitExceededException ex) {
             throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE);
@@ -93,7 +94,7 @@ public class GeneralTicketReadController {
     @GetMapping("/{publicId}/history/{historyId}/attachment")
     public ResponseEntity<Resource> attachment(@PathVariable String publicId, @PathVariable String historyId,
             Authentication authentication) throws IOException {
-        long userId = userId(authentication);
+        requireCurrentActor(authentication);
         long id;
         try {
             if (!historyId.matches("[1-9][0-9]*")) throw new IllegalArgumentException();
@@ -101,7 +102,7 @@ public class GeneralTicketReadController {
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         }
-        var reference = service.attachment(userId, publicId, id)
+        var reference = service.attachment(authentication, publicId, id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         AttachmentObjectStorageService.StoredBinary binary;
         try {
@@ -123,7 +124,7 @@ public class GeneralTicketReadController {
                 if(bytes.length!=reference.size()||!reference.sha256().equals(GeneralTicketDocumentReplyService.sha256(bytes)))
                     throw new ResponseStatusException(HttpStatus.NOT_FOUND);
             }
-            if(service.attachment(userId,publicId,id).filter(reference::equals).isEmpty())
+            if(service.attachment(authentication,publicId,id).filter(reference::equals).isEmpty())
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND);
             return ResponseEntity.ok().header("Cache-Control","no-store").header("X-Content-Type-Options","nosniff")
                 .header("Content-Disposition",ContentDisposition.attachment().filename(filename,StandardCharsets.UTF_8).build().toString())
@@ -142,11 +143,11 @@ public class GeneralTicketReadController {
         return parsed;
     }
 
-    private long userId(Authentication authentication) {
+    private void requireCurrentActor(Authentication authentication) {
         if (!flags.isFoundationEnabled() || !flags.isGeneralTicketQueue()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
-        return access.requireAuthenticatedUserId(authentication);
+        access.requireAuthenticatedUserId(authentication);
     }
 
     private <T> ResponseEntity<T> privateRead(T body) {

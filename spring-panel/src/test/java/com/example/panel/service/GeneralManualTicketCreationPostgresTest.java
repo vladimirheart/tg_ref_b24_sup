@@ -61,9 +61,9 @@ class GeneralManualTicketCreationPostgresTest {
             .containsEntry("channel_id",null).containsEntry("message_text",null);
         assertThat(count("manual_business_clients")).isZero();assertThat(count("bot_users")).isZero();assertThat(count("general_ticket_work_intervals")).isZero();
         var read=new GeneralTicketReadService(jdbc,access);
-        assertThat(read.find(2,id).orElseThrow().clientName()).isEqualTo("Анна");
-        assertThat(read.history(2,id,null,20).orElseThrow().entries()).singleElement().satisfies(note->assertThat(note.message()).isEqualTo("Помощь\nСрочно"));
-        assertThat(read.find(4,id)).isEmpty();
+        assertThat(read.find(auth(jdbc,"reader"),id).orElseThrow().clientName()).isEqualTo("Анна");
+        assertThat(read.history(auth(jdbc,"reader"),id,null,20).orElseThrow().entries()).singleElement().satisfies(note->assertThat(note.message()).isEqualTo("Помощь\nСрочно"));
+        assertThat(read.find(auth(jdbc,"admin"),id)).isEmpty();
         var scope=new GeneralTicketEventScope(owner,(String)row.get("ticket_id"),id);
         var work=new GeneralTicketWorkService(jdbc,new UiEventOutboxAppendService(jdbc,new LegacyTicketIdJdbcGuard(jdbc)),flags);
         assertThat(work.transition(scope,auth(jdbc,"worker"),0,"pending","open")).isTrue();assertThat(count("general_ticket_work_intervals")).isEqualTo(1);

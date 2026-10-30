@@ -84,7 +84,7 @@ class GeneralTicketReplyChangePostgresTest {
             verify(transport,times(1)).deleteTelegramMessageGuarded(any(),eq(owner),eq(77L),any());
             assertThat(changes.targets(scope,auth(jdbc,actor),0)).isEmpty();
         }
-        var history=new GeneralTicketReadService(jdbc,access).history(accountId,scope.ticketPublicId(),null,50).orElseThrow().entries();
+        var history=new GeneralTicketReadService(jdbc,access).history(auth(jdbc,actor),scope.ticketPublicId(),null,50).orElseThrow().entries();
         if ("EDIT".equals(action)) assertThat(history).singleElement().extracting(GeneralTicketReadService.HistoryEntry::message).isEqualTo(message);
         else assertThat(history).isEmpty();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ui_event_outbox WHERE ticket_public_id=?",Integer.class,scope.ticketPublicId())).isEqualTo(2);

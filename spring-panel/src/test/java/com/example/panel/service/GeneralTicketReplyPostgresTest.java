@@ -256,7 +256,7 @@ class GeneralTicketReplyPostgresTest {
         assertThat(submit("Ответ")).isTrue();
         jdbc.update("UPDATE chat_history SET ticket_public_id=? WHERE ticket_public_id=?",key(),scope.ticketPublicId());
         var reads=new GeneralTicketReadService(jdbc,access);
-        assertThat(reads.history(accountId,scope.ticketPublicId(),null,50).orElseThrow().entries()).isEmpty();
+        assertThat(reads.history(auth(jdbc,actor),scope.ticketPublicId(),null,50).orElseThrow().entries()).isEmpty();
     }
     @Test void inputRejectsMalformedUnicodeAndOversizedOrControlText() {
         for (String invalid:new String[]{"","  ","x".repeat(4001),"x\u0000","\ud800","😀\ud800"}) {

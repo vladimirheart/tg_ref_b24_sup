@@ -92,13 +92,13 @@ class GeneralTicketControllersWebMvcTest {
         enable();
         mvc.perform(get("/api/general-tickets/page").with(user("admin").authorities(() -> "ROLE_ADMIN")))
             .andExpect(status().isForbidden());
-        verify(service, never()).page(1L, 50, 0, null, null);
+        verify(service, never()).page(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(50), org.mockito.ArgumentMatchers.eq(0), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq(null));
     }
 
     @Test
     void readGrantDenialAndEntityDenialDoNotRevealTicketData() throws Exception {
         enable();
-        when(service.page(1L, 50, 0, null, null)).thenThrow(new AccessDeniedException("no grant"));
+        when(service.page(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(50), org.mockito.ArgumentMatchers.eq(0), org.mockito.ArgumentMatchers.eq(null), org.mockito.ArgumentMatchers.eq(null))).thenThrow(new AccessDeniedException("no grant"));
         mvc.perform(get("/api/general-tickets/page").with(user("reader").authorities(() -> "PAGE_DIALOGS")))
             .andExpect(status().isForbidden());
         for (String suffix : List.of("", "/history", "/answers", "/history/7/attachment")) {
@@ -112,7 +112,7 @@ class GeneralTicketControllersWebMvcTest {
     @Test
     void pagingAndHistoryValidateNumbersAndReturnPrivateResponses() throws Exception {
         enable();
-        when(service.page(1L, 25, 50, "open", "query"))
+        when(service.page(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(25), org.mockito.ArgumentMatchers.eq(50), org.mockito.ArgumentMatchers.eq("open"), org.mockito.ArgumentMatchers.eq("query")))
             .thenReturn(new GeneralTicketReadService.TicketPage(List.of(), false));
         mvc.perform(get("/api/general-tickets/page?limit=25&offset=50&status=open&q=query")
                 .with(user("reader").authorities(() -> "PAGE_DIALOGS")))
@@ -128,7 +128,7 @@ class GeneralTicketControllersWebMvcTest {
                     .with(user("reader").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isBadRequest());
         }
-        when(service.history(1L, PUBLIC_ID, 50L, 10))
+        when(service.history(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(PUBLIC_ID), org.mockito.ArgumentMatchers.eq(50L), org.mockito.ArgumentMatchers.eq(10)))
             .thenReturn(Optional.of(new GeneralTicketReadService.TicketHistory(null, List.of(), false, null)));
         mvc.perform(get("/api/general-tickets/" + PUBLIC_ID + "/history?before=50&limit=10")
                 .with(user("reader").authorities(() -> "PAGE_DIALOGS")))
@@ -138,13 +138,13 @@ class GeneralTicketControllersWebMvcTest {
     @Test
     void answersHavePrivateHeadersAndRefuseSilentTruncation() throws Exception {
         enable();
-        when(service.answers(1L, PUBLIC_ID)).thenReturn(Optional.of(
+        when(service.answers(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(PUBLIC_ID))).thenReturn(Optional.of(
             new GeneralTicketReadService.TicketAnswers(null, true, List.of())));
         mvc.perform(get("/api/general-tickets/" + PUBLIC_ID + "/answers")
                 .with(user("reader").authorities(() -> "PAGE_DIALOGS")))
             .andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
             .andExpect(header().string("X-Content-Type-Options", "nosniff"));
-        when(service.answers(1L, PUBLIC_ID)).thenThrow(new GeneralTicketReadService.AnswerLimitExceededException());
+        when(service.answers(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(PUBLIC_ID))).thenThrow(new GeneralTicketReadService.AnswerLimitExceededException());
         mvc.perform(get("/api/general-tickets/" + PUBLIC_ID + "/answers")
                 .with(user("reader").authorities(() -> "PAGE_DIALOGS")))
             .andExpect(status().isPayloadTooLarge());
@@ -153,7 +153,7 @@ class GeneralTicketControllersWebMvcTest {
     @Test
     void attachmentDownloadsOnlyTheAuthorizedStorageReference() throws Exception {
         enable();
-        when(service.attachment(1L, PUBLIC_ID, 7L))
+        when(service.attachment(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class), org.mockito.ArgumentMatchers.eq(PUBLIC_ID), org.mockito.ArgumentMatchers.eq(7L)))
             .thenReturn(Optional.of(new GeneralTicketReadService.AttachmentReference("T/file.bin", "../file.bin")));
         when(storage.openDialogAttachmentByStorageKey("T/file.bin")).thenReturn(
             new AttachmentObjectStorageService.StoredBinary("T/file.bin", "text/plain", 3, new ByteArrayInputStream(new byte[] {1, 2, 3})));

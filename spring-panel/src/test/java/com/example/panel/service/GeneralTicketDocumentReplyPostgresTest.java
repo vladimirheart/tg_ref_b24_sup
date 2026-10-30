@@ -82,7 +82,7 @@ class GeneralTicketDocumentReplyPostgresTest {
         assertThat(jdbc.queryForMap("SELECT size,content_hash,storage_key,storage_provider,mime_type FROM chat_attachment_metadata WHERE chat_history_id=?",historyId()))
             .containsEntry("size",(long)bytes.length).containsEntry("content_hash",GeneralTicketDocumentReplyService.sha256(bytes)).containsEntry("storage_key",object)
             .containsEntry("storage_provider","s3").containsEntry("mime_type","application/octet-stream");
-        var reference=new GeneralTicketReadService(jdbc,access).attachment(actorId,scope.ticketPublicId(),historyId()).orElseThrow();
+        var reference=new GeneralTicketReadService(jdbc,access).attachment(auth(jdbc,actor),scope.ticketPublicId(),historyId()).orElseThrow();
         assertThat(reference.storageKey()).isEqualTo(object);assertThat(reference.sha256()).isEqualTo(GeneralTicketDocumentReplyService.sha256(bytes));assertThat(reference.size()).isEqualTo((long)bytes.length);
         assertThat(jdbc.queryForList("SELECT state FROM general_ticket_document_events WHERE request_key=? ORDER BY id",String.class,key)).containsExactly("QUEUED","SENDING","SENT");
         assertThat(jdbc.queryForMap("SELECT ticket_scope_kind,ticket_business_id,message_text,attachment FROM ui_event_outbox WHERE ticket_public_id=?",scope.ticketPublicId()))
@@ -149,7 +149,7 @@ class GeneralTicketDocumentReplyPostgresTest {
         }
         try{assertThat(submit()).isTrue();assertThat(state()).isIn("UNKNOWN","SENDING");assertThat(history()).isZero();
             assertThat(submit()).isTrue();documents.dispatch(key);verify(transport,times(1)).sendTelegramDocumentGuarded(any(),anyLong(),any(),anyString(),any());
-            assertThat(new GeneralTicketReadService(jdbc,access).attachment(actorId,scope.ticketPublicId(),1)).isEmpty();
+            assertThat(new GeneralTicketReadService(jdbc,access).attachment(auth(jdbc,actor),scope.ticketPublicId(),1)).isEmpty();
         }finally{if(table!=null){jdbc.execute("DROP TRIGGER "+trigger+" ON "+table);jdbc.execute("DROP FUNCTION "+trigger+"()");}}
     }
     @ParameterizedTest @ValueSource(strings={"read","scope","owner","generation","type","hash","size","archived","key","duplicate","deleted"})
@@ -169,7 +169,7 @@ class GeneralTicketDocumentReplyPostgresTest {
                 jdbc.update("INSERT INTO chat_attachment_metadata(chat_history_id,storage_key) VALUES(?,?)",other,scope.ticketPublicId()+"/general-"+key+".bin");}
             case "deleted"->jdbc.update("UPDATE chat_history SET deleted_at=CURRENT_TIMESTAMP WHERE id=?",h);
         }
-        assertThat(new GeneralTicketReadService(jdbc,access).attachment(actorId,scope.ticketPublicId(),h)).isEmpty();
+        assertThat(new GeneralTicketReadService(jdbc,access).attachment(auth(jdbc,actor),scope.ticketPublicId(),h)).isEmpty();
     }
     @Test void concurrentDuplicatePostsSendAndStoreExactlyOnce()throws Exception{
         var pool=Executors.newFixedThreadPool(2);var start=new CountDownLatch(1);
@@ -184,7 +184,7 @@ class GeneralTicketDocumentReplyPostgresTest {
         scope=new GeneralTicketEventScope(owner,raw,publicId);root(publicId);
         destination=documents.destinationFingerprint(scope,auth(jdbc,actor),0).orElseThrow();assertThat(submit()).isTrue();
         jdbc.update("UPDATE chat_history SET message_type='operator_message' WHERE id=?",historyId());
-        assertThat(new GeneralTicketReadService(jdbc,access).attachment(actorId,publicId,historyId())).isEmpty();
+        assertThat(new GeneralTicketReadService(jdbc,access).attachment(auth(jdbc,actor),publicId,historyId())).isEmpty();
     }
     @Test void grantRevocationWaitsForProviderBoundaryAndPreventsTheNextIntent()throws Exception{
         var pool=Executors.newSingleThreadExecutor();var started=new CountDownLatch(1);final Future<?>[] revoked=new Future<?>[1];
@@ -219,7 +219,7 @@ class GeneralTicketDocumentReplyPostgresTest {
     @Test void missingRegistryFailsClosedIncludingTheLegacyDownloadPath(){
         jdbc.execute("ALTER TABLE general_ticket_document_replies RENAME TO hidden_document_intents");
         try{assertThat(submit()).isFalse();assertThat(documents.recent(scope,auth(jdbc,actor))).isEmpty();
-            assertThat(new GeneralTicketReadService(jdbc,access).attachment(actorId,scope.ticketPublicId(),1)).isEmpty();verifyNoInteractions(transport,storage);
+            assertThat(new GeneralTicketReadService(jdbc,access).attachment(auth(jdbc,actor),scope.ticketPublicId(),1)).isEmpty();verifyNoInteractions(transport,storage);
         }finally{jdbc.execute("ALTER TABLE hidden_document_intents RENAME TO general_ticket_document_replies");}
     }
     @Test void realLocalStoragePreservesBinaryUnderPublicGenerationWithVerifiedMetadata(@org.junit.jupiter.api.io.TempDir Path temp)throws Exception{
@@ -235,7 +235,7 @@ class GeneralTicketDocumentReplyPostgresTest {
             assertThat(binary.inputStream().readAllBytes()).isEqualTo(bytes);assertThat(binary.size()).isEqualTo(bytes.length);
         }
         assertThat(jdbc.queryForObject("SELECT storage_provider FROM chat_attachment_metadata WHERE chat_history_id=?",String.class,historyId())).isEqualTo("local_fs");
-        assertThat(new GeneralTicketReadService(jdbc,access).attachment(actorId,scope.ticketPublicId(),historyId()).orElseThrow().sha256())
+        assertThat(new GeneralTicketReadService(jdbc,access).attachment(auth(jdbc,actor),scope.ticketPublicId(),historyId()).orElseThrow().sha256())
             .isEqualTo(GeneralTicketDocumentReplyService.sha256(bytes));
     }
     @Test void v71UpgradePreservesExistingHistoryAndDoesNotImportFilesOrGrants(){

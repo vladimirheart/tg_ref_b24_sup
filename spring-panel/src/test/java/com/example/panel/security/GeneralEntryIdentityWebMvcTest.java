@@ -65,7 +65,7 @@ class GeneralEntryIdentityWebMvcTest {
         for(String authority:List.of("PAGE_DIALOGS","PAGE_SETTINGS","ROLE_ADMIN"))jdbc.update("INSERT INTO user_authorities(user_id,authority) VALUES(7,?)",authority);
         reset(shared,reads,storage);when(shared.loadSettings()).thenReturn(Map.of());
         flags.getFoundation().setEnabled(true);flags.setGeneralTicketQueue(true);
-        when(reads.page(anyLong(),anyInt(),anyInt(),nullable(String.class),nullable(String.class)))
+        when(reads.page(any(org.springframework.security.core.Authentication.class),anyInt(),anyInt(),nullable(String.class),nullable(String.class)))
             .thenReturn(new GeneralTicketReadService.TicketPage(List.of(),false));
     }
     private MockHttpSession login(String name)throws Exception {
@@ -98,7 +98,7 @@ class GeneralEntryIdentityWebMvcTest {
     }
     @ParameterizedTest @EnumSource(Route.class) void currentBoundAccountKeepsItsExistingRouteContract(Route route)throws Exception {
         mvc.perform(request(route,login("caller"))).andExpect(status().is(route.status));
-        if(route==Route.PAGE)verify(reads).page(eq(7L),anyInt(),anyInt(),nullable(String.class),nullable(String.class));
+        if(route==Route.PAGE)verify(reads).page(argThat(a -> a.getPrincipal() instanceof PanelUserPrincipal p && p.getUserId() == 7L),anyInt(),anyInt(),nullable(String.class),nullable(String.class));
         verifyNoInteractions(storage);
     }
     @ParameterizedTest @EnumSource(value=Route.class,names={"ACCOUNTS","ADMIN_PAGE","READ_GRANT","READ_REVOKE","OPERATE_GRANT","OPERATE_REVOKE"})

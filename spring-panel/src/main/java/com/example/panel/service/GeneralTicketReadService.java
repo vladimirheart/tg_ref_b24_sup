@@ -12,6 +12,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.access.AccessDeniedException;
 
 /** Every query intersects canonical GENERAL ownership with the current explicit read grant. */
 @Service
@@ -28,7 +30,7 @@ public class GeneralTicketReadService {
            AND ticket.ticket_public_id IS NOT NULL
            AND EXISTS (SELECT 1 FROM general_ticket_read_grants access
                          JOIN users account ON account.id = access.user_id
-                        WHERE access.user_id = :userId AND access.is_active = TRUE AND
+                        WHERE account.id = :authenticatedActorId AND account.username = :identity AND access.is_active = TRUE AND
         """ + GeneralTicketAccessService.CURRENT_ACCOUNT + ") ";
     private static final String ONE_TICKET = "WITH authorized_ticket AS (" + TICKETS
         + " AND ticket.ticket_public_id = :publicId) ";
@@ -41,7 +43,11 @@ public class GeneralTicketReadService {
         this.access = access;
     }
 
-    public TicketPage page(long userId, int limit, int offset, String status, String query) {
+    public TicketPage page(Authentication authentication, int limit, int offset, String status, String query) {
+        return page(GeneralTicketActor.from(authentication), limit, offset, status, query);
+    }
+
+    private TicketPage page(GeneralTicketActor actor, int limit, int offset, String status, String query) {
         bounds(limit, offset);
         if (status != null && !Set.of("pending", "open", "resolved", "closed").contains(status)) {
             throw new IllegalArgumentException("Invalid ticket status");
@@ -50,7 +56,8 @@ public class GeneralTicketReadService {
                 || query.chars().anyMatch(Character::isISOControl))) {
             throw new IllegalArgumentException("Invalid ticket search");
         }
-        access.requireRead(userId);
+        if (actor == null || !actor.valid()) throw new AccessDeniedException("Authenticated user is required");
+        access.requireRead(actor.userId());
         String sql = TICKETS + (status == null ? "" : " AND ticket.status = :status")
             + (query == null ? "" : """
                  AND (strpos(lower(coalesce(root.client_name, '')), lower(:query)) > 0
@@ -58,22 +65,30 @@ public class GeneralTicketReadService {
                       OR strpos(lower(ticket.ticket_id), lower(:query)) > 0)
                 """)
             + " ORDER BY ticket.created_at DESC NULLS LAST, ticket.user_id, ticket.ticket_id LIMIT :limit OFFSET :offset";
-        List<TicketRow> rows = jdbc.query(sql, params(userId, null).addValue("limit", limit + 1)
+        List<TicketRow> rows = jdbc.query(sql, params(actor, null).addValue("limit", limit + 1)
             .addValue("offset", offset).addValue("status", status).addValue("query", query), (rs, row) -> ticket(rs));
         boolean hasMore = rows.size() > limit;
         return new TicketPage(List.copyOf(rows.subList(0, Math.min(limit, rows.size()))), hasMore);
     }
 
-    public Optional<TicketRow> find(long userId, String publicId) {
-        if (!validPublicId(publicId)) return Optional.empty();
-        return jdbc.query(ONE_TICKET + "SELECT * FROM authorized_ticket", params(userId, publicId),
+    public Optional<TicketRow> find(Authentication authentication, String publicId) {
+        return find(GeneralTicketActor.from(authentication), publicId);
+    }
+
+    private Optional<TicketRow> find(GeneralTicketActor actor, String publicId) {
+        if (actor == null || !actor.valid() || !validPublicId(publicId)) return Optional.empty();
+        return jdbc.query(ONE_TICKET + "SELECT * FROM authorized_ticket", params(actor, publicId),
             (rs, row) -> ticket(rs)).stream().findFirst();
     }
 
-    public Optional<TicketHistory> history(long userId, String publicId, Long beforeId, int limit) {
+    public Optional<TicketHistory> history(Authentication authentication, String publicId, Long beforeId, int limit) {
+        return history(GeneralTicketActor.from(authentication), publicId, beforeId, limit);
+    }
+
+    private Optional<TicketHistory> history(GeneralTicketActor actor, String publicId, Long beforeId, int limit) {
         bounds(limit, 0);
         if (beforeId != null && beforeId <= 0) throw new IllegalArgumentException("Invalid history cursor");
-        if (!validPublicId(publicId)) return Optional.empty();
+        if (actor == null || !actor.valid() || !validPublicId(publicId)) return Optional.empty();
         return jdbc.query(ONE_TICKET + """
             SELECT ticket.*, history.id AS history_id, history.sender, left(history.message, 20000) AS message,
                    history.timestamp, history.message_type, history.attachment IS NOT NULL AS has_attachment
@@ -84,7 +99,7 @@ public class GeneralTicketReadService {
                      AND (h.ticket_public_id IS NULL OR h.ticket_public_id=ticket.ticket_public_id)
                    ORDER BY h.id DESC LIMIT :limit
               ) history ON TRUE ORDER BY history.id ASC NULLS LAST
-            """, params(userId, publicId).addValue("beforeId", beforeId == null ? Long.MAX_VALUE : beforeId)
+            """, params(actor, publicId).addValue("beforeId", beforeId == null ? Long.MAX_VALUE : beforeId)
                 .addValue("limit", limit + 1), rs -> {
                     TicketRow owner = null;
                     List<HistoryEntry> entries = new ArrayList<>();
@@ -102,8 +117,12 @@ public class GeneralTicketReadService {
                 });
     }
 
-    public Optional<TicketAnswers> answers(long userId, String publicId) {
-        if (!validPublicId(publicId)) return Optional.empty();
+    public Optional<TicketAnswers> answers(Authentication authentication, String publicId) {
+        return answers(GeneralTicketActor.from(authentication), publicId);
+    }
+
+    private Optional<TicketAnswers> answers(GeneralTicketActor actor, String publicId) {
+        if (actor == null || !actor.valid() || !validPublicId(publicId)) return Optional.empty();
         return jdbc.query(ONE_TICKET + """
             SELECT ticket.*, answer.question_id, left(answer.question_text, 2000) AS question_text,
                    left(answer.value_label, 10000) AS value_label, left(answer.value_text, 10000) AS value_text
@@ -112,7 +131,7 @@ public class GeneralTicketReadService {
                     FROM ticket_attributes a WHERE a.ticket_id = ticket.ticket_id AND ticket.relation_verified
                    ORDER BY a.question_id LIMIT 101
               ) answer ON TRUE ORDER BY answer.question_id
-            """, params(userId, publicId), rs -> {
+            """, params(actor, publicId), rs -> {
                 TicketRow owner = null;
                 boolean verified = false;
                 List<AnswerEntry> entries = new ArrayList<>();
@@ -127,12 +146,16 @@ public class GeneralTicketReadService {
             });
     }
 
-    public Optional<AttachmentReference> attachment(long userId, String publicId, long historyId) {
-        if (!validPublicId(publicId) || historyId <= 0) return Optional.empty();
+    public Optional<AttachmentReference> attachment(Authentication authentication, String publicId, long historyId) {
+        return attachment(GeneralTicketActor.from(authentication), publicId, historyId);
+    }
+
+    private Optional<AttachmentReference> attachment(GeneralTicketActor actor, String publicId, long historyId) {
+        if (actor == null || !actor.valid() || !validPublicId(publicId) || historyId <= 0) return Optional.empty();
         try {
-        var document=documentAttachment(userId,publicId,historyId);
+        var document=documentAttachment(actor,publicId,historyId);
         if(document.isPresent())return document;
-        var questionnaire=questionnaireAttachment(userId,publicId,historyId);
+        var questionnaire=questionnaireAttachment(actor,publicId,historyId);
         if(questionnaire.isPresent())return questionnaire;
         List<AttachmentReference> rows = jdbc.query(ONE_TICKET + """
             SELECT ticket.ticket_id, history.attachment, metadata.storage_key, metadata.original_name
@@ -152,7 +175,7 @@ public class GeneralTicketReadService {
              WHERE ticket.relation_verified AND NOT EXISTS (
                  SELECT 1 FROM chat_attachment_metadata other
                   WHERE other.storage_key = metadata.storage_key AND other.id <> metadata.id)
-            """, params(userId, publicId).addValue("historyId", historyId), (rs, row) -> {
+            """, params(actor, publicId).addValue("historyId", historyId), (rs, row) -> {
                 String ticketId = rs.getString("ticket_id");
                 String raw = rs.getString("attachment");
                 String key = rs.getString("storage_key");
@@ -165,7 +188,7 @@ public class GeneralTicketReadService {
         } catch(org.springframework.dao.DataAccessException ex) { return Optional.empty(); }
     }
 
-    private Optional<AttachmentReference> questionnaireAttachment(long userId,String publicId,long historyId) {
+    private Optional<AttachmentReference> questionnaireAttachment(GeneralTicketActor actor,String publicId,long historyId) {
         try {
         List<AttachmentReference> rows = jdbc.query(ONE_TICKET + """
             SELECT ticket.ticket_id, history.attachment, metadata.storage_key, metadata.original_name, metadata.content_hash, metadata.size,
@@ -192,7 +215,7 @@ public class GeneralTicketReadService {
              WHERE ticket.relation_verified AND NOT EXISTS (
                  SELECT 1 FROM chat_attachment_metadata other
                   WHERE other.storage_key = metadata.storage_key AND other.id <> metadata.id)
-            """, params(userId, publicId).addValue("historyId", historyId), (rs, row) -> {
+            """, params(actor, publicId).addValue("historyId", historyId), (rs, row) -> {
                 String ticketId = rs.getString("ticket_id");
                 String raw = rs.getString("attachment");
                 String key = rs.getString("storage_key");
@@ -204,7 +227,7 @@ public class GeneralTicketReadService {
         } catch(org.springframework.dao.DataAccessException ex) {return Optional.empty();}
     }
 
-    private Optional<AttachmentReference> documentAttachment(long userId,String publicId,long historyId) {
+    private Optional<AttachmentReference> documentAttachment(GeneralTicketActor actor,String publicId,long historyId) {
         try { return jdbc.query(ONE_TICKET+"""
             SELECT document.storage_key,document.original_name,document.content_sha256,octet_length(document.payload) AS bytes
             FROM authorized_ticket ticket JOIN general_ticket_document_replies document
@@ -225,7 +248,7 @@ public class GeneralTicketReadService {
               AND metadata.deleted_at IS NULL AND metadata.archived_at IS NULL
             WHERE ticket.relation_verified AND document.storage_key=ticket.ticket_public_id||'/general-'||document.request_key||'.bin'
               AND NOT EXISTS(SELECT 1 FROM chat_attachment_metadata other WHERE other.storage_key=metadata.storage_key AND other.id<>metadata.id)
-            """,params(userId,publicId).addValue("historyId",historyId),(rs,row)->new AttachmentReference(rs.getString("storage_key"),
+            """,params(actor,publicId).addValue("historyId",historyId),(rs,row)->new AttachmentReference(rs.getString("storage_key"),
                 rs.getString("original_name"),rs.getString("content_sha256"),rs.getLong("bytes"))).stream().findFirst();
         }catch(org.springframework.dao.DataAccessException ex){return Optional.empty();}
     }
@@ -240,8 +263,8 @@ public class GeneralTicketReadService {
         return true;
     }
 
-    private MapSqlParameterSource params(long userId, String publicId) {
-        return new MapSqlParameterSource().addValue("userId", userId).addValue("publicId", publicId);
+    private MapSqlParameterSource params(GeneralTicketActor actor, String publicId) {
+        return actor.bind(new MapSqlParameterSource().addValue("publicId", publicId));
     }
 
     private boolean validPublicId(String publicId) {
