@@ -24,7 +24,7 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R234 и runtime R235 имеют
+что production уже запускался. Эта оговорка, source-сводка R236 и runtime R235 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
@@ -52,7 +52,30 @@ FoundationOFF; Flyway/settings/users/authorities/roles fingerprints прежни
 operator Authentication), оставшиеся child/media/delivery, PENDING policy/AI
 privacy/context/retention и fleet/provider acceptance. S2B снятR190, задача🟡.
 
-Source R234 (развёрнут в R235), актуальная source-сводка:
+Source R236 (ещё не развёрнут), актуальная source-сводка:
+BotRuntimeTicketWriteService.loadTicket повторно доказывает однозначность в
+owning SELECT: LIMIT2/extractor отвергает вторую строку, даже если ранний
+hasUniqueTicket видел только одну. Общий resolver обслуживает reopen/relay/
+client edit/operator edit/feedback. Raw ID, BIGINT owner/channel, nullable поля,
+BUSINESS/GENERAL/UNRESOLVED и ранний fail-closed guard сохранены; transport-token
+не подменяет operator Authentication, grants/URI/body/signatures прежние.
+Frozen RED96/18 assertion failures/0 errors/skips,78 controls GREEN; GREEN157/
+3 suites,96 новых+61 прежний SQL/controller test,0 failures/errors/skips.
+Новые source/bytecode/case names неизменны, старые tests/assertions не менялись.
+Controller filters=false: token/delegation proof, не full security chain.
+Scripted statement boundary, не concurrent MVCC. Проверенный JAR R235/1421
+classes и отсутствие main source diff подтверждены; incremental compile1 main/
+4 tests,1417 unrelated classes прежние. Это не full build/deploy.
+Все18 рабочих containers и config/DB fingerprints прежние (backup heartbeat
+отдельно); web R234/readiness200UP/health503DLQ1. Migration/backfill/flags/queue/
+provider не трогались, owned640MiB helper удалён, rollback сохранён.
+Далее owning DML root/context, frozen business/public/kind/generation outbox,
+pending/JPA feedback binding и post-lookup смена root; register/clear activity
+не покрыты этим fix. Общий остаток/PENDING/S6 прежний; S2B снятR190, задача🟡.
+Полный source/runtime checkpoint — task01-278 R236,
+evidence .tmp/01-278-r236-evidence/; scope5, commit/push/deploy=false.
+
+Source R234 (развёрнут в R235):
 R234: все14 API операций BusinessAdministrationService принимают исходный
 Authentication; unbound overloads удалены. Controller передаёт тот же principal
 для overview/channel inventory/binding preview, business create/rename/status,

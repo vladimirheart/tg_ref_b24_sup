@@ -302,16 +302,20 @@ public class BotRuntimeTicketWriteService {
                 SELECT ticket_id, status, user_id, channel_id
                   FROM tickets
                  WHERE ticket_id = ?
-                 LIMIT 1
+                 LIMIT 2
                 """,
-                rs -> rs.next()
-                    ? new TicketSnapshot(
+                rs -> {
+                    if (!rs.next()) {
+                        return null;
+                    }
+                    TicketSnapshot ticket = new TicketSnapshot(
                         rs.getString("ticket_id"),
                         rs.getString("status"),
                         rs.getObject("user_id") != null ? rs.getLong("user_id") : null,
                         rs.getObject("channel_id") != null ? rs.getLong("channel_id") : null
-                    )
-                    : null,
+                    );
+                    return rs.next() ? null : ticket;
+                },
                 ticketId
         );
     }
