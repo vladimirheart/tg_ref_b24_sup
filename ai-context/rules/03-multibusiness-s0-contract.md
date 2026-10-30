@@ -24,13 +24,35 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R234 и runtime R223 имеют
+что production уже запускался. Эта оговорка, source-сводка R234 и runtime R235 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
 
-Source R234 (не развёрнут), актуальная source-сводка:
+Runtime R235 — 30 октября, текущая Windows/Docker-сессия SinicinVV:
+только panel-web обновлён с R222 до clean R234
+e1b85101f2f52f051080a35cb2a7ea222c39ae0a,
+image sha256:2643c85d1874a0627c5211dd5e582d96aad3b684449c466bc0e47ce7512a27f3.
+Web1 healthy/restart0; workerR198 и остальные17 containers прежние. ENV/mounts/
+Compose/env/shared inputs сохранены, mutable backup heartbeat отдельно;
+HostConfig совпал либо доказана только Binds permutation. JAR/1421 classes,
+1391 Java/83 SQL/1870 inputs проверены,4 generated CSS EOL-only. POM/schema/
+entrypoint/bots прежние, сохранены15 base layers, добавлен только JAR layer.
+3578 tests/21 suites GREEN, failures/errors/skips0;61 live read/access/readiness
+checks, включая R233 SSE handshake, прошли без domain/grant writes. GENERAL
+HTTP138 GREEN; старый долг89 failures закрыт R227/R228. Readiness200UP,
+logs0WARN0ERROR/явный Flyway skip; общий health503DOWN из-за прежнего inboundDLQ1.
+FoundationOFF; Flyway/settings/users/authorities/roles fingerprints прежние,
+83 migrations/V83 не повторялась. Migration/backfill/flags/queue/provider не
+трогались. Rollback iguana-panel:rollback-r235-web-20261030-0558a3411df9 сохранён,
+как и предыдущие pointers/backups; фактический rollback не запускался.
+Полный checkpoint/evidence — task01-278 R235; это не fleet/flags/S6 acceptance.
+Далее bot-runtime edit/feedback root/context proofs (transport-token не равен
+operator Authentication), оставшиеся child/media/delivery, PENDING policy/AI
+privacy/context/retention и fleet/provider acceptance. S2B снятR190, задача🟡.
+
+Source R234 (развёрнут в R235), актуальная source-сводка:
 R234: все14 API операций BusinessAdministrationService принимают исходный
 Authentication; unbound overloads удалены. Controller передаёт тот же principal
 для overview/channel inventory/binding preview, business create/rename/status,
