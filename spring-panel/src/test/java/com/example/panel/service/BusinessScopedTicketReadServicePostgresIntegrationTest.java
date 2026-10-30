@@ -544,7 +544,8 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         assertThat(maxLastPage.hasMore()).isFalse();
 
         BusinessAdministrationService admin = new BusinessAdministrationService(jdbc);
-        assertThat(admin.setBusinessStatus(sushi, "archived")).isTrue();
+        var adminAuthentication = BusinessAdministratorAccountPostgresTest.fixtureAdministrator(jdbc);
+        assertThat(admin.setBusinessStatus(adminAuthentication, sushi, "archived")).isTrue();
         assertThat(service.availableBusinesses(stored(jdbc,1L))).isEmpty();
         assertThat(service.listTickets(stored(jdbc,1L),
                 BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 50, 0)).isEmpty();
@@ -553,7 +554,7 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
                 BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 50, 0, null, null).tickets())
                 .extracting(BusinessScopedTicketReadService.TicketRow::businessId)
                 .containsExactly(bliny, autoservice);
-        assertThat(admin.setBusinessStatus(sushi, "active")).isTrue();
+        assertThat(admin.setBusinessStatus(adminAuthentication, sushi, "active")).isTrue();
         assertThat(service.availableBusinesses(stored(jdbc,1L))).extracting(
                 BusinessScopedTicketReadService.BusinessOption::code).containsExactly("sushi");
         assertThat(service.findByPublicId(stored(jdbc,1L), "0123456789abcdef0123456789abcdef")).isPresent();
@@ -726,7 +727,8 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         assertThat(all.businesses().get(1).other()).isEqualTo(1);
 
         BusinessAdministrationService admin = new BusinessAdministrationService(jdbc);
-        assertThat(admin.setBusinessStatus(bliny, "archived")).isTrue();
+        var adminAuthentication = BusinessAdministratorAccountPostgresTest.fixtureAdministrator(jdbc);
+        assertThat(admin.setBusinessStatus(adminAuthentication, bliny, "archived")).isTrue();
         var archived = service.summarizeTickets(stored(jdbc,2L), BusinessAccessService.AllAccessibleBusinesses.INSTANCE);
         assertThat(archived.total()).isEqualTo(1);
         assertThat(archived.businesses()).extracting(BusinessScopedTicketReadService.BusinessTicketCounts::businessId)

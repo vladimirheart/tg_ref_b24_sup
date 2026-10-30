@@ -36,22 +36,22 @@ public class BusinessAdministrationApiController {
     }
 
     @GetMapping("/overview")
-    public BusinessAdministrationService.Overview overview() {
+    public BusinessAdministrationService.Overview overview(Authentication authentication) {
         requireFoundation();
-        return service.overview();
+        return service.overview(authentication);
     }
 
     @GetMapping("/channels")
-    public List<BusinessAdministrationService.ChannelSummary> channels() {
+    public List<BusinessAdministrationService.ChannelSummary> channels(Authentication authentication) {
         requireFoundation();
-        return service.listChannels();
+        return service.listChannels(authentication);
     }
 
     @GetMapping("/channels/{channelId}/binding-preview")
-    public BusinessAdministrationService.ChannelBindingPreview previewChannelBinding(@PathVariable long channelId) {
+    public BusinessAdministrationService.ChannelBindingPreview previewChannelBinding(@PathVariable long channelId, Authentication authentication) {
         requireFoundation();
         try {
-            return service.previewChannelBinding(channelId)
+            return service.previewChannelBinding(authentication, channelId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Channel not found"));
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
@@ -66,7 +66,7 @@ public class BusinessAdministrationApiController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Binding mode is required");
         }
         try {
-            if (!service.saveChannelBinding(channelId, businessId, request.resolutionMode())) {
+            if (!service.saveChannelBinding(authentication, channelId, businessId, request.resolutionMode())) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Channel or active business not found");
             }
         } catch (IllegalArgumentException ex) {
@@ -84,7 +84,7 @@ public class BusinessAdministrationApiController {
             Authentication authentication) {
         requireFoundation();
         try {
-            if (!service.deactivateChannelBinding(channelId, businessId)) {
+            if (!service.deactivateChannelBinding(authentication, channelId, businessId)) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Active binding not found");
             }
         } catch (IllegalArgumentException ex) {
@@ -103,7 +103,7 @@ public class BusinessAdministrationApiController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Business details are required");
         }
         try {
-            BusinessAdministrationService.Business created = service.createBusiness(
+            BusinessAdministrationService.Business created = service.createBusiness(authentication,
                     request.code(), request.displayName());
             log.info("Business created: actor={}, businessId={}", actor(authentication), created.id());
             return ResponseEntity.status(HttpStatus.CREATED).body(created);
@@ -123,7 +123,7 @@ public class BusinessAdministrationApiController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Business name is required");
         }
         try {
-            BusinessAdministrationService.Business updated = service.renameBusiness(
+            BusinessAdministrationService.Business updated = service.renameBusiness(authentication,
                     businessId, request.displayName())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business not found"));
             log.info("Business renamed: actor={}, businessId={}", actor(authentication), businessId);
@@ -142,7 +142,7 @@ public class BusinessAdministrationApiController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Business status is required");
         }
         try {
-            if (!service.setBusinessStatus(businessId, request.status())) {
+            if (!service.setBusinessStatus(authentication, businessId, request.status())) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Business not found");
             }
         } catch (IllegalArgumentException ex) {
@@ -162,7 +162,7 @@ public class BusinessAdministrationApiController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Business role is required");
         }
         try {
-            if (!service.grantMembership(businessId, userId, request.roleCode())) {
+            if (!service.grantMembership(authentication, businessId, userId, request.roleCode())) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Business or user not found");
             }
         } catch (IllegalArgumentException ex) {
@@ -178,7 +178,7 @@ public class BusinessAdministrationApiController {
                                                  Authentication authentication) {
         requireFoundation();
         try {
-            service.revokeMembership(businessId, userId);
+            service.revokeMembership(authentication, businessId, userId);
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
         }
@@ -196,7 +196,7 @@ public class BusinessAdministrationApiController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Business role is required");
         }
         try {
-            if (!service.grantAllBusinesses(userId, request.roleCode())) {
+            if (!service.grantAllBusinesses(authentication, userId, request.roleCode())) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
             }
         } catch (IllegalArgumentException ex) {
@@ -210,7 +210,7 @@ public class BusinessAdministrationApiController {
     public ResponseEntity<Void> revokeAll(@PathVariable long userId, Authentication authentication) {
         requireFoundation();
         try {
-            service.revokeAllBusinesses(userId);
+            service.revokeAllBusinesses(authentication, userId);
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
         }
@@ -227,7 +227,7 @@ public class BusinessAdministrationApiController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Location details are required");
         }
         try {
-            BusinessAdministrationService.Location created = service.createLocation(
+            BusinessAdministrationService.Location created = service.createLocation(authentication,
                     businessId, request.locationName(), request.locationType(), request.city())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business not found"));
             log.info("Business location created: actor={}, businessId={}, locationId={}",
@@ -250,7 +250,7 @@ public class BusinessAdministrationApiController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Location status is required");
         }
         try {
-            if (!service.setLocationStatus(businessId, locationId, request.status())) {
+            if (!service.setLocationStatus(authentication, businessId, locationId, request.status())) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Location not found");
             }
         } catch (IllegalArgumentException ex) {

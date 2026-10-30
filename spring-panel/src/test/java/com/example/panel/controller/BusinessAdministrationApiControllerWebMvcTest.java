@@ -14,6 +14,8 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.Mockito.never;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -52,7 +54,7 @@ class BusinessAdministrationApiControllerWebMvcTest {
         mvc.perform(get("/api/business-admin/overview")
                 .with(user("system-admin").authorities(() -> "ROLE_ADMIN")))
                 .andExpect(status().isForbidden());
-        verify(service, never()).overview();
+        verify(service, never()).overview(any(org.springframework.security.core.Authentication.class));
     }
 
     @Test
@@ -61,14 +63,14 @@ class BusinessAdministrationApiControllerWebMvcTest {
                 .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")))
                 .andExpect(status().isNotFound());
         when(flags.isFoundationEnabled()).thenReturn(true);
-        when(service.overview()).thenReturn(new BusinessAdministrationService.Overview(
+        when(service.overview(any(org.springframework.security.core.Authentication.class))).thenReturn(new BusinessAdministrationService.Overview(
                 List.of(), List.of(), List.of(), List.of(), List.of()));
         mvc.perform(get("/api/business-admin/overview")
                 .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.businesses").isArray());
 
-        when(service.createBusiness("autoservice", "Автосервис")).thenReturn(
+        when(service.createBusiness(any(org.springframework.security.core.Authentication.class), eq("autoservice"), eq("Автосервис"))).thenReturn(
                 new BusinessAdministrationService.Business(3L, "autoservice", "Автосервис", "active"));
         mvc.perform(post("/api/business-admin/businesses")
                 .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
@@ -94,14 +96,14 @@ class BusinessAdministrationApiControllerWebMvcTest {
                 .with(csrf()).contentType("application/json")
                 .content("{\"locationName\":\"Центр\"}"))
                 .andExpect(status().isNotFound());
-        verify(service, never()).createLocation(3L, "Центр", null, null);
+        verify(service, never()).createLocation(any(org.springframework.security.core.Authentication.class), eq(3L), eq("Центр"), eq(null), eq(null));
     }
 
     @Test
     void adminCanCreateAndArchiveBusinessLocation() throws Exception {
         when(flags.isFoundationEnabled()).thenReturn(true);
         String path = "/api/business-admin/businesses/3/locations";
-        when(service.createLocation(3L, "Центр", "", "Москва")).thenReturn(Optional.of(
+        when(service.createLocation(any(org.springframework.security.core.Authentication.class), eq(3L), eq("Центр"), eq(""), eq("Москва"))).thenReturn(Optional.of(
                 new BusinessAdministrationService.Location(9L, 3L, "Центр", "", "Москва", "active")));
         mvc.perform(post(path)
                 .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
@@ -111,13 +113,13 @@ class BusinessAdministrationApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.businessId").value(3))
                 .andExpect(jsonPath("$.id").value(9));
 
-        when(service.setLocationStatus(3L, 9L, "archived")).thenReturn(true);
+        when(service.setLocationStatus(any(org.springframework.security.core.Authentication.class), eq(3L), eq(9L), eq("archived"))).thenReturn(true);
         mvc.perform(put(path + "/9/status")
                 .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf()).contentType("application/json")
                 .content("{\"status\":\"archived\"}"))
                 .andExpect(status().isNoContent());
-        when(service.setLocationStatus(3L, 9L, "deleted"))
+        when(service.setLocationStatus(any(org.springframework.security.core.Authentication.class), eq(3L), eq(9L), eq("deleted")))
                 .thenThrow(new IllegalArgumentException("Invalid location status"));
         mvc.perform(put(path + "/9/status")
                 .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
@@ -152,8 +154,8 @@ class BusinessAdministrationApiControllerWebMvcTest {
                 .with(csrf()).contentType("application/json")
                 .content("{\"status\":\"archived\"}"))
                 .andExpect(status().isNotFound());
-        verify(service, never()).renameBusiness(3L, "Новое");
-        verify(service, never()).setBusinessStatus(3L, "archived");
+        verify(service, never()).renameBusiness(any(org.springframework.security.core.Authentication.class), eq(3L), eq("Новое"));
+        verify(service, never()).setBusinessStatus(any(org.springframework.security.core.Authentication.class), eq(3L), eq("archived"));
     }
 
     @Test
@@ -161,7 +163,7 @@ class BusinessAdministrationApiControllerWebMvcTest {
         when(flags.isFoundationEnabled()).thenReturn(true);
         String renamePath = "/api/business-admin/businesses/3";
         String statusPath = renamePath + "/status";
-        when(service.renameBusiness(3L, "Новое")).thenReturn(Optional.of(
+        when(service.renameBusiness(any(org.springframework.security.core.Authentication.class), eq(3L), eq("Новое"))).thenReturn(Optional.of(
                 new BusinessAdministrationService.Business(3L, "autoservice", "Новое", "active")));
         mvc.perform(put(renamePath)
                 .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
@@ -170,8 +172,8 @@ class BusinessAdministrationApiControllerWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("autoservice"))
                 .andExpect(jsonPath("$.displayName").value("Новое"));
-        when(service.setBusinessStatus(3L, "archived")).thenReturn(true);
-        when(service.setBusinessStatus(3L, "active")).thenReturn(true);
+        when(service.setBusinessStatus(any(org.springframework.security.core.Authentication.class), eq(3L), eq("archived"))).thenReturn(true);
+        when(service.setBusinessStatus(any(org.springframework.security.core.Authentication.class), eq(3L), eq("active"))).thenReturn(true);
         for (String state : List.of("archived", "active")) {
             mvc.perform(put(statusPath)
                     .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
@@ -179,21 +181,21 @@ class BusinessAdministrationApiControllerWebMvcTest {
                     .content("{\"status\":\"" + state + "\"}"))
                     .andExpect(status().isNoContent());
         }
-        when(service.renameBusiness(3L, "")).thenThrow(
+        when(service.renameBusiness(any(org.springframework.security.core.Authentication.class), eq(3L), eq(""))).thenThrow(
                 new IllegalArgumentException("Invalid business name"));
         mvc.perform(put(renamePath)
                 .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf()).contentType("application/json")
                 .content("{\"displayName\":\"\"}"))
                 .andExpect(status().isBadRequest());
-        when(service.setBusinessStatus(3L, "deleted")).thenThrow(
+        when(service.setBusinessStatus(any(org.springframework.security.core.Authentication.class), eq(3L), eq("deleted"))).thenThrow(
                 new IllegalArgumentException("Invalid business status"));
         mvc.perform(put(statusPath)
                 .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf()).contentType("application/json")
                 .content("{\"status\":\"deleted\"}"))
                 .andExpect(status().isBadRequest());
-        when(service.renameBusiness(999L, "Новое")).thenReturn(Optional.empty());
+        when(service.renameBusiness(any(org.springframework.security.core.Authentication.class), eq(999L), eq("Новое"))).thenReturn(Optional.empty());
         mvc.perform(put("/api/business-admin/businesses/999")
                 .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf()).contentType("application/json")
@@ -210,10 +212,10 @@ class BusinessAdministrationApiControllerWebMvcTest {
         mvc.perform(get(path)
                 .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")))
                 .andExpect(status().isNotFound());
-        verify(service, never()).previewChannelBinding(10L);
+        verify(service, never()).previewChannelBinding(any(org.springframework.security.core.Authentication.class), eq(10L));
 
         when(flags.isFoundationEnabled()).thenReturn(true);
-        when(service.previewChannelBinding(10L)).thenReturn(Optional.of(
+        when(service.previewChannelBinding(any(org.springframework.security.core.Authentication.class), eq(10L))).thenReturn(Optional.of(
                 new BusinessAdministrationService.ChannelBindingPreview(10L, true, "SINGLE_BUSINESS",
                         List.of(new BusinessAdministrationService.ChannelBinding(
                                 7L, "sushi", "active", "SINGLE_BUSINESS", true)))));
@@ -225,7 +227,7 @@ class BusinessAdministrationApiControllerWebMvcTest {
         mvc.perform(get("/api/business-admin/channels/11/binding-preview")
                 .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")))
                 .andExpect(status().isNotFound());
-        when(service.previewChannelBinding(0L)).thenThrow(new IllegalArgumentException("Invalid identifier"));
+        when(service.previewChannelBinding(any(org.springframework.security.core.Authentication.class), eq(0L))).thenThrow(new IllegalArgumentException("Invalid identifier"));
         mvc.perform(get("/api/business-admin/channels/0/binding-preview")
                 .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")))
                 .andExpect(status().isBadRequest());
@@ -242,10 +244,10 @@ class BusinessAdministrationApiControllerWebMvcTest {
         mvc.perform(get(path)
                 .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")))
                 .andExpect(status().isNotFound());
-        verify(service, never()).listChannels();
+        verify(service, never()).listChannels(any(org.springframework.security.core.Authentication.class));
 
         when(flags.isFoundationEnabled()).thenReturn(true);
-        when(service.listChannels()).thenReturn(List.of(
+        when(service.listChannels(any(org.springframework.security.core.Authentication.class))).thenReturn(List.of(
                 new BusinessAdministrationService.ChannelSummary(10L, "Support", "telegram", true)));
         mvc.perform(get(path)
                 .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")))
@@ -273,29 +275,29 @@ class BusinessAdministrationApiControllerWebMvcTest {
                 .contentType("application/json")
                 .content("{\"resolutionMode\":\"EXPLICIT_SELECTION\"}"))
                 .andExpect(status().isForbidden());
-        verify(service, never()).saveChannelBinding(10L, 7L, "EXPLICIT_SELECTION");
+        verify(service, never()).saveChannelBinding(any(org.springframework.security.core.Authentication.class), eq(10L), eq(7L), eq("EXPLICIT_SELECTION"));
 
-        when(service.saveChannelBinding(10L, 7L, "EXPLICIT_SELECTION")).thenReturn(true);
+        when(service.saveChannelBinding(any(org.springframework.security.core.Authentication.class), eq(10L), eq(7L), eq("EXPLICIT_SELECTION"))).thenReturn(true);
         mvc.perform(put(path).with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf()).contentType("application/json")
                 .content("{\"resolutionMode\":\"EXPLICIT_SELECTION\"}"))
                 .andExpect(status().isNoContent());
-        verify(service).saveChannelBinding(10L, 7L, "EXPLICIT_SELECTION");
+        verify(service).saveChannelBinding(any(org.springframework.security.core.Authentication.class), eq(10L), eq(7L), eq("EXPLICIT_SELECTION"));
 
-        when(service.saveChannelBinding(10L, 7L, "SINGLE_BUSINESS"))
+        when(service.saveChannelBinding(any(org.springframework.security.core.Authentication.class), eq(10L), eq(7L), eq("SINGLE_BUSINESS")))
                 .thenThrow(new IllegalStateException("Conflicting binding"));
         mvc.perform(put(path).with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf()).contentType("application/json")
                 .content("{\"resolutionMode\":\"SINGLE_BUSINESS\"}"))
                 .andExpect(status().isConflict());
-        when(service.saveChannelBinding(10L, 7L, "VERIFIED_LOCATION_MAPPING"))
+        when(service.saveChannelBinding(any(org.springframework.security.core.Authentication.class), eq(10L), eq(7L), eq("VERIFIED_LOCATION_MAPPING")))
                 .thenThrow(new IllegalArgumentException("Unsupported channel binding mode"));
         mvc.perform(put(path).with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf()).contentType("application/json")
                 .content("{\"resolutionMode\":\"VERIFIED_LOCATION_MAPPING\"}"))
                 .andExpect(status().isBadRequest());
 
-        when(service.deactivateChannelBinding(10L, 7L)).thenReturn(true);
+        when(service.deactivateChannelBinding(any(org.springframework.security.core.Authentication.class), eq(10L), eq(7L))).thenReturn(true);
         mvc.perform(delete(path).with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf()))
                 .andExpect(status().isNoContent());
