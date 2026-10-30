@@ -24,7 +24,7 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R237 и runtime R235 имеют
+что production уже запускался. Эта оговорка, source-сводка R238 и runtime R235 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
@@ -52,7 +52,32 @@ FoundationOFF; Flyway/settings/users/authorities/roles fingerprints прежни
 operator Authentication), оставшиеся child/media/delivery, PENDING policy/AI
 privacy/context/retention и fleet/provider acceptance. S2B снятR190, задача🟡.
 
-Source R237 (ещё не развёрнут), актуальная source-сводка:
+Source R238 (ещё не развёрнут), актуальная source-сводка:
+Reopen/client-edit/operator-edit/feedback передают captured TicketContext в
+outbox. INSERT сохраняет исходный raw ID/owner/channel/public/business/kind,
+повторно проверяя exact root tuple/count; raw-ID recapture для этих4 callers
+нет. Nullable-marker suppression/payload/temporal semantics сохранены;
+старый append/overloads других producers и recipient/GENERAL validators прежние.
+Feedback после existing-rating read сверяет frozen root и берёт FOR SHARE до
+entity setters/save; deny не меняет rating/pending expiry/event. Транзакционный
+root lock держится через save/outbox/request save, но pending generation и его
+atomic claim/expiry не реализованы; JPA owning persistence остаётся отдельным gate.
+RED332/246 assertion failures/0 errors/skips,86 controls; GREEN792/9 suites,
+332 новых+460 прежних cases,0 failures/errors/skips. Новые source/bytecode/cases
+frozen;2 fixtures адаптированы только к typed context, data/deny assertions прежние.
+6 real two-connection lock checks/2 SQL rollback; остальные boundaries scripted.
+JPA mocked/не Hibernate acceptance, controller filters=false/не full security chain.
+Verified baseline1421/green1422 classes, incremental2 main/10 tests,
+1416 unrelated classes прежние; не full build/deploy. Owned640MiB helper удалён.
+Все18 working containers/config/DB fingerprints прежние, heartbeat отдельно;
+web R234/readinessUP/health503DLQ1, rollback сохранён.83 migrations только test
+schema; working migrations/backfill/flags/queue/provider/worker/bot не трогались.
+Далее pending provenance/generation/claim/expiry, rating owning persistence,
+relay/operator-edit/activity/other raw producers/children, ABA/phantom/epoch.
+PENDING/S6 прежние, S2B снятR190, задача🟡. Task01-278 R238/evidence
+.tmp/01-278-r238-evidence/, scope8, commit/push/deploy=false.
+
+Source R237 (ещё не развёрнут):
 Bot-runtime root snapshot сохраняет также exact public ID/business ID/GENERAL.
 Owning reopen UPDATE повторяет весь root tuple и raw-ID uniqueness; client-edit
 UPDATE — root tuple/uniqueness и channel/provider/client history uniqueness.

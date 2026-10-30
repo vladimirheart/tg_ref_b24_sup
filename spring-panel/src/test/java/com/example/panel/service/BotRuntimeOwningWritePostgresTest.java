@@ -148,7 +148,9 @@ class BotRuntimeOwningWritePostgresTest {
 
         assertThat(f.invoke(Operation.REOPEN)).isEqualTo(new BotRuntimeTicketWriteService.MutationResult(true, true));
         assertThat(f.jdbc.queryForObject("SELECT status FROM tickets", String.class)).isEqualTo("pending");
-        verify(f.outbox).publishTicketReopened(f.raw, column.equals("channel_id") ? null : CHANNEL,
+        verify(f.outbox).publishTicketReopened(new UiEventOutboxAppendService.TicketContext(f.raw,
+                column.equals("user_id") ? null : OWNER, column.equals("channel_id") ? null : CHANNEL,
+                column.equals("ticket_public_id") ? null : "original-public", null, null),
                 BotRuntimeTicketWriteService.REOPEN_EVENT_TEXT);
     }
 
@@ -168,9 +170,9 @@ class BotRuntimeOwningWritePostgresTest {
             return null;
         };
         if (operation == Operation.REOPEN) {
-            doAnswer(competitor).when(f.outbox).publishTicketReopened(f.raw, CHANNEL, BotRuntimeTicketWriteService.REOPEN_EVENT_TEXT);
+            doAnswer(competitor).when(f.outbox).publishTicketReopened(f.context(), BotRuntimeTicketWriteService.REOPEN_EVENT_TEXT);
         } else {
-            doAnswer(competitor).when(f.outbox).publishClientMessageEdited(f.raw, CHANNEL, " edited ");
+            doAnswer(competitor).when(f.outbox).publishClientMessageEdited(f.context(), " edited ");
         }
         TransactionTemplate tx = new TransactionTemplate(new DataSourceTransactionManager(f.jdbc.getDataSource()));
 
@@ -275,6 +277,10 @@ class BotRuntimeOwningWritePostgresTest {
             verifyNoInteractions(targets, responsibility, participants, outbox, ledger, requests, feedback);
         }
 
+        UiEventOutboxAppendService.TicketContext context() {
+            return new UiEventOutboxAppendService.TicketContext(raw, OWNER, CHANNEL, "original-public", business, general);
+        }
+
         void assertSuccess(Operation operation) {
             if (operation == Operation.REOPEN) {
                 var root = jdbc.queryForMap("SELECT * FROM tickets WHERE user_id = ? AND ticket_id = ?", OWNER, raw);
@@ -285,7 +291,7 @@ class BotRuntimeOwningWritePostgresTest {
                 assertThat(root.get("last_reopen_at")).isNotNull();
                 verify(targets).touchTicketActivity(raw, Long.toString(OWNER));
                 verify(responsibility).assignResponsibleIfMissing(raw, "operator");
-                verify(outbox).publishTicketReopened(raw, CHANNEL, BotRuntimeTicketWriteService.REOPEN_EVENT_TEXT);
+                verify(outbox).publishTicketReopened(context(), BotRuntimeTicketWriteService.REOPEN_EVENT_TEXT);
                 assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM chat_history WHERE sender = 'system'", Long.class))
                         .isEqualTo(1L);
             } else {
@@ -293,7 +299,7 @@ class BotRuntimeOwningWritePostgresTest {
                 assertThat(row.get("message")).isEqualTo("edited");
                 assertThat(row.get("original_message")).isEqualTo("original");
                 assertThat(row.get("edited_at")).isNotNull();
-                verify(outbox).publishClientMessageEdited(raw, CHANNEL, " edited ");
+                verify(outbox).publishClientMessageEdited(context(), " edited ");
             }
         }
     }

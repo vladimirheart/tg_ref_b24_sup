@@ -92,7 +92,7 @@ public class BotRuntimeTicketWriteService {
             dialogReplyTargetService.touchTicketActivity(ticket.ticketId(), ticket.userIdentity());
             assignResponsibleIfPresent(ticket.ticketId(), operatorIdentity);
             storeSystemEvent(ticket, REOPEN_EVENT_TEXT);
-            uiEventOutboxAppendService.publishTicketReopened(ticket.ticketId(), ticket.channelId(), REOPEN_EVENT_TEXT);
+            uiEventOutboxAppendService.publishTicketReopened(ticket.eventContext(), REOPEN_EVENT_TEXT);
         }
         return new MutationResult(updated > 0, true);
     }
@@ -209,7 +209,7 @@ public class BotRuntimeTicketWriteService {
                 ticket.general()
         );
         if (updated > 0) {
-            uiEventOutboxAppendService.publishClientMessageEdited(snapshot.ticketId(), snapshot.channelId(), message);
+            uiEventOutboxAppendService.publishClientMessageEdited(ticket.eventContext(), message);
         }
         return new MutationResult(updated > 0, true);
     }
@@ -250,8 +250,7 @@ public class BotRuntimeTicketWriteService {
                 null
             ));
             uiEventOutboxAppendService.publishOperatorMessageEdited(
-                normalizedTicketId,
-                ticket.channelId(),
+                ticket.eventContext(),
                 message
             );
         }
@@ -283,6 +282,9 @@ public class BotRuntimeTicketWriteService {
                 ticket, existingFeedback.get().getUserId(), existingFeedback.get().getChannelId())) {
             return new MutationResult(false, false);
         }
+        if (!lockCurrentTicket(ticket)) {
+            return new MutationResult(false, false);
+        }
         Feedback feedback = existingFeedback.orElseGet(Feedback::new);
         feedback.setUserId(request.getUserId());
         feedback.setTicketId(ticketId);
@@ -290,7 +292,7 @@ public class BotRuntimeTicketWriteService {
         feedback.setRating(rating);
         feedback.setTimestamp(now);
         feedbackRepository.save(feedback);
-        uiEventOutboxAppendService.publishFeedbackCreated(ticketId, channelId, rating);
+        uiEventOutboxAppendService.publishFeedbackCreated(ticket.eventContext(), rating);
         request.setExpiresAt(now);
         try {
             pendingFeedbackRequestRepository.save(request);
@@ -301,6 +303,21 @@ public class BotRuntimeTicketWriteService {
                     ex.getMessage());
         }
         return new MutationResult(true, true);
+    }
+
+    private boolean lockCurrentTicket(TicketSnapshot ticket) {
+        return jdbcTemplate.queryForList("""
+                SELECT 1 FROM tickets owner
+                 WHERE owner.ticket_id = ?
+                   AND owner.user_id IS NOT DISTINCT FROM CAST(? AS BIGINT)
+                   AND owner.channel_id IS NOT DISTINCT FROM CAST(? AS BIGINT)
+                   AND owner.ticket_public_id IS NOT DISTINCT FROM CAST(? AS TEXT)
+                   AND owner.business_id IS NOT DISTINCT FROM CAST(? AS BIGINT)
+                   AND owner.is_general IS NOT DISTINCT FROM CAST(? AS BOOLEAN)
+                   AND 1 = (SELECT COUNT(*) FROM tickets candidate WHERE candidate.ticket_id = owner.ticket_id)
+                 FOR SHARE OF owner
+                """, Integer.class, ticket.ticketId(), ticket.userId(), ticket.channelId(), ticket.publicId(),
+                ticket.businessId(), ticket.general()).size() == 1;
     }
 
     private void storeSystemEvent(TicketSnapshot ticket, String text) {
@@ -430,6 +447,10 @@ public class BotRuntimeTicketWriteService {
                                   String publicId,
                                   Long businessId,
                                   Boolean general) {
+        private UiEventOutboxAppendService.TicketContext eventContext() {
+            return new UiEventOutboxAppendService.TicketContext(ticketId, userId, channelId, publicId, businessId, general);
+        }
+
         private String userIdentity() {
             return userId != null ? Long.toString(userId) : null;
         }

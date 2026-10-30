@@ -172,6 +172,7 @@ class BotRuntimeRootLookupPostgresTest {
         final PendingFeedbackRequest pending = new PendingFeedbackRequest();
         final OffsetDateTime expiry = OffsetDateTime.now().plusDays(1);
         final String raw;
+        final UiEventOutboxAppendService.TicketContext expectedContext;
 
         Fixture(String raw, Scope scope) {
             this.raw = raw;
@@ -212,6 +213,8 @@ class BotRuntimeRootLookupPostgresTest {
             when(targets.loadReplyTarget(raw)).thenReturn(Optional.of(new DialogReplyTarget(OWNER, CHANNEL)));
             when(targets.markOperatorMessageEdited(anyString(), anyLong(), anyString(), any(DialogReplyTarget.class)))
                     .thenReturn(1);
+            expectedContext = new UiEventOutboxAppendService.TicketContext(raw, OWNER, CHANNEL, "public-r236",
+                    scope == Scope.BUSINESS ? 31L : null, general);
         }
 
         void duplicate() {
@@ -258,7 +261,7 @@ class BotRuntimeRootLookupPostgresTest {
                 case REOPEN -> {
                     assertThat(jdbc.queryForObject("SELECT status FROM tickets WHERE ticket_id = ?",
                             String.class, raw)).isEqualTo("pending");
-                    verify(outbox).publishTicketReopened(raw, CHANNEL, BotRuntimeTicketWriteService.REOPEN_EVENT_TEXT);
+                    verify(outbox).publishTicketReopened(expectedContext, BotRuntimeTicketWriteService.REOPEN_EVENT_TEXT);
                     verify(targets).touchTicketActivity(raw, Long.toString(OWNER));
                 }
                 case RELAY -> {
@@ -269,17 +272,17 @@ class BotRuntimeRootLookupPostgresTest {
                 case CLIENT_EDIT -> {
                     assertThat(jdbc.queryForObject("SELECT message FROM chat_history WHERE tg_message_id = 123",
                             String.class)).isEqualTo("edited");
-                    verify(outbox).publishClientMessageEdited(raw, CHANNEL, "edited");
+                    verify(outbox).publishClientMessageEdited(expectedContext, "edited");
                 }
                 case OPERATOR_EDIT -> {
                     verify(targets).markOperatorMessageEdited(raw, 123L, "edited", new DialogReplyTarget(OWNER, CHANNEL));
-                    verify(outbox).publishOperatorMessageEdited(raw, CHANNEL, "edited");
+                    verify(outbox).publishOperatorMessageEdited(expectedContext, "edited");
                 }
                 case FEEDBACK -> {
                     verify(feedback).save(org.mockito.ArgumentMatchers.argThat(saved -> raw.equals(saved.getTicketId())
                             && Long.valueOf(OWNER).equals(saved.getUserId()) && Long.valueOf(CHANNEL).equals(saved.getChannelId())
                             && saved.getRating() == 5));
-                    verify(outbox).publishFeedbackCreated(raw, CHANNEL, 5);
+                    verify(outbox).publishFeedbackCreated(expectedContext, 5);
                     verify(requests).save(pending);
                     assertThat(pending.getExpiresAt()).isBefore(expiry);
                 }

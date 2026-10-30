@@ -40,6 +40,56 @@ public class UiEventOutboxAppendService {
         append("feedback_created", ticketId, channelId, null, null, null, rating);
     }
 
+    public void publishTicketReopened(TicketContext context, String text) {
+        appendExpected("ticket_reopened", context, text, null);
+    }
+
+    public void publishClientMessageEdited(TicketContext context, String text) {
+        appendExpected("client_message_edited", context, text, null);
+    }
+
+    public void publishOperatorMessageEdited(TicketContext context, String text) {
+        appendExpected("operator_message_edited", context, text, null);
+    }
+
+    public void publishFeedbackCreated(TicketContext context, Integer rating) {
+        appendExpected("feedback_created", context, null, rating);
+    }
+
+    /** Raw transport snapshot, including GENERAL/legacy nulls; not a recipient authorization. */
+    public record TicketContext(String ticketId, Long userId, Long channelId, String publicId,
+                                Long businessId, Boolean general) {
+    }
+
+    private void appendExpected(String eventType, TicketContext context, String messageText, Integer rating) {
+        if (context == null || !StringUtils.hasText(context.ticketId()) || context.general() == null
+                || !legacyTicketIdJdbcGuard.hasUniqueTicket(context.ticketId())) {
+            return;
+        }
+        String kind = Boolean.TRUE.equals(context.general()) ? "GENERAL"
+                : context.businessId() == null ? "UNRESOLVED" : "BUSINESS";
+        jdbcTemplate.update("""
+                INSERT INTO ui_event_outbox(
+                    id, event_type, ticket_id, channel_id, message_text, message_type, attachment, rating, created_at,
+                    ticket_user_id, ticket_public_id, ticket_scope_kind, ticket_business_id
+                ) SELECT CAST(? AS BIGINT), CAST(? AS TEXT), CAST(? AS TEXT), CAST(? AS BIGINT),
+                         CAST(? AS TEXT), NULL, NULL, CAST(? AS INTEGER), CAST(? AS TIMESTAMP WITH TIME ZONE),
+                         CAST(? AS BIGINT), CAST(? AS TEXT), CAST(? AS TEXT), CAST(? AS BIGINT)
+                    FROM tickets owner
+                   WHERE owner.ticket_id = ?
+                     AND owner.user_id IS NOT DISTINCT FROM CAST(? AS BIGINT)
+                     AND owner.channel_id IS NOT DISTINCT FROM CAST(? AS BIGINT)
+                     AND owner.ticket_public_id IS NOT DISTINCT FROM CAST(? AS TEXT)
+                     AND owner.business_id IS NOT DISTINCT FROM CAST(? AS BIGINT)
+                     AND owner.is_general IS NOT DISTINCT FROM CAST(? AS BOOLEAN)
+                     AND 1 = (SELECT COUNT(*) FROM tickets candidate WHERE candidate.ticket_id = owner.ticket_id)
+                """,
+                nextEventId(), eventType, context.ticketId(), context.channelId(), trimToNull(messageText),
+                rating, OffsetDateTime.now(), context.userId(), context.publicId(), kind, context.businessId(),
+                context.ticketId(), context.userId(), context.channelId(), context.publicId(), context.businessId(), context.general()
+        );
+    }
+
     public void publishTicketClosed(String ticketId, Long channelId, String text, boolean automatic) {
         append(automatic ? "ticket_closed_auto" : "ticket_closed", ticketId, channelId, text, null, null, null);
     }
