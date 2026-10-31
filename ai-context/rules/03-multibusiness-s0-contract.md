@@ -24,13 +24,45 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R239 и runtime R235 имеют
+что production уже запускался. Эта оговорка, source-сводка R239 и runtime R240 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
 
-Runtime R235 — 30 октября, текущая Windows/Docker-сессия SinicinVV:
+Актуальный runtime R240 —31 октября,12:35+03, текущая Windows/Docker-сессия:
+только panel-web обновлён с R234 до clean R239
+f09f29f9543e94eaf736497ec5ac662f7dea4a9d (source commit/push выполнены отдельно),
+image sha256:09b20a52c8a41c28158e81b4f90168506e59d5ec7e54beb14b37b24242229cb4,
+container0357f2a4a4ff9d4f661d89be935333c719bdd15991ab68d824ecae1a16a13a6f.
+Compose project tg_ref_b24_sup, те же contour/observability/.env/project directory,
+новый isolated web overlay .tmp/01-278-r240-rollout/compose.web.json;
+--no-deps/--no-build/--pull never/1 replica. Web1 healthy/restart0/readiness200UP.
+Все17 прочих containers, workerR198/db-migrate/bots/infra прежние; web ENV/mounts/
+полный HostConfig совпали точно, Compose/env/shared inputs прежние, heartbeat отдельно.
+Verified trusted R235 JAR +1422 tested classes,677 прочих entries прежние;
+incremental artifact assembly, не full Maven build. POM/schema/resources/bots/
+entrypoint не менялись;16 base layers сохранены, добавлен только JAR layer.
+SHA256 JAR31d13466cfb1ab72eb7067c30ccb86b07f02340c6a51b791d57c22ebf5aa9763
+совпал в artifact/image/live. GREEN846/10 suites/0 failures/errors/skips;
+61 live read/access/readiness checks, реальный admin login с ROLE_ADMIN вместе
+с PAGE_CHANNELS или PAGE_SETTINGS, SSE headers, foundationOFF deny/anonymous
+routes. Logout выполнен, domain/grant writes нет.0WARN0ERROR/явный Flyway skip.
+Общий health503DOWN из-за прежнего inboundDLQ1; очередь не менялась. Это не
+live bot/provider/revoke/full fleet acceptance. FoundationOFF,83 migrations/V83
+и Flyway/settings/users/authorities/roles fingerprints прежние; migration/backfill/
+flags/queue/provider/external writes не выполнялись. Новый rollback
+iguana-panel:rollback-r240-web-20261031-2643c85d1874 на R234 image2643c85d1874
+сохранён, старые pointers также; реальный rollback не выполнялся. Owned640MiB
+helper удалён после proof/artifact, рабочие сервисы ради ОЗУ не останавливались.
+R236–R239 теперь только в web; pending generation/разные request IDs/rating owning
+persistence, relay/operator-edit/activity/прочие producers/children/media,
+PENDING policies/AI/fleet/questionnaire/provider/flags/S6/DLQ1 прежние.
+S2B снятR190, задача🟡. Подробный task checkpoint R240/evidence
+.tmp/01-278-r240-rollout/. Ниже исторические source/runtime фазы до R240;
+их «ещё не развёрнуто» не отменяет этот checkpoint.
+
+Предыдущий runtime R235 —30 октября, текущая Windows/Docker-сессия SinicinVV:
 только panel-web обновлён с R222 до clean R234
 e1b85101f2f52f051080a35cb2a7ea222c39ae0a,
 image sha256:2643c85d1874a0627c5211dd5e582d96aad3b684449c466bc0e47ce7512a27f3.
@@ -52,7 +84,7 @@ FoundationOFF; Flyway/settings/users/authorities/roles fingerprints прежни
 operator Authentication), оставшиеся child/media/delivery, PENDING policy/AI
 privacy/context/retention и fleet/provider acceptance. S2B снятR190, задача🟡.
 
-Source R239 (ещё не развёрнут), актуальная source-сводка:
+Source R239 (развёрнут R240; ниже сохранена исходная source-фаза):
 Bot-runtime получает pending request через отдельный JPA PESSIMISTIC_WRITE query
 до root/expiry/rating lookup; обычные read/dispatch findById callers прежние.
 Row lock держится до commit/rollback, повторный ответ на тот же request ID после
