@@ -152,6 +152,34 @@ FoundationOFF; Flyway/settings/users/authorities/roles fingerprints прежни
 operator Authentication), оставшиеся child/media/delivery, PENDING policy/AI
 privacy/context/retention и fleet/provider acceptance. S2B снятR190, задача🟡.
 
+Source R246 — private feedbackTicketContext в отложенном outbox (НЕ развёрнут):
+enqueue читает один exact current V84 pending/root с persisted full tuple/epoch/
+active expiry, сохраняет private epoch/public/business/GENERAL/request created_at
+и повторяет proof после serialization. Relay требует этот snapshot, сверяет
+envelope и current pending/root перед Rabbit publish; не recapture сегодняшний
+контекст для old/unbound/expired/recreated/ABA/reused-ID с другим created_at.
+Private node удаляется до прежнего transport DTO: bot/API/wire constructors,
+schema/migrations прежние, минимум V84. Historical queued payload без context
+остаётся failed по прежнему retry path, не удаляется/перепривязывается; quarantine
+policy не добавлена.126 новых cases на real PostgreSQL/V84,3 scopes×2 raw IDs:
+RED126/114 assertion failures/12 controls/0 errors/skips, frozen source/bytecode/
+case names. GREEN1204/18 suites/0 failures/errors/skips одним run:126+старые1067+
+outbox11. Один fixture adapted под V84, old test bodies/assertions exact inverse.
+ABA tests меняют public ID/channel; business change проверяется отдельно.
+Compiled1 main/21 tests;1424 classes/1421 unrelated прежние,3 class paths одной
+source family. Helper512MiB/PG192MiB before readiness/sequential, не full build.
+Rabbit publish/confirm doubles; не live broker/provider. Scope7/detached replay/
+hash guards/apply отдельно от Git publisher; evidence .tmp/01-278-r246-evidence/.
+RuntimeR245/webR244/workerR198/DB84/foundationOFF/18 containers/config/DB fingerprints
+прежние, heartbeat отдельно; R245 backup/rollback сохранены. Working migration/
+backfill/flags/queues/provider/rebuild/restart/deploy не делались; WSL/VS Code/
+working services ради ОЗУ не останавливали. Это outbox admission, не атомарность
+DB→Rabbit: TOCTOU после SQL, broker-queued delivery/retry/recipient authorization,
+same-created_at request-ID reuse/DB uniqueness/phantoms/lifecycle/child-rating,
+прочие media/policies/AI/fleet/questionnaires/flags/S6/DLQ1 открыты. Worker rollout
+требует отдельного scope; old worker не проверяет private context, смешанный
+rollout не принят. RuntimeR245 не повторять. S2B снятR190, задача🟡.
+
 Source R244 — историческая source-фаза до R245 (теперь web; не workerR198):
 native projection допускает один exact root с теми же owner/raw/channel/public/
 business/GENERAL/epoch и читает persisted expiry/sent_at. Unbound/старое поколение

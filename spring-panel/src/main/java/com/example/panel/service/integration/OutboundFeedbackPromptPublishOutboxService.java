@@ -8,6 +8,7 @@ import com.example.panel.service.RuntimeCoordinationService;
 import com.example.panel.service.LegacyTicketIdJdbcGuard;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.OffsetDateTime;
@@ -62,6 +63,15 @@ public class OutboundFeedbackPromptPublishOutboxService {
         if (!legacyTicketIdJdbcGuard.hasUniqueTicket(event.ticketId())) {
             throw new IllegalArgumentException("Outbound feedback prompt requires a unique legacy ticket id.");
         }
+        FeedbackTicketContext context = currentContext(event);
+        if (context == null) {
+            throw new IllegalArgumentException("Outbound feedback prompt requires a current captured pending context.");
+        }
+        String payload = toJson(event, context);
+        // Serialization may invoke application code; never replace the captured generation afterward.
+        if (!context.equals(currentContext(event))) {
+            throw new IllegalArgumentException("Outbound feedback prompt pending context changed before enqueue.");
+        }
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         jdbcTemplate.update("""
                 INSERT INTO integration_transport_outbox (
@@ -87,7 +97,7 @@ public class OutboundFeedbackPromptPublishOutboxService {
             normalize(event.eventType()),
             rabbitProperties.getOutboundExchange(),
             routingKey.trim(),
-            toJson(event),
+            payload,
             event.channelId(),
             event.userId(),
             event.ticketId(),
@@ -205,7 +215,16 @@ public class OutboundFeedbackPromptPublishOutboxService {
     }
 
     private void publish(OutboxEntry entry) throws Exception {
-        OutboundFeedbackPromptEvent event = objectMapper.readValue(entry.payloadJson(), OutboundFeedbackPromptEvent.class);
+        if (!(objectMapper.readTree(entry.payloadJson()) instanceof ObjectNode payload)) {
+            throw new IllegalStateException("Outbound feedback prompt payload is not an object.");
+        }
+        var capturedNode = payload.remove("feedbackTicketContext");
+        if (capturedNode == null || !capturedNode.isObject()) {
+            throw new IllegalStateException("Outbound feedback prompt has no captured pending context.");
+        }
+        FeedbackTicketContext captured = objectMapper.treeToValue(capturedNode, FeedbackTicketContext.class);
+        // Private outbox metadata never changes the transport DTO or the bot wire contract.
+        OutboundFeedbackPromptEvent event = objectMapper.treeToValue(payload, OutboundFeedbackPromptEvent.class);
         if (!Objects.equals(entry.ticketId(), event.ticketId())
             || !Objects.equals(entry.userId(), event.userId())
             || !Objects.equals(entry.channelId(), event.channelId())
@@ -213,6 +232,9 @@ public class OutboundFeedbackPromptPublishOutboxService {
             || !Objects.equals(entry.eventId(), event.eventId())
             || !legacyTicketIdJdbcGuard.hasUniqueTicket(entry.ticketId())) {
             throw new IllegalStateException("Outbound feedback prompt ticket context is unavailable or inconsistent.");
+        }
+        if (!captured.equals(currentContext(event))) {
+            throw new IllegalStateException("Outbound feedback prompt captured pending context is no longer current.");
         }
         CorrelationData correlationData = new CorrelationData(entry.eventId());
         rabbitTemplate.convertAndSend(
@@ -287,9 +309,41 @@ public class OutboundFeedbackPromptPublishOutboxService {
         log.warn("Failed to publish feedback prompt outbox event {}: {}", entry.eventId(), exception.getMessage());
     }
 
-    private String toJson(OutboundFeedbackPromptEvent event) {
+    private FeedbackTicketContext currentContext(OutboundFeedbackPromptEvent event) {
+        if (event.requestId() == null || event.userId() == null || event.channelId() == null
+            || !StringUtils.hasText(event.ticketId())) {
+            return null;
+        }
+        List<FeedbackTicketContext> rows = jdbcTemplate.query("""
+                SELECT request.ticket_context_epoch::text AS epoch, request.ticket_public_id AS public_id,
+                       request.ticket_business_id AS business_id, request.ticket_is_general AS general,
+                       request.created_at
+                  FROM pending_feedback_requests request
+                  JOIN tickets owner ON owner.ticket_id = request.ticket_id AND owner.user_id = request.user_id
+                   AND owner.channel_id IS NOT DISTINCT FROM request.channel_id
+                   AND owner.ticket_public_id IS NOT DISTINCT FROM request.ticket_public_id
+                   AND owner.business_id IS NOT DISTINCT FROM request.ticket_business_id
+                   AND owner.is_general IS NOT DISTINCT FROM request.ticket_is_general
+                   AND owner.feedback_context_epoch = request.ticket_context_epoch
+                 WHERE request.id = ? AND request.ticket_id = ? AND request.user_id = ? AND request.channel_id = ?
+                   AND request.ticket_context_epoch IS NOT NULL AND request.ticket_is_general IS NOT NULL
+                   AND request.created_at IS NOT NULL
+                   AND (request.expires_at IS NULL OR request.expires_at > clock_timestamp())
+                   AND 1 = (SELECT count(*) FROM tickets candidate WHERE candidate.ticket_id = request.ticket_id)
+                """,
+            (rs, rowNum) -> new FeedbackTicketContext(rs.getString("epoch"), rs.getString("public_id"),
+                rs.getObject("business_id", Long.class), rs.getObject("general", Boolean.class),
+                rs.getTimestamp("created_at").toInstant().toString()),
+            event.requestId(), event.ticketId(), event.userId(), event.channelId()
+        );
+        return rows.size() == 1 ? rows.get(0) : null;
+    }
+
+    private String toJson(OutboundFeedbackPromptEvent event, FeedbackTicketContext context) {
         try {
-            return objectMapper.writeValueAsString(event);
+            ObjectNode payload = objectMapper.valueToTree(event);
+            payload.set("feedbackTicketContext", objectMapper.valueToTree(context));
+            return objectMapper.writeValueAsString(payload);
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Unable to serialize feedback prompt outbox event " + event.eventId(), ex);
         }
@@ -329,5 +383,9 @@ public class OutboundFeedbackPromptPublishOutboxService {
                                String ticketId,
                                Long requestId,
                                int attemptCount) {
+    }
+
+    private record FeedbackTicketContext(String epoch, String publicId, Long businessId,
+                                         Boolean general, String requestCreatedAt) {
     }
 }

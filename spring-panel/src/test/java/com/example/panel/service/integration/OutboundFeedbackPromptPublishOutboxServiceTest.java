@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.example.panel.config.IntegrationRabbitProperties;
 import com.example.panel.support.PostgresqlJdbcTestSupport;
+import com.example.panel.support.FeedbackPromptOutboxTestSupport;
 import com.example.panel.service.RuntimeCoordinationService;
 import com.example.panel.service.LegacyTicketIdJdbcGuard;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,38 +33,13 @@ class OutboundFeedbackPromptPublishOutboxServiceTest {
     private OutboundFeedbackPromptPublishOutboxService service;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
         jdbcTemplate = PostgresqlJdbcTestSupport.freshJdbcTemplate("panel_outbox");
-        jdbcTemplate.execute("""
-                CREATE TABLE tickets (
-                    user_id BIGINT NOT NULL,
-                    ticket_id VARCHAR(255) NOT NULL,
-                    PRIMARY KEY (user_id, ticket_id)
-                )
-                """);
+        FeedbackPromptOutboxTestSupport.createSchema(jdbcTemplate);
+        jdbcTemplate.execute("ALTER TABLE tickets ALTER COLUMN channel_id SET DEFAULT 42");
+        jdbcTemplate.execute("ALTER TABLE tickets ALTER COLUMN is_general SET DEFAULT false");
         jdbcTemplate.update("INSERT INTO tickets (user_id, ticket_id) VALUES (?, ?)", 200L, "T-1");
-        jdbcTemplate.execute("""
-                CREATE TABLE integration_transport_outbox (
-                    event_id VARCHAR(120) PRIMARY KEY,
-                    transport_source VARCHAR(120) NOT NULL,
-                    event_kind VARCHAR(120) NOT NULL,
-                    exchange_name VARCHAR(255) NOT NULL,
-                    routing_key VARCHAR(255) NOT NULL,
-                    payload_json TEXT NOT NULL,
-                    channel_id BIGINT,
-                    user_id BIGINT,
-                    ticket_id VARCHAR(255),
-                    request_id BIGINT,
-                    status VARCHAR(32) NOT NULL,
-                    attempt_count INTEGER NOT NULL DEFAULT 0,
-                    last_error TEXT,
-                    available_at TIMESTAMP,
-                    processing_started_at TIMESTAMP,
-                    published_at TIMESTAMP,
-                    created_at TIMESTAMP NOT NULL,
-                    updated_at TIMESTAMP NOT NULL
-                )
-                """);
+        FeedbackPromptOutboxTestSupport.request(jdbcTemplate,100L,200L,42L,"T-1");
         rabbitTemplate = mock(RabbitTemplate.class);
         doAnswer(invocation -> {
             CorrelationData correlationData = invocation.getArgument(4);
@@ -160,6 +136,8 @@ class OutboundFeedbackPromptPublishOutboxServiceTest {
     @Test
     void preservesExactStoredTicketIdAcrossEnqueueAndDispatch() {
         jdbcTemplate.update("INSERT INTO tickets (user_id, ticket_id) VALUES (?, ?)", 200L, " T-SPACED ");
+        jdbcTemplate.update("DELETE FROM pending_feedback_requests");
+        FeedbackPromptOutboxTestSupport.request(jdbcTemplate,100L,200L,42L," T-SPACED ");
         OutboundFeedbackPromptEvent event = event(" T-SPACED ");
 
         service.enqueue(event, "feedback.route");
