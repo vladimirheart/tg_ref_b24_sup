@@ -385,7 +385,7 @@ class BotRuntimeTicketWriteServiceTest {
         request.setChannel(channel);
         request.setExpiresAt(java.time.OffsetDateTime.now().plusDays(1));
 
-        when(pendingFeedbackRequestRepository.findById(903L)).thenReturn(Optional.of(request));
+        when(pendingFeedbackRequestRepository.findByIdForUpdate(903L)).thenReturn(Optional.of(request));
         when(feedbackRepository.findFirstByTicketIdOrderByTimestampDesc("T-903")).thenReturn(Optional.empty());
         jdbcTemplate.update("""
                 INSERT INTO tickets(ticket_id, status, user_id, channel_id, reopen_count)
@@ -489,7 +489,7 @@ class BotRuntimeTicketWriteServiceTest {
             "null-owner".equals(condition) ? null : "wrong-owner".equals(condition) ? 99L : 88L,
             "null-channel".equals(condition) ? null : "wrong-channel".equals(condition) ? 19L : 18L);
         OffsetDateTime expiresAt = request.getExpiresAt();
-        when(pendingRepository.findById(1L)).thenReturn(Optional.of(request));
+        when(pendingRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(request));
 
         assertThat(service.storeFeedback(1L, 4)).isEqualTo(new BotRuntimeTicketWriteService.MutationResult(false, false));
         assertThat(request.getExpiresAt()).isEqualTo(expiresAt);
@@ -504,7 +504,7 @@ class BotRuntimeTicketWriteServiceTest {
         seedTicket("T-FEEDBACK", 88L, 18L);
         PendingFeedbackRequest request = pendingRequest("T-FEEDBACK", 88L, 18L);
         OffsetDateTime expiresAt = request.getExpiresAt();
-        when(pendingRepository.findById(1L)).thenReturn(Optional.of(request));
+        when(pendingRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(request));
         Feedback existing = new Feedback();
         existing.setTicketId("T-FEEDBACK");
         existing.setUserId("wrong-owner".equals(condition) ? 99L : 88L);
@@ -541,7 +541,7 @@ class BotRuntimeTicketWriteServiceTest {
         stubChannel(18L, "telegram", "token18");
         if ("feedback".equals(operation)) {
             PendingFeedbackRequest request = pendingRequest(exactId, 88L, 18L);
-            when(pendingRepository.findById(1L)).thenReturn(Optional.of(request));
+            when(pendingRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(request));
         }
         BotRuntimeTicketWriteService.MutationResult result = switch (operation) {
             case "register" -> service.registerActivity(exactId, "operator");
@@ -622,7 +622,7 @@ class BotRuntimeTicketWriteServiceTest {
     void validExistingFeedbackCanBeUpdatedWithoutReplacingItsIdentity() {
         seedTicket("T-FEEDBACK", 88L, 18L);
         PendingFeedbackRequest request = pendingRequest("T-FEEDBACK", 88L, 18L);
-        when(pendingRepository.findById(1L)).thenReturn(Optional.of(request));
+        when(pendingRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(request));
         Feedback existing = new Feedback();
         existing.setTicketId("T-FEEDBACK");
         existing.setUserId(88L);
@@ -644,7 +644,7 @@ class BotRuntimeTicketWriteServiceTest {
         PendingFeedbackRequest request = pendingRequest("T-FEEDBACK", 88L, 18L);
         OffsetDateTime expiry = OffsetDateTime.now().minusDays(1);
         request.setExpiresAt(expiry);
-        when(pendingRepository.findById(1L)).thenReturn(Optional.of(request));
+        when(pendingRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(request));
 
         assertThat(service.storeFeedback(1L, 5)).isEqualTo(new BotRuntimeTicketWriteService.MutationResult(false, true));
         assertThat(request.getExpiresAt()).isEqualTo(expiry);

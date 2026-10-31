@@ -24,7 +24,7 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R238 и runtime R235 имеют
+что production уже запускался. Эта оговорка, source-сводка R239 и runtime R235 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
@@ -52,7 +52,37 @@ FoundationOFF; Flyway/settings/users/authorities/roles fingerprints прежни
 operator Authentication), оставшиеся child/media/delivery, PENDING policy/AI
 privacy/context/retention и fleet/provider acceptance. S2B снятR190, задача🟡.
 
-Source R238 (ещё не развёрнут), актуальная source-сводка:
+Source R239 (ещё не развёрнут), актуальная source-сводка:
+Bot-runtime получает pending request через отдельный JPA PESSIMISTIC_WRITE query
+до root/expiry/rating lookup; обычные read/dispatch findById callers прежние.
+Row lock держится до commit/rollback, повторный ответ на тот же request ID после
+ожидания видит expiry и не пишет вторую оценку/event. Pending-save exception
+больше не превращается в успешный результат: rating/outbox/expiry откатываются
+вместе. Validation/raw/BIGINT/nullable scope/result/existing identity и R238
+root/outbox proofs сохранены; новых migrations/колонок/flags нет.
+54 новых real Hibernate/PostgreSQL cases:12 two-thread duplicate/replay,
+6 pending NOWAIT locks и36 rollback (rating/event/expiry, new/existing).
+Frozen RED54/30 assertion failures/24 controls/0 errors/skips; GREEN846/10 suites,
+0 failures/errors/skips. Новые source/3 bytecode hashes/case names неизменны;
+3 old fixtures изменены только в имени lookup stub, все assertions прежние.
+Предварительные compile/proxy test-fixture ошибки исправлены до валидного RED-v2.
+JpaRepositoryFactory/SharedEntityManager/JpaTransactionManager+JDBC используют
+одну изолированную datasource; working DB не использовалась. Baseline1422/
+green1422 classes,1417 unrelated прежние, incremental3 main/11 test sources.
+Не full build. Owned640MiB helper удержан для отдельной artifact/rollout фазы.
+Все18 working containers/config/DB fingerprints прежние; web R234/1 healthy/
+readinessUP/health503DLQ1. Новый rollback R240 указывает на R234, старые сохранены.
+83 working migrations/V83 прежние; migrations/backfill/flags/queues/provider/
+worker/bots/infra/deploy не выполнялись. Scope9, guarded source apply без
+staging/commit/push/deploy; пользователь разрешил отдельную публикацию до конца
+31 октября по Москве. Факты публикации — отдельный publish.json, deploy — R240.
+Далее persisted pending/public/business generation, разные request IDs одного
+обращения/owning rating persistence, relay/operator-edit/activity/other raw
+producers/children и ABA/phantom/epoch. PENDING/AI/fleet/provider/flags/S6/DLQ1
+прежние, S2B снятR190, задача🟡. Task01-278 R239/evidence
+.tmp/01-278-r239-evidence/; R236–R239 ещё не в рабочем web на source-фазе.
+
+Source R238 (историческая source-фаза до R239, тогда ещё не развёрнут):
 Reopen/client-edit/operator-edit/feedback передают captured TicketContext в
 outbox. INSERT сохраняет исходный raw ID/owner/channel/public/business/kind,
 повторно проверяя exact root tuple/count; raw-ID recapture для этих4 callers

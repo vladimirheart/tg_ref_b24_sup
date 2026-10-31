@@ -229,7 +229,7 @@ class BotRuntimeFrozenOutboxPostgresTest {
             pending.setChannel(channel);
             pending.setTicketId(raw);
             pending.setExpiresAt(expiry);
-            when(requests.findById(1L)).thenReturn(Optional.of(pending));
+            when(requests.findByIdForUpdate(1L)).thenReturn(Optional.of(pending));
             when(feedback.findFirstByTicketIdOrderByTimestampDesc(raw)).thenReturn(Optional.empty());
             when(targets.loadReplyTarget(raw)).thenReturn(Optional.of(new DialogReplyTarget(OWNER, CHANNEL)));
             when(targets.markOperatorMessageEdited(raw, 123L, "edited", new DialogReplyTarget(OWNER, CHANNEL))).thenReturn(1);

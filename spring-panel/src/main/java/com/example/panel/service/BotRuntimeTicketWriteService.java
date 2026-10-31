@@ -8,8 +8,6 @@ import java.time.OffsetDateTime;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,7 +16,6 @@ import org.springframework.util.StringUtils;
 @Service
 public class BotRuntimeTicketWriteService {
 
-    private static final Logger log = LoggerFactory.getLogger(BotRuntimeTicketWriteService.class);
     static final String REOPEN_EVENT_TEXT = "\u0417\u0430\u044f\u0432\u043a\u0430 \u043f\u0435\u0440\u0435\u043e\u0442\u043a\u0440\u044b\u0442\u0430 \u043e\u043f\u0435\u0440\u0430\u0442\u043e\u0440\u043e\u043c.";
 
     private final JdbcTemplate jdbcTemplate;
@@ -262,7 +259,7 @@ public class BotRuntimeTicketWriteService {
         if (requestId == null || rating == null || rating < 1 || rating > 5) {
             return new MutationResult(false, false);
         }
-        Optional<PendingFeedbackRequest> requestOpt = pendingFeedbackRequestRepository.findById(requestId);
+        Optional<PendingFeedbackRequest> requestOpt = pendingFeedbackRequestRepository.findByIdForUpdate(requestId);
         if (requestOpt.isEmpty()) {
             return new MutationResult(false, false);
         }
@@ -294,14 +291,7 @@ public class BotRuntimeTicketWriteService {
         feedbackRepository.save(feedback);
         uiEventOutboxAppendService.publishFeedbackCreated(ticket.eventContext(), rating);
         request.setExpiresAt(now);
-        try {
-            pendingFeedbackRequestRepository.save(request);
-        } catch (RuntimeException ex) {
-            log.warn("Saved feedback for ticket {}, but failed to expire pending feedback request {}: {}",
-                    ticketId,
-                    requestId,
-                    ex.getMessage());
-        }
+        pendingFeedbackRequestRepository.save(request);
         return new MutationResult(true, true);
     }
 
