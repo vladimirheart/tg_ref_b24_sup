@@ -24,13 +24,52 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R241 и runtime R242 имеют
+что production уже запускался. Эта оговорка и актуальный runtime R245 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
 
-Актуальный runtime R242 —31 октября,14:32+03, текущая Windows/Docker-сессия:
+Актуальный runtime R245 —31 октября,19:45+03, текущая Windows/Docker-сессия:
+panel-web R244, revision2d55cd9ae3d0e7c4358eb1853ad5df921a04cfe1,
+image sha256:a38d4ccb099236a44c23b6a8a5228ac44b7420de15ad8f0cfa8bea14a54ca157,
+container249cb7e70b3b93720bc19724e76ace419a0bdf538b24478d5866a53d34c188b1.
+JAR SHA25692d228c49e210f051c738dcbc3dd7c3fe462710fd2297c19a3cf5958ef8c4da1.
+Compose tg_ref_b24_sup/contour+observability/.env/project directory прежние,
+overlay .tmp/01-278-r245-rollout/compose.web.json; только web --no-deps/
+--no-build/--pull never/1 replica healthy/restart0/readiness200UP. Verified
+R241 JAR+1423 tested classes/677 unchanged other entries/+V84 SQL,18 base layers
+прежние; incremental artifact, не full Maven build.1067/16 suites source proof
+и61 live read/access/readiness GREEN; реальные ROLE_ADMIN+PAGE_CHANNELS или
+PAGE_SETTINGS, foundationOFF/anonymous/SSE boundaries и logout, без domain/grant
+writes.0WARN0ERROR/явный web Flyway skip; общий health503DOWN прежний inboundDLQ1.
+
+По отдельному «разрешаю» применена только V84, checksum -783018026, DB84/84
+migrations. Одноразовый Compose db-migrate256MiB/1CPU: strict target83 validate,
+единственная pending84, migrate84/validate84; canonical libs/SQL, без Spring
+bootstrap/history normalizer/repair/baseline/backfill. Старые83 history rows,
+roots/pending/ratings fields/settings/accounts/grants прежние.53 root epochs,
+51 historical pending unbound,36 ratings,455 settings/0 automation runs.
+Pre-V84 pg_dump10150128 bytes/SHA256
+471D13E31AE8F6107F1CD90406DCA966EDCEA278D770F642053DF5D5C4A4862F сохранён
+в .tmp/01-278-r245-rollout/postgres-before-v84.dump; restore/fingerprints/V84/
+15 SQL checks/3 scopes на owned PG192MiB GREEN, scratch PG/volume/network
+удалены. Это same-host backup, не off-host DR; рабочую БД не восстанавливали.
+Все17 других containers/IDs/images/start/restarts/ENV/mounts/HostConfig прежние,
+включая штатный exited db-migrate; workerR198/bots/infra не обновлялись.
+R244 prompt dispatcher в worker НЕ активирован. Web ENV/mounts/полный
+HostConfig точны, Compose/env/shared прежние, heartbeat отдельно.
+Rollback iguana-panel:rollback-r245-web-20261031-38f548259598 на R241 сохранён,
+старые R242/R240/R235 pointers также; фактический rollback/DB restore не делали.
+Backfill/flags/queues/provider writes нет; WSL/VS Code/working services ради
+ОЗУ не останавливали. Checkpoint/evidence — task R245/.tmp/01-278-r245-rollout/.
+Worker rollout/queued provider delivery/recipient authorization/non-cooperating
+writers/DB uniqueness/phantoms/pending-ID reuse/lifecycle revision/owning child
+rating attribution и media/policies/AI/fleet/questionnaires/flags/S6/DLQ1 открыты.
+S2B снятR190, задача🟡. Нижние source/runtime фазы исторические; их «не
+развёрнуто/V83» не отменяет фактическое V84/webR244 из этого checkpoint.
+
+Предыдущий runtime R242 —31 октября,14:32+03, текущая Windows/Docker-сессия:
 только panel-web обновлён с R239 до clean R241
 94c2d812cfec81ad9ba1b4c331e418375d9b75da (commit/push отдельно),
 image sha256:38f548259598c70ff6afc87c9afeabed971fa9d99142b78e0c252e8336f86feb,
@@ -113,7 +152,7 @@ FoundationOFF; Flyway/settings/users/authorities/roles fingerprints прежни
 operator Authentication), оставшиеся child/media/delivery, PENDING policy/AI
 privacy/context/retention и fleet/provider acceptance. S2B снятR190, задача🟡.
 
-Source R244 — backend admission по сохранённому pending context (НЕ развёрнут):
+Source R244 — историческая source-фаза до R245 (теперь web; не workerR198):
 native projection допускает один exact root с теми же owner/raw/channel/public/
 business/GENERAL/epoch и читает persisted expiry/sent_at. Unbound/старое поколение
 не подменяется сегодняшним root. Active lookup делает final proof после rating
@@ -140,7 +179,7 @@ working migration/rebuild/restart/deploy/backfill/flags/queues/provider не з�
 phantom/pending-ID reuse/owning persisted rating proof и не S6 acceptance. Эти
 и прочие media/policies/AI/fleet/questionnaires/flags/DLQ1 gates открыты, S2B снятR190.
 
-Source R243 — подготовка хранения pending feedback, НЕ рабочая миграция:
+Source R243 — историческая подготовка хранения до применения V84 в R245:
 V84 добавляет PostgreSQL-owned UUID epoch для identity/scope корня: новый INSERT
 и смена user/raw/channel/public/business/GENERAL дают новый токен, включая ABA
 и попытку передать прежний токен при пересоздании. Status/work не меняют epoch:
