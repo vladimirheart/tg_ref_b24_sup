@@ -73,7 +73,7 @@ class AutomationRunOwnershipPostgresqlTest {
         var database=PostgresqlJdbcTestSupport.freshJdbcTemplate("automation_owner_flyway");
         Flyway.configure().dataSource(database.getDataSource()).locations("classpath:db/migration/postgresql").target("82").load().migrate();
         database.update("INSERT INTO automation_runs(automation_key,mode,status,actor) VALUES(?,'dry_run','success','reader')",KEY);
-        var flyway=Flyway.configure().dataSource(database.getDataSource()).locations("classpath:db/migration/postgresql").load();assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);flyway.validate();
+        var flyway=Flyway.configure().dataSource(database.getDataSource()).locations("classpath:db/migration/postgresql").target("83").load();assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);flyway.validate();
         assertThat(database.queryForMap("SELECT actor,actor_user_id FROM automation_runs")).containsEntry("actor","reader").containsEntry("actor_user_id",null);assertThat(flyway.migrate().migrationsExecuted).isZero();
     }
 }

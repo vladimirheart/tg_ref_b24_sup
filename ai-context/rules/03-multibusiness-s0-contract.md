@@ -113,6 +113,35 @@ FoundationOFF; Flyway/settings/users/authorities/roles fingerprints прежни
 operator Authentication), оставшиеся child/media/delivery, PENDING policy/AI
 privacy/context/retention и fleet/provider acceptance. S2B снятR190, задача🟡.
 
+Source R243 — подготовка хранения pending feedback, НЕ рабочая миграция:
+V84 добавляет PostgreSQL-owned UUID epoch для identity/scope корня: новый INSERT
+и смена user/raw/channel/public/business/GENERAL дают новый токен, включая ABA
+и попытку передать прежний токен при пересоздании. Status/work не меняют epoch:
+это не lifecycle revision. Старым корням при будущем применении создаётся
+технический epoch; историческим pending не назначается ни он, ни бизнес.
+DB BEFORE INSERT захватывает один exact root FOR SHARE, сверяет user/channel,
+сохраняет epoch/public/business/GENERAL; missing/duplicate/foreign/partial/spoof
+отклоняются23514. UPDATE замораживает owner/raw/channel/created_at/context,
+включая запрет upgrade старого unbound pending; source/expiry/sent_at меняются
+без перепривязки. Canonical schema только в backend, java-bot schema не менялась.
+Native V1..V83+V84/156 SQL assertions GREEN, frozen V83 assertion RED; реальный
+двухсессионный root-lock55P03/release/rollback proof. Затем30 JUnit/5 suites GREEN,
+0 failures/errors/skips, в том числе1 новый Flyway contract с теми же156 checks
+и29 прежних cases. Старые assertions сохранены, V82→V83 fixture pinned target83.
+Compiled8 test sources/verified1422 unchanged main classes; не full rebuild.
+Helper512MiB/PG192MiB; после missing test dependencies и Metaspace144MiB RED
+повторены все30 при heap160/meta224/code32/stack512k в том же budget, tests frozen.
+WSL/VS Code/working services не останавливались. Detached sandbox/replay/scope8/
+content guards перед отдельным apply/publish; commit/push разрешены до конца
+31 октября. Evidence .tmp/01-278-r243-evidence/, task R243.
+Рабочие V83/webR241/runtimeR242 не обновлялись: миграция/backfill/flags/provider/
+queues/worker/bots/infra/deploy не запускались, rollback pointers сохранены.
+Это только persisted capture contract. Далее mapping и fail-closed epoch/tuple
+proof в pending read/prompt dispatch/storeFeedback; consumers пока его не читают.
+Не end-to-end isolation, не recipient authorization/DB uniqueness/phantom/cache/
+lifecycle generation/owning rating proof и не S6 acceptance. Остальные gates
+runtimeR242 сохраняются, S2B снятR190, задача🟡.
+
 Source R241 (развёрнут R242; ниже сохранена исходная source-фаза):
 Bot-runtime до existing-rating lookup получает FOR UPDATE на frozen root с
 прежними full tuple/count guards; это сериализует разные pending request IDs.
