@@ -63,6 +63,7 @@ class BotRuntimeFeedbackExpiryBoundaryPostgresTest {
         existing.setChannelId(channelId);
         existing.setRating(1);
         when(requests.findByIdForUpdate(1L)).thenReturn(Optional.of(pending));
+        com.example.panel.support.PendingFeedbackContextTestSupport.stubLockedContextFromOwnerFixture(requests,jdbc);
         var entered = new AtomicBoolean();
         doAnswer(call -> {
             entered.set(true);

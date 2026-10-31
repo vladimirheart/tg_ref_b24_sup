@@ -69,7 +69,8 @@ public class FeedbackPromptDispatchSchedulerService {
         if (pending.isEmpty()) {
             return;
         }
-        for (PendingFeedbackRequest request : pending) {
+        for (PendingFeedbackRequest candidate : pending) {
+            PendingFeedbackRequest request = candidate;
             Channel channel = request.getChannel();
             Long userId = request.getUserId();
             if (channel == null || channel.getId() == null || userId == null || !StringUtils.hasText(request.getTicketId())) {
@@ -80,15 +81,34 @@ public class FeedbackPromptDispatchSchedulerService {
                 || ticket.getChannel() == null || !channel.getId().equals(ticket.getChannel().getId())) {
                 continue;
             }
+            if (request.getId() == null) {
+                continue;
+            }
+            request = pendingFeedbackRequestRepository.findByIdForUpdate(request.getId()).orElse(null);
+            if (request == null || !hasCurrentUnsentContext(request)) {
+                continue;
+            }
+            channel = request.getChannel();
+            userId = request.getUserId();
+            // Do not trust a preloaded entity's sent_at/expiry after waiting for a row lock.
             String prompt = buildRatingPrompt(channel, request.getTicketId());
+            if (!hasCurrentUnsentContext(request)) {
+                continue;
+            }
             try {
                 outboundFeedbackPromptPublisher.publish(request.getId(), channel, userId, request.getTicketId(), prompt);
-                request.setSentAt(now);
+                request.setSentAt(OffsetDateTime.now());
                 pendingFeedbackRequestRepository.save(request);
             } catch (RuntimeException ex) {
                 log.warn("Failed to dispatch feedback prompt for request {}: {}", request.getId(), ex.getMessage());
             }
         }
+    }
+
+    private boolean hasCurrentUnsentContext(PendingFeedbackRequest request) {
+        return pendingFeedbackRequestRepository.lockCurrentFeedbackContext(request.getId())
+            .filter(context -> context.matches(request) && context.getSentAt() == null
+                && context.activeAt(OffsetDateTime.now())).isPresent();
     }
 
     String buildRatingPrompt(Channel channel, String ticketId) {

@@ -137,6 +137,7 @@ class BotRuntimeTicketReadServiceTest {
         request.setId(501L);
         request.setUserId(77L);
         request.setTicketId("T-501");
+        request.setExpiresAt(java.time.OffsetDateTime.now().plusDays(1));
         request.setSource("auto_close");
         request.setChannel(channel);
 
@@ -144,6 +145,8 @@ class BotRuntimeTicketReadServiceTest {
         when(pendingRepository.findFirstByUserIdAndChannel_IdAndExpiresAtAfterOrderByCreatedAtDesc(eq(77L), eq(19L), any()))
             .thenReturn(Optional.of(request));
         when(feedbackRepository.existsByTicketId("T-501")).thenReturn(false);
+        when(pendingRepository.findCurrentFeedbackContext(501L)).thenReturn(Optional.of(
+            com.example.panel.support.PendingFeedbackContextTestSupport.context(request,null,null,false)));
 
         Optional<BotRuntimeTicketReadService.PendingFeedbackRequestLookup> result = service.findActiveFeedbackRequest(77L, 19L);
 

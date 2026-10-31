@@ -166,7 +166,7 @@ public class BotRuntimeTicketReadService {
                 .findFirstByUserIdAndChannel_IdAndExpiresAtAfterOrderByCreatedAtDesc(userId, channelId, now);
         }
         if (request.isPresent() && matchesFeedbackRequest(request.get(), userId, channelId)
-            && !hasStoredFeedback(request.get())) {
+            && !hasStoredFeedback(request.get()) && hasCurrentFeedbackContext(request.get())) {
             return Optional.of(toLookup(request.get()));
         }
         Optional<PendingFeedbackRequest> fallback = pendingFeedbackRequestRepository
@@ -174,7 +174,13 @@ public class BotRuntimeTicketReadService {
         return fallback
             .filter(candidate -> matchesFeedbackRequest(candidate, userId, channelId))
             .filter(candidate -> !hasStoredFeedback(candidate))
+            .filter(this::hasCurrentFeedbackContext)
             .map(this::toLookup);
+    }
+
+    private boolean hasCurrentFeedbackContext(PendingFeedbackRequest request) {
+        return request.getId() != null && pendingFeedbackRequestRepository.findCurrentFeedbackContext(request.getId())
+            .filter(context -> context.matches(request) && context.activeAt(OffsetDateTime.now())).isPresent();
     }
 
     private boolean matchesCanonicalTicket(String ticketId, Long userId, Long channelId) {

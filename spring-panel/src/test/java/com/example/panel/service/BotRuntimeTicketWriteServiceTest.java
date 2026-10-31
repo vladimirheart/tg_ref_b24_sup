@@ -74,6 +74,7 @@ class BotRuntimeTicketWriteServiceTest {
             legacyTicketIdJdbcGuard
         );
         createSchema();
+        com.example.panel.support.PendingFeedbackContextTestSupport.stubLockedContextFromOwnerFixture(pendingRepository,jdbcTemplate);
     }
 
     @Test
@@ -386,6 +387,7 @@ class BotRuntimeTicketWriteServiceTest {
         request.setExpiresAt(java.time.OffsetDateTime.now().plusDays(1));
 
         when(pendingFeedbackRequestRepository.findByIdForUpdate(903L)).thenReturn(Optional.of(request));
+        com.example.panel.support.PendingFeedbackContextTestSupport.stubLockedContextFromOwnerFixture(pendingFeedbackRequestRepository,jdbcTemplate);
         when(feedbackRepository.findFirstByTicketIdOrderByTimestampDesc("T-903")).thenReturn(Optional.empty());
         jdbcTemplate.update("""
                 INSERT INTO tickets(ticket_id, status, user_id, channel_id, reopen_count)

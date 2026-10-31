@@ -2,6 +2,7 @@ package com.example.panel.service;
 
 import com.example.panel.entity.Feedback;
 import com.example.panel.entity.PendingFeedbackRequest;
+import com.example.panel.repository.PendingFeedbackContext;
 import com.example.panel.repository.FeedbackRepository;
 import com.example.panel.repository.PendingFeedbackRequestRepository;
 import java.time.OffsetDateTime;
@@ -278,6 +279,10 @@ public class BotRuntimeTicketWriteService {
         if (!lockCurrentTicket(ticket)) {
             return new MutationResult(false, false);
         }
+        if (pendingFeedbackRequestRepository.lockCurrentFeedbackContext(requestId)
+                .filter(context -> matchesFeedbackContext(context, request, ticket)).isEmpty()) {
+            return new MutationResult(false, false);
+        }
         Optional<Feedback> existingFeedback = feedbackRepository.findFirstByTicketIdOrderByTimestampDesc(ticketId);
         if (existingFeedback.isPresent() && !matchesTicketContext(
                 ticket, existingFeedback.get().getUserId(), existingFeedback.get().getChannelId())) {
@@ -286,8 +291,12 @@ public class BotRuntimeTicketWriteService {
         if (!lockCurrentTicket(ticket)) {
             return new MutationResult(false, false);
         }
+        PendingFeedbackContext context = pendingFeedbackRequestRepository.lockCurrentFeedbackContext(requestId).orElse(null);
+        if (!matchesFeedbackContext(context, request, ticket)) {
+            return new MutationResult(false, false);
+        }
         now = OffsetDateTime.now();
-        if (request.getExpiresAt() != null && !request.getExpiresAt().isAfter(now)) {
+        if (!context.activeAt(now)) {
             return new MutationResult(false, true);
         }
         Feedback feedback = existingFeedback.orElseGet(Feedback::new);
@@ -301,6 +310,16 @@ public class BotRuntimeTicketWriteService {
         request.setExpiresAt(now);
         pendingFeedbackRequestRepository.save(request);
         return new MutationResult(true, true);
+    }
+
+    private boolean matchesFeedbackContext(PendingFeedbackContext context, PendingFeedbackRequest request, TicketSnapshot ticket) {
+        return context != null && context.matches(request)
+            && Objects.equals(context.getUserId(), ticket.userId())
+            && Objects.equals(context.getChannelId(), ticket.channelId())
+            && Objects.equals(context.getTicketId(), ticket.ticketId())
+            && Objects.equals(context.getPublicId(), ticket.publicId())
+            && Objects.equals(context.getBusinessId(), ticket.businessId())
+            && Objects.equals(context.getGeneral(), ticket.general());
     }
 
     private boolean lockCurrentTicket(TicketSnapshot ticket) {

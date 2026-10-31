@@ -209,6 +209,7 @@ class BotRuntimeRootLookupPostgresTest {
             pending.setChannel(channel);
             pending.setExpiresAt(expiry);
             when(requests.findByIdForUpdate(1L)).thenReturn(Optional.of(pending));
+            com.example.panel.support.PendingFeedbackContextTestSupport.stubLockedContextFromOwnerFixture(requests,jdbc);
             when(feedback.findFirstByTicketIdOrderByTimestampDesc(raw)).thenReturn(Optional.empty());
             when(targets.loadReplyTarget(raw)).thenReturn(Optional.of(new DialogReplyTarget(OWNER, CHANNEL)));
             when(targets.markOperatorMessageEdited(anyString(), anyLong(), anyString(), any(DialogReplyTarget.class)))

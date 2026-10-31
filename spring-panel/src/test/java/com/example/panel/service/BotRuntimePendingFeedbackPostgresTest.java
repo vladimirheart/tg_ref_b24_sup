@@ -56,7 +56,7 @@ class BotRuntimePendingFeedbackPostgresTest {
     enum Scope { BUSINESS, GENERAL, UNRESOLVED }
 
     @BeforeAll
-    static void database() {
+    static void database() throws Exception {
         jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType("pending_feedback_r239");
         var factory = new LocalContainerEntityManagerFactoryBean();
         factory.setDataSource(jdbc.getDataSource());
@@ -73,6 +73,7 @@ class BotRuntimePendingFeedbackPostgresTest {
         realFeedback = repositories.getRepository(FeedbackRepository.class);
         jdbc.execute("CREATE TABLE tickets (ticket_id TEXT, user_id BIGINT, channel_id BIGINT, status TEXT, "
                 + "ticket_public_id TEXT, business_id BIGINT, is_general BOOLEAN)");
+        jdbc.execute(java.nio.file.Files.readString(java.nio.file.Path.of("src/main/resources/db/migration/postgresql/V84__pending_feedback_context.sql")));
         jdbc.execute("CREATE TABLE ui_event_outbox (id BIGINT PRIMARY KEY, event_type TEXT, ticket_id TEXT, "
                 + "channel_id BIGINT, message_text TEXT, message_type TEXT, attachment TEXT, rating INTEGER, "
                 + "ticket_user_id BIGINT, ticket_public_id TEXT, ticket_business_id BIGINT, ticket_scope_kind TEXT, "
@@ -191,7 +192,7 @@ class BotRuntimePendingFeedbackPostgresTest {
     }
 
     private void seed(Scope scope, String raw, boolean existing) {
-        jdbc.update("INSERT INTO tickets VALUES (?, ?, ?, 'closed', ?, ?, ?)", raw, OWNER, CHANNEL,
+        jdbc.update("INSERT INTO tickets(ticket_id,user_id,channel_id,status,ticket_public_id,business_id,is_general) VALUES (?, ?, ?, 'closed', ?, ?, ?)", raw, OWNER, CHANNEL,
                 "a".repeat(32), scope == Scope.BUSINESS ? 31L : null, scope == Scope.GENERAL);
         jdbc.update("INSERT INTO pending_feedback_requests(id, user_id, channel_id, ticket_id, source, created_at, expires_at) "
                 + "VALUES (1, ?, ?, ?, 'isolated', ?, ?)", OWNER, CHANNEL, raw,

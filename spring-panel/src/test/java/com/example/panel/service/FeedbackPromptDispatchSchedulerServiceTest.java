@@ -49,6 +49,9 @@ class FeedbackPromptDispatchSchedulerServiceTest {
         request.setChannel(channel);
         request.setCreatedAt(OffsetDateTime.now().minusMinutes(5));
         request.setExpiresAt(OffsetDateTime.now().plusHours(2));
+        when(repository.findByIdForUpdate(901L)).thenReturn(Optional.of(request));
+        when(repository.lockCurrentFeedbackContext(901L)).thenAnswer(call -> Optional.of(
+            com.example.panel.support.PendingFeedbackContextTestSupport.context(request,null,null,false)));
         when(ticketRepository.findUniqueByLegacyTicketId("T-901")).thenReturn(Optional.of(ticket(77L, "T-901", channel)));
 
         when(repository.findTop50BySentAtIsNullAndExpiresAtAfterOrderByCreatedAtAsc(any())).thenReturn(List.of(request));

@@ -113,6 +113,33 @@ FoundationOFF; Flyway/settings/users/authorities/roles fingerprints прежни
 operator Authentication), оставшиеся child/media/delivery, PENDING policy/AI
 privacy/context/retention и fleet/provider acceptance. S2B снятR190, задача🟡.
 
+Source R244 — backend admission по сохранённому pending context (НЕ развёрнут):
+native projection допускает один exact root с теми же owner/raw/channel/public/
+business/GENERAL/epoch и читает persisted expiry/sent_at. Unbound/старое поколение
+не подменяется сегодняшним root. Active lookup делает final proof после rating
+read, включая fallback. Dispatch блокирует pending→root, проверяет context/expiry/
+unsent ещё раз после template, берёт recipient из locked request. Writer сохраняет
+R241 locks и сверяет persisted context с frozen tuple до rating lookup/после
+ожиданий; final expiry из native Instant projection. API DTO/constructors прежние.
+132 новых cases:RED132/114 assertion failures/18 controls/0 errors/skips;
+frozen source/bytecode/cases. GREEN1067/16 suites одним accepted run,0 failures/
+errors/skips:132+прежние900+read27/dispatch7+R243 contract1 (156 SQL assertions
+внутри).8 fixture adaptations checked inverse exact; прежние assertions не
+менялись. Mock helper — только admission plumbing старых fixtures, не native proof.
+Compiled5 main/18 tests,1423 classes/1409 unrelated unchanged. Helper512MiB/
+PG192MiB/sequential. Первый Instant projection defect исправлен без правки tests.
+После full1067 без resource proof повторены все1067 с shared-read watcher;
+null Start-Process ExitCode отдельно воспроизведён, acceptance-v3 проверяет
+native bound JSON/stdout/ID/session/time/empty stderr/fresh XML/frozen hashes.
+Scope18/task/evidence .tmp/01-278-r244-evidence/, отдельные apply и publish;
+commit/push разрешены до конца31 октября. WSL/VS Code/working services не трогали.
+Working18 containers/DB83/settings/readinessUP/runtimeR242 прежние; webR241/
+workerR198, rollback сохранён. Новой migration нет, но source требует V84 изR243;
+working migration/rebuild/restart/deploy/backfill/flags/queues/provider не запускались.
+Не queued/provider delivery/recipient authorization/lifecycle revision/DB uniqueness/
+phantom/pending-ID reuse/owning persisted rating proof и не S6 acceptance. Эти
+и прочие media/policies/AI/fleet/questionnaires/flags/DLQ1 gates открыты, S2B снятR190.
+
 Source R243 — подготовка хранения pending feedback, НЕ рабочая миграция:
 V84 добавляет PostgreSQL-owned UUID epoch для identity/scope корня: новый INSERT
 и смена user/raw/channel/public/business/GENERAL дают новый токен, включая ABA
