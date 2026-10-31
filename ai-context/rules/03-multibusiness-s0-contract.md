@@ -24,7 +24,7 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R239 и runtime R240 имеют
+что production уже запускался. Эта оговорка, source-сводка R241 и runtime R240 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
@@ -83,6 +83,35 @@ FoundationOFF; Flyway/settings/users/authorities/roles fingerprints прежни
 Далее bot-runtime edit/feedback root/context proofs (transport-token не равен
 operator Authentication), оставшиеся child/media/delivery, PENDING policy/AI
 privacy/context/retention и fleet/provider acceptance. S2B снятR190, задача🟡.
+
+Source R241 (ещё не развёрнут, отдельный rollout R242):
+Bot-runtime до existing-rating lookup получает FOR UPDATE на frozen root с
+прежними full tuple/count guards; это сериализует разные pending request IDs.
+Одна rating row, два валидных запроса могут обновить её и опубликовать два events.
+Selected existing rating читается через JPA PESSIMISTIC_WRITE до setters/save;
+повторный root proof после read сохранён. Fresh now/expiry после всех locks:
+истёкший во время root/rating ожидания request не меняет rating/event/expiry.
+Validation/raw/BIGINT/nullable scope/identity/R238 outbox/R239 rollback прежние.
+42 real Hibernate cases: split RED42/30 failures/12 controls/0 errors/skips;
+предварительный GREEN888. Затем12 отдельных scripted repository-wait cases
+RED12/12 на предварительном R241, fresh clock-check перемещён после всех locks.
+GREEN900/12 suites/0 failures/errors/skips,846 старых cases/assertions/source
+не менялись,0 adapted fixtures. Новые source/4 class hashes/cases frozen после
+своих RED; дополнительные12 — mocked JPA +real root SQL, не full MVCC proof.
+Verified R239 JAR/1422 baseline classes; green1422/1417 unrelated прежние,
+incremental2 main/13 test sources, не full build. User разрешил доступные мощности:
+owned helper512MiB/1.5CPU, JVM224/144/48MiB; owned test PG192MiB/1CPU. WSL/VS Code/
+working services не останавливались.83 migrations только isolated test schema.
+Все18 runtime containers/config/DB fingerprints прежние, heartbeat отдельно;
+web R239/readinessUP/health503DLQ1, новый rollback R242 на R239, старые сохранены.
+Working migrations/backfill/flags/queues/provider/worker/bots/infra прежние.
+Scope7, guarded source apply без commit/push/deploy; отдельная публикация разрешена
+до конца31 октября по Москве, факт — publish.json; rollout/cleanup — R242.
+Cooperating bot-runtime writers, не DB uniqueness/исторические дубли/epoch proof.
+Pending/public/business generation provenance, другие writers/cache/phantoms/ABA,
+child/rating attribution/relay/operator-edit/activity/other producers/media/AI/
+PENDING policies/fleet/questionnaire/provider/flags/S6/DLQ1 остаются. S2B снятR190,
+задача🟡. Task01-278 R241/evidence .tmp/01-278-r241-evidence/.
 
 Source R239 (развёрнут R240; ниже сохранена исходная source-фаза):
 Bot-runtime получает pending request через отдельный JPA PESSIMISTIC_WRITE query

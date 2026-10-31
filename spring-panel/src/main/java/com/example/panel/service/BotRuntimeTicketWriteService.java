@@ -274,6 +274,10 @@ public class BotRuntimeTicketWriteService {
         if (request.getExpiresAt() != null && !request.getExpiresAt().isAfter(now)) {
             return new MutationResult(false, true);
         }
+        // Serialize distinct requests before deciding whether to insert or update the rating.
+        if (!lockCurrentTicket(ticket)) {
+            return new MutationResult(false, false);
+        }
         Optional<Feedback> existingFeedback = feedbackRepository.findFirstByTicketIdOrderByTimestampDesc(ticketId);
         if (existingFeedback.isPresent() && !matchesTicketContext(
                 ticket, existingFeedback.get().getUserId(), existingFeedback.get().getChannelId())) {
@@ -281,6 +285,10 @@ public class BotRuntimeTicketWriteService {
         }
         if (!lockCurrentTicket(ticket)) {
             return new MutationResult(false, false);
+        }
+        now = OffsetDateTime.now();
+        if (request.getExpiresAt() != null && !request.getExpiresAt().isAfter(now)) {
+            return new MutationResult(false, true);
         }
         Feedback feedback = existingFeedback.orElseGet(Feedback::new);
         feedback.setUserId(request.getUserId());
@@ -305,7 +313,7 @@ public class BotRuntimeTicketWriteService {
                    AND owner.business_id IS NOT DISTINCT FROM CAST(? AS BIGINT)
                    AND owner.is_general IS NOT DISTINCT FROM CAST(? AS BOOLEAN)
                    AND 1 = (SELECT COUNT(*) FROM tickets candidate WHERE candidate.ticket_id = owner.ticket_id)
-                 FOR SHARE OF owner
+                 FOR UPDATE OF owner
                 """, Integer.class, ticket.ticketId(), ticket.userId(), ticket.channelId(), ticket.publicId(),
                 ticket.businessId(), ticket.general()).size() == 1;
     }
