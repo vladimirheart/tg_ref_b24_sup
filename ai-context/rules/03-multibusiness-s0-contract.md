@@ -24,13 +24,42 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка, source-сводка R241 и runtime R240 имеют
+что production уже запускался. Эта оговорка, source-сводка R241 и runtime R242 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
 
-Актуальный runtime R240 —31 октября,12:35+03, текущая Windows/Docker-сессия:
+Актуальный runtime R242 —31 октября,14:32+03, текущая Windows/Docker-сессия:
+только panel-web обновлён с R239 до clean R241
+94c2d812cfec81ad9ba1b4c331e418375d9b75da (commit/push отдельно),
+image sha256:38f548259598c70ff6afc87c9afeabed971fa9d99142b78e0c252e8336f86feb,
+containercc4d452ad41e351daa3e352be149ca19b051a06f76ab0580d656a899171441c3,
+JAR SHA25679815e522ea82f9bb211ec77b7ad6cd88c37789a26e44a02b0e1ffaf09ebbf3f.
+Compose project tg_ref_b24_sup, прежние contour/observability/.env/project directory,
+новый overlay .tmp/01-278-r242-rollout/compose.web.json; только web --no-deps/
+--no-build/--pull never/1 replica, healthy/restart0/readiness200UP.
+Verified R239 JAR+1422 tested classes/677 прочих entries прежние; incremental
+artifact assembly, не full Maven build. POM/schema/resources/bots/entrypoint
+прежние,17 base layers сохранены, добавлен JAR layer; image/live JAR hash совпал.
+GREEN900/12 suites/0 failures/errors/skips;61 live read/access/readiness checks,
+реальный admin ROLE_ADMIN вместе с PAGE_CHANNELS или PAGE_SETTINGS, settings
+controls/ID/foundationOFF denies/SSE headers. Logout, domain/grant writes нет.
+0WARN0ERROR/явный Flyway skip; общий health503DOWN из-за прежнего inboundDLQ1,
+очередь не менялась. Не live feedback/provider/revoke/full fleet/S6 acceptance.
+Все17 других containers и web ENV/mounts/полный HostConfig прежние, heartbeat
+отдельно; DB fingerprints/83 migrations/V83/foundationOFF прежние. Working
+migrations/backfill/flags/queues/provider/external writes не выполнялись.
+Rollback iguana-panel:rollback-r242-web-20261031-09b20a52c8a4 на R239 сохранён;
+R240/R235 и более ранние pointers также, фактический rollback не запускался.
+Owned512MiB helper удалён после proof/artifact, test DBs завершены reaper;
+WSL/VS Code/working services ради ОЗУ не останавливались. Pending generation/
+non-cooperating writers/DB uniqueness/cache/phantoms/ABA/epoch/owning child-rating
+attribution и прочие media/policy/AI/fleet/questionnaire/provider/flags/S6/DLQ1
+остаются; S2B снятR190, задача🟡. Task01-278 R242/evidence
+.tmp/01-278-r242-rollout/. Нижние source-фазы исторические: R241 уже в web.
+
+Предыдущий runtime R240 —31 октября,12:35+03, текущая Windows/Docker-сессия:
 только panel-web обновлён с R234 до clean R239
 f09f29f9543e94eaf736497ec5ac662f7dea4a9d (source commit/push выполнены отдельно),
 image sha256:09b20a52c8a41c28158e81b4f90168506e59d5ec7e54beb14b37b24242229cb4,
@@ -84,7 +113,7 @@ FoundationOFF; Flyway/settings/users/authorities/roles fingerprints прежни
 operator Authentication), оставшиеся child/media/delivery, PENDING policy/AI
 privacy/context/retention и fleet/provider acceptance. S2B снятR190, задача🟡.
 
-Source R241 (ещё не развёрнут, отдельный rollout R242):
+Source R241 (развёрнут R242; ниже сохранена исходная source-фаза):
 Bot-runtime до existing-rating lookup получает FOR UPDATE на frozen root с
 прежними full tuple/count guards; это сериализует разные pending request IDs.
 Одна rating row, два валидных запроса могут обновить её и опубликовать два events.
