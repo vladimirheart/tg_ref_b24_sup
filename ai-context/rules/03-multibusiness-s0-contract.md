@@ -59,6 +59,22 @@ runtime checkpoints ниже исторические; новый snapshot не 
 Исторический S2B снятR190, задача🟡. Повторный deploy/migrations не разрешены.
 
 
+Source R259 —1 ноября, baseline a88cd2d09 (R258 metadata), runtime остаётся R258.
+Добавлен opt-in bot-feedback-acceptance, обычный reactor/runtime code прежние.
+157 unique tests GREEN без skips: реальная outbox/V84 → PostgreSQL/RabbitMQ с
+confirm → production listener/converter/ledger → signed recipient/sender HTTP,
+реальные controllers/HMAC/SQL/JPA/credential resolver → MessagingService →
+loopback HTTP provider. Четыре scope × Telegram/VK/MAX; поздний revoke/expiry/
+ABA/rotation, poisoned child/user/prompt, persistent sequential replay после
+consumer restart и explicit retry после известного provider503.
+Fixture catalog/channel reader контролируемые; это не live provider SDK,
+rating callback, full process restart, concurrent failed/stale claim, recovery
+unknown outcome/exactly-once, full security/TLS/fleet или S6. Эти проверки
+остаются, не переносить на них частный replay proof. Изолированные disposable
+PG192/Rabbit256MiB удалены; рабочие18 containers/config/БД/flags/queues прежние.
+Пересборка/deploy/migration/backfill не нужны и не выполнялись. Подробности и
+границы — task Source R259 и java-bot/bot-feedback-acceptance/README.md.
+
 Source R257 —1 ноября, clean da881c6d5 (R256 metadata,parent0df04ecf6/scope4).
 Прямые Telegram test/configured send фиксируют immutable channel delivery
 snapshot один раз до выбора получателей и держат его на весь batch. До network

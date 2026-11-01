@@ -64,6 +64,29 @@ Platform-specific:
 в local `JPA/SQLite` business-path для ticket/channel/feedback/blacklist
 операций.
 
+## Изолированная feedback delivery chain — source R259
+
+Opt-in `feedback-chain-acceptance` подключает `bot-feedback-acceptance`; обычные
+четыре bot modules и runtime images не меняются. Подготовка и ограничения —
+[README модуля](../java-bot/bot-feedback-acceptance/README.md).
+
+157 unique cases GREEN: реальный panel outbox/V84, PostgreSQL и RabbitMQ с
+publisher confirm, production container factory/listener/converter, persistent
+delivery ledger, реальные signed HTTP clients и panel controllers/HMAC/recipient
+SQL/channel JPA/credential resolver, MessagingService и loopback provider HTTP.
+BUSINESS/GENERAL/SHARED_GENERAL/LEGACY × Telegram/VK/MAX; replay после consumer
+restart, late revoke/expiry/ABA/rotation, API/HMAC deny, подмена child/user/prompt,
+explicit retry после известного provider503. Unicode/raw IDs и bigint >2^53
+сохранены, private feedbackTicketContext не уходит в broker wire DTO.
+
+Catalog и чтение канала ботом — контролируемые seams; provider — имитатор, не
+platform SDK. HTTP bridge standalone MockMvc с UTF-8, не full Boot security/TLS/
+proxy. Consumer restart создаёт новый dispatcher/ledger, но не новый JVM или
+launcher lease. Sequential replay не доказывает concurrent failed/stale claim,
+exactly-once или recovery при неизвестном provider outcome. Live client/rating
+callback/fleet/S6 ещё впереди. Рабочий runtime остаётся R258; пересборки, deploy,
+миграций, изменений flags/рабочих очередей и внешних отправок в R259 нет.
+
 ## Прямые Telegram-отправки панели — source R255
 
 ChannelTransportService (admin test, configured support/broadcast/custom send и
