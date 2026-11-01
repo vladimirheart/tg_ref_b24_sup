@@ -22,8 +22,11 @@ import org.springframework.amqp.core.MessageDeliveryMode;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.JdbcTransactionManager;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -40,6 +43,7 @@ public class OutboundFeedbackPromptPublishOutboxService {
     private final IntegrationRabbitProperties rabbitProperties;
     private final RuntimeCoordinationService runtimeCoordinationService;
     private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
+    private final TransactionTemplate publicationTransaction;
 
     public OutboundFeedbackPromptPublishOutboxService(JdbcTemplate jdbcTemplate,
                                                       ObjectMapper objectMapper,
@@ -53,6 +57,13 @@ public class OutboundFeedbackPromptPublishOutboxService {
         this.rabbitProperties = rabbitProperties;
         this.runtimeCoordinationService = runtimeCoordinationService;
         this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
+        // The relay is JDBC-only. Give each delivery its own bounded transaction,
+        // independent of any enqueue/JPA caller; claims and retries remain outside it.
+        this.publicationTransaction = new TransactionTemplate(new JdbcTransactionManager(
+            Objects.requireNonNull(jdbcTemplate.getDataSource(), "Feedback relay requires a datasource.")));
+        this.publicationTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        this.publicationTransaction.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
+        this.publicationTransaction.setTimeout(30);
     }
 
     public void enqueue(OutboundFeedbackPromptEvent event,
@@ -140,8 +151,14 @@ public class OutboundFeedbackPromptPublishOutboxService {
                 continue;
             }
             try {
-                publish(entry);
-                markPublished(eventId);
+                publicationTransaction.executeWithoutResult(status -> {
+                    try {
+                        publish(entry);
+                        markPublished(eventId);
+                    } catch (Exception ex) {
+                        throw new IllegalStateException(ex.getMessage(), ex);
+                    }
+                });
             } catch (Exception ex) {
                 markFailed(entry, ex);
             }
@@ -233,7 +250,17 @@ public class OutboundFeedbackPromptPublishOutboxService {
             || !legacyTicketIdJdbcGuard.hasUniqueTicket(entry.ticketId())) {
             throw new IllegalStateException("Outbound feedback prompt ticket context is unavailable or inconsistent.");
         }
-        if (!captured.equals(currentContext(event))) {
+        // Match the bot writer's lock order: pending first, then the owning root.
+        // FOR SHARE (not KEY SHARE) also excludes non-key business/epoch updates.
+        List<Long> pending = jdbcTemplate.query("""
+                SELECT id FROM pending_feedback_requests
+                 WHERE id = ? AND ticket_id = ? AND user_id = ? AND channel_id = ?
+                   FOR UPDATE
+                """, (rs, rowNum) -> rs.getLong("id"),
+            event.requestId(), event.ticketId(), event.userId(), event.channelId());
+        if (pending.size() != 1 || !captured.equals(currentContext(event, true))
+            // Locks may have waited: re-read expiry and the full tuple afterward.
+            || !captured.equals(currentContext(event))) {
             throw new IllegalStateException("Outbound feedback prompt captured pending context is no longer current.");
         }
         CorrelationData correlationData = new CorrelationData(entry.eventId());
@@ -310,6 +337,10 @@ public class OutboundFeedbackPromptPublishOutboxService {
     }
 
     private FeedbackTicketContext currentContext(OutboundFeedbackPromptEvent event) {
+        return currentContext(event, false);
+    }
+
+    private FeedbackTicketContext currentContext(OutboundFeedbackPromptEvent event, boolean lockRoot) {
         if (event.requestId() == null || event.userId() == null || event.channelId() == null
             || !StringUtils.hasText(event.ticketId())) {
             return null;
@@ -330,7 +361,7 @@ public class OutboundFeedbackPromptPublishOutboxService {
                    AND request.created_at IS NOT NULL
                    AND (request.expires_at IS NULL OR request.expires_at > clock_timestamp())
                    AND 1 = (SELECT count(*) FROM tickets candidate WHERE candidate.ticket_id = request.ticket_id)
-                """,
+                """ + (lockRoot ? " FOR SHARE OF owner" : ""),
             (rs, rowNum) -> new FeedbackTicketContext(rs.getString("epoch"), rs.getString("public_id"),
                 rs.getObject("business_id", Long.class), rs.getObject("general", Boolean.class),
                 rs.getTimestamp("created_at").toInstant().toString()),

@@ -30,6 +30,44 @@ production/рабочий в старых записях, именах Compose �
 
 ## Среда выполнения и сессии
 
+Source R248 —1 ноября, baseline clean HEAD/origin/main/remote2ffd7c1b2226887bd1141dfb213655ed3fcf19b7
+(пользовательский metadata commit R247, parent9f163dfec). Runtime по-прежнему
+R246/R247 ниже; новый source не развёрнут, миграций/flags нет.
+
+Feedback prompt relay теперь удерживает существующие pending/root до broker
+confirm и commit/rollback. Отдельная JDBC REQUIRES_NEW/READ_COMMITTED транзакция
+на delivery: pending FOR UPDATE → owning root FOR SHARE (не KEY SHARE), после
+ожидания final proof tuple/epoch/pending created_at/expiry; затем send/confirm/
+markPublished. SQL budget30s и прежний confirm timeout15s не означают жёсткий
+общий deadline. Claim/load/recovery и failed/retry вне этой транзакции; при NACK
+rollback освобождает locks, failed/retry сохраняется отдельно. Enqueue/private
+snapshot/API/bot DTO/конструктор прежние, schema/resources не менялись, минимумV84.
+
+42 новых PostgreSQL/V84 cases:24 двухточечных NOWAIT55P03 probes на pending/root
+во время send/confirm и реальные update/delete с rollback после release,
+12 ACK/NACK release/status/retry controls,6 expiry changes при pending-lock wait.
+3 scopes×2 exact raw IDs/BIGINT>2^53. RED42/30 assertion failures/12 controls;
+frozen source/bytecode/case sets. GREEN1246/19 suites/42 новых+1204 прежних/
+0 failures/errors/skips; старые tests/assertions/fixtures не менялись.
+Incremental1 main/22 test sources;1424 classes/3 changed одной family/1421 exact.
+Helper512MiB/1.5CPU, PG192MiB/1CPU до readiness, sequential; Rabbit — doubles.
+Classes archive независимо распакован/сверен, image не собирался.
+Scope5/detached sandbox+replay/exact guards, без stage/commit/push/deploy.
+Evidence .tmp/01-278-r248-evidence/. Read-only control:18 working containers/
+config и DB84/settings/accounts/grants/roots/pending/ratings/outbox прежние,
+126 published/actionable0/active pending0, оба healthy/restart0/web readinessUP.
+Рабочие migrations/backfill/flags/queue/provider writes не запускались,
+rollback/backup R247 сохранены; WSL/VS Code/working services не останавливались.
+
+Это исключает update/delete существующих owning rows во время relay, но не
+атомарный DB→Rabbit commit и не consumer/provider authorization. Crash после
+send/ACK до DB commit может повторить событие; queued delivery, recipient rights,
+естественное expiry после final check, same-created_at pending-ID reuse до relay,
+duplicate-root phantoms/uniqueness/lifecycle/owning child-rating и прочие
+media/policies/AI/fleet/questionnaires/flags/S6/operational gates R247 открыты.
+Следующий delivery gate — revalidation перед bot/provider send. R248 source-only,
+S2B снятR190, задача🟡; runtime-факты далее не подменены source validation.
+
 Актуальный runtime R247 —1 ноября, rollout00:37+03/acceptance11:47+03,
 текущая Windows/Docker-сессия. По отдельному «разрешаю» web+worker до clean R246:
 revision9f163dfecbb39e428a6b1d26c8a9136c587314b1,
