@@ -24,11 +24,63 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальный runtime R247 имеют
+что production уже запускался. Эта оговорка и актуальный runtime R253 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
+
+Приёмка R254 —1 ноября: по «как и сеохранено сейчас» штатной диагностикой
+панели отправлено1 test message в единственную сохранённую группу Telegram1.
+HTTP200/success/sent1/failed0; backend подтвердил sendMessage ok=true, без
+message_id/подтверждения визуального получения. Метка R254-20261101-191434-d70955d5.
+Первый probe403 с raw cookie CSRF не дошёл до controller; corrected rendered
+meta token, как common.js, дал success без изменения/отключения защиты.
+MAX2/Telegram3 не имеют сохранённой support group; чужие адресаты не выбирались.
+Это admin → ChannelTransportService → Telegram, НЕ MessagingService/feedback
+recipient/provider chain. Positive feedback требует контролируемого клиентского
+диалога; группа уведомлений не подменяет user ID. Все18 containers и контрольные
+DB/config/flags unchanged; no rebuild/restart/deploy/migrations/backfill/queue
+mutations. Runtime/rollback/backup по R253 ниже, S2B снятR190/статус🟡/не S6.
+Детали/evidence — task R254/.tmp/01-278-r254-acceptance/. Эта приёмка обновляет
+только результат diagnostic delivery, не расширяет прежние acceptance claims.
+
+
+Актуальный runtime R253 —1 ноября, тестовый стенд машины текущей сессии,
+не первый production S6. По «согласовано» выполнена совместимая выкладка
+clean R252/d286cd6cd6f8f1764a84d583fdc7c65d04977306 (HEAD/origin/actual remote),
+image sha256:d9c597493338db62f7bd3bb2952504b92e5657b9740eafd7990922838fdb58bb,
+tag iguana-panel:account-r252-d286cd6cd-20261101.
+Только web/worker/runner по1 replica, последовательный cold start;15 остальных
+контейнеров exact unchanged. ENV/user/mounts/full HostConfig сохранены, bind order
+и пустые DNS проверены независимым восстановлением исходного fingerprint.
+Оператор сначала остановился на перестановке Binds, затем продолжил без
+повторного recreate web/worker; это не изменение продуктовых тестов.
+Новый временный Compose overlay R253 без секретов блокирует запуск без сохранённого
+ENV; до следующей выкладки его и operator не удалять. Четыре JAR exact из R252
+candidate; panel incremental, не full Maven/Sass build.600/19 — source proof R252.
+Все роли healthy/readinessUP/restart0; три child JVM Telegram1/MAX2/Telegram3
+имеют canonical identity/JAR/startup marker и по1 canonical queue consumer.
+61 live read/access/SSE checks +24 signed admission checks GREEN: actual child
+credentials allow, invalid digest/platform/child deny, bad HMAC/no token401,
+R249 invalid recipient event deny. Tokens/digests не выводились в admission reports. VK live child
+нет, произвольным внешним адресатам тестовые сообщения не отправлялись.
+V84/84/checksum-783018026/settings455/accounts/grants/roots53/pending51/ratings36/
+published outbox126/actionable0/active pending0 прежние; no migrations/backfill/flags.
+ReadinessUP, overall health503/DOWN из-за прежнего inbound DLQ1; ERROR/fatal0,
+SSL/iiko WARN сохраняются. Known RMS command теперь succeeded/attempt4 на прежнем
+worker, нового claim-loss в окне нет; это не устранение общей RMS/TLS проблемы.
+Rollback R253: web/worker fd9b7ab03a1d/R246, runner97ccb6fc7a34/source revision
+неизвестна; tags перечислены в task checkpoint. Старые R247 pointers сохранены.
+pg_dump10055697 bytes/SHA256 AE358A58D1B921C7380A971C852106257BB8C272D85AF3FAF42AA70C4F17A7A1
+изолированно восстановлен (network none/192MiB); working DB не восстанавливалась,
+working rollback не выполнялся, off-host backup не заявляется. Dump может содержать
+секреты, хранится локально в ignored .tmp.
+Source R248–R252 теперь развёрнут. Следующий gate — указанный пользователем
+тестовый получатель для реальной доставки; recipient/revoke/replay/provider,
+остальные policies/isolation/GENERAL/AI/fleet/flags/S6 остаются. S2B снятR190,
+статус🟡. Детали и evidence — task R253/.tmp/01-278-r253-rollout/.
+Этот checkpoint имеет приоритет над историческими source-only записями ниже.
 
 Source R252 —1 ноября, clean HEAD/origin/main/remote03d538f61812394c340d8686013238114507e747,
 R251,parent978f6995d/scope6. Credential matching для MessagingService user/support
