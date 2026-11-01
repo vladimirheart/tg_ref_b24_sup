@@ -24,13 +24,62 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальный runtime R245 имеют
+что production уже запускался. Эта оговорка и актуальный runtime R247 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
 
-Актуальный runtime R245 —31 октября,19:45+03, текущая Windows/Docker-сессия:
+Актуальный runtime R247 —1 ноября, rollout00:37+03/acceptance11:47+03,
+текущая Windows/Docker-сессия. По отдельному «разрешаю» web+worker до clean R246:
+revision9f163dfecbb39e428a6b1d26c8a9136c587314b1,
+image sha256:fd9b7ab03a1d28d4f827c8d807304c6df65909731b263c44741df37515ac2add,
+web61d6199d6b1445fad1337472de83d48f60088730c8229d658a4d62e662c377a7,
+workerae2d31cc92f6953ca9436c334beb515302d79367d73717889125990784e16540.
+JAR SHA256ec2ab147c2c4fe19c55f6e06324548bf949947f179d7507d060c3384cd12a51b.
+Verified R244 JAR+1424 tested classes/678 unchanged other entries/19 base layers,
+только JAR layer добавлен. Incremental assembly, не full Maven build.
+Compose tg_ref_b24_sup/contour+observability/.env/project directory прежние,
+overlay .tmp/01-278-r247-rollout/compose.services.json. Обе old роли сначала
+stopped, затем только web+worker --no-deps/--no-build/--pull never/force-recreate/
+scale1/1. Оба healthy/restart0/readinessUP; web9/worker36 workloads, enforcement,
+0 SINGLETON; R244/R246 dispatcher/outbox только в worker. Это уже не workerR198.
+
+Остальные16 containers/IDs/images/start/restarts/ENV/mounts/HostConfig прежние,
+db-migrate/bots/infra не обновлялись. ENV/mounts ролей точны, bootstrap preserved
+через process-only variables без записи secrets; web HostConfig exact, worker
+только Dns/DnsOptions/DnsSearch []→null, иной drift исключён. Env/Compose/shared
+inputs прежние, heartbeat отдельно. DB84/V84checksum -783018026/foundationOFF,
+Flyway/settings/accounts/grants/root/pending/ratings fingerprints прежние;
+126 published feedback outbox/actionable0/active pending0 до/после. Миграции/
+backfill/flags и ручные queue/provider/domain/grant writes не запускались;
+штатные background monitoring/incident задачи продолжались.
+
+1204/18 suites/126 new source proof,61 live access/readiness GREEN, admin
+ROLE_ADMIN+PAGE_CHANNELS или PAGE_SETTINGS/anonymous/foundationOFF/SSE/logout.
+Оба live JAR совпали; Flyway skip/0ERROR/web0WARN. Worker30WARN на acceptance:
+SSL/iiko TLS и exact RMS claim-loss2cb28cc7-4af1-47c6-9b74-7c988591e749.
+Такие TLS и тот же ID есть в old worker log; services/claim source прежние.
+RMS running/attempt4/current worker/fresh heartbeat; manual retry/fix не делали.
+Общий health503DOWN/DLQ1 до/после; очередь не чистили/не переотправляли.
+TLS/RMS/DLQ остаются operational gates, не full fleet/provider/revoke/S6 acceptance.
+
+Rollback tags iguana-panel:rollback-r247-web-20261101-a38d4ccb0992 на R244 и
+iguana-panel:rollback-r247-worker-20261101-47ccd302c74f на R198 сохранены,
+старые pointers/R245 backup также. Fresh same-host dump10178953 bytes/SHA256
+7157D1219F89998D170BFDF83DACD6C58BF9FF0A3D3F271CA5ED0BF839268159,
+.tmp/01-278-r247-rollout/postgres-before-services.dump; catalog readable, restore
+нового dump/реальный rollback не тестировались. DB restore автоматически не
+разрешён, перед rollback нужен контроль новых pending/private outbox данных.
+Task/evidence — R247/.tmp/01-278-r247-rollout/. Metadata scope3/detached replay/
+exact hashes, без commit/push: разрешение31 октября истекло, новое только runtime.
+WSL/VS Code/infra ради ОЗУ не останавливали. R246 уже в обеих ролях: не повторять
+rollout. Queued/provider delivery/recipient authorization/TOCTOU/same-created_at
+ID reuse/uniqueness/phantoms/lifecycle/child-rating/media/policies/AI/fleet/
+questionnaires/flags/S6/DLQ/TLS/RMS и actual rollback открыты, S2B снятR190, задача🟡.
+Нижние «не развёрнуто/webR244/workerR198/runtimeR245» — исторические фазы.
+
+Предыдущий runtime R245 —31 октября,19:45+03, текущая Windows/Docker-сессия:
 panel-web R244, revision2d55cd9ae3d0e7c4358eb1853ad5df921a04cfe1,
 image sha256:a38d4ccb099236a44c23b6a8a5228ac44b7420de15ad8f0cfa8bea14a54ca157,
 container249cb7e70b3b93720bc19724e76ace419a0bdf538b24478d5866a53d34c188b1.
@@ -152,7 +201,7 @@ FoundationOFF; Flyway/settings/users/authorities/roles fingerprints прежни
 operator Authentication), оставшиеся child/media/delivery, PENDING policy/AI
 privacy/context/retention и fleet/provider acceptance. S2B снятR190, задача🟡.
 
-Source R246 — private feedbackTicketContext в отложенном outbox (НЕ развёрнут):
+Source R246 — историческая подготовка private feedbackTicketContext до R247:
 enqueue читает один exact current V84 pending/root с persisted full tuple/epoch/
 active expiry, сохраняет private epoch/public/business/GENERAL/request created_at
 и повторяет proof после serialization. Relay требует этот snapshot, сверяет
