@@ -22,7 +22,9 @@ public class MessagingService {
                 .collect(Collectors.toMap(
                         messenger -> messenger.platform().toLowerCase(Locale.ROOT),
                         Function.identity(),
-                        (existing, replacement) -> existing));
+                        (existing, replacement) -> {
+                            throw new IllegalStateException("Multiple outbound messengers configured for the same platform.");
+                        }));
     }
 
     public boolean sendToUser(Channel channel, Long userId, String text) {
@@ -54,14 +56,15 @@ public class MessagingService {
     }
 
     private OutboundMessenger resolveMessenger(Channel channel) {
-        String platform = platform(channel);
-        if (platform != null) {
-            OutboundMessenger messenger = messengers.get(platform.toLowerCase(Locale.ROOT));
-            if (messenger != null) {
-                return messenger;
-            }
+        if (channel == null || channel.getId() == null || channel.getId() <= 0 || !channel.isActive()) {
+            return null;
         }
-        return messengers.get("telegram");
+        String platform = platform(channel);
+        if (platform == null || platform.isBlank()) {
+            return null;
+        }
+        // A numeric recipient ID is platform-specific; never reinterpret it via a Telegram fallback.
+        return messengers.get(platform.toLowerCase(Locale.ROOT));
     }
 
     private String platform(Channel channel) {

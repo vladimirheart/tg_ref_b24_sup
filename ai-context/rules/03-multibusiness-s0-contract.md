@@ -30,6 +30,34 @@ production/рабочий в старых записях, именах Compose �
 
 ## Среда выполнения и сессии
 
+Source R250 —1 ноября, clean HEAD/origin/main/remoteb9700927f9e4d37d3de6c8a8da63d30cb8a54ed2
+(пользовательский R249,parent83eb8e0ae/scope12). Только source, runtime R246/R247.
+MessagingService не выбирает Telegram при missing/unknown platform/provider.
+User/support-chat требуют resolved positive channel ID/active channel/explicit
+platform с exact registered messenger; case-insensitive lookup сохранён. Duplicate
+normalized providers fail при construction вместо выбора credentials list order.
+Provider false/exception не запускает другую платформу. Feedback dispatcher
+проверяет channel ID==event.channelId/active/platform до и после authorization I/O;
+изменившийся локальный Channel не доставляется, ledger failed/retry прежние.
+
+92 новых cases:47 actual router/DM/support-chat и45 actual dispatcher+router/
+early-late channel mutation,3 platforms/BIGINT>2^53; API/provider doubles.
+RED92/52 assertion failures/40 controls, frozen source/bytecode/cases.
+GREEN150/5 suites,92 новых+58 прежних R249,0 failures/errors/skips; старые tests/
+fixtures не менялись. Не backend/full fleet/provider rerun. Wrapper/reactor
+137 main/5 tests,205 classes/2 changed/203 exact, helper512MiB/1.5CPU, no test DB.
+Classes archive независимо проверен. Scope8/detached sandbox+replay/exact guards,
+без stage/commit/push/deploy; evidence .tmp/01-278-r250-evidence/.
+Первый fresh remote read потерял сеть, повтор exact guards подтвердил baseline.
+Working18/config/DB84/fingerprints/flags прежние,126 published/actionable0/
+active pending0, оба healthy/restart0/web readinessUP. Миграции/backfill/working
+queues/provider mutations не запускались; rollback/backup R247 сохранены.
+Не закрыты per-child authenticated channel/credential identity, DB/API→provider
+TOCTOU/in-flight revoke/expiry/последующая мутация, external service-chat recipient
+rights/provider retry/exactly-once/uniqueness/lifecycle/child-rating/media/AI/прочие
+S3–S6/operational gates. R248–R250 ещё не развёрнуты; для новых ботов сначала
+нужен panel-web API R249. S2B снятR190, задача🟡.
+
 Source R249 —1 ноября, clean HEAD/origin/main/remote83eb8e0aee977baeff305e6582d4b9883696db2f
 (пользовательский R248, parent2ffd7c1b2/scope5). Runtime ниже остаётся R246/R247;
 R248/R249 source ещё не развёрнуты. Migration/flags/API defaults не менялись.

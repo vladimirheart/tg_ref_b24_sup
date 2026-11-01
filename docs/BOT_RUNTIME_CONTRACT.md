@@ -64,6 +64,21 @@ Platform-specific:
 
 ## Авторизация отложенного feedback prompt — source R249
 
+Дополнение R250 (source-only): `MessagingService` требует resolved positive
+channel ID, active channel и explicit platform с exact registered messenger для
+user/support-chat send. Missing/blank/unknown platform/provider не переключает
+отправку на Telegram; numeric recipient IDs нельзя интерпретировать в другой
+платформе. Case-insensitive registry lookup остаётся. Duplicate providers одного
+normalized platform отвергаются при создании service вместо выбора credentials
+порядком списка; provider false/exception не запускает другую платформу.
+
+Feedback dispatcher проверяет ID==event.channelId/active/platform до и после
+authorization call. Изменившийся за время API I/O локальный Channel запрещает
+send и отмечается failed. Это не удостоверение channel/credential конкретного
+child process, не блокировка PostgreSQL через provider I/O и не проверка прав
+всех получателей внешних служебных чатов; эти gates остаются отдельными.
+Стенд R246/R247 не обновлялся, R248–R250 пока source-only.
+
 Новый bot-core перед `MessagingService.sendToUser` выполняет signed JSON POST
 `/internal/api/bot/feedback-prompts/authorize-delivery`. Body: прежний feedback
 event и полученный routing key; формат Rabbit DTO не меняется. Применяются

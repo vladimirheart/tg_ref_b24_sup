@@ -51,13 +51,13 @@ public class OutboundFeedbackPromptDispatchService {
         }
         boolean delivered;
         try {
-            if (!channel.get().isActive() || !java.util.Objects.equals(event.platform(), channel.get().getPlatform())) {
-                throw new IllegalStateException("Outbound feedback prompt channel is inactive or has changed platform.");
-            }
+            requireCurrentChannel(channel.get(), event);
             // Do not authorize before ledger/channel work, cache an earlier allow, or fall back to local business data.
             if (!deliveryAuthorization.authorize(event, routingKey)) {
                 throw new IllegalStateException("Outbound feedback prompt recipient context is no longer authorized.");
             }
+            // Authorization performs I/O; do not route a channel object changed while awaiting that decision.
+            requireCurrentChannel(channel.get(), event);
             delivered = messagingService.sendToUser(channel.get(), event.userId(), event.prompt());
         } catch (RuntimeException exception) {
             deliveryLedgerService.markFailed(event.eventId(), exception);
@@ -71,5 +71,14 @@ public class OutboundFeedbackPromptDispatchService {
         }
         deliveryLedgerService.markDelivered(event.eventId());
         log.info("Delivered outbound feedback prompt event {} via routing {}", event.eventId(), routingKey);
+    }
+
+    private void requireCurrentChannel(Channel channel, OutboundFeedbackPromptEvent event) {
+        if (channel == null || !channel.isActive() || event.channelId() == null || event.channelId() <= 0
+                || !java.util.Objects.equals(event.channelId(), channel.getId())
+                || !StringUtils.hasText(event.platform())
+                || !java.util.Objects.equals(event.platform(), channel.getPlatform())) {
+            throw new IllegalStateException("Outbound feedback prompt channel identity, activity or platform has changed.");
+        }
     }
 }
