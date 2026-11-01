@@ -1,24 +1,29 @@
 package com.example.supportbot.service;
 
 import java.sql.Timestamp;
-import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
-import org.springframework.dao.DataAccessException;
+import java.util.Objects;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.JdbcTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 @Service
 public class OutboundTransportDeliveryLedgerService {
 
-    private static final Duration STALE_PROCESSING_TIMEOUT = Duration.ofMinutes(15);
-
     private final JdbcTemplate jdbcTemplate;
+    private final TransactionTemplate transactions;
 
     public OutboundTransportDeliveryLedgerService(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
+        transactions = new TransactionTemplate(new JdbcTransactionManager(Objects.requireNonNull(jdbcTemplate.getDataSource())));
+        transactions.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        transactions.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
+        transactions.setTimeout(10);
         ensureSchema();
     }
 
@@ -33,8 +38,8 @@ public class OutboundTransportDeliveryLedgerService {
             return false;
         }
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        try {
-            jdbcTemplate.update("""
+        return Boolean.TRUE.equals(transactions.execute(transaction -> {
+            int inserted = jdbcTemplate.update("""
                     INSERT INTO integration_outbound_event_deliveries (
                         event_id,
                         event_kind,
@@ -47,6 +52,7 @@ public class OutboundTransportDeliveryLedgerService {
                         created_at,
                         updated_at
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT (event_id) DO NOTHING
                     """,
                 eventId.trim(),
                 trim(eventKind),
@@ -59,20 +65,11 @@ public class OutboundTransportDeliveryLedgerService {
                 timestamp(now),
                 timestamp(now)
             );
-            return true;
-        } catch (DataAccessException ex) {
+            if (inserted == 1) return true;
             DeliveryRecord existing = findRecord(eventId);
-            if (existing == null) {
-                throw ex;
-            }
-            if ("delivered".equalsIgnoreCase(existing.status())) {
-                return false;
-            }
-            if ("processing".equalsIgnoreCase(existing.status())
-                    && existing.updatedAt() != null
-                    && existing.updatedAt().plus(STALE_PROCESSING_TIMEOUT).isAfter(now)) {
-                return false;
-            }
+            // Old 'failed' rows have no pre-provider provenance. Neither they nor stale claims
+            // prove non-delivery; only a failure recorded before our durable handoff is retryable.
+            if (existing == null || !"retryable".equals(existing.status())) return false;
             int updated = jdbcTemplate.update("""
                     UPDATE integration_outbound_event_deliveries
                        SET event_kind = ?,
@@ -85,6 +82,8 @@ public class OutboundTransportDeliveryLedgerService {
                            last_error = NULL,
                            updated_at = ?
                      WHERE event_id = ?
+                       AND status = 'retryable'
+                       AND updated_at IS NOT DISTINCT FROM ?
                     """,
                 trim(eventKind),
                 trim(routingKey),
@@ -94,10 +93,31 @@ public class OutboundTransportDeliveryLedgerService {
                 requestId,
                 "processing",
                 timestamp(now),
-                eventId.trim()
+                eventId.trim(),
+                timestamp(existing.updatedAt())
             );
             return updated > 0;
-        }
+        }));
+    }
+
+    /** Commits before provider I/O, even if the caller has a transaction that later rolls back. */
+    public void markSending(String eventId) {
+        if (!StringUtils.hasText(eventId)) throw new IllegalArgumentException("Missing outbound delivery claim.");
+        Integer changed = transactions.execute(transaction -> jdbcTemplate.update("""
+                UPDATE integration_outbound_event_deliveries
+                   SET status='sending', updated_at=?, last_error=NULL
+                 WHERE event_id=? AND status='processing'
+                """, timestamp(OffsetDateTime.now(ZoneOffset.UTC)),eventId.trim()));
+        if (!Integer.valueOf(1).equals(changed)) throw new IllegalStateException("Outbound delivery claim is not ready for provider handoff.");
+    }
+
+    public void markUncertain(String eventId, Exception exception) {
+        if (!StringUtils.hasText(eventId)) return;
+        transactions.executeWithoutResult(transaction -> jdbcTemplate.update("""
+                UPDATE integration_outbound_event_deliveries
+                   SET status='uncertain', last_error=?, updated_at=?
+                 WHERE event_id=? AND status='sending'
+                """, truncateError(exception),timestamp(OffsetDateTime.now(ZoneOffset.UTC)),eventId.trim()));
     }
 
     public void markDelivered(String eventId) {
@@ -105,37 +125,38 @@ public class OutboundTransportDeliveryLedgerService {
             return;
         }
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        jdbcTemplate.update("""
+        Integer changed = transactions.execute(transaction -> jdbcTemplate.update("""
                 UPDATE integration_outbound_event_deliveries
                    SET status = ?,
                        delivered_at = ?,
                        last_error = NULL,
                        updated_at = ?
-                 WHERE event_id = ?
+                 WHERE event_id = ? AND status = 'sending'
                 """,
             "delivered",
             timestamp(now),
             timestamp(now),
             eventId.trim()
-        );
+        ));
+        if (!Integer.valueOf(1).equals(changed)) throw new IllegalStateException("Outbound provider result has no sending claim.");
     }
 
     public void markFailed(String eventId, Exception exception) {
         if (!StringUtils.hasText(eventId)) {
             return;
         }
-        jdbcTemplate.update("""
+        transactions.executeWithoutResult(transaction -> jdbcTemplate.update("""
                 UPDATE integration_outbound_event_deliveries
                    SET status = ?,
                        last_error = ?,
                        updated_at = ?
-                 WHERE event_id = ?
+                 WHERE event_id = ? AND status = 'processing'
                 """,
-            "failed",
+            "retryable",
             truncateError(exception),
             timestamp(OffsetDateTime.now(ZoneOffset.UTC)),
             eventId.trim()
-        );
+        ));
     }
 
     private DeliveryRecord findRecord(String eventId) {

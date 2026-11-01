@@ -3,6 +3,7 @@ package com.example.supportbot.service;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -25,7 +26,9 @@ class OutboundFeedbackPromptDispatchServiceTest {
         channel.setId(12L);
         channel.setPlatform("telegram");
         when(channelService.findById(12L)).thenReturn(Optional.of(channel));
-        when(messagingService.sendToUser(channel, 77L, "Prompt")).thenReturn(true);
+        when(messagingService.sendToUser(eq(channel), eq(77L), eq("Prompt"), any(Runnable.class))).thenAnswer(call -> {
+            ((Runnable)call.getArgument(3)).run(); return true;
+        });
         when(deliveryLedgerService.beginDelivery("evt-1", "feedback.prompt.dispatch", "integration.outbound.feedback.prompt.telegram.channel.12", 12L, 77L, "T-901", 901L))
                 .thenReturn(true);
 
@@ -37,7 +40,8 @@ class OutboundFeedbackPromptDispatchServiceTest {
             "integration.outbound.feedback.prompt.telegram.channel.12"
         );
 
-        verify(messagingService).sendToUser(channel, 77L, "Prompt");
+        verify(messagingService).sendToUser(eq(channel), eq(77L), eq("Prompt"), any(Runnable.class));
+        verify(deliveryLedgerService).markSending("evt-1");
         verify(deliveryLedgerService).markDelivered("evt-1");
     }
 
@@ -50,7 +54,7 @@ class OutboundFeedbackPromptDispatchServiceTest {
         Channel channel = new Channel();
         channel.setId(12L);
         when(channelService.findById(12L)).thenReturn(Optional.of(channel));
-        when(messagingService.sendToUser(channel, 77L, "Prompt")).thenReturn(false);
+        when(messagingService.sendToUser(eq(channel), eq(77L), eq("Prompt"), any(Runnable.class))).thenReturn(false);
         when(deliveryLedgerService.beginDelivery("evt-1", "feedback.prompt.dispatch", "integration.outbound.feedback.prompt.telegram.channel.12", 12L, 77L, "T-901", 901L))
                 .thenReturn(true);
 
@@ -82,6 +86,6 @@ class OutboundFeedbackPromptDispatchServiceTest {
         );
 
         verify(channelService, never()).findById(12L);
-        verify(messagingService, never()).sendToUser(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString());
+        verify(messagingService, never()).sendToUser(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString(), any(Runnable.class));
     }
 }

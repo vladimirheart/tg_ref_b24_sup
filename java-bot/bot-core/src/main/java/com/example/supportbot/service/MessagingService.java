@@ -30,6 +30,11 @@ public class MessagingService {
     }
 
     public boolean sendToUser(Channel channel, Long userId, String text) {
+        return sendToUser(channel, userId, text, () -> {});
+    }
+
+    /** The hook must finish durably before the provider is called; failures never fall through. */
+    public boolean sendToUser(Channel channel, Long userId, String text, Runnable beforeProvider) {
         if (userId == null || text == null || text.isBlank()) {
             return false;
         }
@@ -38,7 +43,12 @@ public class MessagingService {
             log.warn("No outbound messenger registered for platform {}", platform(channel));
             return false;
         }
-        return authorizeSender(channel, messenger) && messenger.sendToUser(userId, text);
+        OutboundSenderIdentity identity = authorizeIdentity(channel, messenger);
+        if (identity == null) return false;
+        beforeProvider.run();
+        // The durable handoff performs I/O too: never send through a sender changed while it commits.
+        return identity != null && identity.matches(channel, messenger.platform()) && identity.equals(messenger.senderIdentity())
+            && messenger.sendToUser(userId, text);
     }
 
     public boolean sendToSupportChat(Channel channel, String text) {
@@ -59,11 +69,15 @@ public class MessagingService {
     }
 
     private boolean authorizeSender(Channel channel, OutboundMessenger messenger) {
+        return authorizeIdentity(channel, messenger) != null;
+    }
+
+    private OutboundSenderIdentity authorizeIdentity(Channel channel, OutboundMessenger messenger) {
         OutboundSenderIdentity identity = messenger.senderIdentity();
-        if (identity == null || !identity.matches(channel, messenger.platform())) return false;
-        if (!senderAuthorization.authorize(identity)) return false;
+        if (identity == null || !identity.matches(channel, messenger.platform())) return null;
+        if (!senderAuthorization.authorize(identity)) return null;
         // Admission performs I/O: reject a local channel rebind or token rotation while awaiting the decision.
-        return identity.matches(channel, messenger.platform()) && identity.equals(messenger.senderIdentity());
+        return identity.matches(channel, messenger.platform()) && identity.equals(messenger.senderIdentity()) ? identity : null;
     }
 
     private OutboundMessenger resolveMessenger(Channel channel) {

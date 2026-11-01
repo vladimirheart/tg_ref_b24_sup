@@ -15,6 +15,19 @@ class FeedbackDeliveryChainTest {
     @BeforeAll static void setup() throws Exception { chain = new FeedbackChainFixture(); }
     @AfterAll static void cleanup() { if (chain != null) chain.close(); }
     @AfterEach void stop() { chain.stopConsumer(); }
+    @Test void sendingBoundaryCommitsIndependentlyOfCallerRollback() {
+        chain.reset("BUSINESS","telegram");
+        var ledger=new com.example.supportbot.service.OutboundTransportDeliveryLedgerService(chain.jdbc);
+        var outer=new org.springframework.transaction.support.TransactionTemplate(new org.springframework.jdbc.support.JdbcTransactionManager(chain.datasource));
+        org.assertj.core.api.Assertions.assertThatThrownBy(()->outer.executeWithoutResult(status->{
+            assertThat(ledger.beginDelivery("r260-rollback","feedback.prompt.dispatch",chain.route(),CHANNEL,USER,RAW,100L)).isTrue();
+            ledger.markSending("r260-rollback");throw new IllegalStateException("caller rollback");
+        })).isInstanceOf(IllegalStateException.class);
+        assertThat(chain.state("integration_outbound_event_deliveries","r260-rollback")).isEqualTo("sending");
+        ledger.markFailed("r260-rollback",new IllegalStateException("late failure"));
+        assertThat(ledger.beginDelivery("r260-rollback","feedback.prompt.dispatch",chain.route(),CHANNEL,USER,RAW,100L)).isFalse();
+        assertThat(chain.providerAttempts).isEmpty();
+    }
     @Test void isolatedWiringSmoke() throws Exception {
         chain.reset("BUSINESS", "telegram"); var event = chain.enqueue(); chain.publish();
         assertThat(new com.example.panel.service.integration.FeedbackPromptDeliveryAuthorizationService(chain.jdbc, chain.mapper, chain.flags)
@@ -34,6 +47,10 @@ class FeedbackDeliveryChainTest {
     }
     static Stream<Arguments> poisonedMessages() {
         return owners().flatMap(owner -> Stream.of("foreign-child", "changed-prompt", "changed-user")
+            .map(change -> Arguments.of(owner.get()[0], owner.get()[1], change)));
+    }
+    static Stream<Arguments> uncertainResults() {
+        return owners().flatMap(owner -> Stream.of("provider-false", "lost-provider-reply", "lost-ledger-result")
             .map(change -> Arguments.of(owner.get()[0], owner.get()[1], change)));
     }
     @ParameterizedTest @MethodSource("owners")
@@ -80,7 +97,7 @@ class FeedbackDeliveryChainTest {
             default -> throw new AssertionError(change);
         }
         chain.startConsumer(); chain.rejected();
-        assertThat(chain.state("integration_outbound_event_deliveries", event.eventId())).isEqualTo("failed");
+        assertThat(chain.state("integration_outbound_event_deliveries", event.eventId())).isEqualTo("retryable");
         assertThat(chain.state("integration_transport_outbox", event.eventId())).isEqualTo("published");
         assertThat(chain.senderCalls).hasValue(change.startsWith("catalog-") ? 2 : 1);
     }
@@ -97,19 +114,33 @@ class FeedbackDeliveryChainTest {
             assertThat(chain.jdbc.queryForObject("SELECT count(*) FROM integration_outbound_event_deliveries",Long.class)).isZero();
         } else {
             assertThat(chain.recipientCalls).hasValue(1);
-            assertThat(chain.state("integration_outbound_event_deliveries", event.eventId())).isEqualTo("failed");
+            assertThat(chain.state("integration_outbound_event_deliveries", event.eventId())).isEqualTo("retryable");
         }
     }
     @ParameterizedTest @MethodSource("owners")
-    void explicitRetryAfterKnownProviderRejectionReauthorizesAndDoesNotLoseRawTicketId(String scope, String platform) throws Exception {
-        chain.reset(scope, platform); var event = chain.enqueue(); chain.publish(); chain.providerStatus.set(503);
-        chain.startConsumer();
-        org.awaitility.Awaitility.await().atMost(java.time.Duration.ofSeconds(10)).untilAsserted(() ->
-            assertThat(chain.state("integration_outbound_event_deliveries", event.eventId())).isEqualTo("failed"));
-        chain.stopConsumer(); assertThat(chain.providerAttempts).hasSize(1);
-        chain.consumerFailures.clear(); chain.providerStatus.set(200); chain.replay(event); chain.startConsumer(); chain.delivered(event.eventId());
-        assertThat(chain.providerAttempts).hasSize(2);
-        assertThat(chain.recipientCalls).hasValue(2); assertThat(chain.senderCalls).hasValue(2);
+    void explicitRetryAfterPreProviderFailureReauthorizesAndDoesNotLoseRawTicketId(String scope, String platform) throws Exception {
+        chain.reset(scope, platform); var event = chain.enqueue(); chain.publish(); chain.apiUnavailable.set(true);
+        chain.startConsumer(); chain.rejected(); chain.stopConsumer();
+        assertThat(chain.state("integration_outbound_event_deliveries", event.eventId())).isEqualTo("retryable");
+        chain.consumerFailures.clear(); chain.apiUnavailable.set(false); chain.replay(event); chain.startConsumer(); chain.delivered(event.eventId());
+        assertThat(chain.providerAttempts).hasSize(1);
+        assertThat(chain.recipientCalls).hasValue(2); assertThat(chain.senderCalls).hasValue(1);
         assertThat(chain.jdbc.queryForObject("SELECT ticket_id FROM integration_outbound_event_deliveries WHERE event_id=?",String.class,event.eventId())).isEqualTo(RAW);
+    }
+    @ParameterizedTest @MethodSource("uncertainResults")
+    void replayAfterAmbiguousHandoffDoesNotCallProviderOrAuthorizationAgain(String scope,String platform,String change) throws Exception {
+        chain.reset(scope,platform);var event=chain.enqueue();chain.publish();
+        if(change.equals("provider-false"))chain.providerStatus.set(503);
+        if(change.equals("lost-provider-reply"))chain.dropProviderReply.set(true);
+        if(change.equals("lost-ledger-result"))chain.failResultPersistence.set(true);
+        chain.startConsumer();chain.awaitDeadLetter();chain.stopConsumer();
+        String expected=change.equals("lost-ledger-result")?"sending":"uncertain";
+        assertThat(chain.state("integration_outbound_event_deliveries",event.eventId())).isEqualTo(expected);
+        assertThat(chain.providerAttempts).hasSize(1);
+        chain.providerStatus.set(200);chain.dropProviderReply.set(false);chain.failResultPersistence.set(false);
+        chain.replay(event);chain.startConsumer();chain.drained();chain.stopConsumer();chain.assertQueueEmpty();
+        assertThat(chain.state("integration_outbound_event_deliveries",event.eventId())).isEqualTo(expected);
+        assertThat(chain.providerAttempts).hasSize(1);assertThat(chain.recipientCalls).hasValue(1);assertThat(chain.senderCalls).hasValue(1);
+        assertThat(chain.consumerFailures).hasSize(1);assertThat(chain.bridgeFailures).isEmpty();
     }
 }

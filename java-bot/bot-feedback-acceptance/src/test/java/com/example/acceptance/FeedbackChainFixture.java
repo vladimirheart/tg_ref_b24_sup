@@ -76,6 +76,7 @@ final class FeedbackChainFixture implements AutoCloseable {
     final List<Object> recipientInputs = new CopyOnWriteArrayList<>();
     final AtomicInteger providerStatus = new AtomicInteger(200);
     final AtomicBoolean apiUnavailable = new AtomicBoolean();
+    final AtomicBoolean dropProviderReply = new AtomicBoolean(), failResultPersistence = new AtomicBoolean();
     final AtomicReference<List<BotCredential>> credentials = new AtomicReference<>(List.of());
     final BlockingQueue<Throwable> consumerFailures = new LinkedBlockingQueue<>();
     final String exchange = "r259.feedback." + UUID.randomUUID();
@@ -150,6 +151,7 @@ final class FeedbackChainFixture implements AutoCloseable {
         http.createContext("/internal/api/bot/", request -> bridge(request, mvc));
         http.createContext("/provider", request -> {
             providerAttempts.add(mapper.readTree(request.getRequestBody().readAllBytes()));
+            if (dropProviderReply.get()) { request.close(); return; }
             respond(request, providerStatus.get(), "{}");
         });
         http.start();
@@ -178,6 +180,7 @@ final class FeedbackChainFixture implements AutoCloseable {
         providerAttempts.clear(); bridgeFailures.clear(); consumerFailures.clear(); recipientCalls.set(0); senderCalls.set(0);
         receivedMessages.set(0); wirePayloads.clear(); recipientInputs.clear();
         providerStatus.set(200); apiUnavailable.set(false); api.setSignatureSecret(null);
+        dropProviderReply.set(false); failResultPersistence.set(false);
         credentials.set(List.of(new BotCredential(7L, "test sender", platform, TOKEN, true)));
         jdbc.update("INSERT INTO channels(id,token,channel_name,platform,is_active,credential_id) VALUES(?,'never-inline-fallback','isolated feedback',?,TRUE,7)", CHANNEL, platform);
         jdbc.update("INSERT INTO businesses VALUES(?,'active')", BUSINESS);
@@ -234,7 +237,17 @@ final class FeedbackChainFixture implements AutoCloseable {
         };
         var headers = new PanelApiRequestHeadersFactory(api);
         var messages = new MessagingService(List.of(provider), new PanelOutboundSenderAuthorizationClient(api, mapper, headers));
-        var dispatch = new OutboundFeedbackPromptDispatchService(channelReader, messages, new OutboundTransportDeliveryLedgerService(jdbc), recipientClient);
+        var ledger = new OutboundTransportDeliveryLedgerService(jdbc) {
+            @Override public void markDelivered(String eventId) {
+                if (failResultPersistence.get()) throw new IllegalStateException("Test: result database unavailable");
+                super.markDelivered(eventId);
+            }
+            @Override public void markUncertain(String eventId, Exception failure) {
+                if (failResultPersistence.get()) throw new IllegalStateException("Test: result database unavailable");
+                super.markUncertain(eventId,failure);
+            }
+        };
+        var dispatch = new OutboundFeedbackPromptDispatchService(channelReader, messages, ledger, recipientClient);
         var properties = new IntegrationRabbitProperties(); properties.setOutboundQueue(queue); properties.setOutboundRoutingKey(route());
         properties.setOutboundConcurrency(1); properties.setOutboundMaxConcurrency(1); properties.setOutboundPrefetch(1);
         var listener = new OutboundFeedbackPromptListener(dispatch, properties);
@@ -258,9 +271,12 @@ final class FeedbackChainFixture implements AutoCloseable {
         assertThat(bridgeFailures).isEmpty(); assertThat(consumerFailures).isEmpty();
     }
     void rejected() {
+        awaitDeadLetter();
+        assertThat(providerAttempts).isEmpty(); assertThat(consumerFailures).hasSize(1); assertThat(bridgeFailures).isEmpty();
+    }
+    void awaitDeadLetter() {
         org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() ->
             assertThat(admin.getQueueInfo(queue + ".dlq").getMessageCount()).isEqualTo(1));
-        assertThat(providerAttempts).isEmpty(); assertThat(consumerFailures).hasSize(1); assertThat(bridgeFailures).isEmpty();
     }
     void drained() {
         org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {

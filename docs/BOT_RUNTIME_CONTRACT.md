@@ -64,6 +64,34 @@ Platform-specific:
 в local `JPA/SQLite` business-path для ticket/channel/feedback/blacklist
 операций.
 
+## Feedback claim и неопределённый результат — source R260
+
+INSERT ON CONFLICT DO NOTHING и CAS по status/прочитанному updated_at дают
+одного claimant для наблюдавшейся retryable-генерации. Только новый pre-provider
+`retryable` разрешён для явного replay с новой recipient/sender авторизацией.
+Старые `failed`, processing (включая stale), sending, uncertain, delivered и
+неизвестные статусы не разрешают новую отправку. Автоматического reclaim по
+15-минутному таймауту больше нет; старые failed не классифицируются эвристикой.
+
+MessagingService сохраняет processing → sending через durable hook до SDK,
+независимо от caller transaction. Sender identity закреплён до admission и
+перепроверен после DB I/O. Provider true + сохранённый результат → delivered;
+false/exception/нет ответа после handoff → uncertain, сбой сохранения результата
+может оставить sending. Оба состояния запрещают повтор. До handoff отказ →
+retryable; поздний markFailed не открывает sending/uncertain/delivered.
+Boolean false, в том числе локальный provider503, не универсальная гарантия
+недоставки live SDK. Receipt reconciliation/операторское разрешение блокировки
+не реализованы; нельзя предполагать успех/недоставку по времени ожидания.
+
+593 executions/11 suites GREEN:387 core +206 isolated PostgreSQL/Rabbit/HTTP,
+включая deterministic race/rollback и36 unknown-result cases. Это не exactly-once,
+live SDK/callback/full-process/fleet/S6. Production changes только3 bot-core
+services, schema/Rabbit DTO не меняются. Рабочий runtime по-прежнему R258.
+Будущая выкладка должна исключить одновременную работу R252–R259 и R260 children:
+старый ledger не знает новых статусов. Rollback при новых ledger rows требует
+отдельной проверки, не автоматического запуска старого consumer. В R260 нет
+деплоя, внешних сообщений, миграций, изменений flags или рабочей очереди.
+
 ## Изолированная feedback delivery chain — source R259
 
 Opt-in `feedback-chain-acceptance` подключает `bot-feedback-acceptance`; обычные

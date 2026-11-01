@@ -59,6 +59,19 @@ runtime checkpoints ниже исторические; новый snapshot не 
 Исторический S2B снятR190, задача🟡. Повторный deploy/migrations не разрешены.
 
 
+Source R260 —1 ноября, baseline a3cec82d1 (R259), runtime остаётся R258.
+Feedback ledger: CAS-захват только нового retryable (доказанный pre-provider
+отказ), processing/sending/uncertain/старый failed не перехватываются по таймауту.
+Durable REQUIRES_NEW sending сохраняется до SDK; pinned sender recheck после
+handoff DB I/O. Неопределённый post-handoff результат не даёт права повторить.
+593 executions/11 suites GREEN, включая детерминированную PG гонку (RED11/12
+на baseline, GREEN12/12 после fix), rollback и36 E2E unknown-result cases.
+Это не exactly-once, receipt reconciliation, live callback/full process/fleet/S6.
+Рабочая схема/flags/очереди не менялись; миграций нет. Для будущей выкладки и
+отката нужен отдельный gate без mixed old/new children: старый код не знает
+новых состояний. Запрет слепого replay не означает разрешение блокировки без
+результата провайдера. Подробный контракт/остаток — task Source R260 и README.
+
 Source R259 —1 ноября, baseline a88cd2d09 (R258 metadata), runtime остаётся R258.
 Добавлен opt-in bot-feedback-acceptance, обычный reactor/runtime code прежние.
 157 unique tests GREEN без skips: реальная outbox/V84 → PostgreSQL/RabbitMQ с

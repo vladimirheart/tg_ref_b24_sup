@@ -71,7 +71,9 @@ class FeedbackPromptDeliveryAuthorizationTest {
         channels=mock(ChannelService.class);messaging=mock(MessagingService.class);ledger=mock(OutboundTransportDeliveryLedgerService.class);
         channel=new Channel();channel.setId(CHANNEL);
         when(channels.findById(CHANNEL)).thenReturn(Optional.of(channel));
-        when(messaging.sendToUser(any(),anyLong(),anyString())).thenReturn(true);
+        when(messaging.sendToUser(any(),anyLong(),anyString(),any(Runnable.class))).thenAnswer(call->{
+            ((Runnable)call.getArgument(3)).run();return true;
+        });
         when(ledger.beginDelivery(anyString(),anyString(),anyString(),anyLong(),anyLong(),anyString(),anyLong())).thenReturn(true);
         // Constructor bridge only: the unchanged baseline has 3 dependencies; the secured dispatcher has 4.
         // No behavior/assertion changes between the baseline and fixed runs.
@@ -104,7 +106,8 @@ class FeedbackPromptDeliveryAuthorizationTest {
     @ParameterizedTest @MethodSource("platforms")
     void validSignedResponseDeliversExactEvent(String platform)throws Exception{
         channel.setPlatform(platform);dispatch.dispatch(event(platform),route(platform));
-        verify(messaging).sendToUser(channel,USER,"Rate padded/Ю%?' ");
+        verify(messaging).sendToUser(eq(channel),eq(USER),eq("Rate padded/Ю%?' "),any(Runnable.class));
+        verify(ledger).markSending("evt-r249");
         verify(ledger).markDelivered("evt-r249");
         assertThat(requests.get()).isEqualTo(1);assertThat(serverFailure.get()).isNull();
         var body=mapper.readTree(received.get());

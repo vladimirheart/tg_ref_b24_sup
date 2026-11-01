@@ -2,6 +2,7 @@ package com.example.supportbot.service;
 
 import com.example.supportbot.entity.Channel;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -42,15 +43,10 @@ public class OutboundFeedbackPromptDispatchService {
             log.info("Skipping already processed outbound feedback prompt event {} via routing {}", event.eventId(), routingKey);
             return;
         }
-        Optional<Channel> channel = channelService.findById(event.channelId());
-        if (channel.isEmpty()) {
-            IllegalStateException exception = new IllegalStateException(
-                    "Channel " + event.channelId() + " not found for outbound feedback prompt.");
-            deliveryLedgerService.markFailed(event.eventId(), exception);
-            throw exception;
-        }
-        boolean delivered;
+        AtomicBoolean handoffStarted = new AtomicBoolean();
         try {
+            Optional<Channel> channel = channelService.findById(event.channelId());
+            if (channel.isEmpty()) throw new IllegalStateException("Channel " + event.channelId() + " not found for outbound feedback prompt.");
             requireCurrentChannel(channel.get(), event);
             // Do not authorize before ledger/channel work, cache an earlier allow, or fall back to local business data.
             if (!deliveryAuthorization.authorize(event, routingKey)) {
@@ -58,18 +54,20 @@ public class OutboundFeedbackPromptDispatchService {
             }
             // Authorization performs I/O; do not route a channel object changed while awaiting that decision.
             requireCurrentChannel(channel.get(), event);
-            delivered = messagingService.sendToUser(channel.get(), event.userId(), event.prompt());
+            boolean delivered = messagingService.sendToUser(channel.get(), event.userId(), event.prompt(), () -> {
+                deliveryLedgerService.markSending(event.eventId());
+                handoffStarted.set(true);
+            });
+            if (!delivered || !handoffStarted.get()) throw new IllegalStateException(
+                "Outbound feedback prompt delivery did not complete for channel " + event.channelId());
+            deliveryLedgerService.markDelivered(event.eventId());
         } catch (RuntimeException exception) {
-            deliveryLedgerService.markFailed(event.eventId(), exception);
+            try {
+                if (handoffStarted.get()) deliveryLedgerService.markUncertain(event.eventId(), exception);
+                else deliveryLedgerService.markFailed(event.eventId(), exception);
+            } catch (RuntimeException persistenceFailure) { exception.addSuppressed(persistenceFailure); }
             throw exception;
         }
-        if (!delivered) {
-            IllegalStateException exception = new IllegalStateException(
-                    "Failed to deliver outbound feedback prompt for channel " + event.channelId());
-            deliveryLedgerService.markFailed(event.eventId(), exception);
-            throw exception;
-        }
-        deliveryLedgerService.markDelivered(event.eventId());
         log.info("Delivered outbound feedback prompt event {} via routing {}", event.eventId(), routingKey);
     }
 
