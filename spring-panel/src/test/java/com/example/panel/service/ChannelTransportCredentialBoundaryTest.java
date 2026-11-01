@@ -151,6 +151,7 @@ class ChannelTransportCredentialBoundaryTest {
             channel.setId(ID);channel.setActive(true);channel.setPlatform("telegram");channel.setToken("old-inline");
             channel.setSupportChatId("-123");channel.setDeliverySettings("{\"broadcast_channel_id\":\"-456\"}");
             when(channels.findById(ID)).thenReturn(Optional.of(channel));
+            when(channels.findTransportStateById(ID)).thenAnswer(call -> Optional.of(ChannelTransportPersistedStateTest.State.of(channel)));
             when(config.loadBotCredentials()).thenReturn(List.of(credential(true,"telegram","selected")));
             when(network.createChannelHttpClient(eq(channel),any())).thenReturn(http);
             when(network.resolveTelegramLegacyBotApiBaseUrl(channel)).thenReturn("https://api.telegram.org");

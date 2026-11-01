@@ -34,6 +34,7 @@ class ChannelTransportLateCredentialChangeTest {
         channel.setPlatform("telegram");channel.setToken("retired-inline");channel.setCredentialId(7L);
         channel.setSupportChatId("-123");channel.setDeliverySettings("{\"broadcast_channel_id\":\"-456\"}");
         when(channels.findById(9007199254740993L)).thenReturn(Optional.of(channel));
+        when(channels.findTransportStateById(9007199254740993L)).thenAnswer(call -> Optional.of(ChannelTransportPersistedStateTest.State.of(channel)));
         when(config.loadBotCredentials()).thenReturn(List.of(new BotCredential(7L,"selected","telegram","selected",true)));
         when(network.resolveTelegramLegacyBotApiBaseUrl(channel)).thenReturn("https://api.telegram.org");
         when(response.statusCode()).thenReturn(200);when(response.body()).thenReturn("{\"ok\":true}");

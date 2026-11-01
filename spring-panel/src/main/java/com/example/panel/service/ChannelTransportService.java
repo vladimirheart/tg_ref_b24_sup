@@ -296,6 +296,7 @@ public class ChannelTransportService {
         if (resolveTelegramCredential(channel) == null) {
             return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Для канала нет действующих учётных данных"));
         }
+        ChannelDeliverySnapshot expected = ChannelDeliverySnapshot.of(channel);
 
         Map<String, Object> data = payload != null ? payload : Collections.emptyMap();
         String mode = stringValue(firstValue(data, "target_mode", "targetMode")).toLowerCase();
@@ -340,7 +341,7 @@ public class ChannelTransportService {
         List<String> failedRecipients = new ArrayList<>();
         List<String> sentRecipients = new ArrayList<>();
         for (String target : uniqueRecipients) {
-            if (sendTelegramMessage(channel, target, message)) {
+            if (sendTelegramMessage(channel, expected, target, message)) {
                 sentRecipients.add(target);
             } else {
                 failedRecipients.add(target);
@@ -392,6 +393,7 @@ public class ChannelTransportService {
         if (resolveTelegramCredential(channel) == null) {
             return new ConfiguredMessageDeliveryResult(false, null, "bot_credentials_unavailable");
         }
+        ChannelDeliverySnapshot expected = ChannelDeliverySnapshot.of(channel);
         String normalizedTarget = stringValue(target).toLowerCase();
         String recipient;
         if ("broadcast_channel".equals(normalizedTarget)) {
@@ -410,7 +412,7 @@ public class ChannelTransportService {
         if (isBlank(message)) {
             return new ConfiguredMessageDeliveryResult(false, recipient, "message_empty");
         }
-        boolean sent = sendTelegramMessage(channel, recipient, message);
+        boolean sent = sendTelegramMessage(channel, expected, recipient, message);
         return sent
                 ? new ConfiguredMessageDeliveryResult(true, recipient, null)
                 : new ConfiguredMessageDeliveryResult(false, recipient, "delivery_failed");
@@ -752,12 +754,37 @@ public class ChannelTransportService {
         }
     }
 
-    private boolean sendTelegramMessage(Channel channel, String recipient, String message) {
+    private record ChannelDeliverySnapshot(Long id, Boolean active, String platform, String token,
+                                           Long credentialId, String supportChatId,
+                                           String deliverySettings, String platformConfig) {
+        static ChannelDeliverySnapshot of(Channel channel) {
+            return new ChannelDeliverySnapshot(channel.getId(), channel.getActive(), channel.getPlatform(),
+                    channel.getToken(), channel.getCredentialId(), channel.getSupportChatId(),
+                    channel.getDeliverySettings(), channel.getPlatformConfig());
+        }
+        static ChannelDeliverySnapshot of(ChannelRepository.TransportState state) {
+            return new ChannelDeliverySnapshot(state.getId(), state.getActive(), state.getPlatform(),
+                    state.getToken(), state.getCredentialId(), state.getSupportChatId(),
+                    state.getDeliverySettings(), state.getPlatformConfig());
+        }
+        @Override public String toString() { return "ChannelDeliverySnapshot[redacted]"; }
+    }
+
+    private boolean hasCurrentDeliveryState(Channel channel, ChannelDeliverySnapshot expected) {
+        if (!expected.equals(ChannelDeliverySnapshot.of(channel))) return false;
+        // Independent scalar read: findById can return a stale entity from OSIV
+        // or the surrounding transaction's first-level cache.
+        var current = channelRepository.findTransportStateById(expected.id());
+        return current != null && current.isPresent()
+                && expected.equals(ChannelDeliverySnapshot.of(current.get()));
+    }
+
+    private boolean sendTelegramMessage(Channel channel, ChannelDeliverySnapshot expected,
+                                        String recipient, String message) {
         try {
             // Re-resolve for every recipient, not just the earlier endpoint preflight.
-            Long expectedChannelId = channel.getId();
             BotCredential credential = resolveTelegramCredential(channel);
-            if (credential == null) return false;
+            if (credential == null || !hasCurrentDeliveryState(channel, expected)) return false;
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("chat_id", recipient);
             payload.put("text", message);
@@ -771,7 +798,7 @@ public class ChannelTransportService {
             HttpClient client = integrationNetworkService.createChannelHttpClient(channel, Duration.ofSeconds(10));
             // Client/network setup may perform I/O. Never hand off a request built
             // with credentials revoked or rebound while that setup was in progress.
-            if (!Objects.equals(expectedChannelId, channel.getId())
+            if (!hasCurrentDeliveryState(channel, expected)
                     || !Objects.equals(credential, resolveTelegramCredential(channel))) return false;
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() >= 400) {

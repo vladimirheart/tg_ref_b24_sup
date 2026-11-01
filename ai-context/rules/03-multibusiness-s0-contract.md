@@ -30,6 +30,29 @@ production/рабочий в старых записях, именах Compose �
 
 ## Среда выполнения и сессии
 
+Source R257 —1 ноября, clean da881c6d5 (R256 metadata,parent0df04ecf6/scope4).
+Прямые Telegram test/configured send фиксируют immutable channel delivery
+snapshot один раз до выбора получателей и держат его на весь batch. До network
+setup и каждого provider handoff проверяются captured object и свежие scalar
+id/active/platform/token/binding/recipient/delivery/network/API config поля БД.
+Native exact-ID query в REQUIRES_NEW/read-only/READ_COMMITTED не берёт старый
+JPA/OSIV entity или caller REPEATABLE_READ snapshot. Missing/mismatch/query error
+deny; R255 credential rechecks сохранены, нет reroute/fallback/retry/save/refresh.
+Это не lease и не атомарная DB/catalog→provider операция, не business/participant
+policy и не изменение global network/других direct/getMe paths.
+835/15 suites GREEN:237 новых/598 прежних,35 real isolated PostgreSQL cases;
+outer repeatable-read/cached entity остаётся старым, новая query видит committed
+изменение и запрещает send. RED197/187 failures/10 controls,0 errors/skips,
+frozen source/bytecode. Old12 assertions intact,2 fixture-only query stubs.
+Incremental2 main sources/1435 classes/1429 unrelated exact;17 inputs exact.
+Не full web build/JAR/image/release. Собственная test DB/container удалены;
+working18/DB controls/config прежние, только periodic backup status обновился.
+Source-only/no deploy/migrations/backfill/flags/реальных provider messages;
+рабочий runtime/rollback/backup по R256 ниже. Positive feedback/политики/GENERAL/
+AI/fleet/S6 и operational gates остаются, S2B снятR190/статус🟡.
+Детали/evidence — task R257/.tmp/01-278-r257-evidence/.
+
+
 Актуальный runtime R256 —1 ноября, существующий тестовый экземпляр Windows/
 Docker Desktop машины текущей сессии. По «делай что необходимо для продолжения
 выполнения текузей задачи» обновлены ТОЛЬКО panel-web/ops-worker, по1 replica,

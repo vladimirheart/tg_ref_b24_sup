@@ -92,6 +92,24 @@ Maven/Sass build.61 live access +24 signed child/backend admission GREEN,
 повторный deploy/migrations/flags этим документом не разрешены.
 
 
+### Свежий channel delivery snapshot — source R257
+
+testChannel/sendConfiguredMessage фиксируют transport context до выбора targets,
+один на весь batch. Captured object и свежая scalar projection строки channels
+сверяются до network setup и перед каждым send. Native REQUIRES_NEW/read-only/
+READ_COMMITTED query не использует прежний JPA/OSIV entity или caller snapshot.
+id/active/platform/token/credential binding/supportChatId/deliverySettings/
+platformConfig должны совпадать; missing/mismatch/read error deny, без reroute
+или retry. R255 shared credential rechecks сохранены, snapshot.toString redacted.
+Catalog credentials разрешаются заново на каждого получателя, не заморожены batch.
+
+835/15 tests GREEN,35 real PostgreSQL cases подтверждают cached REPEATABLE_READ
+boundary. Provider mocked; positive feedback и реальные права участников чатов
+не проверены. Нет lease/атомарности последней проверки и provider I/O, ABA/
+exactly-once не обещаются. Global network config/прочие direct paths не включены.
+Source-only: runtime R256 по-прежнему R255/0df04ecf6 на web/worker и R252 на runner.
+Отдельная выкладка требуется; migrations/flags этим контрактом не разрешены.
+
 ## Привязка отправителя к provider credentials — source R252
 
 Новые `APP_BOT_CHANNEL_ID`/`APP_BOT_PLATFORM` передаются launcher и связываются через
