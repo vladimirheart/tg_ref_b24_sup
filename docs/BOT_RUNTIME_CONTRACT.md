@@ -62,6 +62,29 @@ Platform-specific:
 в local `JPA/SQLite` business-path для ticket/channel/feedback/blacklist
 операций.
 
+## Child feedback route admission — source R251
+
+`OutboundFeedbackPromptListener` фиксирует `outbound-routing-key` и
+`outbound-queue` при создании из `IntegrationRabbitProperties`. До dispatcher
+проверяются positive canonical `event.channelId`, exact lowercase platform
+`telegram|vk|max`, received routing key и обе настройки child process:
+
+- `integration.outbound.feedback.prompt.<platform>.channel.<channelId>`;
+- `iguana.integration.outbound.feedback-prompt.<platform>.channel.<channelId>.bot`.
+
+Все значения должны совпасть точно с существующим canonical launcher contract:
+без topic wildcard, trim, case folding, leading-zero aliases или default channel.
+Null/blank/mismatch отклоняется generic exception до ledger/API/provider side
+effects. Mutable properties не перепривязывают созданный listener; valid event
+передаётся прежнему dispatcher один раз, его exception не глотается/не ретраится
+listener. DTO/env/bindings/container DLQ/requeue policy не меняются.
+
+Это защита от foreign/misrouted consumer delivery, не authenticated per-child API
+principal и не проверка соответствия фактических provider credentials настроенному
+route. Согласованно неверный launcher contract/credentials и API→provider TOCTOU
+ещё требуют отдельного gate. R248–R251 source-only, runtime остаётся R246/R247;
+будущим новым bot artifacts сначала нужен panel-web API R249.
+
 ## Авторизация отложенного feedback prompt — source R249
 
 Дополнение R250 (source-only): `MessagingService` требует resolved positive

@@ -30,6 +30,30 @@ production/рабочий в старых записях, именах Compose �
 
 ## Среда выполнения и сессии
 
+Source R251 —1 ноября, clean HEAD/origin/main/remote978f6995d7ecbdd31f686feafbe027782d22c8f7
+(пользовательский R250,parentb9700927f/scope8). Только source, runtime R246/R247.
+Feedback listener до dispatcher сверяет event platform/positive channel ID,
+received routing key и captured immutable canonical child routing key/queue.
+Missing/foreign/wildcard/padded/noncanonical route/queue не дают dispatch и side
+effects ledger/API/provider. Mutable properties не перепривязывают running child;
+valid event/dispatcher exception передаются без local retry/swallow. DTO/launcher
+env/bindings/container DLQ/requeue rules/schema/flags прежние.
+162 новых listener boundary cases с dispatcher double,3 platforms/42 и BIGINT>2^53;
+RED162/150 assertion failures/12 controls, frozen source/bytecode/cases.
+GREEN312/6 suites,162 новых+150 старых R250 без изменения fixtures/assertions.
+Wrapper/reactor137 main/6 tests,205 classes/1 changed/204 exact; helper512MiB/1.5CPU,
+no test DB. Classes archive независимо проверен. Scope6/detached sandbox+replay/
+exact guards, no stage/commit/push/deploy; evidence .tmp/01-278-r251-evidence/.
+Working18/config/DB84/fingerprints/flags прежние,126 published/actionable0/
+active pending0, обе роли R246 healthy/restart0/readinessUP; rollback/backup R247
+сохранены. Working migrations/backfill/queues/provider mutations не запускались.
+Configured transport route admission не удостоверяет provider credentials или
+per-child authenticated API principal; согласованно неверный launcher contract
+не закрыт. TOCTOU/revoke/expiry/recipient chat rights/exactly-once/lifecycle/
+child-rating/media/AI/прочие S3–S6 и operational gates остаются открытыми.
+Source R248–R251 не развёрнут; новым ботам сначала нужен panel-web API R249.
+S2B снятR190, задача🟡.
+
 Source R250 —1 ноября, clean HEAD/origin/main/remoteb9700927f9e4d37d3de6c8a8da63d30cb8a54ed2
 (пользовательский R249,parent83eb8e0ae/scope12). Только source, runtime R246/R247.
 MessagingService не выбирает Telegram при missing/unknown platform/provider.
