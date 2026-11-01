@@ -107,8 +107,11 @@ Catalog credentials разрешаются заново на каждого по
 boundary. Provider mocked; positive feedback и реальные права участников чатов
 не проверены. Нет lease/атомарности последней проверки и provider I/O, ABA/
 exactly-once не обещаются. Global network config/прочие direct paths не включены.
-Source-only: runtime R256 по-прежнему R255/0df04ecf6 на web/worker и R252 на runner.
-Отдельная выкладка требуется; migrations/flags этим контрактом не разрешены.
+В R258 (2026-11-01) R257 выложен из clean7b9fea55a на web/worker image90cd11900131;
+runner/три child JVM остаются R252/d286cd6cd.61 live access +24 signed admission
+GREEN; один diagnostic TG send подтвердил native fresh snapshot на рабочей БД
+и provider ok=true. Полная feedback/revoke chain этим не проверена.
+Rollback/evidence — task R258; повторный rollout/migrations/flags не разрешены.
 
 ## Привязка отправителя к provider credentials — source R252
 

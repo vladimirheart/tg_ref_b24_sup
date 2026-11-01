@@ -24,11 +24,40 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальный runtime R256 имеют
+что production уже запускался. Эта оговорка и актуальный runtime R258 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
+
+Актуальный runtime R258 —1 ноября, существующий рабочий тестовый экземпляр
+Windows/Docker Desktop этой сессии. По «давай дальше. что остаётся по задаче?»
+выложен clean R257/7b9fea55abf6568c00891cd69db906025891685a, image
+sha256:90cd11900131b1cf3fd5d0904a6d38be931af78455b6b73aabbef6b84926896c,
+tag iguana-panel:account-r257-7b9fea55a-20261101, только web/worker по1 replica.
+Web4a828963846e/worker35472b2e278f healthy/restart0/readinessUP. Все16 остальных
+containers, включая runner783fd187513e/d9c597493338/d286cd6cd и его3 JVM, прежние.
+Compose/.env/ENV/user/mounts/HostConfig equivalent; новый overlay R258 требует
+preserved ENV operator. Старые overlays R256/R253 runner не удалять.
+Incremental panel JAR1435 tested classes/795 unchanged payloads/три bot JAR exact,
+не full Maven/Sass build.835/15 и35 PostgreSQL — reused source proof, не rerun.
+61 unique real access +24 signed admission GREEN; child queues1 consumer/0 ready/
+0 unacked. Startup markers подтверждены полными журналами, old recent-tail и
+provenance probe errors исправлены versioned operators без product changes.
+Ровно1 diagnostic send через R257 fresh DB snapshot в сохранённую TG1 group:
+provider ok/sent1/failed0, marker R258-20261101-220314-493a1929.
+Не MessagingService/feedback chain/визуальное подтверждение/revoke acceptance.
+V84/84/settings455/accounts/grants/roots53/pending51/ratings36/outbox126 прежние;
+no migrations/backfill/flags/db-migrate/infra/runner/NetBox. HealthDOWN —
+прежний inbound DLQ1, TLS/iiko WARN сохраняются; ERROR/fatal0 в окне.
+Rollback R258 web/worker → e02456c19ea4/0df04ecf6, старые pointers сохранены.
+pg_dump10120961 bytes/SHA256 02929BA178E68158225F40CE9FD780F302BADA11BAC0F78D1D06855B69567B5B
+изолированно восстановлен; same-host, working DB/rollback не восстанавливались.
+Детали/evidence — task R258/.tmp/01-278-r258-rollout/. Предыдущие source-only/
+runtime checkpoints ниже исторические; новый snapshot не закрывает5 крупных
+блоков feedback/изоляции+GENERAL/политик/AI/сквозной приёмки и первого S6.
+Исторический S2B снятR190, задача🟡. Повторный deploy/migrations не разрешены.
+
 
 Source R257 —1 ноября, clean da881c6d5 (R256 metadata,parent0df04ecf6/scope4).
 Прямые Telegram test/configured send фиксируют immutable channel delivery
@@ -53,7 +82,7 @@ AI/fleet/S6 и operational gates остаются, S2B снятR190/статус
 Детали/evidence — task R257/.tmp/01-278-r257-evidence/.
 
 
-Актуальный runtime R256 —1 ноября, существующий тестовый экземпляр Windows/
+Исторический runtime R256 —1 ноября, существующий тестовый экземпляр Windows/
 Docker Desktop машины текущей сессии. По «делай что необходимо для продолжения
 выполнения текузей задачи» обновлены ТОЛЬКО panel-web/ops-worker, по1 replica,
 до clean R255/0df04ecf6ec86923aff3e3e2d47ec41c977c6db1,
