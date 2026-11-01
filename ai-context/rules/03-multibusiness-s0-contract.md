@@ -30,6 +30,35 @@ production/рабочий в старых записях, именах Compose �
 
 ## Среда выполнения и сессии
 
+Source R252 —1 ноября, clean HEAD/origin/main/remote03d538f61812394c340d8686013238114507e747,
+R251,parent978f6995d/scope6. Credential matching для MessagingService user/support
+отправок реализован: immutable canonical child ID/platform из новых launcher env
+APP_BOT_CHANNEL_ID/APP_BOT_PLATFORM, fingerprint фактического provider token всех
+трёх adapters и свежий signed /internal/api/bot/outbound/authorize-sender.
+Общий launcher/backend resolver не даёт inline fallback при broken explicit
+credential binding; positive/unique/active/platform/token обязательны. Raw token
+не передаётся в новом API, proof string redacted. Response exact channel/platform/
+real boolean, no cache/local fallback/retry; deny/API error не вызывает provider.
+После authorization повторяется local proof/channel check, включая token rotation.
+Прежние recipient R249 и child route R251 проверки остаются.
+GREEN600/19 suites,242 новых/358 старых; RED90/78 assertion failures/12 controls,
+frozen source/bytecode/cases. Old2 fixtures только setup с checked inverse; остальные
+assertions прежние. Full bot reactor441/12, panel141/6, native Windows launcher18/1;
+no real PG/provider. Helper512MiB/1.5CPU, native heaps96/128. Bot180 main Java/280
+classes (core208/203 unrelated exact); panel incremental1433/1417 unrelated exact,
+216 inputs exact. Три executable bot JAR и incremental panel JAR с795 unchanged
+entries проверены. Local candidate image63ba7ea78a38/source03d538f61+r252.8a275f3a1520,
+не clean Git release и НЕ deploy; evidence .tmp/01-278-r252-evidence/.
+Scope32/detached sandbox+replay/exact guards/no stage/commit/push/deploy. Working18/
+config/DB84/fingerprints/flags прежние,126 published/actionable0/active pending0,
+web/worker R246 healthy/restart0/readinessUP; rollback/backup R247 сохранены.
+Working migrations/backfill/queues/provider writes не выполнялись. Source R248–R252
+ещё не развёрнут; новым ботам сначала оба API R249/R252, затем новый runner+bot JAR.
+Credential matching этого пути закрыт; separate per-child transport principal,
+direct legacy provider paths/recipient chat rights/child-media-rating attribution,
+API→provider TOCTOU/retry semantics, AI/policies/GENERAL/fleet/S6 acceptance и
+operational gates остаются. S2B снятR190, задача🟡.
+
 Source R251 —1 ноября, clean HEAD/origin/main/remote978f6995d7ecbdd31f686feafbe027782d22c8f7
 (пользовательский R250,parentb9700927f/scope8). Только source, runtime R246/R247.
 Feedback listener до dispatcher сверяет event platform/positive channel ID,

@@ -1269,6 +1269,11 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         }
     }
 
+    public com.example.supportbot.service.OutboundSenderIdentity outboundSenderIdentity(
+            com.example.supportbot.service.BotRuntimeSenderIdentity runtimeIdentity) {
+        return runtimeIdentity.forToken("vk", properties.getToken());
+    }
+
     public boolean sendDirectMessage(Integer peerId, String text) {
         if (!properties.isEnabled() || peerId == null || text == null || text.isBlank()) {
             return false;

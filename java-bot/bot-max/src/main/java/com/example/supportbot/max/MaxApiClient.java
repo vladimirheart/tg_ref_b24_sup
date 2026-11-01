@@ -39,6 +39,11 @@ public class MaxApiClient {
         this.properties = properties;
     }
 
+    public com.example.supportbot.service.OutboundSenderIdentity outboundSenderIdentity(
+            com.example.supportbot.service.BotRuntimeSenderIdentity runtimeIdentity) {
+        return runtimeIdentity.forToken("max", properties.getToken());
+    }
+
     public boolean sendMessageToUser(Long userId, String text) {
         if (userId == null) {
             return false;

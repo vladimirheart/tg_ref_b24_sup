@@ -1,6 +1,8 @@
 package com.example.supportbot.vk;
 
 import com.example.supportbot.service.OutboundMessenger;
+import com.example.supportbot.service.OutboundSenderIdentity;
+import com.example.supportbot.service.BotRuntimeSenderIdentity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -11,9 +13,15 @@ public class VkOutboundMessenger implements OutboundMessenger {
     private static final Logger log = LoggerFactory.getLogger(VkOutboundMessenger.class);
 
     private final VkSupportBot vkSupportBot;
+    private final BotRuntimeSenderIdentity runtimeIdentity;
 
-    public VkOutboundMessenger(VkSupportBot vkSupportBot) {
+    public VkOutboundMessenger(VkSupportBot vkSupportBot, BotRuntimeSenderIdentity runtimeIdentity) {
         this.vkSupportBot = vkSupportBot;
+        this.runtimeIdentity = runtimeIdentity;
+    }
+
+    @Override public OutboundSenderIdentity senderIdentity() {
+        return vkSupportBot.outboundSenderIdentity(runtimeIdentity);
     }
 
     @Override

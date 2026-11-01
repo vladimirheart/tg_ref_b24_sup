@@ -188,31 +188,7 @@ public class BotProcessService {
     }
 
     private BotCredential resolveCredential(Channel channel) {
-        Long credentialId = channel.getCredentialId();
-
-        if (credentialId != null) {
-            List<BotCredential> credentials = sharedConfigService.loadBotCredentials();
-            return credentials.stream()
-                .filter(cred -> Objects.equals(cred.id(), credentialId))
-                .findFirst()
-                .orElse(fallbackToChannelToken(channel));
-        }
-        // Without an explicit credential binding, the channel owns its persisted token.
-        return fallbackToChannelToken(channel);
-    }
-
-    private BotCredential fallbackToChannelToken(Channel channel) {
-        String token = channel.getToken();
-        if (token == null || token.isBlank()) {
-            return null;
-        }
-        return new BotCredential(
-            null,
-            "db:channels#" + channel.getId(),
-            Objects.toString(channel.getPlatform(), "telegram"),
-            token,
-            true
-        );
+        return BotChannelCredentialResolver.resolve(channel, sharedConfigService);
     }
 
     Path resolveBotWorkingDir() {

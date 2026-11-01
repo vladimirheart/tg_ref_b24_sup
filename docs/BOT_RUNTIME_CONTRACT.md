@@ -22,6 +22,8 @@
 - `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq`
 - `APP_PANEL_INTERNAL_API_BASE_URL`
 - `APP_PANEL_INTERNAL_API_TOKEN`
+- `APP_BOT_CHANNEL_ID` — canonical positive ID записи канала панели, не внешний chat ID
+- `APP_BOT_PLATFORM` — canonical `telegram|vk|max`
 - `SPRING_DATASOURCE_URL`
 - `SPRING_DATASOURCE_USERNAME`
 - `SPRING_DATASOURCE_PASSWORD`
@@ -61,6 +63,41 @@ Platform-specific:
 Если эти параметры не настроены, `java-bot` больше не должен молча откатываться
 в local `JPA/SQLite` business-path для ticket/channel/feedback/blacklist
 операций.
+
+## Привязка отправителя к provider credentials — source R252
+
+Новые `APP_BOT_CHANNEL_ID`/`APP_BOT_PLATFORM` передаются launcher и связываются через
+shared YAML с immutable `BotRuntimeSenderIdentity`. Нельзя подставлять сюда
+`GROUP_CHAT_ID`/`VK_OPERATOR_CHAT_ID`; `MAX_CHANNEL_ID` уже canonical, но не заменяет
+общий contract. Missing inputs/provider identity запрещают send; default метода
+`OutboundMessenger.senderIdentity()` — deny, не event-derived fallback.
+
+Telegram/VK/MAX adapters получают fingerprint именно из token фактического
+provider; в новом signed POST `/internal/api/bot/outbound/authorize-sender` идут
+только `channelId`, `platform`, `tokenSha256`. Перед каждой отправкой через
+MessagingService backend заново читает current channel и разрешает effective
+credential общим с launcher resolver. Explicit binding должен быть positive,
+unique, active, same-platform, с nonblank token; missing/duplicate/inactive/foreign
+binding не переключается на inline token. Inline token допустим только без binding.
+Digest сверяется exact; response содержит только channelId/platform/boolean allowed.
+API read-only использует прежний internal token/HMAC/body guard, не write-idempotency
+cache. HTTP error/404/unavailable/malformed/mismatch/deny запрещают provider call.
+
+После I/O повторяются local channel/proof checks: mutation/rotation во время
+authorization не отправляет сообщение. Support-chat ID также не должен поменяться.
+Raw provider token не передаётся в новом API; proof.toString редактирован. Прежние
+recipient authorization R249 и child route R251 не заменяются sender admission.
+
+Это закрывает credential matching для MessagingService, не direct legacy provider
+calls и не права всех участников внешнего service-chat. Shared internal API/SQL
+credentials не стали отдельными per-child principals; API→provider atomicity и
+exactly-once/in-flight revoke не обещаются. Сначала нужны оба новых panel-web API
+R249/R252, затем launcher bot-runner R252 и совместимые три bot JAR. Старый web404
+или старый launcher без canonical identity намеренно запрещает отправку.
+
+R252 собрал/проверил local candidate image с тремя executable bot JAR и incremental
+panel JAR; это не clean commit release или rollout. Стенд остаётся R246/R247,
+R248–R252 source-only, schema V84/flags прежние; изменения не требуют новых миграций.
 
 ## Child feedback route admission — source R251
 

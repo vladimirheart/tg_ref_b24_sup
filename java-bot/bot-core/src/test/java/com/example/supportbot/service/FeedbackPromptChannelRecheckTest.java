@@ -27,7 +27,7 @@ class FeedbackPromptChannelRecheckTest {
         var authorization=mock(PanelFeedbackPromptDeliveryClient.class);
         var telegram=MessagingPlatformIsolationTest.messenger("telegram",true);
         var vk=MessagingPlatformIsolationTest.messenger("vk",true);var max=MessagingPlatformIsolationTest.messenger("max",true);
-        var messaging=new MessagingService(List.of(telegram,vk,max));
+        var messaging=MessagingPlatformIsolationTest.service(List.of(telegram,vk,max));
         var event=event(platform);String route="isolated."+platform;
         if(late)when(authorization.authorize(event,route)).thenAnswer(call->{change(channel,platform,change);return true;});
         else {change(channel,platform,change);when(authorization.authorize(event,route)).thenReturn(true);}
@@ -45,7 +45,7 @@ class FeedbackPromptChannelRecheckTest {
         when(ledger.beginDelivery(anyString(),anyString(),anyString(),anyLong(),anyLong(),anyString(),anyLong())).thenReturn(true);
         var authorization=mock(PanelFeedbackPromptDeliveryClient.class);when(authorization.authorize(any(),anyString())).thenReturn(true);
         var own=MessagingPlatformIsolationTest.messenger(platform,true);var foreign=MessagingPlatformIsolationTest.messenger("foreign",true);
-        new OutboundFeedbackPromptDispatchService(channels,new MessagingService(List.of(foreign,own)),ledger,authorization).dispatch(event(platform),"isolated."+platform);
+        new OutboundFeedbackPromptDispatchService(channels,MessagingPlatformIsolationTest.service(List.of(foreign,own)),ledger,authorization).dispatch(event(platform),"isolated."+platform);
         verify(own).sendToUser(USER,"prompt");MessagingPlatformIsolationTest.assertNoSend(foreign);
         verify(ledger).markDelivered("evt-r250");verify(ledger,never()).markFailed(anyString(),any());
     }

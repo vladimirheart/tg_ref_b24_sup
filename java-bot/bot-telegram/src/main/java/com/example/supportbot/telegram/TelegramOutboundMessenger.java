@@ -1,6 +1,8 @@
 package com.example.supportbot.telegram;
 
 import com.example.supportbot.service.OutboundMessenger;
+import com.example.supportbot.service.OutboundSenderIdentity;
+import com.example.supportbot.service.BotRuntimeSenderIdentity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -11,9 +13,15 @@ public class TelegramOutboundMessenger implements OutboundMessenger {
     private static final Logger log = LoggerFactory.getLogger(TelegramOutboundMessenger.class);
 
     private final SupportBot supportBot;
+    private final BotRuntimeSenderIdentity runtimeIdentity;
 
-    public TelegramOutboundMessenger(SupportBot supportBot) {
+    public TelegramOutboundMessenger(SupportBot supportBot, BotRuntimeSenderIdentity runtimeIdentity) {
         this.supportBot = supportBot;
+        this.runtimeIdentity = runtimeIdentity;
+    }
+
+    @Override public OutboundSenderIdentity senderIdentity() {
+        return runtimeIdentity.forToken(platform(), supportBot.getBotToken());
     }
 
     @Override

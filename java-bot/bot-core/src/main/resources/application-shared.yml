@@ -35,6 +35,9 @@ support-bot:
   webforms-dir: ${APP_STORAGE_WEBFORMS:${APP_STORAGE_ATTACHMENTS:../attachments}/forms}
 
 app:
+  bot-runtime:
+    channel-id: ${APP_BOT_CHANNEL_ID:0}
+    platform: ${APP_BOT_PLATFORM:}
   coordination:
     mode: ${APP_COORDINATION_MODE:direct}
     lease-namespace: ${APP_COORDINATION_LEASE_NAMESPACE:iguana}

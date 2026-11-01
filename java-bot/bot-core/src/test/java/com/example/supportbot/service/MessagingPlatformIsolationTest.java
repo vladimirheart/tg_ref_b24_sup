@@ -21,7 +21,7 @@ class MessagingPlatformIsolationTest {
 
     @ParameterizedTest @MethodSource("unavailable")
     void unresolvedOrUnavailableDestinationNeverUsesTelegram(String change,boolean support){
-        var telegram=messenger("telegram",true);var service=new MessagingService(List.of(telegram));
+        var telegram=messenger("telegram",true);var service=service(List.of(telegram));
         Channel channel=channel("telegram");
         switch(change){
             case "missing-channel" -> channel=null;
@@ -41,31 +41,32 @@ class MessagingPlatformIsolationTest {
     @ParameterizedTest @MethodSource("exact")
     void resolvedDestinationUsesOnlyExactRegisteredProvider(String platform,boolean support,boolean uppercase){
         var chosen=messenger(platform,true);var other=messenger("unrelated",true);
-        var service=new MessagingService(List.of(other,chosen));
+        var service=service(List.of(other,chosen));
         assertThat(send(service,channel(uppercase?platform.toUpperCase(Locale.ROOT):platform),support)).isTrue();
         if(support)verify(chosen).sendToSupportChat("-100","payload");else verify(chosen).sendToUser(USER,"payload");
         assertNoSend(other);
     }
     @ParameterizedTest @MethodSource("platforms")
     void duplicatePlatformProvidersAreRejectedInsteadOfChoosingCredentialsByListOrder(String platform){
-        assertThatThrownBy(()->new MessagingService(List.of(messenger(platform,true),messenger(platform.toUpperCase(Locale.ROOT),true))))
+        assertThatThrownBy(()->service(List.of(messenger(platform,true),messenger(platform.toUpperCase(Locale.ROOT),true))))
             .isInstanceOf(IllegalStateException.class);
     }
     @ParameterizedTest @MethodSource("destinations")
     void failedProviderNeverTriggersAnotherPlatform(String platform,boolean support){
         var chosen=messenger(platform,false);var other=messenger("unrelated",true);
-        assertThat(send(new MessagingService(List.of(chosen,other)),channel(platform),support)).isFalse();assertNoSend(other);
+        assertThat(send(service(List.of(chosen,other)),channel(platform),support)).isFalse();assertNoSend(other);
     }
     @ParameterizedTest @MethodSource("destinations")
     void providerExceptionNeverTriggersAnotherPlatform(String platform,boolean support){
         var chosen=messenger(platform,true);var other=messenger("unrelated",true);
         when(chosen.sendToUser(anyLong(),anyString())).thenThrow(new IllegalStateException("isolated failure"));
         when(chosen.sendToSupportChat(anyString(),anyString())).thenThrow(new IllegalStateException("isolated failure"));
-        assertThatThrownBy(()->send(new MessagingService(List.of(chosen,other)),channel(platform),support)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(()->send(service(List.of(chosen,other)),channel(platform),support)).isInstanceOf(IllegalStateException.class);
         assertNoSend(other);
     }
     private boolean send(MessagingService service,Channel channel,boolean support){return support?service.sendToSupportChat(channel,"payload"):service.sendToUser(channel,USER,"payload");}
     static Channel channel(String platform){var channel=new Channel();channel.setId(USER+2);channel.setPlatform(platform);channel.setSupportChatId("-100");return channel;}
-    static OutboundMessenger messenger(String platform,boolean success){var messenger=mock(OutboundMessenger.class);when(messenger.platform()).thenReturn(platform);when(messenger.sendToUser(anyLong(),anyString())).thenReturn(success);when(messenger.sendToSupportChat(anyString(),anyString())).thenReturn(success);return messenger;}
+    static OutboundMessenger messenger(String platform,boolean success){var messenger=mock(OutboundMessenger.class);when(messenger.platform()).thenReturn(platform);when(messenger.senderIdentity()).thenReturn(new OutboundSenderIdentity(USER+2,platform.toLowerCase(Locale.ROOT),"a".repeat(64)));when(messenger.sendToUser(anyLong(),anyString())).thenReturn(success);when(messenger.sendToSupportChat(anyString(),anyString())).thenReturn(success);return messenger;}
+    static MessagingService service(List<OutboundMessenger> messengers){var admission=mock(PanelOutboundSenderAuthorizationClient.class);when(admission.authorize(any())).thenReturn(true);return new MessagingService(messengers,admission);}
     static void assertNoSend(OutboundMessenger messenger){verify(messenger,never()).sendToUser(anyLong(),anyString());verify(messenger,never()).sendToSupportChat(anyString(),anyString());}
 }

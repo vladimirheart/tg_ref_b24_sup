@@ -143,6 +143,8 @@ public class BotRuntimeContractService {
         env.put("GROUP_CHAT_ID", Objects.toString(channel.getSupportChatId(), "0"));
         String platform = normalizePlatform(channel);
         Map<String, Object> platformConfig = parsePlatformConfig(channel);
+        env.put("APP_BOT_CHANNEL_ID", Long.toString(resolveChannelId(channel)));
+        env.put("APP_BOT_PLATFORM", platform);
         boolean legacyTelegramMirrorRoute = false;
         if ("telegram".equals(platform)) {
             String telegramApiBaseUrl = normalizeTelegramApiRootUrl(readString(
@@ -292,6 +294,8 @@ public class BotRuntimeContractService {
 
     private List<String> requiredEnvironmentKeys(Channel channel) {
         List<String> keys = new ArrayList<>(List.of(
+            "APP_BOT_CHANNEL_ID",
+            "APP_BOT_PLATFORM",
             "TELEGRAM_BOT_TOKEN",
             "TELEGRAM_BOT_USERNAME",
             "GROUP_CHAT_ID",

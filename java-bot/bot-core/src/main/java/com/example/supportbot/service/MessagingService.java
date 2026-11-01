@@ -16,8 +16,10 @@ public class MessagingService {
     private static final Logger log = LoggerFactory.getLogger(MessagingService.class);
 
     private final Map<String, OutboundMessenger> messengers;
+    private final PanelOutboundSenderAuthorizationClient senderAuthorization;
 
-    public MessagingService(List<OutboundMessenger> messengers) {
+    public MessagingService(List<OutboundMessenger> messengers, PanelOutboundSenderAuthorizationClient senderAuthorization) {
+        this.senderAuthorization = senderAuthorization;
         this.messengers = messengers.stream()
                 .collect(Collectors.toMap(
                         messenger -> messenger.platform().toLowerCase(Locale.ROOT),
@@ -36,7 +38,7 @@ public class MessagingService {
             log.warn("No outbound messenger registered for platform {}", platform(channel));
             return false;
         }
-        return messenger.sendToUser(userId, text);
+        return authorizeSender(channel, messenger) && messenger.sendToUser(userId, text);
     }
 
     public boolean sendToSupportChat(Channel channel, String text) {
@@ -52,7 +54,16 @@ public class MessagingService {
             log.warn("No outbound messenger registered for platform {}", platform(channel));
             return false;
         }
-        return messenger.sendToSupportChat(supportChatId, text);
+        return authorizeSender(channel, messenger) && java.util.Objects.equals(supportChatId, channel.getSupportChatId())
+                && messenger.sendToSupportChat(supportChatId, text);
+    }
+
+    private boolean authorizeSender(Channel channel, OutboundMessenger messenger) {
+        OutboundSenderIdentity identity = messenger.senderIdentity();
+        if (identity == null || !identity.matches(channel, messenger.platform())) return false;
+        if (!senderAuthorization.authorize(identity)) return false;
+        // Admission performs I/O: reject a local channel rebind or token rotation while awaiting the decision.
+        return identity.matches(channel, messenger.platform()) && identity.equals(messenger.senderIdentity());
     }
 
     private OutboundMessenger resolveMessenger(Channel channel) {
