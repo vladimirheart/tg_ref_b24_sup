@@ -82,7 +82,14 @@ Long.MAX_VALUE даёт409 без catalog write; concurrent catalog writers эт
 Provider failure не считается success, internal retry/fallback нет.
 GetMe/metadata и остальные direct paths в этот packet не включены.
 
-R255 source-only,598 tests/12 suites; runtime R252/R253 не обновляется этим кодом.
+R255 source proof:598 tests/12 suites. В R256 (2026-11-01) код выложен из clean
+0df04ecf6 на web/worker image e02456c19ea4; runner/три child JVM остаются R252/
+d286cd6cd/image d9c597493338. Bot JAR unchanged; panel JAR incremental, не full
+Maven/Sass build.61 live access +24 signed child/backend admission GREEN,
+один реальный diagnostic send через новый resolver в сохранённую Telegram-группу
+подтверждён provider ok=true. Это не positive MessagingService/feedback chain
+и не participant policy внешних чатов. Подробности/rollback — task checkpoint R256;
+повторный deploy/migrations/flags этим документом не разрешены.
 
 
 ## Привязка отправителя к provider credentials — source R252
@@ -119,7 +126,8 @@ R249/R252, затем launcher bot-runner R252 и совместимые три 
 Исторический R252 candidate с тремя bot JAR и incremental panel JAR затем
 развёрнут в R253 из clean d286cd6cd: web/worker/runner и3 child JVM, V84/flags
 прежние. R254 подтвердил diagnostic panel→Telegram send, не feedback chain.
-R255 остаётся source-only; повторный rollout/migrations этим документом не разрешён.
+R256 обновил только web/worker до R255; runner/bot artifacts не менялись.
+Positive feedback/revoke/replay и первый production S6 остаются отдельной приёмкой.
 
 ## Child feedback route admission — source R251
 

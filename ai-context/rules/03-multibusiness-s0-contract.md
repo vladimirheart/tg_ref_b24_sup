@@ -24,11 +24,42 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальный runtime R253 имеют
+что production уже запускался. Эта оговорка и актуальный runtime R256 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
+
+Актуальный runtime R256 —1 ноября, существующий тестовый экземпляр Windows/
+Docker Desktop машины текущей сессии. По «делай что необходимо для продолжения
+выполнения текузей задачи» обновлены ТОЛЬКО panel-web/ops-worker, по1 replica,
+до clean R255/0df04ecf6ec86923aff3e3e2d47ec41c977c6db1,
+image sha256:e02456c19ea4c796a5eca493ec0921d9f7e35b09693ef43e5bfb0850b9972de4,
+tag iguana-panel:account-r255-0df04ecf6-20261101.
+Web91e820e12c10/worker3114fafdaea0 healthy/restart0/readinessUP.
+Все16 нетронутых контейнеров, включая runner783fd187513e/d9c597493338/d286cd6cd,
+unchanged; children TG1/MAX2/TG3 прежние. ENV/user/mounts/full HostConfig exact,
+canonical Compose/.env прежние; новый overlay R256 требует preserved ENV
+operator (fail-closed без vars), R253 overlay runner не удалять.
+Panel JAR incremental:1433 tested classes/3 changed/1430 exact,795 nonclass entries
+и3 bot JAR прежние. Не full Maven/Sass build;598/12 — source proof R255.
+61 real access/SSE/readiness +24 signed admission checks GREEN; три child feedback
+queues по1 consumer/ready0/unacked0. Ровно1 diagnostic Telegram send в сохранённую
+группу через новый R255 resolver: HTTP200/sent1/failed0/provider ok, marker
+R256-20261101-210709-e93186a7. Не MessagingService/positive feedback chain,
+не визуальное подтверждение; реальные участники внешних чатов не проверены.
+V84/84/settings455/accounts/grants/roots53/pending51/ratings36/outbox126 прежние;
+no migrations/backfill/flags/db-migrate/NetBox. Health503/DOWN — прежний inbound
+DLQ1, worker TLS/iiko WARN сохраняются; ERROR/fatal0 в окне.
+Rollback R256 web/worker tags → d9c597493338/d286cd6cd, прежние pointers сохранены.
+pg_dump10093531 bytes/SHA256 35B5F99078FB7853DAC31CC23A978C3C9AA394BD0642D9537969D43ABCD30058
+изолированно восстановлен; same-host, working DB/rollback не восстанавливались.
+Подробности/evidence task R256/.tmp/01-278-r256-rollout/. Подготовка сохранила
+изменившийся ДО deploy locations.json, свежий baseline и прежние snapshots.
+Source R255 теперь выложен; historical source-only записи ниже не описывают
+текущий runtime. Это НЕ первый production/S6, остальные gates в task остаются;
+исторический S2B снятR190, статус🟡. Документ не разрешает повторный rollout.
+
 
 Source R255 —1 ноября, clean HEAD/origin/main/remotea379ac13a (metadata R253/R254,
 parentd286cd6cd/scope4). ChannelTransportService test/configured send и recipient
@@ -67,7 +98,7 @@ mutations. Runtime/rollback/backup по R253 ниже, S2B снятR190/стат
 только результат diagnostic delivery, не расширяет прежние acceptance claims.
 
 
-Актуальный runtime R253 —1 ноября, тестовый стенд машины текущей сессии,
+Исторический runtime R253 —1 ноября, тестовый стенд машины той сессии,
 не первый production S6. По «согласовано» выполнена совместимая выкладка
 clean R252/d286cd6cd6f8f1764a84d583fdc7c65d04977306 (HEAD/origin/actual remote),
 image sha256:d9c597493338db62f7bd3bb2952504b92e5657b9740eafd7990922838fdb58bb,
