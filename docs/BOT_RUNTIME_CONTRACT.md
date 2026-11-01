@@ -64,6 +64,35 @@ Platform-specific:
 в local `JPA/SQLite` business-path для ticket/channel/feedback/blacklist
 операций.
 
+## Рабочий тестовый bot runtime — R261, 2026-11-01/02
+
+Clean R260/5731c6d483010990aebe0a35df21089defce0d9a выложен только в
+bot-runner: image904fba5c4e40/tag iguana-panel:account-r260-5731c6d48-20261101,
+containerccae25c43d88, healthy/restart0/1replica. Telegram1/MAX2/Telegram3
+стартовали с новым core после остановки всех старых children/consumers.
+Cold gate0 consumers/ready/unacked исключил mixed fleet. Web/worker остаются
+R257/7b9fea55a/image90cd11900131; все17 нетаргетных контейнеров exact unchanged.
+61 ENV/mounts/полный HostConfig exact; старые overlays/rollback tags сохранены.
+Новый .tmp/01-278-r261-rollout/compose.services.json требует preserved ENV,
+не самостоятельного Compose up с потерей process placeholders.
+
+В трёх executable JAR заменён ровно один nested bot-core;208 tested classes и
+все остальные entry payloads exact, panel JAR R257 не менялся.4 JAR hashes
+проверены в образе и работающем runner. Это incremental COPY/network-none,
+593/11 — прежний R260 proof, не новый прогон/full build. Live VK child отсутствует.
+24 signed admission и61 access/SSE/readiness checks GREEN,3 fresh startup/3
+canonical consumers, ready/unacked0. Readiness UP, ERROR/fatal0; общий health
+DOWN из-за прежнего inbound DLQ1. Миграций/backfill/flags/purge/requeue и внешних
+acceptance messages нет; ledger17 delivered/точный MD5 прежний.
+
+Rollback tag iguana-panel:rollback-r261-bot-runner-20261101-d9c597493338 сохранён,
+но откат не выполнен: R252 не понимает новые статусы. Нужны остановка новых
+children/consumers и проверка ledger/inflight compatibility. Backup успешно
+восстановлен изолированно; рабочая БД не восстанавливалась. Reconciliation по
+receipt, live rating callback/customer feedback и full in-flight process restart
+остаются. Этот локальный test release не является первым production S6.
+Подробный checkpoint/evidence — task Runtime R261/.tmp/01-278-r261-rollout/.
+
 ## Feedback claim и неопределённый результат — source R260
 
 INSERT ON CONFLICT DO NOTHING и CAS по status/прочитанному updated_at дают
@@ -86,11 +115,12 @@ Boolean false, в том числе локальный provider503, не уни�
 593 executions/11 suites GREEN:387 core +206 isolated PostgreSQL/Rabbit/HTTP,
 включая deterministic race/rollback и36 unknown-result cases. Это не exactly-once,
 live SDK/callback/full-process/fleet/S6. Production changes только3 bot-core
-services, schema/Rabbit DTO не меняются. Рабочий runtime по-прежнему R258.
-Будущая выкладка должна исключить одновременную работу R252–R259 и R260 children:
-старый ledger не знает новых статусов. Rollback при новых ledger rows требует
-отдельной проверки, не автоматического запуска старого consumer. В R260 нет
-деплоя, внешних сообщений, миграций, изменений flags или рабочей очереди.
+services, schema/Rabbit DTO не меняются. R260 source активирован в R261 выше.
+Выкладка исключила одновременную работу R252–R259 и R260 children; старый ledger
+не знает новых статусов. Rollback при новых ledger rows требует отдельной
+проверки, не автоматического запуска старого consumer. В самом source-пакете
+R260 не было деплоя, внешних сообщений, миграций, flags или рабочей очереди;
+последующий R261 deploy фиксируется отдельно.
 
 ## Изолированная feedback delivery chain — source R259
 

@@ -24,13 +24,58 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальный runtime R258 имеют
+что production уже запускался. Эта оговорка и актуальный runtime R261 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
 ## Среда выполнения и сессии
 
-Актуальный runtime R258 —1 ноября, существующий рабочий тестовый экземпляр
+Актуальный runtime R261 — выкладка1 ноября/фиксация2 ноября, тот же тестовый
+Windows/Docker Desktop экземпляр этой сессии. Проверен clean HEAD/origin/main/
+actual remote5731c6d483010990aebe0a35df21089defce0d9a (R260,parenta3cec82d1).
+Обновлён только bot-runner: image
+sha256:904fba5c4e405614ed9fa0a96dae961b7a2d15028663d5b416f67310b9090e8f,
+tag iguana-panel:account-r260-5731c6d48-20261101, containerccae25c43d88,
+healthy/restart0/1replica. Telegram1/MAX2/Telegram3 работают с новым core.
+До старта новых все старые children остановлены; feedback consumers0 и
+ready/unacked0 подтверждены. Нет mixed old/new ledger fleet.
+
+Web4a828963846e/worker35472b2e278f остаются R257/7b9fea55a/image90cd11900131,
+все17 нетаргетных containers exact unchanged.61 runner ENV/mounts/HostConfig,
+5 прежних compose/env files и config сохранены. Compose project tg_ref_b24_sup,
+новый .tmp/01-278-r261-rollout/compose.services.json — только с preserved ENV;
+старые R253/R256/R258 overlays не удалять. Пересоздан только runner через
+--no-deps/--no-build/--pull never, scale1; повторный deploy не требуется.
+
+Новый nested core208 tested classes exact; заменён ровно один core в каждом
+Telegram/VK/MAX executable JAR, все остальные entry payloads exact. Panel JAR
+R257 не менялся.4 JAR hashes проверены в образе и работающем runner.593/11 —
+reused R260 source proof, не rerun; incremental network-none COPY, не full build.
+VK artifact обновлён, но live VK child не проверен, он здесь не запущен.
+
+61 свежая live access/SSE/readiness +24 signed admission checks GREEN;
+3 свежих startup timestamps/3 canonical consumers, ready/unacked0. ReadinessUP,
+runner ERROR/fatal0/WARN8. Общий health503/DOWN — прежний inbound DLQ1;
+TLS/iiko WARN не исправлялись. Внешних acceptance messages не отправляли.
+V84/84/settings455/accounts/grants/roots53/pending51/ratings36/outbox126 прежние;
+ledger17 delivered/MD5 04787691279b925af193b11e95c0c9f0, новых состояний0.
+No migrations/backfill/flags/db-migrate/web/worker/infra/NetBox/purge/requeue.
+
+Rollback pointer iguana-panel:rollback-r261-bot-runner-20261101-d9c597493338
+на R252/d286cd6cd/image d9c597493338 сохранён, но rollback не выполнялся.
+Старый consumer не знает новых ledger states: откат только после остановки
+всех новых children/consumers и проверки ledger/inflight compatibility.
+pg_dump10165894 bytes/SHA256
+0AFDDC8E07A623F14E41525685C33836E6DBACA3CA9E7592281379CEB201C3B0
+успешно restored в owned isolated PostgreSQL network none/192MiB; одноразовые
+container/volume удалены, same-host backup сохранён. Рабочая БД не restored.
+Receipt reconciliation/операторское разрешение uncertain пока не реализованы;
+live callback/positive customer chain/full in-flight process restart/остальные
+изоляция, GENERAL, политики, AI и S6 остаются. Задача🟡, S2B снятR190.
+Подробности/evidence — task Runtime R261/.tmp/01-278-r261-rollout/.
+Ниже source-only/runtime checkpoints исторические, не инструкция их повторить.
+
+Исторический runtime R258 —1 ноября, существующий рабочий тестовый экземпляр
 Windows/Docker Desktop этой сессии. По «давай дальше. что остаётся по задаче?»
 выложен clean R257/7b9fea55abf6568c00891cd69db906025891685a, image
 sha256:90cd11900131b1cf3fd5d0904a6d38be931af78455b6b73aabbef6b84926896c,
