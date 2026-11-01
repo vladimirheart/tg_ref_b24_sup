@@ -30,6 +30,27 @@ production/рабочий в старых записях, именах Compose �
 
 ## Среда выполнения и сессии
 
+Source R255 —1 ноября, clean HEAD/origin/main/remotea379ac13a (metadata R253/R254,
+parentd286cd6cd/scope4). ChannelTransportService test/configured send и recipient
+preview используют общий launcher/admission credential resolver. Broken explicit
+binding не даёт inline fallback, bound token работает без inline. Credentials
+переоцениваются для каждого send и после network setup вместе с captured channel
+ID; проверенные local disable/rebind/revoke/rotate/ID changes закрывают handoff.
+Unknown configured target не становится support chat. Catalog errors deny,
+send logs не включают exception text/token URL, provider failure не success/retry.
+Удаление credential сохраняет explicit refs до явного rebind/clear; allocation
+учитывает все references и catalog, не оживляет dangling binding новым token.
+BIGINT exact, Long.MAX_VALUE409 без write. Concurrent JSON writers не сериализованы.
+GREEN598/12 suites (157 новых/441 прежних), RED132/92 +20/20 +5/4 последовательно,
+0 errors/skips; frozen source/RED bytecode, old9 test sources/assertions unchanged.
+Native offline wrapper96/128MiB,1 main source incremental1433 classes/1430 exact.
+Только source: working runtime/rollback/backup по R253, R254 diagnostic не повторён;
+no deploy/migrations/backfill/flags/provider messages. Не full web build/release.
+Evidence/task R255/.tmp/01-278-r255-evidence/. Captured channel не является
+persisted DB lease, participant recipient policy/direct getMe/другие provider
+paths/strict fresh snapshots/GENERAL/AI/policies/fleet/S6 остаются. S2B снятR190,🟡.
+
+
 Приёмка R254 —1 ноября: по «как и сеохранено сейчас» штатной диагностикой
 панели отправлено1 test message в единственную сохранённую группу Telegram1.
 HTTP200/success/sent1/failed0; backend подтвердил sendMessage ok=true, без

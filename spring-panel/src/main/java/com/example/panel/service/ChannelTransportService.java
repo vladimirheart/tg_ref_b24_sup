@@ -293,8 +293,8 @@ public class ChannelTransportService {
         if (!isTelegramPlatform(channel.getPlatform())) {
             return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Тестовая отправка доступна только для Telegram"));
         }
-        if (isBlank(channel.getToken())) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "У канала не задан токен"));
+        if (resolveTelegramCredential(channel) == null) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Для канала нет действующих учётных данных"));
         }
 
         Map<String, Object> data = payload != null ? payload : Collections.emptyMap();
@@ -340,7 +340,7 @@ public class ChannelTransportService {
         List<String> failedRecipients = new ArrayList<>();
         List<String> sentRecipients = new ArrayList<>();
         for (String target : uniqueRecipients) {
-            if (sendTelegramMessage(channel, channel.getToken(), target, message)) {
+            if (sendTelegramMessage(channel, target, message)) {
                 sentRecipients.add(target);
             } else {
                 failedRecipients.add(target);
@@ -356,8 +356,7 @@ public class ChannelTransportService {
     public String resolveConfiguredRecipient(Long channelId, String target, String customChatId) {
         if (channelId == null) return null;
         Channel channel = channelRepository.findById(channelId).orElse(null);
-        if (channel == null || Boolean.FALSE.equals(channel.getActive())
-                || !isTelegramPlatform(channel.getPlatform()) || isBlank(channel.getToken())) return null;
+        if (resolveTelegramCredential(channel) == null) return null;
         String normalized = stringValue(target).toLowerCase();
         String recipient;
         if ("broadcast_channel".equals(normalized)) {
@@ -384,14 +383,14 @@ public class ChannelTransportService {
         if (channel == null) {
             return new ConfiguredMessageDeliveryResult(false, null, "channel_not_found");
         }
-        if (Boolean.FALSE.equals(channel.getActive())) {
+        if (!Boolean.TRUE.equals(channel.getActive())) {
             return new ConfiguredMessageDeliveryResult(false, null, "channel_inactive");
         }
         if (!isTelegramPlatform(channel.getPlatform())) {
             return new ConfiguredMessageDeliveryResult(false, null, "unsupported_platform");
         }
-        if (isBlank(channel.getToken())) {
-            return new ConfiguredMessageDeliveryResult(false, null, "bot_token_missing");
+        if (resolveTelegramCredential(channel) == null) {
+            return new ConfiguredMessageDeliveryResult(false, null, "bot_credentials_unavailable");
         }
         String normalizedTarget = stringValue(target).toLowerCase();
         String recipient;
@@ -400,8 +399,10 @@ public class ChannelTransportService {
             recipient = stringValue(firstValue(deliverySettings, "broadcast_channel_id", "broadcastChannelId"));
         } else if ("custom_chat".equals(normalizedTarget)) {
             recipient = stringValue(customChatId);
-        } else {
+        } else if ("support_chat".equals(normalizedTarget)) {
             recipient = stringValue(channel.getSupportChatId());
+        } else {
+            return new ConfiguredMessageDeliveryResult(false, null, "invalid_target");
         }
         if (recipient.isEmpty()) {
             return new ConfiguredMessageDeliveryResult(false, null, "recipient_not_configured");
@@ -409,7 +410,7 @@ public class ChannelTransportService {
         if (isBlank(message)) {
             return new ConfiguredMessageDeliveryResult(false, recipient, "message_empty");
         }
-        boolean sent = sendTelegramMessage(channel, channel.getToken(), recipient, message);
+        boolean sent = sendTelegramMessage(channel, recipient, message);
         return sent
                 ? new ConfiguredMessageDeliveryResult(true, recipient, null)
                 : new ConfiguredMessageDeliveryResult(false, recipient, "delivery_failed");
@@ -472,11 +473,23 @@ public class ChannelTransportService {
         boolean active = Boolean.TRUE.equals(parseBoolean(data.getOrDefault("is_active", true)));
 
         List<BotCredential> credentials = new ArrayList<>(loadBotCredentials());
-        long nextId = credentials.stream()
+        long largestId = credentials.stream()
                 .map(BotCredential::id)
                 .filter(Objects::nonNull)
+                .filter(id -> id > 0)
                 .max(Long::compareTo)
-                .orElse(0L) + 1;
+                .orElse(0L);
+        // A removed credential may still be explicitly referenced by a channel.
+        // Reusing that ID would silently bind the channel to an unrelated token.
+        for (Channel linked : channelRepository.findAll()) {
+            if (linked != null && linked.getCredentialId() != null) {
+                largestId = Math.max(largestId, linked.getCredentialId());
+            }
+        }
+        if (largestId == Long.MAX_VALUE) {
+            return ResponseEntity.status(409).body(Map.of("success", false, "error", "Исчерпаны идентификаторы учётных данных"));
+        }
+        long nextId = largestId + 1;
         BotCredential credential = new BotCredential(nextId, name, platform, token, active);
         credentials.add(credential);
         sharedConfigService.saveBotCredentials(credentials);
@@ -491,17 +504,8 @@ public class ChannelTransportService {
             return ResponseEntity.status(404).body(Map.of("success", false, "error", "Учётные данные не найдены"));
         }
         sharedConfigService.saveBotCredentials(credentials);
-        List<Channel> channels = channelRepository.findAll();
-        boolean updated = false;
-        for (Channel channel : channels) {
-            if (Objects.equals(channel.getCredentialId(), credentialId)) {
-                channel.setCredentialId(null);
-                updated = true;
-            }
-        }
-        if (updated) {
-            channelRepository.saveAll(channels);
-        }
+        // Keep explicit references broken until an administrator deliberately rebinds
+        // or clears them. Deletion must not silently revive channels.token.
         return ResponseEntity.ok(Map.of("success", true));
     }
 
@@ -738,19 +742,37 @@ public class ChannelTransportService {
         return Map.of();
     }
 
-    private boolean sendTelegramMessage(Channel channel, String token, String recipient, String message) {
+    private BotCredential resolveTelegramCredential(Channel channel) {
         try {
+            BotCredential credential = BotChannelCredentialResolver.resolve(channel, sharedConfigService);
+            return credential != null && "telegram".equalsIgnoreCase(credential.platform()) ? credential : null;
+        } catch (RuntimeException unavailable) {
+            log.warn("Telegram credential resolution unavailable; delivery denied");
+            return null;
+        }
+    }
+
+    private boolean sendTelegramMessage(Channel channel, String recipient, String message) {
+        try {
+            // Re-resolve for every recipient, not just the earlier endpoint preflight.
+            Long expectedChannelId = channel.getId();
+            BotCredential credential = resolveTelegramCredential(channel);
+            if (credential == null) return false;
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("chat_id", recipient);
             payload.put("text", message);
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(buildTelegramBotMethodUrl(channel, token, "sendMessage")))
+                    .uri(URI.create(buildTelegramBotMethodUrl(channel, credential.token(), "sendMessage")))
                     .timeout(Duration.ofSeconds(10))
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
                     .build();
             HttpClient client = integrationNetworkService.createChannelHttpClient(channel, Duration.ofSeconds(10));
+            // Client/network setup may perform I/O. Never hand off a request built
+            // with credentials revoked or rebound while that setup was in progress.
+            if (!Objects.equals(expectedChannelId, channel.getId())
+                    || !Objects.equals(credential, resolveTelegramCredential(channel))) return false;
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() >= 400) {
                 log.warn("Telegram sendMessage failed for {}: HTTP {}", recipient, response.statusCode());
@@ -759,7 +781,7 @@ public class ChannelTransportService {
             JsonNode root = objectMapper.readTree(response.body());
             return root.path("ok").asBoolean(false);
         } catch (Exception ex) {
-            log.warn("Telegram sendMessage error for {}: {}", recipient, ex.getMessage());
+            log.warn("Telegram sendMessage failed: {}", ex.getClass().getSimpleName());
             return false;
         }
     }

@@ -64,6 +64,27 @@ Platform-specific:
 в local `JPA/SQLite` business-path для ticket/channel/feedback/blacklist
 операций.
 
+## Прямые Telegram-отправки панели — source R255
+
+ChannelTransportService (admin test, configured support/broadcast/custom send и
+recipient preview) использует общий BotChannelCredentialResolver. Explicit binding
+positive/unique/active/same-platform/nonblank; broken reference не берёт inline
+token. Inline допустим только без binding. Каталог перечитывается для каждого
+recipient и после network setup; late mismatch credential snapshot/captured
+channel ID запрещает HttpClient.send. Это не lease на persisted channel и не
+policy прав участников внешнего чата.
+
+Удаление credential сохраняет ссылки каналов broken до явного rebind/clear.
+Создание учитывает максимум catalog IDs и всех channel references, включая
+inactive: новая запись не должна случайно занять ещё referenced ID удалённой.
+Long.MAX_VALUE даёт409 без catalog write; concurrent catalog writers этим не
+сериализуются. Неизвестный configured target отклоняется, без support-chat fallback.
+Provider failure не считается success, internal retry/fallback нет.
+GetMe/metadata и остальные direct paths в этот packet не включены.
+
+R255 source-only,598 tests/12 suites; runtime R252/R253 не обновляется этим кодом.
+
+
 ## Привязка отправителя к provider credentials — source R252
 
 Новые `APP_BOT_CHANNEL_ID`/`APP_BOT_PLATFORM` передаются launcher и связываются через
@@ -95,9 +116,10 @@ exactly-once/in-flight revoke не обещаются. Сначала нужны
 R249/R252, затем launcher bot-runner R252 и совместимые три bot JAR. Старый web404
 или старый launcher без canonical identity намеренно запрещает отправку.
 
-R252 собрал/проверил local candidate image с тремя executable bot JAR и incremental
-panel JAR; это не clean commit release или rollout. Стенд остаётся R246/R247,
-R248–R252 source-only, schema V84/flags прежние; изменения не требуют новых миграций.
+Исторический R252 candidate с тремя bot JAR и incremental panel JAR затем
+развёрнут в R253 из clean d286cd6cd: web/worker/runner и3 child JVM, V84/flags
+прежние. R254 подтвердил diagnostic panel→Telegram send, не feedback chain.
+R255 остаётся source-only; повторный rollout/migrations этим документом не разрешён.
 
 ## Child feedback route admission — source R251
 
