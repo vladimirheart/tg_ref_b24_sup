@@ -30,6 +30,54 @@ production/рабочий в старых записях, именах Compose �
 
 ## Среда выполнения и сессии
 
+Source R249 —1 ноября, clean HEAD/origin/main/remote83eb8e0aee977baeff305e6582d4b9883696db2f
+(пользовательский R248, parent2ffd7c1b2/scope5). Runtime ниже остаётся R246/R247;
+R248/R249 source ещё не развёрнуты. Migration/flags/API defaults не менялись.
+
+Bot feedback dispatcher проверяет recipient admission через новый signed POST
+/internal/api/bot/feedback-prompts/authorize-delivery после ledger/channel и
+непосредственно перед sendToUser. Прежний token/HMAC/body guard, read-only без
+idempotency cache. Response только eventId/boolean allowed, без private payload.
+DTO Rabbit прежний; private snapshot читается исключительно из owning outbox.
+Exact received JSON/envelope/route/type/source/status processing|published,
+V84 tuple+epoch/created_at/expiry/unique raw owner проверяются одним SQL вместе
+с current active channel/platform и scope. Processing допускает consumer до
+commit published marker. Missing/corrupt snapshot/schema/DB/API failure/deny не
+дают allow и не включают local/raw fallback или recapture сегодняшнего бизнеса.
+
+BUSINESS: foundationON+active business+active SINGLE_BUSINESS/EXPLICIT_SELECTION
+binding без standalone GENERAL conflict. GENERAL: сохранённый explicit marker,
+foundation+general resolution+active standalone GENERAL без active business/shared;
+либо foundation+shared resolution+active shared GENERAL без standalone conflict.
+Legacy UNRESOLVED только foundationOFF без любых active scoped bindings. Это
+customer-own-ticket/channel admission, не подмена operator memberships/grants.
+Bot дополнительно проверяет local active/platform. Новое allow не кешируется;
+HTTP/malformed/mismatched response/string allow/exception не вызывают provider,
+ledger failed и прежний listener retry/DLQ сохраняются; duplicate не делает API call.
+
+RED unchanged dispatcher54/51 assertion failures/3 controls, frozen source/
+bytecode/cases. GREEN556/9 targeted suites двумя sequential runs:58 bot+498 panel,
+371 новых (54 loopback bot+312 PostgreSQL/V84+5 signed controller)/185 прежних.
+Old fixture checked inverse сохраняет assertions/bodies. Не full R2481246 rerun,
+не live broker/provider/fleet. Minimal owning schema+canonical V84; no data writes
+при authorization, одинаковый idempotency key не кеширует прежний allow.
+Bot wrapper/reactor137 main/3 tests,203→205 classes/202 exact/1 changed/2 added;
+panel incremental2 main/8 tests,1424→1428/все1424 exact. Helper512MiB/1.5CPU,
+PG192MiB/1CPU до readiness. Оба classes archive независимо проверены.
+Scope12/detached sandbox+replay/exact guards, без commit/push/deploy; evidence
+.tmp/01-278-r249-evidence/. Working18/config/DB84/fingerprints/flags прежние,
+126 published/actionable0/active pending0, обе роли healthy/restart0/web readinessUP.
+Рабочие migrations/backfill/queue/provider mutations не запускались,
+rollback/backup R247 сохранены, working services/WSL/VS Code не останавливались.
+
+Не закрыты SQL→API→provider TOCTOU/in-flight revoke/expiry, per-child channel
+identity/provider retry/exactly-once, pending same-created_at reuse/DB uniqueness/
+phantoms/lifecycle/child-rating/media/AI/другие S3–S6/operational gates R247.
+Будущий порядок: новый panel-web API до новых bot artifacts; web404 у нового
+бота fail-closed. Это описание rollout prerequisite, не разрешение/факт выкладки.
+SourceR249 не развёрнут, S2B снятR190, задача🟡; следующие source/runtime записи
+сохраняют свои исторические границы.
+
 Source R248 —1 ноября, baseline clean HEAD/origin/main/remote2ffd7c1b2226887bd1141dfb213655ed3fcf19b7
 (пользовательский metadata commit R247, parent9f163dfec). Runtime по-прежнему
 R246/R247 ниже; новый source не развёрнут, миграций/flags нет.

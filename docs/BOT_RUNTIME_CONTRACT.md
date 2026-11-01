@@ -62,6 +62,47 @@ Platform-specific:
 в local `JPA/SQLite` business-path для ticket/channel/feedback/blacklist
 операций.
 
+## Авторизация отложенного feedback prompt — source R249
+
+Новый bot-core перед `MessagingService.sendToUser` выполняет signed JSON POST
+`/internal/api/bot/feedback-prompts/authorize-delivery`. Body: прежний feedback
+event и полученный routing key; формат Rabbit DTO не меняется. Применяются
+существующие internal token/HMAC/body digest rules. Ответ содержит только
+`eventId` и boolean `allowed`; несовпадающий ID/не-boolean allow/неполный JSON/
+HTTP error/API unavailable запрещают отправку. Авторизация не кешируется и не
+использует write idempotency replay. Локальная БД/старое разрешение не являются
+fallback. Дубликат, уже обработанный delivery ledger, API повторно не вызывает.
+
+Backend читает private snapshot из persisted owning outbox, а не из request.
+Exact event JSON/route/envelope/type/source/status `processing|published`
+сверяются с V84 pending/root tuple+epoch/created_at, владельцем/активным каналом/
+платформой; pending должен быть активен, raw ticket ID однозначен. `processing`
+нужен для consumer, опередившего commit published marker. Историческое сообщение
+без captured metadata не разрешается и не перепривязывается к сегодняшнему root.
+
+Проверяются существующие scope switches/bindings: BUSINESS требует foundation,
+active business и его active SINGLE_BUSINESS/EXPLICIT_SELECTION channel binding;
+standalone GENERAL — foundation/general resolution и explicit active GENERAL
+binding без business/shared conflict; shared GENERAL — foundation/shared resolution
+и explicit active shared GENERAL binding без standalone conflict. Legacy unresolved
+путь возможен только foundationOFF без active scoped bindings. Отсутствие бизнеса
+не означает GENERAL. Это customer recipient admission, не operator grant.
+
+После ledger claim/channel resolution бот проверяет также local active/platform,
+затем обращается к backend непосредственно перед provider call. При отказе/
+исключении ledger отмечается failed; действуют прежние listener retry/DLQ rules,
+без новой purge/quarantine policy. Миграций и новых flags не требуется, минимумV84.
+
+Проверка не удерживает PostgreSQL locks через HTTP/provider I/O и не обещает
+atomic delivery/exactly-once/in-flight revocation. Между решением API и provider
+call остаётся TOCTOU; per-child authenticated channel identity, provider retry и
+сквозная приёмка всех платформ — отдельные gates.
+
+Runtime R247 пока остаётся на прежних артефактах. Для будущего обновления сначала
+нужен panel-web с этим API, затем проверенные bot artifacts/supervisor. Новый бот
+со старым web получает404 и намеренно не отправляет prompt. Source work R249 не
+выполняет rollout, не меняет flags и не разрешает миграции/очистку очередей.
+
 ## Readiness Contract
 
 - startup timeout задаётся через `app.bots.startup-readiness-timeout`;

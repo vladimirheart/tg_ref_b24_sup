@@ -15,13 +15,16 @@ public class OutboundFeedbackPromptDispatchService {
     private final ChannelService channelService;
     private final MessagingService messagingService;
     private final OutboundTransportDeliveryLedgerService deliveryLedgerService;
+    private final PanelFeedbackPromptDeliveryClient deliveryAuthorization;
 
     public OutboundFeedbackPromptDispatchService(ChannelService channelService,
                                                  MessagingService messagingService,
-                                                 OutboundTransportDeliveryLedgerService deliveryLedgerService) {
+                                                 OutboundTransportDeliveryLedgerService deliveryLedgerService,
+                                                 PanelFeedbackPromptDeliveryClient deliveryAuthorization) {
         this.channelService = channelService;
         this.messagingService = messagingService;
         this.deliveryLedgerService = deliveryLedgerService;
+        this.deliveryAuthorization = deliveryAuthorization;
     }
 
     public void dispatch(OutboundFeedbackPromptEvent event, String routingKey) {
@@ -46,7 +49,20 @@ public class OutboundFeedbackPromptDispatchService {
             deliveryLedgerService.markFailed(event.eventId(), exception);
             throw exception;
         }
-        boolean delivered = messagingService.sendToUser(channel.get(), event.userId(), event.prompt());
+        boolean delivered;
+        try {
+            if (!channel.get().isActive() || !java.util.Objects.equals(event.platform(), channel.get().getPlatform())) {
+                throw new IllegalStateException("Outbound feedback prompt channel is inactive or has changed platform.");
+            }
+            // Do not authorize before ledger/channel work, cache an earlier allow, or fall back to local business data.
+            if (!deliveryAuthorization.authorize(event, routingKey)) {
+                throw new IllegalStateException("Outbound feedback prompt recipient context is no longer authorized.");
+            }
+            delivered = messagingService.sendToUser(channel.get(), event.userId(), event.prompt());
+        } catch (RuntimeException exception) {
+            deliveryLedgerService.markFailed(event.eventId(), exception);
+            throw exception;
+        }
         if (!delivered) {
             IllegalStateException exception = new IllegalStateException(
                     "Failed to deliver outbound feedback prompt for channel " + event.channelId());
