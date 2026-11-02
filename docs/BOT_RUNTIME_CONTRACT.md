@@ -64,7 +64,47 @@ Platform-specific:
 в local `JPA/SQLite` business-path для ticket/channel/feedback/blacklist
 операций.
 
-## Рабочий тестовый bot runtime — R267, 2026-11-02
+## Рабочий тестовый bot runtime — R269, 2026-11-02
+
+Clean R268/da7a1523190c21ae89b377f12320725e330954bb, только bot-runner:
+sha256:7259bf144f18701df2c5393f6ae87863f962c80ef81cc834f8d4dbc913fd8215,
+tag iguana-panel:account-r268-da7a15231-20261102/containerd6948323c681,
+healthy/restart0/1 replica. MAX2 использует durable acceptedEventKeys выбранного
+BUSINESS/GENERAL вопросника.32 frozen main classes exact;3 functional payloads
+и1 nested record class с изменением только source line numbers.273 остальных
+MAX ZIP payloads/entry set277 exact. Panel/Telegram/VK/core JAR byte-exact прежние.
+COPY-only/network-none incremental release, не full Maven/Sass build;
+249 inputs/264 class hashes/214 tests в20 suites — reused source/replay proof,
+не новый прогон. Test/acceptance classes в image не включены.
+
+Old runner/все children cold-stopped,3 feedback queues0 consumers/ready/unacked
+до нового fleet. Telegram1/MAX2/Telegram3 fresh startups и3 consumers/ready0/
+unacked0, live VK не запущен.61 ENV/mounts exact, HostConfig semantic exact;
+raw hash отличается только bind order/empty DNS — полный старый hash восстановлен.
+5 старых Compose/env inputs exact; новый runner-only overlay .tmp/01-278-r269-
+rollout/compose.services.json требует preserved-environment operator.
+17 остальных containers exact, web/worker R257/image90cd, db-migrate прежний.
+
+Backup pg_dump custom10232724 bytes/SHA256
+69A465915709A31E986D8E728AA8A23F413D97AB3AFA871F83495DB454DC9D40
+восстановлен в isolated PG192MiB/network none; same-host сохранён, temporary
+verifier resources удалены, working DB не восстанавливалась. V85/85/checksum
+-2092309160/settings455/accounts/grants/roots/pending/ratings/outbox/ledger17
+delivered/receipt0 unchanged. Redis EVAL_RO:0 MAX sessions/index/journals до/
+после, aggregate hashes exact; keys/answers/users/secrets не сохранялись.
+
+61 live access/SSE/readiness +24 signed actual-child API checks GREEN;4 running
+JAR hashes exact, fresh runner/child ERROR/fatal0/restart0, logout выполнен.
+ReadinessUP, общий healthDOWN/inboundDLQ1 прежний. Нет migrations/flags/backfill/
+bootstrap/repair/purge/requeue/provider acceptance messages. Новый rollback tag
+iguana-panel:rollback-r269-bot-runner-20261102-9cc3a7c69d95 сохранён на R266/image9cc3,
+старые R267/R264/R261 pointers/backups exact. Это не выполненный rollback;
+нужны cold stop/queues0/совместимые ledger+receipt+V85 и MAX Redis state. При новых
+session journals нельзя автоматически откатываться на не поддерживающий их код.
+Live questionnaire/Redis eviction/provider/client acceptance и S6 не доказаны.
+Task Runtime R269/.tmp/01-278-r269-rollout/ — evidence; ниже исторические записи.
+
+## Тестовый bot runtime — R267, 2026-11-02 (исторический checkpoint)
 
 Clean R266/d0b467204c68b205033bee0070119568ce377245, только bot-runner:
 sha256:9cc3a7c69d9595094e4d372de868ea6cd33a3dc8302f327c7909d7d745cb53e1,
@@ -128,10 +168,9 @@ runtime/provider/TicketService; это не real Redis/provider/client acceptanc
 Первая матрица corrected fixture GENERAL сохраняет обязательный соседний
 BUSINESS choice, production catalog validation не ослаблен.
 
-Runtime R267/R266/image9cc3a7c69d95/V85 и все18 containers/config/data/queues
-прежние, readinessUP, backup/rollback R267 сохранены. Fix пока source-only:
-отдельный clean-commit bot-runner release ещё нужен, acceptance classes в образ
-не включать. Пять крупных блоков/S6 и прежний operational health gate остаются.
+На source R268 runtime R267/R266 не менялся. В R269 выше fix выложен отдельным
+clean-commit bot-runner release; повторять выпуск не требуется, acceptance classes
+в образ не включены. Пять крупных блоков/S6 и прежний operational health gate остаются.
 Task Source R268/.tmp/01-278-r268-evidence/ — evidence.
 
 ## Тестовый bot runtime — R264, 2026-11-02 (исторический checkpoint)

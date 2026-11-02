@@ -24,11 +24,48 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальный runtime R267 имеют
+что production уже запускался. Эта оговорка и актуальный runtime R269 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
-## Актуальный тестовый runtime — R267, 2026-11-02
+## Актуальный тестовый runtime — R269, 2026-11-02
+
+Clean R268/da7a1523190c21ae89b377f12320725e330954bb выложен только в bot-runner:
+sha256:7259bf144f18701df2c5393f6ae87863f962c80ef81cc834f8d4dbc913fd8215,
+tag iguana-panel:account-r268-da7a15231-20261102/containerd6948323c681,
+healthy/restart0/1 replica. В MAX2 активен durable event journal выбранного
+BUSINESS/GENERAL вопросника. В image заменён только MAX JAR:32 frozen tested
+classes exact,3 functional classes изменены +1 nested record только source line
+numbers (full javap verbose proof);273 иных payloads и entry set277 exact.
+Panel/Telegram/VK/core JAR byte-exact прежние.249 inputs/264 classes и214/20
+source/replay tests сверены — reused proof, не новый прогон/full Maven/Sass build.
+
+Согласованный cold stop всех old children/queues0, затем Telegram1/MAX2/Telegram3
+fresh startups/3 consumers/ready0/unacked0, нет mixed fleet.61 ENV/mounts exact;
+HostConfig semantic exact, raw hash отличается только binds/empty DNS, полный
+старый hash восстановлен bounded guard.5 старых Compose/env inputs unchanged,
+новый runner-only overlay требует preserved-environment operator.17 нетаргетных
+containers exact, web/worker R257/image90cd; db-migrate не запускался.
+
+Свежий backup10232724 bytes/SHA256
+69A465915709A31E986D8E728AA8A23F413D97AB3AFA871F83495DB454DC9D40
+восстановлен в owned PG192MiB/network none; same-host сохранён, verifier container/
+volume удалены. Working DB не восстанавливалась. V85/85/checksum -2092309160,
+settings455/accounts/grants/roots/pending/ratings/outbox/ledger17delivered/receipt0
+прежние. Redis EVAL_RO aggregate session/index fingerprints exact:0 MAX sessions/
+journals. Нет migration/backfill/flags/bootstrap/repair/purge/requeue/customer sends.
+
+61 live access/SSE/readiness +24 actual-child signed admission GREEN,4 running
+JAR hashes exact, fresh runner/child ERROR/fatal0. ReadinessUP, общий healthDOWN/
+inboundDLQ1 прежний; operational gate не закрыт. Rollback R269 на R266/image9cc3/
+tag iguana-panel:rollback-r269-bot-runner-20261102-9cc3a7c69d95 сохранён, старые
+R267/R264/R261 pointers/backups exact. Откат не выполнялся; необходимы cold stop/
+queues0/ledger+receipt+V85 и MAX session compatibility. Новые journal sessions
+нельзя слепо отдавать старому runner или удалять ради отката. Нет live answers/
+Redis eviction/provider callback/full S6. Пять блоков остаются, задача🟡;
+task Runtime R269/.tmp/01-278-r269-rollout/. Следующие checkpoints исторические.
+
+## Тестовый runtime — R267, 2026-11-02 (исторический checkpoint)
 
 Clean R266/d0b467204c68b205033bee0070119568ce377245 выложен только в bot-runner:
 sha256:9cc3a7c69d9595094e4d372de868ea6cd33a3dc8302f327c7909d7d745cb53e1,
@@ -86,11 +123,11 @@ optimistic retry, delayed replay, JSON/limits/legacy. RED1/1 → GREEN;249 input
 264 classes source/replay exact,212 core classes unchanged. Это real local JSON/
 CAS/handler proof, не Redis eviction/live MAX provider/webhook или общий S6.
 
-Runtime R267/R266/18 containers/БД V85/config/settings455/ledger17/receipt0/queues
-не менялся, readinessUP; backup/rollback R267 сохранены. Main fix ещё source-only,
-нужен отдельный clean-commit runner release, без новых migrations/flags. Нет
-working deploy/backfill/flags/provider sends/staging/commit/push; остальные gates
-и пять блоков прежние. Task Source R268/.tmp/01-278-r268-evidence/, задача🟡.
+При подготовке R268 runtime R267/R266 не менялся. В R269 выше main fix выложен
+отдельным clean-commit runner release без новых migrations/flags; этот source
+больше не требует повторной выкладки. Нет backfill/flags/provider sends/staging/
+commit/push; остальные gates и пять блоков прежние. Task Source R268/
+.tmp/01-278-r268-evidence/, задача🟡.
 
 ## Тестовый runtime — R264, 2026-11-02 (исторический checkpoint)
 
