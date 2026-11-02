@@ -41,8 +41,8 @@ class MaxQuestionnaireSelectionTest {
     @BeforeEach void setup() {
         channel.setId(55L);channel.setPlatform("max");channel.setSupportChatId("unverified-shared-chat");
         properties=new MaxBotProperties();properties.setEnabled(true);properties.setChannelId(55L);properties.setWebhookSecret("test-secret");
-        var coordination=new BotIngressCoordinationProperties();coordination.setMode("direct");
-        @SuppressWarnings("unchecked") ObjectProvider<StringRedisTemplate> redis=mock(ObjectProvider.class);
+        var coordination=coordinationProperties();
+        var redis=redisProvider();
         store=spy(new BotSessionStoreService(coordination,mapper,redis));
         guard=spy(new BotWebhookDeliveryGuardService(coordination,redis));
         settings=new BotSettingsService(mapper,local,runtime);
@@ -71,17 +71,23 @@ class MaxQuestionnaireSelectionTest {
         return new SelectedQuestionnaire(1,55,"BUSINESS","USER_SELECTION",business,id,hash.repeat(64),"c".repeat(64),
             Map.of("active_template_id",id,"question_templates",List.of(template)),Map.of(),Map.of());
     }
-    private void rebuild() {
+    protected BotIngressCoordinationProperties coordinationProperties() {
+        var properties=new BotIngressCoordinationProperties();properties.setMode("direct");return properties;
+    }
+    @SuppressWarnings("unchecked")
+    protected ObjectProvider<StringRedisTemplate> redisProvider() {return mock(ObjectProvider.class);}
+    protected void discardDeliveryCache() { /* Direct mode loses its local cache with the guard instance. */ }
+    protected void rebuild() {
         controller=new MaxWebhookController(properties,blacklist,channels,tickets,mock(ChatHistoryService.class),messages,
             feedback,settings,ingress,guard,store,runtime,mock(AttachmentService.class),api,mock(MaxClientAvatarSyncService.class),mapper);
     }
-    private ResponseEntity<Map<String,Object>> send(String id,String text) {
+    protected ResponseEntity<Map<String,Object>> send(String id,String text) {
         var update=mapper.valueToTree(Map.of("update_type","message_created","update_id",id,"message",
             Map.of("sender",Map.of("user_id",1001,"username","client","name","Client"),
                 "recipient",Map.of("chat_id",2002),"body",Map.of("text",text))));
         return controller.handleUpdate(update,"test-secret");
     }
-    private MaxConversationSession.State state() {return store.load("max",55L,1001L,MaxConversationSession.State.class).orElseThrow().payload();}
+    protected MaxConversationSession.State state() {return store.load("max",55L,1001L,MaxConversationSession.State.class).orElseThrow().payload();}
     private String choice(int index) {var saved=state();return MaxQuestionnaireChoiceSupport.buttonText(saved.selection().catalog(),saved.selection().nonce(),index);}
     private void chooseA() {send("start","/start");send("choose",choice(0));}
     private void answerFirst() {chooseA();send("first","One");}
@@ -188,8 +194,9 @@ class MaxQuestionnaireSelectionTest {
     }
     @Test void finalDeliveryReplayAfterDedupCacheLossUsesTheSavedSubmissionTombstone() {
         answerFirst();send("last","Two");
-        var coordination=new BotIngressCoordinationProperties();coordination.setMode("direct");
-        @SuppressWarnings("unchecked") ObjectProvider<StringRedisTemplate> redis=mock(ObjectProvider.class);
+        discardDeliveryCache();
+        var coordination=coordinationProperties();
+        var redis=redisProvider();
         guard=new BotWebhookDeliveryGuardService(coordination,redis);rebuild();
         assertThat(send("last","Two").getBody()).containsEntry("ticket_id","T-MAX");
         verify(tickets,times(1)).createConversationTicket(any());
@@ -427,7 +434,7 @@ class MaxQuestionnaireSelectionTest {
                 java.util.stream.Stream.of("ack","prompt","dedup-reset").map(failure->
                     org.junit.jupiter.params.provider.Arguments.of(version,general,failure))));
     }
-    private void r268Choose(int version,boolean general) {
+    protected void r268Choose(int version,boolean general) {
         String id=general?"q-general":"q-a";Long owner=general?null:7L;
         var flow=List.of(
             Map.of("id","free-third","type","text","order",30,"text","Third","required",true),
@@ -458,17 +465,18 @@ class MaxQuestionnaireSelectionTest {
             doReturn(false).doReturn(true).when(messages).sendToUser(eq(channel),eq(1001L),startsWith(prompt));
         }
     }
-    private void r268ResetDeliveryCache() {
-        var coordination=new BotIngressCoordinationProperties();coordination.setMode("direct");
-        @SuppressWarnings("unchecked") ObjectProvider<StringRedisTemplate> redis=mock(ObjectProvider.class);
+    protected void r268ResetDeliveryCache() {
+        discardDeliveryCache();
+        var coordination=coordinationProperties();
+        var redis=redisProvider();
         guard=spy(new BotWebhookDeliveryGuardService(coordination,redis));rebuild();
     }
-    private String r268Raw() {return store.load("max",55L,1001L,MaxConversationSession.State.class).orElseThrow().rawPayload();}
+    protected String r268Raw() {return store.load("max",55L,1001L,MaxConversationSession.State.class).orElseThrow().rawPayload();}
     private void r268CommitOrFail(String failure,String key,String answer) {
         if("dedup-reset".equals(failure)) assertThat(send(key,answer).getStatusCode().value()).isEqualTo(200);
         else assertThatThrownBy(()->send(key,answer)).isInstanceOf(IllegalStateException.class);
     }
-    private void r268AssertCommand(boolean general,Map<String,String> answers) {
+    protected void r268AssertCommand(boolean general,Map<String,String> answers) {
         var capture=org.mockito.ArgumentCaptor.forClass(ConversationTicketCreationCommand.class);
         verify(tickets,times(1)).createConversationTicket(capture.capture());
         assertThat(capture.getValue().answers()).containsExactlyInAnyOrderEntriesOf(answers);

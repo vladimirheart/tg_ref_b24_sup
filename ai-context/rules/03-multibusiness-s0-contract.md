@@ -65,6 +65,38 @@ queues0/ledger+receipt+V85 и MAX session compatibility. Новые journal sess
 Redis eviction/provider callback/full S6. Пять блоков остаются, задача🟡;
 task Runtime R269/.tmp/01-278-r269-rollout/. Следующие checkpoints исторические.
 
+## MAX restore/replay на настоящем Redis — test-only R270, 2026-11-02
+
+Baseline7423a4919 (R269).109 исходных MAX questionnaire handler сценариев
+выполняются повторно с настоящими Redis Lua/CAS session store и delivery guard,
+не с local fallback. Assertions и test bodies прежние, изменены только test
+factories/reset seams. BUSINESS1–4/GENERAL2–4, answer/back/optional skip,
+ACK/prompt failure/dedup reset, final CAS gap/optimistic retry/legacy GREEN.
+Дополнительно2 BUSINESS/GENERAL v4 restart cases и1 stale CAS/channel/user/
+namespace isolation:112 Redis executions. После graceful restart отдельного
+Redis/AOF, fresh Lettuce connection и независимого store loadAll сохранены raw
+JSON/frozen scope/template/catalog/answers/journal/index/positive TTL/processed
+markers. Удаление только delivery keys не позволяет повтору события двигать
+questionnaire ещё раз; выбранный ticket command прежний.
+
+Opt-in fixture/PowerShell harness требуют exact cached image ID, owned resource
+labels+nonce и Redis sentinel; только loopback, отдельные container/network/volume,
+64MiB/CPU1, AOF/fsync always/noeviction. Default tests не поднимают Redis; explicit
+IT без настройки fail closed, без app.env/Compose/working DB/provider. Уникальные
+namespaces, bounded SCAN, нет FLUSHDB. В конце только2 sentinels, disposable
+resources удалены/ENV restored.214 default/20 suites +112 Redis/1 suite =326
+выполнений на каждую независимую source/replay копию, failures/errors/skips0;
+не652 уникальных теста.251 inputs/265 classes exact,244 runtime classes прежние.
+
+Runtime R269 выше unchanged, rebuild/restart рабочих контейнеров не нужны.
+Все18 container/config fingerprints, DB V85/85/ledger17delivered/receipt0/MAX
+session fingerprints exact; readinessUP,3 consumers/ready0/unacked0. Прежний
+health503/inboundDLQ1 не исправлялся, backup/rollback сохранены. Нет migrations/
+flags/provider sends/commit/push. Это не live webhook/provider, session eviction,
+crash/full bot application/launcher restart, rebind, ретроактивная дедупликация
+старых IDs или полный cross-platform/S6 gate. Пять блоков остаются; task Source
+R270/.tmp/01-278-r270-evidence/, задача🟡.
+
 ## Тестовый runtime — R267, 2026-11-02 (исторический checkpoint)
 
 Clean R266/d0b467204c68b205033bee0070119568ce377245 выложен только в bot-runner:

@@ -64,6 +64,50 @@ Platform-specific:
 в local `JPA/SQLite` business-path для ticket/channel/feedback/blacklist
 операций.
 
+## Изолированная Redis-приёмка MAX — test-only R270, 2026-11-02
+
+MaxQuestionnaireRedisIT наследует109 исходных handler scenarios без копирования/
+ослабления assertions. Реальные session store/delivery guard используют Redis
+Lua/CAS; runtime/API/provider — test doubles, Spring application не запускается.
+BUSINESS1–4/GENERAL2–4, answer/back/optional skip после ACK/prompt failure/dedup
+reset и final/optimistic/legacy cases проверяются на Redis. Дополнительно две
+v4 ветки BUSINESS/GENERAL проходят настоящий graceful Redis restart с AOF,
+fresh Lettuce connection и independent store/loadAll; raw session/scope/selection/
+journal/index/positive TTL/processed markers сохраняются. Удаляются только
+delivery keys, старое событие не меняет ответ/позицию, fresh messages завершают
+исходный выбранный command. Ещё1 проверка — stale CAS и channel/user/namespace
+isolation.112 Redis executions, не112 новых уникальных handler scenarios.
+
+Воспроизводимый вход: java-bot/bot-max/run-redis-acceptance.ps1 с обязательным
+параметром RedisImage — exact sha256 ID уже закэшированного Redis7 image.
+Mutable tag/pull/default live address не используются. Требуются Windows
+PowerShell/Docker, JDK/Maven wrapper и заранее закэшированные Maven dependencies;
+прогон offline. Harness создаёт только собственные новые container/network/volume
+с owner+nonce labels, loopback port (выбранный свободный и закреплённый для
+restart),64MiB/CPU1, AOF/appendfsync always/noeviction и одноразовый пароль.
+Dedicated bridge не является network-none/internal: Docker Desktop не публиковал
+host port для internal network. Подключения к project network/Compose/.env нет.
+
+Harness передаёт только fixture keys QUESTIONNAIRE_REDIS_OWNER/PASSWORD/
+CONTAINER_ID/IMAGE_ID/PORT; адрес в Java строго127.0.0.1/database0. Перед записью
+проверяются exact container ID/name/image/labels/port/memory и Redis sentinel.
+Перед restart повторяется guard; неполная настройка explicit IT — ошибка, не
+skip/local fallback. Каждый тест имеет уникальный namespace, удаление только
+его ключей через bounded SCAN; при dedup reset session/index exact, нет FLUSHDB.
+В конце DBSIZE2 (только sentinels), finally удаляет только owned resources и
+восстанавливает ENV. Proof/Redis log и обычный Surefire XML лежат в bot-max/target.
+Default Surefire/Max*Test не запускает IT; POM/main/runtime resources не менялись.
+
+214 default/20 suites +112 Redis/1 suite =326 выполнений на каждую независимую
+source/replay копию, failures/errors/skips0.251 inputs/265 class hashes exact,
+244 runtime classes byte-exact R268. Maven96MiB/test JVM192MiB/CPU2, последовательно.
+Runtime R269 ниже и все18 рабочих containers/DB V85/ledger17delivered/receipt0/
+MAX session fingerprints прежние; readinessUP/3 consumers/ready0/unacked0.
+Общий health503/inboundDLQ1 прежний. Backup/rollback сохранены, rebuild/deploy/
+migrations/flags/provider acceptance sends не выполнялись и для test-only пакета
+не нужны. Это не live MAX webhook/provider/client callback, session eviction,
+полный bot JVM/launcher/fleet restart/rebind или первый production S6.
+
 ## Рабочий тестовый bot runtime — R269, 2026-11-02
 
 Clean R268/da7a1523190c21ae89b377f12320725e330954bb, только bot-runner:
