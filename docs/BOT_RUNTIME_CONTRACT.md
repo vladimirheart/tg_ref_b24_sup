@@ -64,7 +64,43 @@ Platform-specific:
 в local `JPA/SQLite` business-path для ticket/channel/feedback/blacklist
 операций.
 
-## Рабочий тестовый bot runtime — R261, 2026-11-01/02
+## Рабочий тестовый bot runtime — R264, 2026-11-02
+
+Clean R263/8dbb083206c36426d5aab229d6ae36510bf57cd3, только bot-runner:
+image9898448385a0/tag iguana-panel:account-r263-8dbb08320-20261102,
+containerc068584505b2/healthy/restart0/1replica. Telegram1/MAX2/Telegram3
+запущены после cold stop всех прежних children/3 queues0 consumers/ready/unacked
+и применения V85. Нет mixed old/new fleet. Live VK child не запущен.
+212 core/72 platform frozen tested classes exact,1435 panel classes прежние;
+panel JAR дополнен только V85 SQL.4 running JAR hashes exact. COPY/network-none,
+не full Maven/Sass build;769/21 — reused source proof, не новый прогон.
+
+V85/checksum -2092309160/85 successful history rows применена schema-only
+Flyway10.17/one-shot Compose db-migrate --no-deps, не полным Spring boot:
+нет security bootstrap/legacy normalize/repair/baseline/clean. Оригинальный
+db-migrate и все17 остальных containers прежние, web/worker R257/image90cd.
+61 ENV/mounts/HostConfig и5 существующих Compose/env inputs exact. Новый overlay
+.tmp/01-278-r264-rollout/compose.services.json требует preserved-environment
+operator, не самостоятельный Compose up с отсутствующими placeholders.
+
+Backup восстановлен изолированно; V85 сохраняет V1–V84 history/данные, old84 SQL
+validate/migrate0 на V85 проверены. Settings455/ledger17delivered/receipt0;
+accounts/grants/roots/pending/ratings/outbox/flags unchanged.61 live access/SSE/
+readiness и24 signed admission GREEN,3 fresh startups/3 consumers/ready0/unacked0.
+Fresh ERROR/fatal0; общий healthDOWN/inboundDLQ1 прежний, operational gate не
+закрыт. Нет backfill/flags/purge/requeue или внешних acceptance messages.
+
+Rollback tag iguana-panel:rollback-r264-bot-runner-20261102-904fba5c4e40 сохранён
+на R260, не выполнен. Только cold stop всех новых children/consumers + пустой
+receipt journal + exact ledger/inflight + V85 compatibility. Не удалять журнал
+и не восстанавливать working DB автоматически. Same-host backup сохранён,
+temporary restore container/volume и migrator удалены. Старые pointers прежние.
+Receipt reconciliation на replay с committed positive evidence активна; нет
+startup/batch scanner, unknown без receipt, live SDK/client rating callback,
+in-flight process kill/restart proof, scoped review/retention или первого S6.
+Подробности/evidence — task Runtime R264/.tmp/01-278-r264-rollout/.
+
+## Исторический тестовый bot runtime — R261, 2026-11-01/02
 
 Clean R260/5731c6d483010990aebe0a35df21089defce0d9a выложен только в
 bot-runner: image904fba5c4e40/tag iguana-panel:account-r260-5731c6d48-20261101,
@@ -98,8 +134,9 @@ receipt, live rating callback/customer feedback и full in-flight process restar
 Для новой runtime receipt path обязательна backend/Flyway V85. Она сохраняет
 прежние ledger rows и добавляет integration_outbound_delivery_receipts. Java-bot
 не создаёт receipt table: отсутствие схемы останавливает runtime bean до SDK.
-На текущем рабочем стенде V85 НЕ применена, image не обновлён: остаётся R261.
-Нельзя пересобирать/перезапускать children как будто пакет не требует schema gate.
+В исходном source-only checkpoint R263 рабочий стенд оставался R261 без V85.
+В R264 выше отдельный schema gate выполнен, V85 и новые children уже активны.
+Это не разрешает обходить schema/backup/cold-fleet gates при новом выпуске.
 
 Runtime dispatcher использует5-argument constructor с обязательным receipt
 service; старый4-argument constructor и boolean Messaging API остаются source
@@ -126,7 +163,8 @@ receipt записывает delivered/observed accepted_at, не обращая
 
 769/21 suites GREEN/135 новых, включая V85 Flyway/real PG fault injection,
 SDK/HTTP response validation и48 recovery/unknown E2E на4 scope ×3 routes.
-Source/replay независимы. На рабочей БД нет миграций/backfill/flags/deploy/messages.
+Source/replay независимы. При source-only R263 working migration/deploy не было;
+фактическая V85/выкладка отдельно зафиксирована R264 выше, без backfill/flags/messages.
 Full process kill/restart, live provider/client callback, неизвестный исход без
 сохранённого receipt и operational review/retention/S6 остаются. Для будущего
 релиза нужны отдельные V85 backup/rollback и coordinated fleet gates.

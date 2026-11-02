@@ -24,11 +24,51 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальный runtime R261 имеют
+что production уже запускался. Эта оговорка и актуальный runtime R264 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
-## Квитанции отправки feedback — source R263
+## Актуальный тестовый runtime — R264, 2026-11-02
+
+Clean R263/8dbb083206c36426d5aab229d6ae36510bf57cd3 выложен только в bot-runner:
+sha256:9898448385a0d685e57891b8e94696b46a4dd14edde9ad77eaf8d5eb1070d48b,
+tag iguana-panel:account-r263-8dbb08320-20261102/containerc068584505b2,
+healthy/restart0/1replica.212 core/72 platform frozen tested classes/1435 panel
+classes exact; panel JAR дополнен только V85. Incremental COPY/network-none,
+769/21 — прежний source proof, не новый прогон/full Maven/Sass build.
+Все3 old children остановлены,3 queues0 consumers/ready/unacked до V85 и
+старта новых Telegram1/MAX2/Telegram3; нет mixed fleet. Live VK не запущен.
+
+Backup pg_dump custom10196390 bytes/SHA256
+08742695C7D6F8BD98193F650F9262ACD2F491738337EF8AF4482652B3F8B35B
+восстановлен в owned isolated PG192/network none. На копии V85/validate и
+старые84 SQL validate/migrate0 на V85 GREEN; same-host backup сохранён,
+временные container/volume удалены. Working DB не восстанавливалась.
+Schema-only Flyway10.17 через one-shot Compose db-migrate --no-deps применил
+ровноV85/checksum -2092309160; без Spring/bootstrap/legacy normalize/repair.
+Оригинальный db-migrate и все17 нетаргетных контейнеров прежние; web/worker
+R257/7b9fea55a/image90cd.61 ENV/mounts/HostConfig и5 Compose/env inputs exact.
+
+V85/85/history1–84 exact/settings455/accounts/grants/roots53/pending51/ratings36/
+outbox126/flags прежние. Ledger17delivered/MD5 04787691279b925af193b11e95c0c9f0,
+receipt journal0.61 свежая live access/SSE/readiness +24 signed admission GREEN,
+3 fresh startups/3 consumers/ready0/unacked0. ReadinessUP, runner/children fresh
+ERROR/fatal0. Общий health503/DOWN из-за прежнего inbound DLQ1; TLS/iiko WARN
+не исправлялись. Нет backfill/flags/purge/requeue или внешних acceptance sends.
+
+Rollback R264 → R260/image904f/tag
+iguana-panel:rollback-r264-bot-runner-20261102-904fba5c4e40 сохранён, не выполнен.
+Только cold stop всех новых children/consumers + empty receipt journal + exact
+ledger/inflight + V85 compatibility разрешают рассматривать откат; не drop
+journal и не automatic working DB restore. Старые R261/R258 pointers сохранены.
+Receipt reconciliation работает на явном replay committed positive evidence,
+но нет startup/batch scanner, unknown без receipt, scoped review/retention,
+live provider/client callback или полного in-flight process restart. Остальные
+изоляция/GENERAL/policies/AI/S6 остаются; задача🟡, S2B снятR190.
+Подробности/evidence — task Runtime R264/.tmp/01-278-r264-rollout/.
+Ниже исторические source/runtime checkpoints, не инструкция повторить выпуск.
+
+## Квитанции отправки feedback — source R263 (исторический checkpoint до R264)
 
 Baseline249acbf535b82fc694363120c04561cb1768f79b,2 ноября. Backend-owned V85
 принимает прежний ledger под Flyway без изменения строк и добавляет private
@@ -89,7 +129,7 @@ in-flight process restart и остальные S3–S6 блоки остают�
 
 ## Среда выполнения и сессии
 
-Актуальный runtime R261 — выкладка1 ноября/фиксация2 ноября, тот же тестовый
+Исторический runtime R261 — выкладка1 ноября/фиксация2 ноября, тот же тестовый
 Windows/Docker Desktop экземпляр этой сессии. Проверен clean HEAD/origin/main/
 actual remote5731c6d483010990aebe0a35df21089defce0d9a (R260,parenta3cec82d1).
 Обновлён только bot-runner: image
