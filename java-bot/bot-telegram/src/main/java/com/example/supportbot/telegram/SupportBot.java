@@ -1515,6 +1515,20 @@ public class SupportBot extends TelegramLongPollingBot {
         return ensured;
     }
 
+    public com.example.supportbot.service.ProviderSendResult sendDirectMessageWithReceipt(Long chatId,String text) {
+        if(chatId==null || chatId<=0 || text==null || text.isBlank())return com.example.supportbot.service.ProviderSendResult.unknown();
+        SendMessage request=SendMessage.builder().chatId(chatId).text(text).replyMarkup(new ReplyKeyboardRemove(true)).build();
+        try {
+            Message response=execute(request);
+            if(response==null || response.getChat()==null || !chatId.equals(response.getChatId()) || response.getMessageId()==null || response.getMessageId()<=0)
+                return com.example.supportbot.service.ProviderSendResult.unknown();
+            return com.example.supportbot.service.ProviderSendResult.accepted(response.getMessageId().toString());
+        }catch(TelegramApiException failure){
+            log.warn("Telegram provider receipt unavailable");
+            return com.example.supportbot.service.ProviderSendResult.unknown();
+        }
+    }
+
     public boolean sendDirectMessage(Long chatId, String text) {
         if (chatId == null || text == null || text.isBlank()) {
             return false;

@@ -37,6 +37,10 @@ public class TelegramOutboundMessenger implements OutboundMessenger {
         return supportBot.sendDirectMessage(userId, text);
     }
 
+    @Override public com.example.supportbot.service.ProviderSendResult sendToUserWithReceipt(Long userId,String text) {
+        return supportBot.sendDirectMessageWithReceipt(userId,text);
+    }
+
     @Override
     public boolean sendToSupportChat(String supportChatId, String text) {
         if (supportChatId == null || supportChatId.isBlank()) {

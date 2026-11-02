@@ -77,6 +77,7 @@ final class FeedbackChainFixture implements AutoCloseable {
     final AtomicInteger providerStatus = new AtomicInteger(200);
     final AtomicBoolean apiUnavailable = new AtomicBoolean();
     final AtomicBoolean dropProviderReply = new AtomicBoolean(), failResultPersistence = new AtomicBoolean();
+    final AtomicBoolean receiptMode=new AtomicBoolean(),failUncertainPersistence=new AtomicBoolean(true);
     final AtomicReference<List<BotCredential>> credentials = new AtomicReference<>(List.of());
     final BlockingQueue<Throwable> consumerFailures = new LinkedBlockingQueue<>();
     final String exchange = "r259.feedback." + UUID.randomUUID();
@@ -93,6 +94,7 @@ final class FeedbackChainFixture implements AutoCloseable {
     private final ExecutorService httpThreads;
     private final PostgreSQLContainer<?> postgres;
     private final GenericContainer<?> broker;
+    private final String isolatedSchema="r263_chain_"+UUID.randomUUID().toString().replace("-","");
     private SimpleMessageListenerContainer consumer;
     private String platform, queue;
 
@@ -119,7 +121,8 @@ final class FeedbackChainFixture implements AutoCloseable {
         }
         String brokerHost = broker == null ? "127.0.0.1" : broker.getHost();
         // Overrides are loopback-only and fixed, fake credentials cannot authenticate to the working stack.
-        datasource = new HikariDataSource(); datasource.setJdbcUrl(jdbcUrl); datasource.setUsername("r259_test"); datasource.setPassword(TOKEN);
+        new JdbcTemplate(new org.springframework.jdbc.datasource.DriverManagerDataSource(jdbcUrl,"r259_test",TOKEN)).execute("CREATE SCHEMA "+isolatedSchema);
+        datasource = new HikariDataSource(); datasource.setJdbcUrl(jdbcUrl); datasource.setSchema(isolatedSchema); datasource.setUsername("r259_test"); datasource.setPassword(TOKEN);
         datasource.setMaximumPoolSize(4); datasource.setMinimumIdle(0); datasource.setConnectionTimeout(5000);
         datasource.addDataSourceProperty("connectTimeout", "5"); datasource.addDataSourceProperty("socketTimeout", "10");
         jdbc = new JdbcTemplate(datasource);
@@ -152,7 +155,7 @@ final class FeedbackChainFixture implements AutoCloseable {
         http.createContext("/provider", request -> {
             providerAttempts.add(mapper.readTree(request.getRequestBody().readAllBytes()));
             if (dropProviderReply.get()) { request.close(); return; }
-            respond(request, providerStatus.get(), "{}");
+            respond(request, providerStatus.get(), "{\"messageId\":\"r263.provider.1\"}");
         });
         http.start();
         api.setBaseUrl("http://127.0.0.1:" + http.getAddress().getPort()); api.setToken(TOKEN);
@@ -169,11 +172,14 @@ final class FeedbackChainFixture implements AutoCloseable {
         doAnswer(call -> { ((Runnable)call.getArgument(2)).run(); return null; }).when(coordination).runWithLease(anyString(), any(), any(Runnable.class));
         outbox = new OutboundFeedbackPromptPublishOutboxService(jdbc, mapper, rabbit, panelRabbit, coordination, new LegacyTicketIdJdbcGuard(jdbc));
         new OutboundTransportDeliveryLedgerService(jdbc);
+        try(var connection=datasource.getConnection()){
+            org.springframework.jdbc.datasource.init.ScriptUtils.executeSqlScript(connection,new org.springframework.core.io.ClassPathResource("db/V85__outbound_delivery_receipts.sql"));
+        }
     }
 
     void reset(String scope, String platform) {
         stopConsumer(); this.platform = platform;
-        for (String table : List.of("integration_outbound_event_deliveries", "integration_transport_outbox", "pending_feedback_requests",
+        for (String table : List.of("integration_outbound_delivery_receipts", "integration_outbound_event_deliveries", "integration_transport_outbox", "pending_feedback_requests",
                 "tickets", "channels", "businesses", "business_channel_bindings", "general_channel_question_template_bindings", "shared_channel_general_question_template_bindings"))
             jdbc.update("DELETE FROM " + table);
         flags.getFoundation().setEnabled(!scope.equals("LEGACY")); flags.setGeneralChannelResolution(true); flags.setSharedChannelResolution(true);
@@ -181,6 +187,7 @@ final class FeedbackChainFixture implements AutoCloseable {
         receivedMessages.set(0); wirePayloads.clear(); recipientInputs.clear();
         providerStatus.set(200); apiUnavailable.set(false); api.setSignatureSecret(null);
         dropProviderReply.set(false); failResultPersistence.set(false);
+        receiptMode.set(false);failUncertainPersistence.set(true);
         credentials.set(List.of(new BotCredential(7L, "test sender", platform, TOKEN, true)));
         jdbc.update("INSERT INTO channels(id,token,channel_name,platform,is_active,credential_id) VALUES(?,'never-inline-fallback','isolated feedback',?,TRUE,7)", CHANNEL, platform);
         jdbc.update("INSERT INTO businesses VALUES(?,'active')", BUSINESS);
@@ -227,11 +234,16 @@ final class FeedbackChainFixture implements AutoCloseable {
             public String platform() { return senderPlatform; }
             public OutboundSenderIdentity senderIdentity() { return identity; }
             public boolean sendToSupportChat(String chat, String text) { throw new AssertionError("No support-chat delivery in feedback prompt flow"); }
-            public boolean sendToUser(Long userId, String text) {
+            public boolean sendToUser(Long userId, String text) { return submit(userId,text).accepted(); }
+            public ProviderSendResult sendToUserWithReceipt(Long userId,String text){
+                var result=submit(userId,text);return receiptMode.get()?result:ProviderSendResult.legacy(result.accepted());
+            }
+            private ProviderSendResult submit(Long userId, String text) {
                 try {
                     var request = HttpRequest.newBuilder(URI.create(api.getBaseUrl() + "/provider")).timeout(Duration.ofSeconds(5))
                         .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(Map.of("platform", senderPlatform, "userId", userId, "text", text)))).build();
-                    return HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.discarding()).statusCode() == 200;
+                    var response=HttpClient.newHttpClient().send(request,HttpResponse.BodyHandlers.ofString());
+                    return response.statusCode()==200?ProviderSendResult.accepted(mapper.readTree(response.body()).path("messageId").textValue()):ProviderSendResult.unknown();
                 } catch (Exception failure) { throw new IllegalStateException(failure); }
             }
         };
@@ -243,11 +255,11 @@ final class FeedbackChainFixture implements AutoCloseable {
                 super.markDelivered(eventId);
             }
             @Override public void markUncertain(String eventId, Exception failure) {
-                if (failResultPersistence.get()) throw new IllegalStateException("Test: result database unavailable");
+                if (failResultPersistence.get() && failUncertainPersistence.get()) throw new IllegalStateException("Test: result database unavailable");
                 super.markUncertain(eventId,failure);
             }
         };
-        var dispatch = new OutboundFeedbackPromptDispatchService(channelReader, messages, ledger, recipientClient);
+        var dispatch = new OutboundFeedbackPromptDispatchService(channelReader, messages, ledger, recipientClient,new OutboundDeliveryReceiptService(jdbc));
         var properties = new IntegrationRabbitProperties(); properties.setOutboundQueue(queue); properties.setOutboundRoutingKey(route());
         properties.setOutboundConcurrency(1); properties.setOutboundMaxConcurrency(1); properties.setOutboundPrefetch(1);
         var listener = new OutboundFeedbackPromptListener(dispatch, properties);
@@ -323,6 +335,10 @@ final class FeedbackChainFixture implements AutoCloseable {
     }
     @Override public void close() {
         try { stopConsumer(); connections.destroy(); http.stop(0); httpThreads.shutdownNow(); entities.destroy(); datasource.close(); }
-        finally { if (broker != null) broker.stop(); if (postgres != null) postgres.stop(); }
+        finally {
+            assertThat(isolatedSchema).matches("r263_chain_[0-9a-f]{32}");
+            new JdbcTemplate(new org.springframework.jdbc.datasource.DriverManagerDataSource(datasource.getJdbcUrl(),"r259_test",TOKEN)).execute("DROP SCHEMA "+isolatedSchema+" CASCADE");
+            if (broker != null) broker.stop(); if (postgres != null) postgres.stop();
+        }
     }
 }

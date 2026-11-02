@@ -3,6 +3,8 @@ package com.example.supportbot.service;
 import com.example.supportbot.entity.Channel;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -17,15 +19,25 @@ public class OutboundFeedbackPromptDispatchService {
     private final MessagingService messagingService;
     private final OutboundTransportDeliveryLedgerService deliveryLedgerService;
     private final PanelFeedbackPromptDeliveryClient deliveryAuthorization;
+    private final OutboundDeliveryReceiptService receipts;
 
     public OutboundFeedbackPromptDispatchService(ChannelService channelService,
                                                  MessagingService messagingService,
                                                  OutboundTransportDeliveryLedgerService deliveryLedgerService,
                                                  PanelFeedbackPromptDeliveryClient deliveryAuthorization) {
+        this(channelService,messagingService,deliveryLedgerService,deliveryAuthorization,null);
+    }
+
+    /** Runtime always uses the migration-gated receipt service; the old constructor is source compatibility only. */
+    @Autowired
+    public OutboundFeedbackPromptDispatchService(ChannelService channelService,MessagingService messagingService,
+            OutboundTransportDeliveryLedgerService deliveryLedgerService,PanelFeedbackPromptDeliveryClient deliveryAuthorization,
+            OutboundDeliveryReceiptService receipts) {
         this.channelService = channelService;
         this.messagingService = messagingService;
         this.deliveryLedgerService = deliveryLedgerService;
         this.deliveryAuthorization = deliveryAuthorization;
+        this.receipts = receipts;
     }
 
     public void dispatch(OutboundFeedbackPromptEvent event, String routingKey) {
@@ -40,6 +52,7 @@ public class OutboundFeedbackPromptDispatchService {
                 event.userId(),
                 event.ticketId(),
                 event.requestId())) {
+            if(receipts!=null)receipts.reconcile(event.eventId());
             log.info("Skipping already processed outbound feedback prompt event {} via routing {}", event.eventId(), routingKey);
             return;
         }
@@ -54,10 +67,21 @@ public class OutboundFeedbackPromptDispatchService {
             }
             // Authorization performs I/O; do not route a channel object changed while awaiting that decision.
             requireCurrentChannel(channel.get(), event);
-            boolean delivered = messagingService.sendToUser(channel.get(), event.userId(), event.prompt(), () -> {
+            Runnable handoff = () -> {
                 deliveryLedgerService.markSending(event.eventId());
                 handoffStarted.set(true);
-            });
+            };
+            AtomicReference<String> attempt=new AtomicReference<>();
+            boolean delivered = receipts==null
+                ? messagingService.sendToUser(channel.get(),event.userId(),event.prompt(),handoff)
+                : messagingService.sendToUserObserved(channel.get(),event.userId(),event.prompt(),new OutboundDeliveryObserver(){
+                    public void beforeProvider(OutboundSenderIdentity sender){
+                        handoff.run();attempt.set(receipts.prepare(event.eventId(),sender,event.prompt()));
+                    }
+                    public void accepted(OutboundSenderIdentity sender,Long userId,ProviderSendResult result){
+                        receipts.record(event.eventId(),attempt.get(),sender,userId,result);
+                    }
+                });
             if (!delivered || !handoffStarted.get()) throw new IllegalStateException(
                 "Outbound feedback prompt delivery did not complete for channel " + event.channelId());
             deliveryLedgerService.markDelivered(event.eventId());

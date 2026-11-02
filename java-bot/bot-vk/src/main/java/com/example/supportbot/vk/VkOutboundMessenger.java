@@ -41,6 +41,11 @@ public class VkOutboundMessenger implements OutboundMessenger {
         return vkSupportBot.sendDirectMessage(userId.intValue(), text);
     }
 
+    @Override public com.example.supportbot.service.ProviderSendResult sendToUserWithReceipt(Long userId,String text) {
+        if(userId==null || userId<=0 || userId>Integer.MAX_VALUE)return com.example.supportbot.service.ProviderSendResult.unknown();
+        return vkSupportBot.sendDirectMessageWithReceipt(userId.intValue(),text);
+    }
+
     @Override
     public boolean sendToSupportChat(String supportChatId, String text) {
         if (supportChatId == null || supportChatId.isBlank()) {

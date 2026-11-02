@@ -28,6 +28,41 @@ production/рабочий в старых записях, именах Compose �
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
+## Квитанции отправки feedback — source R263
+
+Baseline249acbf535b82fc694363120c04561cb1768f79b,2 ноября. Backend-owned V85
+принимает прежний ledger под Flyway без изменения строк и добавляет private
+receipt journal. В рабочей БД V85 НЕ применена; receipt bean требует готовую
+таблицу и не выполняет DDL. Не обновлять children простым rebuild без schema gate.
+
+До SDK committed nonce связан с exact ledger kind/route/channel/user/raw ticket/
+request и platform/sender fingerprint/prompt SHA256; после SDK положительный
+message ID сохраняется отдельно до финального delivered. Текст/token/body в
+журнале не сохраняются. Messaging pinned sender recheck после prepare сохранён;
+legacy boolean/support-chat API не менялись. TG exact chat+positive message_id,
+VK positive SDK ID без сужения bigint, MAX integral exact recipient + textual mid.
+
+Replay sending/uncertain с committed positive receipt и полным SQL context join
+восстанавливает delivered без provider/admission/new claim. Unknown/нет receipt/
+context drift/unsupported status остаются blocked. Historical acceptance не
+является текущим delivery permission, read receipt или exactly-once. Нет поиска
+по тексту/каталогу, reset/requeue, startup/batch scanner или автоответа клиенту.
+
+769 executions/21 suites GREEN:484 core +31 SDK adapter +254 PG/Rabbit/HTTP,
+135 новых. Flyway10.17 V85/validate, pre-V85 preservation, rollback/lost commit,
+nonce/context/recipient/ID poison,3-attempt cap/256-char boundary,4 scope ×3 route
+recovery/unknown после service+consumer restore и явного replay проверены.
+292 frozen inputs/284 classes/205 unrelated core exact,1435 panel reused с
+provenance; независимый source/replay, не full Maven/assets или live SDK/process.
+
+Source-only/no working migration/deploy/flags/backfill/messages/commit/push.
+18 рабочих containers/config/БД V84/settings455/ledger17delivered/queues прежние,
+readinessUP; runtime R261/rollback/backup pointers ниже сохранены. Изолированные
+PG192/Rabbit256MiB и данные удалены. Нужны отдельный V85 release/rollback gate,
+unknown без durable receipt, scoped operational review/retention, live callback,
+full process restart и оставшиеся S3–S6. S2B снятR190/задача🟡.
+Подробности — task Source R263/.tmp/01-278-r263-evidence/.
+
 ## Подтверждение известного результата — source R262
 
 Baseline a3e9348824cafd2f56d75905e3aa881c6ab5d416,2 ноября. Только ledger service:

@@ -93,6 +93,44 @@ receipt, live rating callback/customer feedback и full in-flight process restar
 остаются. Этот локальный test release не является первым production S6.
 Подробный checkpoint/evidence — task Runtime R261/.tmp/01-278-r261-rollout/.
 
+## Durable provider receipts — source R263
+
+Для новой runtime receipt path обязательна backend/Flyway V85. Она сохраняет
+прежние ledger rows и добавляет integration_outbound_delivery_receipts. Java-bot
+не создаёт receipt table: отсутствие схемы останавливает runtime bean до SDK.
+На текущем рабочем стенде V85 НЕ применена, image не обновлён: остаётся R261.
+Нельзя пересобирать/перезапускать children как будто пакет не требует schema gate.
+
+Runtime dispatcher использует5-argument constructor с обязательным receipt
+service; старый4-argument constructor и boolean Messaging API остаются source
+compatibility contract, не новым способом отключить runtime journal. Observer
+фиксирует committed nonce после durable sending и до SDK, pinned identity
+проверяется после DB I/O. В journal — exact kind/route/channel/user/raw ticket/
+request/platform/sender fingerprint/prompt SHA256, не prompt/token/full body.
+
+Telegram/VK/MAX receipt adapters возвращают ProviderSendResult с подтверждённым
+ID ответа и не повторяют SDK. Telegram проверяет chat+positive message_id, VK
+positive SDK Integer для исходного peer, MAX — message.body.mid + точный integral
+recipient.user_id из [официального POST /messages](https://dev.max.ru/docs-api/methods/POST/messages).
+Compatibility default может вернуть boolean success без ID, но не создаёт
+фиктивную квитанцию; legacy/support-chat sends не переделаны в receipt flows.
+
+Положительный receipt сохраняется отдельной REQUIRES_NEW транзакцией до
+markDelivered. Nonce/sender/user/полный ledger context и неизменность provider ID
+проверяются; prepare/record/reconcile имеют максимум3 persistence attempts.
+После восстановления service/consumer явный replay sending/uncertain с таким
+receipt записывает delivered/observed accepted_at, не обращаясь к SDK/admission.
+Нет автоматической разблокировки unknown без evidence, startup scan, requeue,
+текущей recipient policy evaluation или выдачи новых прав. Receipt — локально
+сохранённый результат ответа, не cryptographic proof и не read receipt клиента.
+
+769/21 suites GREEN/135 новых, включая V85 Flyway/real PG fault injection,
+SDK/HTTP response validation и48 recovery/unknown E2E на4 scope ×3 routes.
+Source/replay независимы. На рабочей БД нет миграций/backfill/flags/deploy/messages.
+Full process kill/restart, live provider/client callback, неизвестный исход без
+сохранённого receipt и operational review/retention/S6 остаются. Для будущего
+релиза нужны отдельные V85 backup/rollback и coordinated fleet gates.
+
 ## Подтверждение уже известного успеха — source R262
 
 Если provider вернул true, а запись результата или ответ commit потеряны,

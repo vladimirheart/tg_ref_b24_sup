@@ -51,6 +51,22 @@ public class MessagingService {
             && messenger.sendToUser(userId, text);
     }
 
+    public boolean sendToUserObserved(Channel channel, Long userId, String text, OutboundDeliveryObserver observer) {
+        java.util.Objects.requireNonNull(observer);
+        if (userId == null || text == null || text.isBlank()) return false;
+        OutboundMessenger messenger = resolveMessenger(channel);
+        if (messenger == null) return false;
+        OutboundSenderIdentity identity = authorizeIdentity(channel,messenger);
+        if (identity == null) return false;
+        observer.beforeProvider(identity);
+        if (!identity.matches(channel,messenger.platform()) || !identity.equals(messenger.senderIdentity())) return false;
+        ProviderSendResult result = messenger.sendToUserWithReceipt(userId,text);
+        if (result == null || !result.accepted()) return false;
+        // This is a historical result of the pinned sender, not a fresh authorization or reroute.
+        if (result.messageId() != null) observer.accepted(identity,userId,result);
+        return true;
+    }
+
     public boolean sendToSupportChat(Channel channel, String text) {
         if (channel == null || text == null || text.isBlank()) {
             return false;

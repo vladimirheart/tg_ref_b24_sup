@@ -34,6 +34,10 @@ public class MaxOutboundMessenger implements OutboundMessenger {
         return maxApiClient.sendMessageToUser(userId, text);
     }
 
+    @Override public com.example.supportbot.service.ProviderSendResult sendToUserWithReceipt(Long userId,String text) {
+        return maxApiClient.sendMessageToUserWithReceipt(userId,text);
+    }
+
     @Override
     public boolean sendToSupportChat(String supportChatId, String text) {
         if (supportChatId == null || supportChatId.isBlank()) {

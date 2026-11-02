@@ -62,5 +62,19 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId><artifactId>flyway-core</artifactId><version>10.17.0</version><scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId><artifactId>flyway-database-postgresql</artifactId><version>10.17.0</version><scope>test</scope>
+        </dependency>
     </dependencies>
+    <build><testResources>
+        <testResource><directory>src/test/resources</directory></testResource>
+        <testResource>
+            <directory>${project.basedir}/../../spring-panel/src/main/resources/db/migration/postgresql</directory>
+            <targetPath>receipt-migration</targetPath>
+            <includes><include>V85__outbound_delivery_receipts.sql</include></includes>
+        </testResource>
+    </testResources></build>
 </project>

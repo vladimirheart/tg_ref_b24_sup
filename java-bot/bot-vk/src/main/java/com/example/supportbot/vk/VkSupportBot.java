@@ -1274,6 +1274,20 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         return runtimeIdentity.forToken("vk", properties.getToken());
     }
 
+    public com.example.supportbot.service.ProviderSendResult sendDirectMessageWithReceipt(Integer peerId,String text) {
+        if(!properties.isEnabled() || peerId==null || peerId<=0 || text==null || text.isBlank())return com.example.supportbot.service.ProviderSendResult.unknown();
+        GroupActor actor=createActor();
+        try {
+            Integer response=vkClient.messages().sendDeprecated(actor).peerId(peerId.longValue())
+                .randomId(ThreadLocalRandom.current().nextInt()).message(text).execute();
+            return response!=null && response>0 ? com.example.supportbot.service.ProviderSendResult.accepted(response.toString())
+                : com.example.supportbot.service.ProviderSendResult.unknown();
+        }catch(ApiException|ClientException failure){
+            log.warn("VK provider receipt unavailable");
+            return com.example.supportbot.service.ProviderSendResult.unknown();
+        }
+    }
+
     public boolean sendDirectMessage(Integer peerId, String text) {
         if (!properties.isEnabled() || peerId == null || text == null || text.isBlank()) {
             return false;

@@ -29,14 +29,39 @@ public class MaxApiClient {
     private static final long MAX_INCOMING_ATTACHMENT_BYTES = 256L * 1024L * 1024L;
     private static final long MAX_AVATAR_BYTES = 8L * 1024L * 1024L;
 
-    private final HttpClient httpClient = HttpClient.newBuilder()
-        .connectTimeout(Duration.ofSeconds(10))
-        .build();
+    private final HttpClient httpClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final MaxBotProperties properties;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public MaxApiClient(MaxBotProperties properties) {
+        this(properties,HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build());
+    }
+
+    MaxApiClient(MaxBotProperties properties,HttpClient httpClient) {
         this.properties = properties;
+        this.httpClient = httpClient;
+    }
+
+    public com.example.supportbot.service.ProviderSendResult sendMessageToUserWithReceipt(Long userId,String text) {
+        if(userId==null || userId<=0 || text==null || text.isBlank() || properties.getToken()==null || properties.getToken().isBlank())
+            return com.example.supportbot.service.ProviderSendResult.unknown();
+        try {
+            HttpRequest request=HttpRequest.newBuilder().uri(URI.create(API_BASE+"/messages?user_id="+userId))
+                .header("Authorization",properties.getToken()).header("Content-Type","application/json").timeout(Duration.ofSeconds(10))
+                .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(Map.of("text",text)),StandardCharsets.UTF_8)).build();
+            HttpResponse<String> response=httpClient.send(request,HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if(response.statusCode()<200 || response.statusCode()>=300)return com.example.supportbot.service.ProviderSendResult.unknown();
+            JsonNode message=objectMapper.readTree(response.body()).path("message");
+            JsonNode recipient=message.path("recipient").path("user_id"),mid=message.path("body").path("mid");
+            if(!recipient.isIntegralNumber() || !recipient.canConvertToLong() || recipient.longValue()!=userId
+                || !mid.isTextual() || !mid.textValue().matches("[A-Za-z0-9._:-]{1,256}"))return com.example.supportbot.service.ProviderSendResult.unknown();
+            return com.example.supportbot.service.ProviderSendResult.accepted(mid.textValue());
+        }catch(InterruptedException interrupted){
+            Thread.currentThread().interrupt();return com.example.supportbot.service.ProviderSendResult.unknown();
+        }catch(Exception failure){
+            log.warn("MAX provider receipt unavailable");return com.example.supportbot.service.ProviderSendResult.unknown();
+        }
     }
 
     public com.example.supportbot.service.OutboundSenderIdentity outboundSenderIdentity(

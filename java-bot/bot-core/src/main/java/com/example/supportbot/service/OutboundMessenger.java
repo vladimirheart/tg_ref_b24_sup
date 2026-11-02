@@ -9,5 +9,10 @@ public interface OutboundMessenger {
 
     boolean sendToUser(Long userId, String text);
 
+    /** Compatibility never invents a provider ID and never retries a failed provider call. */
+    default ProviderSendResult sendToUserWithReceipt(Long userId, String text) {
+        return ProviderSendResult.legacy(sendToUser(userId,text));
+    }
+
     boolean sendToSupportChat(String supportChatId, String text);
 }
