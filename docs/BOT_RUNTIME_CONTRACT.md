@@ -93,6 +93,23 @@ receipt, live rating callback/customer feedback и full in-flight process restar
 остаются. Этот локальный test release не является первым production S6.
 Подробный checkpoint/evidence — task Runtime R261/.tmp/01-278-r261-rollout/.
 
+## Подтверждение уже известного успеха — source R262
+
+Если provider вернул true, а запись результата или ответ commit потеряны,
+markDelivered повторяет только ledger-транзакцию — максимум3 попытки, каждая
+REQUIRES_NEW/READ_COMMITTED/timeout10s. Повторяются DataAccessException и
+TransactionException; interrupt/ownership/programming error останавливают цикл.
+SDK/recipient/sender admission/beginDelivery в этом цикле не вызываются.
+Повторно найденный committed delivered с delivered_at подтверждается read-only,
+без перезаписи исходных timestamps/metadata. sending → delivered — единственный
+новый переход; uncertain и неизвестные результаты не переоткрываются.
+
+625/12 suites GREEN (419 core +206 isolated PG/Rabbit/HTTP),32 новых real-PG
+cases, включая потерю acknowledgement после настоящего commit и точный предел3.
+Это не receipt reconciliation после process loss, не live provider/callback и
+не exactly-once. Schema/DTO/API signatures прежние; source-only/no deploy,
+рабочий runtime остаётся R261. Все прежние неизвестные исходы fail-closed.
+
 ## Feedback claim и неопределённый результат — source R260
 
 INSERT ON CONFLICT DO NOTHING и CAS по status/прочитанному updated_at дают

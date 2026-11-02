@@ -5,9 +5,11 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Objects;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.JdbcTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.TransactionException;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -15,6 +17,7 @@ import org.springframework.util.StringUtils;
 @Service
 public class OutboundTransportDeliveryLedgerService {
 
+    private static final int CONFIRMATION_ATTEMPTS = 3;
     private final JdbcTemplate jdbcTemplate;
     private final TransactionTemplate transactions;
 
@@ -120,25 +123,48 @@ public class OutboundTransportDeliveryLedgerService {
                 """, truncateError(exception),timestamp(OffsetDateTime.now(ZoneOffset.UTC)),eventId.trim()));
     }
 
+    /**
+     * Confirms the provider success already observed by this dispatcher. Only the ledger transaction
+     * is repeated: never provider I/O, admission, claim acquisition or resolution of an unknown result.
+     */
     public void markDelivered(String eventId) {
         if (!StringUtils.hasText(eventId)) {
             return;
         }
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        Integer changed = transactions.execute(transaction -> jdbcTemplate.update("""
-                UPDATE integration_outbound_event_deliveries
-                   SET status = ?,
-                       delivered_at = ?,
-                       last_error = NULL,
-                       updated_at = ?
-                 WHERE event_id = ? AND status = 'sending'
-                """,
-            "delivered",
-            timestamp(now),
-            timestamp(now),
-            eventId.trim()
-        ));
-        if (!Integer.valueOf(1).equals(changed)) throw new IllegalStateException("Outbound provider result has no sending claim.");
+        for (int attempt = 1; ; attempt++) {
+            try {
+                Boolean confirmed = transactions.execute(transaction -> {
+                    int changed = jdbcTemplate.update("""
+                            UPDATE integration_outbound_event_deliveries
+                               SET status = ?,
+                                   delivered_at = ?,
+                                   last_error = NULL,
+                                   updated_at = ?
+                             WHERE event_id = ? AND status = 'sending'
+                            """,
+                        "delivered",
+                        timestamp(now),
+                        timestamp(now),
+                        eventId.trim()
+                    );
+                    if (changed == 1) return true;
+                    // A previous commit can succeed even when its acknowledgement is lost.
+                    // Recognizing it is read-only: preserve the original timestamps and metadata.
+                    return Boolean.TRUE.equals(jdbcTemplate.queryForObject("""
+                            SELECT EXISTS (
+                                SELECT 1 FROM integration_outbound_event_deliveries
+                                 WHERE event_id = ? AND status = 'delivered' AND delivered_at IS NOT NULL
+                            )
+                            """, Boolean.class, eventId.trim()));
+                });
+                if (!Boolean.TRUE.equals(confirmed)) throw new IllegalStateException("Outbound provider result has no sending claim.");
+                return;
+            } catch (DataAccessException | TransactionException persistenceFailure) {
+                // Bounded, independent transactions; a programming/ownership error must not loop.
+                if (attempt >= CONFIRMATION_ATTEMPTS || Thread.currentThread().isInterrupted()) throw persistenceFailure;
+            }
+        }
     }
 
     public void markFailed(String eventId, Exception exception) {

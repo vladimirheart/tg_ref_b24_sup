@@ -28,6 +28,30 @@ production/рабочий в старых записях, именах Compose �
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
+## Подтверждение известного результата — source R262
+
+Baseline a3e9348824cafd2f56d75905e3aa881c6ab5d416,2 ноября. Только ledger service:
+после известного provider true максимум3 попытки записи delivered, независимые
+REQUIRES_NEW/READ_COMMITTED/timeout10s transactions. Повторяются persistence
+exceptions, не provider/admission/claim; прерывание/ошибка состояния/программирования
+не повторяются. Один timestamp результата; уже committed delivered с delivered_at
+подтверждается read-only. Не открывает uncertain/sending после потери процесса,
+не трактует false/timeout как недоставку, не выполняет автоматический replay.
+
+625 executions/12 suites GREEN:419 core, включая32 новых real-PG cases, и206
+PG/Rabbit/HTTP. Потеря commit-ответа моделируется после фактического commit;
+provider/admission ровно1,3-attempt cap и неизменность delivered проверены.
+Frozen RED32/3failures/10 ожидаемых runtime errors → GREEN32/0/0. Source/replay
+независимы,202 inputs/208 classes/206 unrelated exact,1435 panel classes reused
+с provenance; acceptance на reactor core. Без новой схемы/DTO/public API.
+
+Source-only/no deploy; runtime R261 и rollback/backup pointers ниже не менялись.
+18 рабочих контейнеров/config/БД/flags/ledger17delivered сохранены; readinessUP.
+Изолированные PG192/Rabbit256MiB удалены. Нет migrations/backfill/provider sends/
+staging/commit/push. Receipt reconciliation неизвестного результата, live callback,
+in-flight process restart и остальные S3–S6 блоки остаются; S2B снятR190/задача🟡.
+Подробности — task Source R262/.tmp/01-278-r262-evidence/.
+
 ## Среда выполнения и сессии
 
 Актуальный runtime R261 — выкладка1 ноября/фиксация2 ноября, тот же тестовый
