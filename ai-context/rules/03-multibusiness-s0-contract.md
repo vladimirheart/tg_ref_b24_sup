@@ -24,11 +24,47 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальный runtime R264 имеют
+что production уже запускался. Эта оговорка и актуальный runtime R267 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
-## Актуальный тестовый runtime — R264, 2026-11-02
+## Актуальный тестовый runtime — R267, 2026-11-02
+
+Clean R266/d0b467204c68b205033bee0070119568ce377245 выложен только в bot-runner:
+sha256:9cc3a7c69d9595094e4d372de868ea6cd33a3dc8302f327c7909d7d745cb53e1,
+tag iguana-panel:account-r266-d0b467204-20261102/container9612381dedaa,
+healthy/restart0/1 replica. Отказ/unknown feedback write не даёт ложного success
+ack в Telegram/VK/MAX. Активны Telegram1/MAX2/Telegram3, live VK не запущен.
+Все old children остановлены/3 queues0 consumers/ready/unacked до нового fleet.
+212 frozen tested core classes exact,211 unchanged; в3 executable JAR изменён
+только FeedbackService.class внутри STORED core. Outer payloads и panel JAR
+прежние. Bounded offline core package + COPY/network-none image, не full build;
+501/5 source/replay GREEN — прежний proof, не новый прогон. Acceptance module
+в runtime не включён.296 inputs/232 class hashes source/replay exact.
+
+17 остальных containers прежние, web/worker R257/7b9fea55a/image90cd.
+61 actual ENV и mounts exact; HostConfig raw hash отличается, но полный старый
+hash восстановлен только порядком binds/null-vs-empty DNS.5 Compose/env inputs
+не менялись. Новый runner-only overlay требует preserved-environment operator.
+Свежий backup10208054 bytes/SHA256
+E0813789EB95886C2B864FABF9EAA3004AD9F1C794A5C44C2661C195EEC9068B
+изолированно восстановлен в PG192MiB/network none; same-host файл сохранён,
+verifier container/volume удалены. Working DB не восстанавливалась. V85/85,
+checksum -2092309160/14 columns/10 constraints/FK, settings455, accounts/grants/
+roots/pending/ratings/outbox/flags/ledger17delivered/receipt0 unchanged.
+Миграции/db-migrate/bootstrap/repair/backfill/flags/purge/requeue не запускались.
+
+61 live access/SSE/readiness и24 actual-child signed admission GREEN;3 fresh
+startups/consumers, ready/unacked0,4 running JAR hashes exact, ERROR/fatal0.
+ReadinessUP; общий healthDOWN/inboundDLQ1 прежний. Live provider/client callback,
+external acceptance messages не выполнялись. Новый rollback R267 на R263/
+image9898/tag iguana-panel:rollback-r267-bot-runner-20261102-9898448385a0 сохранён,
+старые R264/R261 pointers прежние. Rollback не выполнялся; только после cold
+stop/queues0 и проверки ledger/receipt/schema compatibility, без удаления данных.
+Пять крупных блоков/S6 остаются, статус🟡, S2B снятR190. Подробности/evidence —
+task Runtime R267/.tmp/01-278-r267-rollout/. Следующие checkpoint исторические.
+
+## Тестовый runtime — R264, 2026-11-02 (исторический checkpoint)
 
 Clean R263/8dbb083206c36426d5aab229d6ae36510bf57cd3 выложен только в bot-runner:
 sha256:9898448385a0d685e57891b8e94696b46a4dd14edde9ad77eaf8d5eb1070d48b,

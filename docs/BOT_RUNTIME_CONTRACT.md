@@ -64,7 +64,46 @@ Platform-specific:
 в local `JPA/SQLite` business-path для ticket/channel/feedback/blacklist
 операций.
 
-## Рабочий тестовый bot runtime — R264, 2026-11-02
+## Рабочий тестовый bot runtime — R267, 2026-11-02
+
+Clean R266/d0b467204c68b205033bee0070119568ce377245, только bot-runner:
+sha256:9cc3a7c69d9595094e4d372de868ea6cd33a3dc8302f327c7909d7d745cb53e1,
+tag iguana-panel:account-r266-d0b467204-20261102, container9612381dedaa,
+healthy/restart0/1 replica. Shared FeedbackService fix активен: неподтверждённая
+запись не разрешает platform success acknowledgement, unknown не считается
+доказанной недоставкой.212 tested core classes exact,211 unchanged; заменён
+только FeedbackService.class в nested STORED core трёх platform executable JAR.
+Все outer payloads/panel JAR неизменны; offline core package/COPY/network none,
+не full Maven/Sass build.501/5 — reused source/replay proof, не новый прогон;
+296 inputs/232 class hashes сверены, test-only module не включён в runtime.
+
+Согласованный cold stop всех old children/queues0, затем fresh Telegram1/MAX2/
+Telegram3;3 consumers/ready0/unacked0. Live VK не запущен.61 actual ENV/mounts
+exact, HostConfig semantic exact; raw hash отличается лишь порядком binds и
+empty DNS, полный исходный hash восстановлен bounded guard.5 старых Compose/
+env inputs прежние. Новый runner-only overlay .tmp/01-278-r267-rollout/
+compose.services.json требует preserved-environment operator.17 нетаргетных
+containers exact unchanged, web/worker R257/image90cd, исходный db-migrate exited.
+
+Свежий pg_dump custom10208054 bytes/SHA256
+E0813789EB95886C2B864FABF9EAA3004AD9F1C794A5C44C2661C195EEC9068B
+восстановлен в isolated PG192MiB/network none, same-host backup сохранён,
+verifier container/volume удалены. Working DB не восстанавливалась. V85/85/
+checksum -2092309160,14 columns/10 constraints/FK прежние; settings455/ledger17
+delivered/receipt0 и accounts/grants/roots/pending/ratings/outbox/flags unchanged.
+Нет migrations/backfill/flags/bootstrap/repair/purge/requeue/provider messages.
+
+61 live access/SSE/readiness и24 signed admission GREEN, logout выполнен;
+4 running JAR hashes exact, fresh runner/child ERROR/fatal0/restart0.
+ReadinessUP; общий healthDOWN/inboundDLQ1 остаётся отдельным operational gate.
+Rollback tag iguana-panel:rollback-r267-bot-runner-20261102-9898448385a0 сохранён
+на R263/image9898, старые pointers прежние. Это не выполненный rollback;
+необходимы cold stop/queues0/совместимые ledger+receipt+V85, не удаление данных.
+Live SDK/client callback/in-flight application recovery/unknown review/retention/
+full S6 не доказаны. Task Runtime R267/.tmp/01-278-r267-rollout/ — evidence;
+следующие записи описывают исторические source/runtime checkpoints.
+
+## Тестовый bot runtime — R264, 2026-11-02 (исторический checkpoint)
 
 Clean R263/8dbb083206c36426d5aab229d6ae36510bf57cd3, только bot-runner:
 image9898448385a0/tag iguana-panel:account-r263-8dbb08320-20261102,
@@ -116,8 +155,8 @@ response/idempotent retry, context drift, Unicode/bigint, HMAC/API refusal и3
 SQL failure stages без new provider. Ticket owner adapter читает real JDBC rows;
 это не live platform webhook/SDK/client callback или full Spring Security/TLS.
 211 unrelated core classes/1435 panel exact, одна main class изменена.
-Runtime R264/V85 прежний: отдельный clean-commit runner release ещё нужен;
-новых migrations/flags нет, acceptance module в image не включать. Остальные
+В R267 выше выполнен отдельный clean-commit runner release без новых migrations/
+flags; acceptance module в image не включён. Остальные
 launcher/fleet/unknown review/retention/S6 gates остаются. Task Source R266/
 .tmp/01-278-r266-evidence/.
 
