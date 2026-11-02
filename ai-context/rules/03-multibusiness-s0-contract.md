@@ -68,6 +68,25 @@ live provider/client callback или полного in-flight process restart. �
 Подробности/evidence — task Runtime R264/.tmp/01-278-r264-rollout/.
 Ниже исторические source/runtime checkpoints, не инструкция повторить выпуск.
 
+## Проверка process loss — source R265, 2026-11-02
+
+Baseline ae1743e51fa703e5d40c908fc6fb4f4002169a18 (R264).60 сочетаний4 scope ×3
+routes ×5 crash points в отдельной delivery JVM: после committed claim/prepare,
+ответа провайдера, committed receipt/delivered до ACK. Родитель force-kill PID;
+RabbitMQ сам redelivers original unacked payload в новую JVM/другой PID.
+Positive persisted receipt завершает delivered без SDK/admission при revoked
+channel/catalog/API503; отсутствие receipt остаётся blocked. Already delivered,
+receipt/outbox rows и timestamps exact; ACK подтверждён после закрытия consumer.
+323 выполнения/4 suites GREEN,69 новых; source/replay независимы, не суммируются.
+212 core/1435 panel classes exact,17 test classes/9 inputs frozen. Product код
+не менялся; test-only модуль не развёртывать, рабочий runtime R264/V85 прежний.
+PG192/Rabbit256MiB/1CPU удалены;18 working containers/config/данные/flags/queues
+unchanged, receipt0/ledger17delivered/readinessUP, прежний inboundDLQ1 сохраняется.
+Не full-stack Spring/SDK, не live provider/client callback, штатный platform
+application/launcher/fleet restart или S6. Unknown без receipt, operational
+review/retention/startup recovery и остальные блоки остаются; задача🟡/S2B снятR190.
+Подробности/evidence — task Source R265/.tmp/01-278-r265-evidence/.
+
 ## Квитанции отправки feedback — source R263 (исторический checkpoint до R264)
 
 Baseline249acbf535b82fc694363120c04561cb1768f79b,2 ноября. Backend-owned V85

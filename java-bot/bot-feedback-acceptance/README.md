@@ -67,9 +67,50 @@ Boolean false и даже тестовый HTTP503 после handoff не яв�
 после такого результата заменена более строгой: неопределённый исход блокирует
 replay; отдельно доказан безопасный повтор после pre-provider API503.
 
-Не доказаны exactly-once, сверка и разрешение неопределённого исхода по квитанции
-провайдера, полный перезапуск процесса, клиентский rating callback, live-доставка,
-fleet isolation или приёмка S6. Автоматического снятия блокировки, reset/requeue
-и предположения о доставке нет. Рабочие feature flags, пользователи, права,
-схемы и очереди не меняются. Старые children нельзя запускать вместе с R260:
-они не знают новых состояний; выпуск/откат требуют отдельного общего gate.
+R263 добавил private V85 receipt journal: committed nonce до SDK и положительный
+provider message ID до final delivered. `FeedbackReceiptRecoveryTest` проверяет
+восстановление по сохранённой квитанции после service/consumer restore, без
+нового admission/SDK; потерянный ответ без квитанции остаётся blocked. Журнал
+не является подтверждением чтения клиентом и не открывает повторную отправку.
+
+## R265: аварийное завершение отдельной delivery JVM
+
+`FeedbackProcessRestartTest` запускает test-only `FeedbackProcessWorker` в
+отдельной JVM с heap96/Metaspace96MiB. В ней работают production listener,
+dispatcher, ledger/receipt transactions, signed HTTP clients и MessagingService.
+Барьеры установлены **после возврата настоящих committed операций**, без
+подмены их результатов. Родитель проверяет БД и принудительно завершает процесс
+через `Process.destroyForcibly()`, не выполняя graceful stop/закрытие consumer.
+
+RabbitMQ сам возвращает исходное unacked-сообщение в очередь. Проверяются
+ready1/consumers0 перед новым процессом, другой PID, `redelivered=true`, точный
+SHA256 исходного payload и финальный ACK после graceful stop второго процесса.
+Тест не вызывает fixture replay/republish для восстановления. Текущие канал и
+credentials отзываются, signed API отвечает503: восстановление исторического
+факта не может стать новым разрешением доставки.
+
+| Остановка после | До kill: provider calls | Durable состояние | После redelivery |
+| --- | --- | --- | --- |
+| Claim | 0 | processing, journal отсутствует | blocked, строки прежние |
+| Prepare | 0 | sending, prepared без acceptance | blocked, строки прежние |
+| Ответа provider | 1 | sending, acceptance ещё не сохранён | blocked, строки прежние |
+| Записи receipt | 1 | sending + committed acceptance | delivered, без нового provider/admission |
+| Записи delivered до ACK | 1 | delivered + acceptance | точные строки и timestamps прежние |
+
+Матрица:4 scope ×3 platform routes ×5 crash points =60 сценариев. Ещё8 проверок
+отклоняют рабочие/non-loopback endpoints, public schema, стандартные DB/AMQP
+порты и неподдерживаемые route/mode до соединения;1 smoke. Вместе с прежней
+регрессией —323 выполнения/4 suites, включая5 повторов существующей ledger race.
+Source и replay проверяются независимо, их результаты не суммируются.
+
+Дочерний процесс не наследует Spring/provider/datasource environment, не читает
+application YAML или shared-config. Разрешены только isolated loopback endpoints,
+owned schema и фиксированные фиктивные credentials. Main/product код не меняется,
+выпуск test-only модуля в runtime image запрещён; rebuild/restart стенда не нужен.
+
+Не доказаны exactly-once, разрешение unknown без квитанции, startup/batch recovery,
+клиентский rating callback, live SDK/доставка, restart штатного bot application/
+launcher/всей fleet или приёмка S6. Это реальный process-kill production delivery
+компонентов, но не full-stack Spring/TLS/SDK acceptance. Рабочие flags, пользователи,
+права, схемы и очереди не меняются. Старые children нельзя смешивать с новой ledger
+логикой; выпуск/откат требуют отдельного schema/backup/cold-fleet gate.

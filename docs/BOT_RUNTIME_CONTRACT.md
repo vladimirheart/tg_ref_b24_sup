@@ -100,6 +100,28 @@ startup/batch scanner, unknown без receipt, live SDK/client rating callback,
 in-flight process kill/restart proof, scoped review/retention или первого S6.
 Подробности/evidence — task Runtime R264/.tmp/01-278-r264-rollout/.
 
+## Process-loss acceptance — source R265, 2026-11-02
+
+Test-only delivery worker запускается отдельной JVM с production listener,
+dispatcher, MessagingService, ledger/receipt и signed HTTP clients. Родитель
+принудительно убивает процесс после committed claim/prepare, ответа provider,
+committed receipt/delivered-before-ACK. RabbitMQ автоматически возвращает исходное
+unacked сообщение; новая JVM/другой PID получает redelivered=true/тот же payload
+SHA256. Нет ручной публикации/replay. Positive receipt завершает delivered без
+SDK/admission, unknown без receipt остаётся blocked, уже delivered/receipt/
+outbox rows и timestamps неизменны, redelivery ACKed. Revoke channel/catalog и
+API503 не превращают историческую квитанцию в новое разрешение доставки.
+
+60 matrix cases на4 scope ×3 routes ×5 crash points,8 input guards,1 smoke;
+323 выполнения/4 suites GREEN с прежней регрессией. Source/replay независимы,
+не суммируются.212 core/1435 panel classes exact, product main не меняется;
+runtime R264/V85 остаётся прежним, test-only acceptance не включать в образы.
+Worker принимает только isolated loopback endpoints/owned schema/fake credentials,
+не наследует Spring/provider/datasource ENV и не читает application/shared-config.
+Это не live SDK, Spring boot/launcher/fleet restart, client callback, exactly-once,
+startup/batch recovery, unknown review или S6. Подробности: acceptance README,
+task Source R265/.tmp/01-278-r265-evidence/.
+
 ## Исторический тестовый bot runtime — R261, 2026-11-01/02
 
 Clean R260/5731c6d483010990aebe0a35df21089defce0d9a выложен только в
