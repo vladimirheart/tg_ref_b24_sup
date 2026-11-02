@@ -234,10 +234,18 @@ public class MaxWebhookController {
                 promptCurrentQuestion(channel,session);
                 return completeDelivery(claim,ResponseEntity.ok(Map.of("ok",true,"questionnaire_replayed",true)));
             }
-            if(session.selectedBusiness() && session.selection().submissionEventKey()!=null) {
-                if(session.selection().submittedTicketId()==null) finalizeConversation(channel,session,session.selection().submissionEventKey());
+            if(session.selectedBusiness() && (session.selection().submissionEventKey()!=null
+                    || (session.isComplete() && session.lastAcceptedEvent()!=null))) {
+                if(session.selection().submittedTicketId()==null) finalizeConversation(channel,session,
+                    session.selection().submissionEventKey()!=null?session.selection().submissionEventKey():session.lastAcceptedEvent());
                 if(deliveryKey.equals(session.selection().submissionEventKey()))
                     return completeDelivery(claim,ResponseEntity.ok(Map.of("ok",true,"ticket_id",session.selection().submittedTicketId())));
+            }
+            // Session CAS commits progress and event identity together, before prompt/HTTP acknowledgement.
+            // The transport dedup cache may be lost or its acknowledgement may fail independently.
+            if(session.acceptedEvent(deliveryKey)) {
+                promptCurrentQuestion(channel,session);
+                return completeDelivery(claim,ResponseEntity.ok(Map.of("ok",true,"questionnaire_replayed",true)));
             }
         }
         if (MaxCommandSupport.isStartCommand(text)) {
@@ -263,7 +271,7 @@ public class MaxWebhookController {
         if(session!=null && session.awaitingBusinessSelection()) {
             var page=MaxQuestionnaireChoiceSupport.resolvePage(session.selection().catalog(),session.selection().nonce(),text);
             if(page.isPresent()) {
-                session.questionnairePage(page.get());saveSession(session);promptCurrentQuestion(channel,session);
+                session.questionnairePage(page.get());session.acceptEvent(deliveryKey);saveSession(session);promptCurrentQuestion(channel,session);
                 return completeDelivery(claim,ResponseEntity.ok(Map.of("ok",true,"questionnaire_page",page.get())));
             }
             var business=MaxQuestionnaireChoiceSupport.resolveChoice(session.selection().catalog(),session.selection().nonce(),text);
@@ -276,6 +284,7 @@ public class MaxWebhookController {
                     :runtimeConfigService.selectQuestionnaire(channel,session.selection().catalog(),business.get().businessId());
                 var settings=botSettingsService.loadSelectedQuestionnaire(selected);
                 session=session.choose(selected,settings,GeneralQuestionnaireFlow.from(botSettingsService.questionFlow(settings)));
+                session.acceptEvent(deliveryKey);
                 saveSession(session); // Frozen choice is durable before the first question is sent.
             } catch(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException ex) {
                 messagingService.sendToUser(channel,userId,"Настройки опроса изменились или недоступны. Отправьте /start для нового выбора.");
@@ -381,6 +390,7 @@ public class MaxWebhookController {
 
         if (MaxQuestionInputSupport.BACK_BUTTON.equalsIgnoreCase(Optional.ofNullable(text).orElse("").trim())) {
             if (session.stepBack()) {
+                session.acceptEvent(deliveryKey);
                 saveSession(session);
                 promptCurrentQuestion(channel, session);
                 return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "stepped_back", true)));
@@ -414,6 +424,7 @@ public class MaxWebhookController {
         }
 
         session.recordAnswer(resolvedAnswer);
+        session.acceptEvent(deliveryKey);
         if (session.isComplete()) {
             TicketService.TicketCreationResult created = finalizeConversation(channel, session, deliveryKey);
             return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "ticket_id", created.ticketId())));

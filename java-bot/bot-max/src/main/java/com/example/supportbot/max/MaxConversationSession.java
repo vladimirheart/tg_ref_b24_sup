@@ -41,7 +41,11 @@ final class MaxConversationSession {
     }
 
     record Selection(ChoiceCatalog catalog,String nonce,String startEventKey,String submissionEventKey,String submittedTicketId,SelectedQuestionnaire selected,
-                     @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_DEFAULT) int page) {
+                     @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_DEFAULT) int page,
+                     @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY) List<String> acceptedEventKeys) {
+        Selection(ChoiceCatalog catalog,String nonce,String startEventKey,String submissionEventKey,String submittedTicketId,SelectedQuestionnaire selected,int page) {
+            this(catalog,nonce,startEventKey,submissionEventKey,submittedTicketId,selected,page,List.of());
+        }
         Selection(ChoiceCatalog catalog,String nonce,String startEventKey,String submissionEventKey,String submittedTicketId,SelectedQuestionnaire selected) {
             this(catalog,nonce,startEventKey,submissionEventKey,submittedTicketId,selected,0);
         }
@@ -50,6 +54,16 @@ final class MaxConversationSession {
         }
         Selection {
             MaxQuestionnaireChoiceSupport.validate(catalog,nonce);
+            // Older JSON has no event journal; preserve its exact state without inventing accepted IDs.
+            acceptedEventKeys=acceptedEventKeys==null?List.of():acceptedEventKeys;
+            if(acceptedEventKeys.size()>4096 || acceptedEventKeys.stream().anyMatch(key->key==null || key.isBlank())
+                    || new java.util.HashSet<>(acceptedEventKeys).size()!=acceptedEventKeys.size())
+                throw new IllegalStateException("Invalid saved MAX questionnaire event journal");
+            acceptedEventKeys=List.copyOf(acceptedEventKeys);
+            if(submissionEventKey!=null && !acceptedEventKeys.isEmpty()
+                    && (!acceptedEventKeys.contains(submissionEventKey) || (submittedTicketId==null
+                        && !submissionEventKey.equals(acceptedEventKeys.get(acceptedEventKeys.size()-1)))))
+                throw new IllegalStateException("MAX submission differs from its accepted event journal");
             if(page<0 || page>=MaxQuestionnaireChoiceSupport.pages(catalog)) throw new IllegalStateException("Invalid saved questionnaire page");
             if(startEventKey==null || startEventKey.isBlank()) throw new IllegalStateException("Menu lost its event identity");
             if(submittedTicketId!=null && (submissionEventKey==null || submissionEventKey.isBlank()))
@@ -86,9 +100,21 @@ final class MaxConversationSession {
     boolean awaitingBusinessSelection() { return selection!=null && scope==null; }
     boolean selectedBusiness() { return selection!=null && scope!=null; }
     Selection selection() { return selection; }
+    boolean acceptedEvent(String eventKey) { return selection!=null && selection.acceptedEventKeys().contains(eventKey); }
+    String lastAcceptedEvent() {
+        return selection==null || selection.acceptedEventKeys().isEmpty()?null:selection.acceptedEventKeys().get(selection.acceptedEventKeys().size()-1);
+    }
+    void acceptEvent(String eventKey) {
+        if(selection==null) return; // Legacy sessions retain their existing delivery semantics.
+        if(eventKey==null || eventKey.isBlank()) throw new IllegalStateException("Missing MAX questionnaire event identity");
+        var keys=new ArrayList<>(selection.acceptedEventKeys());
+        if(!keys.contains(eventKey)) keys.add(eventKey);
+        selection=new Selection(selection.catalog(),selection.nonce(),selection.startEventKey(),selection.submissionEventKey(),
+            selection.submittedTicketId(),selection.selected(),selection.page(),keys);
+    }
     void questionnairePage(int page) {
         if(!awaitingBusinessSelection()) throw new IllegalStateException("Questionnaire menu is no longer pending");
-        selection=new Selection(selection.catalog(),selection.nonce(),selection.startEventKey(),null,null,null,page);
+        selection=new Selection(selection.catalog(),selection.nonce(),selection.startEventKey(),null,null,null,page,selection.acceptedEventKeys());
     }
     MaxConversationSession choose(SelectedQuestionnaire selected,BotSettingsDto chosenSettings,List<QuestionFlowItemDto> chosenFlow) {
         if(!awaitingBusinessSelection() || selected.version()!=selection.catalog().version() || selected.channelId()!=selection.catalog().channelId()
@@ -101,7 +127,7 @@ final class MaxConversationSession {
         var chosen=new MaxConversationSession(new State(userId,chatId,username,clientName,chosenFlow,chosenSettings,
             QuestionnaireScope.fromSelection(selected),Map.of(),state.history(),List.of(),startedAt,Map.of(),
             bootstrapProblemText,false,false,0,new Selection(selection.catalog(),selection.nonce(),selection.startEventKey(),null,null,
-                selected.version()>=3?selected:null,selection.page())));
+                selected.version()>=3?selected:null,selection.page(),selection.acceptedEventKeys())));
         chosen.restorePersistedRawPayload(persistedRawPayload);
         return chosen;
     }
@@ -109,12 +135,12 @@ final class MaxConversationSession {
         if(!selectedBusiness() || !isComplete() || eventKey==null || eventKey.isBlank())
             throw new IllegalStateException("Questionnaire is not ready for submission");
         if(selection.submissionEventKey()==null)
-            selection=new Selection(selection.catalog(),selection.nonce(),selection.startEventKey(),eventKey,null,selection.selected(),selection.page());
+            selection=new Selection(selection.catalog(),selection.nonce(),selection.startEventKey(),eventKey,null,selection.selected(),selection.page(),selection.acceptedEventKeys());
     }
     void markSubmitted(String ticketId) {
         if(ticketId==null || ticketId.isBlank() || selection==null || selection.submissionEventKey()==null)
             throw new IllegalStateException("Incomplete questionnaire submission");
-        selection=new Selection(selection.catalog(),selection.nonce(),selection.startEventKey(),selection.submissionEventKey(),ticketId,selection.selected(),selection.page());
+        selection=new Selection(selection.catalog(),selection.nonce(),selection.startEventKey(),selection.submissionEventKey(),ticketId,selection.selected(),selection.page(),selection.acceptedEventKeys());
     }
 
     MaxConversationSession(Long userId,

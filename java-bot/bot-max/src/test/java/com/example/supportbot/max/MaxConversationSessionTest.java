@@ -128,4 +128,74 @@ class MaxConversationSessionTest {
         item.setText(text);
         return item;
     }
+
+    private ChoiceCatalog replayCatalog() {
+        return new ChoiceCatalog(1,55L,"c".repeat(64),List.of(new Choice("BUSINESS",7L,"a","Business A","q-a","a".repeat(64))));
+    }
+    private MaxConversationSession replaySession() {
+        var selected=new SelectedQuestionnaire(1,55L,"BUSINESS","USER_SELECTION",7L,"q-a","a".repeat(64),"c".repeat(64),Map.of(),Map.of(),Map.of());
+        return MaxConversationSession.pending(1001L,2002L,null,null,replayCatalog(),"start")
+            .choose(selected,null,List.of(question("free-first","text","First"),question("free-second","text","Second")));
+    }
+    @Test void journalSurvivesJsonAndAllSelectionTransitionsWithoutMutableAliases() throws Exception {
+        var pending=MaxConversationSession.pending(1001L,2002L,null,null,replayCatalog(),"start");
+        pending.acceptEvent("page");pending.questionnairePage(0);
+        var selected=new SelectedQuestionnaire(1,55L,"BUSINESS","USER_SELECTION",7L,"q-a","a".repeat(64),"c".repeat(64),Map.of(),Map.of(),Map.of());
+        var session=pending.choose(selected,null,List.of(question("q1","text","First"),question("q2","text","Second")));
+        session.acceptEvent("choose");session.recordAnswer("One");session.acceptEvent("answer-1");
+        session.recordAnswer("Two");session.acceptEvent("answer-2");session.prepareSubmission("answer-2");session.markSubmitted("T-MAX");
+        var mapper=org.springframework.http.converter.json.Jackson2ObjectMapperBuilder.json().build();
+        var restored=new MaxConversationSession(mapper.readValue(mapper.writeValueAsString(session.snapshot()),MaxConversationSession.State.class));
+        assertThat(restored.selection().acceptedEventKeys()).containsExactly("page","choose","answer-1","answer-2");
+        assertThat(restored.lastAcceptedEvent()).isEqualTo("answer-2");
+        org.assertj.core.api.Assertions.assertThatThrownBy(()->restored.selection().acceptedEventKeys().add("foreign"))
+            .isInstanceOf(UnsupportedOperationException.class);
+        assertThat(restored.scope()).isEqualTo(session.scope());assertThat(restored.answers()).isEqualTo(session.answers());
+    }
+    @Test void oldJsonWithoutJournalRetainsScopeAndProgressWithoutInventingEventIds() throws Exception {
+        var session=replaySession();session.recordAnswer("One");session.acceptEvent("not-in-old-format");
+        var mapper=org.springframework.http.converter.json.Jackson2ObjectMapperBuilder.json().build();
+        var old=mapper.valueToTree(session.snapshot());((com.fasterxml.jackson.databind.node.ObjectNode)old.get("selection")).remove("acceptedEventKeys");
+        var restored=new MaxConversationSession(mapper.treeToValue(old,MaxConversationSession.State.class));
+        assertThat(restored.selection().acceptedEventKeys()).isEmpty();assertThat(restored.lastAcceptedEvent()).isNull();
+        assertThat(restored.currentQuestion().getId()).isEqualTo("free-second");
+        assertThat(restored.answers()).containsExactlyEntriesOf(Map.of("free-first","One"));
+        assertThat(restored.scope()).isEqualTo(session.scope());
+        assertThat(mapper.valueToTree(restored.snapshot()).at("/selection/acceptedEventKeys").isMissingNode()).isTrue();
+    }
+    @Test void duplicateEventIsIdempotentAndInputListIsDefensivelyCopied() {
+        var session=replaySession();session.acceptEvent("first");session.acceptEvent("first");
+        assertThat(session.selection().acceptedEventKeys()).containsExactly("first");
+        var keys=new java.util.ArrayList<>(List.of("saved"));
+        var selection=new MaxConversationSession.Selection(replayCatalog(),"0123456789ab","start",null,null,null,0,keys);
+        keys.add("changed");assertThat(selection.acceptedEventKeys()).containsExactly("saved");
+    }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"null-key","blank-key","duplicate","overflow","missing-submission","nonterminal-submission"})
+    void malformedJournalCannotBeRestored(String kind) {
+        List<String> keys=switch(kind) {
+            case "null-key"->java.util.Arrays.asList("a",null);
+            case "blank-key"->List.of(" ");case "duplicate"->List.of("a","a");
+            case "overflow"->java.util.stream.IntStream.range(0,4097).mapToObj(i->"event-"+i).toList();
+            case "missing-submission"->List.of("other");default->List.of("final","later");
+        };
+        String submission=kind.endsWith("submission")?"final":null;
+        org.assertj.core.api.Assertions.assertThatThrownBy(()->new MaxConversationSession.Selection(
+            replayCatalog(),"0123456789ab","start",submission,null,null,0,keys)).isInstanceOf(IllegalStateException.class);
+    }
+    @Test void journalBudgetFailsBeforeReplacingTheLastValidSelection() {
+        var keys=java.util.stream.IntStream.range(0,4096).mapToObj(i->"event-"+i).toList();
+        var pending=MaxConversationSession.pending(1001L,2002L,null,null,replayCatalog(),"start");
+        var state=pending.snapshot();
+        var tree=org.springframework.http.converter.json.Jackson2ObjectMapperBuilder.json().build().valueToTree(state);
+        var mapper=org.springframework.http.converter.json.Jackson2ObjectMapperBuilder.json().build();
+        ((com.fasterxml.jackson.databind.node.ObjectNode)tree.get("selection")).set("acceptedEventKeys",mapper.valueToTree(keys));
+        var session=new MaxConversationSession(mapper.convertValue(tree,MaxConversationSession.State.class));
+        org.assertj.core.api.Assertions.assertThatThrownBy(()->session.acceptEvent("overflow")).isInstanceOf(IllegalStateException.class);
+        assertThat(session.selection().acceptedEventKeys()).containsExactlyElementsOf(keys);
+    }
+    @Test void directLegacySessionDoesNotAcquireASelectionOrJournal() {
+        var legacy=new MaxConversationSession(1001L,2002L,null,null,List.of(question("q1","text","First")),null);
+        legacy.acceptEvent("legacy");assertThat(legacy.selection()).isNull();assertThat(legacy.acceptedEvent("legacy")).isFalse();
+    }
 }

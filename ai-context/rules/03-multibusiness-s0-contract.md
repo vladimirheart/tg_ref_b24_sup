@@ -64,6 +64,34 @@ stop/queues0 и проверки ledger/receipt/schema compatibility, без у�
 Пять крупных блоков/S6 остаются, статус🟡, S2B снятR190. Подробности/evidence —
 task Runtime R267/.tmp/01-278-r267-rollout/. Следующие checkpoint исторические.
 
+## События выбранного вопросника MAX — source R268, 2026-11-02
+
+Baseline bfe70a8599ff9c2b4bdf254427bae75a72f0e7df (R267). MAX Selection хранит
+immutable acceptedEventKeys вместе с selected scope/template/catalog/answers в
+одном session CAS. Choice/page/answer/back/skip становятся durable до prompt/ACK;
+повтор после JSON restore/потери transport dedup cache не отвечает на следующий
+вопрос, не делает второй «Назад»/skip и не меняет raw state. Повтор prompt разрешён,
+exactly-once доставки не обещается. Final-answer ambiguous CAS восстанавливает
+submission с исходным последним accepted ID, не с ID следующего сообщения.
+Исторический ticket marker/root binding не заменяется текущим выбором бизнеса.
+
+Журнал ограничен4096 уникальными непустыми IDs, не эвиктит старые ключи;
+malformed/overflow и несогласованный новый submission fail closed. Старый JSON
+без поля читается с пустым журналом/прежним прогрессом; старые IDs не выдумываются.
+Пустое поле не сериализуется. Legacy direct/SQL/API/DTO/policies не расширялись.
+214/20 full MAX suites GREEN,81 новая проверка; source/replay независимы.
+7 допустимых version/scope сочетаний: BUSINESS1–4/GENERAL2–4. Проверены answer/
+back/optional skip после ACK failure/prompt failure/dedup reset, final CAS gap,
+optimistic retry, delayed replay, JSON/limits/legacy. RED1/1 → GREEN;249 inputs/
+264 classes source/replay exact,212 core classes unchanged. Это real local JSON/
+CAS/handler proof, не Redis eviction/live MAX provider/webhook или общий S6.
+
+Runtime R267/R266/18 containers/БД V85/config/settings455/ledger17/receipt0/queues
+не менялся, readinessUP; backup/rollback R267 сохранены. Main fix ещё source-only,
+нужен отдельный clean-commit runner release, без новых migrations/flags. Нет
+working deploy/backfill/flags/provider sends/staging/commit/push; остальные gates
+и пять блоков прежние. Task Source R268/.tmp/01-278-r268-evidence/, задача🟡.
+
 ## Тестовый runtime — R264, 2026-11-02 (исторический checkpoint)
 
 Clean R263/8dbb083206c36426d5aab229d6ae36510bf57cd3 выложен только в bot-runner:

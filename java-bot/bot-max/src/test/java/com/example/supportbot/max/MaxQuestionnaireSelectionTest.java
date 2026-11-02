@@ -213,6 +213,20 @@ class MaxQuestionnaireSelectionTest {
         assertThat(send("followup","Followup").getStatusCode().value()).isEqualTo(503);
         verify(tickets,never()).recordActiveClientMessage(any());
     }
+    @Test void intermediateAnswerAckFailureMustNotAnswerTheNextQuestion() {
+        chooseA();
+        var broken=new java.util.concurrent.atomic.AtomicBoolean(true);
+        doAnswer(call->{if(broken.getAndSet(false))throw new IllegalStateException("test intermediate ack failure");return call.callRealMethod();})
+            .when(guard).markProcessed(any());
+        assertThatThrownBy(()->send("first","One")).hasMessageContaining("intermediate ack failure");
+        assertThat(state().answers()).containsExactlyEntriesOf(Map.of("free-first","One"));
+        rebuild();
+        assertThat(send("first","Changed retry").getBody()).containsEntry("questionnaire_replayed",true);
+        assertThat(state().answers()).containsExactlyEntriesOf(Map.of("free-first","One"));
+        assertThat(state().currentIndex()).isEqualTo(1);
+        verify(tickets,never()).createConversationTicket(any());
+    }
+
     @Test void queueAcceptanceBeforeDeliveryAckFailureStillCannotPublishTwice() {
         answerFirst();
         var broken=new java.util.concurrent.atomic.AtomicBoolean(true);
@@ -406,6 +420,143 @@ class MaxQuestionnaireSelectionTest {
         assertThat(capture.getValue().scopeKind()).isEqualTo(general?"GENERAL":"BUSINESS");assertThat(capture.getValue().businessId()).isEqualTo(general?null:7L);
         assertThat(capture.getValue().catalogSha256()).isEqualTo(catalog.catalogSha256());assertThat(state().selection().page()).isEqualTo(page);
         verify(runtime,times(1)).questionnaireChoices(channel);verifyNoInteractions(local,feedback);
+    }
+    static java.util.stream.Stream<org.junit.jupiter.params.provider.Arguments> r268ReplayCases() {
+        return java.util.stream.IntStream.rangeClosed(1,4).boxed().flatMap(version->
+            java.util.stream.Stream.of(false,true).filter(general->!general || version>=2).flatMap(general->
+                java.util.stream.Stream.of("ack","prompt","dedup-reset").map(failure->
+                    org.junit.jupiter.params.provider.Arguments.of(version,general,failure))));
+    }
+    private void r268Choose(int version,boolean general) {
+        String id=general?"q-general":"q-a";Long owner=general?null:7L;
+        var flow=List.of(
+            Map.of("id","free-third","type","text","order",30,"text","Third","required",true),
+            Map.of("id","free-first","type","text","order",10,"text","First","required",true),
+            Map.of("id","free-second","type","text","order",20,"text","Second","required",false));
+        var tree=version>=3 && !general?Map.<String,Object>of("businessId",7L,"locations",List.of()):Map.<String,Object>of();
+        var presets=version>=3 && !general?Map.<String,Object>of("businessId",7L,"groups",Map.of()):Map.<String,Object>of();
+        a=new SelectedQuestionnaire(version,55,general?"GENERAL":"BUSINESS","USER_SELECTION",owner,id,"a".repeat(64),"c".repeat(64),
+            Map.of("active_template_id",id,"question_templates",List.of(Map.of("id",id,"name",id,"question_flow",flow))),tree,presets);
+        var resourceSha=version>=3?SelectedQuestionnaireOptions.resourceSha256(tree,presets):null;
+        var choices=new ArrayList<Choice>();
+        if(general) choices.add(new Choice("BUSINESS",8L,"b","Business B","q-b","b".repeat(64),version>=3?
+            SelectedQuestionnaireOptions.resourceSha256(Map.of("businessId",8L,"locations",List.of()),Map.of("businessId",8L,"groups",Map.of())):null));
+        choices.add(new Choice(a.scopeKind(),owner,general?"GENERAL":"a",general?"Без бизнеса":"Business A",id,"a".repeat(64),resourceSha));
+        catalog=new ChoiceCatalog(version,55,"c".repeat(64),choices);
+        doReturn(catalog).when(runtime).questionnaireChoices(channel);
+        if(general) doReturn(a).when(runtime).selectGeneralQuestionnaire(channel,catalog);
+        else doReturn(a).when(runtime).selectQuestionnaire(channel,catalog,7L);
+        doReturn(true).when(api).sendQuestionnaireChoices(anyLong(),any(),anyString(),anyInt());
+        send("r268-start","/start");send("r268-choose",choice(general?1:0));
+    }
+    private void r268Failure(String failure,String prompt) {
+        if("ack".equals(failure)) {
+            var broken=new java.util.concurrent.atomic.AtomicBoolean(true);
+            doAnswer(call->{if(broken.getAndSet(false))throw new IllegalStateException("r268 ack failure");return call.callRealMethod();})
+                .when(guard).markProcessed(any());
+        } else if("prompt".equals(failure)) {
+            doReturn(false).doReturn(true).when(messages).sendToUser(eq(channel),eq(1001L),startsWith(prompt));
+        }
+    }
+    private void r268ResetDeliveryCache() {
+        var coordination=new BotIngressCoordinationProperties();coordination.setMode("direct");
+        @SuppressWarnings("unchecked") ObjectProvider<StringRedisTemplate> redis=mock(ObjectProvider.class);
+        guard=spy(new BotWebhookDeliveryGuardService(coordination,redis));rebuild();
+    }
+    private String r268Raw() {return store.load("max",55L,1001L,MaxConversationSession.State.class).orElseThrow().rawPayload();}
+    private void r268CommitOrFail(String failure,String key,String answer) {
+        if("dedup-reset".equals(failure)) assertThat(send(key,answer).getStatusCode().value()).isEqualTo(200);
+        else assertThatThrownBy(()->send(key,answer)).isInstanceOf(IllegalStateException.class);
+    }
+    private void r268AssertCommand(boolean general,Map<String,String> answers) {
+        var capture=org.mockito.ArgumentCaptor.forClass(ConversationTicketCreationCommand.class);
+        verify(tickets,times(1)).createConversationTicket(capture.capture());
+        assertThat(capture.getValue().answers()).containsExactlyInAnyOrderEntriesOf(answers);
+        assertThat(capture.getValue().scopeKind()).isEqualTo(general?"GENERAL":"BUSINESS");
+        assertThat(capture.getValue().businessId()).isEqualTo(general?null:7L);
+        assertThat(capture.getValue().catalogSha256()).isEqualTo(catalog.catalogSha256());
+        assertThat(capture.getValue().templateSha256()).isEqualTo(a.templateSha256());
+        assertThat(capture.getValue().questionTemplateId()).isEqualTo(a.questionTemplateId());
+        verify(messages,never()).sendToSupportChat(any(),anyString());verifyNoInteractions(local,feedback);
+    }
+    @ParameterizedTest @org.junit.jupiter.params.provider.MethodSource("r268ReplayCases")
+    void intermediateAnswerReplayKeepsFrozenScopeAndProgressAfterRestore(int version,boolean general,String failure) {
+        r268Choose(version,general);r268Failure(failure,"Second");
+        r268CommitOrFail(failure,"r268-first","One");
+        assertThat(state().currentIndex()).isEqualTo(1);
+        assertThat(state().answers()).containsExactlyEntriesOf(Map.of("free-first","One"));
+        String raw=r268Raw();r268ResetDeliveryCache();
+        assertThat(send("r268-first","Changed retry").getBody()).containsEntry("questionnaire_replayed",true);
+        assertThat(r268Raw()).isEqualTo(raw);verify(tickets,never()).createConversationTicket(any());
+        send("r268-second","Two");send("r268-last","Three");
+        r268AssertCommand(general,Map.of("free-first","One","free-second","Two","free-third","Three"));
+        assertThat(state().selection().submissionEventKey()).isEqualTo("update:r268-last");
+    }
+    @ParameterizedTest @org.junit.jupiter.params.provider.MethodSource("r268ReplayCases")
+    void backReplayCannotStepBackTwiceOrEraseAnotherAnswer(int version,boolean general,String failure) {
+        r268Choose(version,general);send("r268-first","One");send("r268-second","Two");
+        r268Failure(failure,"Second");r268CommitOrFail(failure,"r268-back","Назад");
+        assertThat(state().currentIndex()).isEqualTo(1);
+        assertThat(state().answers()).containsExactlyEntriesOf(Map.of("free-first","One"));
+        String raw=r268Raw();r268ResetDeliveryCache();
+        assertThat(send("r268-back","Назад").getBody()).containsEntry("questionnaire_replayed",true);
+        assertThat(r268Raw()).isEqualTo(raw);verify(tickets,never()).createConversationTicket(any());
+        send("r268-corrected","Corrected");send("r268-last","Three");
+        r268AssertCommand(general,Map.of("free-first","One","free-second","Corrected","free-third","Three"));
+    }
+    @ParameterizedTest @org.junit.jupiter.params.provider.MethodSource("r268ReplayCases")
+    void optionalSkipReplayCannotSkipTheFollowingRequiredQuestion(int version,boolean general,String failure) {
+        r268Choose(version,general);send("r268-first","One");r268Failure(failure,"Third");
+        r268CommitOrFail(failure,"r268-skip","Пропустить");
+        assertThat(state().currentIndex()).isEqualTo(2);
+        assertThat(state().answers()).containsExactlyInAnyOrderEntriesOf(Map.of("free-first","One","free-second",""));
+        String raw=r268Raw();r268ResetDeliveryCache();
+        assertThat(send("r268-skip","Пропустить").getBody()).containsEntry("questionnaire_replayed",true);
+        assertThat(r268Raw()).isEqualTo(raw);verify(tickets,never()).createConversationTicket(any());
+        send("r268-last","Three");r268AssertCommand(general,Map.of("free-first","One","free-second","","free-third","Three"));
+    }
+    @ParameterizedTest @ValueSource(booleans={false,true})
+    void finalAnswerCasCommitBeforeFailureKeepsOriginalSubmissionEventOnAnotherDelivery(boolean general) {
+        r268Choose(4,general);send("r268-first","One");send("r268-second","Two");
+        var broken=new java.util.concurrent.atomic.AtomicBoolean(true);
+        doAnswer(call->{
+            MaxConversationSession.State incoming=call.getArgument(4);Object result=call.callRealMethod();
+            if(incoming.currentIndex()==3 && incoming.selection().submissionEventKey()==null && broken.getAndSet(false))
+                throw new IllegalStateException("r268 saved final answer before reply loss");
+            return result;
+        }).when(store).saveIfUnchanged(eq("max"),eq(55L),eq(1001L),anyString(),any());
+        assertThatThrownBy(()->send("r268-last","Three")).hasMessageContaining("saved final answer");
+        assertThat(state().selection().submissionEventKey()).isNull();verify(tickets,never()).createConversationTicket(any());
+        r268ResetDeliveryCache();
+        assertThat(send("r268-new-message","Do not consume as final answer").getStatusCode().value()).isEqualTo(503);
+        assertThat(state().selection().submissionEventKey()).isEqualTo("update:r268-last");
+        assertThat(send("r268-last","Changed final answer").getBody()).containsEntry("ticket_id","T-MAX");
+        r268AssertCommand(general,Map.of("free-first","One","free-second","Two","free-third","Three"));
+    }
+
+    @ParameterizedTest @ValueSource(booleans={false,true})
+    void ambiguousAnswerCasCommitRetriesTheSameEventWithoutAdvancingAgain(boolean general) {
+        r268Choose(4,general);
+        var broken=new java.util.concurrent.atomic.AtomicBoolean(true);
+        doAnswer(call->{
+            MaxConversationSession.State incoming=call.getArgument(4);Object result=call.callRealMethod();
+            if(incoming.currentIndex()==1 && incoming.selection().acceptedEventKeys().contains("update:r268-first") && broken.getAndSet(false))
+                throw new SessionStateConflictException("r268 concurrent writer already committed this answer");
+            return result;
+        }).when(store).saveIfUnchanged(eq("max"),eq(55L),eq(1001L),anyString(),any());
+        assertThat(send("r268-first","One").getBody()).containsEntry("questionnaire_replayed",true);
+        assertThat(state().currentIndex()).isEqualTo(1);
+        assertThat(state().history()).hasSize(1);
+        assertThat(state().answers()).containsExactlyEntriesOf(Map.of("free-first","One"));
+        verify(tickets,never()).createConversationTicket(any());
+    }
+    @ParameterizedTest @ValueSource(booleans={false,true})
+    void olderAcceptedAnswerAfterTwoQuestionsCannotOverwriteOrFinalize(boolean general) {
+        r268Choose(4,general);send("r268-first","One");send("r268-second","Two");
+        String raw=r268Raw();r268ResetDeliveryCache();
+        assertThat(send("r268-first","Changed old answer").getBody()).containsEntry("questionnaire_replayed",true);
+        assertThat(state().currentIndex()).isEqualTo(2);assertThat(r268Raw()).isEqualTo(raw);
+        verify(tickets,never()).createConversationTicket(any());
     }
     @Test void v4PageDeliveryFailureKeepsThePageAndNonceBeforeRetry() {
         r152LargeMenu(false);send("start","/start");String nonce=state().selection().nonce();

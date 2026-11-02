@@ -103,6 +103,37 @@ Live SDK/client callback/in-flight application recovery/unknown review/retention
 full S6 не доказаны. Task Runtime R267/.tmp/01-278-r267-rollout/ — evidence;
 следующие записи описывают исторические source/runtime checkpoints.
 
+## MAX questionnaire event replay — source R268, 2026-11-02
+
+MaxConversationSession.Selection сохраняет acceptedEventKeys тем же session CAS,
+что choice/page/answer/back/skip. Prompt и webhook ACK идут после сохранения.
+MaxWebhookController на повторе возвращает ok/questionnaire_replayed, повторяет
+только текущий prompt и не меняет raw state, answers/history/scope/template/
+catalog. Это не exactly-once prompt delivery. При потере ответа после final-answer
+CAS submission восстанавливается с последним исходным accepted event ID; новое
+сообщение не становится финальным событием и не теряется в регистрации root.
+
+Не более4096 уникальных непустых IDs, immutable copy; malformed/overflow и
+расхождение нового submission запрещены. Старый JSON без поля сохраняет scope/
+progress с пустым журналом, без выдуманных старых IDs; пустое поле опущено при
+сериализации. Legacy direct/webhook reply для финального ticket_id и root binding
+сохранены. Нет новых migrations/API/SQL/feature flags или transport principals.
+
+214/20 full MAX tests GREEN (81 новая), source/replay независимо: BUSINESS v1–v4,
+GENERAL v2–v4; ACK/prompt failure и потеря dedup cache, back/skip/restore, final
+CAS gap, optimistic retry, delayed replay и JSON guards. RED regression1/1 →
+GREEN,249 frozen inputs/264 class hashes exact;212 core classes unchanged.
+Реальные handler/settings normalizer/local JSON store/CAS/delivery guard, fake
+runtime/provider/TicketService; это не real Redis/provider/client acceptance.
+Первая матрица corrected fixture GENERAL сохраняет обязательный соседний
+BUSINESS choice, production catalog validation не ослаблен.
+
+Runtime R267/R266/image9cc3a7c69d95/V85 и все18 containers/config/data/queues
+прежние, readinessUP, backup/rollback R267 сохранены. Fix пока source-only:
+отдельный clean-commit bot-runner release ещё нужен, acceptance classes в образ
+не включать. Пять крупных блоков/S6 и прежний operational health gate остаются.
+Task Source R268/.tmp/01-278-r268-evidence/ — evidence.
+
 ## Тестовый bot runtime — R264, 2026-11-02 (исторический checkpoint)
 
 Clean R263/8dbb083206c36426d5aab229d6ae36510bf57cd3, только bot-runner:
