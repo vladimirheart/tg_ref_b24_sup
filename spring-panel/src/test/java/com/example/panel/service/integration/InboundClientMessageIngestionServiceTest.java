@@ -27,6 +27,76 @@ import org.mockito.ArgumentCaptor;
 
 class InboundClientMessageIngestionServiceTest {
 
+    static java.util.stream.Stream<org.junit.jupiter.params.provider.Arguments> r271Cases() {
+        return java.util.stream.Stream.of(false,true).flatMap(general->
+            java.util.stream.Stream.of("max","telegram","vk","unknown").flatMap(platform->
+                java.util.stream.Stream.of("legacy-path","text-with-path","missing-path").flatMap(shape->
+                    java.util.stream.Stream.of(false,true).map(verifier->
+                        org.junit.jupiter.params.provider.Arguments.of(general,platform,shape,verifier)))));
+    }
+    private record R271Fixture(InboundClientMessageIngestionService service,IntegrationInboundEventInboxService inbox,
+        ChatHistoryRepository history,MessageRepository messages,TicketActiveRepository active,ChatAttachmentMetadataService metadata,
+        Ticket ticket,Channel channel) {}
+    private R271Fixture r271Fixture(Integer version,boolean general) {
+        var inbox=mock(IntegrationInboundEventInboxService.class);var channels=mock(ChannelRepository.class);
+        var tickets=mock(TicketRepository.class);var history=mock(ChatHistoryRepository.class);var messages=mock(MessageRepository.class);
+        var active=mock(TicketActiveRepository.class);var metadata=mock(ChatAttachmentMetadataService.class);
+        var service=new InboundClientMessageIngestionService(inbox,mock(LegacyTicketIdConcurrencyGuard.class),channels,tickets,history,messages,active,metadata);
+        var channel=new Channel();channel.setId(17L);channel.setPlatform("max");
+        var ticket=new Ticket();var id=new TicketId();id.setUserId(7001L);id.setTicketId("T-MAX");ticket.setId(id);ticket.setChannel(channel);
+        ticket.setQuestionnaireCatalogSha256("c".repeat(64));ticket.setQuestionnaireVersion(version);
+        ticket.setGeneral(general);ticket.setBusinessId(general?null:7L);
+        when(inbox.beginProcessing(any(),any(),any(),any(),any(),any(),any(),any())).thenReturn(true);
+        when(channels.findById(17L)).thenReturn(Optional.of(channel));when(tickets.findById(any())).thenReturn(Optional.of(ticket));
+        var saved=new ChatHistory();saved.setId(100L);when(history.save(any())).thenReturn(saved);
+        return new R271Fixture(service,inbox,history,messages,active,metadata,ticket,channel);
+    }
+    private InboundClientMessageEvent r271Event(String platform,String type,String path) {
+        return new InboundClientMessageEvent("r271-media","client_message.active_ticket",platform,17L,"T-MAX",7001L,"client","client","Client",
+            "Private caption",type,path,"private.jpg","88",null,null,OffsetDateTime.now());
+    }
+    @org.junit.jupiter.params.ParameterizedTest @org.junit.jupiter.params.provider.MethodSource("r271Cases")
+    void v4MaxMediaCannotBypassCanonicalWriterThroughLegacyOrForgedTransport(boolean general,String platform,String shape,boolean verifier) {
+        var f=r271Fixture(4,general);
+        var jdbc=mock(org.springframework.jdbc.core.JdbcTemplate.class);
+        var storage=mock(com.example.panel.storage.AttachmentObjectStorageService.class);
+        if(verifier)f.service().setSelectedMedia(new SelectedTicketFollowupMediaService(jdbc,mock(com.example.panel.config.MultibusinessFeatureFlags.class),storage));
+        var event=r271Event(platform,"text-with-path".equals(shape)?"text":"photo","missing-path".equals(shape)?null:"max/legacy/private.jpg");
+        org.assertj.core.api.Assertions.assertThatThrownBy(()->f.service().ingest(event,"integration.inbound.max")).isInstanceOf(IllegalStateException.class);
+        org.mockito.Mockito.verifyNoInteractions(f.metadata(),f.messages(),f.active(),jdbc,storage);
+        verify(f.history(),never()).save(any());verify(f.inbox()).markFailed(eq("r271-media"),any());
+        verify(f.inbox(),never()).markProcessed(any());
+        assertThat(f.ticket().getBusinessId()).isEqualTo(general?null:7L);assertThat(f.ticket().isGeneral()).isEqualTo(general);
+    }
+    @org.junit.jupiter.params.ParameterizedTest @org.junit.jupiter.params.provider.ValueSource(booleans={false,true})
+    void v4MaxPlainTextRemainsAvailableWithoutMediaVerifier(boolean general) {
+        var f=r271Fixture(4,general);f.service().ingest(r271Event("max","text",null),"integration.inbound.max");
+        var capture=ArgumentCaptor.forClass(ChatHistory.class);verify(f.history()).save(capture.capture());
+        assertThat(capture.getValue().getTicketOwnerUserId()).isEqualTo(7001L);
+        assertThat(capture.getValue().getMessage()).isEqualTo("Private caption");verify(f.inbox()).markProcessed("r271-media");
+    }
+    @org.junit.jupiter.params.ParameterizedTest @org.junit.jupiter.params.provider.ValueSource(ints={1,2,3})
+    void historicalMaxMediaContractIsNotSilentlyUpgradedToV4(int version) {
+        var f=r271Fixture(version,false);f.service().ingest(r271Event("max","photo","max/legacy/private.jpg"),"integration.inbound.max");
+        verify(f.history()).save(any());verify(f.inbox()).markProcessed("r271-media");
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest @org.junit.jupiter.params.provider.ValueSource(strings={"max","unknown"})
+    void v4MediaIsNotDowngradedWhenTheCatalogProofOrCurrentPlatformIsBroken(String currentPlatform) {
+        var f=r271Fixture(4,false);f.ticket().setQuestionnaireCatalogSha256(null);f.channel().setPlatform(currentPlatform);
+        org.assertj.core.api.Assertions.assertThatThrownBy(()->f.service().ingest(r271Event("max","photo","max/legacy/private.jpg"),"integration.inbound.max"))
+            .isInstanceOf(IllegalStateException.class);
+        verify(f.history(),never()).save(any());org.mockito.Mockito.verifyNoInteractions(f.metadata(),f.messages(),f.active());
+    }
+    @Test void version4TelegramStillUsesTheVerifiedSingleAttachmentWriter() {
+        var f=r271Fixture(4,false);f.channel().setPlatform("telegram");
+        var verifier=mock(SelectedTicketFollowupMediaService.class);f.service().setSelectedMedia(verifier);
+        var event=r271Event("telegram","document","questionnaires/telegram/verified.bin");
+        when(verifier.verify(event)).thenReturn(new SelectedQuestionnaireMediaValidator.Verified(42,"a".repeat(64)));
+        f.service().ingest(event,"integration.inbound.telegram");verify(verifier).verify(event);verify(f.history()).save(any());
+        verify(f.metadata()).upsertForChatHistory(100L,"T-MAX",17L,event.attachmentPath(),event.attachmentName(),null,42L,"document","a".repeat(64));
+        verify(f.inbox()).markProcessed("r271-media");
+    }
     @Test void selectedMaxLegacyAttachmentAdmissionIsNotChangedByTelegramFollowupSupport() {
         var inbox=mock(IntegrationInboundEventInboxService.class);var channels=mock(ChannelRepository.class);
         var tickets=mock(TicketRepository.class);var history=mock(ChatHistoryRepository.class);var messages=mock(MessageRepository.class);

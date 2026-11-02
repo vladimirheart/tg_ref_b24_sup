@@ -65,6 +65,41 @@ queues0/ledger+receipt+V85 и MAX session compatibility. Новые journal sess
 Redis eviction/provider callback/full S6. Пять блоков остаются, задача🟡;
 task Runtime R269/.tmp/01-278-r269-rollout/. Следующие checkpoints исторические.
 
+## Граница MAX v4 media — source R271, 2026-11-02
+
+Выбранный MAX v4 question flow остаётся text-only до реализации scoped byte
+writer. Вложение с подписью не превращается в ответ, bootstrap/history или
+legacy followup. До download/storage/publication клиенту явно сообщается:
+вложение не сохранено, подпись не принята, нужен отдельный текст. Menu/answer/
+submitted session сохраняет exact scope/answers/journal. First media создаёт
+только меню. Warning false/exception не подтверждает delivery; повтор восстанавливает
+отказ/меню. Existing chat mismatch проверяется раньше; /start и /cancel — явное
+управление. Pure payload owner также распознаёт объявленные opaque descriptors
+без download URL, включая forwarded body; прежний legacy decoder не расширен.
+
+На backend любое media canonical root с frozen questionnaire_version=4 обязано
+пройти scoped verifier, независимо от current channel platform/catalog proof.
+MAX/unknown/подмена event platform/неполная proof не дают legacy fallback;
+отказ до history/metadata/profile/activity. Это не разрешение MAX media, не новая
+миграция и не изменение immutable owner. Прежние MAX v1–v3/NULL contracts и
+plain text сохранены; legacy media остаётся отдельным незакрытым путём.
+
+Baseline6161e99a7 (R270). RED22 handler+48 backend → GREEN252 MAX/20 suites,
+64 backend/2 suites и142 real Redis/1 suite =458 выполнений на каждую независимую
+source/replay копию, failures/errors/skips0.995 inputs/1703 classes exact;
+оригинальные assertions byte-exact, включая MAX legacy regression. Три
+функциональных main classes,4 records — только LineNumberTable.212 core/
+1434 других backend classes unchanged; bounded backend compile, не full build.
+
+Пакет ещё source-only: runtime R269 выше прежний. Нужен отдельный согласованный
+clean-commit выпуск backend panel-web/ops-worker и MAX child в bot-runner;
+panel-web-only не обновляет WORKER inbound listener. POM/schema/flags/DTO/session
+format прежние. Все18 working containers/config/DB V85/ledger17/receipt0/MAX
+session fingerprints unchanged, readinessUP/3 consumers/ready0/unacked0;
+прежний health503/DLQ1 не закрыт. Owned Redis удалён, backup/rollback сохранены;
+нет deploy/migration/backfill/flags/provider sends/commit/push. Это не scoped MAX
+media support/live provider/full bot restart/rebind/S6; задача🟡, task Source R271.
+
 ## MAX restore/replay на настоящем Redis — test-only R270, 2026-11-02
 
 Baseline7423a4919 (R269).109 исходных MAX questionnaire handler сценариев

@@ -48,6 +48,20 @@ final class MaxInboundPayloadSupport {
         );
     }
 
+    /** A declared but not yet downloadable attachment must not silently become a text answer. */
+    static boolean hasDeclaredAttachments(JsonNode message) {
+        return declaresAttachments(message) || declaresAttachments(resolveForwardedMessage(message));
+    }
+
+    private static boolean declaresAttachments(JsonNode message) {
+        if (message == null || message.isNull() || message.isMissingNode()) return false;
+        JsonNode body = message.path("body");
+        for (JsonNode value : List.of(message.path("attachments"), body.path("attachments"), body.path("media"), body.path("files"))) {
+            if (!value.isMissingNode() && !value.isNull() && (!value.isArray() || !value.isEmpty())) return true;
+        }
+        return false;
+    }
+
     static String normalizeAttachmentType(String rawType) {
         String type = rawType == null ? "" : rawType.trim().toLowerCase();
         if (type.contains("animation") || type.contains("gif")) {

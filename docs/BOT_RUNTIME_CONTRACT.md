@@ -64,6 +64,45 @@ Platform-specific:
 в local `JPA/SQLite` business-path для ticket/channel/feedback/blacklist
 операций.
 
+## MAX v4 media без silent loss — source R271, 2026-11-02
+
+Пока scoped MAX media writer не реализован, выбранный v4 вопросник явно
+отклоняет файл вместе с подписью. Menu/answer/followup не продвигаются, raw session/
+scope/answers/journal прежние, download/AttachmentService/publication не вызываются.
+Клиенту предлагается отдельное текстовое сообщение; first media создаёт лишь
+меню, без bootstrap caption/history. Warning delivery false/exception бросает
+исключение/release claim, retry восстанавливает тот же отказ/меню. Existing chat
+mismatch проверяется раньше. /start и /cancel остаются явными командами.
+Pure decoder распознаёт объявленное media даже без готового URL, в direct и
+forwarded payload; legacy extraction/filtering/record signatures не менялись.
+
+InboundClientMessageIngestionService для media canonical v4 root всегда требует
+scoped verifier — даже для MAX/unknown platform/missing catalog proof. Подмена
+event.platform не отключает gate. Unsupported MAX event отклоняется до child
+history/metadata/profile/activity; нет legacy fallback/reroute. Plain text,
+старые MAX v1–v3/NULL и проверенный Telegram single writer сохранены; VK batch
+ветка прежняя. Это запрет небезопасного пути, не поддержка MAX uploads/downloads.
+Legacy MAX media вне v4 остаётся отдельным незакрытым путём.
+
+458 выполнений/23 suites на каждую независимую source/replay копию:252 MAX,
+64 backend,142 Redis; failures/errors/skips0.995 input hashes/1703 class hashes
+exact, оригинальные тесты/assertions сохранены. Три функциональных main classes;
+4 nested record class отличаются только source line numbers (full javap proof).
+212 core/1434 backend main classes unchanged. Backend проверен bounded compile
+одного класса и двух test files с exact verified baseline dependencies, не full
+Maven/Sass/package; новый Redis64MiB/CPU1/AOF удалён после tests.
+
+Пакет ещё НЕ выложен. Для активации нужен отдельный clean-commit согласованный
+release panel-web/ops-worker и MAX child в bot-runner: inbound listener имеет
+RuntimeRole.WORKER, panel-web-only не включает серверный gate в очереди;
+web ops replay также использует общий ingestion service. Новых POM/schema/flags/
+DTO/session-format changes нет. Перед выпуском нужны fresh actual ENV/replicas/
+images/backup/rollback и queue/session compatibility guards, не слепой mixed
+fleet update. Runtime R269 ниже, все18 working containers/DB V85/ledger17/receipt0/
+MAX session fingerprints прежние, readinessUP/3 consumers/ready0/unacked0.
+Прежний health503/inboundDLQ1 не исправлялся. Нет deploy/migrations/backfill/
+flags/provider sends. Scoped MAX media/live SDK/rebind/full application/S6 остаются.
+
 ## Изолированная Redis-приёмка MAX — test-only R270, 2026-11-02
 
 MaxQuestionnaireRedisIT наследует109 исходных handler scenarios без копирования/

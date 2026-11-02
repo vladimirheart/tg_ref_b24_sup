@@ -27,6 +27,7 @@ class MaxQuestionnaireSelectionTest {
     private final TicketService tickets=mock(TicketService.class);
     private final MessagingService messages=mock(MessagingService.class);
     private final MaxApiClient api=mock(MaxApiClient.class);
+    private final AttachmentService attachments=mock(AttachmentService.class);
     private final BotIngressCoordinationService ingress=mock(BotIngressCoordinationService.class);
     private final ChannelService channels=mock(ChannelService.class);
     private final BlacklistService blacklist=mock(BlacklistService.class);
@@ -79,7 +80,7 @@ class MaxQuestionnaireSelectionTest {
     protected void discardDeliveryCache() { /* Direct mode loses its local cache with the guard instance. */ }
     protected void rebuild() {
         controller=new MaxWebhookController(properties,blacklist,channels,tickets,mock(ChatHistoryService.class),messages,
-            feedback,settings,ingress,guard,store,runtime,mock(AttachmentService.class),api,mock(MaxClientAvatarSyncService.class),mapper);
+            feedback,settings,ingress,guard,store,runtime,attachments,api,mock(MaxClientAvatarSyncService.class),mapper);
     }
     protected ResponseEntity<Map<String,Object>> send(String id,String text) {
         var update=mapper.valueToTree(Map.of("update_type","message_created","update_id",id,"message",
@@ -88,6 +89,25 @@ class MaxQuestionnaireSelectionTest {
         return controller.handleUpdate(update,"test-secret");
     }
     protected MaxConversationSession.State state() {return store.load("max",55L,1001L,MaxConversationSession.State.class).orElseThrow().payload();}
+    private ResponseEntity<Map<String,Object>> r271Media(String id,String text,boolean forwarded) {
+        return r271Media(id,text,forwarded,2002L);
+    }
+    private ResponseEntity<Map<String,Object>> r271Media(String id,String text,boolean forwarded,long chatId) {
+        var body=Map.of("text",text,"attachments",List.of(Map.of("type","file","payload",Map.of("url","https://example.invalid/private.pdf"),"name","private.pdf")));
+        var message=new LinkedHashMap<String,Object>();
+        message.put("sender",Map.of("user_id",1001,"username","client","name","Client"));
+        message.put("recipient",Map.of("chat_id",chatId));
+        message.put("body",forwarded?Map.of():body);
+        if(forwarded)message.put("link",Map.of("type","forward","message",Map.of("body",body)));
+        return controller.handleUpdate(mapper.valueToTree(Map.of("update_type","message_created","update_id",id,"message",message)),"test-secret");
+    }
+    private ResponseEntity<Map<String,Object>> r271OpaqueMedia(String id,boolean forwarded) {
+        var body=Map.of("text","Do not consume this private caption","attachments",List.of(Map.of("type","file","payload",Map.of("token","private-without-download-url"))));
+        var message=new LinkedHashMap<String,Object>();message.put("sender",Map.of("user_id",1001,"username","client","name","Client"));
+        message.put("recipient",Map.of("chat_id",2002));message.put("body",forwarded?Map.of():body);
+        if(forwarded)message.put("link",Map.of("type","forward","message",Map.of("body",body)));
+        return controller.handleUpdate(mapper.valueToTree(Map.of("update_type","message_created","update_id",id,"message",message)),"test-secret");
+    }
     private String choice(int index) {var saved=state();return MaxQuestionnaireChoiceSupport.buttonText(saved.selection().catalog(),saved.selection().nonce(),index);}
     private void chooseA() {send("start","/start");send("choose",choice(0));}
     private void answerFirst() {chooseA();send("first","One");}
@@ -427,6 +447,91 @@ class MaxQuestionnaireSelectionTest {
         assertThat(capture.getValue().scopeKind()).isEqualTo(general?"GENERAL":"BUSINESS");assertThat(capture.getValue().businessId()).isEqualTo(general?null:7L);
         assertThat(capture.getValue().catalogSha256()).isEqualTo(catalog.catalogSha256());assertThat(state().selection().page()).isEqualTo(page);
         verify(runtime,times(1)).questionnaireChoices(channel);verifyNoInteractions(local,feedback);
+    }
+    static java.util.stream.Stream<org.junit.jupiter.params.provider.Arguments> r271MediaCases() {
+        return java.util.stream.Stream.of(false,true).flatMap(general->
+            java.util.stream.Stream.of("menu","answer","followup").flatMap(phase->
+                java.util.stream.Stream.of("caption","empty","forwarded").map(kind->
+                    org.junit.jupiter.params.provider.Arguments.of(general,phase,kind))));
+    }
+    @ParameterizedTest @org.junit.jupiter.params.provider.MethodSource("r271MediaCases")
+    void v4AttachmentCannotBecomeAnAnswerOrEnterLegacyFollowup(boolean general,String phase,String kind) throws Exception {
+        r268Choose(4,general);
+        if("menu".equals(phase))send("r271-new-menu","/start");
+        if("followup".equals(phase)) {
+            send("r271-first","One");send("r271-second","Two");send("r271-last","Three");
+            var active=new TicketActive();active.setTicketId("T-MAX");
+            when(tickets.findActiveTicketForUser(eq(1001L),anyString(),eq(55L))).thenReturn(Optional.of(active));
+            when(tickets.findByTicketId("T-MAX")).thenReturn(Optional.of(new TicketService.TicketWithUser(1001L,"T-MAX","open")));
+        }
+        String caption="menu".equals(phase)?choice(general?1:0):"Do not consume this caption";
+        if("empty".equals(kind))caption="";
+        String before=r268Raw();clearInvocations(tickets,messages,api,attachments);
+        assertThat(r271Media("r271-media",caption,"forwarded".equals(kind)).getBody()).containsEntry("questionnaire_media_unsupported",true);
+        assertThat(r268Raw()).isEqualTo(before);
+        r268ResetDeliveryCache();
+        assertThat(r271Media("r271-media",caption,"forwarded".equals(kind)).getBody()).containsEntry("questionnaire_media_unsupported",true);
+        assertThat(r268Raw()).isEqualTo(before);
+        verify(messages,times(2)).sendToUser(eq(channel),eq(1001L),contains("Вложение не сохранено"));
+        verifyNoInteractions(attachments);verify(api,never()).downloadAttachment(anyString());
+        verify(tickets,never()).recordActiveClientMessage(any());verify(tickets,never()).createConversationTicket(any());
+        if("menu".equals(phase))send("r271-text",choice(general?1:0));
+        else send("r271-text","Text without attachment");
+        if("followup".equals(phase))verify(tickets).recordActiveClientMessage(any());
+        else if("menu".equals(phase))assertThat(state().scope().scopeKind()).isEqualTo(general?"GENERAL":"BUSINESS");
+        else assertThat(state().answers()).containsEntry("free-first","Text without attachment");
+        verifyNoInteractions(local,feedback);
+    }
+    @ParameterizedTest @ValueSource(booleans={false,true})
+    void firstV4AttachmentStartsOnlyAMenuWithoutCapturingItsCaption(boolean general) throws Exception {
+        r268Choose(4,general);send("r271-cancel","/cancel");clearInvocations(messages,api,attachments,tickets);
+        r271Media("r271-first-media","Private attachment caption",true);
+        assertThat(state().scope()).isNull();assertThat(state().answers()).isEmpty();
+        assertThat(state().bootstrapProblemText()).isNullOrEmpty();
+        assertThat(state().history()).isEmpty();
+        verify(messages).sendToUser(eq(channel),eq(1001L),contains("Вложение не сохранено"));
+        verifyNoInteractions(attachments);verify(api,never()).downloadAttachment(anyString());
+        verify(tickets,never()).createConversationTicket(any());verify(tickets,never()).recordActiveClientMessage(any());
+    }
+    @ParameterizedTest @ValueSource(booleans={false,true})
+    void failedV4MediaWarningIsRetriedWithoutSavingProgress(boolean general) {
+        r268Choose(4,general);String before=r268Raw();
+        doReturn(false).doReturn(true).when(messages).sendToUser(eq(channel),eq(1001L),contains("Вложение не сохранено"));
+        assertThatThrownBy(()->r271Media("r271-warning","Caption",false)).hasMessageContaining("media warning");
+        assertThat(r268Raw()).isEqualTo(before);
+        assertThat(r271Media("r271-warning","Caption",false).getBody()).containsEntry("questionnaire_media_unsupported",true);
+        assertThat(r268Raw()).isEqualTo(before);verifyNoInteractions(attachments);
+    }
+    @ParameterizedTest @ValueSource(booleans={false,true})
+    void v4MediaCannotBypassTheExistingSessionChatBoundary(boolean general) {
+        r268Choose(4,general);String before=r268Raw();clearInvocations(messages,api,attachments,tickets);
+        when(blacklist.resolveStatus(eq(1001L),anyString(),any(),eq("9999")))
+            .thenReturn(new BlacklistService.ResolvedBlacklistStatus(null,new BlacklistService.BlacklistStatus(false,false)));
+        assertThat(r271Media("r271-foreign-chat","Caption",false,9999L).getStatusCode().value()).isEqualTo(409);
+        assertThat(r268Raw()).isEqualTo(before);verifyNoInteractions(messages,api,attachments,tickets);
+    }
+    @ParameterizedTest @ValueSource(booleans={false,true})
+    void firstV4MediaWarningFailureRestoresTheMenuAndRetriesTheSameEvent(boolean explicitStart) {
+        r268Choose(4,false);send("r271-cancel","/cancel");
+        doReturn(false).doReturn(true).when(messages).sendToUser(eq(channel),eq(1001L),contains("Вложение не сохранено"));
+        assertThatThrownBy(()->r271Media("r271-first-warning",explicitStart?"/start":"Caption",false)).hasMessageContaining("media warning");
+        String before=r268Raw();assertThat(state().scope()).isNull();
+        assertThat(r271Media("r271-first-warning",explicitStart?"/start":"Caption",false).getBody()).containsEntry("questionnaire_media_unsupported",true);
+        assertThat(r268Raw()).isEqualTo(before);assertThat(state().history()).isEmpty();verifyNoInteractions(attachments);
+    }
+    static java.util.stream.Stream<org.junit.jupiter.params.provider.Arguments> r271OpaqueCases() {
+        return java.util.stream.Stream.of(false,true).flatMap(general->java.util.stream.Stream.of(false,true)
+            .map(forwarded->org.junit.jupiter.params.provider.Arguments.of(general,forwarded)));
+    }
+    @ParameterizedTest @org.junit.jupiter.params.provider.MethodSource("r271OpaqueCases")
+    void v4OpaqueAttachmentsDoNotBecomeDraftOrBootstrapAnswers(boolean general,boolean forwarded) {
+        r268Choose(4,general);String before=r268Raw();
+        assertThat(r271OpaqueMedia("r271-opaque",forwarded).getBody()).containsEntry("questionnaire_media_unsupported",true);
+        assertThat(r268Raw()).isEqualTo(before);send("r271-opaque-cancel","/cancel");
+        assertThat(r271OpaqueMedia("r271-opaque-start",forwarded).getBody()).containsEntry("questionnaire_media_unsupported",true);
+        assertThat(state().scope()).isNull();assertThat(state().history()).isEmpty();
+        assertThat(state().bootstrapProblemText()).isNullOrEmpty();verifyNoInteractions(attachments);
+        verify(tickets,never()).recordActiveClientMessage(any());verify(tickets,never()).createConversationTicket(any());
     }
     static java.util.stream.Stream<org.junit.jupiter.params.provider.Arguments> r268ReplayCases() {
         return java.util.stream.IntStream.rangeClosed(1,4).boxed().flatMap(version->

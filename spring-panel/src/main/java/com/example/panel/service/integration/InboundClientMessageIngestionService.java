@@ -111,9 +111,11 @@ public class InboundClientMessageIngestionService {
         if(event.mediaBatch()!=null) throw new IllegalStateException("A batch requires its versioned event kind");
         boolean selectedRoot=ticket.getQuestionnaireCatalogSha256()!=null;
         boolean media=event.attachmentPath()!=null || !"text".equals(event.messageType());
+        // A frozen v4 root never inherits an unverified legacy media path, including MAX/unknown platforms.
+        boolean version4Media=media && Integer.valueOf(4).equals(ticket.getQuestionnaireVersion());
         SelectedQuestionnaireMediaValidator.Verified verified=null;
         if((selectedRoot && media && ("telegram".equals(channel.getPlatform()) || "vk".equals(channel.getPlatform())))
-                || com.example.panel.storage.QuestionnaireMediaStorageProof.isScoped(event.attachmentPath())) {
+                || version4Media || com.example.panel.storage.QuestionnaireMediaStorageProof.isScoped(event.attachmentPath())) {
             if(selectedMedia==null) throw new IllegalStateException("Selected follow-up media verifier is unavailable");
             verified=selectedMedia.verify(event);
         }

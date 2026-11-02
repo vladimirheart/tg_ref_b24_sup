@@ -63,6 +63,20 @@ class MaxInboundPayloadSupportTest {
         assertThat(MaxInboundPayloadSupport.normalizeAttachmentType(attachment.type())).isEqualTo("photo");
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"null","[]","{}","[null]","[{}]","\"opaque\"","false","[{\"type\":\"file\",\"payload\":{\"token\":\"private\"}}]"})
+    void declaredMediaIsDetectedWithoutChangingTheLegacyDecoder(String value) throws Exception {
+        for(String field:java.util.List.of("root","attachments","media","files")) {
+            var message=objectMapper.createObjectNode();var body=message.putObject("body");
+            if("root".equals(field))message.set("attachments",objectMapper.readTree(value));
+            else body.set(field,objectMapper.readTree(value));
+            boolean declared=!java.util.Set.of("null","[]").contains(value);
+            assertThat(MaxInboundPayloadSupport.hasDeclaredAttachments(message)).isEqualTo(declared);
+            var forwarded=objectMapper.createObjectNode();forwarded.putObject("link").put("type","forward").set("message",message);
+            assertThat(MaxInboundPayloadSupport.hasDeclaredAttachments(forwarded)).isEqualTo(declared);
+            assertThat(MaxInboundPayloadSupport.resolveInboundPayload(message,new MaxInboundPayloadSupport.ClientProfile("client","Client",1001L)).attachments()).isEmpty();
+        }
+    }
     @Test
     void suppliesStableClientFallbacks() throws Exception {
         JsonNode message = objectMapper.readTree("{\"sender\":{}}");

@@ -193,6 +193,7 @@ public class MaxWebhookController {
         String text = inboundPayload.text();
         List<MaxInboundPayloadSupport.IncomingAttachment> attachments = inboundPayload.attachments();
         boolean hasAttachments = !attachments.isEmpty();
+        boolean questionnaireMedia = hasAttachments || MaxInboundPayloadSupport.hasDeclaredAttachments(message);
         try {
             if (userId == null || (text.isBlank() && !hasAttachments)) {
                 return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "ignored", "missing-user-or-text")));
@@ -230,7 +231,12 @@ public class MaxWebhookController {
                 webhookDeliveryGuardService.release(claim);
                 return ResponseEntity.status(409).body(Map.of("ok",false,"error","session-chat-mismatch"));
             }
+            if (unsupportedQuestionnaireMedia(session, questionnaireMedia)
+                    && !MaxCommandSupport.isStartCommand(text) && !MaxCommandSupport.isCancelCommand(text)) {
+                return rejectQuestionnaireMedia(claim, channel, session);
+            }
             if(deliveryKey.equals(session.selection().startEventKey())) {
+                if (unsupportedQuestionnaireMedia(session, questionnaireMedia)) return rejectQuestionnaireMedia(claim, channel, session);
                 promptCurrentQuestion(channel,session);
                 return completeDelivery(claim,ResponseEntity.ok(Map.of("ok",true,"questionnaire_replayed",true)));
             }
@@ -254,6 +260,7 @@ public class MaxWebhookController {
             }
             session = startSession(userId, chatId, clientProfile.username(), clientProfile.clientName(), channel, deliveryKey);
             saveSession(session);
+            if (unsupportedQuestionnaireMedia(session, questionnaireMedia)) return rejectQuestionnaireMedia(claim, channel, session);
             promptCurrentQuestion(channel, session);
             return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true)));
         }
@@ -362,10 +369,11 @@ public class MaxWebhookController {
                 return completeDelivery(claim, feedbackResponse);
             }
             session = startSession(userId, chatId, clientProfile.username(), clientProfile.clientName(), channel, deliveryKey);
-            if (shouldCaptureBootstrapProblemText(text)) {
+            if (shouldCaptureBootstrapProblemText(text) && !unsupportedQuestionnaireMedia(session, questionnaireMedia)) {
                 session.captureBootstrapClientText(text);
             }
             saveSession(session);
+            if (unsupportedQuestionnaireMedia(session, questionnaireMedia)) return rejectQuestionnaireMedia(claim, channel, session);
             promptCurrentQuestion(channel, session);
             return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "session_started", true)));
         }
@@ -440,6 +448,21 @@ public class MaxWebhookController {
             webhookDeliveryGuardService.release(claim);
             throw ex;
         }
+    }
+
+    private boolean unsupportedQuestionnaireMedia(MaxConversationSession session, boolean hasAttachments) {
+        return hasAttachments && session != null && session.selection() != null && session.selection().catalog().version() == 4;
+    }
+
+    private ResponseEntity<Map<String, Object>> rejectQuestionnaireMedia(BotWebhookDeliveryGuardService.DeliveryClaim claim,
+                                                                        Channel channel, MaxConversationSession session) {
+        // V4 needs a scoped byte writer. Never turn a caption into an answer or use the legacy attachment store.
+        if (!messagingService.sendToUser(channel, session.userId(),
+                "В MAX-вопроснике v4 пока поддерживается только текст. Вложение не сохранено; подпись не принята. Отправьте текст отдельным сообщением.")) {
+            throw new IllegalStateException("MAX questionnaire media warning delivery was not confirmed");
+        }
+        promptCurrentQuestion(channel, session);
+        return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "questionnaire_media_unsupported", true)));
     }
 
     private ResponseEntity<Map<String, Object>> tryHandleFeedback(Channel channel, Long userId, String text) {
