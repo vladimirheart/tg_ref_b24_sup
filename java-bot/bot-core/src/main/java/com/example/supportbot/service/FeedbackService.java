@@ -72,7 +72,9 @@ public class FeedbackService {
             }
             boolean stored = panelTicketWriteClient.storeFeedback(request.getId(), rating);
             if (!stored) {
-                log.warn("Failed to store feedback via internal panel API for request {}", request.getId());
+                // Callers send their success acknowledgement only after this method returns.
+                // False includes stale/consumed context and unknown HTTP outcome; never confirm a write we cannot prove.
+                throw new IllegalStateException("Backend did not confirm feedback storage for request " + request.getId());
             }
             return;
         }

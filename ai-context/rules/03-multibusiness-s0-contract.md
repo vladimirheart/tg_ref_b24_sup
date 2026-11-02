@@ -68,6 +68,26 @@ live provider/client callback или полного in-flight process restart. �
 Подробности/evidence — task Runtime R264/.tmp/01-278-r264-rollout/.
 Ниже исторические source/runtime checkpoints, не инструкция повторить выпуск.
 
+## Ответ на запрос оценки — source R266, 2026-11-02
+
+Baseline f1c02b1faee83a84d88e6f9d26f78f3c9a024318 (R265). Общий bot FeedbackService
+теперь не возвращается нормально при backend false: исключение до thank-you/
+feedback_saved. Не утверждает отсутствие записи при unknown; успех не выдумывается.
+Void API/успешный и legacy JDBC paths прежние. Unit RED6/1 → GREEN6.
+Real prompt/receipt → shared feedback service → signed read/write API → real
+JPA/native locks/rating/UI event/expiry проверены на4 scope ×3 routes.241 новых
+callback cases, всего501/5 suites (242 новых), source/replay независимы. Duplicate,
+context ABA/recreate/expiry, wrong lookup, rating0/6, HMAC/API refusal, concurrent
+replies, lost commit response/idempotency и3-stage SQL rollback — без new provider.
+Узкий Ticket JDBC adapter/provider/неполный Spring bootstrap — test seams, не
+live SDK/webhook/client acceptance или отдельная child actor authorization.
+211 unrelated core/1435 panel classes exact;296 inputs/232 classes frozen.
+Runtime R264/V85/18 containers/config/settings455/ledger17/receipt0/queues прежние;
+PG192/Rabbit256MiB удалены. Main fix требует отдельного clean-commit bot-runner
+release, новых migrations/flags нет; acceptance module не развёртывать.
+Live SDK/client callback/launcher/fleet/unknown review/privacy и S6 остаются;
+задача🟡, S2B снятR190. Task Source R266/.tmp/01-278-r266-evidence/.
+
 ## Проверка process loss — source R265, 2026-11-02
 
 Baseline ae1743e51fa703e5d40c908fc6fb4f4002169a18 (R264).60 сочетаний4 scope ×3

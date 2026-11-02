@@ -108,8 +108,43 @@ application YAML или shared-config. Разрешены только isolated 
 owned schema и фиксированные фиктивные credentials. Main/product код не меняется,
 выпуск test-only модуля в runtime image запрещён; rebuild/restart стенда не нужен.
 
+## R266: сохранение ответа на запрос оценки
+
+`FeedbackRatingCallbackTest` связывает доставленный prompt с общим bot
+`FeedbackService`, настоящими signed HTTP read/write clients и backend
+controllers/services. Pending/feedback JPA repositories и native V84 context
+locks работают на том же owned PostgreSQL; Spring AOP/JpaTransactionManager
+применяет реальные `@Transactional`, JDBC UI outbox участвует в той же транзакции.
+Узкий ticket repository adapter читает фактические owner rows через JDBC;
+это не полная JPA-модель Ticket и не реальный platform SDK callback.
+
+241 новый сценарий на4 scope ×3 outbound routes: round trip/дубликат,8 изменений
+контекста после чтения (expiry, root recreate, business/channel/general/user/
+public-ID ABA, duplicate raw ID), ratings0/6, потеря commit response/idempotent
+HTTP retry,3 отказа записи (rating/UI event/expiry), конкурентные replies,
+HMAC401/API503, wrong-user/channel lookup и1 smoke. Проверяются точный Unicode
+raw ID/bigint, один feedback/один scoped UI event, expiry, reload и отсутствие
+новой отправки провайдеру. Это495 integration executions +6 core/5 suites;
+source/replay независимы. R265 kill suite здесь повторно не запускается.
+
+Production fix: `FeedbackService.storeFeedback` в RabbitMQ mode теперь бросает
+исключение, если backend не подтвердил запись. Telegram/VK/MAX вызывают success
+ack только после нормального возврата сервиса; false/expired/denied/unknown HTTP
+не должны превращаться в «Спасибо»/`feedback_saved=true`. Void API/успешный путь
+и legacy JDBC path прежние. Новый unit сначала RED, затем все6 GREEN.
+Это не доказательство, что неизвестный исход был отклонён: положительная запись
+без ответа может существовать, поэтому сообщение об успехе не выдумывается.
+
+Fixture добавляет JavaTimeModule (как Boot) и сохраняет JSON response bytes;
+default MockMvc ISO-8859-1 string decode не используется для Unicode ID.
+Ошибки SQL P0001 и HTTP401/500/503 здесь намеренно injected в disposable schema,
+не ошибки рабочего стенда. Рабочие миграции/config/данные не затрагиваются.
+Acceptance module по-прежнему не runtime artifact; **изменённый bot-core требует
+отдельного clean-commit runner release**, новых миграций/flags нет. Runtime R264
+пока остаётся прежним, тесты сами deploy/restart не выполняют.
+
 Не доказаны exactly-once, разрешение unknown без квитанции, startup/batch recovery,
-клиентский rating callback, live SDK/доставка, restart штатного bot application/
+live platform rating callback, live SDK/доставка, restart штатного bot application/
 launcher/всей fleet или приёмка S6. Это реальный process-kill production delivery
 компонентов, но не full-stack Spring/TLS/SDK acceptance. Рабочие flags, пользователи,
 права, схемы и очереди не меняются. Старые children нельзя смешивать с новой ledger

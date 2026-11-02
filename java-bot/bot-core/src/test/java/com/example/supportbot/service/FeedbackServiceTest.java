@@ -24,6 +24,25 @@ import org.springframework.mock.env.MockEnvironment;
 class FeedbackServiceTest {
 
     @Test
+    void backendRejectionMustNotReturnNormallyAndAllowAFalseThankYou() {
+        var pending = mock(PendingFeedbackRequestRepository.class);
+        var feedback = mock(FeedbackRepository.class);
+        var outbox = mock(UiEventOutboxService.class);
+        var write = mock(PanelTicketWriteClient.class);
+        when(write.isEnabled()).thenReturn(true);
+        when(write.storeFeedback(101L, 4)).thenReturn(false);
+        var service = new FeedbackService(pending, feedback, outbox,
+            new BotIntegrationTransportMode(new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")),
+            mock(PanelTicketReadClient.class), write);
+        var request = new PendingFeedbackRequest();request.setId(101L);
+
+        assertThatThrownBy(() -> service.storeFeedback(request, 4))
+            .isInstanceOf(IllegalStateException.class).hasMessageContaining("not confirm");
+        verify(feedback, never()).save(any());
+        verify(outbox, never()).publishFeedbackCreated(any(), any(), any());
+    }
+
+    @Test
     void storeFeedbackShouldPersistRatingEvenWhenPendingRequestExpirationFails() {
         PendingFeedbackRequestRepository pendingRepository = mock(PendingFeedbackRequestRepository.class);
         FeedbackRepository feedbackRepository = mock(FeedbackRepository.class);

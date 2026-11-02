@@ -100,6 +100,27 @@ startup/batch scanner, unknown без receipt, live SDK/client rating callback,
 in-flight process kill/restart proof, scoped review/retention или первого S6.
 Подробности/evidence — task Runtime R264/.tmp/01-278-r264-rollout/.
 
+## Rating callback acceptance и неподтверждённая запись — source R266
+
+RabbitMQ FeedbackService.storeFeedback теперь бросает IllegalStateException,
+если PanelTicketWriteClient не подтвердил updated. Все3 platform call sites
+выполняют thank-you/feedback_saved только после нормального возврата; false,
+stale context и unknown HTTP не разрешают ложное подтверждение. Это не означает,
+что unknown точно не записан. Void API/success/legacy JDBC path сохранены.
+
+Изолированный prompt/receipt → shared bot service → signed read/write HTTP →
+backend controllers/JPA/native V84 locks/transactional scoped UI outbox проверен:
+501 executions/5 suites GREEN,242 новых (241 callback +1 unit), source/replay
+независимы. Atomic rating/UI event/expiry, duplicate/concurrent replies, lost
+response/idempotent retry, context drift, Unicode/bigint, HMAC/API refusal и3
+SQL failure stages без new provider. Ticket owner adapter читает real JDBC rows;
+это не live platform webhook/SDK/client callback или full Spring Security/TLS.
+211 unrelated core classes/1435 panel exact, одна main class изменена.
+Runtime R264/V85 прежний: отдельный clean-commit runner release ещё нужен;
+новых migrations/flags нет, acceptance module в image не включать. Остальные
+launcher/fleet/unknown review/retention/S6 gates остаются. Task Source R266/
+.tmp/01-278-r266-evidence/.
+
 ## Process-loss acceptance — source R265, 2026-11-02
 
 Test-only delivery worker запускается отдельной JVM с production listener,
