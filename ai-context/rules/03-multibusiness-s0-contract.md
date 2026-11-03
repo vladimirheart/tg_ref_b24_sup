@@ -24,11 +24,55 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальный runtime R269 имеют
+что production уже запускался. Эта оговорка и актуальный runtime R272 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
-## Актуальный тестовый runtime — R269, 2026-11-02
+## Актуальный тестовый runtime — R272, 2026-11-03
+
+По согласованию пользователя panel-web, ops-worker и bot-runner выпущены вместе
+с clean R271/044d9bcecab2284b2dd66a72ee2ff3b2ee7d3511, по1 replica:
+image sha256:85a47a3b975f2adb97e3619f442a2f026505d5d06ef2a2430a423b3d9ccb069c,
+tag iguana-panel:account-r271-044d9bcec-20261103. Контейнеры соответственно
+6476462123bd/5ca72450180d/b76f36ca98b0, healthy/restart0. MAX v4 media отказ и
+backend canonical v4 verifier активны одновременно; scoped MAX media writer
+ещё не реализован. R268 journal/R266 feedback ack сохранены, legacy v1–v3/NULL
+остаётся отдельным путём.458/23 source/replay tests — проверенный reused proof,
+не новый прогон;995 inputs/1703 classes exact. Сборка COPY-only/network-none,
+не full Maven/Sass:1 panel/6 MAX class payloads заменены; TG/VK/core unchanged.
+Старые web/worker JAR отличались от runner только существующим V85 SQL resource,
+2230 общих payloads exact; новых migration resources относительно runner нет.
+
+Сначала cold stop всех3 старых ролей/children и broker queues0, затем worker →
+web → runner без mixed fleet. Окно около07:02–07:09 MSK, не zero-downtime.
+Compose --no-deps, проект tg_ref_b24_sup/два прежних production Compose/.env;
+новый compose.services.json требует preserved-ENV operator, не bare up.
+ENV/mounts exact, HostConfig web/runner raw exact, worker только binds/empty DNS
+с восстановлением прежнего полного hash bounded guard. Все15 остальных
+контейнеров и5 старых Compose/env inputs unchanged; db-migrate не запускался.
+
+Backup10297747 bytes/SHA256
+023063666B682A455F0B8EB03F7C017708D773635826A96D95DF07543B75FB0B
+восстановлен в owned PG192MiB/network-none, сохранён same-host; verifier resources
+удалены. Working DB не восстанавливалась. V85/85/settings455/roots53/pending51/
+ratings36/accounts/grants/history/flags exact; ledger17delivered/MD5 exact, receipt0.
+Web/worker Flyway skipped, runner normal startup validation85/no migration
+necessary; новых миграций не применено. MAX session/index/journal EVAL_RO exact,0
+sessions. Нет backfill/flags/bootstrap/repair/purge/requeue/provider acceptance sends.
+
+61 live login/access/SSE/readiness +24 signed actual-child checks GREEN,
+3 fresh children/по1 feedback consumer/ready0/unacked0,12 running JAR hashes exact.
+ERROR/fatal0, известные TLS/iiko WARN остаются. ReadinessUP, общий health503/DOWN
+из-за прежнего inboundDLQ1; operational gate не закрыт. Три новых rollback tags
+R272 сохранены: panel-web/ops-worker на90cd11900131, bot-runner на7259bf144f18;
+R269/R267/R264/R261 backups/pointers проверены. Откат не выполнялся; требуется
+coordinated cold stop/queues0/ledger+receipt+V85/session compatibility, возвращение
+старого security behavior оценивается отдельно. Пять блоков задачи и первый
+production S6 остаются, задача🟡, S2B снятR190. Evidence: task Runtime R272,
+.tmp/01-278-r272-rollout/sealed-proof.json. Следующие checkpoints исторические,
+включая source-only оговорки R271 на момент подготовки; повторять их выпуск не надо.
+
+## Исторический тестовый runtime — R269, 2026-11-02
 
 Clean R268/da7a1523190c21ae89b377f12320725e330954bb выложен только в bot-runner:
 sha256:7259bf144f18701df2c5393f6ae87863f962c80ef81cc834f8d4dbc913fd8215,

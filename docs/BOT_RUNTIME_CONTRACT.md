@@ -64,6 +64,51 @@ Platform-specific:
 в local `JPA/SQLite` business-path для ticket/channel/feedback/blacklist
 операций.
 
+## Актуальный тестовый runtime — R272, 2026-11-03
+
+Clean R271/044d9bcecab2284b2dd66a72ee2ff3b2ee7d3511 согласованно выложен на
+panel-web, ops-worker и bot-runner, по1 replica, healthy/restart0. Image:
+sha256:85a47a3b975f2adb97e3619f442a2f026505d5d06ef2a2430a423b3d9ccb069c,
+tag iguana-panel:account-r271-044d9bcec-20261103. Web6476462123bd/
+worker5ca72450180d/runnerb76f36ca98b0; Telegram1/MAX2/Telegram3 fresh startup.
+MAX v4 unsupported-media отказ и backend immutable v4 gate включены вместе,
+не panel-web-only. Scoped MAX media writer не реализован; legacy media отдельно.
+R268 journal/R266 ack сохранены.458/23 source/replay tests переиспользованы,
+не новый прогон,995 inputs/1703 classes exact. COPY-only/network-none image:
+1 panel/6 MAX class payloads изменены, TG/VK/core JAR byte-exact прежние.
+Не full Maven/Sass build. Старые web/worker panel JAR не содержали только уже
+применённый V85 SQL resource относительно runner;2230 общих payloads exact.
+
+Coordinated cold stop3 ролей/children, queues0, затем worker → web → runner,
+без mixed fleet; maintenance около07:02–07:09 MSK. Compose --no-deps,
+tg_ref_b24_sup, прежние production-contour/production-observability/.env и новый
+.tmp/01-278-r272-rollout/compose.services.json. Overlay требует preserved-ENV
+operator; bare up с placeholder ENV недопустим. ENV/mounts exact; HostConfig
+web/runner raw exact, worker semantic exact с bounded binds/empty DNS proof.
+15 нетаргетных контейнеров/5 старых Compose/env inputs unchanged.
+
+61 fresh live login/access/SSE/readiness +24 signed actual-child admission GREEN,
+ROLE_ADMIN с PAGE_CHANNELS/PAGE_SETTINGS подтверждены, session logout;12 running
+JAR hashes exact.3 feedback consumers/ready0/unacked0, ERROR/fatal0 у3 ролей и
+children. ReadinessUP; общий health503/inboundDLQ1 и TLS/iiko WARN прежние.
+V85/85/checksum -2092309160, settings455/roots53/pending51/ratings36/ledger17delivered/
+receipt0/history/accounts/grants/flags unchanged. Web/worker Flyway skipped;
+runner normal Flyway validation85/no migration necessary, новых миграций не
+применено. db-migrate не запускался; backfill/flags/bootstrap/repair/purge/requeue
+не выполнялись. Redis EVAL_RO MAX session/index/journal exact,0 sessions.
+Acceptance provider/customer сообщений не отправляли.
+
+Backup10297747 bytes/SHA256
+023063666B682A455F0B8EB03F7C017708D773635826A96D95DF07543B75FB0B
+изолированно восстановлен на V85, retained same-host; owned PG verifier container/
+volume удалены.3 новых R272 rollback tags сохранены: web/worker image90cd11900131,
+runner7259bf144f18. R269/R267/R264/R261 backups/pointers проверены. Working DB
+не восстанавливалась, rollback не выполнялся; cold stop/queues0/ledger+receipt+
+V85/session compatibility обязательны, старый security behavior возвращается.
+Это не live client callback/scoped media/rebind/первый production S6. Evidence:
+task Runtime R272/.tmp/01-278-r272-rollout/sealed-proof.json. Ниже исторические
+source/runtime checkpoints; прежнее «source-only R271» описывает момент подготовки.
+
 ## MAX v4 media без silent loss — source R271, 2026-11-02
 
 Пока scoped MAX media writer не реализован, выбранный v4 вопросник явно
