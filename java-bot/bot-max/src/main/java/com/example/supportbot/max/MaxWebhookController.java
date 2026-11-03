@@ -295,8 +295,7 @@ public class MaxWebhookController {
                 session.acceptEvent(deliveryKey);
                 saveSession(session); // Frozen choice is durable before the first question is sent.
             } catch(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException ex) {
-                messagingService.sendToUser(channel,userId,"Настройки опроса изменились или недоступны. Отправьте /start для нового выбора.");
-                return completeDelivery(claim,ResponseEntity.ok(Map.of("ok",true,"restart_questionnaire",true)));
+                return acknowledgeQuestionnaireRestart(claim, channel, userId);
             }
             promptCurrentQuestion(channel,session);
             return completeDelivery(claim,ResponseEntity.ok(Map.of("ok",true,"business_selected",true)));
@@ -455,12 +454,31 @@ public class MaxWebhookController {
         promptCurrentQuestion(channel, session);
         return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "question_prompted", true)));
         } catch (PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException ex) {
-            messagingService.sendToUser(getChannel(),userId,"Настройки опроса изменились или недоступны. Отправьте /start для нового выбора.");
-            return completeDelivery(claim,ResponseEntity.ok(Map.of("ok",true,"restart_questionnaire",true)));
+            try {
+                return acknowledgeQuestionnaireRestart(claim, getChannel(), userId);
+            } catch (RuntimeException warningFailure) {
+                // A failure inside this catch is not handled by the sibling RuntimeException catch.
+                webhookDeliveryGuardService.release(claim);
+                throw warningFailure;
+            }
         } catch (RuntimeException ex) {
             webhookDeliveryGuardService.release(claim);
             throw ex;
         }
+    }
+
+    private ResponseEntity<Map<String, Object>> acknowledgeQuestionnaireRestart(BotWebhookDeliveryGuardService.DeliveryClaim claim,
+                                                                              Channel channel, Long userId) {
+        boolean delivered;
+        try {
+            delivered = messagingService.sendToUser(channel, userId,
+                    "Настройки опроса изменились или недоступны. Отправьте /start для нового выбора.");
+        } catch (RuntimeException deliveryFailure) {
+            // Provider errors must not be mistaken for another runtime-config failure by the outer catch.
+            throw new IllegalStateException("MAX questionnaire restart warning delivery failed", deliveryFailure);
+        }
+        if (!delivered) throw new IllegalStateException("MAX questionnaire restart warning delivery was not confirmed");
+        return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "restart_questionnaire", true)));
     }
 
     private boolean unsupportedQuestionnaireMedia(MaxConversationSession session, boolean hasAttachments) {
