@@ -18,7 +18,10 @@ import java.util.Optional;
 
 final class MaxConversationSession {
 
-    record HistoryEvent(Long userId, String text, String messageType) {
+    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+    record HistoryEvent(Long userId,String text,String messageType,String attachmentPath,String attachmentName,
+                        String providerMessageId,OffsetDateTime occurredAt) {
+        HistoryEvent(Long userId,String text,String messageType) {this(userId,text,messageType,null,null,null,null);}
     }
 
     record State(Long userId,
@@ -209,6 +212,21 @@ final class MaxConversationSession {
                         && choice.questionTemplateId().equals(scope.questionTemplateId())
                         && choice.templateSha256().equals(scope.templateSha256()))))))
             throw new IllegalStateException("Saved questionnaire scope does not match its menu");
+        var slots=new java.util.HashSet<String>();int mediaCount=0;
+        for(var entry:history)if(entry.attachmentPath()!=null || entry.attachmentName()!=null || entry.providerMessageId()!=null || entry.occurredAt()!=null) {
+            if(selection==null || selection.catalog().version()!=4 || selection.acceptedEventKeys().isEmpty() || scope==null || !java.util.Objects.equals(userId,entry.userId())
+                    || entry.attachmentPath()==null || entry.occurredAt()==null || entry.providerMessageId()==null
+                    || !entry.providerMessageId().matches("[1-9][0-9]{0,18}") || !MaxQuestionnaireMedia.TYPES.contains(java.util.Objects.toString(entry.messageType(),""))
+                    || (entry.attachmentName()!=null && (entry.attachmentName().length()>255 || entry.attachmentName().chars().anyMatch(c->c<32||c==127||c=='/'||c=='\\'))))
+                throw new IllegalStateException("Invalid saved MAX media");
+            try {
+                long event=Long.parseLong(entry.providerMessageId());String key=entry.attachmentPath();
+                String prefix=com.example.supportbot.service.QuestionnaireMedia.maxPrefix(selection.catalog().channelId(),scope.businessId(),userId,scope.catalogSha256(),event,1);
+                prefix=prefix.substring(0,prefix.length()-2);String suffix=key.startsWith(prefix)?key.substring(prefix.length()):"";
+                if(!suffix.matches("(?:[1-9]|10)/[a-f0-9]{64}\\.[a-z0-9]{1,10}") || !slots.add(key.substring(0,key.lastIndexOf('/')+1)) || ++mediaCount>10)
+                    throw new IllegalStateException("Invalid saved MAX media owner or slot");
+            }catch(NumberFormatException invalid){throw new IllegalStateException("Invalid saved MAX media identity");}
+        }
     }
 
     QuestionnaireScope scope() {
@@ -249,6 +267,10 @@ final class MaxConversationSession {
 
     boolean isComplete() {
         return currentIndex >= flow.size();
+    }
+    void recordMediaAnswer(String answer,List<HistoryEvent> entries) {
+        if(currentQuestion()==null || entries==null || entries.isEmpty())throw new IllegalStateException("Missing MAX media question or batch");
+        recordAnswer(answer);history.remove(history.size()-1);history.addAll(entries);
     }
 
     boolean canGoBack() {

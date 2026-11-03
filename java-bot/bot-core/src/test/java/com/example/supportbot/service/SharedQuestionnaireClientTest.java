@@ -19,6 +19,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 class SharedQuestionnaireClientTest {
     private String lastStartPath;
     private String writerVersion="1",mediaVersion="1",vkMediaVersion="1";
+    private String maxMediaVersion="missing";
     private HttpServer server;
     private PanelRuntimeConfigClient client;
     private final ObjectMapper mapper=new ObjectMapper();
@@ -40,6 +41,10 @@ class SharedQuestionnaireClientTest {
         server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
         server.createContext("/internal/api/bot/channels/8/questionnaire",exchange->{
             lastStartPath=exchange.getRequestURI().toString();
+            if(lastStartPath.contains("max-media-selection") && !"missing".equals(maxMediaVersion)) {
+                exchange.getResponseHeaders().add("X-Iguana-Questionnaire-MAX-Media-Version",maxMediaVersion.equals("duplicate")?"1":maxMediaVersion);
+                if(maxMediaVersion.equals("duplicate"))exchange.getResponseHeaders().add("X-Iguana-Questionnaire-MAX-Media-Version","1");
+            }
             if(lastStartPath.contains("forStart=true") && !"missing".equals(writerVersion))
                 exchange.getResponseHeaders().set("X-Iguana-Questionnaire-Writer-Version",writerVersion);
             if(lastStartPath.contains("forStart=true") && !"missing".equals(vkMediaVersion)) exchange.getResponseHeaders().set("X-Iguana-Questionnaire-VK-Media-Version",vkMediaVersion);
@@ -249,6 +254,23 @@ class SharedQuestionnaireClientTest {
         var business=(ObjectNode)catalog.withArray("choices").get(0);var general=(ObjectNode)catalog.withArray("choices").get(1);
         var all=mapper.createArrayNode();for(int index=0;index<count-2;index++)all.add(business.deepCopy().put("businessId",index+20).put("questionTemplateId","q-extra-"+index));
         all.add(business);all.add(general);catalog.set("choices",all);
+    }
+    @ParameterizedTest @ValueSource(strings={"BUSINESS","GENERAL"})
+    void maxMediaSelectionUsesSignedDistinctRouteAndExplicitCapability(String kind) throws Exception {
+        r152Large(kind,2);var menu=client.choicesV4ForStart(8);maxMediaVersion="1";
+        var result=client.selectMaxMediaForStart(menu,kind.equals("GENERAL")?null:7L);
+        assertThat(signatureValid).isTrue();assertThat(lastStartPath).contains("/v4/max-media-selection?").contains("forStart=true");
+        assertThat(result.scopeKind()).isEqualTo(kind);
+        var channel=new com.example.supportbot.entity.Channel();channel.setId(8L);channel.setPlatform("max");
+        var transport=new com.example.supportbot.config.BotIntegrationTransportMode(new org.springframework.mock.env.MockEnvironment().withProperty("app.integration.transport.mode","rabbitmq"));
+        var runtime=new RuntimeConfigService(org.mockito.Mockito.mock(SharedConfigService.class),transport,client,mapper);
+        assertThat(runtime.confirmMaxQuestionnaireMedia(channel,menu,result)).isTrue();
+    }
+    @ParameterizedTest @ValueSource(strings={"missing","0","2","01","duplicate"})
+    void maxMediaNeverInfersSupportFromGenericV4Headers(String marker) throws Exception {
+        r152Large("BUSINESS",2);var menu=client.choicesV4ForStart(8);maxMediaVersion=marker;
+        assertThatThrownBy(()->client.selectMaxMediaForStart(menu,7L)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
+        assertThat(signatureValid).isTrue();assertThat(lastStartPath).contains("max-media-selection");
     }
     @ParameterizedTest @ValueSource(strings={"BUSINESS","GENERAL"})
     void v4SignedCatalogAndSelectionSupportOneThousandChoicesWithFrozenResourceProof(String kind) throws Exception {

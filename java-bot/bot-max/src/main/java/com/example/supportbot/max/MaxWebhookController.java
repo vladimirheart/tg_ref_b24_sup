@@ -83,6 +83,7 @@ public class MaxWebhookController {
     private final MaxApiClient maxApiClient;
     private final MaxClientAvatarSyncService maxClientAvatarSyncService;
     private final ObjectMapper objectMapper;
+    private final MaxQuestionnaireMediaWriter questionnaireMediaWriter;
 
     private static String defaultFirstResponseTimeoutMessage() {
         return "Вы не ответили. Диалог был закрыт. При возникновении или актуализации вопросов создайте новое обращение.";
@@ -125,6 +126,7 @@ public class MaxWebhookController {
         this.maxApiClient = maxApiClient;
         this.maxClientAvatarSyncService = maxClientAvatarSyncService;
         this.objectMapper = objectMapper;
+        this.questionnaireMediaWriter=new MaxQuestionnaireMediaWriter(maxApiClient,attachmentService);
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -232,10 +234,6 @@ public class MaxWebhookController {
                 webhookDeliveryGuardService.release(claim);
                 return ResponseEntity.status(409).body(Map.of("ok",false,"error","session-chat-mismatch"));
             }
-            if (unsupportedQuestionnaireMedia(session, questionnaireMedia)
-                    && !MaxCommandSupport.isStartCommand(text) && !MaxCommandSupport.isCancelCommand(text)) {
-                return rejectQuestionnaireMedia(claim, channel, session);
-            }
             if(deliveryKey.equals(session.selection().startEventKey())) {
                 if (unsupportedQuestionnaireMedia(session, questionnaireMedia)) return rejectQuestionnaireMedia(claim, channel, session);
                 promptCurrentQuestion(channel,session);
@@ -254,6 +252,9 @@ public class MaxWebhookController {
                 promptCurrentQuestion(channel,session);
                 return completeDelivery(claim,ResponseEntity.ok(Map.of("ok",true,"questionnaire_replayed",true)));
             }
+            if (unsupportedQuestionnaireMedia(session,questionnaireMedia)
+                    && !MaxCommandSupport.isStartCommand(text) && !MaxCommandSupport.isCancelCommand(text))
+                return acceptQuestionnaireMedia(claim,channel,session,message,attachments,text,clientProfile.identity(),providerMessageId,deliveryKey);
         }
         if (MaxCommandSupport.isStartCommand(text)) {
             if (session != null) {
@@ -484,6 +485,41 @@ public class MaxWebhookController {
     private boolean unsupportedQuestionnaireMedia(MaxConversationSession session, boolean hasAttachments) {
         return hasAttachments && session != null && session.selection() != null && session.selection().catalog().version() == 4;
     }
+    private ResponseEntity<Map<String,Object>> acceptQuestionnaireMedia(BotWebhookDeliveryGuardService.DeliveryClaim claim,
+            Channel channel,MaxConversationSession session,JsonNode message,List<MaxInboundPayloadSupport.IncomingAttachment> attachments,
+            String text,String identity,Long providerId,String eventKey) {
+        if(!session.selectedBusiness() || session.isComplete() || session.selection().submittedTicketId()!=null
+                || session.selection().submissionEventKey()!=null || session.currentQuestion()==null || session.awaitingReuseDecision() || MaxQuestionInputSupport.isChoiceQuestion(session.currentQuestion()))
+            return rejectQuestionnaireMedia(claim,channel,session);
+        final List<MaxQuestionnaireMedia.Item> items;
+        try {items=MaxQuestionnaireMedia.describe(message,attachments);}
+        catch(IllegalArgumentException invalid){return rejectInitialQuestionnaireMedia(claim,channel,session);}
+        if(providerId==null || providerId<=0 || session.history().stream().filter(h->h.attachmentPath()!=null).count()+items.size()>10)
+            return rejectInitialQuestionnaireMedia(claim,channel,session);
+        if(ticketService.findActiveTicketForUser(session.userId(),identity,channel.getId()).isPresent())
+            return rejectQuestionnaireMedia(claim,channel,session);
+        if(!runtimeConfigService.confirmMaxQuestionnaireMedia(channel,session.selection().catalog(),session.selection().selected()))
+            throw new PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException("MAX media writer is not ready");
+        String answer=text.isBlank()?"[вложение от клиента]":text;
+        var history=new java.util.ArrayList<MaxConversationSession.HistoryEvent>();
+        var owner=new MaxQuestionnaireMediaWriter.Owner(channel.getId(),session.scope().businessId(),session.userId(),session.scope().catalogSha256(),providerId);
+        var time=OffsetDateTime.now();
+        try {
+            for(var item:items) {
+                var stored=questionnaireMediaWriter.store(owner,item.slot(),item.type(),item.url(),item.name());
+                history.add(new MaxConversationSession.HistoryEvent(session.userId(),answer,item.type(),stored.storageKey(),stored.name(),providerId.toString(),time));
+            }
+        }catch(AttachmentService.MediaSizeException rejected){return rejectInitialQuestionnaireMedia(claim,channel,session);}
+        catch(java.io.IOException failure){throw new IllegalStateException("MAX questionnaire media storage failed");}
+        catch(InterruptedException interrupted){Thread.currentThread().interrupt();throw new IllegalStateException("MAX questionnaire media interrupted");}
+        session.recordMediaAnswer(answer,history);session.acceptEvent(eventKey);saveSession(session);
+        if(session.isComplete()) {
+            var created=finalizeConversation(channel,session,eventKey);
+            return completeDelivery(claim,ResponseEntity.ok(Map.of("ok",true,"ticket_id",created.ticketId())));
+        }
+        promptCurrentQuestion(channel,session);
+        return completeDelivery(claim,ResponseEntity.ok(Map.of("ok",true,"question_prompted",true)));
+    }
 
     private ResponseEntity<Map<String, Object>> rejectQuestionnaireMedia(BotWebhookDeliveryGuardService.DeliveryClaim claim,
                                                                         Channel channel, MaxConversationSession session) {
@@ -492,9 +528,14 @@ public class MaxWebhookController {
 
     private ResponseEntity<Map<String, Object>> rejectQuestionnaireMedia(BotWebhookDeliveryGuardService.DeliveryClaim claim,
                                                                         Channel channel, Long userId, MaxConversationSession session) {
+        return warnQuestionnaireMedia(claim,channel,userId,session,"В MAX-вопроснике v4 пока поддерживается только текст. Вложение не сохранено; подпись не принята. Отправьте текст отдельным сообщением.");
+    }
+    private ResponseEntity<Map<String,Object>> rejectInitialQuestionnaireMedia(BotWebhookDeliveryGuardService.DeliveryClaim claim,Channel channel,MaxConversationSession session) {
+        return warnQuestionnaireMedia(claim,channel,session.userId(),session,"Вложение не сохранено; подпись не принята. Отправьте поддерживаемый файл от 1 байта до 10 МиБ со свободным ответом или продолжите текстом.");
+    }
+    private ResponseEntity<Map<String,Object>> warnQuestionnaireMedia(BotWebhookDeliveryGuardService.DeliveryClaim claim,Channel channel,Long userId,MaxConversationSession session,String warning) {
         // V4 needs a scoped byte writer. Never turn a caption into an answer or use the legacy attachment store.
-        if (!messagingService.sendToUser(channel, userId,
-                "В MAX-вопроснике v4 пока поддерживается только текст. Вложение не сохранено; подпись не принята. Отправьте текст отдельным сообщением.")) {
+        if (!messagingService.sendToUser(channel,userId,warning)) {
             throw new IllegalStateException("MAX questionnaire media warning delivery was not confirmed");
         }
         if (session != null) promptCurrentQuestion(channel, session);
@@ -711,6 +752,9 @@ public class MaxWebhookController {
                     :runtimeConfigService.selectQuestionnaire(channel,session.selection().catalog(),session.scope().businessId());
                 if(!com.example.supportbot.service.QuestionnaireScope.fromSelection(current).equals(session.scope()))
                     throw new IllegalStateException("Selected MAX questionnaire changed");
+                if(session.history().stream().anyMatch(entry->entry.attachmentPath()!=null)
+                        && !runtimeConfigService.confirmMaxQuestionnaireMedia(channel,session.selection().catalog(),session.selection().selected()))
+                    throw new PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException("MAX media writer is not ready for submission");
             }
             session.prepareSubmission(providerEventKey);
             saveSession(session);
@@ -729,10 +773,10 @@ public class MaxWebhookController {
                                         event.userId(),
                                         event.text(),
                                         event.messageType(),
-                                        null,
-                                        null,
-                                        null,
-                                        session.startedAt()
+                                        event.attachmentPath(),
+                                        event.attachmentName(),
+                                        event.providerMessageId(),
+                                        event.occurredAt()!=null?event.occurredAt():session.startedAt()
                                 ))
                                 .toList(),
                         channel,

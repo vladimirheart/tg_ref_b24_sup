@@ -76,6 +76,17 @@ class SelectedQuestionnaireMediaIngestionTest {
         assertThat(captor.getValue().getQuestionnaireVersion()).isEqualTo(4);assertThat(captor.getValue().getBusinessId()).isEqualTo(event.businessId());
         assertThat(captor.getValue().isGeneral()).isEqualTo(general);verify(history).save(any());verify(inbox).markProcessed(event.eventId());verifyNoInteractions(storage);
     }
+    @ParameterizedTest @ValueSource(booleans={false,true})
+    void maxVersion4OwnedMediaCreatesFrozenRootHistoryAndVerifiedMetadata(boolean general) throws Exception {
+        byte[] bytes={1,2,3};String sha=java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(bytes));
+        String key="questionnaires/max/55/"+(general?"general":"business-7")+"/1001/"+"c".repeat(64)+"/33/1/"+sha+".bin";
+        var entry=new ConversationTicketCreatedEvent.ConversationHistoryEntryPayload(1001L,"Caption","document",key,"file.bin","33",SelectedQuestionnaireMediaValidatorTest.NOW);
+        var event=SelectedQuestionnaireMediaValidatorTest.event(general,"max",List.of(entry));selected(event,4);
+        when(storage.openDialogAttachmentByStorageKey(key)).thenReturn(new AttachmentObjectStorageService.StoredBinary(key,"application/octet-stream",3,new java.io.ByteArrayInputStream(bytes)));
+        service.ingest(event,"integration.ticket.max");verify(tickets).save(any());verify(history).save(any());
+        verify(metadata).upsertForChatHistory(eq(101L),eq(event.ticketId()),eq(55L),eq(key),eq("file.bin"),isNull(),eq(3L),eq("document"),eq(sha));
+        verify(inbox).markProcessed(event.eventId());
+    }
     @ParameterizedTest @CsvSource({"false,2","true,2","false,3","true,3"})
     void earlierMaxSelectedMediaKeepsLegacyRootCreation(boolean general,int version) {
         var event=event(general,"max","legacy");selected(event,version);service.ingest(event,"integration.ticket.max");

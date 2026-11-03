@@ -283,6 +283,9 @@ public class MaxApiClient {
     }
 
     URI validateAttachmentUri(String rawUrl) {
+        return trustedAttachmentUri(rawUrl);
+    }
+    static URI trustedAttachmentUri(String rawUrl) {
         if (rawUrl == null || rawUrl.isBlank()) {
             throw new IllegalArgumentException("MAX attachment URL is empty");
         }

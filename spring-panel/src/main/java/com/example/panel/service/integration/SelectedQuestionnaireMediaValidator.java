@@ -20,13 +20,15 @@ public class SelectedQuestionnaireMediaValidator {
         for(var entry:event.historyEntries()) {
             if(entry==null) continue;
             boolean vk="vk".equals(event.platform());
+            boolean max="max".equals(event.platform());
+            boolean batch=vk||max;
             // The first v4 root has the same owned-byte boundary as subsequent client messages.
             // Missing storage is not plain text, and an unsupported platform never falls back to legacy media.
             boolean media=entry.attachmentPath()!=null || !"text".equals(entry.messageType());
-            if(version==4 && media && (entry.attachmentPath()==null || (!"telegram".equals(event.platform()) && !vk)))
+            if(version==4 && media && (entry.attachmentPath()==null || (!"telegram".equals(event.platform()) && !batch)))
                 throw invalid();
             if(entry.attachmentPath()==null) continue;
-            if(!"telegram".equals(event.platform()) && !vk) {
+            if((!"telegram".equals(event.platform()) && !batch) || (max && version!=4)) {
                 if(entry.attachmentPath().startsWith("questionnaires/")) throw invalid();
                 continue; // Earlier MAX attachment protocols retain their own admission rules.
             }
@@ -36,13 +38,13 @@ public class SelectedQuestionnaireMediaValidator {
                     || (entry.attachmentName()!=null && (entry.attachmentName().length()>255
                         || entry.attachmentName().chars().anyMatch(c->c<32 || c==127 || c=='/' || c=='\\')))) throw invalid();
             try {if(Long.parseLong(entry.providerMessageId())<=0) throw invalid();} catch(NumberFormatException ex) {throw invalid();}
-            String prefix="questionnaires/"+(vk?"vk":"telegram")+"/"+event.channelId()+"/"+(event.businessId()==null?"general":"business-"+event.businessId())
+            String prefix="questionnaires/"+(max?"max":vk?"vk":"telegram")+"/"+event.channelId()+"/"+(event.businessId()==null?"general":"business-"+event.businessId())
                 +"/"+event.userId()+"/"+event.catalogSha256()+"/"+entry.providerMessageId()+"/";
             String key=entry.attachmentPath();
-            if(!key.startsWith(prefix) || !key.substring(prefix.length()).matches((vk?"(?:[1-9]|10)/":"")+"[a-f0-9]{64}\\.[a-z0-9]{1,10}")
+            if(!key.startsWith(prefix) || !key.substring(prefix.length()).matches((batch?"(?:[1-9]|10)/":"")+"[a-f0-9]{64}\\.[a-z0-9]{1,10}")
                     || result.size()>=MAX_FILES || result.containsKey(key)) throw invalid();
             // Telegram has one rendition; VK has one item per stable slot within the same conversation message.
-            String itemPrefix=vk?key.substring(0,key.lastIndexOf('/')+1):prefix;
+            String itemPrefix=batch?key.substring(0,key.lastIndexOf('/')+1):prefix;
             if(result.keySet().stream().anyMatch(previous->previous.startsWith(itemPrefix))) throw invalid();
             try(var file=storage.openDialogAttachmentByStorageKey(key)) {
                 if(file.size()<=0 || file.size()>MAX_BYTES) throw invalid();

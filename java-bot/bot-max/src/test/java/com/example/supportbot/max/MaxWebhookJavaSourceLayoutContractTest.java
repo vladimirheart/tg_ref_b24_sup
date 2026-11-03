@@ -181,7 +181,9 @@ class MaxWebhookJavaSourceLayoutContractTest {
 
         assertThat(session)
                 .contains("final class MaxConversationSession")
-                .contains("record HistoryEvent(Long userId, String text, String messageType)")
+                .contains("record HistoryEvent(Long userId,String text,String messageType,String attachmentPath,String attachmentName,")
+                .contains("HistoryEvent(Long userId,String text,String messageType) {this(userId,text,messageType,null,null,null,null);}")
+                .contains("@com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)")
                 .contains("record State(Long userId,")
                 .contains("void recordAnswer(String text)")
                 .contains("boolean consumeReuseDecision(String decision)")

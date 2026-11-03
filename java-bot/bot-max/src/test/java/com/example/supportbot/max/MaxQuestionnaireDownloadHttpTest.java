@@ -28,7 +28,7 @@ class MaxQuestionnaireDownloadHttpTest {
     }
     @Test void realChunkedOversizeNeverEscapesAsDownloadedBytes() throws Exception {
         server.createContext("/bytes",exchange->{try(exchange){exchange.sendResponseHeaders(200,0);byte[] chunk=new byte[8192];for(int n=0;n<=QuestionnaireMedia.MAX_BYTES;n+=chunk.length)exchange.getResponseBody().write(chunk);}catch(IOException cancelled){/* Expected upstream cancellation. */}});server.start();
-        assertThatThrownBy(()->MaxQuestionnaireDownload.download(http,uri,Duration.ofSeconds(3))).isInstanceOf(IOException.class);
+        assertThatThrownBy(()->MaxQuestionnaireDownload.download(http,uri,Duration.ofSeconds(3))).isInstanceOf(com.example.supportbot.service.AttachmentService.MediaSizeException.class);
     }
     @Test void deadlineIncludesBodyAfterHeadersHaveAlreadyArrived() throws Exception {
         var bodyStarted=new CountDownLatch(1);var release=new CountDownLatch(1);

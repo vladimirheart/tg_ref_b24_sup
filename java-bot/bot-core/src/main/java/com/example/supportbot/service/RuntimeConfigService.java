@@ -71,6 +71,17 @@ public class RuntimeConfigService {
         if(!"telegram".equals(channel.getPlatform())) throw new PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException("Unsupported selected media platform");
         return panelRuntimeConfigClient.selectedMediaAdmission(channel.getId(),userId,ticketId,selected);
     }
+    public boolean confirmMaxQuestionnaireMedia(Channel channel,PanelRuntimeConfigClient.ChoiceCatalog catalog,
+            PanelRuntimeConfigClient.SelectedQuestionnaire frozen) {
+        requireRemoteQuestionnaire(channel);
+        if(!"max".equals(channel.getPlatform()) || catalog==null || frozen==null || catalog.version()!=4 || frozen.version()!=4
+                || catalog.channelId()!=channel.getId() || frozen.channelId()!=channel.getId())
+            throw new PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException("Invalid MAX media selection");
+        var current=panelRuntimeConfigClient.selectMaxMediaForStart(catalog,frozen.businessId());
+        if(!QuestionnaireScope.fromSelection(current).equals(QuestionnaireScope.fromSelection(frozen)))
+            throw new PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException("MAX media selection changed");
+        return true;
+    }
 
     public PanelRuntimeConfigClient.SelectedMediaAdmission selectedVkMediaAdmission(Channel channel,long userId,String ticketId,
             PanelRuntimeConfigClient.SelectedQuestionnaire selected) {

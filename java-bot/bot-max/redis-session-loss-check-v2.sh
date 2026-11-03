@@ -9,5 +9,5 @@ sed -i 's/\r$//' /tmp/wrapper/mvnw /tmp/wrapper/.mvn/apache-maven-3.9.6/bin/mvn
 chmod u+x /tmp/wrapper/.mvn/apache-maven-3.9.6/bin/mvn
 cd /work/java-bot
 exec sh /tmp/wrapper/mvnw -B -o -f pom.xml -pl :bot-max -am \
-  -Dmaven.repo.local=/maven-cache '-Dtest=Max*Test,MaxSessionLossRedisIT,PanelActiveTicketAvailabilityTest,PanelTicketFollowupContextTest' \
+  -Dmaven.repo.local=/maven-cache '-Dtest=Max*Test,MaxSessionLossRedisIT,MaxInitialQuestionnaireMediaRedisIT,PanelActiveTicketAvailabilityTest,PanelTicketFollowupContextTest,SharedQuestionnaireClientTest' \
   -Dsurefire.failIfNoSpecifiedTests=false test

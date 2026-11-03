@@ -55,4 +55,14 @@ public class SharedExpandedQuestionnaireRuntimeController {
             response.setHeader("X-Iguana-Questionnaire-VK-Media-Version", "1");
         }
     }
+    @GetMapping("/max-media-selection")
+    public SharedGeneralQuestionnaireService.Selected maxMediaSelection(HttpServletRequest request,HttpServletResponse response,
+            @RequestHeader(name="X-Iguana-Bot-Api-Token",required=false) String token,@PathVariable long channelId,
+            @RequestParam String scopeKind,@RequestParam(required=false) Long businessId,
+            @RequestParam String catalogSha256,@RequestParam(defaultValue="false") boolean forStart) {
+        var selected=selection(request,response,token,channelId,scopeKind,businessId,catalogSha256,forStart);
+        if(!forStart)throw new ResponseStatusException(HttpStatus.CONFLICT);
+        response.setHeader("X-Iguana-Questionnaire-MAX-Media-Version","1");
+        return selected;
+    }
 }

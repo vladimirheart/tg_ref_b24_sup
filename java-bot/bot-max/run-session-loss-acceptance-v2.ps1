@@ -79,7 +79,10 @@ try {
  }
  $null=Invoke-OwnedDocker -Arguments @('cp',($builderId+':/work/java-bot/bot-core/target/surefire-reports'),(Join-Path $output 'core-reports'))
  $coreReports=@(Get-ChildItem -LiteralPath (Join-Path $output 'core-reports') -Filter 'TEST-*.xml')
- if($coreReports.Count -ne 2){throw 'Canonical signed HTTP suites missing'}
+ foreach($name in @('PanelActiveTicketAvailabilityTest','PanelTicketFollowupContextTest','SharedQuestionnaireClientTest')){
+  if(-not (Test-Path -LiteralPath (Join-Path $output ('core-reports/TEST-com.example.supportbot.service.'+$name+'.xml')))){throw ('Required signed HTTP suite missing: '+$name)}
+ }
+ if(-not (Test-Path -LiteralPath (Join-Path $output 'max-reports/TEST-com.example.supportbot.max.MaxInitialQuestionnaireMediaRedisIT.xml'))){throw 'Initial media Redis suite missing'}
  foreach($reportFile in @($reports)+@($coreReports)){
   [xml]$r=Get-Content -Raw -Encoding UTF8 -LiteralPath $reportFile.FullName
   if([int]$r.testsuite.failures -or [int]$r.testsuite.errors -or [int]$r.testsuite.skipped -or [int]$r.testsuite.tests -le 0){throw ('Incomplete/failed suite: '+$reportFile.Name)}

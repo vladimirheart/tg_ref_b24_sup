@@ -28,6 +28,39 @@ production/рабочий в старых записях, именах Compose �
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
+## Source R284 — 2026-11-03: initial MAX v4 media и session CAS
+
+Writer R283 подключён к свободным ответам первого MAX-вопросника v4 для
+BUSINESS и GENERAL. Весь прямой batch1–10 проверяется до I/O; каждый файл1байт–
+10MiB сохраняется в owned MAX namespace. Forward/reply/opaque/mixed/unknown
+формы, choice/reuse prompt и опубликованный root остаются закрыты. Нельзя
+превратить неподдерживаемую подпись в ответ или уйти в legacy downloader.
+Общий лимит10 файлов на сессию; owner/channel/catalog/event/slot и metadata
+проверяются при restore, затем ответ+history+journal сохраняются одним CAS.
+Retry после saved CAS/lost ACK не скачивает файл повторно и сохраняет исходный
+submission event. Ошибки transport/storage/CAS не продвигают вопрос; явный
+size reject подтверждается только после успешной отправки предупреждения.
+
+Signed v4 /max-media-selection требует отдельный точный MAX-Media-Version:1
+вместе с writer4/media1 и тем же frozen selection; старый generic v4 не даёт
+допуска. Проверка до download и повторно до первого prepareSubmission.
+Backend initial ingestion проверяет owned key/actual bytes/SHA/size, сохраняет
+history/metadata; scoped reader проверяет canonical owner и hash/size.
+MAX v1–v3 legacy contract и старый трёхполевой text JSON сохранены.
+
+Fresh GREEN:1042 core/MAX executions/34 suites на disposable Redis +182 panel/
+7 suites =1224/41, failures/errors/skips0. Включены23 direct и те же23 real Redis
+media cases, прежние179 session-loss/replay cases и signed HTTP/loopback tests.
+Backend:3 изменённых main classes и targeted tests compiled заново с неизменными
+R280/R279 classes; это не full Maven/Sass package и не live provider/CDN/S3.
+Evidence: ../iguana-runtime/tg_ref_b24_sup/work/r284-max-questionnaire-media/.
+Source-only;20 прежних containers остались остановлены/неизменны, тестовые
+resources удалены. Рабочие DB/Redis/queues/provider/flags не использовались;
+rebuild/deploy/migrations/backfill/staging/commit/push0. Для включения нужен
+согласованный backend web/worker + MAX runner/core release, не panel-web-only.
+Prepared/outbox drain и rollback с неопределённым исходом, published followup
+media, live provider, policies и общий S6 остаются. Задача🟡, S2B снятR190.
+
 ## Source R283 — 2026-11-03: scoped byte writer MAX
 
 Реализован отдельный byte/storage primitive, пока не подключённый к handler:

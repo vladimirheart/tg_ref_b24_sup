@@ -124,13 +124,20 @@ public class PanelRuntimeConfigClient {
         return select(catalog,kind,businessId,forStart,false);
     }
     private SelectedQuestionnaire select(ChoiceCatalog catalog,String kind,Long businessId,boolean forStart,boolean requireVkMedia) {
+        return select(catalog,kind,businessId,forStart,requireVkMedia,false);
+    }
+    public SelectedQuestionnaire selectMaxMediaForStart(ChoiceCatalog catalog,Long businessId) {
+        if(catalog==null || catalog.version()!=4)throw unavailable();
+        return select(catalog,businessId==null?"GENERAL":"BUSINESS",businessId,true,false,true);
+    }
+    private SelectedQuestionnaire select(ChoiceCatalog catalog,String kind,Long businessId,boolean forStart,boolean requireVkMedia,boolean requireMaxMedia) {
         if (catalog==null) throw unavailable();
         requireChannel(catalog.channelId());validateCatalog(catalog.channelId(),catalog);
         Choice choice=catalog.choices().stream().filter(item->kind.equals(item.scopeKind()) && java.util.Objects.equals(item.businessId(),businessId)).findFirst().orElseThrow(PanelRuntimeConfigClient::unavailable);
         SelectedQuestionnaire selected=fetchTyped("/internal/api/bot/channels/"+catalog.channelId()
-            +"/questionnaire/"+(catalog.version()>=2?"v"+catalog.version()+"/":"")+"selection?"
+            +"/questionnaire/"+(catalog.version()>=2?"v"+catalog.version()+"/":"")+(requireMaxMedia?"max-media-selection?":"selection?")
             +(catalog.version()>=2?"scopeKind="+kind+"&":"")+(businessId==null?"":"businessId="+businessId+"&")
-            +"catalogSha256="+catalog.catalogSha256()+(forStart ? "&forStart=true" : ""),SelectedQuestionnaire.class,forStart?catalog.version():0,requireVkMedia);
+            +"catalogSha256="+catalog.catalogSha256()+(forStart ? "&forStart=true" : ""),SelectedQuestionnaire.class,forStart?catalog.version():0,requireVkMedia,requireMaxMedia);
         if (selected==null || selected.version()!=catalog.version() || selected.channelId()!=catalog.channelId() || !java.util.Objects.equals(selected.businessId(),businessId)
                 || !kind.equals(selected.scopeKind()) || !"USER_SELECTION".equals(selected.scopeSelectionSource())
                 || !catalog.catalogSha256().equals(selected.catalogSha256()) || !choice.questionTemplateId().equals(selected.questionTemplateId())
@@ -202,6 +209,9 @@ public class PanelRuntimeConfigClient {
     }
     private <T> T fetchTyped(String path,Class<T> type,int writerVersion) { return fetchTyped(path,type,writerVersion,false); }
     private <T> T fetchTyped(String path,Class<T> type,int writerVersion,boolean requireVkMedia) {
+        return fetchTyped(path,type,writerVersion,requireVkMedia,false);
+    }
+    private <T> T fetchTyped(String path,Class<T> type,int writerVersion,boolean requireVkMedia,boolean requireMaxMedia) {
         URI uri = resolve(path);
         HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
             .timeout(properties.getRequestTimeout())
@@ -218,6 +228,9 @@ public class PanelRuntimeConfigClient {
             }
             if(writerVersion==4 && !"1".equals(response.headers().firstValue("X-Iguana-Questionnaire-Media-Version").orElse(null))) throw unavailable();
             if(writerVersion==4 && requireVkMedia && !"1".equals(response.headers().firstValue("X-Iguana-Questionnaire-VK-Media-Version").orElse(null))) throw unavailable();
+            if(requireMaxMedia && (response.statusCode()!=200 || !response.headers().allValues("X-Iguana-Questionnaire-MAX-Media-Version").equals(List.of("1"))
+                    || !response.headers().allValues("X-Iguana-Questionnaire-Writer-Version").equals(List.of("4"))
+                    || !response.headers().allValues("X-Iguana-Questionnaire-Media-Version").equals(List.of("1"))))throw unavailable();
             return objectMapper.readValue(response.body(),type);
         } catch (IOException | InterruptedException ex) {
             if (ex instanceof InterruptedException) {

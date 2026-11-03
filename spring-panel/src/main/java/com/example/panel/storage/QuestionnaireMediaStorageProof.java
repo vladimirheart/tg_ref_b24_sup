@@ -19,14 +19,14 @@ public final class QuestionnaireMediaStorageProof {
     public static boolean matches(ResultSet row,String key) throws SQLException {
         Long channel=(Long)row.getObject("proof_channel"),user=(Long)row.getObject("proof_user"),business=(Long)row.getObject("proof_business"),provider=(Long)row.getObject("proof_provider");
         String catalog=row.getString("proof_catalog"),sha=row.getString("content_hash");Long size=(Long)row.getObject("size");
-        String platform=row.getString("proof_platform");boolean vk="vk".equals(platform);
-        if(!"USER_SELECTION".equals(row.getString("proof_source")) || (!"telegram".equals(platform) && !vk)
+        String platform=row.getString("proof_platform");boolean batch="vk".equals(platform)||"max".equals(platform);
+        if(!"USER_SELECTION".equals(row.getString("proof_source")) || (!"telegram".equals(platform) && !batch)
                 || channel==null || channel<=0 || user==null || user<=0 || provider==null || provider<=0 || (business!=null && business<=0)
                 || !Objects.equals(channel,row.getObject("proof_history_channel")) || !Objects.equals(channel,row.getObject("proof_metadata_channel"))
                 || catalog==null || !catalog.matches("[a-f0-9]{64}") || sha==null || !sha.matches("[a-f0-9]{64}")
                 || size==null || size<1 || size>MAX_BYTES) return false;
         String prefix="questionnaires/"+platform+"/"+channel+"/"+(business==null?"general":"business-"+business)+"/"+user+"/"+catalog+"/"+provider+"/";
-        return key!=null && key.startsWith(prefix) && key.substring(prefix.length()).matches((vk?"(?:[1-9]|10)/":"")+sha+"\\.[a-z0-9]{1,10}");
+        return key!=null && key.startsWith(prefix) && key.substring(prefix.length()).matches((batch?"(?:[1-9]|10)/":"")+sha+"\\.[a-z0-9]{1,10}");
     }
     public static byte[] read(AttachmentObjectStorageService.StoredBinary binary,String hash,Long size) throws IOException {
         if(hash==null || !hash.matches("[a-f0-9]{64}") || size==null || size<1 || size>MAX_BYTES || binary.size()!=size) throw new IOException("Invalid media size/hash");
