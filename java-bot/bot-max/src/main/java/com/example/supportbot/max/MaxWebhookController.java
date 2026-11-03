@@ -195,7 +195,8 @@ public class MaxWebhookController {
         boolean hasAttachments = !attachments.isEmpty();
         boolean questionnaireMedia = hasAttachments || MaxInboundPayloadSupport.hasDeclaredAttachments(message);
         try {
-            if (userId == null || (text.isBlank() && !hasAttachments)) {
+            // Declared media still needs admission even when neither a URL nor a name was decoded.
+            if (userId == null || (text.isBlank() && !questionnaireMedia)) {
                 return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "ignored", "missing-user-or-text")));
             }
 
@@ -325,6 +326,7 @@ public class MaxWebhookController {
             if (Integer.valueOf(4).equals(activeRoot.questionnaireVersion()) && questionnaireMedia) {
                 return rejectQuestionnaireMedia(claim, channel, userId, null);
             }
+            if (text.isBlank() && !hasAttachments) return rejectUnresolvedAttachment(claim, channel, userId);
             if(session!=null && session.selectedBusiness()
                     && !java.util.Objects.equals(session.selection().submittedTicketId(),active.get().getTicketId())) {
                 webhookDeliveryGuardService.release(claim);
@@ -373,6 +375,7 @@ public class MaxWebhookController {
             webhookDeliveryGuardService.release(claim);
             return ResponseEntity.status(503).body(Map.of("ok",false,"error","questionnaire-ticket-not-ready","retryable",true));
         }
+        if (text.isBlank() && !hasAttachments) return rejectUnresolvedAttachment(claim, channel, userId);
         if (session == null) {
             ResponseEntity<Map<String, Object>> feedbackResponse = tryHandleFeedback(channel, userId, text);
             if (feedbackResponse != null) {
@@ -478,6 +481,15 @@ public class MaxWebhookController {
         }
         if (session != null) promptCurrentQuestion(channel, session);
         return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "questionnaire_media_unsupported", true)));
+    }
+
+    private ResponseEntity<Map<String, Object>> rejectUnresolvedAttachment(BotWebhookDeliveryGuardService.DeliveryClaim claim,
+                                                                          Channel channel, Long userId) {
+        if (!messagingService.sendToUser(channel, userId,
+                "Вложение не сохранено: не удалось распознать файл. Отправьте его повторно или опишите проблему текстом.")) {
+            throw new IllegalStateException("MAX unresolved attachment warning delivery was not confirmed");
+        }
+        return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "attachment_unresolved", true)));
     }
 
     private ResponseEntity<Map<String, Object>> tryHandleFeedback(Channel channel, Long userId, String text) {
