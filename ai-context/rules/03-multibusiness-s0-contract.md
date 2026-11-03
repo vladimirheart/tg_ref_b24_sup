@@ -28,6 +28,24 @@ production/рабочий в старых записях, именах Compose �
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
+## Очистка хранилища — R281, 2026-11-03
+
+Отдельно разрешённый cleanup: repo/.tmp пуст, удалены268 entries/
+133 old worktrees/142.88GiB logical files; остальные23 worktrees сохранены.
+Незакоммиченные source changes/patches и evidence сохранены с полным readback
+7923 files/SHA256 в private ../iguana-runtime/tg_ref_b24_sup/cleanup/r281-20261103/;
+см. archive-proof.json/plan.json/worktrees/. Старые .tmp paths ниже исторические,
+восстановление — из archive/HEAD/patches. Release R280/operators/7 DB backups и
+R275 quarantine вне .tmp hash-verified, не удалены. Generated builds воспроизводимы.
+Удалены8 unreferenced non-rollback project images и cache volume
+tg_ref_b24_sup-maven-cache; images61→53, volumes11→10.
+Рабочие и все именованные rollback images,9 app-data volumes/старый cache с
+container references сохранены. Все20 containers unchanged,3 прежних child PID,
+DB/settings/flags прежние.61 fresh access checks GREEN, health/readiness UP,
+production-readiness ready/DLQ0. Runtime R279/imageb0e12ff574c3 не менялся.
+Build cache/global prune/VHDX/restart/migrations/backfill не выполнялись.
+Подробности Task Storage cleanup R281 и отдельный changelog R281.
+
 ## Актуальный runtime — R280, 2026-11-03
 
 На исходной Windows/Docker-машине C:\Users\SinicinVV\git_h\tg_ref_b24_sup

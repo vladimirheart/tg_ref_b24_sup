@@ -18,5 +18,6 @@
             "approve": true,
             "matchCommandLine": true
         }
-    }
+    },
+    "python.terminal.useEnvFile": true
 }
