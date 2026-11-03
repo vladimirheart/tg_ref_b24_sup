@@ -89,6 +89,14 @@ class MaxQuestionnaireSelectionTest {
         return controller.handleUpdate(update,"test-secret");
     }
     protected MaxConversationSession.State state() {return store.load("max",55L,1001L,MaxConversationSession.State.class).orElseThrow().payload();}
+    protected ResponseEntity<Map<String,Object>> handleFollowupUpdate(com.fasterxml.jackson.databind.JsonNode update) {
+        return controller.handleUpdate(update,"test-secret");
+    }
+    protected FollowupFixture followupFixture() {
+        return new FollowupFixture(channel,runtime,tickets,messages,api,attachments,store);
+    }
+    protected record FollowupFixture(Channel channel,RuntimeConfigService runtime,TicketService tickets,
+            MessagingService messages,MaxApiClient api,AttachmentService attachments,BotSessionStoreService store) {}
     private ResponseEntity<Map<String,Object>> r271Media(String id,String text,boolean forwarded) {
         return r271Media(id,text,forwarded,2002L);
     }

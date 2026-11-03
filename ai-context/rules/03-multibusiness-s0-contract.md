@@ -28,6 +28,44 @@ production/рабочий в старых записях, именах Compose �
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
+## Source R282 — 2026-11-03: MAX после потери Redis session
+
+Test-only пакет подтверждает immutable published root на настоящем Redis/Lua:
+BUSINESS/GENERAL v4 после удаления либо принудительного TTL expiry session key
+со stale index, controller rebuild, недоступного/изменённого catalog и другого
+support-chat fixture. Text сохраняет ticket/provider-message identity при replay
+и потере только dedup keys, не начинает новый вопросник и не идёт в shared chat.
+Это at-least-once queue command, не exactly-once/backend dedup/provider proof.
+Media/caption/opaque/forwarded отклоняются без legacy download/storage. Missing,
+wrong owner/channel/old-context и lookup failure освобождают real Redis claim;
+после восстановления того же canonical root принимается тот же event ID.
+Индексы очищаются, ключи другого user/channel не изменяются.
+
+Два fresh owned Redis прогона:792 executions/27 suites каждый, failures/errors/
+skips0;718 MAX (539 default +179 Redis),74 signed loopback HTTP/core.
+179 Redis =139 unchanged inherited cases +40 new (4 text/replay,16 media,
+20 deny/recover). Это не1584 уникальных теста. Backend/provider mocked в handler
+матрице; реальные PostgreSQL/DB rebind/MAX webhook/provider/client не проверялись.
+DEL/forced TTL expiry моделируют потерю key, не memory-pressure eviction.
+
+Runner v2: exact cached Redis/Maven images, repository wrapper/JDK17 offline,
+отдельный internal network, no host ports/Compose/.env/Docker socket,64MiB Redis/
+768MiB builder. Именованные volumes не создаются. Ownership+nonce/sentinel,
+bounded own namespaces/no FLUSHDB; в конце DBSIZE2 и удаление только своих
+containers/network. Source mounted read-only, build targets только в disposable
+container. Evidence: ../iguana-runtime/tg_ref_b24_sup/work/r282-redis-eviction/.
+
+Свежий operational context R282: Docker API сначала отсутствовал, Desktop
+запущен для тестов. Все20 существующих containers, включая18 project, уже были
+остановлены до шага; ID/image/start/running/restarts unchanged после тестов.
+Рабочий контур не запускался/не пересоздавался, working DB/Redis/queues/provider
+не использовались. Прежний R280/R279/imageb0e12ff574c3 — исторический release
+checkpoint, не свежая health-проверка: сейчас приложение остановлено.
+Production sources/POM/resources не менялись, rebuild/deploy не нужны.
+Migrations/backfill/flags/sends/staging/commit/push0; R280/recovery/rollback и R281
+archives сохранены. Scoped MAX byte writer, actual DB rebind/provider gate,
+legacy/principals/policies/AI/S6 остаются; S2B снятR190, задача🟡.
+
 ## Очистка хранилища — R281, 2026-11-03
 
 Отдельно разрешённый cleanup: repo/.tmp пуст, удалены268 entries/

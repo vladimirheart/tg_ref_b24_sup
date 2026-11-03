@@ -1,4 +1,5 @@
 scripts/internal/*.sh text eol=lf
 docker/*.sh text eol=lf
+java-bot/bot-max/redis-session-loss-check-v2.sh text eol=lf
 
 spring-panel/src/main/resources/static/vendor/** -text
