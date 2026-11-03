@@ -34,4 +34,14 @@ public final class QuestionnaireMedia {
         try {return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));}
         catch(java.security.NoSuchAlgorithmException ex) {throw new IllegalStateException(ex);}
     }
+    /** MAX event identity is stable within a channel/user; each attachment has a 1-based slot. */
+    public static String maxPrefix(long channelId,Long businessId,long userId,String catalogSha256,long messageId,int slot) {
+        String prefix=prefix(channelId,businessId,userId,catalogSha256,messageId);
+        if(slot<1 || slot>MAX_FILES) throw new IllegalArgumentException("Invalid MAX media slot");
+        return prefix.replace("questionnaires/telegram/","questionnaires/max/")+slot+"/";
+    }
+    public static boolean matchesMax(String key,long channelId,Long businessId,long userId,String catalogSha256,long messageId,int slot) {
+        String prefix=maxPrefix(channelId,businessId,userId,catalogSha256,messageId,slot);
+        return key!=null && key.startsWith(prefix) && key.substring(prefix.length()).matches("[a-f0-9]{64}\\.[a-z0-9]{1,10}");
+    }
 }

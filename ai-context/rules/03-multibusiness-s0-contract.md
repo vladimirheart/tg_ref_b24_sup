@@ -28,6 +28,33 @@ production/рабочий в старых записях, именах Compose �
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
+## Source R283 — 2026-11-03: scoped byte writer MAX
+
+Реализован отдельный byte/storage primitive, пока не подключённый к handler:
+Owner(channel,business|GENERAL,user,catalogSha,eventId) +slot1–10, отдельный
+questionnaires/max namespace, actual bytes1–10MiB/SHA256, deterministic owned key,
+safe display name без provider URL и проверка точного результата storage.
+HTTPS по прежнему CDN perimeter, без userinfo/fragment/custom port/redirect,
+только complete200; duplicate/invalid Content-Length, mismatch/empty/oversize,
+ошибка/interrupt/full-body deadline отменяют transport/subscription, без legacy
+fallback и без URL/transport cause в возвращаемых ошибках. FS и S3 используют
+общий ограниченный storage writer. MAX prefix теперь закрыт для legacy reads;
+canonical MAX read proof/первое v4 создание/followup admission ещё закрыты.
+
+887 fresh targeted executions/36 suites GREEN:725 core/MAX +162 panel,102 новых.
+Реальные FS и JDK loopback/chunked/slow body; HTTP perimeter/S3 — controlled mocks,
+не live CDN/S3/SDK. Backend: fresh changed-class/test compile на проверенном
+неизменённом R279 compiled baseline, не полный panel build. Legacy TG/VK/MAX
+contracts и прежние539 MAX checks сохранены. POM/schema/flags не изменены.
+Нужно подключить writer к MAX parser/session CAS/pending journal, добавить
+backend owned-byte admission/metadata/read proof и real replay/consumer tests;
+до этого v4 media/caption по-прежнему отклоняется. Не планировать raw byte writer
+с нуля. Evidence: ../iguana-runtime/tg_ref_b24_sup/work/r283-max-scoped-writer/.
+Source-only: все20 прежних containers остались остановлены; рабочие DB/Redis/
+queues/provider не использовались. Rebuild/deploy/migrations/backfill/flags/
+staging/commit/push0. Прежние R280 release/rollback/recovery сохранены; текущий
+health не проверялся. Общая задача🟡, остальные блоки/S6 остаются, S2B снятR190.
+
 ## Source R282 — 2026-11-03: MAX после потери Redis session
 
 Test-only пакет подтверждает immutable published root на настоящем Redis/Lua:

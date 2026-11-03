@@ -13,7 +13,8 @@ public final class QuestionnaireMediaStorageProof {
     public static boolean isScoped(String key) {
         if(key==null) return false;
         String normalized=key.strip().replace('\\','/').replaceFirst("^/+","").toLowerCase(Locale.ROOT);
-        return normalized.startsWith("questionnaires/telegram/") || normalized.startsWith("questionnaires/vk/");
+        return normalized.startsWith("questionnaires/telegram/") || normalized.startsWith("questionnaires/vk/")
+            || normalized.startsWith("questionnaires/max/");
     }
     public static boolean matches(ResultSet row,String key) throws SQLException {
         Long channel=(Long)row.getObject("proof_channel"),user=(Long)row.getObject("proof_user"),business=(Long)row.getObject("proof_business"),provider=(Long)row.getObject("proof_provider");

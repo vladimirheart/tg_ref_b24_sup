@@ -114,6 +114,11 @@ public class AttachmentService {
         return new StoredAttachment(key,"s3",null);
     }
 
+    public StoredAttachment storeMaxQuestionnaire(long channelId,Long businessId,long userId,String catalogSha256,
+            long messageId,int slot,String extension,InputStream input) throws IOException {
+        return storeQuestionnaireBytes(QuestionnaireMedia.maxPrefix(channelId,businessId,userId,catalogSha256,messageId,slot),extension,input);
+    }
+
     public static final class MediaSizeException extends IOException {
         public MediaSizeException() {super("Questionnaire media must contain 1 to 10 MiB");}
     }

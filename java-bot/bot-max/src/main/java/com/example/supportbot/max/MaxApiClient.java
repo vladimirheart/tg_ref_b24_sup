@@ -258,6 +258,30 @@ public class MaxApiClient {
         return new DownloadedAttachment(response.body(), contentType, filename, contentLength);
     }
 
+    /** Separate v4 byte boundary; legacy downloads keep their existing contract. */
+    public DownloadedQuestionnaireAttachment downloadQuestionnaireAttachment(String rawUrl) throws IOException, InterruptedException {
+        return downloadQuestionnaireAttachment(rawUrl,Duration.ofSeconds(60));
+    }
+
+    DownloadedQuestionnaireAttachment downloadQuestionnaireAttachment(String rawUrl,Duration deadline) throws IOException, InterruptedException {
+        URI uri;
+        try {uri=validateAttachmentUri(rawUrl);} catch(IllegalArgumentException invalid) {
+            throw new IllegalArgumentException("Invalid MAX scoped media URL");
+        }
+        if(uri.getFragment()!=null || (uri.getPort()!=-1 && uri.getPort()!=443))
+            throw new IllegalArgumentException("Invalid MAX scoped media URL");
+        if(deadline==null || deadline.toMillis()<1 || deadline.compareTo(Duration.ofSeconds(60))>0)
+            throw new IllegalArgumentException("Invalid MAX scoped media deadline");
+        if(httpClient.followRedirects()!=HttpClient.Redirect.NEVER)
+            throw new IllegalStateException("MAX scoped media requires redirects disabled");
+        return MaxQuestionnaireDownload.download(httpClient,uri,deadline);
+    }
+
+    public record DownloadedQuestionnaireAttachment(byte[] bytes,String contentType) {
+        public DownloadedQuestionnaireAttachment { bytes=bytes.clone(); }
+        @Override public byte[] bytes() {return bytes.clone();}
+    }
+
     URI validateAttachmentUri(String rawUrl) {
         if (rawUrl == null || rawUrl.isBlank()) {
             throw new IllegalArgumentException("MAX attachment URL is empty");
