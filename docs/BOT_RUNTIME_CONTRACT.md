@@ -64,6 +64,44 @@ Platform-specific:
 в local `JPA/SQLite` business-path для ticket/channel/feedback/blacklist
 операций.
 
+## Актуальный runtime — R280, 2026-11-03
+
+В исходной Windows/Docker-сессии заново проверен runtime и активирован clean
+R279/1fea98958aa4dab74b515020978aaec7862af2be: сначала panel-web/ops-worker,
+затем bot-runner со всеми3 children. Imageb0e12ff574c3, tag
+iguana-panel:account-r279-1fea98958-20261103, web5e66fae50aa0/worker672c827f4cdc/
+runner53de0936724e, по1 replica/healthy/restart0. Backend ready12:38 MSK,
+последний child12:41:57. Cold restart, не zero-downtime. Telegram1/3 и MAX2
+перезапущены; VK JAR также собран, active VK channel нет. R276–R279 больше не
+source-only; ниже сохранены исторические source/test записи другой машины.
+
+Полная Maven/JDK17/Sass production compile/package4 JAR; runtime OS/base826
+прежний.718 fresh targeted tests/32 suites,61 live access +33 signed actual-child
+checks GREEN: sender/recipient admission, completed absent404/marker1/no-store,
+invalid-HMAC без marker, positive canonical root/contextVersion1.12 running JAR
+hashes exact; одинаковый новый bot-core во всех3 platform JAR. Это не live MAX
+eviction/provider/client acceptance или полный repository test suite/S6.
+Общий health/readiness200/UP, production-readiness ready, DLQ0.15 других containers
+unchanged, ENV/mounts exact; HostConfig backend raw exact, runner только bind
+order/empty DNS с полным восстановлением старого fingerprint. V85/settings455/
+accounts/grants/roots53/pending51/ratings36/outbox/ledger17delivered/receipt0/MAX
+session fingerprints exact. Web/worker Flyway skipped, runner V85 up-to-date;
+migrations/backfill/flags/provider acceptance sends0. Parent ERROR0, worker TLS
+WARN1, runner WARN8 —6 missing PID file при cold start +2 legacy mirror routes.
+
+Backup10340761 bytes/SHA256
+98419B5532395E622591B193DDDE10B111CE221DAFE9EC71C6A7C477931C688B
+isolated restore GREEN.3 rollback R280 pointers сохраняют backend826/runner85a;
+coordinated rollback обязателен, не исполнялся. Backup/Compose/operators/proofs:
+../iguana-runtime/tg_ref_b24_sup/releases/r280-1fea98958-20261103/, overlay требует
+preserved-ENV operator/private snapshot, не bare up.6 old DB backups и private
+DLQ wire archive скопированы с hash verify в recovery/, защищены current-user ACL.
+Никаких .tmp mounts/Compose labels в существующих containers после выпуска.
+Старый .tmp142,9GiB/156 Git worktrees оставлен для отдельного controlled cleanup;
+не удалять целиком без проверки локальных изменений. Только7 own build/check
+containers удалены, logs/artifacts/Sass cache retained; образы/volumes/глобальный
+cache prune/Docker-WSL/VHDX не трогались. Task Runtime R280/sealed-proof.json.
+
 ## Source R279 — 2026-11-03: доступность active-ticket lookup
 
 Поиск active ticket больше не превращает сбой internal API в Optional.empty.

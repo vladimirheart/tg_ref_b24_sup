@@ -24,9 +24,43 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальный checkpoint R275 имеют
+что production уже запускался. Эта оговорка и актуальный checkpoint R280 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
+
+## Актуальный runtime — R280, 2026-11-03
+
+На исходной Windows/Docker-машине C:\Users\SinicinVV\git_h\tg_ref_b24_sup
+свежим измерением подтверждены прежние R274/R272, затем clean R279/1fea98958
+выложен сначала в backend, затем в bot-runner/все3 children. Это новая runtime
+приёмка здесь; записи Source R276–R279 ниже относятся к другой source/test-машине.
+Web5e66fae50aa0/worker672c827f4cdc/runner53de0936724e, по1 replica/healthy/restart0,
+imageb0e12ff574c3/tag iguana-panel:account-r279-1fea98958-20261103. Telegram1/3 и
+MAX2 перезапущены; VK JAR тоже собран, active VK channel нет. Backend готов12:38,
+последний child12:41:57 MSK. Cold restart, не zero-downtime.
+
+Полная bounded Maven/JDK17/Sass production сборка4 JAR, runtime OS/base826 прежний.
+718 fresh targeted tests/32 suites (80 panel/99 core/539 MAX),61 live access +33
+signed actual-child/read checks GREEN;12 running hashes exact. Общий health и
+readiness200/UP, production-readiness ready, DLQ0.15 нетаргетных containers exact;
+ENV/mounts exact, HostConfig backend raw exact/runner только bind order/empty DNS
+с восстановлением исходного hash. V85/85/settings455/accounts/grants/roots53/
+pending51/ratings36/outbox/ledger17delivered/receipt0/MAX sessions exact. Web/worker
+Flyway skipped, runner V85 up-to-date; migrations/backfill/flags/sends0.
+Новых parent ERROR0; worker TLS WARN1, runner cold-start PID/mirror-route WARN8.
+
+Свежий backup10340761 bytes/SHA256
+98419B5532395E622591B193DDDE10B111CE221DAFE9EC71C6A7C477931C688B
+isolated restore GREEN;3 rollback R280 pointers на backend826/runner85a retained.
+6 historical backup copies и private DLQ wire archive вынесены с hash verify в
+../iguana-runtime/tg_ref_b24_sup/recovery/, same-host/current-user ACL.
+Новые Compose/operator/proof/backup вне .tmp, в releases/r280-1fea98958-20261103/;
+используется preserved-ENV operator, не bare up. На .tmp больше не ссылаются mounts
+или Compose labels существующих containers. Старый .tmp142,9GiB/156 Git worktrees
+не удалялся: нужна отдельная проверка незакоммиченных данных/retention. Глобального
+Docker prune/volumes/image deletion/VHDX compaction не было, убраны только7 own
+build/check containers с сохранением logs/artifacts/Sass cache. Остальные пять
+блоков/S6 остаются, S2B снятR190. Task Runtime R280/sealed-proof.json.
 
 ## Source R279 — 2026-11-03: доступность active-ticket lookup
 
