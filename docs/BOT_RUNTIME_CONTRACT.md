@@ -64,6 +64,42 @@ Platform-specific:
 в local `JPA/SQLite` business-path для ticket/channel/feedback/blacklist
 операций.
 
+## Актуальный тестовый runtime — R274, 2026-11-03
+
+Clean R273/f78708f3588a8264b2a7055f14772ff886d2c59c выложен только на
+panel-web/ops-worker: image826bf025417d, tag iguana-panel:account-r273-f78708f35-20261103,
+webbfe2c70540bf/workeraebc1a28d277, по1 replica/healthy/restart0. Bot-runner
+не обновлялся: R272/R271/044d9bcec/image85a47a3b975f/b76f36ca98b0 и3 child PID
+прежние. Backend initial-v4 media gate теперь загружен, flags не включались.
+Scoped MAX media writer, eviction admission и полный legacy isolation остаются.
+
+COPY-only/network-none pinned85a image, не full Maven/Sass build: panel JAR2
+class payloads заменены,2229 других payloads exact,1435 frozen main classes exact.
+Verified record отличается только compiler CP order/indices/source lines после
+полного symbolic javap proof, не raw byte-exact. TG/VK/MAX/core JAR unchanged.
+1179 inputs/1441 classes/222 tests5 suites на source/replay — проверенный reused
+proof, не новый прогон. Compose --no-deps только2 роли/4 старых Compose/env inputs
+unchanged, ENV/mounts/HostConfig raw exact. Overlay требует preserved-ENV operator.
+Backend cold stop09:02/ready09:04 MSK, live backend consumers0 до новых,
+3 feedback consumer tags/channel PIDs unchanged. Не zero-downtime/не bot restart.
+
+61 live login/access/SSE/readiness +24 signed actual-child checks GREEN,
+ROLE_ADMIN с PAGE_CHANNELS/PAGE_SETTINGS подтверждены,8 running JAR hashes exact.
+Все16 нетаргетных контейнеров unchanged. Новые backend ERROR/fatal/WARN0;
+Flyway skipped для обеих ролей. ReadinessUP, health503/inboundDLQ1 прежний.
+V85/85/settings455/roots53/pending51/ratings36/accounts/grants/history/outbox/
+ledger17delivered/receipt0/MAX session fingerprints unchanged. db-migrate/
+migrations/backfill/flags/bootstrap/repair/purge/requeue/provider acceptance sends
+не запускались. Backup10238933 bytes/SHA256
+E08136B0A22D48DD28B07529EB55E07EBF637EB210154E72C9DF249FAE8EC66C
+восстановлен в isolated PG192MiB/network-none, same-host retained; owned verifier
+container/volume удалены.2 rollback R274 tags на85a сохранены, старые R272/R269/
+R267/R264/R261 pointers/backups verified. Working DB не восстанавливалась,
+rollback не выполнялся; backend cold stop/queues0/ledger+receipt+V85 обязательны,
+возвращается старый security behavior. Evidence: task Runtime R274/
+.tmp/01-278-r274-rollout/. Ниже исторические checkpoints; R273 уже не source-only,
+полный S6/live callback/eviction/rebind не закрыт.
+
 ## Backend media первого v4 обращения — source R273, 2026-11-03
 
 SelectedQuestionnaireMediaValidator при первом создании v4 root отклоняет media
@@ -93,7 +129,7 @@ flags/DTO/session-format changes/deploy/migrations/backfill/provider sends.
 Scoped MAX media, legacy isolation/live provider/callback/rebind/S6 остаются.
 Evidence: task Source R273/.tmp/01-278-r273-evidence/.
 
-## Актуальный тестовый runtime — R272, 2026-11-03
+## Исторический тестовый runtime — R272, 2026-11-03
 
 Clean R271/044d9bcecab2284b2dd66a72ee2ff3b2ee7d3511 согласованно выложен на
 panel-web, ops-worker и bot-runner, по1 replica, healthy/restart0. Image:

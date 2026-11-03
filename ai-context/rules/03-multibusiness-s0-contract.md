@@ -24,9 +24,46 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальный runtime R272 имеют
+что production уже запускался. Эта оговорка и актуальный runtime R274 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
+
+## Актуальный тестовый runtime — R274, 2026-11-03
+
+Clean R273/f78708f3588a8264b2a7055f14772ff886d2c59c выложен только в
+panel-web/ops-worker: image826bf025417d, tag
+iguana-panel:account-r273-f78708f35-20261103, containers bfe2c70540bf/aebc1a28d277,
+по1 replica/healthy/restart0. Код media gate первого v4 root загружен в backend;
+feature flags прежние, foundation-disabled контур не включали. Bot-runner
+остаётся R272/R271/044d9bcec/image85a47a3b975f/b76f36ca98b0,3 children/PIDs/
+feedback consumer connections unchanged. Все16 нетаргетных containers exact.
+Scoped MAX media writer/session eviction admission/legacy isolation ещё нужны.
+
+Сборка COPY-only/network-none из pinned cached85a, не full Maven/Sass build.
+Panel JAR меняет только2 class payloads,2229 других exact, все1435 frozen main
+classes exact; TG/VK/MAX/core JAR unchanged. Verified record отличается CP
+ordering/indices/source lines, symbolic javap proof, не raw byte-exact.1179 inputs/
+1441 classes/222 tests5 suites на source/replay сверены — reused, не новый прогон.
+Compose --no-deps только2 роли,4 старых фактических Compose/env inputs и ENV/
+mounts/HostConfig raw exact; overlay требует preserved-ENV operator. Backend
+cold stop около09:02/готов09:04 MSK, live backend consumers0 перед новыми,
+3 bot consumer tags/channel PIDs прежние. Это не zero-downtime/не новый bot restart.
+
+Backup10238933 bytes/SHA256
+E08136B0A22D48DD28B07529EB55E07EBF637EB210154E72C9DF249FAE8EC66C
+изолированно восстановлен на V85 в owned PG192MiB/network-none, retained same-host;
+verifier container/volume удалены.2 новых rollback R274 tags на85a сохранены,
+R272/R269/R267/R264/R261 pointers/backups verified. Working DB не восстанавливалась,
+rollback не выполнялся; backend cold stop/queues0/ledger+receipt+V85 обязательны,
+возвращается старый bypass.61 fresh login/access/SSE/readiness +24 signed actual-
+child checks GREEN,8 running JAR hashes exact, новые backend ERROR/fatal/WARN0.
+ReadinessUP; общий health503/inboundDLQ1 прежний. Flyway skipped web/worker,
+db-migrate/migrations/backfill/flags/bootstrap/repair/purge/requeue не запускали.
+V85/settings455/roots53/pending51/ratings36/accounts/grants/history/outbox/ledger17/
+receipt0/MAX session fingerprints unchanged. Нет provider acceptance sends/
+commit/push; пять блоков остаются, S2B снятR190. Task Runtime R274/evidence
+.tmp/01-278-r274-rollout/. Следующие checkpoints исторические, в том числе
+прежняя source-only оговорка R273; повторять выпуск не требуется.
 
 ## Media первого выбранного обращения — source R273, 2026-11-03
 
@@ -58,7 +95,7 @@ bot-runner/children не требуется пересоздавать ради 
 Нет migrations/backfill/flags/provider sends/commit/push. Остальные пять блоков
 задачи не закрыты, S2B снятR190; task Source R273/.tmp/01-278-r273-evidence/.
 
-## Актуальный тестовый runtime — R272, 2026-11-03
+## Исторический тестовый runtime — R272, 2026-11-03
 
 По согласованию пользователя panel-web, ops-worker и bot-runner выпущены вместе
 с clean R271/044d9bcecab2284b2dd66a72ee2ff3b2ee7d3511, по1 replica:
