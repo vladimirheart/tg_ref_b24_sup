@@ -226,7 +226,7 @@ class MaxQuestionnaireSelectionTest {
         assertThat(send("followup","Followup").getStatusCode().value()).isEqualTo(503);
         var active=new TicketActive();active.setTicketId("T-MAX");
         when(tickets.findActiveTicketForUser(eq(1001L),anyString(),eq(55L))).thenReturn(Optional.of(active));
-        when(tickets.findByTicketId("T-MAX")).thenReturn(Optional.of(new TicketService.TicketWithUser(1001L,"T-MAX","open")));
+        when(tickets.findByTicketId("T-MAX")).thenReturn(Optional.of(new TicketService.TicketWithUser(1001L,"T-MAX","open",55L,a.version(),1)));
         assertThat(send("followup","Followup").getBody()).containsEntry("ticket_id","T-MAX");
         var command=org.mockito.ArgumentCaptor.forClass(ActiveInboundClientMessageCommand.class);
         verify(tickets).recordActiveClientMessage(command.capture());assertThat(command.getValue().ticketId()).isEqualTo("T-MAX");
@@ -236,7 +236,7 @@ class MaxQuestionnaireSelectionTest {
         answerFirst();send("last","Two");
         var active=new TicketActive();active.setTicketId("OTHER");
         when(tickets.findActiveTicketForUser(eq(1001L),anyString(),eq(55L))).thenReturn(Optional.of(active));
-        when(tickets.findByTicketId("OTHER")).thenReturn(Optional.of(new TicketService.TicketWithUser(1001L,"OTHER","open")));
+        when(tickets.findByTicketId("OTHER")).thenReturn(Optional.of(new TicketService.TicketWithUser(1001L,"OTHER","open",55L,a.version(),1)));
         assertThat(send("followup","Followup").getStatusCode().value()).isEqualTo(503);
         verify(tickets,never()).recordActiveClientMessage(any());
     }
@@ -462,7 +462,7 @@ class MaxQuestionnaireSelectionTest {
             send("r271-first","One");send("r271-second","Two");send("r271-last","Three");
             var active=new TicketActive();active.setTicketId("T-MAX");
             when(tickets.findActiveTicketForUser(eq(1001L),anyString(),eq(55L))).thenReturn(Optional.of(active));
-            when(tickets.findByTicketId("T-MAX")).thenReturn(Optional.of(new TicketService.TicketWithUser(1001L,"T-MAX","open")));
+            when(tickets.findByTicketId("T-MAX")).thenReturn(Optional.of(new TicketService.TicketWithUser(1001L,"T-MAX","open",55L,a.version(),1)));
         }
         String caption="menu".equals(phase)?choice(general?1:0):"Do not consume this caption";
         if("empty".equals(kind))caption="";

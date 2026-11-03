@@ -311,11 +311,20 @@ public class MaxWebhookController {
                 clientProfile.identity(),
                 channel != null ? channel.getId() : null
         );
-        if (active.isPresent() && isStaleActiveTicket(active.get().getTicketId())) {
+        var activeRoot = active.flatMap(value -> ticketService.findByTicketId(value.getTicketId())).orElse(null);
+        if (active.isPresent() && !matchesFollowupRoot(activeRoot, active.get().getTicketId(), userId, channel)) {
+            webhookDeliveryGuardService.release(claim);
+            return ResponseEntity.status(503).body(Map.of("ok", false, "error", "canonical-ticket-not-ready", "retryable", true));
+        }
+        if (active.isPresent() && isStaleActiveTicket(activeRoot)) {
             ticketService.clearTicketActivity(active.get().getTicketId());
             active = Optional.empty();
         }
         if (active.isPresent()) {
+            // The durable root wins over an evicted, missing or older session and current channel settings.
+            if (Integer.valueOf(4).equals(activeRoot.questionnaireVersion()) && questionnaireMedia) {
+                return rejectQuestionnaireMedia(claim, channel, userId, null);
+            }
             if(session!=null && session.selectedBusiness()
                     && !java.util.Objects.equals(session.selection().submittedTicketId(),active.get().getTicketId())) {
                 webhookDeliveryGuardService.release(claim);
@@ -348,7 +357,8 @@ public class MaxWebhookController {
                 inboundPayload.forwardedFrom(),
                 OffsetDateTime.now()
             ));
-            if(session==null || !session.selectedBusiness())
+            if(!Integer.valueOf(4).equals(activeRoot.questionnaireVersion())
+                    && (session==null || !session.selectedBusiness()))
                 notifyOperatorsAboutActiveMessage(channel, ticketId, clientProfile, clientText, messageType, attachmentRef, attachments.size());
             return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "ticket_id", ticketId)));
         }
@@ -456,12 +466,17 @@ public class MaxWebhookController {
 
     private ResponseEntity<Map<String, Object>> rejectQuestionnaireMedia(BotWebhookDeliveryGuardService.DeliveryClaim claim,
                                                                         Channel channel, MaxConversationSession session) {
+        return rejectQuestionnaireMedia(claim, channel, session.userId(), session);
+    }
+
+    private ResponseEntity<Map<String, Object>> rejectQuestionnaireMedia(BotWebhookDeliveryGuardService.DeliveryClaim claim,
+                                                                        Channel channel, Long userId, MaxConversationSession session) {
         // V4 needs a scoped byte writer. Never turn a caption into an answer or use the legacy attachment store.
-        if (!messagingService.sendToUser(channel, session.userId(),
+        if (!messagingService.sendToUser(channel, userId,
                 "В MAX-вопроснике v4 пока поддерживается только текст. Вложение не сохранено; подпись не принята. Отправьте текст отдельным сообщением.")) {
             throw new IllegalStateException("MAX questionnaire media warning delivery was not confirmed");
         }
-        promptCurrentQuestion(channel, session);
+        if (session != null) promptCurrentQuestion(channel, session);
         return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "questionnaire_media_unsupported", true)));
     }
 
@@ -586,20 +601,20 @@ public class MaxWebhookController {
         messagingService.sendToSupportChat(channel, MaxUnblockMessageSupport.buildOperatorRequestMessage(request));
     }
 
-    private boolean isStaleActiveTicket(String ticketId) {
-        if (ticketId == null || ticketId.isBlank()) {
-            return true;
-        }
-        return ticketService.findByTicketId(ticketId)
-                .map(ticket -> {
-                    String status = ticket.status();
-                    if (status == null) {
-                        return false;
-                    }
-                    String normalized = status.trim().toLowerCase();
-                    return "resolved".equals(normalized) || "closed".equals(normalized);
-                })
-                .orElse(true);
+    private boolean matchesFollowupRoot(TicketService.TicketWithUser root, String ticketId, Long userId, Channel channel) {
+        if (root == null || !StringUtils.hasText(ticketId) || channel == null || channel.getId() == null || channel.getId() <= 0
+                || userId == null || userId <= 0 || !java.util.Objects.equals(root.userId(), userId)
+                || !java.util.Objects.equals(root.ticketId(), ticketId) || !java.util.Objects.equals(root.channelId(), channel.getId())
+                || !Integer.valueOf(1).equals(root.followupContextVersion())) return false;
+        Integer version = root.questionnaireVersion();
+        if (version != null && (version < 1 || version > 4)) return false;
+        return root.status() != null && java.util.Set.of("open", "pending", "in_progress", "resolved", "closed")
+            .contains(root.status().trim().toLowerCase(java.util.Locale.ROOT));
+    }
+
+    private boolean isStaleActiveTicket(TicketService.TicketWithUser ticket) {
+        String status = ticket.status().trim().toLowerCase(java.util.Locale.ROOT);
+        return "resolved".equals(status) || "closed".equals(status);
     }
 
     private MaxConversationSession startSession(Long userId, Long chatId, String username, String clientName, Channel channel, String eventKey) {

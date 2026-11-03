@@ -71,7 +71,13 @@ public class BotRuntimeTicketReadService {
             return Optional.empty();
         }
         return ticketRepository.findUniqueByLegacyTicketId(ticketId)
-            .map(ticket -> new TicketLookup(ticket.getUserId(), ticket.getTicketId(), ticket.getStatus()));
+            .map(ticket -> {
+                Long channelId = ticket.getChannel() != null ? ticket.getChannel().getId() : null;
+                Integer contextVersion = ticket.getUserId() != null && ticket.getUserId() > 0
+                    && channelId != null && channelId > 0 ? 1 : null;
+                return new TicketLookup(ticket.getUserId(), ticket.getTicketId(), ticket.getStatus(),
+                    channelId, ticket.getQuestionnaireVersion(), contextVersion);
+            });
     }
 
     @Transactional(readOnly = true)
@@ -272,7 +278,13 @@ public class BotRuntimeTicketReadService {
 
     public record TicketLookup(Long userId,
                                String ticketId,
-                               String status) {
+                               String status,
+                               Long channelId,
+                               Integer questionnaireVersion,
+                               Integer followupContextVersion) {
+        public TicketLookup(Long userId, String ticketId, String status) {
+            this(userId, ticketId, status, null, null, null);
+        }
     }
 
     public record LastTicketContext(String ticketId,

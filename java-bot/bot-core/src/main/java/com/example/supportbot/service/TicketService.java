@@ -913,7 +913,12 @@ public class TicketService {
     public record TicketCreationResult(String ticketId, Long groupMessageId, String status) {
     }
 
-    public record TicketWithUser(Long userId, String ticketId, String status) {
+    public record TicketWithUser(Long userId, String ticketId, String status,
+                                 Long channelId, Integer questionnaireVersion, Integer followupContextVersion) {
+        /** Old or direct-storage lookups carry no proof of the frozen questionnaire version. */
+        public TicketWithUser(Long userId, String ticketId, String status) {
+            this(userId, ticketId, status, null, null, null);
+        }
     }
 
     public record TicketSummary(String ticketId,

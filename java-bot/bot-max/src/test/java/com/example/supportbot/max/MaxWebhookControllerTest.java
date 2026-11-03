@@ -3,7 +3,6 @@ package com.example.supportbot.max;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -123,6 +122,7 @@ class MaxWebhookControllerTest {
     @Test
     void recordsForwardedMaxMessageWhenOuterBodyIsEmpty() throws Exception {
         Channel channel = mock(Channel.class);
+        when(channel.getId()).thenReturn(55L);
         TicketActive active = new TicketActive();
         active.setTicketId("INC-99");
         when(ingressCoordinationService.tryAcquireOrRenew("max", 55L)).thenReturn(true);
@@ -132,15 +132,15 @@ class MaxWebhookControllerTest {
                         "token",
                         BotWebhookDeliveryGuardService.ClaimStatus.ACQUIRED
                 ));
-        when(channelService.resolveConfiguredChannel(55L, null, "MAX", "max")).thenReturn(channel);
+        when(channelService.resolveConfiguredChannel(55L, "", "MAX", "max")).thenReturn(channel);
         when(blacklistService.resolveStatus(eq(1001L), anyString(), anyString(), eq("2002")))
                 .thenReturn(new BlacklistService.ResolvedBlacklistStatus(
                         null,
                         new BlacklistService.BlacklistStatus(false, false)
                 ));
-        when(ticketService.findActiveTicketForUser(eq(1001L), anyString(), isNull())).thenReturn(Optional.of(active));
+        when(ticketService.findActiveTicketForUser(eq(1001L), anyString(), eq(55L))).thenReturn(Optional.of(active));
         when(ticketService.findByTicketId("INC-99"))
-                .thenReturn(Optional.of(new TicketService.TicketWithUser(1001L, "INC-99", "open")));
+                .thenReturn(Optional.of(new TicketService.TicketWithUser(1001L,"INC-99","open",55L,null,1)));
 
         ResponseEntity<Map<String, Object>> response = controller.handleUpdate(forwardedMessageCreatedUpdate(), "secret");
 
@@ -155,6 +155,7 @@ class MaxWebhookControllerTest {
     @Test
     void recordsReplyTargetFromMaxLinkedMessage() throws Exception {
         Channel channel = mock(Channel.class);
+        when(channel.getId()).thenReturn(55L);
         TicketActive active = new TicketActive();
         active.setTicketId("INC-100");
         when(ingressCoordinationService.tryAcquireOrRenew("max", 55L)).thenReturn(true);
@@ -164,15 +165,15 @@ class MaxWebhookControllerTest {
                         "token",
                         BotWebhookDeliveryGuardService.ClaimStatus.ACQUIRED
                 ));
-        when(channelService.resolveConfiguredChannel(55L, null, "MAX", "max")).thenReturn(channel);
+        when(channelService.resolveConfiguredChannel(55L, "", "MAX", "max")).thenReturn(channel);
         when(blacklistService.resolveStatus(eq(1001L), anyString(), anyString(), eq("2002")))
                 .thenReturn(new BlacklistService.ResolvedBlacklistStatus(
                         null,
                         new BlacklistService.BlacklistStatus(false, false)
                 ));
-        when(ticketService.findActiveTicketForUser(eq(1001L), anyString(), isNull())).thenReturn(Optional.of(active));
+        when(ticketService.findActiveTicketForUser(eq(1001L), anyString(), eq(55L))).thenReturn(Optional.of(active));
         when(ticketService.findByTicketId("INC-100"))
-                .thenReturn(Optional.of(new TicketService.TicketWithUser(1001L, "INC-100", "open")));
+                .thenReturn(Optional.of(new TicketService.TicketWithUser(1001L,"INC-100","open",55L,null,1)));
 
         controller.handleUpdate(replyMessageCreatedUpdate(), "secret");
 

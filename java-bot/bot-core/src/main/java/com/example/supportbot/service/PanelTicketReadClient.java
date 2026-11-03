@@ -85,7 +85,8 @@ public class PanelTicketReadClient {
             return Optional.empty();
         }
         return send("/internal/api/bot/tickets/" + encodePath(ticketId), new TypeReference<TicketLookupResponse>() {})
-            .map(response -> new TicketService.TicketWithUser(response.userId(), response.ticketId(), response.status()));
+            .map(response -> new TicketService.TicketWithUser(response.userId(), response.ticketId(), response.status(),
+                response.channelId(), response.questionnaireVersion(), response.followupContextVersion()));
     }
 
     public Optional<String> resolveRequestNumber(String ticketId) {
@@ -218,7 +219,10 @@ public class PanelTicketReadClient {
 
     private record TicketLookupResponse(Long userId,
                                         String ticketId,
-                                        String status) {
+                                        String status,
+                                        Long channelId,
+                                        Integer questionnaireVersion,
+                                        Integer followupContextVersion) {
     }
 
     private record RequestNumberResponse(String ticketId,
