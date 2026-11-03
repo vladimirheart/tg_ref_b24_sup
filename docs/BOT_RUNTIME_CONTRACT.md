@@ -64,7 +64,27 @@ Platform-specific:
 в local `JPA/SQLite` business-path для ticket/channel/feedback/blacklist
 операций.
 
-## Актуальный тестовый runtime — R274, 2026-11-03
+## Актуальный operational checkpoint — R275, 2026-11-03
+
+Без rebuild/restart: web/worker остаются R274/R273/f78708f35/image826bf025417d,
+runner R272/R271/044d9bcec/image85a47a3b975f. Все18 containers/config/БД V85
+и доменные fingerprints unchanged. Общий health200/UP, readiness200/UP,
+production-readiness200/ready/Rabbit healthy; прежний inboundDLQ gate закрыт.
+Один219-byte malformed outbound-feedback DTO от28 октября в inbound route
+сохранён в приватный same-host файловый карантин, включая все AMQP properties,
+затем ACK ровно одного manual delivery после сверки body/full wire archive.
+Не purge/не replay; get/requeue диагностики и validate явно учитываются.
+Отправок клиенту, migrations/backfill/flags нет.61 fresh access checks GREEN,
+новые ERROR0; отдельный worker WARN1 invalid Notion API token не исправлялся.
+Все DLQ0/другие queue counts/consumers прежние. Published outbox, старые4 failed
+Inbox rows, roots/pending/ratings/ledger/receipt не менялись; событие не объявлено
+успешно обработанным. S6/live callback/eviction/rebind остаются.
+Evidence: task Runtime R275/.tmp/01-278-r275-dlq/sealed-proof.json.
+Private wire archive SHA2569EFE1108A7D40991A9EB86F0D4A5065A3E3D50DBD69B9773FF468B4251C1292E;
+private/message.amqp содержит header/body, ACL только текущему Windows пользователю,
+вне Git. Не удалять при cleanup .tmp; реальный restore/replay не выполнялся.
+
+## Предыдущий тестовый выпуск — R274, 2026-11-03
 
 Clean R273/f78708f3588a8264b2a7055f14772ff886d2c59c выложен только на
 panel-web/ops-worker: image826bf025417d, tag iguana-panel:account-r273-f78708f35-20261103,

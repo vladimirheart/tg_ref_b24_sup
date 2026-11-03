@@ -24,11 +24,31 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальный runtime R274 имеют
+что production уже запускался. Эта оговорка и актуальный checkpoint R275 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
-## Актуальный тестовый runtime — R274, 2026-11-03
+## Актуальный operational checkpoint — R275, 2026-11-03
+
+Общий health200/UP и readiness200/UP; production-readiness200/ready/Rabbit healthy.
+Один malformed outbound-feedback DTO от28 октября в inboundDLQ сохранён в
+приватный same-host файловый карантин с исходным body и полными AMQP properties,
+затем удалён только точечным manual ACK после независимой сверки архива.
+InboundDLQ0/прочие DLQ0, без replay/reconstruction/отправки клиенту или purge.
+HTTP inspect и validate делали get/requeue, это не строго read-only операции.
+61 fresh access checks GREEN; новые ERROR0, worker WARN1 — отдельный invalid
+Notion API token. Все18 контейнеров/настройки/V85/доменные fingerprints прежние,
+rebuild/restart/deploy/migrations/backfill/flags не нужны и не выполнялись.
+Web/worker остаются R274/R273/f78708f35/image826bf025417d; runner R272/R271/044d.
+Root/pending/rating/outbox/inbox/ledger/receipt не исправлялись, исторические4
+failed Inbox rows остаются. Health UP не означает полное закрытие S6/политик.
+Evidence: task Runtime R275/.tmp/01-278-r275-dlq/sealed-proof.json.
+Архив private/message.amqp (body+wire header), SHA256
+9EFE1108A7D40991A9EB86F0D4A5065A3E3D50DBD69B9773FF468B4251C1292E,
+ACL только текущему Windows пользователю, вне Git; не удалять при cleanup .tmp.
+Из архива можно восстановить экземпляр, реальный restore/replay не проверялся.
+
+## Предыдущий тестовый выпуск — R274, 2026-11-03
 
 Clean R273/f78708f3588a8264b2a7055f14772ff886d2c59c выложен только в
 panel-web/ops-worker: image826bf025417d, tag
