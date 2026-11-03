@@ -7,6 +7,7 @@ import com.example.panel.service.BotRuntimeChannelService;
 import com.example.panel.service.BotRuntimeConfigService;
 import com.example.panel.service.BotRuntimeTicketReadService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -45,14 +46,18 @@ public class BotRuntimeReadApiController {
     @GetMapping("/tickets/active")
     public BotRuntimeTicketReadService.ActiveTicketLookup activeTicket(
         HttpServletRequest request,
+        HttpServletResponse response,
         @RequestHeader(name = AUTH_HEADER, required = false) String token,
         @RequestParam(required = false) Long userId,
         @RequestParam(required = false) String username,
         @RequestParam(required = false) Long channelId
     ) {
         requireAuthorized(request, token);
-        return ticketReadService.findActiveTicket(userId, username, channelId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Active ticket not found"));
+        var active = ticketReadService.findActiveTicket(userId, username, channelId);
+        // A routing/auth/read failure must never masquerade as a completed, empty lookup.
+        response.setHeader("X-Iguana-Active-Lookup-Version", "1");
+        response.setHeader("Cache-Control", "no-store");
+        return active.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Active ticket not found"));
     }
 
     @GetMapping("/tickets/{ticketId}")

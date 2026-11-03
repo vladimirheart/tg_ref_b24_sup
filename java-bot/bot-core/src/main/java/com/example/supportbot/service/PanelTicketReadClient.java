@@ -49,7 +49,7 @@ public class PanelTicketReadClient {
 
     public Optional<TicketActive> findActiveTicket(Long userId, String username, Long channelId) {
         if (!isEnabled()) {
-            return Optional.empty();
+            throw new IllegalStateException("Active ticket lookup requires the internal panel API");
         }
         StringBuilder path = new StringBuilder("/internal/api/bot/tickets/active?");
         boolean appended = false;
@@ -70,8 +70,11 @@ public class PanelTicketReadClient {
             }
             path.append("channelId=").append(channelId);
         }
-        return send(path.toString(), new TypeReference<ActiveTicketResponse>() {})
+        return send(path.toString(), new TypeReference<ActiveTicketResponse>() {}, true)
             .map(response -> {
+                if (!StringUtils.hasText(response.ticketId())) {
+                    throw new IllegalStateException("Active ticket lookup returned an invalid ticket ID");
+                }
                 TicketActive active = new TicketActive();
                 active.setTicketId(response.ticketId());
                 active.setUser(response.userIdentity());
@@ -168,6 +171,10 @@ public class PanelTicketReadClient {
     }
 
     private <T> Optional<T> send(String path, TypeReference<T> typeReference) {
+        return send(path, typeReference, false);
+    }
+
+    private <T> Optional<T> send(String path, TypeReference<T> typeReference, boolean activeLookup) {
         URI uri = resolve(path);
         HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
             .timeout(properties.getRequestTimeout())
@@ -176,6 +183,10 @@ public class PanelTicketReadClient {
         HttpRequest request = builder.build();
         try {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (activeLookup && ((response.statusCode() != 200 && response.statusCode() != 404)
+                    || !response.headers().allValues("X-Iguana-Active-Lookup-Version").equals(List.of("1")))) {
+                throw new IllegalStateException("Active ticket lookup did not return a supported completion proof");
+            }
             if (response.statusCode() == 404) {
                 return Optional.empty();
             }
@@ -183,11 +194,16 @@ public class PanelTicketReadClient {
                 log.warn("Internal panel API request {} failed with status {}", path, response.statusCode());
                 return Optional.empty();
             }
-            return Optional.of(objectMapper.readValue(response.body(), typeReference));
+            T decoded = activeLookup
+                ? objectMapper.readerFor(typeReference).with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS).readValue(response.body())
+                : objectMapper.readValue(response.body(), typeReference);
+            if (activeLookup && decoded == null) throw new IllegalStateException("Active ticket lookup returned no result");
+            return Optional.of(decoded);
         } catch (IOException | InterruptedException ex) {
             if (ex instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
+            if (activeLookup) throw new IllegalStateException("Active ticket lookup is unavailable", ex);
             log.warn("Failed to call internal panel API path {}", path, ex);
             return Optional.empty();
         }
