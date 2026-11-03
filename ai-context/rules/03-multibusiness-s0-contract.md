@@ -28,6 +28,36 @@ production/рабочий в старых записях, именах Compose �
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
+## Media первого выбранного обращения — source R273, 2026-11-03
+
+Первое создание v4 root имеет ту же границу owned bytes, что и followup:
+attachmentPath либо non-text messageType нельзя пропускать как текст. Без
+storage key media отвергается. MAX/unknown/null platform с v4 media не переходят
+в legacy validator; сохранённый URL или unscoped key не являются proof. Отказ
+до первой записи root/ticket/span/activity/attributes/history/attachment metadata,
+inbox получает failed, а не processed. Ingestion также сверяет platform с
+canonical channel, подмена event.platform не даёт другой writer. Plain text,
+ранние MAX protocols и matching frozen-root replay сохраняют прежнее поведение.
+Telegram/VK media по-прежнему требуют scoped bytes/SHA/размер/владельца. Это
+server-side запрет bypass, не scoped MAX media writer и не поддержка файлов MAX.
+
+Baseline00125192c (R272). RED52 → GREEN222 tests/5 suites на каждую независимую
+source/replay копию,138 новых/84 прежних regression tests; failures/errors/skips0.
+Real validator/ingestion с mocked persistence/storage, не PostgreSQL/SDK/provider.
+1179 inputs/1441 classes exact между копиями;1433 main unchanged,1 functional
+class изменён, вложенный Verified record отличается только compiler constant
+pool ordering/indices/source lines (full symbolic javap proof, не byte-exact).
+570 text-only LF/CRLF differences подтверждены UTF-8 round-trip/content guards;
+binary inputs raw exact. Bounded offline compile/test, не full Maven/Sass build.
+
+Source пока НЕ выложен: текущий runtime R272/R271/044d9bcec/image85a47a3b975f,
+все18 containers/config/DB V85/ledger17/receipt0/MAX session fingerprints прежние,
+readinessUP. Health503/inboundDLQ1 прежний. R272 rollback pointers сохранены.
+Для активации нужен отдельный clean-commit release panel-web/ops-worker;
+bot-runner/children не требуется пересоздавать ради этого server-only fix.
+Нет migrations/backfill/flags/provider sends/commit/push. Остальные пять блоков
+задачи не закрыты, S2B снятR190; task Source R273/.tmp/01-278-r273-evidence/.
+
 ## Актуальный тестовый runtime — R272, 2026-11-03
 
 По согласованию пользователя panel-web, ops-worker и bot-runner выпущены вместе

@@ -18,8 +18,14 @@ public class SelectedQuestionnaireMediaValidator {
         var result=new LinkedHashMap<String,Verified>();
         if(event.historyEntries()==null) return result;
         for(var entry:event.historyEntries()) {
-            if(entry==null || entry.attachmentPath()==null) continue;
+            if(entry==null) continue;
             boolean vk="vk".equals(event.platform());
+            // The first v4 root has the same owned-byte boundary as subsequent client messages.
+            // Missing storage is not plain text, and an unsupported platform never falls back to legacy media.
+            boolean media=entry.attachmentPath()!=null || !"text".equals(entry.messageType());
+            if(version==4 && media && (entry.attachmentPath()==null || (!"telegram".equals(event.platform()) && !vk)))
+                throw invalid();
+            if(entry.attachmentPath()==null) continue;
             if(!"telegram".equals(event.platform()) && !vk) {
                 if(entry.attachmentPath().startsWith("questionnaires/")) throw invalid();
                 continue; // Earlier MAX attachment protocols retain their own admission rules.

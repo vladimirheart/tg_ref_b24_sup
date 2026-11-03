@@ -64,6 +64,35 @@ Platform-specific:
 в local `JPA/SQLite` business-path для ticket/channel/feedback/blacklist
 операций.
 
+## Backend media первого v4 обращения — source R273, 2026-11-03
+
+SelectedQuestionnaireMediaValidator при первом создании v4 root отклоняет media
+MAX/unknown/null platform, даже если attachmentPath является legacy key или URL.
+Media без key не считается plaintext, в том числе Telegram/VK; text с attachment
+также обязан пройти owned-byte proof. Отказ до root/child/metadata writes,
+inbox failed без processed. Canonical channel platform проверяется ingestion:
+подмена event.platform не выбирает другой writer. Plain MAX text, ранние legacy
+protocols и matching frozen-root replay прежние. Telegram/VK scoped bytes/SHA/
+size/owner verification сохранены. Это запрет bypass, не MAX upload/download.
+
+Baseline00125192c, RED52 → GREEN222 tests/5 suites на каждую независимую source/
+replay копию,138 новых/84 неизменённых regression tests; failures/errors/skips0.
+Real validator/ingestion, mocked storage/persistence, не PostgreSQL/SDK/provider.
+1179 input/1441 class hashes сверены;1433 main unchanged,1 functional main class
+и перекомпилированный Verified record (только CP ordering/indices/source lines,
+full symbolic javap proof, не raw byte-exact).570 text LF/CRLF-only differences
+проверены отдельно, binary raw exact. Offline bounded compile, не full build.
+
+Source НЕ активирован: R272/R271/044d9bcec/image85a47a3b975f/all18 containers,
+config/V85/ledger17delivered/receipt0/MAX session fingerprints прежние. ReadinessUP,
+прежний health503/DLQ1 не исправлялся. R272 backup/rollback сохранены. Нужен
+отдельный clean-commit panel-web/ops-worker release: ticket-created listener
+исполняется в WORKER, web ops replay использует тот же service; bot-runner/children
+ради этого server-only fix пересоздавать не требуется. Нет POM/resource/schema/
+flags/DTO/session-format changes/deploy/migrations/backfill/provider sends.
+Scoped MAX media, legacy isolation/live provider/callback/rebind/S6 остаются.
+Evidence: task Source R273/.tmp/01-278-r273-evidence/.
+
 ## Актуальный тестовый runtime — R272, 2026-11-03
 
 Clean R271/044d9bcecab2284b2dd66a72ee2ff3b2ee7d3511 согласованно выложен на
