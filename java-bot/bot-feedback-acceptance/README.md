@@ -149,3 +149,36 @@ launcher/всей fleet или приёмка S6. Это реальный proces
 компонентов, но не full-stack Spring/TLS/SDK acceptance. Рабочие flags, пользователи,
 права, схемы и очереди не меняются. Старые children нельзя смешивать с новой ledger
 логикой; выпуск/откат требуют отдельного schema/backup/cold-fleet gate.
+
+## R287: MAX followup media, отдельный запуск
+
+Подготовлены38 случаев PostgreSQL/Rabbit: published BUSINESS/GENERAL batch,
+whole-batch rollback, duplicate/requeue после committed write, real advisory
+quota race и PostgreSQL JSONB outbox lookup. Fixture использует narrow JDBC
+repository adapters и production services/transactions; это не полный JPA/Boot,
+MAX SDK, Redis session, process kill или live acceptance.
+
+На source-машине Docker engine недоступен: фактический IT run **не выполнен**.
+137 JVM tests/8 suites GREEN, включая26 новых local contracts.
+
+Нужны JDK17 в PATH и запущенный локальный Linux Docker engine. После commit/push
+и обновления checkout, из корня репозитория:
+
+```powershell
+powershell -NoProfile -File .\java-bot\bot-feedback-acceptance\run-max-media-acceptance.ps1
+```
+
+Оператор собирает отдельный detached checkout, сначала панель и26 contracts,
+затем38 IT. Application YAML/.env/Compose/working targets не используются.
+Endpoint overrides старого feedback fixture не читаются: только собственные
+nonce-labelled PostgreSQL/Rabbit/internal network, random loopback ports и
+фиктивные credentials. Test images могут скачиваться при первом запуске.
+Прежние containers/config hashes проверяются после cleanup.
+
+Логи, XML и `r287-proof.json` останутся в новом `.tmp/r287-acceptance-*`.
+Успех полного запуска: `INTEGRATION_GREEN`,38 tests, failures/errors/skips0,
+`IntegrationPassed=true` и `ExistingContainersUnchanged=true`. Ошибка Docker
+не становится skip/success. `-ValidateOnly` запускает только compile/contracts
+и сохраняет `IntegrationPassed=null`; `-SelfTest` не запускает builds/Docker.
+Оба режима не заменяют интеграционный результат. Полный IT — отдельный явный
+`-Dtest=MaxFollowupMediaChainIT` с nonce от оператора; обычная сборка его не запускает.
