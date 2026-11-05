@@ -90,6 +90,12 @@ public class RuntimeConfigService {
         return panelRuntimeConfigClient.selectedVkMediaAdmission(channel.getId(),userId,ticketId,selected);
     }
 
+    public PanelRuntimeConfigClient.SelectedMediaAdmission selectedMaxMediaAdmission(Channel channel,long userId,String ticketId) {
+        requireRemoteQuestionnaire(channel);
+        if(!"max".equals(channel.getPlatform()))throw new PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException("Unsupported selected media platform");
+        return panelRuntimeConfigClient.selectedMaxMediaAdmission(channel.getId(),userId,ticketId);
+    }
+
     private void requireRemoteQuestionnaire(Channel channel) {
         if (!integrationTransportMode.isRabbitMqMode() || !panelRuntimeConfigClient.isEnabled()
                 || channel == null || channel.getId() == null || channel.getId() <= 0

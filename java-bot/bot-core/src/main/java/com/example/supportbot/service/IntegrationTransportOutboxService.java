@@ -75,6 +75,64 @@ public class IntegrationTransportOutboxService {
         }
     }
 
+    /** Read the committed envelope before any download or current-root lookup. No dispatch or payload mutation. */
+    public java.util.Optional<String> findRecordedMaxMediaTicket(long channelId,long userId,long providerId) {
+        if(channelId<=0 || userId<=0 || providerId<=0)throw new IllegalArgumentException("Invalid MAX media identity");
+        String provider=Long.toString(providerId);
+        String history=toJson(java.util.Map.of("historyEntries",List.of(java.util.Map.of("providerMessageId",provider))),provider);
+        var rows=jdbcTemplate.queryForList("""
+            SELECT event_id,event_kind,ticket_id,status,payload_json FROM integration_transport_outbox
+             WHERE channel_id = ? AND user_id = ?
+               AND payload_json::jsonb->>'platform' = 'max'
+               AND ((transport_source='bot.inbound.client-message' AND event_kind=? AND payload_json::jsonb->>'providerMessageId'=?)
+                 OR (transport_source='bot.inbound.ticket-created' AND event_kind='ticket.created.initial_contact' AND payload_json::jsonb @> ?::jsonb
+                     AND EXISTS (SELECT 1 FROM jsonb_array_elements(payload_json::jsonb->'historyEntries') AS history
+                                  WHERE history->>'attachmentPath' LIKE 'questionnaires/max/%')))
+            """,channelId,userId,InboundClientMessageEvent.MEDIA_BATCH_KIND,provider,history);
+        if(rows.isEmpty())return java.util.Optional.empty();
+        if(rows.size()!=1)throw new IllegalStateException("Ambiguous MAX media journal");
+        var row=rows.get(0);
+        try {
+            var payload=transportObjectMapper.readTree((String)row.get("payload_json"));
+            String ticket=payload.path("ticketId").asText("");
+            if(!"max".equals(payload.path("platform").asText()) || !payload.path("channelId").isIntegralNumber()
+                    || !payload.path("channelId").canConvertToLong() || payload.path("channelId").longValue()!=channelId
+                    || !payload.path("userId").isIntegralNumber() || !payload.path("userId").canConvertToLong() || payload.path("userId").longValue()!=userId
+                    || ticket.isBlank() || ticket.length()>512 || !ticket.equals(row.get("ticket_id"))
+                    || !payload.path("eventId").asText().equals(row.get("event_id")) || !payload.path("eventKind").asText().equals(row.get("event_kind"))
+                    || !java.util.Set.of("queued","processing","failed","published").contains(Objects.toString(row.get("status"),"")))throw invalidMaxMediaJournal();
+            if(InboundClientMessageEvent.MEDIA_BATCH_KIND.equals(row.get("event_kind"))) {
+                var event=transportObjectMapper.treeToValue(payload,InboundClientMessageEvent.class);
+                if(!provider.equals(event.providerMessageId()) || !InboundClientMessageEvent.mediaBatchId(channelId,userId,ticket,provider).equals(event.eventId())
+                        || !"selected_media_batch.v1".equals(event.messageType()) || event.occurredAt()==null || event.replyToProviderMessageId()!=null || event.forwardedFrom()!=null
+                        || event.mediaBatch()==null || event.mediaBatch().isEmpty() || event.mediaBatch().size()>10)throw invalidMaxMediaJournal();
+                for(int slot=0;slot<event.mediaBatch().size();slot++) {
+                    var item=event.mediaBatch().get(slot);
+                    if(item==null || !java.util.Set.of("document","photo","audio","video").contains(Objects.toString(item.messageType(),""))
+                            || !maxMediaKey(item.attachmentPath(),channelId,userId,provider,slot+1))throw invalidMaxMediaJournal();
+                }
+                var first=event.mediaBatch().get(0);
+                if(!Objects.equals(event.attachmentPath(),first.attachmentPath()) || !Objects.equals(event.attachmentName(),first.attachmentName()))throw invalidMaxMediaJournal();
+            } else if("ticket.created.initial_contact".equals(row.get("event_kind"))) {
+                if(!"USER_SELECTION".equals(payload.path("scopeSelectionSource").asText())
+                        || !payload.path("catalogSha256").asText().matches("[a-f0-9]{64}")
+                        || !payload.path("templateSha256").asText().matches("[a-f0-9]{64}"))throw invalidMaxMediaJournal();
+                boolean found=false;
+                for(var entry:payload.path("historyEntries"))if(provider.equals(entry.path("providerMessageId").asText())
+                        && entry.path("userId").asLong()!=userId)throw invalidMaxMediaJournal();
+                else if(provider.equals(entry.path("providerMessageId").asText()) && maxMediaKey(entry.path("attachmentPath").asText(),channelId,userId,provider,0))found=true;
+                if(!found)throw invalidMaxMediaJournal();
+            } else throw invalidMaxMediaJournal();
+            return java.util.Optional.of(ticket);
+        }catch(JsonProcessingException ex){throw new IllegalStateException("Invalid stored MAX media journal",ex);}
+    }
+
+    private static boolean maxMediaKey(String key,long channelId,long userId,String provider,int slot) {
+        return key!=null && key.matches("questionnaires/max/"+channelId+"/(?:general|business-[1-9][0-9]*)/"+userId+"/[a-f0-9]{64}/"+provider+"/"
+            +(slot==0?"(?:[1-9]|10)":slot)+"/[a-f0-9]{64}\\.[a-z0-9]{1,10}");
+    }
+    private static IllegalStateException invalidMaxMediaJournal(){return new IllegalStateException("Invalid stored MAX media journal");}
+
     public boolean enqueueConversationTicketCreated(ConversationTicketCreatedEvent event,
                                                     IntegrationRabbitProperties properties) {
         boolean inserted = enqueue(

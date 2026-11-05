@@ -198,6 +198,20 @@ public class PanelRuntimeConfigClient {
                 || proof.remainingFiles()<1 || proof.remainingFiles()>10) throw unavailable();
         return proof;
     }
+    /** Admission comes from the published root, including when its questionnaire session is gone. */
+    public SelectedMediaAdmission selectedMaxMediaAdmission(long channelId,long userId,String ticketId) {
+        requireChannel(channelId);
+        if(userId<=0 || ticketId==null || ticketId.isBlank() || ticketId.length()>512)throw unavailable();
+        var proof=fetchTyped("/internal/api/bot/channels/"+channelId+"/questionnaire-media/max-batch?userId="+userId+"&ticketId="
+            +java.net.URLEncoder.encode(ticketId,StandardCharsets.UTF_8),SelectedMediaAdmission.class);
+        if(proof==null || proof.version()!=3 || proof.channelId()!=channelId || proof.userId()!=userId || !ticketId.equals(proof.ticketId())
+                || !("BUSINESS".equals(proof.scopeKind()) && proof.businessId()!=null && proof.businessId()>0
+                    || "GENERAL".equals(proof.scopeKind()) && proof.businessId()==null)
+                || proof.questionTemplateId()==null || proof.questionTemplateId().isBlank() || proof.questionTemplateId().length()>512
+                || !hash(proof.templateSha256()) || !hash(proof.catalogSha256()) || proof.remainingFiles()<1 || proof.remainingFiles()>10)throw unavailable();
+        return proof;
+    }
+
     public record SelectedMediaAdmission(int version,long channelId,long userId,String ticketId,Long businessId,String scopeKind,
             String questionTemplateId,String templateSha256,String catalogSha256,int remainingFiles) {}
 

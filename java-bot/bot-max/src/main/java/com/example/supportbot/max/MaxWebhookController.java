@@ -224,6 +224,14 @@ public class MaxWebhookController {
             }
 
         MaxConversationSession session = loadSession(userId);
+        if(session!=null && session.selection()!=null && !java.util.Objects.equals(session.chatId(),chatId)) {
+            webhookDeliveryGuardService.release(claim);
+            return ResponseEntity.status(409).body(Map.of("ok",false,"error","session-chat-mismatch"));
+        }
+        if(questionnaireMedia && providerMessageId!=null && providerMessageId>0) {
+            var recorded=ticketService.findRecordedMaxMediaTicket(channel,userId,providerMessageId);
+            if(recorded.isPresent())return completeDelivery(claim,ResponseEntity.ok(Map.of("ok",true,"ticket_id",recorded.get(),"media_replayed",true)));
+        }
         if(session!=null && session.scope()==null && session.selection()==null) {
             var current=runtimeConfigService.findChannelConfig(channel);
             if(current.isPresent() && QuestionnaireScope.from(current.get())!=null)
@@ -252,7 +260,7 @@ public class MaxWebhookController {
                 promptCurrentQuestion(channel,session);
                 return completeDelivery(claim,ResponseEntity.ok(Map.of("ok",true,"questionnaire_replayed",true)));
             }
-            if (unsupportedQuestionnaireMedia(session,questionnaireMedia)
+            if (unsupportedQuestionnaireMedia(session,questionnaireMedia) && session.selection().submittedTicketId()==null
                     && !MaxCommandSupport.isStartCommand(text) && !MaxCommandSupport.isCancelCommand(text))
                 return acceptQuestionnaireMedia(claim,channel,session,message,attachments,text,clientProfile.identity(),providerMessageId,deliveryKey);
         }
@@ -324,7 +332,11 @@ public class MaxWebhookController {
         if (active.isPresent()) {
             // The durable root wins over an evicted, missing or older session and current channel settings.
             if (Integer.valueOf(4).equals(activeRoot.questionnaireVersion()) && questionnaireMedia) {
-                return rejectQuestionnaireMedia(claim, channel, userId, null);
+                if(session!=null && session.selectedBusiness() && !java.util.Objects.equals(session.selection().submittedTicketId(),active.get().getTicketId())) {
+                    webhookDeliveryGuardService.release(claim);
+                    return ResponseEntity.status(503).body(Map.of("ok",false,"error","questionnaire-ticket-not-ready","retryable",true));
+                }
+                return acceptPublishedMedia(claim,channel,userId,active.get().getTicketId(),session,message,attachments,text,clientProfile,providerMessageId);
             }
             if (text.isBlank() && !hasAttachments) return rejectUnresolvedAttachment(claim, channel, userId);
             if(session!=null && session.selectedBusiness()
@@ -521,6 +533,40 @@ public class MaxWebhookController {
         return completeDelivery(claim,ResponseEntity.ok(Map.of("ok",true,"question_prompted",true)));
     }
 
+    private ResponseEntity<Map<String,Object>> acceptPublishedMedia(BotWebhookDeliveryGuardService.DeliveryClaim claim,
+            Channel channel,Long userId,String ticketId,MaxConversationSession session,JsonNode message,
+            List<MaxInboundPayloadSupport.IncomingAttachment> attachments,String text,MaxInboundPayloadSupport.ClientProfile profile,Long providerId) {
+        final List<MaxQuestionnaireMedia.Item> items;
+        try{items=MaxQuestionnaireMedia.describe(message,attachments);}
+        catch(IllegalArgumentException invalid){return rejectQuestionnaireMedia(claim,channel,userId,null);}
+        if(providerId==null || providerId<=0)return rejectQuestionnaireMedia(claim,channel,userId,null);
+        var proof=runtimeConfigService.selectedMaxMediaAdmission(channel,userId,ticketId);
+        if(proof==null || proof.version()!=3 || proof.channelId()!=channel.getId() || proof.userId()!=userId || !ticketId.equals(proof.ticketId())
+                || items.size()>proof.remainingFiles() || proof.remainingFiles()>10 || proof.remainingFiles()<1)
+            return rejectQuestionnaireMedia(claim,channel,userId,null);
+        if(session!=null && session.selectedBusiness()) {
+            var scope=session.scope();
+            if(!java.util.Objects.equals(scope.businessId(),proof.businessId()) || !scope.scopeKind().equals(proof.scopeKind())
+                    || !scope.questionTemplateId().equals(proof.questionTemplateId()) || !scope.templateSha256().equals(proof.templateSha256())
+                    || !scope.catalogSha256().equals(proof.catalogSha256()))return rejectQuestionnaireMedia(claim,channel,userId,null);
+        }
+        var owner=new MaxQuestionnaireMediaWriter.Owner(channel.getId(),proof.businessId(),userId,proof.catalogSha256(),providerId);
+        var stored=new java.util.ArrayList<com.example.supportbot.service.InboundClientMessageEvent.MediaItem>();
+        try {
+            for(var item:items) {
+                var file=questionnaireMediaWriter.store(owner,item.slot(),item.type(),item.url(),item.name());
+                stored.add(new com.example.supportbot.service.InboundClientMessageEvent.MediaItem(file.type(),file.storageKey(),file.name()));
+            }
+        }catch(AttachmentService.MediaSizeException invalid){return rejectQuestionnaireMedia(claim,channel,userId,null);}
+        catch(IOException failure){throw new IllegalStateException("MAX followup media storage failed");}
+        catch(InterruptedException interrupted){Thread.currentThread().interrupt();throw new IllegalStateException("MAX followup media interrupted",interrupted);}
+        // This transaction commits the entire immutable batch before webhook acknowledgement.
+        // Retry reads it above, without rebuilding timestamps, profile, files or the current root.
+        ticketService.recordSelectedMediaBatch(new ActiveInboundClientMessageCommand(userId,profile.identity(),profile.username(),profile.clientName(),
+            channel,ticketId,text.isBlank()?"[вложение от клиента]":text,"selected_media_batch.v1",null,null,providerId,null,null,OffsetDateTime.now()),stored);
+        return completeDelivery(claim,ResponseEntity.ok(Map.of("ok",true,"ticket_id",ticketId,"media_queued",true)));
+    }
+
     private ResponseEntity<Map<String, Object>> rejectQuestionnaireMedia(BotWebhookDeliveryGuardService.DeliveryClaim claim,
                                                                         Channel channel, MaxConversationSession session) {
         return rejectQuestionnaireMedia(claim, channel, session.userId(), session);
@@ -528,13 +574,13 @@ public class MaxWebhookController {
 
     private ResponseEntity<Map<String, Object>> rejectQuestionnaireMedia(BotWebhookDeliveryGuardService.DeliveryClaim claim,
                                                                         Channel channel, Long userId, MaxConversationSession session) {
-        return warnQuestionnaireMedia(claim,channel,userId,session,"В MAX-вопроснике v4 пока поддерживается только текст. Вложение не сохранено; подпись не принята. Отправьте текст отдельным сообщением.");
+        return warnQuestionnaireMedia(claim,channel,userId,session,"Вложение не сохранено; подпись не принята. Отправьте прямой поддерживаемый файл от 1 байта до 10 МиБ или продолжите текстом.");
     }
     private ResponseEntity<Map<String,Object>> rejectInitialQuestionnaireMedia(BotWebhookDeliveryGuardService.DeliveryClaim claim,Channel channel,MaxConversationSession session) {
         return warnQuestionnaireMedia(claim,channel,session.userId(),session,"Вложение не сохранено; подпись не принята. Отправьте поддерживаемый файл от 1 байта до 10 МиБ со свободным ответом или продолжите текстом.");
     }
     private ResponseEntity<Map<String,Object>> warnQuestionnaireMedia(BotWebhookDeliveryGuardService.DeliveryClaim claim,Channel channel,Long userId,MaxConversationSession session,String warning) {
-        // V4 needs a scoped byte writer. Never turn a caption into an answer or use the legacy attachment store.
+        // An unsupported batch must not consume its caption or use the legacy attachment store.
         if (!messagingService.sendToUser(channel,userId,warning)) {
             throw new IllegalStateException("MAX questionnaire media warning delivery was not confirmed");
         }

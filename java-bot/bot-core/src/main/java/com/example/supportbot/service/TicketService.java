@@ -124,6 +124,15 @@ public class TicketService {
         registerActivity(command.ticketId(), command.userIdentity());
     }
 
+    @Transactional(readOnly=true)
+    public Optional<String> findRecordedMaxMediaTicket(Channel channel,long userId,long providerId) {
+        if(!integrationTransportMode.isRabbitMqMode())return Optional.empty();
+        if(channel==null || channel.getId()==null || channel.getId()<=0 || !channel.isActive()
+                || !"max".equals(channel.getPlatform()) || userId<=0 || providerId<=0)
+            throw new IllegalStateException("Invalid MAX media replay owner");
+        return inboundClientMessagePublisher.findRecordedMaxMediaTicket(channel.getId(),userId,providerId);
+    }
+
     @Transactional
     public void recordSelectedMediaBatch(ActiveInboundClientMessageCommand command,java.util.List<InboundClientMessageEvent.MediaItem> items) {
         if(!integrationTransportMode.isRabbitMqMode()) throw new IllegalStateException("Selected media batches require the canonical Rabbit writer");
