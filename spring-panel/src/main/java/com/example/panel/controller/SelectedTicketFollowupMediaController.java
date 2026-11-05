@@ -24,6 +24,15 @@ public class SelectedTicketFollowupMediaController {
         catch(IllegalStateException ex) {throw new ResponseStatusException(HttpStatus.CONFLICT);}
     }
 
+    @GetMapping("/max-batch")
+    public SelectedTicketFollowupMediaService.Admission maxBatchAdmission(HttpServletRequest request,HttpServletResponse response,
+            @RequestHeader(name="X-Iguana-Bot-Api-Token",required=false) String token,@PathVariable long channelId,
+            @RequestParam long userId,@RequestParam String ticketId) {
+        response.setHeader("Cache-Control","no-store");guard.authorize(request,token);
+        try {return service.maxBatchAdmission(channelId,userId,ticketId);}
+        catch(IllegalStateException ex) {throw new ResponseStatusException(HttpStatus.CONFLICT);}
+    }
+
     @GetMapping("/vk-batch")
     public SelectedTicketFollowupMediaService.Admission vkBatchAdmission(HttpServletRequest request,HttpServletResponse response,
             @RequestHeader(name="X-Iguana-Bot-Api-Token",required=false) String token,@PathVariable long channelId,

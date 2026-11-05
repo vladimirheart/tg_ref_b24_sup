@@ -26,6 +26,9 @@ public class SelectedTicketFollowupMediaService {
     @Transactional(readOnly=true)
     public Admission vkBatchAdmission(long channelId,long userId,String ticketId) { return require(channelId,userId,ticketId,false,"vk"); }
 
+    @Transactional(readOnly=true)
+    public Admission maxBatchAdmission(long channelId,long userId,String ticketId) { return require(channelId,userId,ticketId,false,"max"); }
+
     private Admission require(long channelId,long userId,String ticketId,boolean lock,String platform) {
         if(channelId<=0 || userId<=0 || ticketId==null || ticketId.isBlank() || ticketId.length()>512
                 || !flags.isFoundationEnabled() || !flags.isTicketWriteRequiresBusiness() || !flags.isSharedChannelResolution()) throw denied();
@@ -48,7 +51,7 @@ public class SelectedTicketFollowupMediaService {
                 long count=rs.getLong("media_count");
                 if(template==null || template.isBlank() || sha==null || !sha.matches("[a-f0-9]{64}")
                         || catalog==null || !catalog.matches("[a-f0-9]{64}") || count>=10) throw denied();
-                return new Admission("vk".equals(platform)?2:1,channelId,userId,ticketId,business,general?"GENERAL":"BUSINESS",template,sha,catalog,(int)(10-count));
+                return new Admission("max".equals(platform)?3:"vk".equals(platform)?2:1,channelId,userId,ticketId,business,general?"GENERAL":"BUSINESS",template,sha,catalog,(int)(10-count));
             },channelId,userId,ticketId,platform);
         if(rows.size()!=1) throw denied();
         return rows.get(0);
@@ -107,6 +110,45 @@ public class SelectedTicketFollowupMediaService {
                 byte[] bytes=QuestionnaireMediaStorageProof.read(binary,sha,binary.size());
                 verified.put(key,new SelectedQuestionnaireMediaValidator.Verified(bytes.length,sha));
             } catch(Exception ex) {throw new IllegalStateException("Selected VK media batch is unavailable or changed",ex);}
+        }
+        return verified;
+    }
+    /** MAX keeps its 64-bit provider identity and validates all item metadata before opening storage. */
+    public Map<String,SelectedQuestionnaireMediaValidator.Verified> verifyMaxBatch(InboundClientMessageEvent event) {
+        if(event==null || !InboundClientMessageEvent.MEDIA_BATCH_KIND.equals(event.eventKind()) || !"max".equals(event.platform())
+                || !"selected_media_batch.v1".equals(event.messageType()) || event.channelId()==null || event.userId()==null
+                || event.ticketId()==null || event.occurredAt()==null || event.providerMessageId()==null
+                || !event.providerMessageId().matches("[1-9][0-9]{0,18}")
+                || event.mediaBatch()==null || event.mediaBatch().isEmpty() || event.mediaBatch().size()>10
+                || !Objects.equals(event.eventId(),InboundClientMessageEvent.mediaBatchId(event.channelId(),event.userId(),event.ticketId(),event.providerMessageId())))
+            throw denied();
+        final long provider;
+        try {provider=Long.parseLong(event.providerMessageId());} catch(NumberFormatException invalid) {throw denied();}
+        if(event.replyToProviderMessageId()!=null || event.forwardedFrom()!=null) throw denied();
+        var root=require(event.channelId(),event.userId(),event.ticketId(),true,"max");
+        if(root.remainingFiles()<event.mediaBatch().size()
+                || !Objects.equals(event.attachmentPath(),event.mediaBatch().get(0).attachmentPath())
+                || !Objects.equals(event.attachmentName(),event.mediaBatch().get(0).attachmentName())
+                || !jdbc.queryForList("SELECT id FROM chat_history WHERE channel_id=? AND user_id=? AND tg_message_id=? LIMIT 1",Long.class,
+                    event.channelId(),event.userId(),provider).isEmpty()) throw denied();
+        String prefix="questionnaires/max/"+root.channelId()+"/"+(root.businessId()==null?"general":"business-"+root.businessId())
+            +"/"+root.userId()+"/"+root.catalogSha256()+"/"+provider+"/";
+        var hashes=new LinkedHashMap<String,String>();
+        int slot=0;
+        for(var item:event.mediaBatch()) {
+            String expected=prefix+(++slot)+"/",key=item.attachmentPath(),name=item.attachmentName();
+            if(!Set.of("document","photo","audio","video").contains(Objects.toString(item.messageType(),""))
+                    || name==null || name.isBlank() || name.length()>255 || name.chars().anyMatch(c->c<32 || c==127 || c=='/' || c=='\\')
+                    || key==null || !key.startsWith(expected) || !key.substring(expected.length()).matches("[a-f0-9]{64}\\.[a-z0-9]{1,10}"))
+                throw denied();
+            hashes.put(key,key.substring(expected.length(),expected.length()+64));
+        }
+        var verified=new LinkedHashMap<String,SelectedQuestionnaireMediaValidator.Verified>();
+        for(var item:hashes.entrySet()) {
+            try(var binary=storage.openDialogAttachmentByStorageKey(item.getKey())) {
+                byte[] bytes=QuestionnaireMediaStorageProof.read(binary,item.getValue(),binary.size());
+                verified.put(item.getKey(),new SelectedQuestionnaireMediaValidator.Verified(bytes.length,item.getValue()));
+            } catch(Exception unavailable) {throw new IllegalStateException("Selected MAX media batch is unavailable or changed",unavailable);}
         }
         return verified;
     }

@@ -97,7 +97,9 @@ public class InboundClientMessageIngestionService {
         OffsetDateTime occurredAt = event.occurredAt() != null ? event.occurredAt() : OffsetDateTime.now();
         if(InboundClientMessageEvent.MEDIA_BATCH_KIND.equals(event.eventKind())) {
             if(selectedMedia==null) throw new IllegalStateException("Selected follow-up media verifier is unavailable");
-            var proof=selectedMedia.verifyVkBatch(event);
+            if("max".equals(event.platform()) && !"max".equals(channel.getPlatform()))
+                throw new IllegalStateException("Selected MAX media batch channel platform mismatch");
+            var proof="max".equals(event.platform())?selectedMedia.verifyMaxBatch(event):selectedMedia.verifyVkBatch(event);
             for(var item:event.mediaBatch()) {
                 var entry=new InboundClientMessageEvent(event.eventId(),event.eventKind(),event.platform(),event.channelId(),event.ticketId(),
                     event.userId(),event.userIdentity(),event.username(),event.clientName(),event.text(),item.messageType(),item.attachmentPath(),
