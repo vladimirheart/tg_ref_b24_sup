@@ -109,23 +109,26 @@ class BotRuntimeWriteApiControllerWebMvcTest {
     }
 
     @Test
-    void clientMessageEditDelegatesPayloadToWriteService() throws Exception {
-        when(ticketWriteService.markClientMessageEdited(15L, 7010L, "Edited text"))
-            .thenReturn(new BotRuntimeTicketWriteService.MutationResult(true, true));
-
+    void clientMessageEditWithoutAuthorIsRetired() throws Exception {
         mockMvc.perform(put("/internal/api/bot/channels/15/messages/7010/client-edit")
                 .header("X-Iguana-Bot-Api-Token", "test-internal-token")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                        {
-                          "message": "Edited text"
-                        }
-                        """))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.updated").value(true))
-            .andExpect(jsonPath("$.exists").value(true));
+                .contentType(MediaType.APPLICATION_JSON).content("{\"message\":\"Edited text\"}"))
+            .andExpect(status().isGone());
+        org.mockito.Mockito.verifyNoInteractions(ticketWriteService);
+    }
 
-        verify(ticketWriteService).markClientMessageEdited(15L, 7010L, "Edited text");
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"telegram", "vk", "max"})
+    void ownedClientEditPreservesAuthorAndPlatform(String platform) throws Exception {
+        when(ticketWriteService.markClientMessageEdited(platform, 9007199254740995L, 9007199254740993L,
+            Long.MAX_VALUE, "Edited text")).thenReturn(new BotRuntimeTicketWriteService.MutationResult(true, true));
+        mockMvc.perform(put("/internal/api/bot/channels/9007199254740995/users/9007199254740993/messages/9223372036854775807/client-edit")
+                .header("X-Iguana-Bot-Api-Token", "test-internal-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"message\":\"Edited text\",\"platform\":\"" + platform + "\"}"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.updated").value(true));
+        verify(ticketWriteService).markClientMessageEdited(platform, 9007199254740995L, 9007199254740993L,
+            Long.MAX_VALUE, "Edited text");
     }
 
     @Test

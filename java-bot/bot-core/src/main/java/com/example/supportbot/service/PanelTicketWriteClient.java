@@ -93,6 +93,19 @@ public class PanelTicketWriteClient {
         ).map(MutationResponse::updated).orElse(false);
     }
 
+    public boolean markClientMessageEdited(String platform, Long channelId, Long userId,
+                                           Long providerMessageId, String message) {
+        if (!isEnabled() || platform == null || !java.util.Set.of("telegram", "vk", "max").contains(platform)
+                || channelId == null || channelId <= 0 || userId == null || userId <= 0
+                || providerMessageId == null || providerMessageId <= 0 || !StringUtils.hasText(message)) {
+            return false;
+        }
+        return sendMutation("/internal/api/bot/channels/" + channelId + "/users/" + userId
+            + "/messages/" + providerMessageId + "/client-edit", "PUT",
+            new OwnedClientMessageEditRequest(platform, message.trim()))
+            .map(MutationResponse::updated).orElse(false);
+    }
+
     public boolean markClientMessageEdited(Long channelId,
                                            Long telegramMessageId,
                                            String message) {
@@ -211,6 +224,8 @@ public class PanelTicketWriteClient {
                                         Long replyToTelegramId,
                                         String operatorIdentity) {
     }
+
+    private record OwnedClientMessageEditRequest(String platform, String message) {}
 
     private record ClientMessageEditRequest(String message) {
     }

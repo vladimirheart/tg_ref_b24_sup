@@ -86,6 +86,18 @@ public class BotRuntimeWriteApiController {
         ));
     }
 
+    @PutMapping("/channels/{channelId}/users/{userId}/messages/{telegramMessageId}/client-edit")
+    public ResponseEntity<String> markOwnedClientMessageEdited(
+        HttpServletRequest request,
+        @RequestHeader(name = AUTH_HEADER, required = false) String token,
+        @PathVariable Long channelId, @PathVariable Long userId, @PathVariable Long telegramMessageId,
+        @RequestBody(required = false) OwnedClientMessageEditRequest body
+    ) {
+        return executeWrite(request, token, () -> ticketWriteService.markClientMessageEdited(
+            body != null ? body.platform() : null, channelId, userId, telegramMessageId,
+            body != null ? body.message() : null));
+    }
+
     @PutMapping("/channels/{channelId}/messages/{telegramMessageId}/client-edit")
     public ResponseEntity<String> markClientMessageEdited(
         HttpServletRequest request,
@@ -94,11 +106,10 @@ public class BotRuntimeWriteApiController {
         @PathVariable Long telegramMessageId,
         @RequestBody ClientMessageEditRequest body
     ) {
-        return executeWrite(request, token, () -> ticketWriteService.markClientMessageEdited(
-            channelId,
-            telegramMessageId,
-            body != null ? body.message() : null
-        ));
+        return executeWrite(request, token, () -> {
+            throw new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.GONE, "Client edits require the author-scoped endpoint");
+        });
     }
 
     @PutMapping("/tickets/{ticketId}/operator-messages/{telegramMessageId}")
@@ -205,6 +216,8 @@ public class BotRuntimeWriteApiController {
                                        Long replyToTelegramId,
                                        String operatorIdentity) {
     }
+
+    public record OwnedClientMessageEditRequest(String platform, String message) {}
 
     public record ClientMessageEditRequest(String message) {
     }

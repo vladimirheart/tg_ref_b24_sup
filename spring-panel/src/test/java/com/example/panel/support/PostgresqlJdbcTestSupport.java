@@ -14,8 +14,24 @@ public final class PostgresqlJdbcTestSupport {
             .withUsername("iguana")
             .withPassword("iguana");
 
+    private static final String NATIVE_URL = System.getProperty("r290.edit.jdbc");
+
     static {
-        POSTGRES.start();
+        if (NATIVE_URL == null) {
+            POSTGRES.start();
+        } else {
+            String nonce = System.getProperty("r290.edit.nonce", "");
+            if (!NATIVE_URL.matches("jdbc:postgresql://127\\.0\\.0\\.1:[0-9]+/r290_edit")
+                    || !nonce.matches("[a-f0-9]{32}")) {
+                throw new IllegalArgumentException("Only the nonce-owned native test database is accepted");
+            }
+            int port = java.net.URI.create(NATIVE_URL.substring(5)).getPort();
+            if (port <= 1024 || port == 5432 || port > 65535) throw new IllegalArgumentException("Disposable port required");
+            JdbcTemplate admin = new JdbcTemplate(new DriverManagerDataSource(NATIVE_URL, "r290_test", ""));
+            if (!nonce.equals(admin.queryForObject("SELECT nonce FROM r290_native_owner", String.class))) {
+                throw new IllegalStateException("Native test cluster ownership mismatch");
+            }
+        }
     }
 
     private PostgresqlJdbcTestSupport() {
@@ -31,11 +47,11 @@ public final class PostgresqlJdbcTestSupport {
 
     private static JdbcTemplate freshJdbcTemplate(String prefix, boolean unspecifiedStringType) {
         String schema = schemaName(prefix);
-        JdbcTemplate admin = new JdbcTemplate(dataSource(POSTGRES.getJdbcUrl()));
+        JdbcTemplate admin = new JdbcTemplate(dataSource(jdbcUrl()));
         admin.execute("CREATE SCHEMA " + schema);
 
-        String separator = POSTGRES.getJdbcUrl().contains("?") ? "&" : "?";
-        String url = POSTGRES.getJdbcUrl() + separator + "currentSchema=" + schema;
+        String separator = jdbcUrl().contains("?") ? "&" : "?";
+        String url = jdbcUrl() + separator + "currentSchema=" + schema;
         if (unspecifiedStringType) {
             url += "&stringtype=unspecified";
         }
@@ -43,7 +59,13 @@ public final class PostgresqlJdbcTestSupport {
     }
 
     private static DriverManagerDataSource dataSource(String url) {
-        return new DriverManagerDataSource(url, POSTGRES.getUsername(), POSTGRES.getPassword());
+        return NATIVE_URL == null
+            ? new DriverManagerDataSource(url, POSTGRES.getUsername(), POSTGRES.getPassword())
+            : new DriverManagerDataSource(url, "r290_test", "");
+    }
+
+    private static String jdbcUrl() {
+        return NATIVE_URL == null ? POSTGRES.getJdbcUrl() : NATIVE_URL;
     }
 
     private static String schemaName(String prefix) {

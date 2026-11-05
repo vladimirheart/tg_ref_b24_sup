@@ -704,6 +704,18 @@ public class TicketService {
     }
 
     @Transactional
+    public boolean markClientMessageEdited(String platform, Long channelId, Long userId,
+                                           Long providerMessageId, String text) {
+        if (platform == null || !java.util.Set.of("telegram", "vk", "max").contains(platform)
+                || channelId == null || channelId <= 0 || userId == null || userId <= 0
+                || providerMessageId == null || providerMessageId <= 0 || !StringUtils.hasText(text)) {
+            return false;
+        }
+        if (!usePanelWriteBoundary("edit an author-scoped client message")) return false;
+        return panelTicketWriteClient.markClientMessageEdited(platform, channelId, userId, providerMessageId, text);
+    }
+
+    @Transactional
     public boolean markClientMessageEdited(Long channelId,
                                            Long telegramMessageId,
                                            String text) {

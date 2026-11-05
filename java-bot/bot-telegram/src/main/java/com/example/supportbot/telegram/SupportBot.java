@@ -1031,16 +1031,22 @@ public class SupportBot extends TelegramLongPollingBot {
     }
 
     private void handleEditedClientMessage(Message editedMessage) {
+        if (editedMessage == null || editedMessage.getChat() == null || !editedMessage.getChat().isUserChat()
+                || editedMessage.getFrom() == null || editedMessage.getFrom().getId() == null
+                || editedMessage.getFrom().getId() <= 0
+                || !editedMessage.getFrom().getId().equals(editedMessage.getChatId())
+                || editedMessage.getMessageId() == null || editedMessage.getMessageId() <= 0) return;
         String text = editedMessage.getText();
-        if (text == null) {
+        if (text == null || text.isBlank()) {
             return;
         }
         Channel channel = getChannel();
         Long channelId = channel != null ? channel.getId() : null;
-        if (channelId == null) {
+        if (channelId == null || channelId <= 0 || !channel.isActive() || !"telegram".equals(channel.getPlatform())) {
             return;
         }
-        boolean updated = ticketService.markClientMessageEdited(channelId, editedMessage.getMessageId().longValue(), text);
+        boolean updated = ticketService.markClientMessageEdited("telegram", channelId, editedMessage.getFrom().getId(),
+            editedMessage.getMessageId().longValue(), text);
         if (updated) {
             log.info(
                 "Updated edited client message in history: telegramMessageId={} chatId={}",

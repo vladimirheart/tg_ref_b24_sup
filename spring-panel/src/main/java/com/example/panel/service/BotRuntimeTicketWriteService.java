@@ -158,6 +158,82 @@ public class BotRuntimeTicketWriteService {
     }
 
     @Transactional
+    public MutationResult markClientMessageEdited(String platform,
+                                                  Long channelId,
+                                                  Long userId,
+                                                  Long telegramMessageId,
+                                                  String message) {
+        if (platform == null || !java.util.Set.of("telegram", "vk", "max").contains(platform)
+                || channelId == null || channelId <= 0 || userId == null || userId <= 0
+                || telegramMessageId == null || telegramMessageId <= 0 || !StringUtils.hasText(message)) {
+            return new MutationResult(false, false);
+        }
+        var candidates = jdbcTemplate.query("""
+                SELECT id, ticket_id, user_id, channel_id
+                  FROM chat_history
+                 WHERE channel_id = ? AND tg_message_id = ? AND user_id = ? AND sender = 'client'
+                   AND EXISTS (SELECT 1 FROM channels runtime_channel
+                                WHERE runtime_channel.id = chat_history.channel_id
+                                  AND runtime_channel.platform = ? AND runtime_channel.is_active IS TRUE)
+                 ORDER BY id DESC LIMIT 2
+                """, (rs, index) -> new ClientMessageSnapshot(rs.getLong("id"), rs.getString("ticket_id"),
+                    rs.getObject("user_id", Long.class), rs.getObject("channel_id", Long.class)),
+                channelId, telegramMessageId, userId, platform);
+        ClientMessageSnapshot snapshot = candidates.size() == 1 ? candidates.get(0) : null;
+        TicketSnapshot ticket = snapshot != null ? loadTicket(snapshot.ticketId()) : null;
+        if (snapshot == null || !matchesTicketContext(ticket, snapshot.userId(), snapshot.channelId())) {
+            return new MutationResult(false, false);
+        }
+        int updated = jdbcTemplate.update("""
+                UPDATE chat_history AS history
+                   SET original_message = COALESCE(history.original_message, history.message),
+                       message = ?,
+                       edited_at = CURRENT_TIMESTAMP
+                 WHERE history.id = ?
+                   AND history.ticket_id = ?
+                   AND history.user_id = ?
+                   AND history.channel_id = ?
+                   AND history.tg_message_id = ?
+                   AND history.sender = 'client'
+                   AND EXISTS (SELECT 1 FROM channels runtime_channel
+                                WHERE runtime_channel.id = history.channel_id
+                                  AND runtime_channel.platform = ? AND runtime_channel.is_active IS TRUE
+                                FOR SHARE OF runtime_channel)
+                   AND 1 = (SELECT COUNT(*) FROM chat_history candidate
+                             WHERE candidate.channel_id = history.channel_id
+                               AND candidate.user_id = history.user_id
+                               AND candidate.tg_message_id = history.tg_message_id
+                               AND candidate.sender = 'client')
+                   AND EXISTS (
+                       SELECT 1 FROM tickets owner
+                        WHERE owner.ticket_id = history.ticket_id
+                          AND owner.user_id = history.user_id
+                          AND owner.channel_id = history.channel_id
+                          AND owner.ticket_public_id IS NOT DISTINCT FROM CAST(? AS TEXT)
+                          AND owner.business_id IS NOT DISTINCT FROM CAST(? AS BIGINT)
+                          AND owner.is_general IS NOT DISTINCT FROM CAST(? AS BOOLEAN)
+                          AND 1 = (SELECT COUNT(*) FROM tickets candidate WHERE candidate.ticket_id = owner.ticket_id)
+                        FOR SHARE OF owner
+                   )
+                """,
+                message.trim(),
+                snapshot.id(),
+                snapshot.ticketId(),
+                snapshot.userId(),
+                channelId,
+                telegramMessageId,
+                platform,
+                ticket.publicId(),
+                ticket.businessId(),
+                ticket.general()
+        );
+        if (updated > 0) {
+            uiEventOutboxAppendService.publishClientMessageEdited(ticket.eventContext(), message);
+        }
+        return new MutationResult(updated > 0, true);
+    }
+
+    @Transactional
     public MutationResult markClientMessageEdited(Long channelId,
                                                   Long telegramMessageId,
                                                   String message) {
