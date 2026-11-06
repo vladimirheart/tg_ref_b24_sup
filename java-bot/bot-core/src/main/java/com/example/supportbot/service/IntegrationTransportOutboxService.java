@@ -38,6 +38,10 @@ public class IntegrationTransportOutboxService {
     private final ObjectMapper objectMapper;
     private final ObjectMapper transportObjectMapper;
     private final RabbitTemplate rabbitTemplate;
+    private com.example.supportbot.config.IntegrationPanelApiProperties childCredentials;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setChildCredentials(com.example.supportbot.config.IntegrationPanelApiProperties childCredentials) { this.childCredentials=childCredentials; }
 
     public IntegrationTransportOutboxService(JdbcTemplate jdbcTemplate,
                                              ObjectMapper objectMapper,
@@ -342,6 +346,10 @@ public class IntegrationTransportOutboxService {
                 message.getMessageProperties().setMessageId(entry.eventId());
                 message.getMessageProperties().setCorrelationId(entry.eventId());
                 message.getMessageProperties().setDeliveryMode(MessageDeliveryMode.PERSISTENT);
+                message.getMessageProperties().setUserId(rabbitTemplate.getConnectionFactory().getUsername());
+                message.getMessageProperties().setHeader(ChildTransportEnvelope.HEADER,
+                    ChildTransportEnvelope.sign(childCredentials!=null?childCredentials.getToken():null,
+                        rabbitTemplate.getConnectionFactory().getUsername(),message.getBody()));
                 return message;
             },
             correlationData
@@ -408,6 +416,7 @@ public class IntegrationTransportOutboxService {
     }
 
     private void ensureSchema() {
+        if (com.example.supportbot.config.ChildTransportDatabase.isRestricted(jdbcTemplate)) return;
         jdbcTemplate.execute("""
                 CREATE TABLE IF NOT EXISTS integration_transport_outbox (
                     event_id TEXT PRIMARY KEY,

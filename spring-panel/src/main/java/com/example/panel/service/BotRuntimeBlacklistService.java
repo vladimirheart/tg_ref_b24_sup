@@ -223,6 +223,16 @@ public class BotRuntimeBlacklistService {
             .orElse(new PendingUnblockRequestLookup(null, userId, channelId, normalizedReason, now, "pending"));
     }
 
+    @Transactional(readOnly = true)
+    public PendingUnblockSummaryLookup pendingSummary(int limit, Long channelId) {
+        if (channelId == null) return pendingSummary(limit);
+        Long count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM client_unblock_requests WHERE status='pending' AND channel_id=?", Long.class, channelId);
+        var rows = limit <= 0 ? List.<PendingUnblockRequestLookup>of() : jdbcTemplate.query(
+            "SELECT id,user_id,channel_id,reason,created_at,status FROM client_unblock_requests WHERE status='pending' AND channel_id=? ORDER BY created_at DESC,id DESC LIMIT ?",
+            (rs, index) -> mapPendingRequest(rs), channelId, Math.min(limit, 100));
+        return new PendingUnblockSummaryLookup(count == null ? 0 : count, rows);
+    }
+
     private long countPendingRequests() {
         Long count = jdbcTemplate.queryForObject(
             "SELECT COUNT(*) FROM client_unblock_requests WHERE status = 'pending'",

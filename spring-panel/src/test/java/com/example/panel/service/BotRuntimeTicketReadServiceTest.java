@@ -328,6 +328,22 @@ class BotRuntimeTicketReadServiceTest {
             .extracting(BotRuntimeTicketReadService.TicketSummaryLookup::rating).isEqualTo(5);
     }
 
+    @Test void childHistoryUsesScopedRepositoryBeforeSelectingMostRecentContext() {
+        ReadFixture fixture=new ReadFixture();Message message=message("own",77L);
+        when(fixture.messages.findScopedRecent(77L,9L,1)).thenReturn(List.of(message));
+        when(fixture.tickets.findUniqueByLegacyTicketId("own")).thenReturn(Optional.of(ticket("own",77L,9L)));
+        assertThat(fixture.service.findLastTicketContext(77L,9L)).get().extracting(BotRuntimeTicketReadService.LastTicketContext::ticketId).isEqualTo("own");
+        verify(fixture.messages,org.mockito.Mockito.never()).findTopByUserIdOrderByCreatedAtDesc(any());
+    }
+    @Test void childRecentListDoesNotUseGlobalTopTenOrAcceptForeignCanonicalChannel() {
+        ReadFixture fixture=new ReadFixture();Message message=message("foreign",77L);
+        when(fixture.messages.findScopedRecent(77L,9L,10)).thenReturn(List.of(message));
+        when(fixture.tickets.findUniqueByLegacyTicketId("foreign")).thenReturn(Optional.of(ticket("foreign",77L,10L)));
+        assertThat(fixture.service.findRecentTickets(77L,100,9L)).isEmpty();
+        verify(fixture.messages,org.mockito.Mockito.never()).findTop10ByUserIdOrderByCreatedAtDesc(any());
+        verifyNoInteractions(fixture.feedback);
+    }
+
     private static Ticket ticket(String legacyId, Long userId, Long channelId) {
         TicketId id = new TicketId();
         id.setTicketId(legacyId);

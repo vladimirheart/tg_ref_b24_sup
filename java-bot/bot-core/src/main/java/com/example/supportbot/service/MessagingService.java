@@ -80,7 +80,10 @@ public class MessagingService {
             log.warn("No outbound messenger registered for platform {}", platform(channel));
             return false;
         }
-        return authorizeSender(channel, messenger) && java.util.Objects.equals(supportChatId, channel.getSupportChatId())
+        OutboundSenderIdentity identity=authorizeIdentity(channel,messenger);
+        return identity!=null && senderAuthorization.authorizeSupportChat(identity,supportChatId)
+                && identity.matches(channel,messenger.platform()) && identity.equals(messenger.senderIdentity())
+                && java.util.Objects.equals(supportChatId, channel.getSupportChatId())
                 && messenger.sendToSupportChat(supportChatId, text);
     }
 

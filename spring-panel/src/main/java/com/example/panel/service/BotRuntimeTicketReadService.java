@@ -81,13 +81,17 @@ public class BotRuntimeTicketReadService {
     }
 
     @Transactional(readOnly = true)
-    public Optional<LastTicketContext> findLastTicketContext(Long userId) {
+    public Optional<LastTicketContext> findLastTicketContext(Long userId) { return findLastTicketContext(userId, null); }
+
+    @Transactional(readOnly = true)
+    public Optional<LastTicketContext> findLastTicketContext(Long userId, Long channelId) {
         if (userId == null) {
             return Optional.empty();
         }
-        return messageRepository.findTopByUserIdOrderByCreatedAtDesc(userId)
+        return (channelId == null ? messageRepository.findTopByUserIdOrderByCreatedAtDesc(userId)
+            : messageRepository.findScopedRecent(userId, channelId, 1).stream().findFirst())
             .filter(message -> userId.equals(message.getUserId())
-                && matchesCanonicalTicket(message.getTicketId(), userId, null))
+                && matchesCanonicalTicket(message.getTicketId(), userId, channelId))
             .map(message -> new LastTicketContext(
                 message.getTicketId(),
                 message.getBusiness(),
@@ -119,13 +123,17 @@ public class BotRuntimeTicketReadService {
     }
 
     @Transactional(readOnly = true)
-    public List<TicketSummaryLookup> findRecentTickets(Long userId, int limit) {
+    public List<TicketSummaryLookup> findRecentTickets(Long userId, int limit) { return findRecentTickets(userId, limit, null); }
+
+    @Transactional(readOnly = true)
+    public List<TicketSummaryLookup> findRecentTickets(Long userId, int limit, Long channelId) {
         if (userId == null || limit <= 0) {
             return List.of();
         }
-        List<Message> messages = messageRepository.findTop10ByUserIdOrderByCreatedAtDesc(userId).stream()
+        List<Message> messages = (channelId == null ? messageRepository.findTop10ByUserIdOrderByCreatedAtDesc(userId)
+            : messageRepository.findScopedRecent(userId, channelId, Math.min(10, limit))).stream()
             .filter(message -> userId.equals(message.getUserId())
-                && matchesCanonicalTicket(message.getTicketId(), userId, null))
+                && matchesCanonicalTicket(message.getTicketId(), userId, channelId))
             .limit(limit)
             .toList();
         if (messages.isEmpty()) {

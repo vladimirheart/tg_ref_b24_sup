@@ -137,6 +137,18 @@ public class BotRuntimeContractService {
         // RabbitMQ carries integration events, not canonical bot persistence.
         // Every production bot still needs the shared PostgreSQL source of truth.
         applyDatabaseEnvironment(env);
+        if (isRabbitMqTransportMode()) {
+            var child = new com.example.panel.security.ChildBotCredentials.Principal(resolveChannelId(channel), channel.getPlatform());
+            String master = environment.getProperty("app.bots.internal-api.token", "iguana-internal-bot-token");
+            String signing = environment.getProperty("app.bots.internal-api.signature-secret");
+            if (env.get("SPRING_DATASOURCE_URL").matches("(?is).*[?&;](?:user|password|options|currentSchema)=.*"))
+                throw new IllegalStateException("Child datasource URL must not override credentials, role or schema");
+            env.remove("DATABASE_URL");
+            env.put("SPRING_DATASOURCE_USERNAME", child.databaseRole());
+            env.put("SPRING_DATASOURCE_PASSWORD", com.example.panel.security.ChildBotCredentials.databasePassword(master, signing, child));
+            env.put("SPRING_RABBITMQ_USERNAME", child.databaseRole());
+            env.put("SPRING_RABBITMQ_PASSWORD", com.example.panel.security.ChildBotCredentials.rabbitPassword(master, signing, child));
+        }
         applyStorageEnvironment(env);
         env.put("TELEGRAM_BOT_TOKEN", credential.token());
         env.put("TELEGRAM_BOT_USERNAME", Objects.toString(channel.getBotUsername(), ""));
@@ -211,8 +223,14 @@ public class BotRuntimeContractService {
             "app.bots.internal-api.token",
             "iguana-internal-bot-token"
         ));
+        if (isRabbitMqTransportMode()) {
+            var child = new com.example.panel.security.ChildBotCredentials.Principal(resolveChannelId(channel), channel.getPlatform());
+            env.put("APP_PANEL_INTERNAL_API_TOKEN", com.example.panel.security.ChildBotCredentials.apiToken(
+                environment.getProperty("app.bots.internal-api.token", "iguana-internal-bot-token"),
+                environment.getProperty("app.bots.internal-api.signature-secret"), child));
+        }
         env.put("APP_PANEL_INTERNAL_API_REQUEST_SIGNING_ENABLED", "true");
-        putIfHasText(env, "APP_PANEL_INTERNAL_API_SIGNATURE_SECRET", environment.getProperty("app.bots.internal-api.signature-secret"));
+        if (!isRabbitMqTransportMode()) putIfHasText(env, "APP_PANEL_INTERNAL_API_SIGNATURE_SECRET", environment.getProperty("app.bots.internal-api.signature-secret"));
         env.put("APP_PANEL_INTERNAL_API_REQUEST_TIMEOUT", environment.getProperty("app.integration.panel-api.request-timeout", "5s"));
         env.put("APP_PANEL_INTERNAL_API_RETRY_ATTEMPTS", environment.getProperty("app.integration.panel-api.retry-attempts", "2"));
         env.put("APP_PANEL_INTERNAL_API_RETRY_BACKOFF", environment.getProperty("app.integration.panel-api.retry-backoff", "250ms"));

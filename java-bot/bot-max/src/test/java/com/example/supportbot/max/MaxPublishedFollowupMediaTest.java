@@ -82,6 +82,10 @@ class MaxPublishedFollowupMediaTest {
         var rows=new LinkedHashMap<String,Map<String,Object>>();
         var jdbc=new org.springframework.jdbc.core.JdbcTemplate() {
             @Override public void execute(String sql) {}
+            @Override public <T> T queryForObject(String sql,Class<T> type) {
+                if(!sql.equals("SELECT session_user::text ~ '^iguana_child_[1-9][0-9]*$'") || type!=Boolean.class)throw new AssertionError(sql);
+                return type.cast(Boolean.FALSE);
+            }
             @Override public int update(String sql,Object... args) {
                 if(!sql.contains("INSERT INTO integration_transport_outbox"))throw new AssertionError(sql);
                 var row=Map.<String,Object>of("event_id",args[0],"event_kind",args[2],"payload_json",args[5],"ticket_id",args[8],"status",args[10]);

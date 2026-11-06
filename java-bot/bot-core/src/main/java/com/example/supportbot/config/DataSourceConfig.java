@@ -42,6 +42,7 @@ public class DataSourceConfig {
         }
         DataSource dataSource = builder.build();
         configureExternalHikari(dataSource, environment);
+        ChildTransportDatabase.validate(dataSource, environment);
         return dataSource;
     }
 

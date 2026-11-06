@@ -82,7 +82,7 @@ class BotRuntimeContractServiceTest {
     }
 
     @Test
-    void buildEnvironmentUsesPostgresForRabbitMqAndPassesCanonicalDatabaseCredentials() {
+    void buildEnvironmentUsesRestrictedChildPostgresForRabbitMq() {
         BotRuntimeContractService service = createService(
             "auto",
             Map.of(),
@@ -108,8 +108,8 @@ class BotRuntimeContractServiceTest {
         assertThat(env)
             .containsEntry("APP_DB_MODE", "postgresql")
             .containsEntry("SPRING_DATASOURCE_URL", "jdbc:postgresql://db.example.local:5432/iguana")
-            .containsEntry("SPRING_DATASOURCE_USERNAME", "iguana")
-            .containsEntry("SPRING_DATASOURCE_PASSWORD", "secret")
+            .containsEntry("SPRING_DATASOURCE_USERNAME", "iguana_child_117")
+            .containsEntry("SPRING_DATASOURCE_PASSWORD", com.example.panel.security.ChildBotCredentials.databasePassword("test-only-control-plane-secret-0123456789", null, new com.example.panel.security.ChildBotCredentials.Principal(117,"telegram")))
             .containsEntry("APP_INTEGRATION_TRANSPORT_MODE", "rabbitmq")
             .doesNotContainKeys(
                 "DATABASE_URL",
@@ -227,7 +227,7 @@ class BotRuntimeContractServiceTest {
             .containsEntry("MAX_SUPPORT_CHAT_ID", "support-room")
             .containsEntry("MAX_WEBHOOK_SECRET", "max-secret")
             .containsEntry("APP_PANEL_INTERNAL_API_BASE_URL", "http://127.0.0.1:8080")
-            .containsEntry("APP_PANEL_INTERNAL_API_TOKEN", "iguana-internal-bot-token")
+            .containsEntry("APP_PANEL_INTERNAL_API_TOKEN", "test-only-control-plane-secret-0123456789")
             .containsEntry("APP_DB_MODE", "postgresql")
             .containsEntry("SPRING_DATASOURCE_URL", "jdbc:postgresql://db.example.local:5432/iguana")
             .containsEntry("SPRING_DATASOURCE_USERNAME", "iguana")
@@ -708,6 +708,7 @@ class BotRuntimeContractServiceTest {
         IntegrationNetworkService integrationNetworkService = new IntegrationNetworkService(sharedConfigService, new ObjectMapper());
         MockEnvironment environment = new MockEnvironment()
             .withProperty("app.datasource.mode", "postgresql")
+            .withProperty("app.bots.internal-api.token", "test-only-control-plane-secret-0123456789")
             .withProperty("spring.datasource.url", "jdbc:postgresql://db.example.local:5432/iguana")
             .withProperty("spring.datasource.username", "iguana")
             .withProperty("spring.datasource.password", "secret");

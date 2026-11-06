@@ -28,6 +28,7 @@ import org.aopalliance.intercept.MethodInterceptor;
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.amqp.ImmediateRequeueAmqpException;
 import org.springframework.amqp.core.*;
+import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.core.*;
@@ -49,11 +50,12 @@ import org.testcontainers.utility.DockerImageName;
 /** Opt-in only. Real PostgreSQL/Rabbit/transactions/bytes; narrow JDBC repository adapters, no Boot/config/provider. */
 final class MaxMediaChainFixture implements AutoCloseable {
     static final long USER=9_007_199_254_740_993L,CHANNEL=USER+2,BUSINESS=USER+6;
-    static final String RAW=" padded/Ю%?' ",TOKEN="r287-test-only",DATABASE="r287_max_media";
+    static final String RAW=" padded/Ю%?' ",TOKEN="r291-test-only-control-plane-secret-0123456789",DATABASE="r287_max_media";
     static final String OWNER="01-278-r287-max-media";
     static final List<Class<?>> PANEL_CLASSES=List.of(SelectedTicketFollowupMediaService.class,SelectedTicketFollowupMediaController.class,
         InboundClientMessageIngestionService.class,InboundClientMessageListener.class,IntegrationInboundEventInboxService.class,
-        LegacyTicketIdConcurrencyGuard.class,ChatAttachmentMetadataService.class,com.example.panel.config.RabbitIntegrationTransportConfig.class);
+        LegacyTicketIdConcurrencyGuard.class,ChatAttachmentMetadataService.class,com.example.panel.config.RabbitIntegrationTransportConfig.class,
+        ChildBotCredentials.class,ChildBotInboundPrincipalService.class,ChildBotRequestScopeService.class);
     final ObjectMapper mapper=org.springframework.http.converter.json.Jackson2ObjectMapperBuilder.json().build();
     final AtomicBoolean requeueAfterCommit=new AtomicBoolean();
     final List<byte[]> wire=new CopyOnWriteArrayList<>();
@@ -93,7 +95,7 @@ final class MaxMediaChainFixture implements AutoCloseable {
             .withCreateContainerCmdModifier(c->c.getHostConfig().withMemory(192L*1024*1024).withNanoCPUs(1_000_000_000L)
                 .withPortBindings(new com.github.dockerjava.api.model.PortBinding(com.github.dockerjava.api.model.Ports.Binding.bindIpAndPort("127.0.0.1",0),new com.github.dockerjava.api.model.ExposedPort(5432))));
         broker=new GenericContainer<>(DockerImageName.parse("rabbitmq:3.13-management-alpine")).withExposedPorts(5672).withNetwork(network)
-            .withLabel("io.iguana.owner",OWNER).withLabel("io.iguana.test-nonce",nonce).withEnv("RABBITMQ_DEFAULT_USER","r287_test").withEnv("RABBITMQ_DEFAULT_PASS",TOKEN)
+            .withLabel("io.iguana.owner",OWNER).withLabel("io.iguana.test-nonce",nonce).withEnv("RABBITMQ_DEFAULT_USER","iguana_child_"+CHANNEL).withEnv("RABBITMQ_DEFAULT_PASS",TOKEN)
             .withEnv("RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS","+S 1:1 +A 4 +sbwt none +sbwtdcpu none +sbwtdio none")
             .withCreateContainerCmdModifier(c->c.getHostConfig().withMemory(384L*1024*1024).withNanoCPUs(1_000_000_000L)
                 .withPortBindings(new com.github.dockerjava.api.model.PortBinding(com.github.dockerjava.api.model.Ports.Binding.bindIpAndPort("127.0.0.1",0),new com.github.dockerjava.api.model.ExposedPort(5672))));
@@ -104,12 +106,12 @@ final class MaxMediaChainFixture implements AutoCloseable {
             datasource.setMaximumPoolSize(8);datasource.setMinimumIdle(0);datasource.setConnectionTimeout(5000);
             datasource.setConnectionInitSql("SET lock_timeout='5s'");datasource.addDataSourceProperty("socketTimeout","15");
             jdbc=new JdbcTemplate(datasource);manager=new DataSourceTransactionManager(datasource);tx=new TransactionTemplate(manager);schema();
-            connections=new CachingConnectionFactory(broker.getHost(),broker.getMappedPort(5672));connections.setUsername("r287_test");connections.setPassword(TOKEN);
+            connections=new CachingConnectionFactory(broker.getHost(),broker.getMappedPort(5672));connections.setUsername("iguana_child_"+CHANNEL);connections.setPassword(TOKEN);
             var transport=new com.example.supportbot.config.RabbitIntegrationTransportConfig();rabbit=transport.rabbitTemplate(connections,transport.integrationRabbitMessageConverter(mapper));admin=new RabbitAdmin(connections);
             admin.declareExchange(new TopicExchange(exchange,true,false));admin.declareQueue(new Queue(queue,true,false,false,Map.of("x-dead-letter-exchange",exchange,"x-dead-letter-routing-key",dlq)));
             admin.declareQueue(new Queue(dlq,true));admin.declareBinding(new Binding(queue,Binding.DestinationType.QUEUE,exchange,"r287.max",null));admin.declareBinding(new Binding(dlq,Binding.DestinationType.QUEUE,exchange,dlq,null));
             routes=new com.example.supportbot.config.IntegrationRabbitProperties();routes.setInboundExchange(exchange);routes.setRoutingMax("r287.max");routes.setRoutingTicketCreated("r287.created");
-            outbox=new IntegrationTransportOutboxService(jdbc,mapper,rabbit);publisher=new InboundClientMessagePublisher(outbox,routes);
+            outbox=new IntegrationTransportOutboxService(jdbc,mapper,rabbit);var childApi=new com.example.supportbot.config.IntegrationPanelApiProperties();childApi.setToken(childToken());outbox.setChildCredentials(childApi);publisher=new InboundClientMessagePublisher(outbox,routes);
             backend();http();
         }catch(Throwable failure){close();throw failure;}
     }
@@ -125,8 +127,8 @@ final class MaxMediaChainFixture implements AutoCloseable {
         when(active.save(any(TicketActive.class))).thenAnswer(c->{TicketActive a=c.getArgument(0);jdbc.update("UPDATE ticket_active SET user_identity=?,last_seen=? WHERE ticket_id=?",a.getUserIdentity(),a.getLastSeen(),a.getTicketId());return a;});
         var inbox=transactional(new IntegrationInboundEventInboxService(jdbc,mapper));
         var target=new InboundClientMessageIngestionService(inbox,new LegacyTicketIdConcurrencyGuard(jdbc),channels,tickets,history,mock(MessageRepository.class),active,new ChatAttachmentMetadataService(jdbc,storage));target.setSelectedMedia(admission);ingestion=transactional(target);
-        var proxy=new ProxyFactory(new InboundClientMessageListener(ingestion));proxy.setProxyTargetClass(true);
-        proxy.addAdvice((MethodInterceptor)call->{Object value=call.proceed();if(call.getMethod().getName().equals("onInboundClientMessage")&&requeueAfterCommit.compareAndSet(true,false))throw new ImmediateRequeueAmqpException("Isolated committed-before-ACK failure");return value;});listener=(InboundClientMessageListener)proxy.getProxy();
+        var proxy=new ProxyFactory(new InboundClientMessageListener(ingestion, new ChildBotInboundPrincipalService(jdbc, childCredentials())));proxy.setProxyTargetClass(true);
+        proxy.addAdvice((MethodInterceptor)call->{Object value=call.proceed();if(call.getMethod().getName().equals("onInboundClientMessage")&&requeueAfterCommit.compareAndSet(true,false))throw new ImmediateRequeueAmqpException("Isolated committed-before-ACK failure");return value;});proxy.addAdvice(new TransactionInterceptor(manager,new AnnotationTransactionAttributeSource()));listener=(InboundClientMessageListener)proxy.getProxy();
     }
     void http()throws Exception{
         var p=new InternalBotApiProperties();p.setToken(TOKEN);p.setRequireRequestSignature(true);
@@ -137,7 +139,7 @@ final class MaxMediaChainFixture implements AutoCloseable {
         var api=new com.example.supportbot.config.IntegrationPanelApiProperties();api.setBaseUrl("http://127.0.0.1:"+http.getAddress().getPort());api.setToken(TOKEN);api.setRequestSigningEnabled(true);api.setRetryAttempts(1);client=new PanelRuntimeConfigClient(api,mapper,new PanelApiRequestHeadersFactory(api));
     }
     void startConsumer()throws Exception{
-        var endpoint=new MethodRabbitListenerEndpoint();endpoint.setId("r287-"+nonce);endpoint.setBean(listener);endpoint.setMethod(InboundClientMessageListener.class.getMethod("onInboundClientMessage",InboundClientMessageEvent.class,String.class));endpoint.setQueueNames(queue);
+        var endpoint=new MethodRabbitListenerEndpoint();endpoint.setId("r287-"+nonce);endpoint.setBean(listener);endpoint.setMethod(InboundClientMessageListener.class.getMethod("onInboundClientMessage",InboundClientMessageEvent.class,String.class,String.class,Message.class));endpoint.setQueueNames(queue);
         var handlers=new DefaultMessageHandlerMethodFactory();handlers.afterPropertiesSet();endpoint.setMessageHandlerMethodFactory(handlers);
         var p=new com.example.panel.config.IntegrationRabbitProperties();p.setInboundConcurrency(1);p.setInboundMaxConcurrency(1);p.setInboundPrefetch(1);
         var config=new com.example.panel.config.RabbitIntegrationTransportConfig();consumer=config.inboundClientMessageListenerContainerFactory(connections,config.integrationRabbitMessageConverter(mapper),p).createListenerContainer(endpoint);
@@ -169,8 +171,17 @@ final class MaxMediaChainFixture implements AutoCloseable {
         jdbc.execute("CREATE FUNCTION r287_fail() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF "+condition+" THEN RAISE EXCEPTION 'isolated write failure'; END IF; RETURN NEW; END $$");jdbc.execute("CREATE TRIGGER r287_fail BEFORE INSERT OR UPDATE ON "+table+" FOR EACH ROW EXECUTE FUNCTION r287_fail()");
     }
     static void await(java.util.function.BooleanSupplier condition)throws Exception{long end=System.nanoTime()+TimeUnit.SECONDS.toNanos(10);while(!condition.getAsBoolean()){if(System.nanoTime()>end)throw new AssertionError("Isolated chain timed out");Thread.sleep(25);}}
+    static InternalBotApiProperties childCredentials(){var p=new InternalBotApiProperties();p.setToken(TOKEN);return p;}
+    static String childToken(){return ChildBotCredentials.apiToken(TOKEN,null,new ChildBotCredentials.Principal(CHANNEL,"max"));}
+    void deliver(InboundClientMessageEvent event){
+        try{byte[] body=mapper.writeValueAsBytes(event);var props=new MessageProperties();props.setHeader(com.example.supportbot.service.ChildTransportEnvelope.HEADER,com.example.supportbot.service.ChildTransportEnvelope.sign(childToken(),"iguana_child_"+CHANNEL,body));
+            listener.onInboundClientMessage(event,"r287.max","iguana_child_"+CHANNEL,new Message(body,props));
+        }catch(java.io.IOException ex){throw new IllegalStateException(ex);}
+    }
     void schema(){jdbc.execute("""
         CREATE TABLE channels(id BIGINT PRIMARY KEY,platform TEXT,is_active BOOLEAN);
+        CREATE TABLE bot_child_principals(role_name text primary key,channel_id bigint,platform text,enabled boolean);
+        INSERT INTO bot_child_principals VALUES('iguana_child_9007199254740995', 9007199254740995, 'max', true);
         CREATE TABLE tickets(user_id BIGINT,ticket_id TEXT,channel_id BIGINT,status TEXT,business_id BIGINT,is_general BOOLEAN,general_selection_source TEXT,business_selection_source TEXT,question_template_id TEXT,question_template_sha256 TEXT,questionnaire_catalog_sha256 TEXT,questionnaire_version INTEGER,PRIMARY KEY(user_id,ticket_id));
         CREATE TABLE ticket_active(ticket_id TEXT PRIMARY KEY,user_identity TEXT,last_seen TIMESTAMPTZ);
         CREATE TABLE chat_history(id BIGSERIAL PRIMARY KEY,user_id BIGINT,sender TEXT,message TEXT,timestamp TIMESTAMPTZ,ticket_id TEXT,ticket_owner_user_id BIGINT,message_type TEXT,attachment TEXT,channel_id BIGINT,tg_message_id BIGINT,reply_to_tg_id BIGINT,forwarded_from TEXT,file_name TEXT,FOREIGN KEY(ticket_owner_user_id,ticket_id) REFERENCES tickets(user_id,ticket_id));

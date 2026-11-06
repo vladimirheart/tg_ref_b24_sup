@@ -22,6 +22,12 @@ public class SharedConfigService {
 
     private final ObjectMapper objectMapper;
     private final Path sharedConfigDir;
+    private boolean remoteOnly;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public void configureRuntime(org.springframework.core.env.Environment environment) {
+        remoteOnly="rabbitmq".equals(environment.getProperty("app.integration.transport.mode", "jdbc"));
+    }
 
     public SharedConfigService(ObjectMapper objectMapper,
                                @Value("${shared-config.dir:config/shared}") String sharedDir) {
@@ -84,6 +90,7 @@ public class SharedConfigService {
     }
 
     private Map<String, Object> readAsMap(String fileName) {
+        if (remoteOnly) return Collections.emptyMap();
         Path file = sharedConfigDir.resolve(fileName);
         if (!Files.isRegularFile(file)) {
             return Collections.emptyMap();
@@ -97,6 +104,7 @@ public class SharedConfigService {
     }
 
     private JsonNode readAsTree(String fileName) {
+        if (remoteOnly) return null;
         Path file = sharedConfigDir.resolve(fileName);
         if (!Files.isRegularFile(file)) {
             return null;

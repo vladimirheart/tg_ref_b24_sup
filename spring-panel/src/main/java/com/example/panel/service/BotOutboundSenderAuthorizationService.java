@@ -30,4 +30,11 @@ public class BotOutboundSenderAuthorizationService {
     public record SenderIdentity(Long channelId, String platform, String tokenSha256) {
         @Override public String toString() { return "SenderIdentity[channelId=" + channelId + ", platform=" + platform + ", credential=<redacted>]"; }
     }
+
+    public boolean authorizeSupportChat(SenderIdentity identity, String recipient) {
+        if (recipient==null || recipient.isBlank() || !authorize(identity)) return false;
+        var channel=channels.findById(identity.channelId()).orElse(null);
+        return channel!=null && Boolean.TRUE.equals(channel.getActive()) && identity.platform().equals(channel.getPlatform())
+            && recipient.equals(channel.getSupportChatId());
+    }
 }

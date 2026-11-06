@@ -45,9 +45,9 @@ class MaxFollowupMediaChainIT {
     }
     @ParameterizedTest @MethodSource("rollbackCases")
     void failedWriteRollsBackEveryItemAndFailedEnvelopeCanBeRetried(boolean general,String table)throws Exception{
-        f.reset(general);var event=f.enqueue(general,33,2);f.failWrite(table);assertThatThrownBy(()->f.listener.onInboundClientMessage(event,"r287.max")).isInstanceOf(RuntimeException.class);
+        f.reset(general);var event=f.enqueue(general,33,2);f.failWrite(table);assertThatThrownBy(()->f.deliver(event)).isInstanceOf(RuntimeException.class);
         assertThat(f.count("chat_history")).isZero();assertThat(f.count("chat_attachment_metadata")).isZero();assertThat(f.state(event.eventId())).isEqualTo("failed");assertThat(f.jdbc.queryForObject("SELECT user_identity FROM ticket_active WHERE ticket_id=?",String.class,RAW)).isEqualTo("original-profile");
-        f.jdbc.execute("DROP TRIGGER r287_fail ON "+table);f.jdbc.execute("DROP FUNCTION r287_fail()");f.listener.onInboundClientMessage(event,"r287.max");assertThat(f.state(event.eventId())).isEqualTo("processed");assertThat(f.count("chat_history")).isEqualTo(2);assertThat(f.count("chat_attachment_metadata")).isEqualTo(2);
+        f.jdbc.execute("DROP TRIGGER r287_fail ON "+table);f.jdbc.execute("DROP FUNCTION r287_fail()");f.deliver(event);assertThat(f.state(event.eventId())).isEqualTo("processed");assertThat(f.count("chat_history")).isEqualTo(2);assertThat(f.count("chat_attachment_metadata")).isEqualTo(2);
     }
     @ParameterizedTest @MethodSource("byteCases")
     void badSecondFileRejectsWholeBrokerEnvelope(boolean general,String kind)throws Exception{
@@ -67,7 +67,7 @@ class MaxFollowupMediaChainIT {
         f.reset(general);for(int n=0;n<9;n++)f.jdbc.update("INSERT INTO chat_history(user_id,ticket_id,ticket_owner_user_id,attachment,channel_id) VALUES(?,?,?,?,?)",USER,RAW,USER,"old-owned-"+n,CHANNEL);
         var first=f.enqueue(general,33,1);var second=f.enqueue(general,34,1);var entered=new CountDownLatch(1);var release=new CountDownLatch(1);var once=new AtomicBoolean(true);var executor=Executors.newFixedThreadPool(2);
         f.beforeHistory.set(()->{if(once.compareAndSet(true,false)){entered.countDown();try{if(!release.await(5,TimeUnit.SECONDS))throw new AssertionError("Release missing");}catch(InterruptedException e){Thread.currentThread().interrupt();throw new AssertionError(e);}}});
-        try{var a=executor.submit(()->f.listener.onInboundClientMessage(first,"r287.max"));assertThat(entered.await(5,TimeUnit.SECONDS)).isTrue();var b=executor.submit(()->f.listener.onInboundClientMessage(second,"r287.max"));
+        try{var a=executor.submit(()->f.deliver(first));assertThat(entered.await(5,TimeUnit.SECONDS)).isTrue();var b=executor.submit(()->f.deliver(second));
             await(()->f.jdbc.queryForObject("SELECT count(*) FROM pg_locks WHERE locktype='advisory' AND NOT granted",Integer.class)>0);assertThat(b.isDone()).isFalse();release.countDown();a.get(10,TimeUnit.SECONDS);assertThatThrownBy(()->b.get(10,TimeUnit.SECONDS)).isInstanceOf(ExecutionException.class);
             assertThat(f.count("chat_history")).isEqualTo(10);assertThat(f.count("chat_attachment_metadata")).isEqualTo(1);assertThat(f.state(first.eventId())).isEqualTo("processed");assertThat(f.state(second.eventId())).isEqualTo("failed");
         }finally{release.countDown();executor.shutdownNow();}
@@ -76,7 +76,7 @@ class MaxFollowupMediaChainIT {
     void canonicalRootDriftAfterAdmissionCannotWriteMedia(boolean general,String kind)throws Exception{
         f.reset(general);f.client.selectedMaxMediaAdmission(CHANNEL,USER,RAW);var event=f.enqueue(general,33,1);
         switch(kind){case "closed"->f.jdbc.update("UPDATE tickets SET status='closed'");case "owner"->f.jdbc.update("UPDATE tickets SET business_id=?,is_general=FALSE,business_selection_source='USER_SELECTION'",BUSINESS+1);case "duplicate"->f.jdbc.update("INSERT INTO tickets(user_id,ticket_id,channel_id,status) VALUES(?,?,?,'open')",USER+1,RAW,CHANNEL);}
-        assertThatThrownBy(()->f.listener.onInboundClientMessage(event,"r287.max")).isInstanceOf(IllegalStateException.class);assertThat(f.count("chat_history")).isZero();assertThat(f.count("chat_attachment_metadata")).isZero();assertThat(f.state(event.eventId())).isEqualTo("failed");
+        assertThatThrownBy(()->f.deliver(event)).isInstanceOf(IllegalStateException.class);assertThat(f.count("chat_history")).isZero();assertThat(f.count("chat_attachment_metadata")).isZero();assertThat(f.state(event.eventId())).isEqualTo("failed");
     }
     @ParameterizedTest @MethodSource("initialCases")
     void postgresJsonbRecognizesScopedInitialMediaAndIgnoresLegacyKeys(boolean general,boolean scoped)throws Exception{

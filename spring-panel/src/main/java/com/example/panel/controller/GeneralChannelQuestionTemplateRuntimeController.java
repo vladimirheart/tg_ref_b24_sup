@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 /** General-only runtime path; legacy channel runtime is not reclassified. */
+@org.springframework.transaction.annotation.Transactional
 @RestController
 @RequestMapping("/internal/api/bot")
 public class GeneralChannelQuestionTemplateRuntimeController {

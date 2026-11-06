@@ -80,6 +80,10 @@ public class InternalBotApiRequestGuardService {
     private final ObjectMapper objectMapper;
     private final StringRedisTemplate stringRedisTemplate;
     private final ConcurrentHashMap<String, LocalIdempotencyEntry> localIdempotencyCache = new ConcurrentHashMap<>();
+    private ChildBotRequestScopeService childScope;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setChildScope(ChildBotRequestScopeService childScope) { this.childScope = childScope; }
 
     public InternalBotApiRequestGuardService(InternalBotApiProperties properties,
                                              RuntimeCoordinationProperties coordinationProperties,
@@ -137,13 +141,16 @@ public class InternalBotApiRequestGuardService {
     }
 
     private void authorizeInternal(HttpServletRequest request, String token) {
-        if (!StringUtils.hasText(token) || !Objects.equals(token, properties.getToken())) {
+        boolean controlPlane = StringUtils.hasText(token) && constantTimeEquals(token, properties.getToken());
+        ChildBotCredentials.Principal child = controlPlane ? null
+            : ChildBotCredentials.authenticate(token, properties.getToken(), properties.getSignatureSecret());
+        if (!controlPlane && child == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized internal bot API request");
         }
 
         String timestamp = normalize(request != null ? request.getHeader(TIMESTAMP_HEADER) : null);
         String signature = normalize(request != null ? request.getHeader(SIGNATURE_HEADER) : null);
-        boolean signatureRequired = properties.isRequireRequestSignature();
+        boolean signatureRequired = child != null || properties.isRequireRequestSignature();
         boolean signaturePresented = StringUtils.hasText(timestamp) || StringUtils.hasText(signature);
         if (!signatureRequired && !signaturePresented) {
             return;
@@ -165,10 +172,15 @@ public class InternalBotApiRequestGuardService {
             request != null ? request.getMethod() : "GET",
             canonicalPath,
             timestamp,
-            body
+            body,
+            child != null ? token : resolveSignatureSecret()
         );
         if (!constantTimeEquals(expectedSignature, signature)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Internal bot API request signature is invalid.");
+        }
+        if (child != null) {
+            if (childScope == null) throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Child scope boundary is unavailable");
+            childScope.authorize(request, child, body);
         }
     }
 
@@ -272,7 +284,10 @@ public class InternalBotApiRequestGuardService {
         String namespace = StringUtils.hasText(coordinationProperties.getLeaseNamespace())
             ? coordinationProperties.getLeaseNamespace().trim()
             : "iguana";
-        String seed = (request.getMethod() + "\n" + canonicalPath(request) + "\n" + idempotencyKey.trim()).toLowerCase();
+        String principal = request.getAttribute(ChildBotRequestScopeService.PRINCIPAL_ATTRIBUTE) instanceof ChildBotCredentials.Principal child
+            ? child.platform() + ":" + child.channelId() : "control-plane";
+        String seed = principal + "\n" + request.getMethod() + "\n" + canonicalPath(request) + "\n" + idempotencyKey.trim()
+            + "\n" + sha256Hex(extractCachedBody(request));
         return namespace + ":panel-internal-api:idempotency:" + DigestUtils.md5DigestAsHex(seed.getBytes(StandardCharsets.UTF_8));
     }
 
@@ -306,7 +321,7 @@ public class InternalBotApiRequestGuardService {
         }
     }
 
-    private String sign(String method, String canonicalPath, String timestamp, byte[] body) {
+    private String sign(String method, String canonicalPath, String timestamp, byte[] body, String secret) {
         String normalizedMethod = StringUtils.hasText(method) ? method.trim().toUpperCase() : "GET";
         String normalizedPath = StringUtils.hasText(canonicalPath) ? canonicalPath.trim() : "/";
         String normalizedTimestamp = StringUtils.hasText(timestamp) ? timestamp.trim() : OffsetDateTime.now(ZoneOffset.UTC).toString();
@@ -315,7 +330,7 @@ public class InternalBotApiRequestGuardService {
         String canonical = normalizedMethod + "\n" + normalizedPath + "\n" + normalizedTimestamp + "\n" + bodyDigest;
         try {
             Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(resolveSignatureSecret().getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
             return HexFormat.of().formatHex(mac.doFinal(canonical.getBytes(StandardCharsets.UTF_8)));
         } catch (GeneralSecurityException ex) {
             throw new IllegalStateException("Unable to compute internal bot API request signature.", ex);

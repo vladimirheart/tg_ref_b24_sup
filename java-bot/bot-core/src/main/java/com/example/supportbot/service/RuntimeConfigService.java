@@ -29,10 +29,13 @@ public class RuntimeConfigService {
     }
 
     public Optional<PanelRuntimeConfigClient.RuntimeConfigSnapshot> findChannelConfig(Channel channel) {
-        if (!integrationTransportMode.isRabbitMqMode() || !panelRuntimeConfigClient.isEnabled() || channel == null) {
+        if (!integrationTransportMode.isRabbitMqMode()) {
             return Optional.empty();
         }
-        return panelRuntimeConfigClient.findByChannelId(channel.getId());
+        if (!panelRuntimeConfigClient.isEnabled() || channel == null || channel.getId()==null || channel.getId()<=0)
+            throw new PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException("Canonical channel runtime is unavailable");
+        return Optional.of(panelRuntimeConfigClient.findByChannelId(channel.getId())
+            .orElseThrow(() -> new PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException("Canonical channel runtime is unavailable")));
     }
 
     public Map<String, Object> locationTree(Channel channel) {

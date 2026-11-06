@@ -203,6 +203,7 @@ public class OutboundTransportDeliveryLedgerService {
     }
 
     private void ensureSchema() {
+        if (com.example.supportbot.config.ChildTransportDatabase.isRestricted(jdbcTemplate)) return;
         jdbcTemplate.execute("""
                 CREATE TABLE IF NOT EXISTS integration_outbound_event_deliveries (
                     event_id TEXT PRIMARY KEY,

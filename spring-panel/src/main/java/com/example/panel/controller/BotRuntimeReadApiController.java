@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+@org.springframework.transaction.annotation.Transactional
 @RestController
 @RequestMapping("/internal/api/bot")
 public class BotRuntimeReadApiController {
@@ -89,7 +90,7 @@ public class BotRuntimeReadApiController {
         @PathVariable Long userId
     ) {
         requireAuthorized(request, token);
-        return ticketReadService.findLastTicketContext(userId)
+        return (com.example.panel.security.ChildBotRequestScopeService.channelId(request) == null ? ticketReadService.findLastTicketContext(userId) : ticketReadService.findLastTicketContext(userId, com.example.panel.security.ChildBotRequestScopeService.channelId(request)))
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Last ticket context not found"));
     }
 
@@ -101,7 +102,7 @@ public class BotRuntimeReadApiController {
         @RequestParam(defaultValue = "10") int limit
     ) {
         requireAuthorized(request, token);
-        return ticketReadService.findRecentTickets(userId, limit);
+        return com.example.panel.security.ChildBotRequestScopeService.channelId(request) == null ? ticketReadService.findRecentTickets(userId, limit) : ticketReadService.findRecentTickets(userId, limit, com.example.panel.security.ChildBotRequestScopeService.channelId(request));
     }
 
     @GetMapping("/users/{userId}/feedback/pending")
@@ -112,7 +113,7 @@ public class BotRuntimeReadApiController {
         @RequestParam(required = false) Long channelId
     ) {
         requireAuthorized(request, token);
-        return ticketReadService.findActiveFeedbackRequest(userId, channelId)
+        return ticketReadService.findActiveFeedbackRequest(userId, com.example.panel.security.ChildBotRequestScopeService.channelId(request) != null ? com.example.panel.security.ChildBotRequestScopeService.channelId(request) : channelId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pending feedback request not found"));
     }
 
@@ -161,7 +162,7 @@ public class BotRuntimeReadApiController {
         @RequestParam(defaultValue = "3") int limit
     ) {
         requireAuthorized(request, token);
-        return blacklistService.pendingSummary(limit);
+        return com.example.panel.security.ChildBotRequestScopeService.channelId(request) == null ? blacklistService.pendingSummary(limit) : blacklistService.pendingSummary(limit, com.example.panel.security.ChildBotRequestScopeService.channelId(request));
     }
 
     private void requireAuthorized(HttpServletRequest request, String token) {

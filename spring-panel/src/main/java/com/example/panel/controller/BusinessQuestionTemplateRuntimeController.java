@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 /** New explicit-selection runtime path; legacy channel runtime remains unchanged. */
+@org.springframework.transaction.annotation.Transactional
 @RestController
 @RequestMapping("/internal/api/bot")
 public class BusinessQuestionTemplateRuntimeController {

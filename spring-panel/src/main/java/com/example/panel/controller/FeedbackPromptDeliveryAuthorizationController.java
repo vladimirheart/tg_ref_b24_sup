@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
+@org.springframework.transaction.annotation.Transactional
 @RestController
 public class FeedbackPromptDeliveryAuthorizationController {
     private final InternalBotApiRequestGuardService guard;

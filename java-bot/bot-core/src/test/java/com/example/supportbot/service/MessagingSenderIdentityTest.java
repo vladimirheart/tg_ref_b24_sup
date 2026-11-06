@@ -67,7 +67,7 @@ class MessagingSenderIdentityTest {
         var constructor = constructors[0];
         if (constructor.getParameterCount() == 1) return (MessagingService) constructor.newInstance(List.of(provider));
         Object admission = mock(constructor.getParameterTypes()[1], call -> {
-            if (call.getMethod().getName().equals("authorize")) {
+            if (call.getMethod().getName().equals("authorize") || call.getMethod().getName().equals("authorizeSupportChat")) {
                 if (authorizationEffect != null) authorizationEffect.run();
                 return true;
             }

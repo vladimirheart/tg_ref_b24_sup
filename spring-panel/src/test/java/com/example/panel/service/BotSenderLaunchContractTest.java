@@ -20,7 +20,7 @@ class BotSenderLaunchContractTest {
     @ParameterizedTest @MethodSource("children")
     void launcherBindsCanonicalChannelAndPlatformWithoutChangingExternalChatId(String platform,long id){
         var config=mock(SharedConfigService.class);when(config.loadSettings()).thenReturn(Map.of());
-        var environment=new MockEnvironment().withProperty("app.datasource.mode","postgresql").withProperty("spring.datasource.url","jdbc:postgresql://isolated/iguana").withProperty("spring.datasource.username","isolated").withProperty("spring.datasource.password","isolated").withProperty("app.integration.transport.mode","rabbitmq");
+        var environment=new MockEnvironment().withProperty("app.bots.internal-api.token","r291-test-only-launch-control-plane-0123456789").withProperty("app.datasource.mode","postgresql").withProperty("spring.datasource.url","jdbc:postgresql://isolated/iguana").withProperty("spring.datasource.username","isolated").withProperty("spring.datasource.password","isolated").withProperty("app.integration.transport.mode","rabbitmq");
         // This fixture isolates identity from the independent bounded MAX port allocator.
         var properties=spy(new BotProcessProperties());doReturn(19000).when(properties).resolveMaxPort(any());
         var service=new BotRuntimeContractService(properties,new IntegrationNetworkService(config,new ObjectMapper()),new ObjectMapper(),new PanelDatabaseRuntimeMode(environment),environment);

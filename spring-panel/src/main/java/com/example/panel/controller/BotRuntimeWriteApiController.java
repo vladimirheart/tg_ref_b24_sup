@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.http.ResponseEntity;
 
+@org.springframework.transaction.annotation.Transactional
 @RestController
 @RequestMapping("/internal/api/bot")
 public class BotRuntimeWriteApiController {

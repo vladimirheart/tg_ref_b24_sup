@@ -23,10 +23,18 @@ public class PanelOutboundSenderAuthorizationClient {
         this.properties = properties; this.mapper = mapper; this.headers = headers;
     }
     public boolean authorize(OutboundSenderIdentity identity) {
+        return authorize(identity,null);
+    }
+    public boolean authorizeSupportChat(OutboundSenderIdentity identity,String recipient) {
+        if(recipient==null || recipient.isBlank())return false;
+        return authorize(identity,recipient);
+    }
+    private boolean authorize(OutboundSenderIdentity identity,String recipient) {
         if (!properties.isConfigured() || identity == null) throw new IllegalStateException("Sender authorization requires the internal panel API.");
         try {
-            URI uri = URI.create(properties.getBaseUrl().replaceAll("/+$", "") + "/internal/api/bot/outbound/authorize-sender");
-            String body = mapper.writeValueAsString(identity);
+            URI uri = URI.create(properties.getBaseUrl().replaceAll("/+$", "") + "/internal/api/bot/outbound/"
+                +(recipient==null?"authorize-sender":"authorize-support-chat"));
+            String body = mapper.writeValueAsString(recipient==null?identity:java.util.Map.of("sender",identity,"supportChatId",recipient));
             var builder = HttpRequest.newBuilder(uri).timeout(properties.getRequestTimeout())
                 .header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
             headers.apply(builder::header, "POST", uri, body, null);
@@ -36,7 +44,8 @@ public class PanelOutboundSenderAuthorizationClient {
             if (decision == null || !decision.isObject() || !decision.path("allowed").isBoolean()
                 || !decision.path("channelId").isIntegralNumber() || !decision.path("channelId").canConvertToLong()
                 || decision.path("channelId").longValue() != identity.channelId()
-                || !decision.path("platform").isTextual() || !identity.platform().equals(decision.path("platform").textValue())) {
+                || !decision.path("platform").isTextual() || !identity.platform().equals(decision.path("platform").textValue())
+                || recipient!=null && (!decision.path("supportChatId").isTextual() || !recipient.equals(decision.path("supportChatId").textValue()))) {
                 throw new IllegalStateException("Sender authorization response is missing or inconsistent.");
             }
             return decision.path("allowed").booleanValue();

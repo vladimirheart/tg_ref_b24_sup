@@ -21,6 +21,14 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 
     Optional<Message> findByTicketId(String ticketId);
 
+    @Query(value = """
+        SELECT m.* FROM messages m JOIN tickets t ON t.ticket_id=m.ticket_id AND t.user_id=m.user_id AND t.channel_id=m.channel_id
+         WHERE m.user_id=:userId AND t.channel_id=:channelId
+           AND 1=(SELECT COUNT(*) FROM tickets candidate WHERE candidate.ticket_id=m.ticket_id)
+         ORDER BY m.created_at DESC, m.group_msg_id DESC LIMIT :limit
+        """, nativeQuery = true)
+    List<Message> findScopedRecent(@Param("userId") Long userId, @Param("channelId") Long channelId, @Param("limit") int limit);
+
     @Query("""
             SELECT COUNT(m)
               FROM Message m

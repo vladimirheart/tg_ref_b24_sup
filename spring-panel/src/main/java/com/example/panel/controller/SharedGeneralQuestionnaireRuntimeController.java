@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 /** Version 2 start requires the matching writer and a current explicit selection. */
+@org.springframework.transaction.annotation.Transactional
 @RestController
 @RequestMapping("/internal/api/bot/channels/{channelId}/questionnaire/v2")
 public class SharedGeneralQuestionnaireRuntimeController {

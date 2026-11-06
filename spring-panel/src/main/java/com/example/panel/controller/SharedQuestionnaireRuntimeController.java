@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 /** Read-only selection handshake. Transport/session/ticket writes must still carry the selected scope. */
+@org.springframework.transaction.annotation.Transactional
 @RestController
 @RequestMapping("/internal/api/bot/channels/{channelId}/questionnaire")
 public class SharedQuestionnaireRuntimeController {

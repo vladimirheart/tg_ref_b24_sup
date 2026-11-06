@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
+@org.springframework.transaction.annotation.Transactional
 @RestController
 public class BotOutboundSenderAuthorizationController {
     private final InternalBotApiRequestGuardService guard;
@@ -24,4 +25,16 @@ public class BotOutboundSenderAuthorizationController {
         return new Decision(identity.channelId(), identity.platform(), authorization.authorize(identity));
     }
     public record Decision(Long channelId, String platform, boolean allowed) { }
+
+    @PostMapping("/internal/api/bot/outbound/authorize-support-chat")
+    public SupportChatDecision authorizeSupportChat(HttpServletRequest request,
+        @RequestHeader(name = InternalBotApiRequestGuardService.AUTH_HEADER, required = false) String token,
+        @RequestBody SupportChatRequest body) {
+        guard.authorize(request,token);
+        var sender=body.sender();
+        return new SupportChatDecision(sender!=null?sender.channelId():null,sender!=null?sender.platform():null,
+            body.supportChatId(),authorization.authorizeSupportChat(sender,body.supportChatId()));
+    }
+    public record SupportChatRequest(SenderIdentity sender,String supportChatId) {}
+    public record SupportChatDecision(Long channelId,String platform,String supportChatId,boolean allowed) {}
 }

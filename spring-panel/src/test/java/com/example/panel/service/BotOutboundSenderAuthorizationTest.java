@@ -19,6 +19,15 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 class BotOutboundSenderAuthorizationTest {
     private static final long CHANNEL = 9_007_199_254_740_993L;
+    @ParameterizedTest @MethodSource("senders")
+    void supportRecipientMustMatchCurrentCanonicalChannel(String platform,boolean bound) throws Exception {
+        var f=new Fixture(platform,bound);f.channel.setSupportChatId("-100");
+        var identity=new SenderIdentity(CHANNEL,platform,hash(" token/Ю "));
+        assertThat(f.service.authorizeSupportChat(identity,"-100")).isTrue();
+        assertThat(f.service.authorizeSupportChat(identity,"-101")).isFalse();
+        f.channel.setSupportChatId("-102");assertThat(f.service.authorizeSupportChat(identity,"-100")).isFalse();
+        f.channel.setActive(false);assertThat(f.service.authorizeSupportChat(identity,"-102")).isFalse();
+    }
     static Stream<Arguments> senders() { return Stream.of("telegram", "vk", "max").flatMap(p -> Stream.of(false,true).map(bound -> Arguments.of(p,bound))); }
     static Stream<Arguments> changes() { return senders().flatMap(s -> Stream.of("missing-channel","foreign-channel","inactive-channel","foreign-platform","different-token","unavailable-db","unavailable-config","revoked-binding").map(c -> Arguments.of(s.get()[0],s.get()[1],c))); }
 

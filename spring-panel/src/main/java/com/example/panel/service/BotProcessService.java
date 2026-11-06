@@ -57,6 +57,29 @@ public class BotProcessService {
 
     static void applyBotProcessEnvironment(ProcessBuilder builder,
                                            Map<String, String> contractEnvironment) {
+        if (contractEnvironment.getOrDefault("APP_PANEL_INTERNAL_API_TOKEN", "").startsWith("iguana-child-v1:")) {
+            // An inherited Spring/DB/control-plane override would defeat the child contract.
+            // Keep only OS launcher keys and the explicit infrastructure settings needed by a bot.
+            java.util.Set<String> osKeys = java.util.Set.of("PATH", "PATHEXT", "SYSTEMROOT", "WINDIR", "COMSPEC", "TEMP", "TMP",
+                "USERPROFILE", "APPDATA", "LOCALAPPDATA", "PROGRAMFILES", "PROGRAMFILES(X86)", "PROGRAMW6432",
+                "JAVA_HOME", "MAVEN_HOME", "M2_HOME", "HOME", "LANG", "LC_ALL", "TZ", "NUMBER_OF_PROCESSORS", "PROCESSOR_ARCHITECTURE");
+            java.util.Set<String> runtimeKeys=java.util.Set.of(
+                "SPRING_RABBITMQ_HOST","SPRING_RABBITMQ_PORT","SPRING_RABBITMQ_VHOST",
+                "SPRING_DATA_REDIS_HOST","SPRING_DATA_REDIS_PORT","SPRING_DATA_REDIS_PASSWORD",
+                "SPRING_REDIS_HOST","SPRING_REDIS_PORT","SPRING_REDIS_PASSWORD","APP_REDIS_PORT",
+                "APP_COORDINATION_MODE","APP_COORDINATION_LEASE_NAMESPACE","APP_COORDINATION_BOT_INGRESS_LEASE_TTL",
+                "APP_COORDINATION_BOT_INGRESS_RENEW_INTERVAL","APP_COORDINATION_BOT_INGRESS_FOLLOWER_BACKOFF","APP_COORDINATION_BOT_JOB_LEASE_TTL","APP_COORDINATION_BOT_SESSION_TTL",
+                "APP_STORAGE_OBJECT_MODE","APP_STORAGE_OBJECT_BUCKET","APP_STORAGE_OBJECT_REGION","APP_STORAGE_OBJECT_ENDPOINT",
+                "APP_STORAGE_OBJECT_ACCESS_KEY","APP_STORAGE_OBJECT_SECRET_KEY","APP_STORAGE_OBJECT_PATH_STYLE_ACCESS","APP_STORAGE_OBJECT_KEY_PREFIX",
+                "APP_INTEGRATION_RABBITMQ_INBOUND_EXCHANGE","APP_INTEGRATION_RABBITMQ_INBOUND_QUEUE","APP_INTEGRATION_RABBITMQ_TICKET_CREATED_QUEUE",
+                "APP_INTEGRATION_RABBITMQ_INBOUND_DLX","APP_INTEGRATION_RABBITMQ_INBOUND_DLQ","APP_INTEGRATION_RABBITMQ_TICKET_CREATED_DLQ",
+                "APP_INTEGRATION_RABBITMQ_ROUTING_TELEGRAM","APP_INTEGRATION_RABBITMQ_ROUTING_VK","APP_INTEGRATION_RABBITMQ_ROUTING_MAX","APP_INTEGRATION_RABBITMQ_ROUTING_TICKET_CREATED",
+                "APP_INTEGRATION_RABBITMQ_OUTBOUND_CONCURRENCY","APP_INTEGRATION_RABBITMQ_OUTBOUND_MAX_CONCURRENCY","APP_INTEGRATION_RABBITMQ_OUTBOUND_PREFETCH");
+            builder.environment().keySet().removeIf(key -> {
+                String upper = key.toUpperCase(Locale.ROOT);
+                return !osKeys.contains(upper) && !runtimeKeys.contains(upper);
+            });
+        }
         builder.environment().putAll(contractEnvironment);
     }
 

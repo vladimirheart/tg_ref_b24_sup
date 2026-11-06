@@ -18,17 +18,26 @@ import org.springframework.stereotype.Component;
 public class ConversationTicketCreatedListener {
 
     private final ConversationTicketCreationIngestionService ingestionService;
+    private final com.example.panel.security.ChildBotInboundPrincipalService principals;
 
-    public ConversationTicketCreatedListener(ConversationTicketCreationIngestionService ingestionService) {
+    public ConversationTicketCreatedListener(ConversationTicketCreationIngestionService ingestionService,
+            com.example.panel.security.ChildBotInboundPrincipalService principals) {
         this.ingestionService = ingestionService;
+        this.principals = principals;
     }
 
     @RabbitListener(
         queues = "${app.integration.rabbitmq.ticket-created-queue}",
         containerFactory = "conversationTicketCreatedListenerContainerFactory"
     )
+    @org.springframework.transaction.annotation.Transactional
     public void onConversationTicketCreated(ConversationTicketCreatedEvent event,
-                                            @Header(AmqpHeaders.RECEIVED_ROUTING_KEY) String routingKey) {
+                                            @Header(AmqpHeaders.RECEIVED_ROUTING_KEY) String routingKey,
+                                            @Header(name=AmqpHeaders.RECEIVED_USER_ID, required=false) String publisher,
+                                            org.springframework.amqp.core.Message wire) {
+        principals.authorize(publisher, event != null ? event.channelId() : null, event != null ? event.platform() : null,
+            event != null ? event.userId() : null, event != null ? event.ticketId() : null, true,
+            wire!=null?wire.getBody():null,wire!=null && wire.getMessageProperties().getHeaders().get("X-Iguana-Child-Event-Signature") instanceof String signature?signature:null);
         ingestionService.ingest(event, routingKey);
     }
 }

@@ -39,7 +39,9 @@ public class RabbitIntegrationTransportConfig {
 
     @Bean
     public RabbitAdmin rabbitAdmin(ConnectionFactory connectionFactory) {
-        return new RabbitAdmin(connectionFactory);
+        RabbitAdmin admin=new RabbitAdmin(connectionFactory);
+        if (connectionFactory.getUsername()!=null && connectionFactory.getUsername().startsWith("iguana_child_")) admin.setAutoStartup(false);
+        return admin;
     }
 
     @Bean
@@ -85,6 +87,7 @@ public class RabbitIntegrationTransportConfig {
     ) {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
+        if (connectionFactory.getUsername()!=null && connectionFactory.getUsername().startsWith("iguana_child_")) factory.setContainerCustomizer(container -> container.setAutoDeclare(false));
         factory.setMessageConverter(integrationRabbitMessageConverter);
         factory.setDefaultRequeueRejected(false);
         factory.setConcurrentConsumers(valueOrDefault(properties.getOutboundConcurrency(), 1));

@@ -114,6 +114,7 @@ $failure = $null
 $compiled = $false
 $contracts = 0
 $integration = 0
+$principals = 0
 $integrationStarted = $false
 $unchanged = $null
 try {
@@ -126,8 +127,9 @@ try {
     $contracts = Assert-Report 'MaxMediaChainContractTest' 26
     if (-not $ValidateOnly) {
         $integrationStarted = $true
-        Invoke-Maven 'java-bot' 'integration.log' ($reactor + @('-Dtest=MaxFollowupMediaChainIT', ('-Dmax.media.acceptance.nonce=' + $nonce)))
+        Invoke-Maven 'java-bot' 'integration.log' ($reactor + @('-Dtest=MaxFollowupMediaChainIT,ChildTransportPrincipalIT', ('-Dmax.media.acceptance.nonce=' + $nonce)))
         $integration = Assert-Report 'MaxFollowupMediaChainIT' 38
+        $principals = Assert-Report 'ChildTransportPrincipalIT' 15
     }
 } catch { $failure = $_ }
 finally {
@@ -156,13 +158,15 @@ finally {
         } catch { $unchanged = $false; if (-not $failure) { $failure = $_ } }
     }
     [pscustomobject]@{
-        Phase = 'R287'; SourceCommit = $sourceCommit; Nonce = $nonce; Compiled = $compiled; ContractTests = $contracts
-        IntegrationAttempted = $integrationStarted; IntegrationExecuted = ($integration -gt 0); IntegrationTests = $integration
-        IntegrationPassed = if ($ValidateOnly) { $null } else { (-not $failure -and $integration -eq 38) }
+        Phase = 'R291'; SourceCommit = $sourceCommit; Nonce = $nonce; Compiled = $compiled; ContractTests = $contracts; PrincipalTests = $principals
+        IntegrationAttempted = $integrationStarted; IntegrationExecuted = ($integration -gt 0 -or $principals -gt 0)
+        MaxMediaIntegrationTests = $integration; PrincipalIntegrationExecuted = ($principals -gt 0)
+        IntegrationTests = ($integration + $principals)
+        IntegrationPassed = if ($ValidateOnly) { $null } else { (-not $failure -and $integration -eq 38 -and $principals -eq 15) }
         ExistingContainersUnchanged = $unchanged; Deployment = $false; WorkingDataUsed = $false
         ValidationOnly = [bool]$ValidateOnly; Failed = [bool]$failure; Time = (Get-Date -Format o)
-    } | ConvertTo-Json -Depth 5 | Out-File -Encoding utf8 -LiteralPath (Join-Path $output 'r287-proof.json')
+    } | ConvertTo-Json -Depth 5 | Out-File -Encoding utf8 -LiteralPath (Join-Path $output 'r291-proof.json')
 }
 if ($failure) { throw $failure }
 if ($ValidateOnly) { Write-Output ('PREPARED; integration not executed. Evidence: ' + $output) }
-else { Write-Output ('INTEGRATION_GREEN; 38 cases, no skips. Evidence: ' + $output) }
+else { Write-Output ('INTEGRATION_GREEN; 38 media + 15 principal cases, no skips. Evidence: ' + $output) }
