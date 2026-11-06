@@ -64,6 +64,35 @@ Platform-specific:
 в local `JPA/SQLite` business-path для ticket/channel/feedback/blacklist
 операций.
 
+## Build R293 — 2026-11-06: образ R292 собран, активация отдельно
+
+На текущей Windows/Docker-машине полностью пересобраны backend/Sass и JAR
+Telegram/VK/MAX из clean e3ede2da79861fc7bab6f767cccc65a0e998fa4b (R292).
+Готов образ iguana-panel:account-r292-e3ede2da7-20261106,
+sha256:ff8c8f29d64df42a14ef044c5f24e9c8307a5f37bc024cfdf46c43b53e7851d9.
+JDK17/repository wrapper3.9.6/offline, все runtime main sources compiled заново.
+1281 JVM tests/57 suites, failures/errors/skips0; ещё7 source-link UI cases GREEN.
+Проверены одинаковый nested core во всех3 bot jars, новые backend/MAX classes,
+exact V86/V87 bytes, vendor SRI и4 JAR SHA256 внутри нового image.
+Это не57 PG/Rabbit integration cases: тот отдельный gate ещё не выполнялся.
+
+Docker Engine восстановлен штатным Desktop restart. Найдены исходные20
+containers, все остановлены. Project tg_ref_b24_sup, прежние3 compose-файла и
+.env, по1 replica panel-web/ops-worker/bot-runner; итоговая сверка IDs/images/
+state/ENV/HostConfig/mount values exact. Docker может менять порядок Mounts;
+сравнение выполнено по destination и каждому свойству. Rollback tags
+rollback-r293-{panel-web|ops-worker|bot-runner}-20261106-b0e12ff574c3 сохранены
+для прежнего imageb0e12ff574c3/sourceR279. Build helpers удалены; data volumes
+не менялись. Рабочие DB/Redis/queues/provider не запускались и не использовались.
+
+Deployment=false: контейнеры остаются на прежнем image и остановлены; новый
+health/readiness не заявляется. V86/V87, SQL/Rabbit provision, backfill и flags
+не выполнялись. Для активации по runbooks child-transport-isolation и
+max-linked-questionnaire-media нужны backup/drain, согласованные backend/schema,
+отдельные child principals и затем новые children. Старый image restart не
+включает R292; build не закрывает этот выпуск или S6. Общая задача🟡, S2B снятR190.
+Evidence: ../iguana-runtime/tg_ref_b24_sup/releases/r293-e3ede2da7-20261106/.
+
 ## Source R292 — 2026-11-06: MAX forwarded/reply media и их контекст
 
 Продолжен пункт1 после R291: MAX v4 initial/free-answer и published followup
