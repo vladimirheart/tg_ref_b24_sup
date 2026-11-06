@@ -78,7 +78,7 @@ class TelegramQuestionnaireSelectionTest {
     private void rebuild() throws Exception {
         handler=new TelegramQuestionnaireHandler(runtime,settings,store,tickets,blacklist,attachments);
         bot=spy(new SupportBot(properties,blacklist,mock(UnblockRequestService.class),attachments,channels,settings,tickets,
-                mock(ChatHistoryService.class),feedback,mock(BotIngressCoordinationService.class),guard,runtime,handler,mapper));
+                mock(ChatHistoryService.class),feedback,mock(BotIngressCoordinationService.class),guard,runtime,handler,mapper,mock(SupportChatDeliveryService.class)));
         doAnswer(call->{sent.add(call.getArgument(0));return new Message();}).when(bot).execute(any(SendMessage.class));
         doAnswer(call->new java.io.ByteArrayInputStream(mediaBytes)).when(bot).fetchFile(anyString());
         doAnswer(call->new AttachmentService(mediaRoot,new ObjectStorageProperties()).storeQuestionnaire(call.getArgument(0),call.getArgument(1),call.getArgument(2),call.getArgument(3),call.getArgument(4),call.getArgument(5),call.getArgument(6)))

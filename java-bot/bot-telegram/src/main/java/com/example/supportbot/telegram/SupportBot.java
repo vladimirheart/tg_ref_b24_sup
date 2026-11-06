@@ -6,6 +6,7 @@ import com.example.supportbot.entity.PendingFeedbackRequest;
 import com.example.supportbot.entity.TicketActive;
 import com.example.supportbot.service.ActiveInboundClientMessageCommand;
 import com.example.supportbot.service.AttachmentService;
+import com.example.supportbot.service.SupportChatDeliveryService;
 import com.example.supportbot.service.BlacklistService;
 import com.example.supportbot.service.BotWebhookDeliveryGuardService;
 import com.example.supportbot.service.ChannelService;
@@ -60,6 +61,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import org.telegram.telegrambots.bots.DefaultBotOptions;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiRequestException;
 
 import java.io.File;
 import java.io.FilterInputStream;
@@ -108,6 +110,7 @@ public class SupportBot extends TelegramLongPollingBot {
     private final RuntimeConfigService runtimeConfigService;
     private final TelegramQuestionnaireHandler questionnaireHandler;
     private final ObjectMapper objectMapper;
+    private final SupportChatDeliveryService supportChatDelivery;
 
     private final Map<Long, ConversationSession> conversations = new ConcurrentHashMap<>();
 
@@ -133,7 +136,8 @@ public class SupportBot extends TelegramLongPollingBot {
                       BotWebhookDeliveryGuardService webhookDeliveryGuardService,
                       RuntimeConfigService runtimeConfigService,
                       TelegramQuestionnaireHandler questionnaireHandler,
-                      ObjectMapper objectMapper) {
+                      ObjectMapper objectMapper,
+                      SupportChatDeliveryService supportChatDelivery) {
         super(resolveTelegramBotOptionsFromEnv(), properties.getToken());
         this.properties = properties;
         this.blacklistService = blacklistService;
@@ -149,6 +153,7 @@ public class SupportBot extends TelegramLongPollingBot {
         this.runtimeConfigService = runtimeConfigService;
         this.questionnaireHandler = questionnaireHandler;
         this.objectMapper = objectMapper;
+        this.supportChatDelivery = supportChatDelivery;
     }
 
     @PostConstruct
@@ -1116,42 +1121,18 @@ public class SupportBot extends TelegramLongPollingBot {
                                                String attachmentPath,
                                                String username,
                                                Long userId) {
-        Long operatorChatId = resolveOperatorRelayChatId();
-        if (operatorChatId == null || operatorChatId <= 0) {
-            return;
-        }
-        log.info("Relaying client message to operator chat {}: ticketId={} userId={} messageType={} attachment={}",
-                operatorChatId,
-                ticketId,
-                userId,
-                messageType,
-                attachmentPath);
+        var target = supportChatDelivery.prepare(getChannel(), "telegram", this::getBotToken);
+        if (target == null) return;
         String relayText = buildOperatorRelayText(ticketId, messageType, text, attachmentPath, username, userId);
-        if (attachmentPath != null && !attachmentPath.isBlank() && relayAttachmentToOperators(operatorChatId, messageType, attachmentPath, relayText)) {
-            return;
-        }
-        SendMessage toChannel = SendMessage.builder()
-                .chatId(operatorChatId)
-                .text(relayText)
-                .build();
         try {
-            execute(toChannel);
-        } catch (TelegramApiException e) {
-            log.error("Failed to relay active ticket message to operator channel", e);
-        }
-    }
-
-    private Long resolveOperatorRelayChatId() {
-        Channel channel = getChannel();
-        if (channel != null && channel.getSupportChatId() != null && !channel.getSupportChatId().isBlank()) {
-            try {
-                return Long.parseLong(channel.getSupportChatId().trim());
-            } catch (NumberFormatException ex) {
-                log.warn("Support chat id {} is not a valid Telegram chat id", channel.getSupportChatId());
+            if (attachmentPath != null && !attachmentPath.isBlank()) {
+                if (!target.authorize()) return;
+                if (relayAttachmentToOperators(target, messageType, attachmentPath, relayText)) return;
             }
+            target.send(recipient -> execute(SendMessage.builder().chatId(recipient).text(relayText).build()));
+        } catch (Exception failure) {
+            log.error("Failed to relay active ticket message to authorized operator chat", failure);
         }
-        Long fallback = properties.getChannelId();
-        return fallback != null && fallback > 0 ? fallback : null;
     }
 
     private String buildOperatorRelayText(String ticketId,
@@ -1177,46 +1158,34 @@ public class SupportBot extends TelegramLongPollingBot {
         return builder.toString();
     }
 
-    private boolean relayAttachmentToOperators(Long operatorChatId,
+    private boolean relayAttachmentToOperators(SupportChatDeliveryService.Target target,
                                                String messageType,
                                                String attachmentPath,
-                                               String caption) {
-        if (operatorChatId == null || operatorChatId <= 0 || attachmentPath == null || attachmentPath.isBlank()) {
-            return false;
-        }
+                                               String caption) throws Exception {
         String safeCaption = caption != null && caption.length() > 1024
-                ? caption.substring(0, 1021) + "..."
-                : caption;
+                ? caption.substring(0, 1021) + "..." : caption;
         String normalizedType = String.valueOf(messageType).trim().toLowerCase(Locale.ROOT);
         Path materializedPath = null;
         try {
-            materializedPath = attachmentService.materialize(attachmentPath);
-            File file = materializedPath.toFile();
-            relayAttachmentWithPreferredType(operatorChatId, normalizedType, file, safeCaption);
-            return true;
-        } catch (Exception primaryEx) {
-            log.warn("Failed to relay attachment with preferred Telegram method: type={} path={}",
-                    normalizedType,
-                    attachmentPath,
-                    primaryEx);
-        }
-        try {
-            if (materializedPath == null) {
+            try {
                 materializedPath = attachmentService.materialize(attachmentPath);
+            } catch (IOException unavailable) {
+                log.warn("Failed to materialize attachment for operator relay", unavailable);
+                return false;
             }
             File file = materializedPath.toFile();
-            execute(SendDocument.builder()
-                    .chatId(operatorChatId)
-                    .document(new InputFile(file))
-                    .caption(safeCaption)
-                    .build());
-            return true;
-        } catch (Exception fallbackEx) {
-            log.error("Failed to relay attachment to operator channel even as document: type={} path={}",
-                    normalizedType,
-                    attachmentPath,
-                    fallbackEx);
-            return false;
+            // File materialization performs I/O: the earlier decision cannot authorize this send.
+            try {
+                return relayAttachmentWithPreferredType(target, normalizedType, file, safeCaption);
+            } catch (TelegramApiException primaryFailure) {
+                // A transport/5xx outcome may already have delivered: never automatically resend it.
+                if (!(primaryFailure instanceof TelegramApiRequestException rejected)
+                        || !Integer.valueOf(400).equals(rejected.getErrorCode())) throw primaryFailure;
+                log.warn("Telegram rejected preferred attachment type={}; trying document", normalizedType);
+            }
+            // The same pinned sender/recipient must still be authorized for the document fallback.
+            return target.send(recipient -> execute(SendDocument.builder().chatId(recipient)
+                    .document(new InputFile(file)).caption(safeCaption).build()));
         } finally {
             cleanupMaterializedAttachment(materializedPath);
         }
@@ -1233,19 +1202,21 @@ public class SupportBot extends TelegramLongPollingBot {
         }
     }
 
-    private void relayAttachmentWithPreferredType(Long operatorChatId,
+    private boolean relayAttachmentWithPreferredType(SupportChatDeliveryService.Target target,
                                                   String normalizedType,
                                                   File file,
-                                                  String caption) throws TelegramApiException {
+                                                  String caption) throws Exception {
         InputFile inputFile = new InputFile(file);
-        switch (normalizedType) {
-            case "photo" -> execute(SendPhoto.builder().chatId(operatorChatId).photo(inputFile).caption(caption).build());
-            case "video", "video_note" -> execute(SendVideo.builder().chatId(operatorChatId).video(inputFile).caption(caption).build());
-            case "voice" -> execute(SendVoice.builder().chatId(operatorChatId).voice(inputFile).caption(caption).build());
-            case "audio" -> execute(SendAudio.builder().chatId(operatorChatId).audio(inputFile).caption(caption).build());
-            case "animation" -> execute(SendAnimation.builder().chatId(operatorChatId).animation(inputFile).caption(caption).build());
-            default -> execute(SendDocument.builder().chatId(operatorChatId).document(inputFile).caption(caption).build());
-        }
+        return target.send(recipient -> {
+            switch (normalizedType) {
+                case "photo" -> execute(SendPhoto.builder().chatId(recipient).photo(inputFile).caption(caption).build());
+                case "video", "video_note" -> execute(SendVideo.builder().chatId(recipient).video(inputFile).caption(caption).build());
+                case "voice" -> execute(SendVoice.builder().chatId(recipient).voice(inputFile).caption(caption).build());
+                case "audio" -> execute(SendAudio.builder().chatId(recipient).audio(inputFile).caption(caption).build());
+                case "animation" -> execute(SendAnimation.builder().chatId(recipient).animation(inputFile).caption(caption).build());
+                default -> execute(SendDocument.builder().chatId(recipient).document(inputFile).caption(caption).build());
+            }
+        });
     }
 
     InputStream fetchFile(String fileId) throws TelegramApiException {
@@ -1365,7 +1336,7 @@ public class SupportBot extends TelegramLongPollingBot {
                 builder.append("\n");
             }
         }
-        sendOperatorMessage(channelId, builder.toString().trim());
+        sendOperatorMessage(builder.toString().trim());
     }
 
     @Scheduled(fixedDelay = 60000L)
@@ -1425,21 +1396,16 @@ public class SupportBot extends TelegramLongPollingBot {
             builder.append("Создан: ").append(formatTimestamp(request.getCreatedAt())).append("\n");
         }
         builder.append("Статус: ").append(request.getStatus());
-        sendOperatorMessage(channelId, builder.toString());
+        sendOperatorMessage(builder.toString());
     }
 
-    private void sendOperatorMessage(Long channelId, String text) {
-        if (channelId == null || channelId <= 0 || text == null || text.isBlank()) {
-            return;
-        }
-        SendMessage toChannel = SendMessage.builder()
-                .chatId(channelId)
-                .text(text)
-                .build();
+    private void sendOperatorMessage(String text) {
+        if (text == null || text.isBlank()) return;
         try {
-            execute(toChannel);
-        } catch (TelegramApiException e) {
-            log.error("Failed to notify operator channel", e);
+            var target = supportChatDelivery.prepare(getChannel(), "telegram", this::getBotToken);
+            if (target != null) target.send(recipient -> execute(SendMessage.builder().chatId(recipient).text(text).build()));
+        } catch (Exception failure) {
+            log.error("Failed to notify authorized operator chat", failure);
         }
     }
 
@@ -2115,18 +2081,7 @@ public class SupportBot extends TelegramLongPollingBot {
     }
 
     private void sendTicketSummaryToOperatorChannel(String summary) {
-        if (properties.getChannelId() == null || properties.getChannelId() <= 0 || summary == null || summary.isBlank()) {
-            return;
-        }
-        SendMessage toChannel = SendMessage.builder()
-                .chatId(properties.getChannelId())
-                .text(summary)
-                .build();
-        try {
-            execute(toChannel);
-        } catch (TelegramApiException e) {
-            log.error("Failed to send ticket to operator channel", e);
-        }
+        sendOperatorMessage(summary);
     }
 
     private void sendConversationConfirmation(ConversationSession session, String requestNumber) {

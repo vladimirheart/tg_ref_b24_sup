@@ -91,7 +91,7 @@ class VkQuestionnaireSelectionTest {
     }
     private void rebuild() {
         bot=new VkSupportBot(properties,blacklist,mock(UnblockRequestService.class),attachments,channels,settings,tickets,
-                mock(ChatHistoryService.class),feedback,ingress,store,guard,runtime,mapper);
+                mock(ChatHistoryService.class),feedback,ingress,store,guard,runtime,mapper,mock(SupportChatDeliveryService.class));
         ReflectionTestUtils.setField(bot,"vkClient",sdk);
         var http=mock(java.net.http.HttpClient.class);
         ReflectionTestUtils.setField(bot,"httpClient",http);

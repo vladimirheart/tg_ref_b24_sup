@@ -28,6 +28,43 @@ production/рабочий в старых записях, именах Compose �
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
+## Source R294 — 2026-11-06: legacy уведомления Telegram/VK в разрешённый чат
+
+Продолжен пункт1 после sourceR292/buildR293. Legacy сводки обращений, relay
+клиентских ответов и запросы/digest разблокировок Telegram/VK больше не используют
+canonical ID записи канала как внешний chat/peer ID. Все эти отправки проходят
+SupportChatDeliveryService: bound sender/token + текущий exact support_chat_id,
+две uncached signed backend decisions R291, повторная локальная сверка после I/O.
+Missing/invalid recipient, revoke, rotation/rebind или unavailable API запрещают
+SDK handoff без fallback в properties/shared chat. Telegram signed negative
+group IDs поддерживаются; VK peer должен быть canonical positive int32.
+
+Telegram media pin сохраняется до materialize; после чтения файла и перед
+document fallback проверка повторяется. Временный файл очищается и после
+успешного preferred send. Fallback разрешён только после явного Telegram400;
+403/429/5xx/transport exception/lost HTTP response не дают автоматический resend.
+Изменения не добавляют очередь восстановления service-chat уведомлений.
+
+430 свежих targeted JVM tests/10 suites GREEN,94 новых. Signed loopback HTTP
+проверяет actual panel client; Telegram multipart/JSON проходит настоящий SDK
+на локальный HTTP stand, включая потерю ответа после получения файла. VK SDK
+заменён test double. Все4 bot modules main/test compiled JDK17/repo wrapper;
+это не live provider, PostgreSQL/Rabbit или full application restart acceptance.
+RED первой версии теста сохранён: subclass Mockito не подменяет final media
+execute; fixture заменён actual SDK/HTTP, assertions не ослаблялись.
+
+Source/test-сессия не подключалась к рабочим DB/Redis/Rabbit/провайдерам другой
+машины. Local Docker endpoint недоступен; engine не запускался. R293 image
+ff8c8f29d64d содержит R292 и этих изменений не содержит; build R293 не является
+активацией. Нужна новая сборка bot jars/image и согласованный выпуск по R291/
+R292 runbooks; новых schema migrations в R294 нет. Deployment/commit/push=false.
+Инструкция: docs/runbooks/legacy-support-chat-delivery.md.
+
+Общий пункт1 остаётся в работе: inbound operator/group permissions и другие
+legacy пути, cross-platform restore/replay/rebind и live/provider/rollback gate.
+42 MAX +15 transport-principal Docker cases по-прежнему PENDING_DOCKER;
+S6/production-e2e-smoke §7.1 MANUAL_PENDING. Общая задача🟡, S2B снятR190.
+
 ## Build R293 — 2026-11-06: образ R292 собран, активация отдельно
 
 На текущей Windows/Docker-машине полностью пересобраны backend/Sass и JAR

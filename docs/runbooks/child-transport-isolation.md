@@ -1,5 +1,10 @@
 # Изолированные transport principals дочерних ботов — R291
 
+R294 подключает legacy Telegram/VK service-chat summary/relay/unblock/digest
+к тому же signed exact recipient gate, включая Telegram files и fallback.
+Инструкция новой сборки и приёмки: [legacy notifications](legacy-support-chat-delivery.md).
+Build R293 содержит R292, эти новые bot changes ещё не собраны/не активированы.
+
 R292 добавляет linked MAX media и требует также V87; см.
 [max linked media](max-linked-questionnaire-media.md). Ниже transport contract R291.
 
@@ -41,8 +46,10 @@ platform, actual user и exact raw ticket root до ingestion. Ключ в AMQP 
 
 Это изоляция transport API/SQL/Rabbit и соответствующих read/send paths.
 Она не является полной изоляцией ОС/Redis/object storage и не закрывает весь
-первый блок 01-278. MAX forwarded/reply media, остальные legacy/direct paths и
-общая cross-platform restore/replay/rebind/provider приёмка остаются отдельно.
+первый блок 01-278. MAX forwarded/reply media реализованы sourceR292; legacy
+Telegram/VK operator notifications подключены sourceR294. Остальные legacy/
+inbound group permissions, rollout и общая cross-platform restore/replay/
+rebind/provider приёмка остаются отдельно.
 
 ## До выпуска на машине с проектом
 

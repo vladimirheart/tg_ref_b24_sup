@@ -6,6 +6,7 @@ import com.example.supportbot.entity.PendingFeedbackRequest;
 import com.example.supportbot.entity.TicketActive;
 import com.example.supportbot.service.ActiveInboundClientMessageCommand;
 import com.example.supportbot.service.AttachmentService;
+import com.example.supportbot.service.SupportChatDeliveryService;
 import com.example.supportbot.service.BlacklistService;
 import com.example.supportbot.service.ChannelService;
 import com.example.supportbot.service.ChatHistoryService;
@@ -115,6 +116,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     private final BotWebhookDeliveryGuardService webhookDeliveryGuardService;
     private final RuntimeConfigService runtimeConfigService;
     private final ObjectMapper objectMapper;
+    private final SupportChatDeliveryService supportChatDelivery;
     private final Gson gson;
     private final VkApiClient vkClient;
     private final HttpClient httpClient;
@@ -143,7 +145,8 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                         BotSessionStoreService sessionStoreService,
                         BotWebhookDeliveryGuardService webhookDeliveryGuardService,
                         RuntimeConfigService runtimeConfigService,
-                        ObjectMapper objectMapper) {
+                        ObjectMapper objectMapper,
+                        SupportChatDeliveryService supportChatDelivery) {
         this.properties = properties;
         this.blacklistService = blacklistService;
         this.unblockRequestService = unblockRequestService;
@@ -158,6 +161,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         this.webhookDeliveryGuardService = webhookDeliveryGuardService;
         this.runtimeConfigService = runtimeConfigService;
         this.objectMapper = objectMapper;
+        this.supportChatDelivery = supportChatDelivery;
         this.gson = new Gson();
         this.vkClient = new VkApiClient(new HttpTransportClient());
         this.httpClient = HttpClient.newBuilder().build();
@@ -1017,7 +1021,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         if (hasAttachments) {
             builder.append("\nВ сообщении есть вложения.");
         }
-        sendText(actor, channelId, builder.toString());
+        sendOperatorMessage(builder.toString());
     }
 
     private boolean isClosedStatus(String status) {
@@ -1088,8 +1092,8 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                 .orElse("Спасибо! Ваше обращение принято и передано оператору. Номер появится после регистрации.");
         if (session.selectedBusiness()) sendQuestionnaireText(actor, session.peerId(), confirmation, null);
         else sendText(actor, session.peerId(), confirmation);
-        if (!session.selectedBusiness() && properties.getChannelId() != null && properties.getChannelId() > 0) {
-            sendText(actor, properties.getChannelId().longValue(), session.buildSummary(result.ticketId()));
+        if (!session.selectedBusiness()) {
+            sendOperatorMessage(session.buildSummary(result.ticketId()));
         }
         if (!session.selectedBusiness()) requestNumber.ifPresent(number -> {
             int scale = botSettingsService.ratingScale(session.settings(), 5);
@@ -1367,7 +1371,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                 builder.append("\n");
             }
         }
-        sendOperatorMessage(channelId, builder.toString().trim());
+        sendOperatorMessage(builder.toString().trim());
     }
 
     @Scheduled(fixedDelay = 60000L)
@@ -1428,15 +1432,21 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             builder.append("Создан: ").append(formatTimestamp(request.getCreatedAt())).append("\n");
         }
         builder.append("Статус: ").append(request.getStatus());
-        sendText(actor, channelId, builder.toString());
+        sendOperatorMessage(builder.toString());
     }
 
-    private void sendOperatorMessage(Long channelId, String text) {
-        if (channelId == null || channelId <= 0 || text == null || text.isBlank()) {
-            return;
+    private void sendOperatorMessage(String text) {
+        if (!properties.isEnabled() || text == null || text.isBlank()) return;
+        try {
+            var target = supportChatDelivery.prepare(getChannel(), "vk", properties::getToken);
+            if (target != null) target.send(recipient -> {
+                GroupActor actor = createActor();
+                vkClient.messages().sendDeprecated(actor).peerId(Long.parseLong(recipient))
+                    .randomId(ThreadLocalRandom.current().nextInt()).message(text).execute();
+            });
+        } catch (Exception failure) {
+            log.error("Failed to notify authorized VK operator chat", failure);
         }
-        GroupActor actor = createActor();
-        sendText(actor, channelId, text);
     }
 
     private String formatTimestamp(OffsetDateTime value) {
