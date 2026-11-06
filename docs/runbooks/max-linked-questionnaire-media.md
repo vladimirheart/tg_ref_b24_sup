@@ -1,10 +1,14 @@
 # MAX: пересылки и ответы с вложениями — R292
 
-R292 подготовлен как source change задачи 01-278. Рабочий проект/Docker находится
-на другой машине и в другой сессии; здесь не выполнялись его миграции,
-пересборка, restart, изменение flags или provider send. Последний
-документированный runtime release — R280/R279. Source R291 уже находится в Git,
-это не подтверждение его выкладки. Общая задача остаётся 🟡, S2B снят R190.
+R292 подготовлен как source change задачи 01-278 в другой сессии и включён
+в Build R296/sourceR295. R297 активировал этот image на Windows-машине рабочего
+тестового экземпляра: V86/V87 и отдельные SQL/Rabbit principals уже применены,
+backend и3 active children обновлены. Повторять их provision не требуется.
+Flags прежние; signed MAX v4 choices возвращает404 по существующему feature gate.
+42 MAX PG/Rabbit cases ещё pending из-за fixture port publication;15 Docker
+principal IT GREEN. Live linked-media/provider и S6 приёмка остаются.
+См. [актуальный checkpoint](../../ai-context/tasks/task-details/01-278.md#runtime-r297--2026-11-06-v86v87-и-изолированные-боты-активированы).
+Общая задача остаётся 🟡, S2B снят R190.
 
 ## Поддерживаемое поведение
 

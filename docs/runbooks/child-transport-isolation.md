@@ -7,17 +7,19 @@ children нужны совместно; [контракт и приёмка](pan
 R294 подключает legacy Telegram/VK service-chat summary/relay/unblock/digest
 к тому же signed exact recipient gate, включая Telegram files и fallback.
 Инструкция новой сборки и приёмки: [legacy notifications](legacy-support-chat-delivery.md).
-Build R293 содержит R292, эти новые bot changes ещё не собраны/не активированы.
+Build R296 содержит R292/R294/R295; на рабочем тестовом экземпляре они
+активированы в R297. См. [актуальный checkpoint](../../ai-context/tasks/task-details/01-278.md#runtime-r297--2026-11-06-v86v87-и-изолированные-боты-активированы).
 
 R292 добавляет linked MAX media и требует также V87; см.
 [max linked media](max-linked-questionnaire-media.md). Ниже transport contract R291.
 
-Это инструкция будущего согласованного выпуска. Source подготовлен на машине
-`C:\Users\sushi\Git_H\tg_ref_b24_sup`; рабочий проект/Docker находится на другой
-машине и в другой сессии. Здесь не выполнялись рабочие миграции, создание ролей,
-импорт RabbitMQ definitions, пересборка или перезапуск рабочего экземпляра.
-Последний документированный release — R280/R279; новый source не подтверждает
-его обновление. Исторический backfill S2B снят R190.
+Это повторно используемая инструкция выпуска. Исторический source R291 был
+подготовлен в другой сессии; R297 выполнен на Windows-машине рабочего тестового
+экземпляра. V86/V87 и SQL/Rabbit principals Telegram1/3 и MAX2 уже применены,
+backend и3 children обновлены. Не создавать роли и не повторять миграции только
+из-за старых source checkpoints. Фактический Compose snapshot и backups —
+releases/r297-activation-20261106/private вне Git. Flags прежние, общий
+PG/Rabbit/media/provider/S6 gate ещё не закрыт. Исторический S2B снят R190.
 
 ## Что меняется
 

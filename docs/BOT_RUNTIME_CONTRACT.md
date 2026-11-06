@@ -64,6 +64,59 @@ Platform-specific:
 в local `JPA/SQLite` business-path для ticket/channel/feedback/blacklist
 операций.
 
+## Runtime R297 — 2026-11-06: V86/V87 и изолированные боты активированы
+
+Рабочий тестовый экземпляр находится на текущей Windows-машине. После явного
+«делай» выполнена активация image из Build R296:
+iguana-panel:account-r295-6bc6ae23a-20261106,
+sha256:29f36986a0dbfd615c1444851567517602ba11bf2729d095a918850b03054d89,
+source6bc6ae23a641b4a633d3936501ec1829640f0166 (R295). Baseline checkout/remote
+dd58f10bd2b43379a1ff2468c5109639b2538467 (R296) содержит только metadata поверх
+этого source. Повторная сборка не требовалась.
+
+Реальный db-migrate завершился0: Flyway V86/V87 success, текущая версия87;
+FORCE RLS на3 transport tables и chat_history.source_link_json подтверждены.
+Для Telegram1/3 и MAX2 применены отдельные SQL/Rabbit principals iguana_child_1/2/3.
+Реальный SQL login, отказ business reads, отсутствие чужих outbox rows и точные
+Rabbit permissions проверены. Signed API:13 own/foreign/retired-operator checks
+GREEN; в JVM всех3 детей свои API/SQL/Rabbit credentials, control-plane secrets
+отсутствуют. Старые DB migrations/provision после обрыва не повторялись.
+
+Compose project tg_ref_b24_sup: panel-web/ops-worker/bot-runner на новом image,
+по1 replica, healthy/restart0; запущены2 Telegram и1 MAX child. VK JAR также новый,
+активного VK-канала нет. Всего15 работающих project services; db-migrate,
+minio-init и shared-config-check exited0. При восстановлении после обрыва Docker
+Desktop запущен заново; containers поднялись по прежним restart policies без
+повторного recreate. Остальные16 исходных container IDs/images сохранены.
+ENV, HostConfig/mount values и исходный .env прежние; auto-start восстановлен.
+Фактический application Compose input теперь release private/compose.final.json
+(полный resolved snapshot прежних contour+observability+R280 override), с исходным
+.env и project directory. Не подменять его старым R280 override при продолжении.
+
+Свежая проверка после восстановления:61 live panel access checks,13 signed API
+checks,12 running JAR SHA256 exact; health/readiness200UP,
+production-readiness200/ready, Rabbit healthy, все10 очередей пусты/DLQ0.
+Settings455, accounts/grants, roots53/pending51/ratings36/ledger17 и контрольные
+hashes данных прежние. Flags не менялись: signed MAX v4 choices сейчас404 по
+существующему feature gate; live MAX linked-media flow этим не принят.
+Ручной provider send, replay/purge и backfill не выполнялись.
+
+До миграций сохранены cold PostgreSQL/Redis, logical PostgreSQL/globals,
+Rabbit definitions и shared config; backups и rollback image aliases R296
+сверены повторно. Всё same-host, private ACL текущего SID; restore/rollback
+не разыгрывались. Принимающая проверка:34 contracts и15 Docker PostgreSQL
+principal IT GREEN. Остальные42 MAX PG/Rabbit cases не выполнились:
+test fixture PostgreSQL в internal network не получил опубликованный port
+(Docker29/Testcontainers1.19.7); это startup error, общий57-case gate не GREEN.
+Assertions/isolation не ослаблялись. XML/logs и principal artifacts сохранены
+с SHA-256 readback; удалены только4 собственных .tmp каталога/worktree.
+
+Задача🟡: остаются42 MAX cases, cross-platform restore/replay/rebind/provider
+приёмка, политики общих задач/проектов/системных данных, AI privacy/delivery,
+controlled flags и полная S6/§7.1/rollback приёмка. S2B снятR190.
+Evidence и actual Compose: ../iguana-runtime/tg_ref_b24_sup/releases/r297-activation-20261106/.
+Ниже Build R296 и прежние source checkpoints — историческое состояние до активации.
+
 ## Build R296 — 2026-11-06: backend и все боты R295 пересобраны
 
 Из clean HEAD/origin/main/actual remote 6bc6ae23a641b4a633d3936501ec1829640f0166 полностью
