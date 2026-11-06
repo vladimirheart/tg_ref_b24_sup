@@ -16,6 +16,9 @@ public class SharedExpandedQuestionnaireRuntimeController {
     private final SharedGeneralQuestionnaireService service;
     private final InternalBotApiRequestGuardService guard;
     private final MultibusinessFeatureFlags flags;
+    private com.example.panel.service.integration.SelectedTicketFollowupMediaService linkedMedia;
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setLinkedMedia(com.example.panel.service.integration.SelectedTicketFollowupMediaService linkedMedia) { this.linkedMedia=linkedMedia; }
 
     public SharedExpandedQuestionnaireRuntimeController(SharedGeneralQuestionnaireService service,
             InternalBotApiRequestGuardService guard, MultibusinessFeatureFlags flags) {
@@ -56,6 +59,17 @@ public class SharedExpandedQuestionnaireRuntimeController {
             response.setHeader("X-Iguana-Questionnaire-VK-Media-Version", "1");
         }
     }
+    @GetMapping("/max-linked-media-selection")
+    public SharedGeneralQuestionnaireService.Selected maxLinkedMediaSelection(HttpServletRequest request,HttpServletResponse response,
+            @RequestHeader(name="X-Iguana-Bot-Api-Token",required=false) String token,@PathVariable long channelId,
+            @RequestParam String scopeKind,@RequestParam(required=false) Long businessId,
+            @RequestParam String catalogSha256,@RequestParam(defaultValue="false") boolean forStart) {
+        var selected=maxMediaSelection(request,response,token,channelId,scopeKind,businessId,catalogSha256,forStart);
+        if(linkedMedia==null)throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE);
+        linkedMedia.requireMaxLinkedMedia(channelId);
+        return selected;
+    }
+
     @GetMapping("/max-media-selection")
     public SharedGeneralQuestionnaireService.Selected maxMediaSelection(HttpServletRequest request,HttpServletResponse response,
             @RequestHeader(name="X-Iguana-Bot-Api-Token",required=false) String token,@PathVariable long channelId,

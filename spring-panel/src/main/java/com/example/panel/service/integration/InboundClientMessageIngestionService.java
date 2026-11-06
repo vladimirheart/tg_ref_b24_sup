@@ -106,13 +106,14 @@ public class InboundClientMessageIngestionService {
             for(var item:event.mediaBatch()) {
                 var entry=new InboundClientMessageEvent(event.eventId(),event.eventKind(),event.platform(),event.channelId(),event.ticketId(),
                     event.userId(),event.userIdentity(),event.username(),event.clientName(),event.text(),item.messageType(),item.attachmentPath(),
-                    item.attachmentName(),event.providerMessageId(),event.replyToProviderMessageId(),event.forwardedFrom(),event.occurredAt());
+                    item.attachmentName(),event.providerMessageId(),event.replyToProviderMessageId(),event.forwardedFrom(),event.occurredAt(),null,event.sourceLink());
                 storeHistory(entry,channel,ticket,occurredAt,proof.get(item.attachmentPath()));
             }
             messageRepository.findFirstByTicketId(event.ticketId()).ifPresent(message -> syncClientProfile(message,event,occurredAt));
             upsertTicketActivity(event,occurredAt);
             return;
         }
+        if(event.sourceLink()!=null) throw new IllegalStateException("A source link requires the versioned MAX media batch");
         if(event.mediaBatch()!=null) throw new IllegalStateException("A batch requires its versioned event kind");
         boolean selectedRoot=ticket.getQuestionnaireCatalogSha256()!=null;
         boolean media=event.attachmentPath()!=null || !"text".equals(event.messageType());
@@ -143,7 +144,8 @@ public class InboundClientMessageIngestionService {
         history.setChannel(channel);
         history.setTgMessageId(parseLong(event.providerMessageId()));
         history.setReplyToTgId(parseLong(event.replyToProviderMessageId()));
-        history.setForwardedFrom(event.forwardedFrom());
+        history.setSourceLinkJson(MessageSourceLinkJson.write(event.sourceLink()));
+        history.setForwardedFrom(event.sourceLink()!=null && "forward".equals(event.sourceLink().type()) ? event.sourceLink().authorName() : event.forwardedFrom());
         history.setFileName(event.attachmentName());
         ChatHistory saved = chatHistoryRepository.save(history);
 

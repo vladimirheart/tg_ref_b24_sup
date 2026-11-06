@@ -19,7 +19,8 @@ public record InboundClientMessageEvent(String eventId,
                                         String replyToProviderMessageId,
                                         String forwardedFrom,
                                         OffsetDateTime occurredAt,
-                                        java.util.List<MediaItem> mediaBatch) {
+                                        java.util.List<MediaItem> mediaBatch,
+                                        @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) MessageSourceLink sourceLink) {
     public static final String MEDIA_BATCH_KIND="client_message.selected_media_batch.v1";
     public record MediaItem(String messageType,String attachmentPath,String attachmentName) {}
     public InboundClientMessageEvent {
@@ -30,6 +31,12 @@ public record InboundClientMessageEvent(String eventId,
             String attachmentName,String providerMessageId,String replyToProviderMessageId,String forwardedFrom,OffsetDateTime occurredAt) {
         this(eventId,eventKind,platform,channelId,ticketId,userId,userIdentity,username,clientName,text,messageType,attachmentPath,
             attachmentName,providerMessageId,replyToProviderMessageId,forwardedFrom,occurredAt,null);
+    }
+    public InboundClientMessageEvent(String eventId,String eventKind,String platform,Long channelId,String ticketId,Long userId,
+            String userIdentity,String username,String clientName,String text,String messageType,String attachmentPath,
+            String attachmentName,String providerMessageId,String replyToProviderMessageId,String forwardedFrom,OffsetDateTime occurredAt,java.util.List<MediaItem> mediaBatch) {
+        this(eventId,eventKind,platform,channelId,ticketId,userId,userIdentity,username,clientName,text,messageType,attachmentPath,
+            attachmentName,providerMessageId,replyToProviderMessageId,forwardedFrom,occurredAt,mediaBatch,null);
     }
     public static String mediaBatchId(long channelId,long userId,String ticketId,String providerId) {
         // Length-prefix the opaque ticket ID: delimiters inside it cannot alias another tuple.

@@ -25,6 +25,22 @@ class MaxFollowupMediaChainIT {
     static Stream<Arguments> byteCases(){return Stream.of(false,true).flatMap(g->Stream.of("missing","hash").map(kind->Arguments.of(g,kind)));}
     static Stream<Arguments> driftCases(){return Stream.of(false,true).flatMap(g->Stream.of("closed","owner","duplicate").map(kind->Arguments.of(g,kind)));}
     static Stream<Arguments> initialCases(){return Stream.of(false,true).flatMap(g->Stream.of(false,true).map(scoped->Arguments.of(g,scoped)));}
+    static Stream<Arguments> linkedCases(){return Stream.of(false,true).flatMap(g->Stream.of("forward","reply").map(type->Arguments.of(g,type)));}
+    @ParameterizedTest @MethodSource("linkedCases")
+    void linkedSourceSurvivesTheActualSignedBrokerChainAndReplay(boolean general,String type)throws Exception {
+        f.reset(general);assertThat(f.client.selectedMaxLinkedMediaAdmission(CHANNEL,USER,RAW).version()).isEqualTo(4);
+        var source=new com.example.supportbot.service.MessageSourceLink(type,"mid.original:opaque",Long.toString(USER+77),"Original author");
+        var event=f.enqueue(general,Long.MAX_VALUE,2,source);String original=f.jdbc.queryForObject("SELECT payload_json FROM integration_transport_outbox",String.class);
+        f.startConsumer();f.outbox.dispatchScheduled();await(()->"processed".equals(f.state(event.eventId())));f.stopConsumer();
+        assertThat(f.count("chat_history")).isEqualTo(2);assertThat(f.count("chat_attachment_metadata")).isEqualTo(2);
+        for(var row:f.jdbc.queryForList("SELECT user_id,ticket_owner_user_id,ticket_id,source_link_json FROM chat_history")) {
+            var context=com.example.panel.service.integration.MessageSourceLinkJson.read((String)row.get("source_link_json"));
+            assertThat(context.type()).isEqualTo(type);assertThat(context.providerMessageId()).isEqualTo(source.providerMessageId());assertThat(context.authorUserId()).isEqualTo(source.authorUserId());
+            assertThat(row.get("user_id")).isEqualTo(USER);assertThat(row.get("ticket_owner_user_id")).isEqualTo(USER);assertThat(row.get("ticket_id")).isEqualTo(RAW);
+        }
+        f.deliver(event);assertThat(f.count("chat_history")).isEqualTo(2);assertThat(f.outbox.findRecordedMaxMediaTicket(CHANNEL,USER,Long.MAX_VALUE)).contains(RAW);
+        assertThat(f.jdbc.queryForObject("SELECT payload_json FROM integration_transport_outbox",String.class)).isEqualTo(original);assertThat(f.rabbit.receive(f.dlq,100)).isNull();
+    }
     @ParameterizedTest @MethodSource("positiveCases")
     void signedAdmissionOutboxBrokerListenerAndOwnedMetadata(boolean general,int count,long provider)throws Exception{
         f.reset(general);var proof=f.client.selectedMaxMediaAdmission(CHANNEL,USER,RAW);assertThat(proof.version()).isEqualTo(3);assertThat(proof.remainingFiles()).isEqualTo(10);assertThat(proof.businessId()).isEqualTo(general?null:BUSINESS);assertThat(proof.ticketId()).isEqualTo(RAW);

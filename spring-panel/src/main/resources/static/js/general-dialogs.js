@@ -76,6 +76,16 @@
       text.className = 'text-break';
       text.textContent = entry.message || '';
       item.append(title, text);
+      const source = entry.sourceLink;
+      if (source?.providerMessageId && ['forward', 'reply'].includes(source.type)) {
+        const context = document.createElement('p');
+        context.className = 'small text-muted';
+        const author = source.authorName || source.authorUserId || 'скрытого автора';
+        context.textContent = source.type === 'forward'
+          ? `Переслано от ${author} · ${source.providerMessageId}`
+          : `Ответ на сообщение ${source.providerMessageId} · ${author}`;
+        item.appendChild(context);
+      }
       if (entry.hasAttachment && Number.isSafeInteger(entry.id) && entry.id > 0) {
         const link = document.createElement('a');
         link.textContent = 'Скачать вложение';

@@ -1,5 +1,8 @@
 # Изолированные transport principals дочерних ботов — R291
 
+R292 добавляет linked MAX media и требует также V87; см.
+[max linked media](max-linked-questionnaire-media.md). Ниже transport contract R291.
+
 Это инструкция будущего согласованного выпуска. Source подготовлен на машине
 `C:\Users\sushi\Git_H\tg_ref_b24_sup`; рабочий проект/Docker находится на другой
 машине и в другой сессии. Здесь не выполнялись рабочие миграции, создание ролей,
@@ -148,13 +151,14 @@ V86, результаты и flags в acceptance checkpoint. Файлы с crede
 
 ## Автоматическая приёмка и rollback
 
-Локально в source-сессии прошли 1023 JVM tests/43 suites, без failures/errors/
+Для source R291 прошли 1023 JVM tests/43 suites, без failures/errors/
 skips: в том числе 55 SQL/API/inbound/Flyway cases, 8 scoped history SQL cases
 и 15 actual bot startup SQL cases на собственном native PostgreSQL16.15.
 Windows PowerShell5.1 generator checks — 14 GREEN; runner self-test GREEN.
 Loopback HTTP и provider doubles не означают live provider acceptance.
 
-38 MAX media PG/Rabbit cases остаются `PENDING_DOCKER`: local engine недоступен.
+MAX media PG/Rabbit gate остаётся `PENDING_DOCKER`: local engine недоступен.
+R292 расширяет прежние38 cases до42; новый source proof описан в связанном runbook.
 15 principal cases выполнены native, их Docker variant ещё не выполнялся.
 После пользовательского commit на машине с локальным Docker/JDK17:
 
@@ -163,8 +167,8 @@ powershell.exe -NoProfile -File .\java-bot\bot-feedback-acceptance\run-max-media
 ```
 
 Оператор создаёт detached checkout и только свои nonce-labelled test containers;
-проверяет неизменность существующих. Итог — 26 contracts +38 media +15 principals,
-без skips, `r291-proof.json`, IntegrationTests=53. `-ValidateOnly` не закрывает
+проверяет неизменность существующих. Текущий итог R292 — 34 contracts +42 media +15 principals,
+без skips, `r292-proof.json`, IntegrationTests=57. `-ValidateOnly` не закрывает
 integration gate. Он не выполняет rollout или операции с рабочими данными.
 
 При неуспехе остановить новый intake/детей, сохранить очередь/outbox/ledger/

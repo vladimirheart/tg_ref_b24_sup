@@ -108,7 +108,7 @@ public class IntegrationTransportOutboxService {
             if(InboundClientMessageEvent.MEDIA_BATCH_KIND.equals(row.get("event_kind"))) {
                 var event=transportObjectMapper.treeToValue(payload,InboundClientMessageEvent.class);
                 if(!provider.equals(event.providerMessageId()) || !InboundClientMessageEvent.mediaBatchId(channelId,userId,ticket,provider).equals(event.eventId())
-                        || !"selected_media_batch.v1".equals(event.messageType()) || event.occurredAt()==null || event.replyToProviderMessageId()!=null || event.forwardedFrom()!=null
+                        || !MessageSourceLink.batchType(event.messageType(),event.sourceLink()) || event.occurredAt()==null || event.replyToProviderMessageId()!=null || event.forwardedFrom()!=null
                         || event.mediaBatch()==null || event.mediaBatch().isEmpty() || event.mediaBatch().size()>10)throw invalidMaxMediaJournal();
                 for(int slot=0;slot<event.mediaBatch().size();slot++) {
                     var item=event.mediaBatch().get(slot);
@@ -121,6 +121,10 @@ public class IntegrationTransportOutboxService {
                 if(!"USER_SELECTION".equals(payload.path("scopeSelectionSource").asText())
                         || !payload.path("catalogSha256").asText().matches("[a-f0-9]{64}")
                         || !payload.path("templateSha256").asText().matches("[a-f0-9]{64}"))throw invalidMaxMediaJournal();
+                for(var entry:payload.path("historyEntries")) {
+                    MessageSourceLink link=entry.hasNonNull("sourceLink")?transportObjectMapper.treeToValue(entry.get("sourceLink"),MessageSourceLink.class):null;
+                    MessageSourceLink.mediaType("max",entry.path("messageType").asText(),link);
+                }
                 boolean found=false;
                 for(var entry:payload.path("historyEntries"))if(provider.equals(entry.path("providerMessageId").asText())
                         && entry.path("userId").asLong()!=userId)throw invalidMaxMediaJournal();

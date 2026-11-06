@@ -86,7 +86,7 @@ public class ChildBotRequestScopeService {
         if (request.getParameterMap().containsKey("channelId")) requireChannel(child, uniqueParameter(request, "channelId"));
         if (pattern.contains("/questionnaire-media")) {
             requireTicket(child, uniqueParameter(request, "ticketId"));
-            if (pattern.endsWith("/max-batch") && !"max".equals(child.platform())
+            if ((pattern.endsWith("/max-batch") || pattern.endsWith("/max-linked-batch")) && !"max".equals(child.platform())
                     || pattern.endsWith("/vk-batch") && !"vk".equals(child.platform())) throw forbidden();
         }
         request.setAttribute(PRINCIPAL_ATTRIBUTE, child);

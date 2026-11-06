@@ -20,7 +20,10 @@ final class MaxConversationSession {
 
     @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
     record HistoryEvent(Long userId,String text,String messageType,String attachmentPath,String attachmentName,
-                        String providerMessageId,OffsetDateTime occurredAt) {
+                        String providerMessageId,OffsetDateTime occurredAt,com.example.supportbot.service.MessageSourceLink sourceLink) {
+        HistoryEvent(Long userId,String text,String messageType,String attachmentPath,String attachmentName,String providerMessageId,OffsetDateTime occurredAt) {
+            this(userId,text,messageType,attachmentPath,attachmentName,providerMessageId,occurredAt,null);
+        }
         HistoryEvent(Long userId,String text,String messageType) {this(userId,text,messageType,null,null,null,null);}
     }
 

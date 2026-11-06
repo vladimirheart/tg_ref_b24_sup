@@ -17,6 +17,16 @@ public class SelectedQuestionnaireMediaValidator {
     public Map<String,Verified> validate(ConversationTicketCreatedEvent event,int version) {
         var result=new LinkedHashMap<String,Verified>();
         if(event.historyEntries()==null) return result;
+        var sourceByProvider=new HashMap<String,MessageSourceLink>();
+        for(var entry:event.historyEntries()) {
+            if(entry==null)continue;
+            MessageSourceLink.mediaType(event.platform(),entry.messageType(),entry.sourceLink());
+            if(entry.sourceLink()!=null && (version!=4 || !"max".equals(event.platform()) || entry.attachmentPath()==null))throw invalid();
+            if("max".equals(event.platform()) && entry.attachmentPath()!=null) {
+                if(sourceByProvider.containsKey(entry.providerMessageId()) && !Objects.equals(sourceByProvider.get(entry.providerMessageId()),entry.sourceLink()))throw invalid();
+                sourceByProvider.put(entry.providerMessageId(),entry.sourceLink());
+            }
+        }
         for(var entry:event.historyEntries()) {
             if(entry==null) continue;
             boolean vk="vk".equals(event.platform());
@@ -24,7 +34,8 @@ public class SelectedQuestionnaireMediaValidator {
             boolean batch=vk||max;
             // The first v4 root has the same owned-byte boundary as subsequent client messages.
             // Missing storage is not plain text, and an unsupported platform never falls back to legacy media.
-            boolean media=entry.attachmentPath()!=null || !"text".equals(entry.messageType());
+            String messageType=MessageSourceLink.mediaType(event.platform(),entry.messageType(),entry.sourceLink());
+            boolean media=entry.attachmentPath()!=null || !"text".equals(messageType);
             if(version==4 && media && (entry.attachmentPath()==null || (!"telegram".equals(event.platform()) && !batch)))
                 throw invalid();
             if(entry.attachmentPath()==null) continue;
@@ -33,7 +44,7 @@ public class SelectedQuestionnaireMediaValidator {
                 continue; // Earlier MAX attachment protocols retain their own admission rules.
             }
             if(version!=4 || event.userId()==null || event.userId()<=0 || !Objects.equals(event.userId(),entry.userId())
-                    || !(vk?Set.of("document","photo","audio_message"):TYPES).contains(Objects.toString(entry.messageType(),"")) || entry.occurredAt()==null
+                    || !(vk?Set.of("document","photo","audio_message"):TYPES).contains(Objects.toString(messageType,"")) || entry.occurredAt()==null
                     || entry.providerMessageId()==null || !entry.providerMessageId().matches("[1-9][0-9]{0,18}")
                     || (entry.attachmentName()!=null && (entry.attachmentName().length()>255
                         || entry.attachmentName().chars().anyMatch(c->c<32 || c==127 || c=='/' || c=='\\')))) throw invalid();

@@ -503,14 +503,16 @@ public class MaxWebhookController {
         if(!session.selectedBusiness() || session.isComplete() || session.selection().submittedTicketId()!=null
                 || session.selection().submissionEventKey()!=null || session.currentQuestion()==null || session.awaitingReuseDecision() || MaxQuestionInputSupport.isChoiceQuestion(session.currentQuestion()))
             return rejectQuestionnaireMedia(claim,channel,session);
-        final List<MaxQuestionnaireMedia.Item> items;
-        try {items=MaxQuestionnaireMedia.describe(message,attachments);}
+        final MaxQuestionnaireMedia.Batch batch;
+        try {batch=MaxQuestionnaireMedia.describeBatch(message,attachments);}
         catch(IllegalArgumentException invalid){return rejectInitialQuestionnaireMedia(claim,channel,session);}
+        var items=batch.items();
         if(providerId==null || providerId<=0 || session.history().stream().filter(h->h.attachmentPath()!=null).count()+items.size()>10)
             return rejectInitialQuestionnaireMedia(claim,channel,session);
         if(ticketService.findActiveTicketForUser(session.userId(),identity,channel.getId()).isPresent())
             return rejectQuestionnaireMedia(claim,channel,session);
-        if(!runtimeConfigService.confirmMaxQuestionnaireMedia(channel,session.selection().catalog(),session.selection().selected()))
+        if(!(batch.sourceLink()==null?runtimeConfigService.confirmMaxQuestionnaireMedia(channel,session.selection().catalog(),session.selection().selected())
+            :runtimeConfigService.confirmMaxLinkedQuestionnaireMedia(channel,session.selection().catalog(),session.selection().selected())))
             throw new PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException("MAX media writer is not ready");
         String answer=text.isBlank()?"[вложение от клиента]":text;
         var history=new java.util.ArrayList<MaxConversationSession.HistoryEvent>();
@@ -519,7 +521,7 @@ public class MaxWebhookController {
         try {
             for(var item:items) {
                 var stored=questionnaireMediaWriter.store(owner,item.slot(),item.type(),item.url(),item.name());
-                history.add(new MaxConversationSession.HistoryEvent(session.userId(),answer,item.type(),stored.storageKey(),stored.name(),providerId.toString(),time));
+                history.add(new MaxConversationSession.HistoryEvent(session.userId(),answer,item.type(),stored.storageKey(),stored.name(),providerId.toString(),time,batch.sourceLink()));
             }
         }catch(AttachmentService.MediaSizeException rejected){return rejectInitialQuestionnaireMedia(claim,channel,session);}
         catch(java.io.IOException failure){throw new IllegalStateException("MAX questionnaire media storage failed");}
@@ -536,12 +538,13 @@ public class MaxWebhookController {
     private ResponseEntity<Map<String,Object>> acceptPublishedMedia(BotWebhookDeliveryGuardService.DeliveryClaim claim,
             Channel channel,Long userId,String ticketId,MaxConversationSession session,JsonNode message,
             List<MaxInboundPayloadSupport.IncomingAttachment> attachments,String text,MaxInboundPayloadSupport.ClientProfile profile,Long providerId) {
-        final List<MaxQuestionnaireMedia.Item> items;
-        try{items=MaxQuestionnaireMedia.describe(message,attachments);}
+        final MaxQuestionnaireMedia.Batch batch;
+        try{batch=MaxQuestionnaireMedia.describeBatch(message,attachments);}
         catch(IllegalArgumentException invalid){return rejectQuestionnaireMedia(claim,channel,userId,null);}
+        var items=batch.items();
         if(providerId==null || providerId<=0)return rejectQuestionnaireMedia(claim,channel,userId,null);
-        var proof=runtimeConfigService.selectedMaxMediaAdmission(channel,userId,ticketId);
-        if(proof==null || proof.version()!=3 || proof.channelId()!=channel.getId() || proof.userId()!=userId || !ticketId.equals(proof.ticketId())
+        var proof=batch.sourceLink()==null?runtimeConfigService.selectedMaxMediaAdmission(channel,userId,ticketId):runtimeConfigService.selectedMaxLinkedMediaAdmission(channel,userId,ticketId);
+        if(proof==null || proof.version()!=(batch.sourceLink()==null?3:4) || proof.channelId()!=channel.getId() || proof.userId()!=userId || !ticketId.equals(proof.ticketId())
                 || items.size()>proof.remainingFiles() || proof.remainingFiles()>10 || proof.remainingFiles()<1)
             return rejectQuestionnaireMedia(claim,channel,userId,null);
         if(session!=null && session.selectedBusiness()) {
@@ -563,7 +566,7 @@ public class MaxWebhookController {
         // This transaction commits the entire immutable batch before webhook acknowledgement.
         // Retry reads it above, without rebuilding timestamps, profile, files or the current root.
         ticketService.recordSelectedMediaBatch(new ActiveInboundClientMessageCommand(userId,profile.identity(),profile.username(),profile.clientName(),
-            channel,ticketId,text.isBlank()?"[вложение от клиента]":text,"selected_media_batch.v1",null,null,providerId,null,null,OffsetDateTime.now()),stored);
+            channel,ticketId,text.isBlank()?"[вложение от клиента]":text,"selected_media_batch.v1",null,null,providerId,null,null,OffsetDateTime.now(),batch.sourceLink()),stored);
         return completeDelivery(claim,ResponseEntity.ok(Map.of("ok",true,"ticket_id",ticketId,"media_queued",true)));
     }
 
@@ -574,7 +577,7 @@ public class MaxWebhookController {
 
     private ResponseEntity<Map<String, Object>> rejectQuestionnaireMedia(BotWebhookDeliveryGuardService.DeliveryClaim claim,
                                                                         Channel channel, Long userId, MaxConversationSession session) {
-        return warnQuestionnaireMedia(claim,channel,userId,session,"Вложение не сохранено; подпись не принята. Отправьте прямой поддерживаемый файл от 1 байта до 10 МиБ или продолжите текстом.");
+        return warnQuestionnaireMedia(claim,channel,userId,session,"Вложение не сохранено; подпись не принята. Отправьте поддерживаемый файл от 1 байта до 10 МиБ напрямую, пересылкой или в ответ на сообщение; либо продолжите текстом.");
     }
     private ResponseEntity<Map<String,Object>> rejectInitialQuestionnaireMedia(BotWebhookDeliveryGuardService.DeliveryClaim claim,Channel channel,MaxConversationSession session) {
         return warnQuestionnaireMedia(claim,channel,session.userId(),session,"Вложение не сохранено; подпись не принята. Отправьте поддерживаемый файл от 1 байта до 10 МиБ со свободным ответом или продолжите текстом.");
@@ -822,7 +825,8 @@ public class MaxWebhookController {
                                         event.attachmentPath(),
                                         event.attachmentName(),
                                         event.providerMessageId(),
-                                        event.occurredAt()!=null?event.occurredAt():session.startedAt()
+                                        event.occurredAt()!=null?event.occurredAt():session.startedAt(),
+                                        event.sourceLink()
                                 ))
                                 .toList(),
                         channel,

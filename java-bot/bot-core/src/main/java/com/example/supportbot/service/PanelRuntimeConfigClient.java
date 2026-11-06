@@ -130,12 +130,19 @@ public class PanelRuntimeConfigClient {
         if(catalog==null || catalog.version()!=4)throw unavailable();
         return select(catalog,businessId==null?"GENERAL":"BUSINESS",businessId,true,false,true);
     }
+    public SelectedQuestionnaire selectMaxLinkedMediaForStart(ChoiceCatalog catalog,Long businessId) {
+        if(catalog==null || catalog.version()!=4)throw unavailable();
+        return select(catalog,businessId==null?"GENERAL":"BUSINESS",businessId,true,false,true,true);
+    }
     private SelectedQuestionnaire select(ChoiceCatalog catalog,String kind,Long businessId,boolean forStart,boolean requireVkMedia,boolean requireMaxMedia) {
+        return select(catalog,kind,businessId,forStart,requireVkMedia,requireMaxMedia,false);
+    }
+    private SelectedQuestionnaire select(ChoiceCatalog catalog,String kind,Long businessId,boolean forStart,boolean requireVkMedia,boolean requireMaxMedia,boolean linked) {
         if (catalog==null) throw unavailable();
         requireChannel(catalog.channelId());validateCatalog(catalog.channelId(),catalog);
         Choice choice=catalog.choices().stream().filter(item->kind.equals(item.scopeKind()) && java.util.Objects.equals(item.businessId(),businessId)).findFirst().orElseThrow(PanelRuntimeConfigClient::unavailable);
         SelectedQuestionnaire selected=fetchTyped("/internal/api/bot/channels/"+catalog.channelId()
-            +"/questionnaire/"+(catalog.version()>=2?"v"+catalog.version()+"/":"")+(requireMaxMedia?"max-media-selection?":"selection?")
+            +"/questionnaire/"+(catalog.version()>=2?"v"+catalog.version()+"/":"")+(linked?"max-linked-media-selection?":requireMaxMedia?"max-media-selection?":"selection?")
             +(catalog.version()>=2?"scopeKind="+kind+"&":"")+(businessId==null?"":"businessId="+businessId+"&")
             +"catalogSha256="+catalog.catalogSha256()+(forStart ? "&forStart=true" : ""),SelectedQuestionnaire.class,forStart?catalog.version():0,requireVkMedia,requireMaxMedia);
         if (selected==null || selected.version()!=catalog.version() || selected.channelId()!=catalog.channelId() || !java.util.Objects.equals(selected.businessId(),businessId)
@@ -200,11 +207,17 @@ public class PanelRuntimeConfigClient {
     }
     /** Admission comes from the published root, including when its questionnaire session is gone. */
     public SelectedMediaAdmission selectedMaxMediaAdmission(long channelId,long userId,String ticketId) {
+        return selectedMaxMediaAdmission(channelId,userId,ticketId,false);
+    }
+    public SelectedMediaAdmission selectedMaxLinkedMediaAdmission(long channelId,long userId,String ticketId) {
+        return selectedMaxMediaAdmission(channelId,userId,ticketId,true);
+    }
+    private SelectedMediaAdmission selectedMaxMediaAdmission(long channelId,long userId,String ticketId,boolean linked) {
         requireChannel(channelId);
         if(userId<=0 || ticketId==null || ticketId.isBlank() || ticketId.length()>512)throw unavailable();
-        var proof=fetchTyped("/internal/api/bot/channels/"+channelId+"/questionnaire-media/max-batch?userId="+userId+"&ticketId="
+        var proof=fetchTyped("/internal/api/bot/channels/"+channelId+"/questionnaire-media/"+(linked?"max-linked-batch":"max-batch")+"?userId="+userId+"&ticketId="
             +java.net.URLEncoder.encode(ticketId,StandardCharsets.UTF_8),SelectedMediaAdmission.class);
-        if(proof==null || proof.version()!=3 || proof.channelId()!=channelId || proof.userId()!=userId || !ticketId.equals(proof.ticketId())
+        if(proof==null || proof.version()!=(linked?4:3) || proof.channelId()!=channelId || proof.userId()!=userId || !ticketId.equals(proof.ticketId())
                 || !("BUSINESS".equals(proof.scopeKind()) && proof.businessId()!=null && proof.businessId()>0
                     || "GENERAL".equals(proof.scopeKind()) && proof.businessId()==null)
                 || proof.questionTemplateId()==null || proof.questionTemplateId().isBlank() || proof.questionTemplateId().length()>512

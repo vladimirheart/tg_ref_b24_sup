@@ -223,8 +223,8 @@ class ChildPrincipalPostgresTest {
         try {
             var flyway=org.flywaydb.core.Flyway.configure().dataSource(source).schemas(schema).defaultSchema(schema)
                 .locations("classpath:db/migration/postgresql").load();
-            assertThat(flyway.migrate().migrationsExecuted).isEqualTo(86);flyway.validate();
-            assertThat(flyway.info().current().getVersion().toString()).isEqualTo("86");
+            assertThat(flyway.migrate().migrationsExecuted).isEqualTo(87);flyway.validate();
+            assertThat(flyway.info().current().getVersion().toString()).isEqualTo("87");
             var scoped=new JdbcTemplate(source);
             assertThat(scoped.queryForObject("SELECT count(*) FROM pg_policies WHERE schemaname=? AND policyname LIKE '%child_scope'",Integer.class,schema)).isEqualTo(3);
             String definition=scoped.queryForObject("SELECT pg_get_functiondef(oid) FROM pg_proc WHERE pronamespace=?::regnamespace AND proname='bot_child_channel'",String.class,schema);

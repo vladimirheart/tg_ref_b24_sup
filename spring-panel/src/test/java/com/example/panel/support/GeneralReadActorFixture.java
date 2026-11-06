@@ -30,7 +30,7 @@ public final class GeneralReadActorFixture {
             CREATE TABLE tickets(user_id BIGINT,ticket_id TEXT,ticket_public_id TEXT,status TEXT,created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
                 business_id BIGINT,is_general BOOLEAN,group_msg_id BIGINT,channel_id BIGINT,questionnaire_catalog_sha256 TEXT,general_selection_source TEXT,business_selection_source TEXT);
             CREATE TABLE chat_history(id BIGINT PRIMARY KEY,user_id BIGINT,ticket_owner_user_id BIGINT,ticket_id TEXT,ticket_public_id TEXT,sender TEXT,message TEXT,
-                timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,message_type TEXT,attachment TEXT,deleted_at TIMESTAMPTZ,channel_id BIGINT,tg_message_id BIGINT);
+                timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,message_type TEXT,attachment TEXT,deleted_at TIMESTAMPTZ,channel_id BIGINT,tg_message_id BIGINT,source_link_json TEXT);
             CREATE TABLE ticket_attributes(ticket_id TEXT,question_id TEXT,question_text TEXT,value_label TEXT,value_text TEXT);
             CREATE TABLE chat_attachment_metadata(id BIGINT PRIMARY KEY,chat_history_id BIGINT,ticket_id TEXT,channel_id BIGINT,storage_key TEXT,original_name TEXT,content_hash TEXT,size BIGINT,mime_type TEXT,
                 deleted_at TIMESTAMPTZ,archived_at TIMESTAMPTZ,storage_class TEXT,normalization_status TEXT,availability_status TEXT,storage_provider TEXT);

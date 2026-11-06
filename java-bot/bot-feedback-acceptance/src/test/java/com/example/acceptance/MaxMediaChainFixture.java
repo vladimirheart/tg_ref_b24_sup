@@ -55,7 +55,7 @@ final class MaxMediaChainFixture implements AutoCloseable {
     static final List<Class<?>> PANEL_CLASSES=List.of(SelectedTicketFollowupMediaService.class,SelectedTicketFollowupMediaController.class,
         InboundClientMessageIngestionService.class,InboundClientMessageListener.class,IntegrationInboundEventInboxService.class,
         LegacyTicketIdConcurrencyGuard.class,ChatAttachmentMetadataService.class,com.example.panel.config.RabbitIntegrationTransportConfig.class,
-        ChildBotCredentials.class,ChildBotInboundPrincipalService.class,ChildBotRequestScopeService.class);
+        ChildBotCredentials.class,ChildBotInboundPrincipalService.class,ChildBotRequestScopeService.class,MessageSourceLink.class,MessageSourceLinkJson.class);
     final ObjectMapper mapper=org.springframework.http.converter.json.Jackson2ObjectMapperBuilder.json().build();
     final AtomicBoolean requeueAfterCommit=new AtomicBoolean();
     final List<byte[]> wire=new CopyOnWriteArrayList<>();
@@ -122,7 +122,7 @@ final class MaxMediaChainFixture implements AutoCloseable {
         admission=transactional(new SelectedTicketFollowupMediaService(jdbc,flags,storage));
         var channels=mock(ChannelRepository.class);when(channels.findById(anyLong())).thenAnswer(c->jdbc.query("SELECT id,platform FROM channels WHERE id=?",(r,n)->{var channel=new Channel();channel.setId(r.getLong(1));channel.setPlatform(r.getString(2));return channel;},c.getArgument(0)).stream().findFirst());
         var tickets=mock(TicketRepository.class);when(tickets.findById(any(TicketId.class))).thenAnswer(c->{TicketId id=c.getArgument(0);return jdbc.query("SELECT channel_id,questionnaire_version,questionnaire_catalog_sha256 FROM tickets WHERE user_id=? AND ticket_id=?",(r,n)->{var root=new Ticket();root.setId(id);var channel=new Channel();channel.setId(r.getLong(1));root.setChannel(channel);root.setQuestionnaireVersion(r.getInt(2));root.setQuestionnaireCatalogSha256(r.getString(3));return root;},id.getUserId(),id.getTicketId()).stream().findFirst();});
-        var history=mock(ChatHistoryRepository.class);when(history.save(any(ChatHistory.class))).thenAnswer(c->{beforeHistory.get().run();ChatHistory h=c.getArgument(0);Long id=jdbc.queryForObject("INSERT INTO chat_history(user_id,sender,message,timestamp,ticket_id,ticket_owner_user_id,message_type,attachment,channel_id,tg_message_id,reply_to_tg_id,forwarded_from,file_name) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",Long.class,h.getUserId(),h.getSender(),h.getMessage(),h.getTimestamp(),h.getTicketId(),h.getTicketOwnerUserId(),h.getMessageType(),h.getAttachment(),h.getChannel().getId(),h.getTgMessageId(),h.getReplyToTgId(),h.getForwardedFrom(),h.getFileName());h.setId(id);return h;});
+        var history=mock(ChatHistoryRepository.class);when(history.save(any(ChatHistory.class))).thenAnswer(c->{beforeHistory.get().run();ChatHistory h=c.getArgument(0);Long id=jdbc.queryForObject("INSERT INTO chat_history(user_id,sender,message,timestamp,ticket_id,ticket_owner_user_id,message_type,attachment,channel_id,tg_message_id,reply_to_tg_id,forwarded_from,file_name,source_link_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",Long.class,h.getUserId(),h.getSender(),h.getMessage(),h.getTimestamp(),h.getTicketId(),h.getTicketOwnerUserId(),h.getMessageType(),h.getAttachment(),h.getChannel().getId(),h.getTgMessageId(),h.getReplyToTgId(),h.getForwardedFrom(),h.getFileName(),h.getSourceLinkJson());h.setId(id);return h;});
         var active=mock(TicketActiveRepository.class);when(active.findById(anyString())).thenAnswer(c->jdbc.query("SELECT ticket_id FROM ticket_active WHERE ticket_id=?",(r,n)->{var a=new TicketActive();a.setTicketId(r.getString(1));return a;},c.getArgument(0)).stream().findFirst());
         when(active.save(any(TicketActive.class))).thenAnswer(c->{TicketActive a=c.getArgument(0);jdbc.update("UPDATE ticket_active SET user_identity=?,last_seen=? WHERE ticket_id=?",a.getUserIdentity(),a.getLastSeen(),a.getTicketId());return a;});
         var inbox=transactional(new IntegrationInboundEventInboxService(jdbc,mapper));
@@ -157,9 +157,10 @@ final class MaxMediaChainFixture implements AutoCloseable {
     List<com.example.supportbot.service.InboundClientMessageEvent.MediaItem> files(boolean general,long provider,int count)throws Exception{
         var result=new ArrayList<com.example.supportbot.service.InboundClientMessageEvent.MediaItem>();for(int slot=1;slot<=count;slot++){byte[] bytes={1,2,3,(byte)slot};String sha=HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));String key="questionnaires/max/"+CHANNEL+"/"+(general?"general":"business-"+BUSINESS)+"/"+USER+"/"+"c".repeat(64)+"/"+provider+"/"+slot+"/"+sha+".bin";Path path=files.resolve(key);Files.createDirectories(path.getParent());Files.write(path,bytes);result.add(new com.example.supportbot.service.InboundClientMessageEvent.MediaItem("document",key,"proof.bin"));}return List.copyOf(result);
     }
-    InboundClientMessageEvent enqueue(boolean general,long provider,int count)throws Exception{
+    InboundClientMessageEvent enqueue(boolean general,long provider,int count)throws Exception{return enqueue(general,provider,count,null);}
+    InboundClientMessageEvent enqueue(boolean general,long provider,int count,com.example.supportbot.service.MessageSourceLink source)throws Exception{
         var items=files(general,provider,count);var channel=new com.example.supportbot.entity.Channel();channel.setId(CHANNEL);channel.setPlatform("max");channel.setActive(true);
-        var command=new ActiveInboundClientMessageCommand(USER,"new-profile","client","Client",channel,RAW,"Private caption","selected_media_batch.v1",null,null,provider,null,null,OffsetDateTime.parse("2026-11-05T08:01:00Z"));
+        var command=new ActiveInboundClientMessageCommand(USER,"new-profile","client","Client",channel,RAW,"Private caption","selected_media_batch.v1",null,null,provider,null,null,OffsetDateTime.parse("2026-11-05T08:01:00Z"),source);
         tx.executeWithoutResult(s->publisher.publishSelectedMediaBatch(command,items));String id=com.example.supportbot.service.InboundClientMessageEvent.mediaBatchId(CHANNEL,USER,RAW,Long.toString(provider));
         return mapper.readValue(jdbc.queryForObject("SELECT payload_json FROM integration_transport_outbox WHERE event_id=?",String.class,id),InboundClientMessageEvent.class);
     }
@@ -178,7 +179,7 @@ final class MaxMediaChainFixture implements AutoCloseable {
             listener.onInboundClientMessage(event,"r287.max","iguana_child_"+CHANNEL,new Message(body,props));
         }catch(java.io.IOException ex){throw new IllegalStateException(ex);}
     }
-    void schema(){jdbc.execute("""
+    void schema()throws Exception{jdbc.execute("""
         CREATE TABLE channels(id BIGINT PRIMARY KEY,platform TEXT,is_active BOOLEAN);
         CREATE TABLE bot_child_principals(role_name text primary key,channel_id bigint,platform text,enabled boolean);
         INSERT INTO bot_child_principals VALUES('iguana_child_9007199254740995', 9007199254740995, 'max', true);
@@ -187,6 +188,8 @@ final class MaxMediaChainFixture implements AutoCloseable {
         CREATE TABLE chat_history(id BIGSERIAL PRIMARY KEY,user_id BIGINT,sender TEXT,message TEXT,timestamp TIMESTAMPTZ,ticket_id TEXT,ticket_owner_user_id BIGINT,message_type TEXT,attachment TEXT,channel_id BIGINT,tg_message_id BIGINT,reply_to_tg_id BIGINT,forwarded_from TEXT,file_name TEXT,FOREIGN KEY(ticket_owner_user_id,ticket_id) REFERENCES tickets(user_id,ticket_id));
         CREATE TABLE chat_attachment_metadata(chat_history_id BIGINT PRIMARY KEY REFERENCES chat_history(id),ticket_id TEXT,channel_id BIGINT,storage_key TEXT,storage_provider TEXT,storage_class TEXT,original_name TEXT,mime_type TEXT,size BIGINT,content_hash TEXT,legacy_attachment_ref TEXT,normalization_status TEXT,availability_status TEXT,created_at TIMESTAMPTZ,updated_at TIMESTAMPTZ,archived_at TIMESTAMPTZ,deleted_at TIMESTAMPTZ);
         CREATE TABLE integration_inbound_event_inbox(event_id TEXT PRIMARY KEY,event_kind TEXT,platform TEXT,channel_id BIGINT,ticket_id TEXT,transport_source TEXT,routing_key TEXT,payload_json TEXT,status TEXT,received_at TIMESTAMPTZ,processed_at TIMESTAMPTZ,last_error TEXT,attempt_count INTEGER,processing_started_at TIMESTAMPTZ,updated_at TIMESTAMPTZ);
-        """);}
+        """);
+        jdbc.execute(new org.springframework.core.io.ClassPathResource("db/V87__max_message_source_link.sql").getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
+    }
     @Override public void close(){try{stopConsumer();if(http!=null)http.stop(0);if(connections!=null)connections.destroy();if(datasource!=null)datasource.close();}finally{try{broker.stop();}finally{try{postgres.stop();}finally{network.close();}}}}
 }

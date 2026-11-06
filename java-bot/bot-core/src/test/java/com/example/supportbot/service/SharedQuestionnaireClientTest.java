@@ -41,7 +41,7 @@ class SharedQuestionnaireClientTest {
         server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
         server.createContext("/internal/api/bot/channels/8/questionnaire",exchange->{
             lastStartPath=exchange.getRequestURI().toString();
-            if(lastStartPath.contains("max-media-selection") && !"missing".equals(maxMediaVersion)) {
+            if((lastStartPath.contains("max-media-selection") || lastStartPath.contains("max-linked-media-selection")) && !"missing".equals(maxMediaVersion)) {
                 exchange.getResponseHeaders().add("X-Iguana-Questionnaire-MAX-Media-Version",maxMediaVersion.equals("duplicate")?"1":maxMediaVersion);
                 if(maxMediaVersion.equals("duplicate"))exchange.getResponseHeaders().add("X-Iguana-Questionnaire-MAX-Media-Version","1");
             }
@@ -323,4 +323,18 @@ class SharedQuestionnaireClientTest {
         assertThatThrownBy(()->client.selectGeneralForStart(general,true)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
         vkMediaVersion="1";assertThat(client.selectGeneralForStart(general,true).businessId()).isNull();
     }
+    @ParameterizedTest @ValueSource(strings={"BUSINESS","GENERAL"})
+    void linkedMaxSelectionUsesItsOwnSignedRouteAndFrozenMenu(String kind)throws Exception {
+        r152Large(kind,2);var menu=client.choicesV4ForStart(8);maxMediaVersion="1";
+        var result=client.selectMaxLinkedMediaForStart(menu,kind.equals("GENERAL")?null:7L);
+        assertThat(result.scopeKind()).isEqualTo(kind);assertThat(result.catalogSha256()).isEqualTo(menu.catalogSha256());
+        assertThat(lastStartPath).contains("/questionnaire/v4/max-linked-media-selection?");assertThat(signatureValid).isTrue();
+    }
+    @ParameterizedTest @ValueSource(strings={"missing","0","2","duplicate"})
+    void linkedMaxDoesNotInferSupportFromGenericHeaders(String marker)throws Exception {
+        r152Large("BUSINESS",2);var menu=client.choicesV4ForStart(8);maxMediaVersion=marker;
+        assertThatThrownBy(()->client.selectMaxLinkedMediaForStart(menu,7L)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
+        assertThat(lastStartPath).contains("/max-linked-media-selection?");
+    }
+
 }

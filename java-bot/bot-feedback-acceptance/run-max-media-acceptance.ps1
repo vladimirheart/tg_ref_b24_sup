@@ -123,12 +123,13 @@ try {
     Invoke-Maven 'spring-panel' 'panel-compile.log' @('compile', '-DskipTests', '-Dmaven.compiler.useIncrementalCompilation=false', '-Dstyle.color=never')
     $compiled = $true
     $reactor = @('-f', 'pom.xml', '-Pfeedback-chain-acceptance', '-pl', ':bot-feedback-acceptance', '-am', 'test', '-Dsurefire.failIfNoSpecifiedTests=false', '-Dmaven.compiler.useIncrementalCompilation=false', '-DargLine=-Xmx384m', '-Dstyle.color=never')
-    Invoke-Maven 'java-bot' 'contracts.log' ($reactor + @('-Dtest=MaxMediaChainContractTest'))
+    Invoke-Maven 'java-bot' 'contracts.log' ($reactor + @('-Dtest=MaxMediaChainContractTest,MaxLinkedMediaWireContractTest'))
     $contracts = Assert-Report 'MaxMediaChainContractTest' 26
+    $contracts += (Assert-Report 'MaxLinkedMediaWireContractTest' 8)
     if (-not $ValidateOnly) {
         $integrationStarted = $true
         Invoke-Maven 'java-bot' 'integration.log' ($reactor + @('-Dtest=MaxFollowupMediaChainIT,ChildTransportPrincipalIT', ('-Dmax.media.acceptance.nonce=' + $nonce)))
-        $integration = Assert-Report 'MaxFollowupMediaChainIT' 38
+        $integration = Assert-Report 'MaxFollowupMediaChainIT' 42
         $principals = Assert-Report 'ChildTransportPrincipalIT' 15
     }
 } catch { $failure = $_ }
@@ -158,15 +159,15 @@ finally {
         } catch { $unchanged = $false; if (-not $failure) { $failure = $_ } }
     }
     [pscustomobject]@{
-        Phase = 'R291'; SourceCommit = $sourceCommit; Nonce = $nonce; Compiled = $compiled; ContractTests = $contracts; PrincipalTests = $principals
+        Phase = 'R292'; SourceCommit = $sourceCommit; Nonce = $nonce; Compiled = $compiled; ContractTests = $contracts; PrincipalTests = $principals
         IntegrationAttempted = $integrationStarted; IntegrationExecuted = ($integration -gt 0 -or $principals -gt 0)
         MaxMediaIntegrationTests = $integration; PrincipalIntegrationExecuted = ($principals -gt 0)
         IntegrationTests = ($integration + $principals)
-        IntegrationPassed = if ($ValidateOnly) { $null } else { (-not $failure -and $integration -eq 38 -and $principals -eq 15) }
+        IntegrationPassed = if ($ValidateOnly) { $null } else { (-not $failure -and $integration -eq 42 -and $principals -eq 15) }
         ExistingContainersUnchanged = $unchanged; Deployment = $false; WorkingDataUsed = $false
         ValidationOnly = [bool]$ValidateOnly; Failed = [bool]$failure; Time = (Get-Date -Format o)
-    } | ConvertTo-Json -Depth 5 | Out-File -Encoding utf8 -LiteralPath (Join-Path $output 'r291-proof.json')
+    } | ConvertTo-Json -Depth 5 | Out-File -Encoding utf8 -LiteralPath (Join-Path $output 'r292-proof.json')
 }
 if ($failure) { throw $failure }
 if ($ValidateOnly) { Write-Output ('PREPARED; integration not executed. Evidence: ' + $output) }
-else { Write-Output ('INTEGRATION_GREEN; 38 media + 15 principal cases, no skips. Evidence: ' + $output) }
+else { Write-Output ('INTEGRATION_GREEN; 42 media + 15 principal cases, no skips. Evidence: ' + $output) }

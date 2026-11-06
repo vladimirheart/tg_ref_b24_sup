@@ -111,6 +111,11 @@ public class ConversationTicketCreationIngestionService {
     }
 
     private void processEvent(ConversationTicketCreatedEvent event) {
+        boolean linkedHistory=event.historyEntries()!=null && event.historyEntries().stream().anyMatch(entry -> entry!=null
+            && (entry.sourceLink()!=null || entry.messageType()!=null && entry.messageType().startsWith(MessageSourceLink.HISTORY_PREFIX)));
+        if(linkedHistory && (!"max".equals(event.platform()) || !"USER_SELECTION".equals(event.scopeSelectionSource())
+                || !("BUSINESS".equals(event.scopeKind()) || "GENERAL".equals(event.scopeKind())) || event.catalogSha256()==null))
+            throw new IllegalStateException("Linked media requires an explicitly selected MAX questionnaire");
         Channel channel = channelRepository.findById(event.channelId())
             .orElseThrow(() -> new IllegalStateException("Ticket creation channel not found: " + event.channelId()));
         legacyTicketIdConcurrencyGuard.acquire(event.ticketId());
@@ -436,14 +441,17 @@ public class ConversationTicketCreationIngestionService {
             history.setTimestamp(entryTime);
             history.setTicketId(event.ticketId());
             history.setTicketOwnerUserId(event.userId());
-            history.setMessageType(entry.messageType());
+            String messageType=MessageSourceLink.mediaType(event.platform(),entry.messageType(),entry.sourceLink());
+            history.setMessageType(messageType);
             history.setAttachment(entry.attachmentPath());
             history.setFileName(entry.attachmentName());
             history.setChannel(channel);
             history.setTgMessageId(parseLong(entry.providerMessageId()));
+            history.setSourceLinkJson(MessageSourceLinkJson.write(entry.sourceLink()));
+            if(entry.sourceLink()!=null && "forward".equals(entry.sourceLink().type()))history.setForwardedFrom(entry.sourceLink().authorName());
             ChatHistory saved = chatHistoryRepository.save(history);
             var proof=entry.attachmentPath()==null?null:verifiedMedia.get(entry.attachmentPath());
-            if(proof==null) chatAttachmentMetadataService.upsertForChatHistory(saved.getId(),event.ticketId(),channel.getId(),entry.attachmentPath(),entry.attachmentName(),null,null,entry.messageType());
+            if(proof==null) chatAttachmentMetadataService.upsertForChatHistory(saved.getId(),event.ticketId(),channel.getId(),entry.attachmentPath(),entry.attachmentName(),null,null,messageType);
             else chatAttachmentMetadataService.upsertForChatHistory(
                 saved.getId(),
                 event.ticketId(),
@@ -452,7 +460,7 @@ public class ConversationTicketCreationIngestionService {
                 entry.attachmentName(),
                 null,
                 proof==null?null:proof.size(),
-                entry.messageType(),
+                messageType,
                 proof==null?null:proof.sha256()
             );
         }

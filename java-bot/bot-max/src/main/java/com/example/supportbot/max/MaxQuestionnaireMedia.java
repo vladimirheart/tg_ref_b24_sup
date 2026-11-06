@@ -5,14 +5,18 @@ import com.fasterxml.jackson.databind.JsonNode;
 import java.net.URI;
 import java.util.*;
 
-/** Describe the complete direct batch before I/O. Forwarded/opaque/ambiguous shapes remain explicitly unsupported. */
+/** Describe the complete direct/forwarded/reply batch and its source context before any I/O. */
 final class MaxQuestionnaireMedia {
     static final Set<String> TYPES=Set.of("document","photo","audio","video");
     record Item(int slot,String type,String url,String name) {}
+    record Batch(List<Item> items,com.example.supportbot.service.MessageSourceLink sourceLink) {}
     private MaxQuestionnaireMedia() {}
     static List<Item> describe(JsonNode message,List<MaxInboundPayloadSupport.IncomingAttachment> decoded) {
-        if(message.hasNonNull("link"))throw invalid();
-        JsonNode body=message.path("body"),raw=body.path("attachments");
+        return describeBatch(message,decoded).items();
+    }
+    static Batch describeBatch(JsonNode message,List<MaxInboundPayloadSupport.IncomingAttachment> decoded) {
+        var source=MaxQuestionnaireSourceLink.describe(message);
+        JsonNode body=MaxQuestionnaireSourceLink.attachmentBody(message,source),raw=body.path("attachments");
         if(!raw.isArray() || raw.isEmpty() || raw.size()>QuestionnaireMedia.MAX_FILES || decoded.size()!=raw.size()
                 || (message.hasNonNull("attachments") && !message.path("attachments").isEmpty())
                 || (body.hasNonNull("media") && !body.path("media").isEmpty()) || (body.hasNonNull("files") && !body.path("files").isEmpty()))throw invalid();
@@ -27,7 +31,7 @@ final class MaxQuestionnaireMedia {
                     && (!size.isIntegralNumber()||!size.canConvertToLong()||size.longValue()<1||size.longValue()>QuestionnaireMedia.MAX_BYTES))throw invalid();
             result.add(new Item(i+1,type,uri.toString(),decoded.get(i).name()));
         }
-        return List.copyOf(result);
+        return new Batch(List.copyOf(result),source);
     }
     private static IllegalArgumentException invalid(){return new IllegalArgumentException("Unsupported MAX questionnaire attachment");}
 }

@@ -36,6 +36,10 @@ public class ConversationTicketCreatedPublisher {
             eventId = UUID.randomUUID().toString();
         }
         String platform = command.channel().getPlatform() != null ? command.channel().getPlatform() : "telegram";
+        if(command.historyEntries()!=null && command.historyEntries().stream().anyMatch(entry -> entry!=null && entry.sourceLink()!=null)
+                && (!"max".equals(platform) || !"USER_SELECTION".equals(command.scopeSelectionSource())
+                    || !("BUSINESS".equals(command.scopeKind()) || "GENERAL".equals(command.scopeKind())) || command.catalogSha256()==null))
+            throw new IllegalArgumentException("Linked media requires an explicitly selected MAX questionnaire");
         ConversationTicketCreatedEvent event = new ConversationTicketCreatedEvent(
             eventId,
             "ticket.created.initial_contact",
@@ -53,7 +57,12 @@ public class ConversationTicketCreatedPublisher {
             problem,
             command.startedAt(),
             mapAttributes(command.attributes()),
-            command.historyEntries(),
+            command.historyEntries()==null?null:command.historyEntries().stream().map(entry -> {
+                if(entry==null || entry.sourceLink()==null)return entry;
+                if(!"max".equals(platform) || entry.attachmentPath()==null || !java.util.Set.of("document","photo","audio","video").contains(entry.messageType()))
+                    throw new IllegalArgumentException("Invalid linked questionnaire media");
+                return new ConversationHistoryEntry(entry.userId(),entry.text(),MessageSourceLink.HISTORY_PREFIX+entry.messageType(),entry.attachmentPath(),entry.attachmentName(),entry.providerMessageId(),entry.occurredAt(),entry.sourceLink());
+            }).toList(),
             command.businessId(),
             command.scopeKind(),
             command.scopeSelectionSource(),

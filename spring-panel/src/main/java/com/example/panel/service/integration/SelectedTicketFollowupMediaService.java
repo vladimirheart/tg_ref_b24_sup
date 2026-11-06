@@ -29,6 +29,19 @@ public class SelectedTicketFollowupMediaService {
     @Transactional(readOnly=true)
     public Admission maxBatchAdmission(long channelId,long userId,String ticketId) { return require(channelId,userId,ticketId,false,"max"); }
 
+    /** Distinct capability: an old backend cannot admit a payload whose source context it would discard. */
+    @Transactional(readOnly=true)
+    public Admission maxLinkedBatchAdmission(long channelId,long userId,String ticketId) {
+        requireMaxLinkedMedia(channelId);
+        var root=require(channelId,userId,ticketId,false,"max");
+        return new Admission(4,root.channelId(),root.userId(),root.ticketId(),root.businessId(),root.scopeKind(),root.questionTemplateId(),root.templateSha256(),root.catalogSha256(),root.remainingFiles());
+    }
+    public void requireMaxLinkedMedia(long channelId) {
+        // Resolve the V87 column even for an empty history; never apply schema changes from a request.
+        var rows=jdbc.queryForList("SELECT c.id FROM channels c LEFT JOIN chat_history h ON FALSE WHERE c.id=? AND c.platform='max' AND c.is_active=true AND h.source_link_json IS NULL",Long.class,channelId);
+        if(rows.size()!=1) throw denied();
+    }
+
     private Admission require(long channelId,long userId,String ticketId,boolean lock,String platform) {
         if(channelId<=0 || userId<=0 || ticketId==null || ticketId.isBlank() || ticketId.length()>512
                 || !flags.isFoundationEnabled() || !flags.isTicketWriteRequiresBusiness() || !flags.isSharedChannelResolution()) throw denied();
@@ -88,7 +101,7 @@ public class SelectedTicketFollowupMediaService {
                 || !Objects.equals(event.eventId(),InboundClientMessageEvent.mediaBatchId(event.channelId(),event.userId(),event.ticketId(),event.providerMessageId())))
             throw denied();
         long provider=Long.parseLong(event.providerMessageId());
-        if(provider>Integer.MAX_VALUE || event.replyToProviderMessageId()!=null || event.forwardedFrom()!=null) throw denied();
+        if(provider>Integer.MAX_VALUE || event.sourceLink()!=null || event.replyToProviderMessageId()!=null || event.forwardedFrom()!=null) throw denied();
         var root=require(event.channelId(),event.userId(),event.ticketId(),true,"vk");
         if(root.remainingFiles()<event.mediaBatch().size()
                 || !Objects.equals(event.attachmentPath(),event.mediaBatch().get(0).attachmentPath())
@@ -116,7 +129,7 @@ public class SelectedTicketFollowupMediaService {
     /** MAX keeps its 64-bit provider identity and validates all item metadata before opening storage. */
     public Map<String,SelectedQuestionnaireMediaValidator.Verified> verifyMaxBatch(InboundClientMessageEvent event) {
         if(event==null || !InboundClientMessageEvent.MEDIA_BATCH_KIND.equals(event.eventKind()) || !"max".equals(event.platform())
-                || !"selected_media_batch.v1".equals(event.messageType()) || event.channelId()==null || event.userId()==null
+                || !MessageSourceLink.batchType(event.messageType(),event.sourceLink()) || event.channelId()==null || event.userId()==null
                 || event.ticketId()==null || event.occurredAt()==null || event.providerMessageId()==null
                 || !event.providerMessageId().matches("[1-9][0-9]{0,18}")
                 || event.mediaBatch()==null || event.mediaBatch().isEmpty() || event.mediaBatch().size()>10

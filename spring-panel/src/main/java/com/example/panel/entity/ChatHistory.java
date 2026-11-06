@@ -54,6 +54,12 @@ public class ChatHistory {
     @Column(name = "file_name")
     private String fileName;
 
+    @Column(name = "source_link_json")
+    private String sourceLinkJson;
+
+    public String getSourceLinkJson() { return sourceLinkJson; }
+    public void setSourceLinkJson(String sourceLinkJson) { this.sourceLinkJson = sourceLinkJson; }
+
     private OffsetDateTime editedAt;
 
     private OffsetDateTime deletedAt;

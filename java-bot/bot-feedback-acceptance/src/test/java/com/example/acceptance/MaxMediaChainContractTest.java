@@ -34,6 +34,6 @@ class MaxMediaChainContractTest {
     void invalidOwnershipNonceCannotSelectResources(String value){assertThatThrownBy(()->nonce(value)).isInstanceOf(IllegalArgumentException.class);}
     @Test void loadedPanelBytecodeMatchesThisCheckout()throws Exception{verifyPanelClasses();}
     @Test void integrationMatrixIsExplicitAndInfrastructureIsNotStartedByDiscovery(){
-        assertThat(MaxFollowupMediaChainIT.positiveCases().count()).isEqualTo(12);assertThat(MaxFollowupMediaChainIT.rollbackCases().count()).isEqualTo(6);assertThat(MaxFollowupMediaChainIT.byteCases().count()).isEqualTo(4);assertThat(MaxFollowupMediaChainIT.driftCases().count()).isEqualTo(6);assertThat(MaxFollowupMediaChainIT.initialCases().count()).isEqualTo(4);assertThat(MaxFollowupMediaChainIT.f).isNull();
+        assertThat(MaxFollowupMediaChainIT.linkedCases().count()).isEqualTo(4);assertThat(MaxFollowupMediaChainIT.positiveCases().count()).isEqualTo(12);assertThat(MaxFollowupMediaChainIT.rollbackCases().count()).isEqualTo(6);assertThat(MaxFollowupMediaChainIT.byteCases().count()).isEqualTo(4);assertThat(MaxFollowupMediaChainIT.driftCases().count()).isEqualTo(6);assertThat(MaxFollowupMediaChainIT.initialCases().count()).isEqualTo(4);assertThat(MaxFollowupMediaChainIT.f).isNull();
     }
 }

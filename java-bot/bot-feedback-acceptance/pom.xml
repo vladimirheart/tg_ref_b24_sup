@@ -41,7 +41,7 @@
             <testResource>
                 <directory>${project.basedir}/../../spring-panel/src/main/resources/db/migration/postgresql</directory>
                 <targetPath>db</targetPath>
-                <includes><include>V24__integration_transport_outbox.sql</include><include>V84__pending_feedback_context.sql</include><include>V85__outbound_delivery_receipts.sql</include><include>V86__child_transport_principals.sql</include></includes>
+                <includes><include>V24__integration_transport_outbox.sql</include><include>V84__pending_feedback_context.sql</include><include>V85__outbound_delivery_receipts.sql</include><include>V86__child_transport_principals.sql</include><include>V87__max_message_source_link.sql</include></includes>
             </testResource>
             <testResource><directory>src/test/resources</directory></testResource>
         </testResources>

@@ -16,5 +16,10 @@ public record ActiveInboundClientMessageCommand(Long userId,
                                                 Long providerMessageId,
                                                 Long replyToProviderMessageId,
                                                 String forwardedFrom,
-                                                OffsetDateTime occurredAt) {
+                                                OffsetDateTime occurredAt,
+                                                MessageSourceLink sourceLink) {
+    public ActiveInboundClientMessageCommand(Long userId,String userIdentity,String username,String clientName,Channel channel,String ticketId,String text,String messageType,
+            String attachmentPath,String attachmentName,Long providerMessageId,Long replyToProviderMessageId,String forwardedFrom,OffsetDateTime occurredAt) {
+        this(userId,userIdentity,username,clientName,channel,ticketId,text,messageType,attachmentPath,attachmentName,providerMessageId,replyToProviderMessageId,forwardedFrom,occurredAt,null);
+    }
 }

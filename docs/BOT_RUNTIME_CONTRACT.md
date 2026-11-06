@@ -64,6 +64,66 @@ Platform-specific:
 в local `JPA/SQLite` business-path для ticket/channel/feedback/blacklist
 операций.
 
+## Source R292 — 2026-11-06: MAX forwarded/reply media и их контекст
+
+Продолжен пункт1 после R291: MAX v4 initial/free-answer и published followup
+поддерживают canonical forward/reply document/photo/audio/video. Пересылка
+использует только link.message.attachments, ответ — только внешние новые файлы;
+процитированные вложения не скачиваются. Mixed/alias/nested/неполные формы
+отклоняются до I/O/CAS, прежние byte/hash/quota/root проверки сохранены.
+Actual outer user остаётся владельцем; исходные MID/author не участвуют в
+выборе root/channel/catalog/storage/delivery identity.
+
+Nullable typed sourceLink проходит session JSON/CAS, immutable outbox, signed
+wire, owning ingestion, V87 chat_history.source_link_json и BUSINESS/GENERAL
+history API/render. Opaque MID и source author ID сохраняются строками; HTML
+контекст escaped/textContent, исходный MID не используется как href. Deleted/
+foreign history и READ revoke не раскрывают новый контекст. Retry после CAS/
+outbox loss использует исходные метаданные без нового download/admission.
+
+Для совместимости введены отдельные max-linked-media-selection/max-linked-batch
+routes и followup admission4; direct MAX остаётся3. Новый wire type batch и
+initial media marker не дают старому backend молча потерять sourceLink.
+Legacy initial/JDBC/generic-active paths отклоняют source context до domain writes;
+его нельзя вывести из выбранного question scope и обойти byte validation.
+Новый бот читает старые JSON, обратный downgrade новых drafts не гарантирован:
+старый reader может игнорировать поле. Coordinated release/rollback обязан
+сохранять Redis/session/outbox и оставлять старых детей остановленными.
+Инструкция: docs/runbooks/max-linked-questionnaire-media.md; нужны backend/
+MAX jar R292, V87 и provision/контракт R291. Flags здесь не менялись.
+
+1090 JVM tests/36 suites GREEN,0 failures/errors/skips: совокупные latest
+XML отдельных targeted runs. Native PostgreSQL16.15 nonce/loopback; full Flyway
+V1–V87,13 actual Hibernate/V87/history cases,5 новых GENERAL SQL и272 прежних
+GENERAL actor checks. 7 новых Node renderer cases и R117/R134/R51/R52 GREEN;
+PowerShell5.1 operator self-test/parser GREEN. Provider network mocked; это не
+live acceptance полного Boot/Redis/provider fleet. Ошибки ранних fixtures
+(routing key, ObjectMapper time module, Hibernate naming) исправлены без
+ослабления assertions; RED logs retained; final XML/class hashes сохраняются отдельно. Minimal GENERAL fixtures получили
+nullable V87 column; прежняя manual creation/read проверка повторена отдельно.
+У неё выявлено stale V84 expectation: feedback_context_epoch теперь входит в
+exact column set и отдельно проверяется как distinct UUID для каждого root;
+сохранность прежних колонок проверяется прежним строгим сравнением.
+
+Opt-in acceptance теперь содержит34 contracts и42 MAX PG/Rabbit cases
+(38 прежних+4 linked source/replay), плюс15 SQL principal IT. Здесь34 contracts
+и15 native principal IT GREEN. Docker engine отсутствует;42 media и Docker
+variant15 principal cases остаются PENDING_DOCKER. Runner после пользовательского
+commit ожидает57 IT и пишет r292-proof.json; ValidateOnly не закрывает gate.
+
+Baseline HEAD/origin/main/actual remote74fb3d466 (R291), parenta7ce504dd;
+63 предыдущих project paths проверены, raw guards4129 tracked files. Все правки
+готовятся в detached sandbox и переносятся теми же validated bytes отдельным
+guarded apply; staging/commit/push/deploy не выполняются. Рабочий проект/Docker
+на другой машине/сессии не затронут; runtime остаётся последним подтверждённым
+R280/R279. V87 не применялась к рабочей БД; backfill/NetBox/flags не менялись.
+
+Общий пункт1 не закрыт: другие legacy/direct пути, cross-platform GENERAL/
+questionnaire restore/replay/rebind и live/provider/rollback приёмка остаются.
+Policies/AI/S6 отдельно не завершены; task🟡, S2B снятR190. Программный delivery/
+rating R289 не открывается заново, ручной fleet restart остаётся в
+production-e2e-smoke §7.1 MANUAL_PENDING.
+
 ## Source R291 — 2026-11-06: transport principals каждого child
 
 Выполняется пункт1 нового списка после R290 — оставшаяся сквозная изоляция,

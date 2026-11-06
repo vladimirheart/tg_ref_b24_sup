@@ -103,6 +103,7 @@ public class TicketService {
         if (command == null || !StringUtils.hasText(command.ticketId())) {
             return;
         }
+        if(command.sourceLink()!=null)throw new IllegalStateException("Source links require the selected media batch writer");
         if (integrationTransportMode.isRabbitMqMode()) {
             inboundClientMessagePublisher.publish(command);
             return;
@@ -195,6 +196,8 @@ public class TicketService {
             );
             return new TicketCreationResult(ticketId, null, queued ? "queued" : "duplicate");
         }
+        if (command.historyEntries()!=null && command.historyEntries().stream().anyMatch(entry -> entry!=null && entry.sourceLink()!=null))
+            throw new IllegalStateException("Source links require the canonical Rabbit questionnaire writer");
         if (command.businessId() != null || command.scopeKind() != null
             || command.scopeSelectionSource() != null || command.questionTemplateId() != null
             || command.templateSha256() != null || command.catalogSha256() != null) {

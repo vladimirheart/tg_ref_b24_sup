@@ -91,9 +91,9 @@ public class GeneralTicketReadService {
         if (actor == null || !actor.valid() || !validPublicId(publicId)) return Optional.empty();
         return jdbc.query(ONE_TICKET + """
             SELECT ticket.*, history.id AS history_id, history.sender, left(history.message, 20000) AS message,
-                   history.timestamp, history.message_type, history.attachment IS NOT NULL AS has_attachment
+                   history.timestamp, history.message_type, history.source_link_json, history.attachment IS NOT NULL AS has_attachment
               FROM authorized_ticket ticket LEFT JOIN LATERAL (
-                  SELECT h.id, h.sender, h.message, h.timestamp, h.message_type, h.attachment
+                  SELECT h.id, h.sender, h.message, h.timestamp, h.message_type, h.attachment, h.source_link_json
                     FROM chat_history h WHERE h.ticket_owner_user_id = ticket.user_id
                      AND h.ticket_id = ticket.ticket_id AND h.deleted_at IS NULL AND h.id < :beforeId
                      AND (h.ticket_public_id IS NULL OR h.ticket_public_id=ticket.ticket_public_id)
@@ -107,7 +107,7 @@ public class GeneralTicketReadService {
                         if (owner == null) owner = ticket(rs);
                         if (rs.getObject("history_id") != null) entries.add(new HistoryEntry(rs.getLong("history_id"),
                             rs.getString("sender"), rs.getString("message"), rs.getObject("timestamp", OffsetDateTime.class),
-                            rs.getString("message_type"), rs.getBoolean("has_attachment")));
+                            rs.getString("message_type"), rs.getBoolean("has_attachment"), com.example.panel.service.integration.MessageSourceLinkJson.read(rs.getString("source_link_json"))));
                     }
                     if (owner == null) return Optional.<TicketHistory>empty();
                     boolean more = entries.size() > limit;
@@ -284,7 +284,12 @@ public class GeneralTicketReadService {
                             String clientName, String problem) {}
     public record TicketPage(List<TicketRow> tickets, boolean hasMore) {}
     public record HistoryEntry(long id, String sender, String message, OffsetDateTime timestamp,
-                               String messageType, boolean hasAttachment) {}
+                               String messageType, boolean hasAttachment,
+                               @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) com.example.panel.service.integration.MessageSourceLink sourceLink) {
+        public HistoryEntry(long id,String sender,String message,OffsetDateTime timestamp,String messageType,boolean hasAttachment) {
+            this(id,sender,message,timestamp,messageType,hasAttachment,null);
+        }
+    }
     public record TicketHistory(TicketRow ticket, List<HistoryEntry> entries, boolean hasMore, Long nextBeforeId) {}
     public record AnswerEntry(String questionId, String questionText, String valueLabel, String valueText) {}
     public record TicketAnswers(TicketRow ticket, boolean relationVerified, List<AnswerEntry> answers) {}

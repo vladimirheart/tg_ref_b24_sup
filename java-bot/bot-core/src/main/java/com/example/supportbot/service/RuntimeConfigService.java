@@ -76,11 +76,19 @@ public class RuntimeConfigService {
     }
     public boolean confirmMaxQuestionnaireMedia(Channel channel,PanelRuntimeConfigClient.ChoiceCatalog catalog,
             PanelRuntimeConfigClient.SelectedQuestionnaire frozen) {
+        return confirmMaxQuestionnaireMedia(channel,catalog,frozen,false);
+    }
+    public boolean confirmMaxLinkedQuestionnaireMedia(Channel channel,PanelRuntimeConfigClient.ChoiceCatalog catalog,
+            PanelRuntimeConfigClient.SelectedQuestionnaire frozen) {
+        return confirmMaxQuestionnaireMedia(channel,catalog,frozen,true);
+    }
+    private boolean confirmMaxQuestionnaireMedia(Channel channel,PanelRuntimeConfigClient.ChoiceCatalog catalog,
+            PanelRuntimeConfigClient.SelectedQuestionnaire frozen,boolean linked) {
         requireRemoteQuestionnaire(channel);
         if(!"max".equals(channel.getPlatform()) || catalog==null || frozen==null || catalog.version()!=4 || frozen.version()!=4
                 || catalog.channelId()!=channel.getId() || frozen.channelId()!=channel.getId())
             throw new PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException("Invalid MAX media selection");
-        var current=panelRuntimeConfigClient.selectMaxMediaForStart(catalog,frozen.businessId());
+        var current=linked?panelRuntimeConfigClient.selectMaxLinkedMediaForStart(catalog,frozen.businessId()):panelRuntimeConfigClient.selectMaxMediaForStart(catalog,frozen.businessId());
         if(!QuestionnaireScope.fromSelection(current).equals(QuestionnaireScope.fromSelection(frozen)))
             throw new PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException("MAX media selection changed");
         return true;
@@ -97,6 +105,12 @@ public class RuntimeConfigService {
         requireRemoteQuestionnaire(channel);
         if(!"max".equals(channel.getPlatform()))throw new PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException("Unsupported selected media platform");
         return panelRuntimeConfigClient.selectedMaxMediaAdmission(channel.getId(),userId,ticketId);
+    }
+
+    public PanelRuntimeConfigClient.SelectedMediaAdmission selectedMaxLinkedMediaAdmission(Channel channel,long userId,String ticketId) {
+        requireRemoteQuestionnaire(channel);
+        if(!"max".equals(channel.getPlatform()))throw new PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException("Unsupported selected media platform");
+        return panelRuntimeConfigClient.selectedMaxLinkedMediaAdmission(channel.getId(),userId,ticketId);
     }
 
     private void requireRemoteQuestionnaire(Channel channel) {

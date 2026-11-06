@@ -775,8 +775,15 @@
           ? `<button type="button" class="small text-muted border-start ps-2 mb-1 chat-message-reply-source" data-history-reply-source data-reply-to-message-id="${replyTargetId}" aria-label="Перейти к исходному сообщению">↪ ${escapeHtml(message.replyPreview)}</button>`
           : `<div class="small text-muted border-start ps-2 mb-1 chat-message-reply-source">↪ ${escapeHtml(message.replyPreview)}</div>`
         : '';
-      const forwardedBadge = message?.forwardedFrom
-        ? `<div class="small text-muted mb-1">Переслано от ${escapeHtml(message.forwardedFrom)}</div>`
+      const sourceLink = isDeleted ? null : message?.sourceLink;
+      const sourceAuthor = sourceLink?.authorName || sourceLink?.authorUserId || 'скрытого автора';
+      const sourceLabel = sourceLink?.providerMessageId && ['forward', 'reply'].includes(sourceLink.type)
+        ? sourceLink.type === 'forward'
+          ? `Переслано от ${sourceAuthor} · ${sourceLink.providerMessageId}`
+          : `Ответ на сообщение ${sourceLink.providerMessageId} · ${sourceAuthor}`
+        : message?.forwardedFrom ? `Переслано от ${message.forwardedFrom}` : '';
+      const forwardedBadge = sourceLabel
+        ? `<div class="small text-muted mb-1">${escapeHtml(sourceLabel)}</div>`
         : '';
       const bodyText = message?.message ? escapeHtml(message.message).replace(/\n/g, '<br>') : '';
       const fallbackType = !message?.attachment && !message?.attachmentStatus && message?.messageType && !bodyText

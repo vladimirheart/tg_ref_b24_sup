@@ -30,7 +30,7 @@ class GeneralManualTicketCreationPostgresTest {
         jdbc.execute("CREATE TABLE tickets(user_id BIGINT,ticket_id TEXT,group_msg_id BIGINT,ticket_public_id TEXT UNIQUE,business_id BIGINT,status TEXT,channel_id BIGINT,"
             +"created_at TIMESTAMPTZ,resolved_at TIMESTAMPTZ,resolved_by TEXT,closed_count INT DEFAULT 0,reopen_count INT DEFAULT 0,work_time_total_sec BIGINT,last_reopen_at TIMESTAMPTZ,PRIMARY KEY(user_id,ticket_id))");
         jdbc.execute("CREATE TABLE messages(group_msg_id BIGINT PRIMARY KEY,user_id BIGINT,ticket_id TEXT UNIQUE,client_name TEXT,problem TEXT,created_at TIMESTAMPTZ,created_date TEXT,created_time TEXT,channel_id BIGINT)");
-        jdbc.execute("CREATE TABLE chat_history(id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,user_id BIGINT,sender TEXT,message TEXT,timestamp TIMESTAMPTZ,ticket_id TEXT,message_type TEXT,ticket_owner_user_id BIGINT,ticket_public_id TEXT,channel_id BIGINT,deleted_at TIMESTAMPTZ,attachment TEXT)");
+        jdbc.execute("CREATE TABLE chat_history(id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,user_id BIGINT,sender TEXT,message TEXT,timestamp TIMESTAMPTZ,ticket_id TEXT,message_type TEXT,ticket_owner_user_id BIGINT,ticket_public_id TEXT,channel_id BIGINT,deleted_at TIMESTAMPTZ,attachment TEXT,source_link_json TEXT)");
         jdbc.execute("CREATE TABLE bot_users(user_id BIGINT PRIMARY KEY)");
         jdbc.execute("CREATE TABLE ui_event_outbox(id BIGINT PRIMARY KEY,event_type TEXT,ticket_id TEXT,channel_id BIGINT,message_text TEXT,message_type TEXT,attachment TEXT,rating INT,created_at TIMESTAMPTZ)");
         for(String file:new String[]{"V54__manual_business_clients.sql","V56__explicit_general_ticket_scope.sql","V61__ui_event_outbox_ticket_scope.sql",
@@ -199,7 +199,7 @@ class GeneralManualTicketCreationPostgresTest {
         org.flywaydb.core.Flyway.configure().dataSource(upgrade.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").load().migrate();
         assertThat(upgrade.queryForList("SELECT "+oldColumns+" FROM tickets ORDER BY user_id")).isEqualTo(before);
         var expectedColumns=new java.util.HashSet<>(before.get(0).keySet());
-        expectedColumns.addAll(java.util.List.of("business_selection_source","questionnaire_catalog_sha256","questionnaire_version","responsibility_revision","business_work_revision","business_categories"));
+        expectedColumns.addAll(java.util.List.of("business_selection_source","questionnaire_catalog_sha256","questionnaire_version","responsibility_revision","business_work_revision","business_categories","feedback_context_epoch"));
         assertThat(upgrade.queryForList("SELECT * FROM tickets")).allSatisfy(row->
             assertThat(row.keySet()).containsExactlyInAnyOrderElementsOf(expectedColumns));
         assertThat(upgrade.queryForList("SELECT business_selection_source,questionnaire_catalog_sha256,questionnaire_version,"
@@ -207,6 +207,10 @@ class GeneralManualTicketCreationPostgresTest {
             .allSatisfy(row->assertThat(row).containsEntry("business_selection_source",null).containsEntry("questionnaire_catalog_sha256",null)
                 .containsEntry("questionnaire_version",null).containsEntry("responsibility_revision",0L)
                 .containsEntry("business_work_revision",0L).containsEntry("categories","[]"));
+        assertThat(upgrade.queryForList("SELECT feedback_context_epoch FROM tickets"))
+            .allSatisfy(row->assertThat(row.get("feedback_context_epoch")).isInstanceOf(java.util.UUID.class));
+        assertThat(upgrade.queryForObject("SELECT COUNT(DISTINCT feedback_context_epoch) FROM tickets",Integer.class))
+            .isEqualTo(before.size());
         assertThat(upgrade.queryForObject("SELECT COUNT(*) FROM manual_general_clients",Integer.class)).isZero();
         var grants=new GeneralTicketAccessService(upgrade);grants.grantRead(administrator(upgrade),actor);grants.grantOperate(administrator(upgrade),actor);
         var general=new GeneralManualTicketCreationService(upgrade,flags,new UiEventOutboxAppendService(upgrade,new LegacyTicketIdJdbcGuard(upgrade)));

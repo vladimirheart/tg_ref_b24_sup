@@ -26,6 +26,7 @@ public class InboundClientMessagePublisher {
         if (command == null || command.channel() == null) {
             throw new IllegalArgumentException("Active inbound client message requires a resolved channel.");
         }
+        if(command.sourceLink()!=null) throw new IllegalArgumentException("A source link requires the selected media batch");
         String eventId = resolveEventId(command);
         OffsetDateTime occurredAt = command.occurredAt() != null ? command.occurredAt() : OffsetDateTime.now();
         String platform = command.channel().getPlatform() != null ? command.channel().getPlatform() : "telegram";
@@ -59,14 +60,15 @@ public class InboundClientMessagePublisher {
                 || !("vk".equals(command.channel().getPlatform()) || "max".equals(command.channel().getPlatform())) || command.userId()==null || command.userId()<=0
                 || command.ticketId()==null || command.ticketId().isBlank() || command.providerMessageId()==null || command.providerMessageId()<=0
                 || command.occurredAt()==null || items==null || items.isEmpty() || items.size()>10
+                || command.sourceLink()!=null && !"max".equals(command.channel().getPlatform())
                 || ("max".equals(command.channel().getPlatform()) && (command.replyToProviderMessageId()!=null || command.forwardedFrom()!=null)))
             throw new IllegalArgumentException("A stable selected media batch is required");
         var first=items.get(0);
         String provider=command.providerMessageId().toString();
         var event=new InboundClientMessageEvent(InboundClientMessageEvent.mediaBatchId(command.channel().getId(),command.userId(),command.ticketId(),provider),
             InboundClientMessageEvent.MEDIA_BATCH_KIND,command.channel().getPlatform(),command.channel().getId(),command.ticketId(),command.userId(),
-            command.userIdentity(),command.username(),command.clientName(),command.text(),"selected_media_batch.v1",
-            first.attachmentPath(),first.attachmentName(),provider,stringify(command.replyToProviderMessageId()),command.forwardedFrom(),command.occurredAt(),items);
+            command.userIdentity(),command.username(),command.clientName(),command.text(),command.sourceLink()==null?"selected_media_batch.v1":MessageSourceLink.BATCH_TYPE,
+            first.attachmentPath(),first.attachmentName(),provider,stringify(command.replyToProviderMessageId()),command.forwardedFrom(),command.occurredAt(),items,command.sourceLink());
         integrationTransportOutboxService.enqueueInboundClientMessage(event,rabbitProperties.routingKeyForPlatform(command.channel().getPlatform()),rabbitProperties);
     }
 

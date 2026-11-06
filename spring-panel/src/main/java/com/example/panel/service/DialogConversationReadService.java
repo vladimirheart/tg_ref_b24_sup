@@ -122,7 +122,8 @@ public class DialogConversationReadService {
                         replyPreview,
                         value(row.get("edited_at")),
                         deletedAt,
-                        value(row.get("forwarded_from"))
+                        value(row.get("forwarded_from")),
+                        deletedAt!=null?null:com.example.panel.service.integration.MessageSourceLinkJson.read(row.get("source_link_json") instanceof String json?json:null)
                 ));
             }
             return history;
@@ -459,6 +460,7 @@ public class DialogConversationReadService {
         String forwardedFromColumn = columns.contains("forwarded_from")
                 ? "forwarded_from"
                 : "NULL AS forwarded_from";
+        String sourceLinkColumn = columns.contains("source_link_json") ? "source_link_json" : "NULL AS source_link_json";
         String editedAtColumn = columns.contains("edited_at")
                 ? "edited_at"
                 : "NULL AS edited_at";
@@ -499,7 +501,7 @@ public class DialogConversationReadService {
         StringBuilder sql = new StringBuilder("""
                 SELECT ch.sender, ch.message, ch.timestamp, ch.message_type, ch.attachment,
                        ch.tg_message_id, ch.reply_to_tg_id, ch.channel_id,
-                       %s, %s, %s, %s, %s
+                       %s, %s, %s, %s, %s, %s
                        %s
                   FROM chat_history ch
                   %s
@@ -510,6 +512,7 @@ public class DialogConversationReadService {
                 qualifyChatHistoryColumn(deletedAtColumn),
                 qualifyChatHistoryColumn(forwardedFromColumn),
                 qualifyChatHistoryColumn(fileNameColumn),
+                qualifyChatHistoryColumn(sourceLinkColumn),
                 metadataSelect,
                 metadataJoin
         ));

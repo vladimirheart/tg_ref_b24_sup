@@ -92,6 +92,10 @@ public record ConversationTicketCreatedEvent(String eventId,
                                                   String attachmentPath,
                                                   String attachmentName,
                                                   String providerMessageId,
-                                                  OffsetDateTime occurredAt) {
+                                                  OffsetDateTime occurredAt,
+                                                  @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) MessageSourceLink sourceLink) {
+        public ConversationHistoryEntryPayload(Long userId,String text,String messageType,String attachmentPath,String attachmentName,String providerMessageId,OffsetDateTime occurredAt) {
+            this(userId,text,messageType,attachmentPath,attachmentName,providerMessageId,occurredAt,null);
+        }
     }
 }
