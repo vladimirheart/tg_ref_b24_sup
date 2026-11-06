@@ -64,6 +64,34 @@ Platform-specific:
 в local `JPA/SQLite` business-path для ticket/channel/feedback/blacklist
 операций.
 
+## Build R296 — 2026-11-06: backend и все боты R295 пересобраны
+
+Из clean HEAD/origin/main/actual remote 6bc6ae23a641b4a633d3936501ec1829640f0166 полностью
+пересобраны backend/Sass и Telegram/VK/MAX с общим core. Готов image
+iguana-panel:account-r295-6bc6ae23a-20261106,
+sha256:29f36986a0dbfd615c1444851567517602ba11bf2729d095a918850b03054d89.
+R294/R295 входят в этот image; R293/sourceR292 сохранён отдельно.
+Fresh targeted1679 JVM tests/71 suites, failures/errors/skips0, ещё7 UI cases
+GREEN. Проверены private ingress, retirement operator routes/cache replay,
+exact service-chat recipient/media fallback и прежние MAX media/questionnaires.
+Full runtime main/test compile на JDK17/repo wrapper3.9.6; packaged4 JAR,
+nested core всех3 ботов и changed backend/TG/VK classes сверены с fresh targets.
+V86/V87 bytes и vendor SRI exact. Это не full test suite, не57 PG/Rabbit IT
+и не повтор50 native PG cases sourceR295; live provider/S6 не выполнялись.
+
+На текущей машине Docker доступен. Project tg_ref_b24_sup, прежние3 Compose
+inputs/.env, по1 replica panel-web/ops-worker/bot-runner сверены. Все20 исходных
+containers остались exited, IDs/images/state/Config/HostConfig/mount values exact.
+Rollback aliases rollback-r296-{panel-web|ops-worker|bot-runner}-20261106-b0e12ff574c3
+сохранены; R280/R293 images/recovery не удалены. Helpers удалены, volumes прежние.
+Deployment=false: новый image не активирован, health/readiness не заявляется.
+Новых migrations R294/R295 нет; V86/V87 и per-child SQL/Rabbit provision общего
+выпуска ещё не запускались. Для включения нужен согласованный backend/schema/
+principals/children rollout по runbooks; старый SDK child не запускать в смеси.
+DB/Redis/queues/provider/backfill/flags не использовались и не менялись.
+Задача🟡, общий пункт1/S6 и §7.1 pending, S2B снятR190.
+Evidence: ../iguana-runtime/tg_ref_b24_sup/releases/r296-6bc6ae23a-20261106/.
+
 ## Source R295 — 2026-11-06: операторские действия только в панели
 
 Решение пользователя: «Операторские действия только из панели; группы — для
