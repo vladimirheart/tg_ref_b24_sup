@@ -59,28 +59,14 @@ class ChannelServiceTest {
     }
 
     @Test
-    void updateSupportChatIdUsesPanelClientInRabbitMode() {
-        ChannelRepository repository = mock(ChannelRepository.class);
-        PanelChannelClient panelChannelClient = mock(PanelChannelClient.class);
-        when(panelChannelClient.isEnabled()).thenReturn(true);
-        Channel existing = new Channel();
-        existing.setId(12L);
-        Channel updated = new Channel();
-        updated.setId(12L);
-        updated.setSupportChatId("-10012");
-        when(panelChannelClient.updateSupportChatId(12L, "-10012")).thenReturn(Optional.of(updated));
-
-        ChannelService service = new ChannelService(
-            repository,
-            new BotIntegrationTransportMode(new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")),
-            panelChannelClient
-        );
-
-        Channel result = service.updateSupportChatId(existing, "-10012");
-
-        assertThat(result.getSupportChatId()).isEqualTo("-10012");
-        verify(panelChannelClient).updateSupportChatId(12L, "-10012");
-        verify(repository, never()).save(org.mockito.ArgumentMatchers.any(Channel.class));
+    void supportChatConfigurationRequiresPanelInsteadOfChildApiOrJpa() {
+        var repository=mock(com.example.supportbot.repository.ChannelRepository.class);
+        var api=mock(PanelChannelClient.class);
+        var mode=mock(com.example.supportbot.config.BotIntegrationTransportMode.class);
+        var service=new ChannelService(repository,mode,api);var channel=new Channel();channel.setId(12L);
+        assertThatThrownBy(()->service.updateSupportChatId(channel,"-10012"))
+            .isInstanceOf(UnsupportedOperationException.class);
+        org.mockito.Mockito.verifyNoInteractions(repository,api,mode);
     }
 
     @Test

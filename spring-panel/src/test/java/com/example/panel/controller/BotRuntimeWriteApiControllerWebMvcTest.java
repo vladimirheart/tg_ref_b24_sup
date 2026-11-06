@@ -54,58 +54,30 @@ class BotRuntimeWriteApiControllerWebMvcTest {
     }
 
     @Test
-    void reopenTicketDelegatesToWriteService() throws Exception {
-        when(ticketWriteService.reopenTicket("T-200", null))
-            .thenReturn(new BotRuntimeTicketWriteService.MutationResult(true, true));
-
+    void reopenTicketRetiredToWriteService() throws Exception {
         mockMvc.perform(post("/internal/api/bot/tickets/T-200/reopen")
-                .header("X-Iguana-Bot-Api-Token", "test-internal-token"))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.updated").value(true))
-            .andExpect(jsonPath("$.exists").value(true));
+                .header("X-Iguana-Bot-Api-Token", "test-internal-token")
+                .contentType(MediaType.APPLICATION_JSON).content("{}"))
+            .andExpect(status().isGone());
+        org.mockito.Mockito.verifyNoInteractions(ticketWriteService, channelService);
     }
 
     @Test
-    void reopenTicketWithOperatorDelegatesPayloadToWriteService() throws Exception {
-        when(ticketWriteService.reopenTicket("T-201", "operator"))
-            .thenReturn(new BotRuntimeTicketWriteService.MutationResult(true, true));
-
+    void reopenTicketWithUnverifiedOperatorRetiredPayloadToWriteService() throws Exception {
         mockMvc.perform(post("/internal/api/bot/tickets/T-201/reopen")
                 .header("X-Iguana-Bot-Api-Token", "test-internal-token")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                        {
-                          "userIdentity": "operator"
-                        }
-                        """))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.updated").value(true))
-            .andExpect(jsonPath("$.exists").value(true));
-
-        verify(ticketWriteService).reopenTicket("T-201", "operator");
+                .contentType(MediaType.APPLICATION_JSON).content("{\"userIdentity\":\"operator\"}"))
+            .andExpect(status().isGone());
+        org.mockito.Mockito.verifyNoInteractions(ticketWriteService, channelService);
     }
 
     @Test
-    void operatorRelayDelegatesPayloadToWriteService() throws Exception {
-        when(ticketWriteService.recordOperatorRelay("T-300", "Reply text", 7001L, 6999L, "operator"))
-            .thenReturn(new BotRuntimeTicketWriteService.MutationResult(true, true));
-
+    void operatorRelayRetiredPayloadToWriteService() throws Exception {
         mockMvc.perform(post("/internal/api/bot/tickets/T-300/operator-relay")
                 .header("X-Iguana-Bot-Api-Token", "test-internal-token")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                        {
-                          "message": "Reply text",
-                          "telegramMessageId": 7001,
-                          "replyToTelegramId": 6999,
-                          "operatorIdentity": "operator"
-                        }
-                        """))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.updated").value(true))
-            .andExpect(jsonPath("$.exists").value(true));
-
-        verify(ticketWriteService).recordOperatorRelay("T-300", "Reply text", 7001L, 6999L, "operator");
+                .contentType(MediaType.APPLICATION_JSON).content("{\"message\":\"text\",\"operatorIdentity\":\"admin\"}"))
+            .andExpect(status().isGone());
+        org.mockito.Mockito.verifyNoInteractions(ticketWriteService, channelService);
     }
 
     @Test
@@ -132,24 +104,12 @@ class BotRuntimeWriteApiControllerWebMvcTest {
     }
 
     @Test
-    void operatorMessageEditDelegatesPayloadToWriteService() throws Exception {
-        when(ticketWriteService.markOperatorMessageEdited("T-301", 7011L, "Edited operator text", "operator"))
-            .thenReturn(new BotRuntimeTicketWriteService.MutationResult(true, true));
-
+    void operatorMessageEditRetiredPayloadToWriteService() throws Exception {
         mockMvc.perform(put("/internal/api/bot/tickets/T-301/operator-messages/7011")
                 .header("X-Iguana-Bot-Api-Token", "test-internal-token")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                        {
-                          "message": "Edited operator text",
-                          "operatorIdentity": "operator"
-                        }
-                        """))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.updated").value(true))
-            .andExpect(jsonPath("$.exists").value(true));
-
-        verify(ticketWriteService).markOperatorMessageEdited("T-301", 7011L, "Edited operator text", "operator");
+                .contentType(MediaType.APPLICATION_JSON).content("{\"message\":\"text\",\"operatorIdentity\":\"admin\"}"))
+            .andExpect(status().isGone());
+        org.mockito.Mockito.verifyNoInteractions(ticketWriteService, channelService);
     }
 
     @Test
@@ -201,37 +161,21 @@ class BotRuntimeWriteApiControllerWebMvcTest {
     }
 
     @Test
-    void updateSupportChatDelegatesPayloadToChannelService() throws Exception {
-        Channel channel = new Channel();
-        channel.setId(52L);
-        channel.setSupportChatId("-10052");
-        when(channelService.updateSupportChatId(52L, "-10052")).thenReturn(channel);
-
-        mockMvc.perform(put("/internal/api/bot/channels/52/support-chat")
+    void updateSupportChatRetiredPayloadToChannelService() throws Exception {
+        mockMvc.perform(put("/internal/api/bot/channels/15/support-chat")
                 .header("X-Iguana-Bot-Api-Token", "test-internal-token")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                        {
-                          "supportChatId": "-10052"
-                        }
-                        """))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.id").value(52L))
-            .andExpect(jsonPath("$.supportChatId").value("-10052"));
-
-        verify(channelService).updateSupportChatId(52L, "-10052");
+                .contentType(MediaType.APPLICATION_JSON).content("{\"supportChatId\":\"-100\"}"))
+            .andExpect(status().isGone());
+        org.mockito.Mockito.verifyNoInteractions(ticketWriteService, channelService);
     }
 
     @Test
-    void clearActivityDelegatesToWriteService() throws Exception {
-        when(ticketWriteService.clearActivity("T-400"))
-            .thenReturn(new BotRuntimeTicketWriteService.MutationResult(false, true));
-
+    void clearActivityRetiredToWriteService() throws Exception {
         mockMvc.perform(delete("/internal/api/bot/tickets/T-400/activity")
-                .header("X-Iguana-Bot-Api-Token", "test-internal-token"))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.updated").value(false))
-            .andExpect(jsonPath("$.exists").value(true));
+                .header("X-Iguana-Bot-Api-Token", "test-internal-token")
+                .contentType(MediaType.APPLICATION_JSON).content("{}"))
+            .andExpect(status().isGone());
+        org.mockito.Mockito.verifyNoInteractions(ticketWriteService, channelService);
     }
 
     @Test

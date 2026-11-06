@@ -83,4 +83,18 @@ class ChildBotRequestScopeServiceTest {
         assertThatThrownBy(() -> authorize(request("GET","/internal/api/bot/channels/{channelId}",Map.of("channelId","22")),"{}"))
             .isInstanceOf(ResponseStatusException.class);
     }
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"POST,/reopen","PUT,/activity","DELETE,/activity","POST,/operator-relay","PUT,/operator-messages/{telegramMessageId}"})
+    void childCannotClaimPanelOperatorAuthorityEvenForItsOwnTicket(String method,String suffix) {
+        var request=request(method,"/internal/api/bot/tickets/{ticketId}"+suffix,Map.of("ticketId","own-root"));
+        assertThatThrownBy(()->authorize(request,"{\"operatorIdentity\":\"admin\"}"))
+            .isInstanceOf(ResponseStatusException.class);
+        verify(jdbc,never()).queryForList(eq("SELECT channel_id FROM tickets WHERE ticket_id=? FOR UPDATE"),any(Object[].class));
+    }
+    @ParameterizedTest @ValueSource(strings={"","/request-number"})
+    void childCanStillReadItsOwnTicket(String suffix) {
+        var request=request("GET","/internal/api/bot/tickets/{ticketId}"+suffix,Map.of("ticketId","own-root"));
+        authorize(request,"{}");assertThat(ChildBotRequestScopeService.channelId(request)).isEqualTo(22L);
+    }
+
 }

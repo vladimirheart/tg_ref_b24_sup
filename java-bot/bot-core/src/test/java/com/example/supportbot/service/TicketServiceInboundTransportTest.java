@@ -498,81 +498,8 @@ class TicketServiceInboundTransportTest {
         verify(ticketActiveRepository, never()).findById(any());
     }
 
-    @Test
-    void recordOperatorRelayUsesPanelWriteClientInRabbitMode() {
-        PanelTicketWriteClient panelTicketWriteClient = mock(PanelTicketWriteClient.class);
-        when(panelTicketWriteClient.isEnabled()).thenReturn(true);
 
-        ChatHistoryService chatHistoryService = mock(ChatHistoryService.class);
-        TicketService service = createService(
-            mock(TicketMessageRepository.class),
-            mock(TicketActiveRepository.class),
-            chatHistoryService,
-            mock(InboundClientMessagePublisher.class),
-            mock(ConversationTicketCreatedPublisher.class),
-            mock(PanelTicketReadClient.class),
-            panelTicketWriteClient,
-            new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")
-        );
 
-        Channel channel = new Channel();
-        channel.setId(11L);
-        service.recordOperatorRelay(1001L, "T-1001", "Operator reply", channel, 7001L, 6001L, "operator");
-
-        verify(panelTicketWriteClient).recordOperatorRelay("T-1001", "Operator reply", 7001L, 6001L, "operator");
-        verify(chatHistoryService, never()).storeOperatorMessage(any(), any(), any(), any(), any(), any());
-    }
-
-    @Test
-    void recordOperatorRelayFailsFastWhenPanelWriteBoundaryIsUnavailableInRabbitMode() {
-        ChatHistoryService chatHistoryService = mock(ChatHistoryService.class);
-        TicketService service = createService(
-            mock(TicketMessageRepository.class),
-            mock(TicketActiveRepository.class),
-            chatHistoryService,
-            mock(InboundClientMessagePublisher.class),
-            mock(ConversationTicketCreatedPublisher.class),
-            mock(PanelTicketReadClient.class),
-            mock(PanelTicketWriteClient.class),
-            new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")
-        );
-
-        Channel channel = new Channel();
-        channel.setId(11L);
-
-        assertThatThrownBy(() -> service.recordOperatorRelay(1001L, "T-1001", "Operator reply", channel, 7001L, 6001L, "operator"))
-            .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("internal panel write API");
-
-        verify(chatHistoryService, never()).storeOperatorMessage(any(), any(), any(), any(), any(), any());
-    }
-
-    @Test
-    void recordOperatorRelayKeepsJdbcWritePathWhenRabbitTransportDisabled() {
-        PanelTicketWriteClient panelTicketWriteClient = mock(PanelTicketWriteClient.class);
-        ChatHistoryService chatHistoryService = mock(ChatHistoryService.class);
-        TicketActiveRepository ticketActiveRepository = mock(TicketActiveRepository.class);
-        when(ticketActiveRepository.findById("T-303")).thenReturn(Optional.empty());
-
-        TicketService service = createService(
-            mock(TicketMessageRepository.class),
-            ticketActiveRepository,
-            chatHistoryService,
-            mock(InboundClientMessagePublisher.class),
-            mock(ConversationTicketCreatedPublisher.class),
-            mock(PanelTicketReadClient.class),
-            panelTicketWriteClient,
-            new MockEnvironment().withProperty("app.integration.transport.mode", "jdbc")
-        );
-
-        Channel channel = new Channel();
-        channel.setId(22L);
-        service.recordOperatorRelay(303L, "T-303", "Reply from operator", channel, 8001L, 7999L, "operator");
-
-        verify(chatHistoryService).storeOperatorMessage(303L, "T-303", "Reply from operator", channel, 8001L, 7999L);
-        verify(ticketActiveRepository).save(any(TicketActive.class));
-        verify(panelTicketWriteClient, never()).recordOperatorRelay(any(), any(), any(), any(), any());
-    }
 
     @Test
     void markClientMessageEditedUsesPanelWriteClientInRabbitMode() {
@@ -623,53 +550,31 @@ class TicketServiceInboundTransportTest {
         verify(panelTicketWriteClient, never()).markClientMessageEdited(any(), any(), any());
     }
 
-    @Test
-    void markOperatorMessageEditedUsesPanelWriteClientInRabbitMode() {
-        PanelTicketWriteClient panelTicketWriteClient = mock(PanelTicketWriteClient.class);
-        when(panelTicketWriteClient.isEnabled()).thenReturn(true);
-        when(panelTicketWriteClient.markOperatorMessageEdited("T-444", 9003L, "Edited operator text", "operator")).thenReturn(true);
 
-        ChatHistoryService chatHistoryService = mock(ChatHistoryService.class);
-        TicketService service = createService(
-            mock(TicketMessageRepository.class),
-            mock(TicketActiveRepository.class),
-            chatHistoryService,
-            mock(InboundClientMessagePublisher.class),
-            mock(ConversationTicketCreatedPublisher.class),
-            mock(PanelTicketReadClient.class),
-            panelTicketWriteClient,
-            new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")
-        );
 
-        boolean updated = service.markOperatorMessageEdited("T-444", 9003L, "Edited operator text", "operator");
-
-        assertThat(updated).isTrue();
-        verify(panelTicketWriteClient).markOperatorMessageEdited("T-444", 9003L, "Edited operator text", "operator");
-        verify(chatHistoryService, never()).markOperatorMessageEdited(any(), any(), any());
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"rabbitmq","direct","rabbitmq-no-api"})
+    void retiredOperatorRelayRejectsBeforeTransportAndJdbc(String mode) {
+        var api=mock(PanelTicketWriteClient.class);var history=mock(ChatHistoryService.class);
+        var message=mock(TicketMessageRepository.class);var active=mock(TicketActiveRepository.class);
+        var service=createService(message,active,history,mock(InboundClientMessagePublisher.class),
+            mock(ConversationTicketCreatedPublisher.class),mock(PanelTicketReadClient.class),api,
+            new MockEnvironment().withProperty("app.integration.transport.mode",mode.startsWith("rabbitmq")?"rabbitmq":"direct"));
+        assertThatThrownBy(()->service.recordOperatorRelay(1001L,"T-1001","reply",new Channel(),7001L,6001L,"admin"))
+            .isInstanceOf(UnsupportedOperationException.class).hasMessageContaining("authenticated panel");
+        org.mockito.Mockito.verifyNoInteractions(api,history,message,active);
     }
 
-    @Test
-    void markOperatorMessageEditedKeepsJdbcWritePathWhenRabbitTransportDisabled() {
-        PanelTicketWriteClient panelTicketWriteClient = mock(PanelTicketWriteClient.class);
-        ChatHistoryService chatHistoryService = mock(ChatHistoryService.class);
-        when(chatHistoryService.markOperatorMessageEdited("T-445", 9004L, "Edited operator fallback")).thenReturn(true);
-
-        TicketService service = createService(
-            mock(TicketMessageRepository.class),
-            mock(TicketActiveRepository.class),
-            chatHistoryService,
-            mock(InboundClientMessagePublisher.class),
-            mock(ConversationTicketCreatedPublisher.class),
-            mock(PanelTicketReadClient.class),
-            panelTicketWriteClient,
-            new MockEnvironment().withProperty("app.integration.transport.mode", "jdbc")
-        );
-
-        boolean updated = service.markOperatorMessageEdited("T-445", 9004L, "Edited operator fallback", "operator");
-
-        assertThat(updated).isTrue();
-        verify(chatHistoryService).markOperatorMessageEdited("T-445", 9004L, "Edited operator fallback");
-        verify(panelTicketWriteClient, never()).markOperatorMessageEdited(any(), any(), any(), any());
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"rabbitmq","direct"})
+    void retiredOperatorEditNeverWritesTransportOrJdbc(String mode) {
+        var api=mock(PanelTicketWriteClient.class);var history=mock(ChatHistoryService.class);
+        var message=mock(TicketMessageRepository.class);var active=mock(TicketActiveRepository.class);
+        var service=createService(message,active,history,mock(InboundClientMessagePublisher.class),
+            mock(ConversationTicketCreatedPublisher.class),mock(PanelTicketReadClient.class),api,
+            new MockEnvironment().withProperty("app.integration.transport.mode",mode));
+        assertThat(service.markOperatorMessageEdited("T-1001",7001L,"edited","admin")).isFalse();
+        org.mockito.Mockito.verifyNoInteractions(api,history,message,active);
     }
 
     private TicketService createService(TicketMessageRepository messageRepository,

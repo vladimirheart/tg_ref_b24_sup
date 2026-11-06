@@ -46,36 +46,18 @@ public class PanelTicketWriteClient {
     }
 
     public boolean reopenTicket(String ticketId, String operatorIdentity) {
-        if (!isEnabled() || !StringUtils.hasText(ticketId)) {
-            return false;
-        }
-        return sendMutation(
-            "/internal/api/bot/tickets/" + encodePath(ticketId) + "/reopen",
-            "POST",
-            StringUtils.hasText(operatorIdentity) ? new TicketActivityRequest(operatorIdentity.trim()) : null
-        ).map(MutationResponse::updated).orElse(false);
+        // Retired unowned operator protocol; never contact HTTP or replay an old mutation.
+        return false;
     }
 
     public boolean registerActivity(String ticketId, String userIdentity) {
-        if (!isEnabled() || !StringUtils.hasText(ticketId)) {
-            return false;
-        }
-        return sendMutation(
-            "/internal/api/bot/tickets/" + encodePath(ticketId) + "/activity",
-            "PUT",
-            new TicketActivityRequest(userIdentity)
-        ).map(MutationResponse::updated).orElse(false);
+        // Retired unowned operator protocol; never contact HTTP or replay an old mutation.
+        return false;
     }
 
     public boolean clearActivity(String ticketId) {
-        if (!isEnabled() || !StringUtils.hasText(ticketId)) {
-            return false;
-        }
-        return sendMutation(
-            "/internal/api/bot/tickets/" + encodePath(ticketId) + "/activity",
-            "DELETE",
-            null
-        ).map(MutationResponse::updated).orElse(false);
+        // Retired unowned operator protocol; never contact HTTP or replay an old mutation.
+        return false;
     }
 
     public boolean recordOperatorRelay(String ticketId,
@@ -83,14 +65,8 @@ public class PanelTicketWriteClient {
                                        Long telegramMessageId,
                                        Long replyToTelegramId,
                                        String operatorIdentity) {
-        if (!isEnabled() || !StringUtils.hasText(ticketId) || !StringUtils.hasText(message)) {
-            return false;
-        }
-        return sendMutation(
-            "/internal/api/bot/tickets/" + encodePath(ticketId) + "/operator-relay",
-            "POST",
-            new OperatorRelayRequest(message.trim(), telegramMessageId, replyToTelegramId, operatorIdentity)
-        ).map(MutationResponse::updated).orElse(false);
+        // Retired unowned operator protocol; never contact HTTP or replay an old mutation.
+        return false;
     }
 
     public boolean markClientMessageEdited(String platform, Long channelId, Long userId,
@@ -123,14 +99,8 @@ public class PanelTicketWriteClient {
                                              Long telegramMessageId,
                                              String message,
                                              String operatorIdentity) {
-        if (!isEnabled() || !StringUtils.hasText(ticketId) || telegramMessageId == null || !StringUtils.hasText(message)) {
-            return false;
-        }
-        return sendMutation(
-            "/internal/api/bot/tickets/" + encodePath(ticketId) + "/operator-messages/" + telegramMessageId,
-            "PUT",
-            new OperatorMessageEditRequest(message.trim(), operatorIdentity)
-        ).map(MutationResponse::updated).orElse(false);
+        // Retired unowned operator protocol; never contact HTTP or replay an old mutation.
+        return false;
     }
 
     public boolean storeFeedback(Long requestId, Integer rating) {

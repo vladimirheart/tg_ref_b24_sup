@@ -76,24 +76,7 @@ public class ChannelService {
 
     @Transactional
     public Channel updateSupportChatId(Channel channel, String supportChatId) {
-        if (channel == null) {
-            throw new IllegalArgumentException("Channel is required to update support chat id");
-        }
-        if (supportChatId == null || supportChatId.isBlank()) {
-            throw new IllegalArgumentException("Support chat id must be a non-empty string");
-        }
-        if (usePanelChannelBoundary("update support chat id")) {
-            return panelChannelClient.updateSupportChatId(channel.getId(), supportChatId)
-                .orElseThrow(() -> new IllegalStateException("Unable to update support chat id via internal panel API"));
-        }
-        String current = channel.getSupportChatId();
-        if (supportChatId.equals(current)) {
-            return channel;
-        }
-        channel.setSupportChatId(supportChatId);
-        Channel saved = channelRepository.save(channel);
-        log.info("Updated support chat id for channel {} to {}", saved.getId(), supportChatId);
-        return saved;
+        throw new UnsupportedOperationException("Support chat settings require authenticated panel controls");
     }
 
     private Channel ensurePersistedPublicId(Channel channel, String channelName, String platform) {

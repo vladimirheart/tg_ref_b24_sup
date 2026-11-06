@@ -1,5 +1,9 @@
 # Изолированные transport principals дочерних ботов — R291
 
+R295: операторские действия только из панели; child больше не получает
+reopen/activity/relay/operator-edit/support-chat mutations. Новые backend и
+children нужны совместно; [контракт и приёмка](panel-only-operator-actions.md).
+
 R294 подключает legacy Telegram/VK service-chat summary/relay/unblock/digest
 к тому же signed exact recipient gate, включая Telegram files и fallback.
 Инструкция новой сборки и приёмки: [legacy notifications](legacy-support-chat-delivery.md).
@@ -48,7 +52,7 @@ platform, actual user и exact raw ticket root до ingestion. Ключ в AMQP 
 Она не является полной изоляцией ОС/Redis/object storage и не закрывает весь
 первый блок 01-278. MAX forwarded/reply media реализованы sourceR292; legacy
 Telegram/VK operator notifications подключены sourceR294. Остальные legacy/
-inbound group permissions, rollout и общая cross-platform restore/replay/
+inbound group permissions закрыты R295; rollout и общая cross-platform restore/replay/
 rebind/provider приёмка остаются отдельно.
 
 ## До выпуска на машине с проектом

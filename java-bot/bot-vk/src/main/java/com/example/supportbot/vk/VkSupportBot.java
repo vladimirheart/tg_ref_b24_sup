@@ -183,9 +183,9 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     }
 
     public void handleIncomingMessage(Message message) {
-        if (message == null) {
-            return;
-        }
+        // Check before CAS/dedup/profile/selected-session handling, including restored sessions.
+        if (message == null || message.getFromId() == null || message.getFromId() <= 0
+                || !message.getFromId().equals(message.getPeerId())) return;
         GroupActor actor = createActor();
         if (message.getConversationMessageId() == null || message.getConversationMessageId() <= 0
                 || message.getPeerId() == null || message.getPeerId() <= 0) {

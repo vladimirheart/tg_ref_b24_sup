@@ -736,13 +736,7 @@ public class TicketService {
                                              Long telegramMessageId,
                                              String text,
                                              String operatorIdentity) {
-        if (!StringUtils.hasText(ticketId) || telegramMessageId == null || !StringUtils.hasText(text)) {
-            return false;
-        }
-        if (usePanelWriteBoundary("mark operator message edited")) {
-            return panelTicketWriteClient.markOperatorMessageEdited(ticketId, telegramMessageId, text, operatorIdentity);
-        }
-        return chatHistoryService.markOperatorMessageEdited(ticketId, telegramMessageId, text);
+        return false;
     }
 
     @Transactional
@@ -753,28 +747,7 @@ public class TicketService {
                                     Long telegramMessageId,
                                     Long replyToTelegramId,
                                     String operatorIdentity) {
-        if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(text)) {
-            return;
-        }
-        if (usePanelWriteBoundary("record operator relay")) {
-            panelTicketWriteClient.recordOperatorRelay(
-                ticketId,
-                text,
-                telegramMessageId,
-                replyToTelegramId,
-                operatorIdentity
-            );
-            return;
-        }
-        chatHistoryService.storeOperatorMessage(
-            userId,
-            ticketId,
-            text,
-            channel,
-            telegramMessageId,
-            replyToTelegramId
-        );
-        registerActivity(ticketId, operatorIdentity);
+        throw new UnsupportedOperationException("Operator replies require authenticated panel controls");
     }
 
     @Transactional

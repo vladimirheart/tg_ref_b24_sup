@@ -28,6 +28,41 @@ production/рабочий в старых записях, именах Compose �
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
+## Source R295 — 2026-11-06: операторские действия только в панели
+
+Решение пользователя: «Операторские действия только из панели; группы — для
+уведомлений». Членство/admin в Telegram-группе и строка operatorIdentity не
+подтверждают учётную запись или business/GENERAL grants панели. Привязка
+внешних операторов к panel accounts в обязательный scope не добавляется.
+
+Telegram принимает только private chat с actual positive sender=chat owner
+до dedup/канала/вопросника. Групповые /reply, редактирование ответов, auto-bind
+и /confirm удалены; группы не могут дописать частную сессию. VK отсекает group/
+foreign peer до claim и restore. Ранее выбранный BUSINESS/GENERAL scope не
+переопределяется, private сообщения продолжают прежний selected workflow.
+
+Шесть unowned internal operator/config routes retired: authenticated control-
+plane получает410 до prepareWrite/idempotency replay, child —403 до ticket
+lookup. Это reopen, activity PUT/DELETE, relay, operator edit и support-chat
+update. Core HTTP clients не вызывают эти routes; local operator relay/edit
+и support-chat update не делают JDBC/JPA fallback. Authenticated panel controls
+и R294 уведомления продолжают работать по прежним actor/recipient guards.
+
+460 targeted JVM cases/17 suites GREEN,52 новых; среди них50 реальных
+PostgreSQL regression cases на nonce-owned test fixture и24 MVC/cache cases.
+Main/test compile backend и bot modules выполнен; working DB/Redis/broker/
+provider другой машины не использовались. Новых migrations/flags нет.
+Backend и bot jars/image требуют новой согласованной сборки: старый Telegram
+может отправить через SDK до обращения к API, одного нового backend мало.
+R293 image содержит sourceR292, не R294/R295; deployment=false.
+
+Программный подблок legacy group/operator закрыт. Не планировать его заново.
+Следующий общий gate пункта1 — существующие42 MAX +15 principal PG/Rabbit cases
+и cross-platform restore/replay/rebind/live acceptance на выделенном стенде.
+Local Docker недоступен; этот gate PENDING_DOCKER. S6 и §7.1 full in-flight
+restart остаются MANUAL_PENDING. Task🟡; S2B снятR190; delivery/rating R289
+не открывается заново. Инструкция: docs/runbooks/panel-only-operator-actions.md.
+
 ## Source R294 — 2026-11-06: legacy уведомления Telegram/VK в разрешённый чат
 
 Продолжен пункт1 после sourceR292/buildR293. Legacy сводки обращений, relay

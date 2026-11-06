@@ -54,11 +54,9 @@ public class ChildBotRequestScopeService {
             requireChannel(child, body.get("channelId"));
             requirePlatform(child, body.get("platform"));
         } else if (pattern.startsWith("/internal/api/bot/tickets/{ticketId}")) {
+            if (!"GET".equals(method) || !Set.of("/internal/api/bot/tickets/{ticketId}",
+                    "/internal/api/bot/tickets/{ticketId}/request-number").contains(pattern)) throw forbidden();
             requireTicket(child, variables.get("ticketId"));
-            if (!Set.of("/internal/api/bot/tickets/{ticketId}", "/internal/api/bot/tickets/{ticketId}/request-number",
-                    "/internal/api/bot/tickets/{ticketId}/activity", "/internal/api/bot/tickets/{ticketId}/reopen",
-                    "/internal/api/bot/tickets/{ticketId}/operator-relay",
-                    "/internal/api/bot/tickets/{ticketId}/operator-messages/{telegramMessageId}").contains(pattern)) throw forbidden();
         } else if (pattern.equals("/internal/api/bot/feedback/pending/{requestId}/submit") && "POST".equals(method)) {
             long id = positive(variables.get("requestId"));
             var rows = jdbc.queryForList("SELECT ticket_id FROM pending_feedback_requests WHERE id=? AND channel_id=? FOR UPDATE", id, child.channelId());

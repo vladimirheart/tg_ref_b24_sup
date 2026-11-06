@@ -752,4 +752,13 @@ class VkQuestionnaireSelectionTest {
         assertThatThrownBy(()->receive(5,"Retry")).hasMessageContaining("Invalid saved VK");
         assertThat(downloads).hasValue(2);verify(tickets,never()).recordSelectedMediaBatch(any(),anyList());
     }
+    @Test void groupCannotMutateRestoredPrivateQuestionnaireOrConsumeItsDeliveryKey() {
+        chooseA(); var before=state().deepCopy(); rebuild();
+        var group=message(91,"Injected group answer",null); group.setPeerId(2000000011L);
+        bot.handleIncomingMessage(group); assertThat(state()).isEqualTo(before);
+        verify(guard,never()).tryClaim(eq("vk"),eq(55L),contains("91"));
+        verify(tickets,never()).createConversationTicket(any());
+        receive(91,"Private answer"); assertThat(state().at("/answers/free-first").asText()).isEqualTo("Private answer");
+    }
+
 }

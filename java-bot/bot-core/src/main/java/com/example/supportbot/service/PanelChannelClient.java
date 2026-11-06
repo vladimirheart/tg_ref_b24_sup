@@ -64,14 +64,8 @@ public class PanelChannelClient {
     }
 
     public Optional<Channel> updateSupportChatId(Long channelId, String supportChatId) {
-        if (!isEnabled() || channelId == null || !StringUtils.hasText(supportChatId)) {
-            return Optional.empty();
-        }
-        return send(
-            "/internal/api/bot/channels/" + channelId + "/support-chat",
-            "PUT",
-            new SupportChatUpdateRequest(supportChatId.trim())
-        );
+        // Channel settings are managed by authorized system administrators in the panel.
+        return Optional.empty();
     }
 
     private Optional<Channel> send(String path, String method, Object body) {

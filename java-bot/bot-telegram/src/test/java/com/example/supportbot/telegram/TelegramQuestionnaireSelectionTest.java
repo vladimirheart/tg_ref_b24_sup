@@ -305,7 +305,11 @@ class TelegramQuestionnaireSelectionTest {
     void invalidChannelOrPrivateOwnerFailsClosed(String kind) {
         var update=update(1,"/start");
         if(kind.equals("platform")) channel.setPlatform("max");else if(kind.equals("inactive")) channel.setActive(false);else update.getMessage().getFrom().setId(9999L);
-        assertThatThrownBy(()->bot.onUpdateReceived(update)).hasMessageContaining("owner/channel");verify(tickets,never()).createConversationTicket(any());
+        if(kind.equals("private-owner")) {
+            bot.onUpdateReceived(update);
+            verifyNoInteractions(runtime,blacklist,channels,guard);
+        } else assertThatThrownBy(()->bot.onUpdateReceived(update)).hasMessageContaining("owner/channel");
+        verify(tickets,never()).createConversationTicket(any());
     }
 
     private void generalMenu() {
@@ -580,4 +584,14 @@ class TelegramQuestionnaireSelectionTest {
         try(var files=java.nio.file.Files.walk(mediaRoot)){assertThat(files.filter(java.nio.file.Files::isRegularFile).count()).isEqualTo(1);}
         verify(attachments,times(2)).storeQuestionnaire(anyLong(),nullable(Long.class),anyLong(),anyString(),anyLong(),anyString(),any(java.io.InputStream.class));
     }
+    @ParameterizedTest @ValueSource(strings={"group","supergroup","channel"})
+    void externalChatCannotMutateRestoredPrivateQuestionnaire(String kind) throws Exception {
+        chooseA(); var before=mapper.valueToTree(state()); rebuild();
+        var update=update(91,"Injected group answer"); update.getMessage().getChat().setType(kind);
+        update.getMessage().getChat().setId(900077L); bot.onUpdateReceived(update);
+        assertThat((JsonNode)mapper.valueToTree(state())).isEqualTo(before);
+        verify(tickets,never()).createConversationTicket(any());
+        receive(92,"Private answer"); assertThat(state().answers).containsEntry("free-first","Private answer");
+    }
+
 }

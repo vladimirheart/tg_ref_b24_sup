@@ -1,5 +1,9 @@
 # Legacy Telegram/VK уведомления в служебный чат — R294
 
+R295 закрепляет решение: операторские действия только в панели, группы — для
+уведомлений. Group reply/edit/auto-bind/confirm и unowned internal operator
+routes retired; см. [panel-only actions](panel-only-operator-actions.md).
+
 SourceR294 продолжает пункт1 задачи01-278. Весь рабочий проект/Docker находится
 на другой машине и в другой агентской сессии. Здесь выполнены только source
 правки и изолированные JVM/loopback HTTP проверки. Рабочие DB/Redis/Rabbit,
@@ -38,7 +42,8 @@ Durable service-chat recovery/outbox этот шаг не добавляет; н
 MAX service-chat уведомления уже проходили MessagingService/R291 и не меняются.
 Selected BUSINESS/GENERAL questionnaire, ticket ownership, rating/delivery
 receipts и sourceLink R292 этим не переопределяются. Inbound group/operator
-reply/confirm permissions — отдельный остаток, этот outbound gate их не закрывает.
+reply/confirm permissions закрыты следующим sourceR295, этот R294 proof относится
+к outbound notifications; runtime активация обоих шагов пока не подтверждена.
 
 ## Сборка и включение на машине с проектом
 

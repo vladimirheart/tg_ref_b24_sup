@@ -40,7 +40,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.telegram.telegrambots.meta.api.methods.GetFile;
-import org.telegram.telegrambots.meta.api.methods.groupadministration.GetChatMember;
 import org.telegram.telegrambots.meta.api.methods.GetMe;
 import org.telegram.telegrambots.meta.api.methods.updates.DeleteWebhook;
 import org.telegram.telegrambots.meta.api.methods.send.SendAnimation;
@@ -52,7 +51,6 @@ import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
 import org.telegram.telegrambots.meta.api.methods.send.SendVoice;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.*;
-import org.telegram.telegrambots.meta.api.objects.chatmember.ChatMember;
 import org.telegram.telegrambots.meta.api.objects.games.Animation;
 import org.telegram.telegrambots.meta.api.objects.stickers.Sticker;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
@@ -235,6 +233,9 @@ public class SupportBot extends TelegramLongPollingBot {
 
     @Override
     public void onUpdateReceived(Update update) {
+        Message incoming = update == null ? null : update.getMessage() != null ? update.getMessage() : update.getEditedMessage();
+        // External chat membership is not a panel operator identity or a private client session.
+        if (!isPrivateClientMessage(incoming)) return;
         String deliveryKey = TelegramDeliveryIdentitySupport.buildDeliveryKey(update);
         BotWebhookDeliveryGuardService.DeliveryClaim claim = webhookDeliveryGuardService.tryClaim(
                 "telegram",
@@ -255,6 +256,12 @@ public class SupportBot extends TelegramLongPollingBot {
             webhookDeliveryGuardService.release(claim);
             throw ex;
         }
+    }
+
+    private static boolean isPrivateClientMessage(Message message) {
+        return message != null && message.getChat() != null && message.getChat().isUserChat()
+            && message.getFrom() != null && message.getFrom().getId() != null && message.getFrom().getId() > 0
+            && message.getFrom().getId().equals(message.getChatId());
     }
 
     private void processUpdate(Update update) {
@@ -313,16 +320,7 @@ public class SupportBot extends TelegramLongPollingBot {
             return;
         }
 
-        if (handleOperatorMessage(message)) {
-            log.info("Handled operator message from chat {} in update {}", message.getChatId(), update.getUpdateId());
-            return;
-        }
-
         Channel channel = getChannel();
-        if (hasMemberEvent && handleSupportChatAutoRegistration(message, channel)) {
-            log.info("Handled support chat auto-registration for chat {}", message.getChatId());
-            return;
-        }
         long userId = Optional.ofNullable(message.getFrom()).map(User::getId).orElse(0L);
         BlacklistService.BlacklistStatus status = blacklistService.getStatus(userId);
         if (status.blacklisted()) {
@@ -336,10 +334,6 @@ public class SupportBot extends TelegramLongPollingBot {
         }
 
         ConversationSession session = conversations.get(userId);
-        if (message.hasText() && handleSupportChatConfirm(message, channel)) {
-            log.info("Handled support chat confirmation for chat {}", message.getChatId());
-            return;
-        }
         if (session == null && message.hasText() && tryHandleFeedback(message, channel)) {
             log.info("Handled rating feedback from user {} in update {}", userId, update.getUpdateId());
             return;
@@ -411,221 +405,6 @@ public class SupportBot extends TelegramLongPollingBot {
         }
     }
 
-    private boolean handleSupportChatAutoRegistration(Message message, Channel channel) {
-        if (!isGroupChat(message)) {
-            return false;
-        }
-        if (channel == null) {
-            return false;
-        }
-        if (message.getNewChatMembers() == null || message.getNewChatMembers().isEmpty()) {
-            return false;
-        }
-        String botUsername = getBotUsername();
-        boolean botAdded = message.getNewChatMembers().stream()
-                .filter(Objects::nonNull)
-                .anyMatch(member -> {
-                    String username = member.getUserName();
-                    return username != null && botUsername != null && username.equalsIgnoreCase(botUsername);
-                });
-        if (!botAdded) {
-            return false;
-        }
-        if (!isSenderAdmin(message)) {
-            log.warn("Skipping support chat auto-registration: user {} is not an admin of chat {}",
-                    message.getFrom() != null ? message.getFrom().getId() : null,
-                    message.getChatId());
-            return false;
-        }
-        String currentSupportChatId = channel.getSupportChatId();
-        String newSupportChatId = String.valueOf(message.getChatId());
-        if (currentSupportChatId != null && !currentSupportChatId.isBlank()) {
-            log.info("Support chat already configured ({}); skipping auto-registration for chat {}",
-                    currentSupportChatId,
-                    newSupportChatId);
-            return false;
-        }
-        channelService.updateSupportChatId(channel, newSupportChatId);
-        cachedChannel = channel;
-        sendSupportChatConfirmation(message.getChatId(), "Группа привязана автоматически. Уведомления будут приходить сюда.");
-        return true;
-    }
-
-    private boolean handleSupportChatConfirm(Message message, Channel channel) {
-        if (!message.hasText()) {
-            return false;
-        }
-        String command = message.getText().trim();
-        if (!isConfirmCommand(command)) {
-            return false;
-        }
-        if (!isGroupChat(message)) {
-            sendSupportChatConfirmation(message.getChatId(), "Команда /confirm работает только в группе, где должен быть бот.");
-            return true;
-        }
-        if (!isSenderAdmin(message)) {
-            sendSupportChatConfirmation(message.getChatId(), "Только администратор может подтвердить группу для уведомлений.");
-            return true;
-        }
-        String newSupportChatId = String.valueOf(message.getChatId());
-        String currentSupportChatId = channel.getSupportChatId();
-        if (newSupportChatId.equals(currentSupportChatId)) {
-            sendSupportChatConfirmation(message.getChatId(), "Эта группа уже привязана к уведомлениям.");
-            return true;
-        }
-        channelService.updateSupportChatId(channel, newSupportChatId);
-        cachedChannel = channel;
-        sendSupportChatConfirmation(message.getChatId(), "Группа подтверждена. Уведомления будут приходить сюда.");
-        return true;
-    }
-
-    private boolean isConfirmCommand(String text) {
-        if (text == null || text.isBlank()) {
-            return false;
-        }
-        String candidate = text.trim().split("\\s+", 2)[0];
-        if (!candidate.startsWith("/confirm")) {
-            return false;
-        }
-        int atIndex = candidate.indexOf('@');
-        if (atIndex == -1) {
-            return "/confirm".equalsIgnoreCase(candidate);
-        }
-        String command = candidate.substring(0, atIndex);
-        String botName = candidate.substring(atIndex + 1);
-        String username = getBotUsername();
-        return "/confirm".equalsIgnoreCase(command) && username != null && botName.equalsIgnoreCase(username);
-    }
-
-    private boolean isGroupChat(Message message) {
-        if (message == null || message.getChat() == null) {
-            return false;
-        }
-        Chat chat = message.getChat();
-        return chat.isGroupChat() || chat.isSuperGroupChat();
-    }
-
-    private boolean isSenderAdmin(Message message) {
-        if (message == null || message.getFrom() == null) {
-            return false;
-        }
-        if (message.getChat() == null) {
-            return false;
-        }
-        try {
-            ChatMember member = execute(new GetChatMember(
-                    message.getChatId().toString(),
-                    message.getFrom().getId()));
-            if (member == null) {
-                return false;
-            }
-            String status = member.getStatus();
-            return "creator".equalsIgnoreCase(status) || "administrator".equalsIgnoreCase(status);
-        } catch (TelegramApiException e) {
-            log.warn("Failed to validate admin status for user {} in chat {}",
-                    message.getFrom().getId(),
-                    message.getChatId(),
-                    e);
-            return false;
-        }
-    }
-
-    private void sendSupportChatConfirmation(Long chatId, String text) {
-        if (chatId == null || text == null || text.isBlank()) {
-            return;
-        }
-        SendMessage confirmation = SendMessage.builder()
-                .chatId(chatId)
-                .text(text)
-                .replyMarkup(new ReplyKeyboardRemove(true))
-                .build();
-        try {
-            execute(confirmation);
-        } catch (TelegramApiException e) {
-            log.error("Failed to send support chat confirmation", e);
-        }
-    }
-
-    private boolean handleOperatorMessage(Message message) {
-        Long configuredChannelId = properties.getChannelId();
-        if (configuredChannelId == null) {
-            return false;
-        }
-        long chatId = message.getChatId();
-        if (chatId != configuredChannelId) {
-            return false;
-        }
-
-        String operatorText = Optional.ofNullable(message.getText()).orElse("").trim();
-        TicketReference ticketReference = resolveTicketReference(message, operatorText);
-        if (ticketReference.ticketId == null || ticketReference.outboundText.isBlank()) {
-            return false;
-        }
-
-        log.info("Operator reply resolved for ticket {} from chat {}", ticketReference.ticketId, chatId);
-
-        Optional<TicketService.TicketWithUser> ticketOpt = ticketService.findByTicketId(ticketReference.ticketId);
-        if (ticketOpt.isEmpty()) {
-            SendMessage warning = SendMessage.builder()
-                    .chatId(chatId)
-                    .text("Не удалось найти заявку с ID " + ticketReference.ticketId)
-                    .build();
-            try {
-                execute(warning);
-            } catch (TelegramApiException e) {
-                log.error("Failed to notify about missing ticket", e);
-            }
-            return true;
-        }
-
-        TicketService.TicketWithUser ticket = ticketOpt.get();
-        String operatorIdentity = operatorUsername(message);
-        if (isClosedStatus(ticket.status())) {
-            ticketService.reopenTicket(ticket.ticketId(), operatorIdentity);
-        }
-        SendMessage toClient = SendMessage.builder()
-                .chatId(ticket.userId())
-                .text(ticketReference.outboundText)
-                .replyMarkup(new ReplyKeyboardRemove(true))
-                .build();
-        try {
-            execute(toClient);
-            ticketService.recordOperatorRelay(
-                    ticket.userId(),
-                    ticket.ticketId(),
-                    ticketReference.outboundText,
-                    getChannel(),
-                    message.getMessageId() != null ? message.getMessageId().longValue() : null,
-                    ticketReference.replyToTelegramId,
-                    operatorIdentity);
-        } catch (TelegramApiException e) {
-            log.error("Failed to relay operator reply to user {}", ticket.userId(), e);
-        }
-
-        return true;
-    }
-
-    private TicketReference resolveTicketReference(Message message, String operatorText) {
-        String candidateText = operatorText == null ? "" : operatorText.trim();
-        Matcher replyCommand = Pattern.compile("^/reply\\s+(\\S+)\\s+(.+)$", Pattern.DOTALL).matcher(candidateText);
-        if (replyCommand.matches()) {
-            return new TicketReference(replyCommand.group(1), replyCommand.group(2).trim(), null);
-        }
-
-        Message repliedTo = message.getReplyToMessage();
-        if (repliedTo != null && repliedTo.hasText()) {
-            String ticketId = extractTicketId(repliedTo.getText());
-            if (ticketId != null) {
-                return new TicketReference(ticketId, candidateText, repliedTo.getMessageId() != null
-                        ? repliedTo.getMessageId().longValue()
-                        : null);
-            }
-        }
-
-        String ticketId = extractTicketId(candidateText);
-        return new TicketReference(ticketId, candidateText, null);
-    }
-
     private boolean isClosedStatus(String status) {
         if (status == null) {
             return false;
@@ -633,16 +412,6 @@ public class SupportBot extends TelegramLongPollingBot {
         return status.equalsIgnoreCase("closed") || status.equalsIgnoreCase("resolved");
     }
 
-    private String extractTicketId(String text) {
-        if (text == null) {
-            return null;
-        }
-        Matcher matcher = Pattern.compile("#([A-Za-z0-9-]{6,})").matcher(text);
-        if (matcher.find()) {
-            return matcher.group(1);
-        }
-        return null;
-    }
 
     private boolean tryHandleFeedback(Message message, Channel channel) {
         String text = Optional.ofNullable(message.getText()).orElse("").trim();
@@ -1028,10 +797,6 @@ public class SupportBot extends TelegramLongPollingBot {
         if (chatId == null) {
             return;
         }
-        if (chatId.equals(properties.getChannelId())) {
-            handleEditedOperatorMessage(editedMessage);
-            return;
-        }
         handleEditedClientMessage(editedMessage);
     }
 
@@ -1057,30 +822,6 @@ public class SupportBot extends TelegramLongPollingBot {
                 "Updated edited client message in history: telegramMessageId={} chatId={}",
                 editedMessage.getMessageId(),
                 editedMessage.getChatId()
-            );
-        }
-    }
-
-    private void handleEditedOperatorMessage(Message editedMessage) {
-        String operatorText = Optional.ofNullable(editedMessage.getText()).orElse("").trim();
-        if (operatorText.isBlank()) {
-            return;
-        }
-        TicketReference ticketReference = resolveTicketReference(editedMessage, operatorText);
-        if (ticketReference.ticketId == null || ticketReference.outboundText.isBlank()) {
-            return;
-        }
-        boolean updated = ticketService.markOperatorMessageEdited(
-            ticketReference.ticketId,
-            editedMessage.getMessageId().longValue(),
-            ticketReference.outboundText,
-            operatorUsername(editedMessage)
-        );
-        if (updated) {
-            log.info(
-                "Updated edited operator message in history: telegramMessageId={} ticketId={}",
-                editedMessage.getMessageId(),
-                ticketReference.ticketId
             );
         }
     }

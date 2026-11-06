@@ -76,19 +76,15 @@ class PanelTicketClientsExactLegacyIdTest {
     }
 
     @Test
-    void mutationPathsKeepPaddedLegacyIdWithoutRewritingTextOrOperator() {
-        assertThat(writeClient.reopenTicket(" T-EXACT ", "operator ")).isTrue();
-        assertThat(writeClient.registerActivity(" T-EXACT ", "client")).isTrue();
-        assertThat(writeClient.clearActivity(" T-EXACT ")).isTrue();
-        assertThat(writeClient.recordOperatorRelay(" T-EXACT ", "message", 19L, null, "operator")).isTrue();
-        assertThat(writeClient.markOperatorMessageEdited(" T-EXACT ", 29L, "edited", "operator")).isTrue();
-        assertThat(requests).containsExactly(
-            "POST /internal/api/bot/tickets/%20T-EXACT%20/reopen",
-            "PUT /internal/api/bot/tickets/%20T-EXACT%20/activity",
-            "DELETE /internal/api/bot/tickets/%20T-EXACT%20/activity",
-            "POST /internal/api/bot/tickets/%20T-EXACT%20/operator-relay",
-            "PUT /internal/api/bot/tickets/%20T-EXACT%20/operator-messages/29"
-        );
+    void retiredOperatorMutationsDoNotContactHttpEvenWithPaddedOrPlainIds() {
+        for (String id : new String[]{" T-EXACT ", "T-EXACT"}) {
+            assertThat(writeClient.reopenTicket(id, "operator ")).isFalse();
+            assertThat(writeClient.registerActivity(id, "client")).isFalse();
+            assertThat(writeClient.clearActivity(id)).isFalse();
+            assertThat(writeClient.recordOperatorRelay(id, "message", 19L, null, "operator")).isFalse();
+            assertThat(writeClient.markOperatorMessageEdited(id, 29L, "edited", "operator")).isFalse();
+        }
+        assertThat(requests).isEmpty();
     }
 
     @Test

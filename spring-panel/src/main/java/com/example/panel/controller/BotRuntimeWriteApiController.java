@@ -47,8 +47,7 @@ public class BotRuntimeWriteApiController {
         @PathVariable String ticketId,
         @RequestBody(required = false) TicketActivityRequest body
     ) {
-        return executeWrite(request, token, () ->
-            ticketWriteService.registerActivity(ticketId, body != null ? body.userIdentity() : null));
+        return retiredOperatorWrite(request, token);
     }
 
     @DeleteMapping("/tickets/{ticketId}/activity")
@@ -57,7 +56,7 @@ public class BotRuntimeWriteApiController {
         @RequestHeader(name = AUTH_HEADER, required = false) String token,
         @PathVariable String ticketId
     ) {
-        return executeWrite(request, token, () -> ticketWriteService.clearActivity(ticketId));
+        return retiredOperatorWrite(request, token);
     }
 
     @PostMapping("/tickets/{ticketId}/reopen")
@@ -67,8 +66,7 @@ public class BotRuntimeWriteApiController {
         @PathVariable String ticketId,
         @RequestBody(required = false) TicketActivityRequest body
     ) {
-        return executeWrite(request, token, () ->
-            ticketWriteService.reopenTicket(ticketId, body != null ? body.userIdentity() : null));
+        return retiredOperatorWrite(request, token);
     }
 
     @PostMapping("/tickets/{ticketId}/operator-relay")
@@ -78,13 +76,7 @@ public class BotRuntimeWriteApiController {
         @PathVariable String ticketId,
         @RequestBody OperatorRelayRequest body
     ) {
-        return executeWrite(request, token, () -> ticketWriteService.recordOperatorRelay(
-            ticketId,
-            body != null ? body.message() : null,
-            body != null ? body.telegramMessageId() : null,
-            body != null ? body.replyToTelegramId() : null,
-            body != null ? body.operatorIdentity() : null
-        ));
+        return retiredOperatorWrite(request, token);
     }
 
     @PutMapping("/channels/{channelId}/users/{userId}/messages/{telegramMessageId}/client-edit")
@@ -121,12 +113,7 @@ public class BotRuntimeWriteApiController {
         @PathVariable Long telegramMessageId,
         @RequestBody OperatorMessageEditRequest body
     ) {
-        return executeWrite(request, token, () -> ticketWriteService.markOperatorMessageEdited(
-            ticketId,
-            telegramMessageId,
-            body != null ? body.message() : null,
-            body != null ? body.operatorIdentity() : null
-        ));
+        return retiredOperatorWrite(request, token);
     }
 
     @PostMapping("/channels/resolve")
@@ -153,13 +140,7 @@ public class BotRuntimeWriteApiController {
         @PathVariable Long channelId,
         @RequestBody(required = false) SupportChatUpdateRequest body
     ) {
-        return executeWrite(request, token, () -> {
-            Channel updated = channelService.updateSupportChatId(
-                channelId,
-                body != null ? body.supportChatId() : null
-            );
-            return ChannelResponse.from(updated);
-        });
+        return retiredOperatorWrite(request, token);
     }
 
     @PostMapping("/feedback/pending/{requestId}/submit")
@@ -192,6 +173,13 @@ public class BotRuntimeWriteApiController {
                 cooldown
             );
         });
+    }
+
+    private ResponseEntity<String> retiredOperatorWrite(HttpServletRequest request, String token) {
+        // Authenticate before rejection, but do not replay a former success from the mutation cache.
+        requestGuardService.authorize(request, token);
+        throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.GONE,
+            "Operator actions and channel settings require authenticated panel controls");
     }
 
     private ResponseEntity<String> executeWrite(HttpServletRequest request,
