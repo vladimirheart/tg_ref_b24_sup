@@ -2,8 +2,8 @@
 
 R299: устранён SQL channel-lock deadlock одновременных selected-media ingress
 в Telegram/VK/MAX;66 новых PG cases GREEN. MAX fixture JDBC adapters исправлены,
-runner теперь75 contracts. Backend fix ещё требует отдельного выпуска; рабочий
-runtime R297 на другой машине не менялся. Подробности ниже.
+runner теперь75 contracts. R300 выпустил backend fix на panel-web/ops-worker
+текущей Windows runtime-машины; боты и инфраструктура прежние. Подробности ниже.
 
 R292 подготовлен как source change задачи 01-278 в другой сессии и включён
 в Build R296/sourceR295. R297 активировал этот image на Windows-машине рабочего
@@ -12,9 +12,9 @@ backend и3 active children обновлены. Повторять их provisio
 Flags прежние; signed MAX v4 choices возвращает404 по существующему feature gate.
 R298 исправляет fixture port publication:69 local contracts GREEN, но запуск
 42 MAX PG/Rabbit cases на Docker ещё pending;15 Docker principal IT из R297
-GREEN. Runtime находится на другой машине/в другой сессии. Live linked-media/
+GREEN. Текущий runtime checkpoint — R300, backend e661588b5. Live linked-media/
 provider и S6 приёмка остаются. Для R298 rebuild/restart backend/bots не нужен.
-См. [актуальный checkpoint](../../ai-context/tasks/task-details/01-278.md#runtime-r297--2026-11-06-v86v87-и-изолированные-боты-активированы).
+См. [актуальный checkpoint](../../ai-context/tasks/task-details/01-278.md#runtime-r300--2026-11-09-backend-r299-с-исправлением-deadlock-выпущен).
 Общая задача остаётся 🟡, S2B снят R190.
 
 ## Поддерживаемое поведение
@@ -123,8 +123,9 @@ ClassCastException Long/String→Object[];6 regression contracts воспрои�
 Пользователь09 ноября: runner ещё не запускался.75 local contracts не являются
 результатом57 Docker IT; engine здесь недоступен. Запуск ниже работает с clean
 committed source, отдельно от рабочего runtime. Backend/bots он не обновляет.
-Для исправления рабочего образа нужен отдельный backend/inbound-worker release;
-child artifacts/миграции/provision/flags не менялись.
+R300 уже выпустил это исправление на backend/inbound-worker;313 fresh targeted
+cases/8 suites, включая79 actual PG, GREEN. Child artifacts/миграции/provision/
+flags не менялись. Полный75+57 Docker runner этим не заменён.
 
 ### Исправленная инфраструктура R298
 

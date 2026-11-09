@@ -8,7 +8,9 @@ R294 подключает legacy Telegram/VK service-chat summary/relay/unblock/
 к тому же signed exact recipient gate, включая Telegram files и fallback.
 Инструкция новой сборки и приёмки: [legacy notifications](legacy-support-chat-delivery.md).
 Build R296 содержит R292/R294/R295; на рабочем тестовом экземпляре они
-активированы в R297. См. [актуальный checkpoint](../../ai-context/tasks/task-details/01-278.md#runtime-r297--2026-11-06-v86v87-и-изолированные-боты-активированы).
+активированы в R297. R300 дополнительно выпустил backend lock fix R299 на
+panel-web/ops-worker, сохранив прежний bot-runner и3 children.
+См. [актуальный checkpoint](../../ai-context/tasks/task-details/01-278.md#runtime-r300--2026-11-09-backend-r299-с-исправлением-deadlock-выпущен).
 
 R292 добавляет linked MAX media и требует также V87; см.
 [max linked media](max-linked-questionnaire-media.md). Ниже transport contract R291.
@@ -17,8 +19,9 @@ R292 добавляет linked MAX media и требует также V87; см.
 подготовлен в другой сессии; R297 выполнен на Windows-машине рабочего тестового
 экземпляра. V86/V87 и SQL/Rabbit principals Telegram1/3 и MAX2 уже применены,
 backend и3 children обновлены. Не создавать роли и не повторять миграции только
-из-за старых source checkpoints. Фактический Compose snapshot и backups —
-releases/r297-activation-20261106/private вне Git. Flags прежние, общий
+из-за старых source checkpoints. Текущий полный Compose snapshot —
+releases/r300-e661588b5-20261109/private/compose.final.json; backups R297 сохранены
+в releases/r297-activation-20261106/private вне Git. Flags прежние, общий
 PG/Rabbit/media/provider/S6 gate ещё не закрыт. Исторический S2B снят R190.
 
 R298 исправляет MAX acceptance fixture для Docker29 с сохранением internal
@@ -49,12 +52,12 @@ listener/ingestion/transaction/storage/metadata/inbox; это не live broker/S
 Redis/session/process restart и не вся cross-platform приёмка. Всего397 targeted
 JVM cases/13 suites, включая79 actual SQL cases и75 acceptance contracts GREEN.
 
-Deployment=false. Runtime R297 на другой машине остаётся sourceR295; backend
-lock fix туда ещё не попал. Для применения нужен отдельный backend release,
-обязательно с обновлением inbound worker. API/DTO/child JAR/schema/flags прежние;
-V86/V87/provision повторять не нужно. Runtime Compose брать из R297 actual
-private/compose.final.json, не подменять старым R280 override. Этот source step
-не выполняет сборку рабочего image, rollout или provider send.
+Source R299 сам не выполнял deployment. R300 на текущей Windows runtime-машине
+пересобрал и обновил panel-web/ops-worker до e661588b5/image348066da11f5,
+включая inbound worker.313 свежих targeted tests/8 suites GREEN,79 actual PG.
+API/DTO/child JAR/schema/flags прежние; V86/V87/provision повторять не нужно.
+Actual Compose — R300 private/compose.final.json, не старый R297/R280 override.
+Bot-runner и3 children не перезапускались; provider send не проверялся.
 
 MAX acceptance adapters также исправлены: generic Mockito argument больше не
 приводится к Object[] на JDBC varargs границе. Runner ожидает75 contracts и

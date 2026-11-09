@@ -24,9 +24,53 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальный checkpoint R297 имеют
+что production уже запускался. Эта оговорка и актуальный checkpoint R300 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
+
+## Runtime R300 — 2026-11-09: backend R299 с исправлением deadlock выпущен
+
+На текущей Windows-машине рабочего тестового экземпляра из clean
+HEAD/origin/main/actual remote e661588b50b6714e5e47977f4e1ef56e4d3623a6 (R299)
+полностью пересобран backend/Sass. Image iguana-panel:account-r299-e661588b5-20261109,
+sha256:348066da11f5226c78a1e490a50f5328f0ebe32199606f63a519effc31033ab7.
+746 main/705 test sources и98 Sass files compiled;313 targeted tests/8 suites,
+failures/errors/skips0. Включены66 actual PG concurrency/rebind/quota/replay cases
+Telegram/VK/MAX × BUSINESS/GENERAL и13 PG/V87/Hibernate history cases.
+Тестовая PostgreSQL изолирована network=none, без опубликованных портов,
+с nonce guard; рабочая БД тестами не использовалась.
+
+Все1444 backend class payloads exact с fresh targets; относительно R295 изменён
+только SelectedTicketFollowupMediaService.class. Новый SQL lock присутствует,
+V86/V87 bytes и3 inherited bot JAR SHA256 прежние. Новые bot artifacts не нужны.
+Через Compose --no-deps обновлены только ops-worker и panel-web, по1 replica,
+healthy/restart0. ENV, HostConfig/mount values и исходный .env сохранены.
+Все18 прочих container IDs/images/start/restart, bot-runner и PID/start ticks
+трёх children прежние. Инфраструктура и db-migrate не перезапускались.
+
+Свежие61 panel access/13 signed API checks и3 child credential contracts GREEN;
+12 running JAR hashes exact с соответствующими новым backend/прежним runner.
+Health/readiness200UP, production-readiness200/ready, Rabbit healthy, DLQ0.
+БД V87, principals, settings/accounts/grants и контрольные domain hashes прежние;
+Flyway skip подтверждён для обеих обновлённых ролей. Migration/provision/backfill/
+flags и ручной provider send не выполнялись. MAX v4 feature gate не включался.
+
+Actual Compose input web/worker — releases/r300-e661588b5-20261109/private/
+compose.final.json: полный snapshot R297 с заменой image/labels только2 ролей;
+исходные .env/project directory сохранены. Bot-runner labels по-прежнему
+указывают на R297 snapshot. Для дальнейших операций учитывать новый R300
+snapshot, не возвращать web/worker на старый image из R297/R280 override.
+Rollback aliases rollback-r300-{panel-web|ops-worker}-20261109-29f36986a0db
+сохранены и проверены; restore не разыгрывался. Удалены только3 собственных
+build/test containers; release/rollback images и application volumes сохранены.
+
+Это выпуск исправления R299, не полный57-case gate:75 contracts и42 MAX +15
+principal Docker IT этого runner здесь не запускались. Прежние15 Docker
+principal cases R297 GREEN остаются отдельным фактом. Сквозная provider/session/
+process/flags/rollback/S6/§7.1 приёмка и остальные блоки задачи ещё требуются.
+Задача🟡, S2B снятR190. Evidence:
+../iguana-runtime/tg_ref_b24_sup/releases/r300-e661588b5-20261109/.
+Ниже Source R299/R298 и Runtime R297 — исторические checkpoints до R300.
 
 ## Source R299 — 2026-11-09: selected media без channel lock upgrade
 
