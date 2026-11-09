@@ -28,9 +28,47 @@ production/рабочий в старых записях, именах Compose �
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
+## Source R298 — 2026-11-06: запуск MAX acceptance на Docker 29
+
+Исправлена тестовая инфраструктура, остановившая 42 MAX PG/Rabbit cases в R297.
+PostgreSQL/Rabbit остаются только в nonce-owned internal bridge, без published
+ports. Отдельный непривилегированный Socat relay соединён с этой сетью и с
+собственным ingress bridge; он пересылает только два фиксированных TCP target.
+Host bindings — только 127.0.0.1 и случайные нестандартные порты. У relay
+read-only root, capabilities=ALL dropped и ip_forward=0. Перед JDBC/AMQP
+проверяются actual Docker inspect: labels/internal/driver, точные memberships,
+отсутствие service mappings и точные loopback bindings relay. External DB/AMQP
+overrides, Compose и working credentials не используются.
+
+Runner pin API1.44 для Testcontainers1.19.7/Docker29, выполняет MAX42 и principal15
+раздельно и сохраняет partial counts, первый failure и failed/startup XML.
+Cleanup допускает только свои owner+nonce containers/networks с точными
+image/role/isolation guards. Старое имя r292-proof.json сохранено для совместимости;
+Phase=R298. Успех требует все57 IT без failures/errors/skips и неизменные прежние
+containers; ValidateOnly не закрывает gate.
+
+Локально GREEN: полный main compile backend/core и test compile acceptance,
+69 tests/3 suites (26 прежних chain +8 wire +35 новых fixture topology/inspect),
+0 failures/errors/skips. PowerShell5.1 parser/SelfTest GREEN: сетевые cleanup
+guards и4 real matrix-control-flow cases с fake Maven, включая оба failure.
+MaxFollowupMediaChainIT42 и ChildTransportPrincipalIT15 не изменены; assertions
+и матрица не ослаблены. Docker daemon здесь недоступен: запуск исправленной
+инфраструктуры и42 MAX cases ещё НЕ подтверждён. Docker principal15 GREEN из
+другой runtime-сессии R297 сохраняется как отдельный факт.
+
+Изменён только acceptance tooling/documentation; runtime artifacts, POM,
+миграции и flags прежние. Рабочий экземпляр — на другой машине/в другой
+runtime-сессии, rollout/provision R297 не повторять. После commit/push и
+обновления clean checkout на той машине выполнить существующий
+java-bot/bot-feedback-acceptance/run-max-media-acceptance.ps1; backend/bots
+пересобирать и перезапускать для R298 не требуется. Подробности:
+docs/runbooks/max-linked-questionnaire-media.md. Общая задача01-278 остаётся🟡;
+cross-platform/provider/restore/rebind и S6/§7.1 acceptance ещё требуется.
+
 ## Runtime R297 — 2026-11-06: V86/V87 и изолированные боты активированы
 
-Рабочий тестовый экземпляр находится на текущей Windows-машине. После явного
+Checkpoint R297 относится к другой машине и runtime-сессии рабочего тестового
+экземпляра. Ниже зафиксированы наблюдения той сессии. После явного
 «делай» выполнена активация image из Build R296:
 iguana-panel:account-r295-6bc6ae23a-20261106,
 sha256:29f36986a0dbfd615c1444851567517602ba11bf2729d095a918850b03054d89,

@@ -150,16 +150,18 @@ launcher/всей fleet или приёмка S6. Это реальный proces
 права, схемы и очереди не меняются. Старые children нельзя смешивать с новой ledger
 логикой; выпуск/откат требуют отдельного schema/backup/cold-fleet gate.
 
-## R287: MAX followup media, отдельный запуск
+## MAX followup media: текущий запуск R298 (исходная матрица R287/R292)
 
-Подготовлены38 случаев PostgreSQL/Rabbit: published BUSINESS/GENERAL batch,
+Подготовлены42 media +15 principal случаев PostgreSQL/Rabbit: published BUSINESS/GENERAL batch,
 whole-batch rollback, duplicate/requeue после committed write, real advisory
 quota race и PostgreSQL JSONB outbox lookup. Fixture использует narrow JDBC
 repository adapters и production services/transactions; это не полный JPA/Boot,
 MAX SDK, Redis session, process kill или live acceptance.
 
-На source-машине Docker engine недоступен: фактический IT run **не выполнен**.
-137 JVM tests/8 suites GREEN, включая26 новых local contracts.
+R297 на другой runtime-машине:34 contracts и15 Docker principal IT GREEN,
+MAX42 не стартовали из-за internal-only port publication. R298 исправляет fixture:
+69 local contracts/3 suites GREEN, включая35 новых topology/inspect cases. Docker
+здесь недоступен, исправленный MAX42 ещё **не выполнен**. Это не runtime change.
 
 Нужны JDK17 в PATH и запущенный локальный Linux Docker engine. После commit/push
 и обновления checkout, из корня репозитория:
@@ -168,15 +170,16 @@ MAX SDK, Redis session, process kill или live acceptance.
 powershell -NoProfile -File .\java-bot\bot-feedback-acceptance\run-max-media-acceptance.ps1
 ```
 
-Оператор собирает отдельный detached checkout, сначала панель и26 contracts,
-затем38 IT. Application YAML/.env/Compose/working targets не используются.
+Оператор собирает отдельный detached checkout, сначала панель и69 contracts,
+затем раздельно42 media и15 principal IT (API1.44 для Docker29). Application YAML/.env/Compose/working targets не используются.
 Endpoint overrides старого feedback fixture не читаются: только собственные
-nonce-labelled PostgreSQL/Rabbit/internal network, random loopback ports и
+nonce-labelled PostgreSQL/Rabbit/internal service network, отдельный ограниченный
+Socat relay/ingress network, random loopback ports только relay на127.0.0.1 и
 фиктивные credentials. Test images могут скачиваться при первом запуске.
 Прежние containers/config hashes проверяются после cleanup.
 
-Логи, XML и `r287-proof.json` останутся в новом `.tmp/r287-acceptance-*`.
-Успех полного запуска: `INTEGRATION_GREEN`,38 tests, failures/errors/skips0,
+Логи, включая failed/startup XML, и `r292-proof.json` (Phase=R298) останутся в новом `.tmp/r287-acceptance-*`.
+Успех полного запуска: `INTEGRATION_GREEN`,57 IT (42+15), failures/errors/skips0,
 `IntegrationPassed=true` и `ExistingContainersUnchanged=true`. Ошибка Docker
 не становится skip/success. `-ValidateOnly` запускает только compile/contracts
 и сохраняет `IntegrationPassed=null`; `-SelfTest` не запускает builds/Docker.

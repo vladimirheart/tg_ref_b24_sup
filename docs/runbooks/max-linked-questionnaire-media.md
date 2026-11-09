@@ -5,8 +5,10 @@ R292 подготовлен как source change задачи 01-278 в друг
 тестового экземпляра: V86/V87 и отдельные SQL/Rabbit principals уже применены,
 backend и3 active children обновлены. Повторять их provision не требуется.
 Flags прежние; signed MAX v4 choices возвращает404 по существующему feature gate.
-42 MAX PG/Rabbit cases ещё pending из-за fixture port publication;15 Docker
-principal IT GREEN. Live linked-media/provider и S6 приёмка остаются.
+R298 исправляет fixture port publication:69 local contracts GREEN, но запуск
+42 MAX PG/Rabbit cases на Docker ещё pending;15 Docker principal IT из R297
+GREEN. Runtime находится на другой машине/в другой сессии. Live linked-media/
+provider и S6 приёмка остаются. Для R298 rebuild/restart backend/bots не нужен.
 См. [актуальный checkpoint](../../ai-context/tasks/task-details/01-278.md#runtime-r297--2026-11-06-v86v87-и-изолированные-боты-активированы).
 Общая задача остаётся 🟡, S2B снят R190.
 
@@ -98,8 +100,35 @@ Node: 7 новых BUSINESS/GENERAL renderer cases и прежние R117/R134/R
 GREEN. PowerShell5.1 acceptance runner self-test/parser GREEN. Это не live
 MAX/provider/Redis restart acceptance и не проверка полного рабочего Boot fleet.
 
+### Исправленная инфраструктура R298
+
+Docker29 может не создавать host mappings у контейнера только в internal
+bridge ([наблюдение в Moby](https://github.com/moby/moby/discussions/53256)).
+R298 сохраняет PostgreSQL/Rabbit в internal service network без публикации
+портов. Socat relay alpine/socat:1.7.4.3-r0 имеет второй собственный ingress
+bridge и только два фиксированных target; наружу публикуются два случайных
+порта исключительно на 127.0.0.1. Relay без capabilities, с read-only root и
+ip_forward=0. Чужие/рабочие networks не подключаются. До protocol connections
+проверяются actual Docker inspect memberships и bindings. Отсутствие mapping
+или потеря isolation остаются ошибкой, fallback на внешнюю БД/брокер отсутствует.
+PostgreSQL/Rabbit готовы по startup logs; internal service не ожидает host port.
+См. [правила Docker для localhost bindings](https://docs.docker.com/engine/network/port-publishing/).
+
+Новый source proof:69 tests/3 suites, включая35 fixture topology/inspect cases,
+PowerShell5.1 parser/SelfTest GREEN. Это ещё не Docker42. Для повторной проверки
+нужны clean committed checkout, JDK17 и локальный Linux Docker на машине запуска;
+runner сам передаёт api.version=1.44 тестовой JVM, не меняет daemon settings.
+MAX42 и principal15 запускаются раздельно; failed/startup XML и оба Maven logs
+сохраняются даже при частичном результате. Успех — только все57 без skips,
+IntegrationPassed=true, ExistingContainersUnchanged=true. Phase=R298 в прежнем
+r292-proof.json. У cleanup точные owner+nonce/image/role/isolation guards обеих
+сетей; existing containers остаются под прежней проверкой неизменности.
+
+Ниже общий запуск обновлённой матрицы. Это тестовый шаг: миграции/provision R297,
+пересборка или перезапуск рабочего backend/bots для него не требуются.
+
 Подготовлены 42 MAX PostgreSQL/Rabbit cases: прежние38 и4 новых BUSINESS/GENERAL
-forward/reply chain/replay cases. Полный запуск остаётся `PENDING_DOCKER`: local
+forward/reply chain/replay cases. Повторный полный запуск R298 остаётся `PENDING_DOCKER`: local
 desktop-linux engine в source-сессии недоступен. На машине с локальным Docker/
 JDK17 после пользовательского commit:
 
@@ -107,12 +136,12 @@ JDK17 после пользовательского commit:
 powershell.exe -NoProfile -File .\java-bot\bot-feedback-acceptance\run-max-media-acceptance.ps1
 ```
 
-Ожидаются 34 wire/isolation contracts и57 IT (42 media +15 SQL principal cases),
+Ожидаются 69 wire/isolation/fixture contracts и57 IT (42 media +15 SQL principal cases),
 без skips. Оператор создаёт detached source/test containers, проверяет
 неизменность существующих контейнеров и пишет `r292-proof.json`.
-`-ValidateOnly` выполняет compile/34 contracts, не закрывает инфраструктурную
-приёмку. Здесь 34 contracts и15 native principal cases выполнены отдельно;
-Docker variant 15 principal cases остаётся вместе с общим Docker gate.
+`-ValidateOnly` выполняет compile/69 contracts, не закрывает инфраструктурную
+приёмку. 15 Docker principal cases уже GREEN в R297; runner повторяет их вместе
+с42 MAX для единого57-case proof. Не приписывать local69 результат Docker42.
 
 После выкладки проверить через тестового клиента BUSINESS и GENERAL:
 
@@ -128,7 +157,7 @@ Docker variant 15 principal cases остаётся вместе с общим Do
 5. Сохранить фактические images/revisions/V87/flags и результаты в acceptance
    checkpoint другой runtime-сессии. Не отмечать здесь S6 принятым автоматически.
 
-Общий пункт1 остаётся в работе: другие legacy/direct пути, cross-platform
+Общий пункт1 остаётся в работе:42 MAX cases и cross-platform
 GENERAL/questionnaire restore/replay/rebind и operational provider/rollback
 приёмка. Программный delivery/rating блок R289 и ручной checklist §7.1
 production-e2e-smoke не открываются заново.

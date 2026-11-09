@@ -21,6 +21,12 @@ backend и3 children обновлены. Не создавать роли и н�
 releases/r297-activation-20261106/private вне Git. Flags прежние, общий
 PG/Rabbit/media/provider/S6 gate ещё не закрыт. Исторический S2B снят R190.
 
+R298 исправляет MAX acceptance fixture для Docker29 с сохранением internal
+service network. Principal15 из R297 уже GREEN; повторный общий42+15 gate ещё
+не выполнен. [Команда и границы проверки](max-linked-questionnaire-media.md#исправленная-инфраструктура-r298).
+Это только test tooling: рабочие backend/bots перезапускать или provisioning
+повторять не требуется; runtime R297 получен в другой машине/сессии.
+
 ## Что меняется
 
 В режиме `rabbitmq` launcher больше не передаёт child общий control-plane API

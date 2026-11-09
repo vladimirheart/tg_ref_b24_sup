@@ -44,8 +44,6 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.AnnotationTransactionAttributeSource;
 import org.springframework.transaction.interceptor.TransactionInterceptor;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.testcontainers.containers.*;
-import org.testcontainers.utility.DockerImageName;
 
 /** Opt-in only. Real PostgreSQL/Rabbit/transactions/bytes; narrow JDBC repository adapters, no Boot/config/provider. */
 final class MaxMediaChainFixture implements AutoCloseable {
@@ -62,9 +60,7 @@ final class MaxMediaChainFixture implements AutoCloseable {
     final List<Boolean> redelivered=new CopyOnWriteArrayList<>();
     final AtomicReference<Runnable> beforeHistory=new AtomicReference<>(()->{});
     final String nonce,schema,exchange,queue,dlq;
-    final PostgreSQLContainer<?> postgres;
-    final GenericContainer<?> broker;
-    final Network network;
+    final MaxMediaTestInfrastructure infrastructure;
     HikariDataSource datasource;JdbcTemplate jdbc;DataSourceTransactionManager manager;TransactionTemplate tx;
     CachingConnectionFactory connections;RabbitTemplate rabbit;RabbitAdmin admin;
     IntegrationTransportOutboxService outbox;InboundClientMessagePublisher publisher;
@@ -89,31 +85,22 @@ final class MaxMediaChainFixture implements AutoCloseable {
     }
     MaxMediaChainFixture(Path files,String runNonce)throws Exception{
         verifyPanelClasses();this.files=files;nonce=nonce(runNonce);schema="r287_"+nonce;exchange="r287."+nonce;queue=exchange+".inbound";dlq=queue+".dlq";
-        network=Network.builder().createNetworkCmdModifier(c->c.withInternal(true).withLabels(Map.of("io.iguana.owner",OWNER,"io.iguana.test-nonce",nonce))).build();
-        postgres=new PostgreSQLContainer<>("postgres:16-alpine").withDatabaseName(DATABASE).withUsername("r287_test").withPassword(TOKEN).withNetwork(network)
-            .withLabel("io.iguana.owner",OWNER).withLabel("io.iguana.test-nonce",nonce)
-            .withCreateContainerCmdModifier(c->c.getHostConfig().withMemory(192L*1024*1024).withNanoCPUs(1_000_000_000L)
-                .withPortBindings(new com.github.dockerjava.api.model.PortBinding(com.github.dockerjava.api.model.Ports.Binding.bindIpAndPort("127.0.0.1",0),new com.github.dockerjava.api.model.ExposedPort(5432))));
-        broker=new GenericContainer<>(DockerImageName.parse("rabbitmq:3.13-management-alpine")).withExposedPorts(5672).withNetwork(network)
-            .withLabel("io.iguana.owner",OWNER).withLabel("io.iguana.test-nonce",nonce).withEnv("RABBITMQ_DEFAULT_USER","iguana_child_"+CHANNEL).withEnv("RABBITMQ_DEFAULT_PASS",TOKEN)
-            .withEnv("RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS","+S 1:1 +A 4 +sbwt none +sbwtdcpu none +sbwtdio none")
-            .withCreateContainerCmdModifier(c->c.getHostConfig().withMemory(384L*1024*1024).withNanoCPUs(1_000_000_000L)
-                .withPortBindings(new com.github.dockerjava.api.model.PortBinding(com.github.dockerjava.api.model.Ports.Binding.bindIpAndPort("127.0.0.1",0),new com.github.dockerjava.api.model.ExposedPort(5672))));
+        infrastructure=new MaxMediaTestInfrastructure(nonce);
         try{
-            postgres.start();broker.start();String jdbcUrl="jdbc:postgresql://"+postgres.getHost()+":"+postgres.getMappedPort(5432)+"/"+DATABASE;endpoint(jdbcUrl,broker.getHost(),broker.getMappedPort(5672),schema);
+            infrastructure.start();String jdbcUrl=infrastructure.jdbcUrl();endpoint(jdbcUrl,infrastructure.host(),infrastructure.amqpPort(),schema);
             new JdbcTemplate(new DriverManagerDataSource(jdbcUrl,"r287_test",TOKEN)).execute("CREATE SCHEMA "+schema);
             datasource=new HikariDataSource();datasource.setJdbcUrl(jdbcUrl);datasource.setUsername("r287_test");datasource.setPassword(TOKEN);datasource.setSchema(schema);
             datasource.setMaximumPoolSize(8);datasource.setMinimumIdle(0);datasource.setConnectionTimeout(5000);
             datasource.setConnectionInitSql("SET lock_timeout='5s'");datasource.addDataSourceProperty("socketTimeout","15");
             jdbc=new JdbcTemplate(datasource);manager=new DataSourceTransactionManager(datasource);tx=new TransactionTemplate(manager);schema();
-            connections=new CachingConnectionFactory(broker.getHost(),broker.getMappedPort(5672));connections.setUsername("iguana_child_"+CHANNEL);connections.setPassword(TOKEN);
+            connections=new CachingConnectionFactory(infrastructure.host(),infrastructure.amqpPort());connections.setUsername("iguana_child_"+CHANNEL);connections.setPassword(TOKEN);
             var transport=new com.example.supportbot.config.RabbitIntegrationTransportConfig();rabbit=transport.rabbitTemplate(connections,transport.integrationRabbitMessageConverter(mapper));admin=new RabbitAdmin(connections);
             admin.declareExchange(new TopicExchange(exchange,true,false));admin.declareQueue(new Queue(queue,true,false,false,Map.of("x-dead-letter-exchange",exchange,"x-dead-letter-routing-key",dlq)));
             admin.declareQueue(new Queue(dlq,true));admin.declareBinding(new Binding(queue,Binding.DestinationType.QUEUE,exchange,"r287.max",null));admin.declareBinding(new Binding(dlq,Binding.DestinationType.QUEUE,exchange,dlq,null));
             routes=new com.example.supportbot.config.IntegrationRabbitProperties();routes.setInboundExchange(exchange);routes.setRoutingMax("r287.max");routes.setRoutingTicketCreated("r287.created");
             outbox=new IntegrationTransportOutboxService(jdbc,mapper,rabbit);var childApi=new com.example.supportbot.config.IntegrationPanelApiProperties();childApi.setToken(childToken());outbox.setChildCredentials(childApi);publisher=new InboundClientMessagePublisher(outbox,routes);
             backend();http();
-        }catch(Throwable failure){close();throw failure;}
+        }catch(Throwable failure){try{close();}catch(Throwable cleanup){failure.addSuppressed(cleanup);}throw failure;}
     }
     @SuppressWarnings("unchecked") <T>T transactional(T target){var proxy=new ProxyFactory(target);proxy.setProxyTargetClass(true);proxy.addAdvice(new TransactionInterceptor(manager,new AnnotationTransactionAttributeSource()));return(T)proxy.getProxy();}
     void backend()throws Exception{
@@ -191,5 +178,5 @@ final class MaxMediaChainFixture implements AutoCloseable {
         """);
         jdbc.execute(new org.springframework.core.io.ClassPathResource("db/V87__max_message_source_link.sql").getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
     }
-    @Override public void close(){try{stopConsumer();if(http!=null)http.stop(0);if(connections!=null)connections.destroy();if(datasource!=null)datasource.close();}finally{try{broker.stop();}finally{try{postgres.stop();}finally{network.close();}}}}
+    @Override public void close(){try{stopConsumer();if(http!=null)http.stop(0);if(connections!=null)connections.destroy();if(datasource!=null)datasource.close();}finally{infrastructure.close();}}
 }
