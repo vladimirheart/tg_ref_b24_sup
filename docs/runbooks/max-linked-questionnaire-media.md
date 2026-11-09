@@ -1,8 +1,14 @@
 # MAX: пересылки и ответы с вложениями — R292
 
+R301: изолированная приёмка завершена —90 contracts +42 MAX PG/Rabbit +15 principal
+IT GREEN, все147 tests/7 suites без ошибок/пропусков. Исправлены inspection
+serializer, servlet query decoding и ожидание раннего duplicate-root principal
+reject. Production code не менялся, rebuild не нужен. Live provider/S6 pending.
+Evidence: releases/r301-acceptance-20261109/validation-v10/r301-proof.json вне .tmp.
+
 R299: устранён SQL channel-lock deadlock одновременных selected-media ingress
 в Telegram/VK/MAX;66 новых PG cases GREEN. MAX fixture JDBC adapters исправлены,
-runner теперь75 contracts. R300 выпустил backend fix на panel-web/ops-worker
+runner тогда75 contracts, текущий R301 —90. R300 выпустил backend fix на panel-web/ops-worker
 текущей Windows runtime-машины; боты и инфраструктура прежние. Подробности ниже.
 
 R292 подготовлен как source change задачи 01-278 в другой сессии и включён
@@ -11,8 +17,8 @@ R292 подготовлен как source change задачи 01-278 в друг
 backend и3 active children обновлены. Повторять их provision не требуется.
 Flags прежние; signed MAX v4 choices возвращает404 по существующему feature gate.
 R298 исправляет fixture port publication:69 local contracts GREEN, но запуск
-42 MAX PG/Rabbit cases на Docker ещё pending;15 Docker principal IT из R297
-GREEN. Текущий runtime checkpoint — R300, backend e661588b5. Live linked-media/
+42 MAX PG/Rabbit cases и15 principal IT повторно выполнены вместе в R301,
+GREEN. Runtime images/Compose — R300, backend e661588b5. Live linked-media/
 provider и S6 приёмка остаются. Для R298 rebuild/restart backend/bots не нужен.
 См. [актуальный checkpoint](../../ai-context/tasks/task-details/01-278.md#runtime-r300--2026-11-09-backend-r299-с-исправлением-deadlock-выпущен).
 Общая задача остаётся 🟡, S2B снят R190.
@@ -118,14 +124,14 @@ byte read и reconstructed-service replay; общий targeted proof397/13 suite
 Mockito arguments перед JDBC varargs. Прежний generic getArgument(0) давал
 ClassCastException Long/String→Object[];6 regression contracts воспроизводят
 ошибку старой формы и используют те же factory methods, что actual IT fixture.
-Теперь полный runner требует75 contracts (прежние69 +6 adapters), Phase=R299
+Исторический runner R299 требовал75 contracts (прежние69 +6 adapters), Phase=R299
 в прежнем r292-proof.json.42 media +15 principal IT и assertions не изменены.
-Пользователь09 ноября: runner ещё не запускался.75 local contracts не являются
-результатом57 Docker IT; engine здесь недоступен. Запуск ниже работает с clean
+До R301 runner ещё не запускался.75 local contracts не являлись
+результатом57 Docker IT; полный gate теперь выполнен R301. Запуск ниже работает с clean
 committed source, отдельно от рабочего runtime. Backend/bots он не обновляет.
 R300 уже выпустил это исправление на backend/inbound-worker;313 fresh targeted
 cases/8 suites, включая79 actual PG, GREEN. Child artifacts/миграции/provision/
-flags не менялись. Полный75+57 Docker runner этим не заменён.
+flags не менялись. Полный90+57 Docker runner завершён отдельно в R301.
 
 ### Исправленная инфраструктура R298
 
@@ -147,7 +153,7 @@ PowerShell5.1 parser/SelfTest GREEN. Это ещё не Docker42. Для пов�
 runner сам передаёт api.version=1.44 тестовой JVM, не меняет daemon settings.
 MAX42 и principal15 запускаются раздельно; failed/startup XML и оба Maven logs
 сохраняются даже при частичном результате. Успех — только все57 без skips,
-IntegrationPassed=true, ExistingContainersUnchanged=true. Сейчас Phase=R299 в прежнем
+IntegrationPassed=true, ExistingContainersUnchanged=true. Сейчас Phase=R301 в прежнем
 r292-proof.json. У cleanup точные owner+nonce/image/role/isolation guards обеих
 сетей; existing containers остаются под прежней проверкой неизменности.
 
@@ -155,20 +161,21 @@ r292-proof.json. У cleanup точные owner+nonce/image/role/isolation guards
 пересборка или перезапуск рабочего backend/bots для него не требуются.
 
 Подготовлены 42 MAX PostgreSQL/Rabbit cases: прежние38 и4 новых BUSINESS/GENERAL
-forward/reply chain/replay cases. Повторный полный запуск R299 остаётся `PENDING_DOCKER`: local
-desktop-linux engine в source-сессии недоступен. На машине с локальным Docker/
-JDK17 после пользовательского commit:
+forward/reply chain/replay cases. Полный запуск выполнен R301: все42+15 GREEN.
+Прерванный прогон с недоступным Docker не считается успехом; final validation-v10
+проверил неизменность20 containers после recovery. Для воспроизведения на машине
+с локальным Docker/JDK17 и clean committed source:
 
 ```powershell
 powershell.exe -NoProfile -File .\java-bot\bot-feedback-acceptance\run-max-media-acceptance.ps1
 ```
 
-Ожидаются 75 wire/isolation/fixture/adapter contracts и57 IT (42 media +15 SQL principal cases),
+Ожидаются90 wire/isolation/fixture/adapter/query contracts и57 IT (42 media +15 SQL principal cases),
 без skips. Оператор создаёт detached source/test containers, проверяет
 неизменность существующих контейнеров и пишет `r292-proof.json`.
-`-ValidateOnly` выполняет compile/75 contracts, не закрывает инфраструктурную
+`-ValidateOnly` выполняет compile/90 contracts, не закрывает инфраструктурную
 приёмку. 15 Docker principal cases уже GREEN в R297; runner повторяет их вместе
-с42 MAX для единого57-case proof. Не приписывать local75 результат Docker42.
+с42 MAX для единого57-case proof. Не приписывать local90 результат Docker42.
 
 После выкладки проверить через тестового клиента BUSINESS и GENERAL:
 
@@ -184,7 +191,7 @@ powershell.exe -NoProfile -File .\java-bot\bot-feedback-acceptance\run-max-media
 5. Сохранить фактические images/revisions/V87/flags и результаты в acceptance
    checkpoint другой runtime-сессии. Не отмечать здесь S6 принятым автоматически.
 
-Общий пункт1 остаётся в работе:42 MAX cases и cross-platform
+42 MAX cases закрыты R301. Общий пункт1 остаётся в работе: cross-platform
 GENERAL/questionnaire restore/replay/rebind и operational provider/rollback
 приёмка. Программный delivery/rating блок R289 и ручной checklist §7.1
 production-e2e-smoke не открываются заново.

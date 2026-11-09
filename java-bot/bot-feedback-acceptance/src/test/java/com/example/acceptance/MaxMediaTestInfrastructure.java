@@ -2,6 +2,7 @@ package com.example.acceptance;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.model.*;
 import java.time.Duration;
@@ -19,7 +20,13 @@ final class MaxMediaTestInfrastructure implements AutoCloseable {
     final Network services, ingress;
     final GenericContainer<?> postgres, broker;
     final SocatContainer relay;
-    private final ObjectMapper mapper = new ObjectMapper();
+    // docker-java represents Docker API's ExposedPorts/Volumes {} markers as plain Object.
+    // Keep this setting local to inspection serialization; every isolation guard below still runs.
+    private static final ObjectMapper INSPECTION_MAPPER = new ObjectMapper().disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
+
+    static JsonNode containerInspection(InspectContainerResponse inspect) {
+        return INSPECTION_MAPPER.valueToTree(inspect);
+    }
 
     MaxMediaTestInfrastructure(String runNonce) {
         nonce = MaxMediaChainFixture.nonce(runNonce);
@@ -77,11 +84,11 @@ final class MaxMediaTestInfrastructure implements AutoCloseable {
     void start() {
         postgres.start(); broker.start(); relay.start();
         var docker = relay.getDockerClient();
-        verifyNetwork(mapper.valueToTree(docker.inspectNetworkCmd().withNetworkId(services.getId()).exec()), true, "services", nonce);
-        verifyNetwork(mapper.valueToTree(docker.inspectNetworkCmd().withNetworkId(ingress.getId()).exec()), false, "ingress", nonce);
-        verifyService(mapper.valueToTree(docker.inspectContainerCmd(postgres.getContainerId()).exec()), services.getId());
-        verifyService(mapper.valueToTree(docker.inspectContainerCmd(broker.getContainerId()).exec()), services.getId());
-        verifyRelay(mapper.valueToTree(docker.inspectContainerCmd(relay.getContainerId()).exec()), services.getId(), ingress.getId());
+        verifyNetwork(INSPECTION_MAPPER.valueToTree(docker.inspectNetworkCmd().withNetworkId(services.getId()).exec()), true, "services", nonce);
+        verifyNetwork(INSPECTION_MAPPER.valueToTree(docker.inspectNetworkCmd().withNetworkId(ingress.getId()).exec()), false, "ingress", nonce);
+        verifyService(containerInspection(docker.inspectContainerCmd(postgres.getContainerId()).exec()), services.getId());
+        verifyService(containerInspection(docker.inspectContainerCmd(broker.getContainerId()).exec()), services.getId());
+        verifyRelay(containerInspection(docker.inspectContainerCmd(relay.getContainerId()).exec()), services.getId(), ingress.getId());
     }
 
     String jdbcUrl() { return "jdbc:postgresql://" + relay.getHost() + ":" + relay.getMappedPort(5432) + "/" + MaxMediaChainFixture.DATABASE; }

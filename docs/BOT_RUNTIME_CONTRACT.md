@@ -64,6 +64,48 @@ Platform-specific:
 в local `JPA/SQLite` business-path для ticket/channel/feedback/blacklist
 операций.
 
+## Acceptance R301 — 2026-11-09: MAX PostgreSQL/Rabbit gate завершён
+
+На текущей Windows-машине из baseline f54e88324993d8de2fcaf13efb94ae46579d394f
+в detached source/test копии выполнены90 contracts и57 actual Docker IT:
+42 MAX media +15 child transport principal. Все147 tests/7 XML GREEN,
+failures/errors/skips0; PowerShell5.1 parser/SelfTest GREEN. Проверены BUSINESS/
+GENERAL, signed HTTP admission, outbox→Rabbit→listener, sourceLink, quota,
+rollback, committed-before-ACK replay и отказ при root drift. Это изолированный
+PG/Rabbit gate, без отправки реальному provider и без рабочей БД.
+
+Исправлены только тесты и runner: docker-java ExposedPorts/Volumes {} markers
+сериализуются локальным inspection mapper; HTTP-мост декодирует query как servlet,
+сохраняя exact padded/Unicode root и исходную HMAC query. Добавлены6 typed-inspect
+и9 query regressions. Для duplicate-root ожидается точный R291 principal reject
+до inbox, а не старый IllegalStateException/failed inbox; проверки отсутствия
+history/metadata сохранены и добавлена неизменность active profile. Другие40
+MAX cases и production code не менялись. Runner:90 contracts, Phase=R301,
+42+15 IT; имя r292-proof.json у штатного runner сохранено.
+
+Прерванный validation-v3 остановился при недоступном Docker, итогового proof нет.
+Docker Desktop восстановлен:15 ранее работавших containers автоматически
+перезапущены, bot-runner имеет restart1. Это recovery, не новый release.
+Все20 прежних ID/images и значения конфигурации сохранены; различия порядка
+Binds/LogConfig сверены по значениям с R300 snapshot. Новый final validation-v10
+строго проверил20 полных snapshots до/после: ExistingContainersUnchanged=true.
+1444 baseline backend classes и6 test-source inputs hash-exact.
+Validation-v9 отдельно сохранил40/42 PASS и2 устаревших exception assertions;
+этот RED не выдаётся за завершённую приёмку.
+
+После recovery повторены61 live login/access/SSE/readiness checks: GREEN,
+health200/UP, production-readiness200/ready, DLQ0. Backend остаётся R299/e661588b5,
+image348066da11f5; bot-runner R295/6bc6ae23a/image29f36986a0db. Compose pointer
+R300 прежний. Пересборка/Compose recreate/deploy/migrations/provision/backfill/
+flags и provider sends не выполнялись; для test-only исправлений rebuild не нужен.
+Evidence вне .tmp: ../iguana-runtime/tg_ref_b24_sup/releases/r301-acceptance-20261109/
+validation-v10/r301-proof.json, final-suites.json и recovery-access-result.json.
+
+Пользователь выбрал общие межбизнесовые manual tasks/projects/Kanban с отдельными
+правами и участниками. Решение внесено в S0; его ACL/API/query/UI implementation
+ещё предстоит. Остались live provider/cross-platform приёмка, AI privacy/delivery,
+incident/system policy и отдельный S6/§7.1. Общая задача🟡; S2B снятR190.
+
 ## Runtime R300 — 2026-11-09: backend R299 с исправлением deadlock выпущен
 
 На текущей Windows-машине рабочего тестового экземпляра из clean

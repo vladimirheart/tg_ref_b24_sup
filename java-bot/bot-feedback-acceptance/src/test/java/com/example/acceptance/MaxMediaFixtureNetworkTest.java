@@ -43,7 +43,7 @@ class MaxMediaFixtureNetworkTest {
     }
 
     private ObjectNode roundtrip(ObjectNode inspect) throws Exception {
-        return mapper.valueToTree(mapper.treeToValue(inspect, InspectContainerResponse.class));
+        return (ObjectNode) MaxMediaTestInfrastructure.containerInspection(mapper.treeToValue(inspect, InspectContainerResponse.class));
     }
 
     @ParameterizedTest @ValueSource(booleans = {false, true})
@@ -124,6 +124,44 @@ class MaxMediaFixtureNetworkTest {
         }
         var actual = mapper.valueToTree(mapper.treeToValue(inspect, Network.class));
         assertThatThrownBy(() -> MaxMediaTestInfrastructure.verifyNetwork(actual, internal, role, NONCE)).isInstanceOf(IllegalStateException.class);
+    }
+
+    private ObjectNode imageInspection(boolean relay) {
+        var inspect = container(relay);
+        var exposed = inspect.putObject("Config").putObject("ExposedPorts");
+        exposed.putObject("5432/tcp");
+        if (relay) exposed.putObject("5672/tcp");
+        return inspect;
+    }
+
+    @ParameterizedTest @ValueSource(booleans = {false, true})
+    void realImagePortPlaceholdersPreserveUnpublishedServiceInspection(boolean emptyArray) throws Exception {
+        var inspect = imageInspection(false);
+        if (emptyArray) ((ObjectNode) inspect.path("NetworkSettings").path("Ports")).putArray("5432/tcp");
+        var actual = roundtrip(inspect);
+        assertThat(actual.path("Config").path("ExposedPorts").path("5432/tcp").isObject()).isTrue();
+        assertThat(actual.path("Config").path("ExposedPorts").path("5432/tcp").isEmpty()).isTrue();
+        MaxMediaTestInfrastructure.verifyService(actual, SERVICES);
+    }
+
+    @ParameterizedTest @ValueSource(booleans = {false, true})
+    void realImagePortPlaceholdersDoNotHidePublishedServicePorts(boolean loopback) throws Exception {
+        var inspect = imageInspection(false);
+        ((ObjectNode) inspect.path("NetworkSettings").path("Ports")).putArray("5432/tcp").addObject()
+            .put("HostIp", loopback ? "127.0.0.1" : "0.0.0.0").put("HostPort", "15432");
+        var actual = roundtrip(inspect);
+        assertThat(actual.path("NetworkSettings").path("Ports").path("5432/tcp").get(0).path("HostPort").asText()).isEqualTo("15432");
+        assertThatThrownBy(() -> MaxMediaTestInfrastructure.verifyService(actual, SERVICES)).isInstanceOf(IllegalStateException.class);
+    }
+
+    @ParameterizedTest @ValueSource(booleans = {false, true})
+    void realImagePortPlaceholdersPreserveRelayLoopbackBoundary(boolean publicIp) throws Exception {
+        var inspect = imageInspection(true);
+        if (publicIp) ((ObjectNode) inspect.path("NetworkSettings").path("Ports").path("5432/tcp").get(0)).put("HostIp", "0.0.0.0");
+        var actual = roundtrip(inspect);
+        assertThat(actual.path("Config").path("ExposedPorts").size()).isEqualTo(2);
+        if (publicIp) assertThatThrownBy(() -> MaxMediaTestInfrastructure.verifyRelay(actual, SERVICES, INGRESS)).isInstanceOf(IllegalStateException.class);
+        else MaxMediaTestInfrastructure.verifyRelay(actual, SERVICES, INGRESS);
     }
 
     @Test void privateServiceConfigurationClearsAnyAccidentalPortPublication() {

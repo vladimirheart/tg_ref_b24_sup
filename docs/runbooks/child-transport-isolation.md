@@ -1,5 +1,11 @@
 # Изолированные transport principals дочерних ботов — R291
 
+R301: полный изолированный gate выполнен —90 contracts +42 MAX PG/Rabbit
++15 principal IT GREEN, failures/errors/skips0. Production code/образы прежние.
+После восстановления Docker61 live access checks GREEN, health/readinessUP,
+production-readiness ready, DLQ0; bot-runner restart1, web/worker restart0.
+Это не live provider/S6 приёмка и не повторный provision/migration.
+
 R295: операторские действия только из панели; child больше не получает
 reopen/activity/relay/operator-edit/support-chat mutations. Новые backend и
 children нужны совместно; [контракт и приёмка](panel-only-operator-actions.md).
@@ -25,10 +31,11 @@ releases/r300-e661588b5-20261109/private/compose.final.json; backups R297 сох
 PG/Rabbit/media/provider/S6 gate ещё не закрыт. Исторический S2B снят R190.
 
 R298 исправляет MAX acceptance fixture для Docker29 с сохранением internal
-service network. Principal15 из R297 уже GREEN; повторный общий42+15 gate ещё
-не выполнен. [Команда и границы проверки](max-linked-questionnaire-media.md#исправленная-инфраструктура-r298).
+service network. R301 завершил общий42+15 gate после исправления inspection
+serializer/query bridge и точных duplicate-root rejection assertions.
+[Команда и границы проверки](max-linked-questionnaire-media.md#исправленная-инфраструктура-r298).
 Это только test tooling: рабочие backend/bots перезапускать или provisioning
-повторять не требуется; runtime R297 получен в другой машине/сессии.
+повторять не требуется; текущие runtime images/Compose соответствуют R300.
 
 ## R299: одновременные selected-media записи
 
@@ -60,9 +67,11 @@ Actual Compose — R300 private/compose.final.json, не старый R297/R280 
 Bot-runner и3 children не перезапускались; provider send не проверялся.
 
 MAX acceptance adapters также исправлены: generic Mockito argument больше не
-приводится к Object[] на JDBC varargs границе. Runner ожидает75 contracts и
-прежние42+15 IT, Phase=R299; исходные IT assertions не менялись. Пользователь
-09 ноября подтвердил отсутствие запуска. [Команда](max-linked-questionnaire-media.md#r299-sql-concurrency-и-jdbc-adapters).
+приводится к Object[] на JDBC varargs границе. Текущий runner R301 ожидает90
+contracts и прежние42+15 IT. Два duplicate-root cases требуют точный R291
+AmqpRejectAndDontRequeueException до inbox; отсутствие history/metadata и
+неизменность active profile проверяются. Полный gate R301 GREEN.
+[Команда](max-linked-questionnaire-media.md#r299-sql-concurrency-и-jdbc-adapters).
 
 ## Что меняется
 

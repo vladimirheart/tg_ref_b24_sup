@@ -92,7 +92,18 @@ class MaxFollowupMediaChainIT {
     void canonicalRootDriftAfterAdmissionCannotWriteMedia(boolean general,String kind)throws Exception{
         f.reset(general);f.client.selectedMaxMediaAdmission(CHANNEL,USER,RAW);var event=f.enqueue(general,33,1);
         switch(kind){case "closed"->f.jdbc.update("UPDATE tickets SET status='closed'");case "owner"->f.jdbc.update("UPDATE tickets SET business_id=?,is_general=FALSE,business_selection_source='USER_SELECTION'",BUSINESS+1);case "duplicate"->f.jdbc.update("INSERT INTO tickets(user_id,ticket_id,channel_id,status) VALUES(?,?,?,'open')",USER+1,RAW,CHANNEL);}
-        assertThatThrownBy(()->f.deliver(event)).isInstanceOf(IllegalStateException.class);assertThat(f.count("chat_history")).isZero();assertThat(f.count("chat_attachment_metadata")).isZero();assertThat(f.state(event.eventId())).isEqualTo("failed");
+        var rejection=assertThatThrownBy(()->f.deliver(event));
+        if(kind.equals("duplicate")) {
+            // R291 rejects an ambiguous root at the principal boundary, before the inbox opens.
+            rejection.isInstanceOf(org.springframework.amqp.AmqpRejectAndDontRequeueException.class)
+                .hasMessage("Inbound publisher is outside its channel principal");
+            assertThat(f.state(event.eventId())).isNull();
+        } else {
+            rejection.isInstanceOf(IllegalStateException.class);
+            assertThat(f.state(event.eventId())).isEqualTo("failed");
+        }
+        assertThat(f.count("chat_history")).isZero();assertThat(f.count("chat_attachment_metadata")).isZero();
+        assertThat(f.jdbc.queryForObject("SELECT user_identity FROM ticket_active WHERE ticket_id=?",String.class,RAW)).isEqualTo("original-profile");
     }
     @ParameterizedTest @MethodSource("initialCases")
     void postgresJsonbRecognizesScopedInitialMediaAndIgnoresLegacyKeys(boolean general,boolean scoped)throws Exception{

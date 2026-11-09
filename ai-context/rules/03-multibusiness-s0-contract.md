@@ -24,9 +24,51 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 
 Ниже сохранены исторические checkpoint и результаты тестового стенда. Слова
 production/рабочий в старых записях, именах Compose и образов не означают,
-что production уже запускался. Эта оговорка и актуальный checkpoint R300 имеют
+что production уже запускался. Эта оговорка и актуальная приёмка R301 имеют
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
+
+## Acceptance R301 — 2026-11-09: MAX PostgreSQL/Rabbit gate завершён
+
+На текущей Windows-машине из baseline f54e88324993d8de2fcaf13efb94ae46579d394f
+в detached source/test копии выполнены90 contracts и57 actual Docker IT:
+42 MAX media +15 child transport principal. Все147 tests/7 XML GREEN,
+failures/errors/skips0; PowerShell5.1 parser/SelfTest GREEN. Проверены BUSINESS/
+GENERAL, signed HTTP admission, outbox→Rabbit→listener, sourceLink, quota,
+rollback, committed-before-ACK replay и отказ при root drift. Это изолированный
+PG/Rabbit gate, без отправки реальному provider и без рабочей БД.
+
+Исправлены только тесты и runner: docker-java ExposedPorts/Volumes {} markers
+сериализуются локальным inspection mapper; HTTP-мост декодирует query как servlet,
+сохраняя exact padded/Unicode root и исходную HMAC query. Добавлены6 typed-inspect
+и9 query regressions. Для duplicate-root ожидается точный R291 principal reject
+до inbox, а не старый IllegalStateException/failed inbox; проверки отсутствия
+history/metadata сохранены и добавлена неизменность active profile. Другие40
+MAX cases и production code не менялись. Runner:90 contracts, Phase=R301,
+42+15 IT; имя r292-proof.json у штатного runner сохранено.
+
+Прерванный validation-v3 остановился при недоступном Docker, итогового proof нет.
+Docker Desktop восстановлен:15 ранее работавших containers автоматически
+перезапущены, bot-runner имеет restart1. Это recovery, не новый release.
+Все20 прежних ID/images и значения конфигурации сохранены; различия порядка
+Binds/LogConfig сверены по значениям с R300 snapshot. Новый final validation-v10
+строго проверил20 полных snapshots до/после: ExistingContainersUnchanged=true.
+1444 baseline backend classes и6 test-source inputs hash-exact.
+Validation-v9 отдельно сохранил40/42 PASS и2 устаревших exception assertions;
+этот RED не выдаётся за завершённую приёмку.
+
+После recovery повторены61 live login/access/SSE/readiness checks: GREEN,
+health200/UP, production-readiness200/ready, DLQ0. Backend остаётся R299/e661588b5,
+image348066da11f5; bot-runner R295/6bc6ae23a/image29f36986a0db. Compose pointer
+R300 прежний. Пересборка/Compose recreate/deploy/migrations/provision/backfill/
+flags и provider sends не выполнялись; для test-only исправлений rebuild не нужен.
+Evidence вне .tmp: ../iguana-runtime/tg_ref_b24_sup/releases/r301-acceptance-20261109/
+validation-v10/r301-proof.json, final-suites.json и recovery-access-result.json.
+
+Пользователь выбрал общие межбизнесовые manual tasks/projects/Kanban с отдельными
+правами и участниками. Решение внесено в S0; его ACL/API/query/UI implementation
+ещё предстоит. Остались live provider/cross-platform приёмка, AI privacy/delivery,
+incident/system policy и отдельный S6/§7.1. Общая задача🟡; S2B снятR190.
 
 ## Runtime R300 — 2026-11-09: backend R299 с исправлением deadlock выпущен
 
@@ -6078,6 +6120,26 @@ requireSelectedBusiness(requested context, authenticated user)
   выбранное обращение без бизнеса, `GLOBAL_SYSTEM` — системные данные. Оба
   требуют отдельного права; `ALL_BUSINESSES` сам по себе его не предоставляет.
 
+## Общие задачи, проекты и Kanban — решение R301
+
+2026-11-09 пользователь выбрал: «Общие межбизнесовые задачи и проекты с отдельными
+правами и участниками». Новые ручные задачи, проекты и их Kanban являются общим
+рабочим пространством с самостоятельным допуском. Членство в бизнесе,
+business ADMIN и ALL_BUSINESSES не предоставляют этот доступ автоматически.
+Права страницы не заменяют права и участников конкретной записи.
+
+Связь общей задачи с обращением не выдаёт READ обращения или общей задачи
+в обратную сторону. Проект и доска не раскрывают недоступные задачи через
+списки, карточки, counts, поиск, экспорт, уведомления и realtime; отзыв участия
+и прав учитывается при следующем чтении и записи. Проверка ведётся по
+текущему authenticated users.id, без username aliases и business fallback.
+
+R301 фиксирует продуктовую модель; ACL/schema/API/query/writer/UI ещё не
+реализованы. Старый PAGE_TASKS guard не считается готовой изоляцией. Миграция
+и активация рабочего экземпляра — отдельный шаг после source-проверок.
+Это решение не выбирает scope новых incidents/system notifications и не
+утверждает оставшуюся global/system administrator capability matrix.
+
 ## Legacy compatibility и decision table
 
 | Область | Безопасное временное поведение | Решение, необходимое до реализации |
@@ -6086,11 +6148,11 @@ requireSelectedBusiness(requested context, authenticated user)
 | Три пустых `messages.business` | Dataset тестовый, не переносится | **СНЯТО R190:** решения по этим строкам не требуются; новые unresolved остаются fail-closed |
 | 3 history channel mismatch | Dataset тестовый, не переносится | **СНЯТО R190:** классификация старой истории не требуется; новый child scope определяется canonical ticket |
 | Mixed channels | Явный выбор бизнеса или «Без бизнеса» до первого вопроса; без выбора flow не запускается | **УТОЧНЕНО 2026-10-16:** general — отдельный scope, не unresolved. **PENDING:** UX-представление и precedence для иных verified sources |
-| Ручные задачи / global Kanban | Две старые задачи не классифицируются и не переносятся | **PENDING:** R12 provenance/visibility/link policy для новых ручных задач и право на global Kanban |
+| Ручные задачи / global Kanban | Две старые задачи не классифицируются и не переносятся | **РЕШЕНО R301:** общие межбизнесовые задачи с отдельными правами и участниками; ACL/query/write/UI implementation pending, ticket READ независим |
 | Новые incidents / system notifications | 105 старых инцидентов не классифицируются и не переносятся | **PENDING:** модель business/shared/global для новых событий, получатели и отдельные permissions |
 | Existing ticket route | Legacy route доступен только в подтверждённом unique window | **РЕШЕНО S2A:** opaque immutable `ticket_public_id`; internal fallback — обязательный composite locator |
 | Roles | Global page permissions не выдаются автоматически; channel management требует системного ROLE_ADMIN + права страницы (R184) | **PENDING:** оставшаяся global/system и business capability policy |
-| Projects/boards | Не показывают inaccessible tasks | **PENDING:** scope project/board and explicit-global task policy |
+| Projects/boards | Не показывают inaccessible tasks | **РЕШЕНО R301:** общие межбизнесовые проекты/доски с отдельными правами и участниками; implementation pending, без implicit business/ALL grant |
 
 ## Поэтапное применение
 

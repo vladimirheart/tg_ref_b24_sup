@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
 import com.zaxxer.hikari.HikariDataSource;
 import java.net.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.security.MessageDigest;
 import java.time.*;
@@ -40,6 +41,7 @@ import org.springframework.jdbc.datasource.*;
 import org.springframework.messaging.handler.annotation.support.DefaultMessageHandlerMethodFactory;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.AnnotationTransactionAttributeSource;
 import org.springframework.transaction.interceptor.TransactionInterceptor;
@@ -123,12 +125,32 @@ final class MaxMediaChainFixture implements AutoCloseable {
         var proxy=new ProxyFactory(new InboundClientMessageListener(ingestion, new ChildBotInboundPrincipalService(jdbc, childCredentials())));proxy.setProxyTargetClass(true);
         proxy.addAdvice((MethodInterceptor)call->{Object value=call.proceed();if(call.getMethod().getName().equals("onInboundClientMessage")&&requeueAfterCommit.compareAndSet(true,false))throw new ImmediateRequeueAmqpException("Isolated committed-before-ACK failure");return value;});proxy.addAdvice(new TransactionInterceptor(manager,new AnnotationTransactionAttributeSource()));listener=(InboundClientMessageListener)proxy.getProxy();
     }
+    static MockHttpServletRequestBuilder admissionRequest(URI uri) {
+        var builder = MockMvcRequestBuilders.get(uri).characterEncoding("UTF-8");
+        String query = uri.getRawQuery();
+        if (query == null) return builder;
+        // MockMvc URI decoding keeps '+' literal; a servlet container decodes form query parameters.
+        // Override only decoded parameters. The original raw query remains the HMAC input.
+        return builder.with(request -> {
+            var parameters = new LinkedHashMap<String, List<String>>();
+            for (String pair : query.split("&", -1)) {
+                if (pair.isEmpty()) continue;
+                String[] parts = pair.split("=", 2);
+                String name = URLDecoder.decode(parts[0], StandardCharsets.UTF_8);
+                String value = URLDecoder.decode(parts.length == 2 ? parts[1] : "", StandardCharsets.UTF_8);
+                parameters.computeIfAbsent(name, ignored -> new ArrayList<>()).add(value);
+            }
+            parameters.forEach((name, values) -> request.setParameter(name, values.toArray(String[]::new)));
+            return request;
+        });
+    }
+
     void http()throws Exception{
         var p=new InternalBotApiProperties();p.setToken(TOKEN);p.setRequireRequestSignature(true);
         var guard=new InternalBotApiRequestGuardService(p,new com.example.panel.config.RuntimeCoordinationProperties(),mapper,new StaticListableBeanFactory().getBeanProvider(StringRedisTemplate.class));
         MockMvc mvc=MockMvcBuilders.standaloneSetup(new SelectedTicketFollowupMediaController(admission,guard)).build();
         http=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
-        http.createContext("/internal/api/bot/",request->{try{var builder=MockMvcRequestBuilders.get(request.getRequestURI()).characterEncoding("UTF-8");request.getRequestHeaders().forEach((name,values)->values.forEach(v->builder.header(name,v)));var response=mvc.perform(builder).andReturn().getResponse();byte[] body=response.getContentAsByteArray();response.getHeaderNames().forEach(name->request.getResponseHeaders().put(name,new ArrayList<>(response.getHeaders(name))));request.sendResponseHeaders(response.getStatus(),body.length);try(var output=request.getResponseBody()){output.write(body);}}catch(Exception failure){request.sendResponseHeaders(500,-1);request.close();}});http.start();
+        http.createContext("/internal/api/bot/",request->{try{var builder=admissionRequest(request.getRequestURI());request.getRequestHeaders().forEach((name,values)->values.forEach(v->builder.header(name,v)));var response=mvc.perform(builder).andReturn().getResponse();byte[] body=response.getContentAsByteArray();response.getHeaderNames().forEach(name->request.getResponseHeaders().put(name,new ArrayList<>(response.getHeaders(name))));request.sendResponseHeaders(response.getStatus(),body.length);try(var output=request.getResponseBody()){output.write(body);}}catch(Exception failure){request.sendResponseHeaders(500,-1);request.close();}});http.start();
         var api=new com.example.supportbot.config.IntegrationPanelApiProperties();api.setBaseUrl("http://127.0.0.1:"+http.getAddress().getPort());api.setToken(TOKEN);api.setRequestSigningEnabled(true);api.setRetryAttempts(1);client=new PanelRuntimeConfigClient(api,mapper,new PanelApiRequestHeadersFactory(api));
     }
     void startConsumer()throws Exception{
