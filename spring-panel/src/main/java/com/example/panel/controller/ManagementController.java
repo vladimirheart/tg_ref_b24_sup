@@ -30,25 +30,29 @@ public class ManagementController {
     private final ChannelRepository channelRepository;
     private final PanelUserRepository panelUserRepository;
     private final PermissionService permissionService;
+    private final com.example.panel.service.SharedWorkAccessService sharedAccess;
 
     public ManagementController(NavigationService navigationService,
                                 TaskRepository taskRepository,
                                 ChannelRepository channelRepository,
                                 PanelUserRepository panelUserRepository,
-                                PermissionService permissionService) {
+                                PermissionService permissionService, com.example.panel.service.SharedWorkAccessService sharedAccess) {
         this.navigationService = navigationService;
         this.taskRepository = taskRepository;
         this.channelRepository = channelRepository;
         this.panelUserRepository = panelUserRepository;
         this.permissionService = permissionService;
+        this.sharedAccess = sharedAccess;
     }
 
     @GetMapping("/tasks")
-    @PreAuthorize("hasAuthority('PAGE_TASKS')")
+    @PreAuthorize("hasAnyAuthority('PAGE_TASKS','ROLE_ADMIN')")
+    @org.springframework.transaction.annotation.Transactional
     public String tasks(Authentication authentication, Model model) {
         navigationService.enrich(model, authentication);
         try {
-            List<Task> tasks = taskRepository.findTop50ByOrderByCreatedAtDesc();
+            List<Task> tasks = taskRepository.findAllById(sharedAccess.visibleLongIds(com.example.panel.service.SharedWorkAccessService.Kind.TASK)).stream()
+                .sorted(java.util.Comparator.comparing(Task::getCreatedAt,java.util.Comparator.nullsLast(java.util.Comparator.reverseOrder()))).limit(50).toList();
             model.addAttribute("tasks", tasks);
             model.addAttribute("users", panelUserRepository.findAll());
             log.info("Loaded {} tasks for user {}", tasks.size(), authentication.getName());
@@ -60,7 +64,7 @@ public class ManagementController {
     }
 
     @GetMapping("/projects")
-    @PreAuthorize("hasAuthority('PAGE_TASKS')")
+    @PreAuthorize("hasAnyAuthority('PAGE_TASKS','ROLE_ADMIN')")
     public String projects(Authentication authentication, Model model) {
         navigationService.enrich(model, authentication);
         model.addAttribute("users", panelUserRepository.findAll());

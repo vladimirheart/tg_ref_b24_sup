@@ -1,90 +1,111 @@
-# Доступ общих задач, проектов и Kanban — R302
+# Доступ общих задач, проектов и Kanban — R303
 
-Решение пользователя R301: общие межбизнесовые работы с отдельными правами и
-участниками. R302 подготовил схему, ядро авторизации и control API. Основные
-task/project/Kanban экраны и их старые API ещё используют прежние guards и к
-этому ядру не подключены. Пакет не является завершённой изоляцией этих страниц.
+R301: общие межбизнесовые работы с отдельными правами и участниками.
+R302: source V88, ядро авторизации и control API. R303: основные CRUD/list/
+project links/Kanban/analytics подключены; реализован полный доступ системного
+администратора по уточнению пользователя. Общая задача01-278 остаётся🟡.
 
-## Модель
+## Действующая модель
 
-Для доступа нужны одновременно текущий shared can_read и участие в конкретном
-объекте. Business membership, business ADMIN, ALL_BUSINESSES, GENERAL и системная
-роль администратора автоматически этого допуска не дают. Участие в проекте не
-выдаёт доступ ко всем его задачам; связь с обращением не заменяет его READ.
+Текущий системный ROLE_ADMIN имеет полный доступ к любым задачам, проектам,
+доскам и стадиям: создание, чтение, изменение, удаление, управление допусками,
+участниками и владельцем. Ему не нужны PAGE_TASKS/PAGE_SETTINGS, shared grants
+или участие в объекте. Администратор видит также старые unowned строки и
+личные доски других пользователей; может восстановить numeric владельца.
 
-| Роль участника | Чтение | Изменение объекта | Управление составом |
+Для остальных нужны одновременно текущие PAGE_TASKS, shared can_read и участие
+в конкретном объекте. Business membership, business ADMIN, ALL_BUSINESSES,
+GENERAL и ROLE_PORTAL_ADMIN этого допуска автоматически не дают. Участие в
+проекте не выдаёт доступ к его задачам; связь с обращением не заменяет его READ.
+
+| Роль участника | Чтение | Изменение объекта | Управление составом/владельцем |
 | --- | --- | --- | --- |
 | VIEWER | Да | Нет | Нет |
 | EDITOR | Да | Да | Нет |
 | OWNER | Да | Да | Да |
+| Текущий системный ROLE_ADMIN | Все объекты | Все объекты | Все объекты |
 
-can_create_task и can_create_project — независимые разрешения создания. Они
-требуют can_read, но не расширяют видимость чужих объектов. Администратор
-общих допусков должен иметь текущие ROLE_ADMIN и PAGE_SETTINGS; он не получает
-READ сущностей автоматически.
+can_create_task и can_create_project — отдельные разрешения для обычного
+пользователя; требуют can_read, но не расширяют видимость чужих объектов.
+Проверяются canonical users.id и точное имя текущей сессии, enabled/blocked,
+неоднозначность username, текущие прямые/assigned права. Отозванная роль
+в сохранённой сессии доступа не даёт. Username admin не является привилегией.
+CSRF, валидность данных и внешние ключи обязательны для всех ролей.
 
-Решения привязаны к canonical users.id и точному имени текущей сессии. Состояние
-enabled/blocked и неоднозначность username повторно проверяются в SQL. Сходное,
-обрезанное или переиспользованное имя не заменяет numeric principal. API отдаёт
-BIGINT ID строками и запрещает caching списков прав/участников.
+## Создание, владение и блокировки
 
-## Схема и создание
+V88 добавляет shared_work_grants, shared_task_members/shared_project_members и
+nullable shared_owner_user_id. Начальных grants/участников нет. Старые creator/
+lead не превращаются во владельца автоматически. Новых migrations в R303 нет.
 
-Source migration V88 добавляет shared_work_grants, shared_task_members,
-shared_project_members и nullable shared_owner_user_id у tasks/projects.
-FK/CHECK защищают IDs/roles/hierarchy, unique partial index допускает одного
-OWNER. PUBLIC не получает доступ к новым таблицам. Начальных grants/участников
-нет; creator/lead старых строк не превращается во владельца.
+Основные task/project writers сохраняют root, numeric owner из authenticated
+principal и OWNER в одной транзакции; ошибка регистрации откатывает всё.
+Клиентские creator/author не определяют автора. Отсутствующий update ID даёт404,
+не создаёт новую запись. task_seq выдаётся атомарно.
 
-Trusted creation writer должен в одной транзакции записать numeric owner из
-authenticated principal, сохранить и flush root, затем вызвать registerCreated.
-Метод требует внешней транзакции и отдельного текущего права создания;
-ошибка откатывает root и member вместе. Поиск уже существующего id или
-переданный клиентом creator не разрешает присвоить владение. OWNER не передаётся,
-не понижается и не удаляется через member API; recovery/transfer ещё не добавлены.
+Обычный member API принимает VIEWER/EDITOR и не удаляет/не понижает OWNER.
+Отдельный owner route переносит владение текущему eligible numeric пользователю:
+старый владелец становится EDITOR, новый — OWNER, root FK меняется атомарно.
+Текущий OWNER может передать свой объект, администратор — любой, включая unowned.
 
-Account/grant/root/member locks удерживаются до commit. Отзыв допуска или
-участия ждёт текущую транзакцию; следующий запрос получает отказ. Права создания
-берутся из locked grant после ожидания, без повторного чтения старого MVCC snapshot.
-Участник без общего READ, отключённый или blocked account доступа не получает.
+Account/grant/member locks удерживаются до commit; writes также блокируют root.
+Cross-object writes проходят единый transaction advisory gate, board projections —
+отдельный scope lock. Отзыв ждёт текущую транзакцию; следующий запрос проверяет
+новый допуск. Отключённый/blocked или не имеющий текущих прав account доступа
+не получает. Чтение не блокирует все видимые root rows.
 
 ## Source API
 
-Все mutations проходят CSRF и проверку текущих прав, а не только authorities
-из сохранённой сессии.
+| Route | Допуск |
+| --- | --- |
+| GET /api/shared-work-admin/access | Текущий ROLE_ADMIN |
+| PUT /api/shared-work-admin/access/{userId} | Текущий ROLE_ADMIN + CSRF |
+| GET /api/shared-work/{kind}/{id}/members | Текущий ROLE_ADMIN либо обычный READ объекта |
+| PUT /api/shared-work/{kind}/{id}/members/{userId} | Текущий ROLE_ADMIN либо OWNER + CSRF |
+| DELETE /api/shared-work/{kind}/{id}/members/{userId} | Текущий ROLE_ADMIN либо OWNER + CSRF |
+| PUT /api/shared-work/{kind}/{id}/owner/{userId} | Текущий ROLE_ADMIN либо OWNER + CSRF |
 
-| Route | Допуск | Результат |
-| --- | --- | --- |
-| GET /api/shared-work-admin/access | ROLE_ADMIN + PAGE_SETTINGS | Accounts и отдельные shared grants |
-| PUT /api/shared-work-admin/access/{userId} | То же | Полная замена canRead/canCreateTask/canCreateProject |
-| GET /api/shared-work/{kind}/{id}/members | PAGE_TASKS + current shared READ + участие | Numeric участники |
-| PUT /api/shared-work/{kind}/{id}/members/{userId} | PAGE_TASKS + current OWNER | Назначить VIEWER или EDITOR |
-| DELETE /api/shared-work/{kind}/{id}/members/{userId} | PAGE_TASKS + current OWNER | Отозвать участие |
+kind — TASK/PROJECT. Member PUT принимает JSON role=VIEWER/EDITOR; owner route
+выбирает numeric пользователя из URL. Grants PUT полностью заменяет canRead/
+canCreateTask/canCreateProject; создание без canRead запрещено. Отзыв canRead
+не удаляет состав, но закрывает следующие операции обычного пользователя.
+Неавторизованный object lookup возвращает404, не раскрывая существование.
+Неверные ID/role/hierarchy дают400, изменение OWNER через member API —409.
+Control API возвращает BIGINT IDs строками, read responses — no-store.
 
-kind — TASK или PROJECT. PUT member принимает JSON с полем role. OWNER клиентом
-не назначается. Снятие canRead требует canCreateTask=false и canCreateProject=false;
-оно не удаляет состав, но сразу закрывает последующие reads/writes через ядро.
-Неавторизованный object lookup не раскрывает наличие объекта:404. Некорректные
-ID/role/hierarchy дают400; попытка изменить OWNER через состав —409.
+## Подключённые пути и остатки
 
-## Проверено и осталось
+Подключены task/project create/read/update/delete, комментарии, SQL lists/count/
+pagination до LIMIT, server-rendered tasks, project options в settings, project
+links, Kanban columns/cards и task analytics/CSV. Доступ к проекту и задаче
+проверяется независимо; скрытые связи/placements не удаляются при постороннем
+изменении. Personal board имеет numeric scope PERSONAL_USER:<users.id>;
+старый текстовый personal scope доступен только системному администратору.
+Уведомления фильтруют кандидатов по текущему READ до записи.
 
-350 targeted checks/5 suites:100 новых access/HTTP/migration cases в final
-validation-v5,250 неизменённых регрессий в GREEN XML validation-v2. Ошибок,
-пропусков и failures в этих5 suites нет. В v2 полный прогон был RED из-за5 HTTP
-fixture cases без EnableWebMvc; финальный HTTP прогон исправлен и полностью GREEN.
-Проверены реальные PostgreSQL locks/revoke/creation rollback, роли, exact identity,
-CSRF/method security, string BIGINT, чистая схема до V88 и upgrade V87→V88 без
-legacy classification. Это не browser/provider/production acceptance.
+Остаются UI управления grants/участниками/owner и save/reload/revoke приёмка,
+аудит изменений доступа, повторный READ при поздней доставке/SSE, остальные
+search/report/related-object projections и trusted background/auto-close
+producers без authenticated principal. Incident/system notification policy
+и оставшиеся системные полномочия требуют отдельной проработки. Нельзя объявлять
+все проекции защищёнными по наличию основных guards. AI/privacy и S6 остаются
+в общей задаче; historical S2B снятR190.
 
-Следующий пакет должен подключить trusted create и существующие SQL list/count/
-pagination/direct card/update/delete/comment paths, project links и Kanban.
-Также остаются settings/report/export/search projections, уведомления с текущим
-READ получателя, аудит изменений доступа, UI управления и save/reload/revoke
-приёмка. Не объявлять их защищёнными только по наличию kernel/control API.
+## Проверка и рабочая активация
 
-R302 в runtime не активирован. Перед самостоятельным rebuild/deploy сначала
-нужно завершить wiring и подготовить согласованную V88 активацию: новые JPA fields
-ожидают эти columns. Рабочая БД по-прежнему V87; существующие images/Compose R300,
-flags, principals и боты не менялись. Повторять V86/V87/provision не нужно.
-Evidence: ../iguana-runtime/tg_ref_b24_sup/releases/r302-shared-access-20261109/.
+validation-v7:369 tests/10 suites одним GREEN run, failures/errors/skips0:
+246 GENERAL,98 ACL,15 actual HTTP/JPA/security,2 Flyway clean/upgrade,
+8 project/board/analytics regression cases. Проверены полный admin без pages/
+grants, exact numeric/raw identity, отзыв роли, CSRF, owner transfer/recovery,
+скрытые tasks/count/cards/links, concurrent project/task mutation и rollback.
+JDK17 скомпилировал20 изменённых sources поверх полного compiled baseline v2;
+остальной bytecode проверен по hash. Новый полный image build не выполнялся.
+
+Disposable PostgreSQL128MiB с owner/nonce guard, рабочая БД не использована.
+Все20 existing container snapshots неизменны. Рабочая V87/backend R299/bots R295,
+Compose R300, flags/principals прежние; source V88 применён только в test DB.
+Самостоятельный rebuild до завершения wiring и подготовки рабочей V88 не
+выполнялся. Повторять V86/V87/provision не нужно. Browser/provider/S6 приёмка
+этими тестами не заменяется.
+Evidence: ../iguana-runtime/tg_ref_b24_sup/releases/r303-work-wiring-20261109/,
+validation-v7/proof.json, source-inputs.json, final-suites.json.

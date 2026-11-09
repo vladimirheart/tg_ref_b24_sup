@@ -17,7 +17,7 @@ import org.springframework.http.HttpStatus;
 
 @RestController
 @RequestMapping("/api/task-boards")
-@PreAuthorize("hasAuthority('PAGE_TASKS')")
+@PreAuthorize("hasAnyAuthority('PAGE_TASKS','ROLE_ADMIN')")
 public class TaskBoardApiController {
 
     private final TaskBoardService taskBoardService;

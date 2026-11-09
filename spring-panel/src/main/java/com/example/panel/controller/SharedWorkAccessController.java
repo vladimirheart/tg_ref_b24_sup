@@ -14,29 +14,34 @@ public class SharedWorkAccessController {
     private final SharedWorkAccessService access;
     public SharedWorkAccessController(SharedWorkAccessService access){this.access=access;}
     @GetMapping("/api/shared-work-admin/access")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN') and hasAuthority('PAGE_SETTINGS')")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<List<AccountGrant>> accounts(Authentication actor){
         return ResponseEntity.ok().header("Cache-Control","no-store").body(access.accounts(actor));
     }
     @PutMapping("/api/shared-work-admin/access/{userId}")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN') and hasAuthority('PAGE_SETTINGS')")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<Void> grant(@PathVariable long userId,@RequestBody Grant grant,Authentication actor){
         access.setGrant(actor,userId,grant);return ResponseEntity.noContent().build();
     }
     @GetMapping("/api/shared-work/{kind}/{id}/members")
-    @PreAuthorize("hasAuthority('PAGE_TASKS')")
+    @PreAuthorize("hasAnyAuthority('PAGE_TASKS','ROLE_ADMIN')")
     public ResponseEntity<List<Member>> members(@PathVariable Kind kind,@PathVariable long id,Authentication actor){
         return ResponseEntity.ok().header("Cache-Control","no-store").body(access.members(kind,id,actor));
     }
+    @PutMapping("/api/shared-work/{kind}/{id}/owner/{userId}")
+    @PreAuthorize("hasAnyAuthority('PAGE_TASKS','ROLE_ADMIN')")
+    public ResponseEntity<Void> owner(@PathVariable Kind kind,@PathVariable long id,@PathVariable long userId,Authentication actor) {
+        access.transferOwner(kind,id,userId,actor);return ResponseEntity.noContent().build();
+    }
     public record MemberRole(Role role) {}
     @PutMapping("/api/shared-work/{kind}/{id}/members/{userId}")
-    @PreAuthorize("hasAuthority('PAGE_TASKS')")
+    @PreAuthorize("hasAnyAuthority('PAGE_TASKS','ROLE_ADMIN')")
     public ResponseEntity<Void> member(@PathVariable Kind kind,@PathVariable long id,@PathVariable long userId,
                                        @RequestBody MemberRole member,Authentication actor){
         access.setMember(kind,id,userId,member.role(),actor);return ResponseEntity.noContent().build();
     }
     @DeleteMapping("/api/shared-work/{kind}/{id}/members/{userId}")
-    @PreAuthorize("hasAuthority('PAGE_TASKS')")
+    @PreAuthorize("hasAnyAuthority('PAGE_TASKS','ROLE_ADMIN')")
     public ResponseEntity<Void> remove(@PathVariable Kind kind,@PathVariable long id,@PathVariable long userId,Authentication actor){
         access.removeMember(kind,id,userId,actor);return ResponseEntity.noContent().build();
     }

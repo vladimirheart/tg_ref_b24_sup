@@ -41,6 +41,7 @@ public class SettingsPageController {
     private final AutoCloseConfigNormalizer autoCloseConfigNormalizer;
     private final BotSettingsPayloadNormalizer botSettingsPayloadNormalizer;
     private final MultibusinessFeatureFlags multibusinessFlags;
+    private final com.example.panel.service.SharedWorkAccessService sharedAccess;
 
     public SettingsPageController(NavigationService navigationService,
                                   AppSettingRepository appSettingRepository,
@@ -52,7 +53,7 @@ public class SettingsPageController {
                                   PermissionService permissionService,
                                   AutoCloseConfigNormalizer autoCloseConfigNormalizer,
                                   BotSettingsPayloadNormalizer botSettingsPayloadNormalizer,
-                                  MultibusinessFeatureFlags multibusinessFlags) {
+                                  MultibusinessFeatureFlags multibusinessFlags, com.example.panel.service.SharedWorkAccessService sharedAccess) {
         this.navigationService = navigationService;
         this.appSettingRepository = appSettingRepository;
         this.projectRepository = projectRepository;
@@ -64,10 +65,12 @@ public class SettingsPageController {
         this.autoCloseConfigNormalizer = autoCloseConfigNormalizer;
         this.botSettingsPayloadNormalizer = botSettingsPayloadNormalizer;
         this.multibusinessFlags = multibusinessFlags;
+        this.sharedAccess = sharedAccess;
     }
 
     @GetMapping("/settings")
     @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
+    @org.springframework.transaction.annotation.Transactional
     public String settings(Authentication authentication, Model model) {
         navigationService.enrich(model, authentication);
         model.addAttribute("canManageBusinesses", multibusinessFlags.isFoundationEnabled()
@@ -90,7 +93,8 @@ public class SettingsPageController {
             model.addAttribute("autoCloseFollowUpProjectId",
                     autoCloseConfigNormalizer.resolveFollowUpProjectId(normalizedAutoCloseConfig));
             model.addAttribute("autoCloseProjectOptions",
-                    projectRepository.findAllByArchivedAtIsNullOrderByNameAsc());
+                    projectRepository.findAllById(sharedAccess.visibleLongIds(com.example.panel.service.SharedWorkAccessService.Kind.PROJECT)).stream()
+                        .filter(project->project.getArchivedAt()==null).toList());
             model.addAttribute("dialogLegacyQuestionTemplateAudit",
                     buildDialogLegacyQuestionTemplateAudit(settings));
             IikoDepartmentLocationCatalogService.LocationCatalogSnapshot effectiveCatalog = locationCatalogService.loadCatalog();

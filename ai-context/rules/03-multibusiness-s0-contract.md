@@ -28,7 +28,55 @@ production/рабочий в старых записях, именах Compose �
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
+## Source R303 — 2026-11-09: основные пути общих работ и полный доступ системного администратора
+
+Уточнение пользователя: системный администратор имеет полные права на задачи,
+проекты и стадии Kanban. Текущий ROLE_ADMIN получает создание, чтение, изменение,
+удаление, управление составом и передачу владельца без PAGE_TASKS/PAGE_SETTINGS,
+shared grants или участия. Это заменяет ограничение R302 для системного
+администратора. Business ADMIN/ALL_BUSINESSES/portal role этого допуска не дают;
+enabled/blocked, точные users.id/raw username и текущая роль проверяются заново.
+Отозванная роль в сохранённой сессии не сохраняет полномочия. CSRF и целостность
+данных обязательны также для администратора.
+
+Обычному пользователю нужны текущие PAGE_TASKS, shared can_read и участие
+VIEWER/EDITOR/OWNER; создание требует отдельный can_create_task/project.
+Trusted create записывает numeric owner и OWNER вместе с root в одной транзакции,
+игнорируя переданные клиентом creator/author. Подключены основные task/project
+CRUD, list/count/pagination до LIMIT, server-rendered tasks, project links,
+settings project options, Kanban и task analytics/CSV. Проект не выдаёт READ
+задачи; недоступные связи и placements сохраняются при постороннем изменении.
+Personal board использует PERSONAL_USER:<users.id>; администратор управляет
+также чужой личной доской. OWNER либо администратор передаёт владение через
+PUT /api/shared-work/{kind}/{id}/owner/{userId}; администратор восстанавливает
+владельца старого unowned объекта, без вывода ownership из creator/lead.
+
+Порядок cross-object writes защищён transaction advisory gate; board projections
+имеют scope lock, task_seq выдаётся атомарно. Кандидаты уведомлений фильтруются
+по текущему READ до записи. Остаются UI управления допусками/участниками/владельцем,
+аудит доступа, повторный READ при поздней доставке и SSE, остальные related-object/
+search/report/background producers, incident/system policy, AI privacy и S6.
+Основные пути подключены; полная изоляция всех проекций ещё не объявляется.
+
+369 tests/10 suites одним финальным validation-v7 GREEN, failures/errors/skips0:
+246 GENERAL regressions,98 ACL cases,15 новых actual HTTP/JPA/security cases,
+2 Flyway clean/upgrade и8 project/board/analytics regressions. Все20 изменённых
+Java sources скомпилированы JDK17 поверх полного compiled baseline v2;
+неизменённый bytecode проверен по hash. Это targeted compile, не новый полный
+image build. Disposable PostgreSQL128MiB, bounded JVM, рабочая БД не использована.
+
+Validated source перенесён в checkout от0207e5800; stage/commit/push/deployment=false.
+Все20 existing container snapshots неизменны. Рабочая V87/backend R299/bots R295,
+Compose R300 и flags/principals прежние; source V88 активирован только в test DB.
+Новых migrations нет. Rebuild/рабочая V88 — отдельный выпуск после оставшегося
+wiring и проверок; V86/V87/provision повторять не нужно. Task🟡, S2B снятR190.
+Evidence: ../iguana-runtime/tg_ref_b24_sup/releases/r303-work-wiring-20261109/,
+validation-v7/proof.json, source-inputs.json и final-suites.json.
+
 ## Source R302 — 2026-11-09: независимое ядро доступа общих работ
+
+Исторический checkpoint: ограничение прав системного администратора и список
+неподключённых путей ниже описывают R302; актуальное решение и wiring — в R303.
 
 По решению R301 подготовлены V88, SharedWorkAccessService и HTTP API управления
 общими допусками/участниками. Grant can_read и отдельные can_create_task/
@@ -6159,34 +6207,38 @@ requireSelectedBusiness(requested context, authenticated user)
   выбранное обращение без бизнеса, `GLOBAL_SYSTEM` — системные данные. Оба
   требуют отдельного права; `ALL_BUSINESSES` сам по себе его не предоставляет.
 
-## Общие задачи, проекты и Kanban — решение R301
+## Общие задачи, проекты и Kanban — решения R301/R303
 
-2026-11-09 пользователь выбрал: «Общие межбизнесовые задачи и проекты с отдельными
-правами и участниками». Новые ручные задачи, проекты и их Kanban являются общим
-рабочим пространством с самостоятельным допуском. Членство в бизнесе,
-business ADMIN и ALL_BUSINESSES не предоставляют этот доступ автоматически.
-Права страницы не заменяют права и участников конкретной записи.
+Пользователь выбрал общие межбизнесовые работы с отдельными правами и участниками
+(R301), затем уточнил полный доступ системного администратора (R303). Текущий
+ROLE_ADMIN создаёт и администрирует любые задачи, проекты, доски и стадии,
+читает/изменяет/удаляет объекты, управляет допусками/участниками и владельцами.
+PAGE_TASKS/PAGE_SETTINGS, shared grants и членство ему не нужны. Текущий canonical
+users.id/raw username, enabled/blocked и роль повторно проверяются в SQL;
+сохранённая отозванная роль, username admin и похожее имя привилегий не дают.
+CSRF и структурная целостность данных обязательны.
 
-Связь общей задачи с обращением не выдаёт READ обращения или общей задачи
-в обратную сторону. Проект и доска не раскрывают недоступные задачи через
-списки, карточки, counts, поиск, экспорт, уведомления и realtime; отзыв участия
-и прав учитывается при следующем чтении и записи. Проверка ведётся по
-текущему authenticated users.id, без username aliases и business fallback.
+Для остальных нужны текущий PAGE_TASKS, shared can_read и собственное участие:
+VIEWER читает, EDITOR меняет, OWNER также управляет составом. Создание требует
+can_create_task либо can_create_project; trusted writer записывает numeric owner
+и OWNER с root атомарно. Business ADMIN, ALL_BUSINESSES и ROLE_PORTAL_ADMIN
+этого допуска автоматически не дают. PAGE_TASKS сам по себе не заменяет grants.
+Только OWNER или системный администратор передаёт владение; recovery старой
+unowned записи доступен администратору, без ownership по текстовым creator/lead.
 
-R301 фиксирует продуктовую модель. R302 реализовал source V88, независимые grants,
-numeric membership, авторизационное ядро и HTTP control API. Доступ к объекту
-требует текущий can_read и собственное участие: VIEWER читает, EDITOR также
-изменяет, OWNER управляет составом. Создание требует отдельный can_create_task
-или can_create_project; OWNER регистрируется в транзакции trusted create.
-Общие grants администрирует текущий ROLE_ADMIN +PAGE_SETTINGS; это не READ
-объектов. API не передаёт/не удаляет OWNER, owner recovery отдельно не реализован.
+Связь с обращением не заменяет его независимый READ. Членство в проекте не даёт
+READ его задач. Требуемая граница распространяется на списки, counts, поиск,
+экспорт, уведомления и realtime. В R303 подключены основные CRUD/list/count/
+pagination/project links/Kanban/server model/task analytics; скрытые связи и
+placements сохраняются при посторонних изменениях. Поздняя доставка/SSE,
+остальные related-object/background/report пути и UI управления ещё требуют
+wiring/приёмки; эти остатки не считаются завершёнными по наличию kernel.
 
-Основные task/project/Kanban query/writer/UI ещё не подключены. Старый PAGE_TASKS
-guard не считается готовой изоляцией. V88 не выдаёт grants и не выбирает владельца
-по creator/lead старой записи. Миграция и активация рабочего экземпляра — отдельный
-шаг после source wiring и проверок; source R302 самостоятельно не активировать.
-Это решение не выбирает scope новых incidents/system notifications и не
-утверждает оставшуюся global/system administrator capability matrix.
+Source V88 не выдаёт grants и не выбирает владельца старых строк. Рабочая
+миграция/активация — отдельный выпуск после wiring и проверок. Решение о полном
+доступе реализовано в контуре общих работ; правила новых incidents/system
+notifications и аудит остальных global/system полномочий остаются отдельным
+пунктом. Business ADMIN не становится системным администратором.
 
 ## Legacy compatibility и decision table
 
@@ -6196,11 +6248,11 @@ guard не считается готовой изоляцией. V88 не выд
 | Три пустых `messages.business` | Dataset тестовый, не переносится | **СНЯТО R190:** решения по этим строкам не требуются; новые unresolved остаются fail-closed |
 | 3 history channel mismatch | Dataset тестовый, не переносится | **СНЯТО R190:** классификация старой истории не требуется; новый child scope определяется canonical ticket |
 | Mixed channels | Явный выбор бизнеса или «Без бизнеса» до первого вопроса; без выбора flow не запускается | **УТОЧНЕНО 2026-10-16:** general — отдельный scope, не unresolved. **PENDING:** UX-представление и precedence для иных verified sources |
-| Ручные задачи / global Kanban | Две старые задачи не классифицируются и не переносятся | **РЕШЕНО R301; R302:** ACL schema/kernel/control API подготовлены; trusted create/query/write/Kanban/UI wiring pending, ticket READ независим |
+| Ручные задачи / global Kanban | Старые строки не классифицируются автоматически | **РЕШЕНО R301/R303:** полный system ROLE_ADMIN; основные create/CRUD/query/links/Kanban подключены к R302. UI, audit, late delivery/SSE и остальные producers/projections pending; ticket READ независим |
 | Новые incidents / system notifications | 105 старых инцидентов не классифицируются и не переносятся | **PENDING:** модель business/shared/global для новых событий, получатели и отдельные permissions |
 | Existing ticket route | Legacy route доступен только в подтверждённом unique window | **РЕШЕНО S2A:** opaque immutable `ticket_public_id`; internal fallback — обязательный composite locator |
 | Roles | Global page permissions не выдаются автоматически; channel management требует системного ROLE_ADMIN + права страницы (R184) | **PENDING:** оставшаяся global/system и business capability policy |
-| Projects/boards | Не показывают inaccessible tasks | **РЕШЕНО R301; R302:** независимые grants/numeric participants/kernel/control API подготовлены; основные reads/writers/links/boards/UI wiring pending, без implicit business/ALL grant |
+| Projects/boards | Не показывают inaccessible tasks | **РЕШЕНО R301/R303:** current system ROLE_ADMIN имеет полный доступ; остальные — отдельные grants/numeric participants. Основные reads/writers/links/boards подключены; UI и прочие проекции/доставка pending |
 
 ## Поэтапное применение
 

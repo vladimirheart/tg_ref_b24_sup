@@ -24,18 +24,21 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 @Service
+@org.springframework.transaction.annotation.Transactional
 public class TaskQueryService {
 
     private final TaskRepository taskRepository;
     private final TaskDomainFoundationService taskDomainFoundationService;
     private final DialogTaskDisplayService dialogTaskDisplayService;
+    private final com.example.panel.service.SharedWorkAccessService sharedAccess;
 
     public TaskQueryService(TaskRepository taskRepository,
                             TaskDomainFoundationService taskDomainFoundationService,
-                            DialogTaskDisplayService dialogTaskDisplayService) {
+                            DialogTaskDisplayService dialogTaskDisplayService, com.example.panel.service.SharedWorkAccessService sharedAccess) {
         this.taskRepository = taskRepository;
         this.taskDomainFoundationService = taskDomainFoundationService;
         this.dialogTaskDisplayService = dialogTaskDisplayService;
+        this.sharedAccess = sharedAccess;
     }
 
     public Map<String, Object> list(int page,
@@ -76,6 +79,9 @@ public class TaskQueryService {
             currentUser
         );
 
+        if(projectId!=null)sharedAccess.require(com.example.panel.service.SharedWorkAccessService.Kind.PROJECT,projectId,com.example.panel.service.SharedWorkAccessService.Access.READ,com.example.panel.service.SharedWorkAccessService.current());
+        List<Long> allowed = sharedAccess.visibleLongIds(com.example.panel.service.SharedWorkAccessService.Kind.TASK);
+        specification=specification.and((root,query,cb)->allowed.isEmpty()?cb.disjunction():root.get("id").in(allowed));
         Page<Task> result = taskRepository.findAll(specification, pageable);
         List<Map<String, Object>> items = result.stream().map(this::toSummaryDto).toList();
 

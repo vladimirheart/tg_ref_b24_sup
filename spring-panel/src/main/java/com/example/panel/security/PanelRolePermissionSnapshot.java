@@ -20,6 +20,10 @@ public record PanelRolePermissionSnapshot(Long roleId,String roleName,String per
             },userId,username);
         return rows.size()==1?rows.get(0):new PanelRolePermissionSnapshot(null,null,null,false,false);
     }
+    public boolean hasPage(String authority) {
+        return UserRepositoryUserDetailsService.mapPagePermissionsToAuthorities(
+            UserRepositoryUserDetailsService.extractPagePermissions(permissions)).contains(authority);
+    }
     public MapSqlParameterSource bind(MapSqlParameterSource parameters) {
         return parameters.addValue("assignedRoleId",roleId,Types.BIGINT)
             .addValue("assignedRoleName",roleName,Types.VARCHAR).addValue("assignedPermissions",permissions,Types.VARCHAR)

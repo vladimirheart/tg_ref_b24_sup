@@ -27,7 +27,9 @@ class ProjectServiceTest {
         });
 
         TaskProjectMembershipRepository membershipRepository = mock(TaskProjectMembershipRepository.class);
-        ProjectService service = new ProjectService(repository, membershipRepository);
+        var access=mock(com.example.panel.service.SharedWorkAccessService.class);
+        when(access.requireCreation(any(),any())).thenReturn(101L);
+        ProjectService service = new ProjectService(repository, membershipRepository,access);
         Map<String, Object> created = service.create(Map.of("name", "Operations"), "operator");
 
         assertThat(created.get("id")).isEqualTo(7L);
@@ -46,7 +48,9 @@ class ProjectServiceTest {
         });
 
         TaskProjectMembershipRepository membershipRepository = mock(TaskProjectMembershipRepository.class);
-        ProjectService service = new ProjectService(repository, membershipRepository);
+        var access=mock(com.example.panel.service.SharedWorkAccessService.class);
+        when(access.requireCreation(any(),any())).thenReturn(101L);
+        ProjectService service = new ProjectService(repository, membershipRepository,access);
         Map<String, Object> created = service.create(
             Map.of("name", "Support", "project_key", "support ops"),
             "operator"

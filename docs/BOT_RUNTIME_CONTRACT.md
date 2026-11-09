@@ -64,7 +64,55 @@ Platform-specific:
 в local `JPA/SQLite` business-path для ticket/channel/feedback/blacklist
 операций.
 
+## Source R303 — 2026-11-09: основные пути общих работ и полный доступ системного администратора
+
+Уточнение пользователя: системный администратор имеет полные права на задачи,
+проекты и стадии Kanban. Текущий ROLE_ADMIN получает создание, чтение, изменение,
+удаление, управление составом и передачу владельца без PAGE_TASKS/PAGE_SETTINGS,
+shared grants или участия. Это заменяет ограничение R302 для системного
+администратора. Business ADMIN/ALL_BUSINESSES/portal role этого допуска не дают;
+enabled/blocked, точные users.id/raw username и текущая роль проверяются заново.
+Отозванная роль в сохранённой сессии не сохраняет полномочия. CSRF и целостность
+данных обязательны также для администратора.
+
+Обычному пользователю нужны текущие PAGE_TASKS, shared can_read и участие
+VIEWER/EDITOR/OWNER; создание требует отдельный can_create_task/project.
+Trusted create записывает numeric owner и OWNER вместе с root в одной транзакции,
+игнорируя переданные клиентом creator/author. Подключены основные task/project
+CRUD, list/count/pagination до LIMIT, server-rendered tasks, project links,
+settings project options, Kanban и task analytics/CSV. Проект не выдаёт READ
+задачи; недоступные связи и placements сохраняются при постороннем изменении.
+Personal board использует PERSONAL_USER:<users.id>; администратор управляет
+также чужой личной доской. OWNER либо администратор передаёт владение через
+PUT /api/shared-work/{kind}/{id}/owner/{userId}; администратор восстанавливает
+владельца старого unowned объекта, без вывода ownership из creator/lead.
+
+Порядок cross-object writes защищён transaction advisory gate; board projections
+имеют scope lock, task_seq выдаётся атомарно. Кандидаты уведомлений фильтруются
+по текущему READ до записи. Остаются UI управления допусками/участниками/владельцем,
+аудит доступа, повторный READ при поздней доставке и SSE, остальные related-object/
+search/report/background producers, incident/system policy, AI privacy и S6.
+Основные пути подключены; полная изоляция всех проекций ещё не объявляется.
+
+369 tests/10 suites одним финальным validation-v7 GREEN, failures/errors/skips0:
+246 GENERAL regressions,98 ACL cases,15 новых actual HTTP/JPA/security cases,
+2 Flyway clean/upgrade и8 project/board/analytics regressions. Все20 изменённых
+Java sources скомпилированы JDK17 поверх полного compiled baseline v2;
+неизменённый bytecode проверен по hash. Это targeted compile, не новый полный
+image build. Disposable PostgreSQL128MiB, bounded JVM, рабочая БД не использована.
+
+Validated source перенесён в checkout от0207e5800; stage/commit/push/deployment=false.
+Все20 existing container snapshots неизменны. Рабочая V87/backend R299/bots R295,
+Compose R300 и flags/principals прежние; source V88 активирован только в test DB.
+Новых migrations нет. Rebuild/рабочая V88 — отдельный выпуск после оставшегося
+wiring и проверок; V86/V87/provision повторять не нужно. Task🟡, S2B снятR190.
+Evidence: ../iguana-runtime/tg_ref_b24_sup/releases/r303-work-wiring-20261109/,
+validation-v7/proof.json, source-inputs.json и final-suites.json.
+
 ## Source R302 — 2026-11-09: независимое ядро доступа общих работ
+
+Исторический checkpoint: ограничение прав системного администратора и список
+неподключённых путей ниже описывают R302; актуальное решение и wiring — в R303.
 
 По решению R301 подготовлены V88, SharedWorkAccessService и HTTP API управления
 общими допусками/участниками. Grant can_read и отдельные can_create_task/

@@ -23,7 +23,7 @@ class TaskAnalyticsSourceContractTest {
         assertThat(controller)
             .contains("@RequestMapping(\"/api/task-analytics\")")
             .contains("@GetMapping")
-            .contains("hasAuthority('PAGE_TASKS')")
+            .contains("hasAnyAuthority('PAGE_TASKS','ROLE_ADMIN')")
             .contains("event_type")
             .contains("project_id")
             .contains("/export.csv")

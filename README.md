@@ -12,8 +12,9 @@ Iguana - многоканальная support CRM и операторская п
 Статус задачи01-278, выполненная MAX PG/Rabbit приёмка R301 и оставшиеся блоки:
 [карточка задачи](ai-context/tasks/task-details/01-278.md).
 
-Ядро отдельных прав и участников общих задач/проектов R302:
-[контракт доступа и следующий этап](docs/runbooks/shared-work-access.md).
+Основные task/project/Kanban пути подключены к отдельным правам и участникам
+в R303; системный ROLE_ADMIN имеет полный доступ к этим объектам:
+[контракт доступа и оставшиеся работы](docs/runbooks/shared-work-access.md).
 
 Если нужен один главный документ по текущему состоянию проекта на `1 сентября 2026 года`, начинайте с [docs/CURRENT_PROJECT_DOCUMENTATION.md](docs/CURRENT_PROJECT_DOCUMENTATION.md).
 

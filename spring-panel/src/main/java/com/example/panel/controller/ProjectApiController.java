@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/projects")
-@PreAuthorize("hasAuthority('PAGE_TASKS')")
+@PreAuthorize("hasAnyAuthority('PAGE_TASKS','ROLE_ADMIN')")
 public class ProjectApiController {
 
     private final ProjectService projectService;

@@ -50,7 +50,8 @@ class TaskDomainFoundationServiceTest {
             membershipRepository,
             tagRepository,
             taskTagRepository,
-            taskEventRepository
+            taskEventRepository,
+            mock(com.example.panel.service.SharedWorkAccessService.class)
         );
 
         Task task = new Task();

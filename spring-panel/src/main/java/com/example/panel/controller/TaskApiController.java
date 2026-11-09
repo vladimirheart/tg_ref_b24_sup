@@ -49,7 +49,7 @@ import java.util.Set;
 
 @RestController
 @RequestMapping({"/api/tasks", "/api/v1/tasks"})
-@PreAuthorize("hasAuthority('PAGE_TASKS')")
+@PreAuthorize("hasAnyAuthority('PAGE_TASKS','ROLE_ADMIN')")
 public class TaskApiController {
 
     private static final Logger log = LoggerFactory.getLogger(TaskApiController.class);
@@ -66,6 +66,7 @@ public class TaskApiController {
     private final TaskDomainFoundationService taskDomainFoundationService;
     private final TaskQueryService taskQueryService;
     private final DialogTaskDisplayService dialogTaskDisplayService;
+    private final com.example.panel.service.SharedWorkAccessService sharedAccess;
 
     public TaskApiController(TaskRepository taskRepository,
                              TaskSequenceRepository taskSequenceRepository,
@@ -76,7 +77,7 @@ public class TaskApiController {
                              IncidentService incidentService,
                              TaskDomainFoundationService taskDomainFoundationService,
                              TaskQueryService taskQueryService,
-                             DialogTaskDisplayService dialogTaskDisplayService) {
+                             DialogTaskDisplayService dialogTaskDisplayService, com.example.panel.service.SharedWorkAccessService sharedAccess) {
         this.taskRepository = taskRepository;
         this.taskSequenceRepository = taskSequenceRepository;
         this.commentRepository = commentRepository;
@@ -87,9 +88,11 @@ public class TaskApiController {
         this.taskDomainFoundationService = taskDomainFoundationService;
         this.taskQueryService = taskQueryService;
         this.dialogTaskDisplayService = dialogTaskDisplayService;
+        this.sharedAccess = sharedAccess;
     }
 
     @GetMapping
+    @Transactional
     public Map<String, Object> list(@RequestParam(name = "page", defaultValue = "1") int page,
                                     @RequestParam(name = "page_size", defaultValue = "20") int pageSize,
                                     @RequestParam(name = "sort_by", defaultValue = "last_activity_at") String sortBy,
@@ -119,7 +122,9 @@ public class TaskApiController {
     }
 
     @GetMapping("/{id}")
+    @Transactional
     public ResponseEntity<Map<String, Object>> get(@PathVariable Long id) {
+        sharedAccess.require(com.example.panel.service.SharedWorkAccessService.Kind.TASK,id,com.example.panel.service.SharedWorkAccessService.Access.READ,com.example.panel.service.SharedWorkAccessService.current());
         Task task = taskRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found"));
         Map<String, Object> dto = toDetailedDto(task);
@@ -147,14 +152,16 @@ public class TaskApiController {
                                     @RequestParam(required = false) String status,
                                     Authentication authentication) {
         validateTaskRequiredFields(title, bodyHtml, assignee);
-        boolean isNew = id == null || taskRepository.findById(id).isEmpty();
-        Task task = id != null ? taskRepository.findById(id).orElse(new Task()) : new Task();
+        boolean isNew = id == null;
+        Long ownerId = isNew ? sharedAccess.requireCreation(com.example.panel.service.SharedWorkAccessService.Kind.TASK,authentication) : null;
+        if(!isNew)sharedAccess.require(com.example.panel.service.SharedWorkAccessService.Kind.TASK,id,com.example.panel.service.SharedWorkAccessService.Access.WRITE,authentication);
+        Task task = isNew ? new Task() : taskRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        if(isNew){task.setSharedOwnerUserId(ownerId);task.setCreator(authentication.getName());}
         TaskDomainFoundationService.TaskMutationSnapshot before = isNew
                 ? null
                 : taskDomainFoundationService.snapshot(task);
         task.setTitle(title);
         task.setBodyHtml(bodyHtml);
-        task.setCreator(creator);
         task.setAssignee(assignee);
         task.setTag(tag);
         task.setStatus(StringUtils.hasText(status) ? status : task.getStatus());
@@ -167,12 +174,13 @@ public class TaskApiController {
             task.setSeq(nextSequenceValue());
         }
 
-        Task saved = taskRepository.save(task);
+        Task saved = taskRepository.saveAndFlush(task);
+        if(isNew)sharedAccess.registerCreated(com.example.panel.service.SharedWorkAccessService.Kind.TASK,saved.getId(),authentication);
         syncTaskPeople(saved, co, watchers);
         String actor = resolveActor(authentication, saved.getCreator());
         String normalizedTagsInput = tags != null ? tags : tag;
         taskDomainFoundationService.recordSaved(saved, before, isNew, actor, normalizedTagsInput, projectIds);
-        Set<String> recipients = resolveTaskRecipients(saved, co, watchers);
+        Set<String> recipients = sharedAccess.readableRecipients(com.example.panel.service.SharedWorkAccessService.Kind.TASK,saved.getId(),resolveTaskRecipients(saved, co, watchers));
         String displayNo = saved.getSeq() != null ? "DL_" + saved.getSeq() : "DL_" + saved.getId();
         String safeTitle = StringUtils.hasText(saved.getTitle()) ? saved.getTitle().trim() : "без названия";
         String text = isNew
@@ -211,21 +219,13 @@ public class TaskApiController {
     }
 
     private long nextSequenceValue() {
-        TaskSequence sequence = taskSequenceRepository.findById(TASK_SEQUENCE_ROW_ID)
-            .orElseGet(() -> {
-                TaskSequence seed = new TaskSequence();
-                seed.setId(TASK_SEQUENCE_ROW_ID);
-                seed.setVal(0L);
-                return taskSequenceRepository.save(seed);
-            });
-        long current = sequence.getVal() != null ? sequence.getVal() : 0L;
-        sequence.setVal(current + 1L);
-        taskSequenceRepository.save(sequence);
-        return current + 1L;
+        return sharedAccess.nextTaskSequence();
     }
 
     @DeleteMapping("/{id}")
+    @Transactional
     public Map<String, Object> delete(@PathVariable Long id) {
+        sharedAccess.require(com.example.panel.service.SharedWorkAccessService.Kind.TASK,id,com.example.panel.service.SharedWorkAccessService.Access.WRITE,com.example.panel.service.SharedWorkAccessService.current());
         if (!taskRepository.existsById(id)) {
             log.warn("Attempt to delete missing task {}", id);
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found");
@@ -238,15 +238,17 @@ public class TaskApiController {
     }
 
     @PostMapping(value = "/{id}/comments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Transactional
     public Map<String, Object> addComment(@PathVariable Long id,
                                           @RequestParam String html,
                                           @RequestParam(name = "author", required = false) String author,
                                           Authentication authentication) {
+        sharedAccess.require(com.example.panel.service.SharedWorkAccessService.Kind.TASK,id,com.example.panel.service.SharedWorkAccessService.Access.WRITE,com.example.panel.service.SharedWorkAccessService.current());
         Task task = taskRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found"));
         TaskComment comment = new TaskComment();
         comment.setTask(task);
-        comment.setAuthor(StringUtils.hasText(author) ? author : "");
+        comment.setAuthor(authentication.getName());
         comment.setHtml(html);
         comment.setCreatedAt(OffsetDateTime.now());
         TaskComment saved = commentRepository.save(comment);
@@ -258,7 +260,7 @@ public class TaskApiController {
         );
         String actor = resolveActor(authentication, saved.getAuthor());
         taskDomainFoundationService.recordCommentAdded(task, actor, saved.getId());
-        Set<String> recipients = resolveTaskRecipients(task, null, null);
+        Set<String> recipients = sharedAccess.readableRecipients(com.example.panel.service.SharedWorkAccessService.Kind.TASK,task.getId(),resolveTaskRecipients(task, null, null));
         String displayNo = task.getSeq() != null ? "DL_" + task.getSeq() : "DL_" + task.getId();
         String safeAuthor = StringUtils.hasText(saved.getAuthor()) ? saved.getAuthor().trim() : "оператор";
         notificationRoutingService.notify(
@@ -309,14 +311,12 @@ public class TaskApiController {
                 .filter(person -> "co".equalsIgnoreCase(person.getRole()))
                 .map(TaskPerson::getIdentity)
                 .filter(StringUtils::hasText)
-                .map(String::trim)
                 .distinct()
                 .toList());
         dto.put("watchers", people.stream()
                 .filter(person -> "watcher".equalsIgnoreCase(person.getRole()))
                 .map(TaskPerson::getIdentity)
                 .filter(StringUtils::hasText)
-                .map(String::trim)
                 .distinct()
                 .toList());
 
@@ -393,13 +393,13 @@ public class TaskApiController {
         if (target == null || task == null || !StringUtils.hasText(identity) || !StringUtils.hasText(role)) {
             return;
         }
-        String trimmedIdentity = identity.trim();
+        String trimmedIdentity = identity;
         if (trimmedIdentity.isEmpty()) {
             return;
         }
         boolean exists = target.stream().anyMatch(person ->
                 role.equalsIgnoreCase(person.getRole())
-                        && trimmedIdentity.equalsIgnoreCase(person.getIdentity()));
+                        && trimmedIdentity.equals(person.getIdentity()));
         if (exists) {
             return;
         }
@@ -414,16 +414,15 @@ public class TaskApiController {
         Set<String> recipients = new LinkedHashSet<>();
         if (task != null) {
             if (StringUtils.hasText(task.getAssignee())) {
-                recipients.add(task.getAssignee().trim());
+                recipients.add(task.getAssignee());
             }
             if (StringUtils.hasText(task.getCreator())) {
-                recipients.add(task.getCreator().trim());
+                recipients.add(task.getCreator());
             }
             if (task.getId() != null) {
                 taskPersonRepository.findByTaskId(task.getId()).stream()
                         .map(TaskPerson::getIdentity)
                         .filter(StringUtils::hasText)
-                        .map(String::trim)
                         .forEach(recipients::add);
             }
         }
@@ -452,10 +451,10 @@ public class TaskApiController {
 
     private String resolveActor(Authentication authentication, String fallback) {
         if (authentication != null && StringUtils.hasText(authentication.getName())) {
-            return authentication.getName().trim();
+            return authentication.getName();
         }
         if (StringUtils.hasText(fallback)) {
-            return fallback.trim();
+            return fallback;
         }
         return null;
     }

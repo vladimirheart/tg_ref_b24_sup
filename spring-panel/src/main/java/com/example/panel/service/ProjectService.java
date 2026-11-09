@@ -17,23 +17,26 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
+@Transactional
 public class ProjectService {
 
     private static final Set<String> STATUSES = Set.of("active", "paused", "done", "archived");
 
     private final ProjectRepository projectRepository;
     private final TaskProjectMembershipRepository taskProjectMembershipRepository;
+    private final com.example.panel.service.SharedWorkAccessService sharedAccess;
 
     public ProjectService(ProjectRepository projectRepository,
-                          TaskProjectMembershipRepository taskProjectMembershipRepository) {
+                          TaskProjectMembershipRepository taskProjectMembershipRepository, com.example.panel.service.SharedWorkAccessService sharedAccess) {
         this.projectRepository = projectRepository;
         this.taskProjectMembershipRepository = taskProjectMembershipRepository;
+        this.sharedAccess = sharedAccess;
     }
 
     public Map<String, Object> list(boolean includeArchived) {
-        List<Project> projects = includeArchived
-            ? projectRepository.findAll()
-            : projectRepository.findAllByArchivedAtIsNullOrderByNameAsc();
+        List<Project> projects = projectRepository.findAllById(sharedAccess.visibleLongIds(com.example.panel.service.SharedWorkAccessService.Kind.PROJECT)).stream()
+            .filter(project->includeArchived||project.getArchivedAt()==null)
+            .sorted(java.util.Comparator.comparing(Project::getName,java.util.Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))).toList();
         return Map.of(
             "items", projects.stream().map(this::toDto).toList(),
             "total", projects.size()
@@ -47,7 +50,9 @@ public class ProjectService {
     @Transactional
     public Map<String, Object> create(Map<String, Object> payload, String actor) {
         OffsetDateTime now = OffsetDateTime.now();
+        long owner=sharedAccess.requireCreation(com.example.panel.service.SharedWorkAccessService.Kind.PROJECT,com.example.panel.service.SharedWorkAccessService.current());
         Project project = new Project();
+        project.setSharedOwnerUserId(owner);
         project.setName(requiredText(payload.get("name"), "Укажите название проекта."));
         project.setDescription(clean(payload.get("description")));
         project.setStatus(normalizeStatus(payload.get("status"), "active"));
@@ -63,11 +68,13 @@ public class ProjectService {
             project.setProjectKey("PRJ_" + project.getId());
             project = projectRepository.saveAndFlush(project);
         }
+        sharedAccess.registerCreated(com.example.panel.service.SharedWorkAccessService.Kind.PROJECT,project.getId(),com.example.panel.service.SharedWorkAccessService.current());
         return toDto(project);
     }
 
     @Transactional
     public Map<String, Object> update(Long id, Map<String, Object> payload, String actor) {
+        sharedAccess.require(com.example.panel.service.SharedWorkAccessService.Kind.PROJECT,id,com.example.panel.service.SharedWorkAccessService.Access.WRITE,com.example.panel.service.SharedWorkAccessService.current());
         Project project = requireProject(id);
         if (payload.containsKey("name")) {
             project.setName(requiredText(payload.get("name"), "Укажите название проекта."));
@@ -102,6 +109,7 @@ public class ProjectService {
 
     @Transactional
     public Map<String, Object> archive(Long id, String actor) {
+        sharedAccess.require(com.example.panel.service.SharedWorkAccessService.Kind.PROJECT,id,com.example.panel.service.SharedWorkAccessService.Access.WRITE,com.example.panel.service.SharedWorkAccessService.current());
         Project project = requireProject(id);
         OffsetDateTime now = OffsetDateTime.now();
         project.setStatus("archived");
@@ -111,6 +119,7 @@ public class ProjectService {
     }
 
     private Project requireProject(Long id) {
+        sharedAccess.require(com.example.panel.service.SharedWorkAccessService.Kind.PROJECT,id,com.example.panel.service.SharedWorkAccessService.Access.READ,com.example.panel.service.SharedWorkAccessService.current());
         return projectRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found"));
     }
@@ -181,7 +190,9 @@ public class ProjectService {
         dto.put("created_at", project.getCreatedAt() != null ? project.getCreatedAt().toString() : null);
         dto.put("updated_at", project.getUpdatedAt() != null ? project.getUpdatedAt().toString() : null);
         dto.put("archived_at", project.getArchivedAt() != null ? project.getArchivedAt().toString() : null);
-        dto.put("task_count", project.getId() != null ? taskProjectMembershipRepository.countByProject_Id(project.getId()) : 0L);
+        var readableTasks=new java.util.HashSet<>(sharedAccess.visibleLongIds(com.example.panel.service.SharedWorkAccessService.Kind.TASK));
+        dto.put("task_count",project.getId()==null?0L:taskProjectMembershipRepository.findByProject_IdOrderByTask_IdAsc(project.getId()).stream()
+            .filter(link->link.getTask()!=null&&readableTasks.contains(link.getTask().getId())).count());
         return dto;
     }
 }

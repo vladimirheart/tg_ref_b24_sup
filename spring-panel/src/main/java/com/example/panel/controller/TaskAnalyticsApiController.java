@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/task-analytics")
-@PreAuthorize("hasAuthority('PAGE_TASKS')")
+@PreAuthorize("hasAnyAuthority('PAGE_TASKS','ROLE_ADMIN')")
 public class TaskAnalyticsApiController {
 
     private final TaskAnalyticsService taskAnalyticsService;

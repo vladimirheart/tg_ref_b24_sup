@@ -29,12 +29,12 @@ class TaskBoardFoundationSourceContractTest {
             .contains("@PostMapping(\"/project/{projectId}/ensure\")")
             .contains("@PostMapping(\"/mine/ensure\")")
             .contains("@PostMapping(\"/{boardId}/move\")")
-            .contains("hasAuthority('PAGE_TASKS')");
+            .contains("hasAnyAuthority('PAGE_TASKS','ROLE_ADMIN')");
 
         assertThat(service)
             .contains("DEFAULT_COLUMNS")
             .contains("\"PROJECT:\" + project.getId()")
-            .contains("\"PERSONAL:\" + owner.toLowerCase")
+            .contains("\"PERSONAL_USER:\" + sharedAccess.currentUserId()")
             .contains("findByProject_IdOrderByTask_IdAsc")
             .contains("findByIdentityIgnoreCaseAndRoleIn")
             .contains("BOARD_CARD_MOVED")

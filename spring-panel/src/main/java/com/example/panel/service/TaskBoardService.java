@@ -60,6 +60,7 @@ public class TaskBoardService {
     private final TaskEventRepository taskEventRepository;
     private final TaskDomainFoundationService taskDomainFoundationService;
     private final DialogTaskDisplayService dialogTaskDisplayService;
+    private final com.example.panel.service.SharedWorkAccessService sharedAccess;
 
     public TaskBoardService(ProjectBoardRepository projectBoardRepository,
                             BoardColumnRepository boardColumnRepository,
@@ -70,7 +71,7 @@ public class TaskBoardService {
                             TaskProjectMembershipRepository taskProjectMembershipRepository,
                             TaskEventRepository taskEventRepository,
                             TaskDomainFoundationService taskDomainFoundationService,
-                            DialogTaskDisplayService dialogTaskDisplayService) {
+                            DialogTaskDisplayService dialogTaskDisplayService, com.example.panel.service.SharedWorkAccessService sharedAccess) {
         this.projectBoardRepository = projectBoardRepository;
         this.boardColumnRepository = boardColumnRepository;
         this.boardTaskPlacementRepository = boardTaskPlacementRepository;
@@ -81,11 +82,15 @@ public class TaskBoardService {
         this.taskEventRepository = taskEventRepository;
         this.taskDomainFoundationService = taskDomainFoundationService;
         this.dialogTaskDisplayService = dialogTaskDisplayService;
+        this.sharedAccess = sharedAccess;
     }
 
     @Transactional
     public Map<String, Object> ensureProjectBoard(Long projectId, String actor) {
+        sharedAccess.beginMutation();
+        sharedAccess.require(com.example.panel.service.SharedWorkAccessService.Kind.PROJECT,projectId,com.example.panel.service.SharedWorkAccessService.Access.READ,com.example.panel.service.SharedWorkAccessService.current());
         Project project = requireProject(projectId);
+        sharedAccess.lockBoardScope("PROJECT:"+project.getId());
         ProjectBoard board = ensureBoard(
             SCOPE_PROJECT,
             "PROJECT:" + project.getId(),
@@ -100,10 +105,13 @@ public class TaskBoardService {
 
     @Transactional
     public Map<String, Object> ensurePersonalBoard(String actor) {
-        String owner = requireActor(actor);
+        sharedAccess.beginMutation();
+        sharedAccess.requireReader();
+        String owner = com.example.panel.service.SharedWorkAccessService.current().getName();
+        sharedAccess.lockBoardScope("PERSONAL_USER:"+sharedAccess.currentUserId());
         ProjectBoard board = ensureBoard(
             SCOPE_PERSONAL,
-            "PERSONAL:" + owner.toLowerCase(Locale.ROOT),
+            "PERSONAL_USER:" + sharedAccess.currentUserId(),
             null,
             owner,
             "Мои задачи"
@@ -115,8 +123,10 @@ public class TaskBoardService {
 
     @Transactional
     public Map<String, Object> getBoard(Long boardId, String actor) {
+        sharedAccess.beginMutation();
         ProjectBoard board = requireBoard(boardId);
         authorizeBoard(board, actor);
+        sharedAccess.lockBoardScope(board.getScopeKey());
         List<BoardColumn> columns = ensureDefaultColumns(board);
         syncEligibleTasks(board, columns, actor);
         return toDto(board, columns);
@@ -125,7 +135,7 @@ public class TaskBoardService {
     @Transactional
     public Map<String, Object> createColumn(Long boardId, String rawName, Integer targetIndex, String actor) {
         ProjectBoard board = requireBoard(boardId);
-        authorizeBoard(board, actor);
+        authorizeBoardWrite(board, actor);
         String name = requireColumnName(rawName);
         List<BoardColumn> columns = boardColumnRepository.findByBoard_IdOrderByPositionAscIdAsc(boardId);
         ensureUniqueColumnName(columns, name, null);
@@ -154,7 +164,7 @@ public class TaskBoardService {
                                             Integer targetIndex,
                                             String actor) {
         ProjectBoard board = requireBoard(boardId);
-        authorizeBoard(board, actor);
+        authorizeBoardWrite(board, actor);
         BoardColumn column = requireColumn(board, columnId);
         List<BoardColumn> columns = boardColumnRepository.findByBoard_IdOrderByPositionAscIdAsc(boardId);
 
@@ -180,7 +190,7 @@ public class TaskBoardService {
     @Transactional
     public Map<String, Object> deleteColumn(Long boardId, Long columnId, String actor) {
         ProjectBoard board = requireBoard(boardId);
-        authorizeBoard(board, actor);
+        authorizeBoardWrite(board, actor);
         BoardColumn column = requireColumn(board, columnId);
         List<BoardColumn> columns = boardColumnRepository.findByBoard_IdOrderByPositionAscIdAsc(boardId);
         if (columns.size() <= 1) {
@@ -204,10 +214,11 @@ public class TaskBoardService {
                                        Integer targetIndex,
                                        String actor) {
         ProjectBoard board = requireBoard(boardId);
-        authorizeBoard(board, actor);
+        authorizeBoardWrite(board, actor);
         List<BoardColumn> columns = ensureDefaultColumns(board);
         syncEligibleTasks(board, columns, actor);
 
+        sharedAccess.require(com.example.panel.service.SharedWorkAccessService.Kind.TASK,taskId,com.example.panel.service.SharedWorkAccessService.Access.WRITE,com.example.panel.service.SharedWorkAccessService.current());
         BoardColumn targetColumn = requireColumn(board, targetColumnId);
         BoardTaskPlacement placement = boardTaskPlacementRepository.findByBoard_IdAndTask_Id(boardId, taskId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Задача не входит в текущую область доски."));
@@ -228,7 +239,7 @@ public class TaskBoardService {
         targetItems.removeIf(item -> Objects.equals(item.getId(), placement.getId()));
         placement.setColumn(targetColumn);
         placement.setUpdatedAt(OffsetDateTime.now());
-        placement.setUpdatedBy(clean(actor));
+        placement.setUpdatedBy(actor);
         int index = clampIndex(targetIndex, targetItems.size());
         targetItems.add(index, placement);
         reindexPlacements(targetItems);
@@ -308,7 +319,10 @@ public class TaskBoardService {
             Task task = placement.getTask();
             Long taskId = task != null ? task.getId() : null;
             if (taskId == null || !eligible.containsKey(taskId)) {
-                stale.add(placement);
+                boolean stillLinked=taskId!=null&&SCOPE_PROJECT.equals(board.getScopeType())&&board.getProject()!=null
+                    &&taskProjectMembershipRepository.findByProject_IdOrderByTask_IdAsc(board.getProject().getId()).stream()
+                        .anyMatch(link->link.getTask()!=null&&java.util.Objects.equals(link.getTask().getId(),taskId));
+                if(!stillLinked)stale.add(placement);
             } else {
                 byTask.put(taskId, placement);
             }
@@ -341,7 +355,7 @@ public class TaskBoardService {
             placement.setTask(task);
             placement.setPosition(nextPosition.getOrDefault(column.getId(), CARD_POSITION_STEP));
             placement.setUpdatedAt(OffsetDateTime.now());
-            placement.setUpdatedBy(clean(actor));
+            placement.setUpdatedBy(actor);
             boardTaskPlacementRepository.save(placement);
             nextPosition.put(column.getId(), placement.getPosition() + CARD_POSITION_STEP);
         }
@@ -350,6 +364,7 @@ public class TaskBoardService {
 
     private LinkedHashMap<Long, Task> eligibleTasks(ProjectBoard board) {
         LinkedHashMap<Long, Task> tasks = new LinkedHashMap<>();
+        java.util.Set<Long> readable=new java.util.HashSet<>(sharedAccess.visibleLongIds(com.example.panel.service.SharedWorkAccessService.Kind.TASK));
         if (SCOPE_PROJECT.equals(board.getScopeType())) {
             Project project = board.getProject();
             if (project == null || project.getId() == null) {
@@ -357,7 +372,7 @@ public class TaskBoardService {
             }
             for (TaskProjectMembership membership :
                     taskProjectMembershipRepository.findByProject_IdOrderByTask_IdAsc(project.getId())) {
-                putTask(tasks, membership.getTask());
+                if(membership.getTask()!=null&&readable.contains(membership.getTask().getId()))putTask(tasks, membership.getTask());
             }
             return tasks;
         }
@@ -368,10 +383,10 @@ public class TaskBoardService {
                 return tasks;
             }
             for (Task task : taskRepository.findByAssigneeIgnoreCaseOrderByIdAsc(owner)) {
-                putTask(tasks, task);
+                if(readable.contains(task.getId()))putTask(tasks, task);
             }
             for (TaskPerson person : taskPersonRepository.findByIdentityIgnoreCaseAndRoleIn(owner, PERSONAL_ROLES)) {
-                putTask(tasks, person.getTask());
+                if(person.getTask()!=null&&readable.contains(person.getTask().getId()))putTask(tasks, person.getTask());
             }
         }
         return tasks;
@@ -443,7 +458,7 @@ public class TaskBoardService {
         event.setTask(task);
         event.setProjectId(board.getProject() != null ? board.getProject().getId() : null);
         event.setEventType("BOARD_CARD_MOVED");
-        event.setActor(clean(actor));
+        event.setActor(actor);
         event.setOccurredAt(OffsetDateTime.now());
         event.setFieldName("board_column");
         event.setOldValue(oldValue);
@@ -460,6 +475,7 @@ public class TaskBoardService {
     private Map<String, Object> toDto(ProjectBoard board, List<BoardColumn> columns) {
         List<BoardTaskPlacement> placements =
             boardTaskPlacementRepository.findByBoard_IdOrderByColumn_PositionAscPositionAscIdAsc(board.getId());
+        java.util.Set<Long> readable=new java.util.HashSet<>(sharedAccess.visibleLongIds(com.example.panel.service.SharedWorkAccessService.Kind.TASK));
         Map<Long, List<Map<String, Object>>> cardsByColumn = new LinkedHashMap<>();
         for (BoardColumn column : columns) {
             cardsByColumn.put(column.getId(), new ArrayList<>());
@@ -467,7 +483,7 @@ public class TaskBoardService {
         for (BoardTaskPlacement placement : placements) {
             BoardColumn column = placement.getColumn();
             Task task = placement.getTask();
-            if (column == null || task == null || !cardsByColumn.containsKey(column.getId())) {
+            if (column == null || task == null || !readable.contains(task.getId()) || !cardsByColumn.containsKey(column.getId())) {
                 continue;
             }
             Map<String, Object> card = taskSummary(task);
@@ -539,14 +555,19 @@ public class TaskBoardService {
     }
 
     private void authorizeBoard(ProjectBoard board, String actor) {
-        if (!SCOPE_PERSONAL.equals(board.getScopeType())) {
-            return;
+        if(SCOPE_PROJECT.equals(board.getScopeType())) {
+            if(board.getProject()==null)throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+            sharedAccess.require(com.example.panel.service.SharedWorkAccessService.Kind.PROJECT,board.getProject().getId(),com.example.panel.service.SharedWorkAccessService.Access.READ,com.example.panel.service.SharedWorkAccessService.current());return;
         }
-        String current = requireActor(actor);
-        String owner = clean(board.getOwnerIdentity());
-        if (owner == null || !owner.equalsIgnoreCase(current)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Personal board belongs to another user.");
-        }
+        if(sharedAccess.isSystemAdministrator(com.example.panel.service.SharedWorkAccessService.current()))return;
+        sharedAccess.requireReader();
+        if(!SCOPE_PERSONAL.equals(board.getScopeType())||!("PERSONAL_USER:"+sharedAccess.currentUserId()).equals(board.getScopeKey()))
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Board not found");
+    }
+    private void authorizeBoardWrite(ProjectBoard board,String actor) {
+        authorizeBoard(board,actor);
+        if(SCOPE_PROJECT.equals(board.getScopeType()))sharedAccess.require(com.example.panel.service.SharedWorkAccessService.Kind.PROJECT,board.getProject().getId(),com.example.panel.service.SharedWorkAccessService.Access.WRITE,com.example.panel.service.SharedWorkAccessService.current());
+        sharedAccess.lockBoardScope(board.getScopeKey());
     }
 
     private void ensureUniqueColumnName(List<BoardColumn> columns, String name, Long currentId) {
@@ -579,7 +600,7 @@ public class TaskBoardService {
     }
 
     private String requireActor(String actor) {
-        String value = clean(actor);
+        String value = actor;
         if (value == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication is required.");
         }

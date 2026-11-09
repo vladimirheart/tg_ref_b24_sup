@@ -31,7 +31,7 @@ public class SharedWorkAccessService {
     public record Member(String userId,String username,String role) {}
 
     private static final String ACCOUNT = GeneralTicketAccessService.CURRENT_ACCOUNT;
-    // Same current assigned-role proof as GENERAL administration. No username/admin/business bypass.
+    // System administrator is unrestricted within shared work. Business/portal roles never imply this authority.
     private static final String ADMIN = """
         WITH actor AS MATERIALIZED (
             SELECT account.id,account.role_id FROM users account
@@ -45,22 +45,26 @@ public class SharedWorkAccessService {
         ), direct_admin AS MATERIALIZED (
             SELECT authority.user_id FROM user_authorities authority JOIN actor ON actor.id=authority.user_id
             WHERE authority.authority='ROLE_ADMIN' FOR SHARE OF authority
-        ), direct_settings AS MATERIALIZED (
-            SELECT authority.user_id FROM user_authorities authority JOIN actor ON actor.id=authority.user_id
-            WHERE authority.authority='PAGE_SETTINGS' FOR SHARE OF authority
         ), administrator AS MATERIALIZED (
             SELECT actor.id FROM actor
             WHERE (EXISTS(SELECT 1 FROM direct_admin) OR (:assignedAdmin AND EXISTS(SELECT 1 FROM assigned)))
-              AND (EXISTS(SELECT 1 FROM direct_settings) OR (:assignedSettings AND EXISTS(SELECT 1 FROM assigned)))
         )
         """;
-    private static final String READER = """
-        WITH reader AS MATERIALIZED (
-            SELECT account.id,permission.can_create_task,permission.can_create_project
-              FROM users account JOIN shared_work_grants permission ON permission.user_id=account.id
-            WHERE account.id=:authenticatedActorId AND account.username=:identity AND permission.can_read AND
-        """+ACCOUNT+"""
-            FOR SHARE OF account,permission
+    private static final String READER = ADMIN+"""
+        , granted_reader AS MATERIALIZED (
+            SELECT permission.user_id,permission.can_create_task,permission.can_create_project
+              FROM shared_work_grants permission JOIN actor ON actor.id=permission.user_id
+             WHERE permission.can_read FOR SHARE OF permission
+        ), direct_tasks AS MATERIALIZED (
+            SELECT authority.user_id FROM user_authorities authority JOIN actor ON actor.id=authority.user_id
+             WHERE authority.authority='PAGE_TASKS' FOR SHARE OF authority
+        ), reader AS MATERIALIZED (
+            SELECT actor.id,EXISTS(SELECT 1 FROM administrator) AS system_admin,
+                   (EXISTS(SELECT 1 FROM administrator) OR COALESCE(permission.can_create_task,FALSE)) AS can_create_task,
+                   (EXISTS(SELECT 1 FROM administrator) OR COALESCE(permission.can_create_project,FALSE)) AS can_create_project
+              FROM actor LEFT JOIN granted_reader permission ON permission.user_id=actor.id
+             WHERE EXISTS(SELECT 1 FROM administrator) OR (permission.user_id IS NOT NULL
+                AND (EXISTS(SELECT 1 FROM direct_tasks) OR (:assignedTasks AND EXISTS(SELECT 1 FROM assigned))))
         )
         """;
     private final JdbcTemplate jdbc;
@@ -82,6 +86,7 @@ public class SharedWorkAccessService {
     }
 
     public void setGrant(Authentication authentication,long targetId,Grant grant) {
+        mutationGate();
         positive(targetId);
         if(grant==null||(!grant.canRead()&&(grant.canCreateTask()||grant.canCreateProject())))throw badRequest();
         var args=adminArgs(authentication).addValue("targetId",targetId,Types.BIGINT)
@@ -108,6 +113,7 @@ public class SharedWorkAccessService {
     /** Trusted creation writer only: owner FK must already be written from the authenticated numeric actor in the same transaction. */
     @Transactional(propagation = Propagation.MANDATORY)
     public void registerCreated(Kind kind,long id,Authentication authentication) {
+        mutationGate();
         positive(id);var args=actorArgs(authentication).addValue("id",id,Types.BIGINT);
         String query=READER+"""
             , owned AS MATERIALIZED (
@@ -126,10 +132,52 @@ public class SharedWorkAccessService {
 
     public List<String> visibleIds(Kind kind,Authentication authentication) {
         return sql.query(READER+"""
-            SELECT root.id FROM %s root JOIN %s member ON member.%s=root.id JOIN reader ON reader.id=member.user_id
-             WHERE root.shared_owner_user_id IS NOT NULL
-               AND (member.access_role<>'OWNER' OR member.user_id=root.shared_owner_user_id) ORDER BY root.id
-            """.formatted(kind.roots,kind.members,kind.key),actorArgs(authentication),(rs,row)->rs.getString("id"));
+            , readable_members AS MATERIALIZED (
+                SELECT member.%s AS root_id FROM %s member JOIN reader ON reader.id=member.user_id
+                 JOIN %s root ON root.id=member.%s
+                 WHERE root.shared_owner_user_id IS NOT NULL
+                   AND (member.access_role<>'OWNER' OR member.user_id=root.shared_owner_user_id)
+                 FOR SHARE OF member
+            )
+            SELECT root.id FROM %s root CROSS JOIN reader
+             WHERE reader.system_admin OR EXISTS(SELECT 1 FROM readable_members member WHERE member.root_id=root.id)
+             ORDER BY root.id
+            """.formatted(kind.key,kind.members,kind.roots,kind.key,kind.roots),actorArgs(authentication),(rs,row)->rs.getString("id"));
+    }
+
+    @Transactional(propagation=Propagation.MANDATORY)
+    public void lockBoardScope(String scopeKey) {
+        jdbc.query("SELECT pg_advisory_xact_lock(hashtextextended(?,0))",(rs,row)->true,"shared-work-board:"+scopeKey);
+    }
+    @Transactional(propagation=Propagation.MANDATORY)
+    public long nextTaskSequence() {
+        return jdbc.queryForObject("INSERT INTO task_seq(id,val) VALUES(1,1) ON CONFLICT(id) DO UPDATE SET val=task_seq.val+1 RETURNING val",Long.class);
+    }
+    public static Authentication current() {
+        return org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+    }
+    public boolean isSystemAdministrator(Authentication authentication) {
+        if(GeneralTicketActor.from(authentication)==null)return false;
+        return Boolean.TRUE.equals(sql.queryForObject(ADMIN+"SELECT EXISTS(SELECT 1 FROM administrator)",adminArgs(authentication),Boolean.class));
+    }
+    public long currentUserId() {
+        var rows=sql.query(ADMIN+"SELECT id FROM actor",actorArgs(current()),(rs,row)->rs.getLong(1));
+        if(rows.size()!=1)throw missing();return rows.get(0);
+    }
+    public long requireCreation(Kind kind,Authentication authentication) {
+        mutationGate();
+        var rows=sql.query(READER+"SELECT id FROM reader WHERE "+kind.create,actorArgs(authentication),(rs,row)->rs.getLong(1));
+        if(rows.size()!=1)throw missing();return rows.get(0);
+    }
+    public void requireReader() {
+        if(sql.query(READER+"SELECT id FROM reader",actorArgs(current()),(rs,row)->rs.getLong(1)).size()!=1)throw missing();
+    }
+    public boolean canRead(Kind kind,long id,Authentication authentication) {
+        try{require(kind,id,Access.READ,authentication);return true;}
+        catch(ResponseStatusException denied){if(denied.getStatusCode().value()==404)return false;throw denied;}
+    }
+    public List<Long> visibleLongIds(Kind kind) {
+        return visibleIds(kind,current()).stream().map(Long::valueOf).toList();
     }
 
     public List<Member> members(Kind kind,long id,Authentication authentication) {
@@ -145,17 +193,9 @@ public class SharedWorkAccessService {
         positive(targetId);if(role==null)throw badRequest();
         long owner=lock(kind,id,Access.OWNER,authentication);
         if(targetId==owner)throw new ResponseStatusException(HttpStatus.CONFLICT,"Владелец не изменяется через состав участников");
+        requireEligibleTarget(targetId);
         var args=new MapSqlParameterSource("id",id).addValue("targetId",targetId).addValue("role",role.name());
-        int changed=sql.update("""
-            WITH eligible AS MATERIALIZED (
-            SELECT account.id FROM users account JOIN shared_work_grants permission ON permission.user_id=account.id
-             WHERE account.id=:targetId AND permission.can_read AND
-            """+ACCOUNT+"""
-            FOR SHARE OF account,permission
-            )
-            INSERT INTO %s(%s,user_id,access_role) SELECT :id,id,:role FROM eligible
-            ON CONFLICT(%s,user_id) DO UPDATE SET access_role=EXCLUDED.access_role,updated_at=CURRENT_TIMESTAMP
-            """.formatted(kind.members,kind.key,kind.key),args);
+        int changed=sql.update("INSERT INTO "+kind.members+"("+kind.key+",user_id,access_role) VALUES(:id,:targetId,:role) ON CONFLICT("+kind.key+",user_id) DO UPDATE SET access_role=EXCLUDED.access_role,updated_at=CURRENT_TIMESTAMP",args);
         if(changed!=1)throw missing();
     }
 
@@ -167,35 +207,86 @@ public class SharedWorkAccessService {
     }
 
     private long lock(Kind kind,long id,Access access,Authentication authentication) {
+        if(access!=Access.READ)mutationGate();
         positive(id);var args=actorArgs(authentication).addValue("id",id);
         String roles=switch(access){case READ->"'OWNER','EDITOR','VIEWER'";case WRITE->"'OWNER','EDITOR'";case OWNER->"'OWNER'";};
-        String rootLock=access==Access.READ?"SHARE":"UPDATE";
+        String rootLock=access==Access.READ?"":" FOR UPDATE OF root";
         var owners=sql.query(READER+"""
             , owned AS MATERIALIZED (
-                SELECT root.id,root.shared_owner_user_id FROM %s root CROSS JOIN reader
-                 WHERE root.id=:id AND root.shared_owner_user_id IS NOT NULL FOR %s OF root
+                SELECT root.id,root.shared_owner_user_id,reader.id actor_id,reader.system_admin FROM %s root CROSS JOIN reader
+                 WHERE root.id=:id AND (reader.system_admin OR root.shared_owner_user_id IS NOT NULL)%s
+            ), membership AS MATERIALIZED (
+                SELECT member.user_id FROM %s member JOIN owned ON member.%s=owned.id
+                 WHERE member.user_id=owned.actor_id AND member.access_role IN (%s)
+                   AND (member.access_role<>'OWNER' OR member.user_id=owned.shared_owner_user_id)
+                 FOR SHARE OF member
             )
-            SELECT owned.shared_owner_user_id FROM owned JOIN %s member ON member.%s=owned.id JOIN reader ON reader.id=member.user_id
-             WHERE member.access_role IN (%s)
-               AND (member.access_role<>'OWNER' OR member.user_id=owned.shared_owner_user_id)
-             FOR SHARE OF member
+            SELECT COALESCE(shared_owner_user_id,0) FROM owned
+             WHERE system_admin OR EXISTS(SELECT 1 FROM membership)
             """.formatted(kind.roots,rootLock,kind.members,kind.key,roles),args,(rs,row)->rs.getLong(1));
         if(owners.size()!=1)throw missing();
         return owners.get(0);
     }
 
+    public void transferOwner(Kind kind,long id,long targetId,Authentication authentication) {
+        positive(targetId);lock(kind,id,Access.OWNER,authentication);requireEligibleTarget(targetId);
+        var args=new MapSqlParameterSource("id",id).addValue("target",targetId);
+        sql.update("UPDATE "+kind.members+" SET access_role='EDITOR',updated_at=CURRENT_TIMESTAMP WHERE "+kind.key+"=:id AND access_role='OWNER'",args);
+        sql.update("INSERT INTO "+kind.members+"("+kind.key+",user_id,access_role) VALUES(:id,:target,'OWNER') ON CONFLICT("+kind.key+",user_id) DO UPDATE SET access_role='OWNER',updated_at=CURRENT_TIMESTAMP",args);
+        sql.update("UPDATE "+kind.roots+" SET shared_owner_user_id=:target WHERE id=:id",args);
+    }
+    private void requireEligibleTarget(long id) {
+        var names=jdbc.query("SELECT account.username FROM users account WHERE account.id=? AND "+ACCOUNT+" FOR SHARE OF account",(rs,row)->rs.getString(1),id);
+        if(names.size()!=1)throw missing();
+        var target=GeneralTicketActor.stored(id,names.get(0));
+        var snapshot=PanelRolePermissionSnapshot.capture(jdbc,id,names.get(0));
+        var args=storedArgs(target,snapshot);
+        if(sql.query(READER+"SELECT id FROM reader",args,(rs,row)->rs.getLong(1)).size()!=1)throw missing();
+    }
+    public java.util.Set<String> readableRecipients(Kind kind,long id,java.util.Set<String> candidates) {
+        var result=new java.util.LinkedHashSet<String>();
+        for(String name:candidates) {
+            var ids=jdbc.query("SELECT account.id FROM users account WHERE account.username=? AND "+ACCOUNT,(rs,row)->rs.getLong(1),name);
+            if(ids.size()!=1)continue;
+            var user=GeneralTicketActor.stored(ids.get(0),name);
+            var args=storedArgs(user,PanelRolePermissionSnapshot.capture(jdbc,user.userId(),name)).addValue("id",id);
+            boolean allowed=Boolean.TRUE.equals(sql.queryForObject(READER+"""
+                SELECT EXISTS(SELECT 1 FROM reader CROSS JOIN %s root WHERE root.id=:id AND
+                  (reader.system_admin OR (root.shared_owner_user_id IS NOT NULL AND EXISTS(
+                    SELECT 1 FROM %s member WHERE member.%s=root.id AND member.user_id=reader.id
+                    AND (member.access_role<>'OWNER' OR member.user_id=root.shared_owner_user_id)))))
+                """.formatted(kind.roots,kind.members,kind.key),args,Boolean.class));
+            if(allowed)result.add(name);
+        }
+        return result;
+    }
+
+    @Transactional(propagation=Propagation.MANDATORY)
+    public void beginMutation() { mutationGate(); }
+    private void mutationGate() {
+        // Cross-object writes share one order; readers lock memberships rather than unrelated roots.
+        jdbc.query("SELECT pg_advisory_xact_lock(hashtextextended('shared-work-mutations',0))",(rs,row)->true);
+    }
+    private MapSqlParameterSource storedArgs(GeneralTicketActor actor,PanelRolePermissionSnapshot snapshot) {
+        boolean tasks=snapshot.hasPage("PAGE_TASKS");
+        return snapshot.bind(actor.bind(new MapSqlParameterSource())).addValue("assignedTasks",tasks);
+    }
     private MapSqlParameterSource actorArgs(Authentication authentication) {
         var actor=GeneralTicketActor.from(authentication);
         if(actor==null||!actor.valid())throw missing();
-        return actor.bind(new MapSqlParameterSource());
+        var snapshot=PanelRolePermissionSnapshot.capture(jdbc,actor.userId(),actor.username());
+        boolean tasks=snapshot.hasPage("PAGE_TASKS");
+        return snapshot.bind(actor.bind(new MapSqlParameterSource())).addValue("assignedTasks",tasks);
     }
     private MapSqlParameterSource adminArgs(Authentication authentication) {
         var actor=GeneralTicketActor.from(authentication);
         if(actor==null||!actor.valid())throw administratorDenied();
-        return PanelRolePermissionSnapshot.capture(jdbc,actor.userId(),actor.username()).bind(actor.bind(new MapSqlParameterSource()));
+        var snapshot=PanelRolePermissionSnapshot.capture(jdbc,actor.userId(),actor.username());
+        boolean tasks=snapshot.hasPage("PAGE_TASKS");
+        return snapshot.bind(actor.bind(new MapSqlParameterSource())).addValue("assignedTasks",tasks);
     }
     private static void positive(long id){if(id<=0)throw badRequest();}
     private static ResponseStatusException badRequest(){return new ResponseStatusException(HttpStatus.BAD_REQUEST,"Некорректные параметры доступа");}
     private static ResponseStatusException missing(){return new ResponseStatusException(HttpStatus.NOT_FOUND,"Объект недоступен");}
-    private static AccessDeniedException administratorDenied(){return new AccessDeniedException("Требуются действующие ROLE_ADMIN и PAGE_SETTINGS");}
+    private static AccessDeniedException administratorDenied(){return new AccessDeniedException("Требуется действующий системный ROLE_ADMIN");}
 }

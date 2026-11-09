@@ -23,6 +23,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
+@org.springframework.transaction.annotation.Transactional
 public class TaskAnalyticsService {
 
     private static final String STATUS_DONE = "Завершена";
@@ -30,9 +31,11 @@ public class TaskAnalyticsService {
     private static final String STATUS_IN_PROGRESS = "В работе";
 
     private final JdbcTemplate jdbcTemplate;
+    private final com.example.panel.service.SharedWorkAccessService sharedAccess;
 
-    public TaskAnalyticsService(JdbcTemplate jdbcTemplate) {
+    public TaskAnalyticsService(JdbcTemplate jdbcTemplate, com.example.panel.service.SharedWorkAccessService sharedAccess) {
         this.jdbcTemplate = jdbcTemplate;
+        this.sharedAccess = sharedAccess;
     }
 
     public Map<String, Object> summary(String rawFrom,
@@ -225,7 +228,7 @@ public class TaskAnalyticsService {
               FROM task_events e
               JOIN tasks t ON t.id = e.task_id
              WHERE 1 = 1
-            """ + filter.sql() + " ORDER BY e.task_id, e.occurred_at, e.id";
+            """ + filter.sql() + eventVisibilityClause("e") + " ORDER BY e.task_id, e.occurred_at, e.id";
         return jdbcTemplate.query(sql, this::mapEvent, filter.params().toArray());
     }
 
@@ -268,6 +271,11 @@ public class TaskAnalyticsService {
                                Period period) {
         StringBuilder sql = new StringBuilder();
         List<Object> params = new ArrayList<>();
+        var visible=sharedAccess.visibleLongIds(com.example.panel.service.SharedWorkAccessService.Kind.TASK);
+        sql.append(visible.isEmpty()?" AND FALSE":" AND t.id IN ("+String.join(",",java.util.Collections.nCopies(visible.size(),"?"))+")");
+        params.addAll(visible);
+        if(projectId!=null)sharedAccess.require(com.example.panel.service.SharedWorkAccessService.Kind.PROJECT,projectId,com.example.panel.service.SharedWorkAccessService.Access.READ,com.example.panel.service.SharedWorkAccessService.current());
+
 
         if (projectId != null) {
             sql.append(" AND EXISTS (SELECT 1 FROM task_project_memberships tpm WHERE tpm.task_id = t.id AND tpm.project_id = ?)");
@@ -291,7 +299,7 @@ public class TaskAnalyticsService {
             params.add(source.trim());
         }
         if (StringUtils.hasText(eventType)) {
-            sql.append(" AND EXISTS (SELECT 1 FROM task_events ef WHERE ef.task_id = t.id AND UPPER(COALESCE(ef.event_type, '')) = UPPER(?) AND ef.occurred_at >= ? AND ef.occurred_at < ?)");
+            sql.append(" AND EXISTS (SELECT 1 FROM task_events ef WHERE ef.task_id = t.id AND UPPER(COALESCE(ef.event_type, '')) = UPPER(?) AND ef.occurred_at >= ? AND ef.occurred_at < ?" + eventVisibilityClause("ef") + ")");
             params.add(eventType.trim());
             params.add(period.start());
             params.add(period.endExclusive());
@@ -299,6 +307,11 @@ public class TaskAnalyticsService {
         return new Filter(sql.toString(), params);
     }
 
+    private String eventVisibilityClause(String alias) {
+        if(sharedAccess.isSystemAdministrator(com.example.panel.service.SharedWorkAccessService.current()))return "";
+        var ids=sharedAccess.visibleLongIds(com.example.panel.service.SharedWorkAccessService.Kind.PROJECT);
+        return " AND ("+alias+".project_id IS NULL"+(ids.isEmpty()?"":" OR "+alias+".project_id IN ("+ids.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","))+")")+")";
+    }
     private Period resolvePeriod(String rawFrom, String rawTo) {
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
         LocalDate from = parseDate(rawFrom, "from", today.minusDays(29));

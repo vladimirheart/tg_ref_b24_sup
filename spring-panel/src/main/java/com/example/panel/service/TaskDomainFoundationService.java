@@ -28,6 +28,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
+@Transactional
 public class TaskDomainFoundationService {
 
     private static final int MAX_TAGS_PER_TASK = 32;
@@ -38,17 +39,19 @@ public class TaskDomainFoundationService {
     private final TagRepository tagRepository;
     private final TaskTagRepository taskTagRepository;
     private final TaskEventRepository taskEventRepository;
+    private final com.example.panel.service.SharedWorkAccessService sharedAccess;
 
     public TaskDomainFoundationService(ProjectRepository projectRepository,
                                        TaskProjectMembershipRepository taskProjectMembershipRepository,
                                        TagRepository tagRepository,
                                        TaskTagRepository taskTagRepository,
-                                       TaskEventRepository taskEventRepository) {
+                                       TaskEventRepository taskEventRepository, com.example.panel.service.SharedWorkAccessService sharedAccess) {
         this.projectRepository = projectRepository;
         this.taskProjectMembershipRepository = taskProjectMembershipRepository;
         this.tagRepository = tagRepository;
         this.taskTagRepository = taskTagRepository;
         this.taskEventRepository = taskEventRepository;
+        this.sharedAccess = sharedAccess;
     }
 
     public TaskMutationSnapshot snapshot(Task task) {
@@ -73,7 +76,7 @@ public class TaskDomainFoundationService {
         if (task == null || task.getId() == null) {
             return;
         }
-        String normalizedActor = clean(actor);
+        String normalizedActor = actor;
         if (isNew) {
             appendEvent(
                 task,
@@ -110,7 +113,7 @@ public class TaskDomainFoundationService {
             return;
         }
         String metadata = commentId == null ? null : "{\"comment_id\":" + commentId + "}";
-        appendEvent(task, null, "COMMENT_ADDED", clean(actor), null, null, null, metadata);
+        appendEvent(task, null, "COMMENT_ADDED", actor, null, null, null, metadata);
     }
 
     public List<Map<String, Object>> listTags(Long taskId) {
@@ -135,6 +138,7 @@ public class TaskDomainFoundationService {
             return List.of();
         }
         return taskProjectMembershipRepository.findByTask_IdOrderByAddedAtAsc(taskId).stream()
+            .filter(link -> link.getProject()!=null && sharedAccess.canRead(com.example.panel.service.SharedWorkAccessService.Kind.PROJECT,link.getProject().getId(),com.example.panel.service.SharedWorkAccessService.current()))
             .map(link -> projectSummary(link.getProject()))
             .toList();
     }
@@ -144,6 +148,7 @@ public class TaskDomainFoundationService {
             return List.of();
         }
         return taskEventRepository.findTop100ByTask_IdOrderByOccurredAtDescIdDesc(taskId).stream()
+            .filter(event->event.getProjectId()==null||sharedAccess.canRead(com.example.panel.service.SharedWorkAccessService.Kind.PROJECT,event.getProjectId(),com.example.panel.service.SharedWorkAccessService.current()))
             .map(event -> {
                 Map<String, Object> item = new LinkedHashMap<>();
                 item.put("id", event.getId());
@@ -208,6 +213,10 @@ public class TaskDomainFoundationService {
             }
         }
 
+        for(Long projectId:desiredProjectIds) {
+            sharedAccess.require(com.example.panel.service.SharedWorkAccessService.Kind.PROJECT,projectId,com.example.panel.service.SharedWorkAccessService.Access.READ,com.example.panel.service.SharedWorkAccessService.current());
+            if(!existingByProject.containsKey(projectId))sharedAccess.require(com.example.panel.service.SharedWorkAccessService.Kind.PROJECT,projectId,com.example.panel.service.SharedWorkAccessService.Access.WRITE,com.example.panel.service.SharedWorkAccessService.current());
+        }
         Map<Long, Project> desiredProjects = new LinkedHashMap<>();
         if (!desiredProjectIds.isEmpty()) {
             for (Project project : projectRepository.findAllById(desiredProjectIds)) {
@@ -249,6 +258,8 @@ public class TaskDomainFoundationService {
 
         for (TaskProjectMembership stale : existingByProject.values()) {
             Project project = stale.getProject();
+            if(project!=null&&!sharedAccess.canRead(com.example.panel.service.SharedWorkAccessService.Kind.PROJECT,project.getId(),com.example.panel.service.SharedWorkAccessService.current()))continue;
+            if(project!=null)sharedAccess.require(com.example.panel.service.SharedWorkAccessService.Kind.PROJECT,project.getId(),com.example.panel.service.SharedWorkAccessService.Access.WRITE,com.example.panel.service.SharedWorkAccessService.current());
             Long projectId = project != null ? project.getId() : null;
             String oldLabel = projectLabel(project);
             taskProjectMembershipRepository.delete(stale);
