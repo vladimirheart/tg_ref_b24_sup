@@ -12,6 +12,9 @@ Iguana - многоканальная support CRM и операторская п
 Статус задачи01-278, выполненная MAX PG/Rabbit приёмка R301 и оставшиеся блоки:
 [карточка задачи](ai-context/tasks/task-details/01-278.md).
 
+Ядро отдельных прав и участников общих задач/проектов R302:
+[контракт доступа и следующий этап](docs/runbooks/shared-work-access.md).
+
 Если нужен один главный документ по текущему состоянию проекта на `1 сентября 2026 года`, начинайте с [docs/CURRENT_PROJECT_DOCUMENTATION.md](docs/CURRENT_PROJECT_DOCUMENTATION.md).
 
 Если нужен именно production launch runbook с checklist, cutover, smoke и rollback, используйте [docs/runbooks/production-launch-checklist.md](docs/runbooks/production-launch-checklist.md).

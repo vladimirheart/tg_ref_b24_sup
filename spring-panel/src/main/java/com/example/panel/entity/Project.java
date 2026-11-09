@@ -16,6 +16,12 @@ public class Project {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "shared_owner_user_id")
+    private Long sharedOwnerUserId;
+
+    public Long getSharedOwnerUserId() { return sharedOwnerUserId; }
+    public void setSharedOwnerUserId(Long id) { this.sharedOwnerUserId = id; }
+
     @Column(name = "project_key", unique = true)
     private String projectKey;
 

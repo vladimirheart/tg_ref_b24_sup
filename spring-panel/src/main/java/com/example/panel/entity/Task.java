@@ -1,6 +1,7 @@
 package com.example.panel.entity;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.Column;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -19,6 +20,12 @@ public class Task {
     private Long seq;
 
     private String source;
+
+    @Column(name = "shared_owner_user_id")
+    private Long sharedOwnerUserId;
+
+    public Long getSharedOwnerUserId() { return sharedOwnerUserId; }
+    public void setSharedOwnerUserId(Long id) { this.sharedOwnerUserId = id; }
 
     private String title;
 

@@ -64,6 +64,45 @@ Platform-specific:
 в local `JPA/SQLite` business-path для ticket/channel/feedback/blacklist
 операций.
 
+## Source R302 — 2026-11-09: независимое ядро доступа общих работ
+
+По решению R301 подготовлены V88, SharedWorkAccessService и HTTP API управления
+общими допусками/участниками. Grant can_read и отдельные can_create_task/
+can_create_project не наследуются из BUSINESS/GENERAL/ALL_BUSINESSES. Для объекта
+дополнительно нужно участие VIEWER/EDITOR/OWNER; проектное участие не выдаёт
+доступ к задачам. Numeric owner FK задаётся только доверенным creation writer,
+регистрация OWNER требует внешней транзакции. Старые creator/lead не становятся
+владельцами; V88 не классифицирует legacy rows и не выдаёт начальных grants.
+
+Администрирование общих допусков требует текущих ROLE_ADMIN +PAGE_SETTINGS,
+без автоматического READ объектов. Состав меняет только текущий OWNER; VIEWER
+читает, EDITOR меняет объект, OWNER также управляет составом. Public member API
+не удаляет и не передаёт OWNER. Account/grant/root/member locks удерживаются до
+commit; после ожидания используется актуальный locked grant, включая отзыв
+права создания. Current users.id/raw username, enabled/blocked/ambiguity checks
+сохраняются; HTTP BIGINT IDs возвращаются строками, read responses no-store.
+
+Выполнены100 новых PostgreSQL/HTTP/migration cases (98 access +2 полных Flyway
+clean/upgrade V87→V88) и250 regression cases/3 suites. Итого350/5 suites GREEN,
+failures/errors/skips0; новые случаи — final validation-v5, неизменённые
+регрессии — GREEN XML validation-v2. RED5 HTTP fixture cases в общем v2 не
+считаются успешными: отсутствовал EnableWebMvc, исправлено до final run.
+Проверены CSRF, method security, повторный запрос после revoke, роли, raw IDs,
+atomic creation rollback и реальные блокировки параллельного отзыва.
+
+Это source foundation и control API. Старые TaskApiController/TaskQueryService/
+ProjectService/TaskBoardService, settings/report/notification projections и UI
+ещё не подключены к ядру; их изоляция не объявляется завершённой. Следующий пакет
+должен подключить trusted create, filtered SQL/list/count/direct reads/writers,
+project links и Kanban, затем UI и доставку с текущим допуском получателя.
+
+Рабочий экземпляр не обновлялся: все20 existing containers full snapshots
+неизменны, тестовый PostgreSQL удалён по owner/nonce guard. Source V88 применён
+только в disposable test DB; рабочая V87, flags/principals/боты и Compose R300
+прежние. Отдельная активация R302 до wiring и согласованной V88 не выполняется.
+Evidence: ../iguana-runtime/tg_ref_b24_sup/releases/r302-shared-access-20261109/,
+validation-v5/proof.json, final-suites.json. Task🟡; S6/§7.1 pending, S2B снятR190.
+
 ## Acceptance R301 — 2026-11-09: MAX PostgreSQL/Rabbit gate завершён
 
 На текущей Windows-машине из baseline f54e88324993d8de2fcaf13efb94ae46579d394f
