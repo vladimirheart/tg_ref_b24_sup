@@ -21,6 +21,7 @@
   <datalist id="usersList"><option th:each="u : ${users}" th:value="${u.username}" th:label="${u.fullName != null and !#strings.isEmpty(u.fullName) ? u.fullName + ' · ' + u.username : u.username}"></option></datalist>
 
   <main class="main-content container-fluid py-4 page-shell tasks-page-shell ops-page-shell">
+    <section th:replace="~{fragments/shared-work-access :: moduleAccess}"></section>
     <div class="page-header-card tasks-sticky-bar ops-list-shell">
       <div class="tasks-header-row ops-page-head">
         <div>
@@ -31,7 +32,7 @@
         <div class="tasks-page-actions ops-page-actions">
           <button id="filtersBtn" class="btn btn-outline-secondary" type="button"><i class="bi bi-funnel" aria-hidden="true"></i><span>Фильтры</span></button>
           <a class="btn btn-outline-secondary" th:href="@{/projects}"><i class="bi bi-kanban" aria-hidden="true"></i><span>Проекты</span></a>
-          <button id="createTaskBtn" class="btn btn-primary" type="button"><i class="bi bi-plus-lg" aria-hidden="true"></i><span>Создать задачу</span></button>
+          <button id="createTaskBtn" data-work-create="TASK" disabled class="btn btn-primary" type="button"><i class="bi bi-plus-lg" aria-hidden="true"></i><span>Создать задачу</span></button>
         </div>
       </div>
 
@@ -188,7 +189,7 @@
               <h5 class="modal-title" id="taskModalLabel">Карточка задачи</h5>
             </div>
             <div class="tasks-sheet-header-actions">
-              <button id="editToggleBtn" class="btn btn-sm btn-outline-secondary" type="button" title="Редактировать описание" aria-label="Редактировать описание"><i class="bi bi-pencil"></i></button>
+              <button id="editToggleBtn" data-work-write disabled class="btn btn-sm btn-outline-secondary" type="button" title="Редактировать описание" aria-label="Редактировать описание"><i class="bi bi-pencil"></i></button>
               <button type="button" class="btn-close" data-task-close aria-label="Закрыть"></button>
             </div>
           </div>
@@ -208,7 +209,7 @@
                   <div class="tasks-section-head"><h6>Комментарии</h6></div>
                   <div id="comments" class="tasks-comments-list"></div>
                   <div id="commentEditor" class="tasks-comment-editor" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="Добавить комментарий"></div>
-                  <div class="text-end mt-2"><button id="sendCommentBtn" class="btn btn-sm btn-outline-primary" type="button">Отправить</button></div>
+                  <div class="text-end mt-2"><button id="sendCommentBtn" data-work-write disabled class="btn btn-sm btn-outline-primary" type="button">Отправить</button></div>
                 </section>
 
                 <details class="tasks-history-panel mt-4 ui-disclosure-native" open>
@@ -246,10 +247,11 @@
               </aside>
             </form>
           </div>
+          <section th:replace="~{fragments/shared-work-access :: objectAccess('TASK')}"></section>
           <div class="modal-footer tasks-sheet-footer">
-            <button id="deleteTaskBtn" class="btn btn-outline-danger me-auto" type="button" hidden><i class="bi bi-trash"></i><span>Удалить</span></button>
+            <button id="deleteTaskBtn" data-work-write disabled class="btn btn-outline-danger me-auto" type="button" hidden><i class="bi bi-trash"></i><span>Удалить</span></button>
             <button type="button" class="btn btn-outline-secondary" data-task-close>Закрыть</button>
-            <button id="saveTaskBtn" class="btn btn-primary" type="button">Сохранить</button>
+            <button id="saveTaskBtn" data-work-write disabled class="btn btn-primary" type="button">Сохранить</button>
           </div>
         </div>
       </div>
@@ -258,7 +260,8 @@
 
   <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
   <script th:src="@{/js/modal-helpers.js}"></script>
-  <script th:src="@{/js/tasks.js?v=20261002-01-278-status-r4}"></script>
+  <script th:src="@{/js/shared-work-access.js?v=20261109-r304}"></script>
+  <script th:src="@{/js/tasks.js?v=20261109-r304}"></script>
   <script th:src="@{/js/tasks-board.js?v=20260925-01-274-analytics-r45}"></script>
   <script th:src="@{/js/tasks-analytics.js?v=20260925-01-274-analytics-r50}"></script>
   <script th:src="@{/js/modal-transitions.js}"></script>

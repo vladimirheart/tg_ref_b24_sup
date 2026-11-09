@@ -8,11 +8,27 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-/** Administration grants no entity READ. Membership management requires the entity's current owner. */
+/** Current system administrators have full shared-work access; owners manage their own objects. */
 @RestController
 public class SharedWorkAccessController {
     private final SharedWorkAccessService access;
     public SharedWorkAccessController(SharedWorkAccessService access){this.access=access;}
+    @GetMapping("/api/shared-work/context")
+    @PreAuthorize("hasAnyAuthority('PAGE_TASKS','ROLE_ADMIN')")
+    public ResponseEntity<Capabilities> context(Authentication actor) {
+        return ResponseEntity.ok().header("Cache-Control","no-store").body(access.capabilities(actor));
+    }
+    @GetMapping("/api/shared-work/{kind}/{id}/access")
+    @PreAuthorize("hasAnyAuthority('PAGE_TASKS','ROLE_ADMIN')")
+    public ResponseEntity<ObjectAccess> access(@PathVariable Kind kind,@PathVariable long id,Authentication actor) {
+        return ResponseEntity.ok().header("Cache-Control","no-store").body(access.objectAccess(kind,id,actor));
+    }
+    @GetMapping("/api/shared-work/{kind}/{id}/people")
+    @PreAuthorize("hasAnyAuthority('PAGE_TASKS','ROLE_ADMIN')")
+    public ResponseEntity<List<Person>> people(@PathVariable Kind kind,@PathVariable long id,
+                                               @RequestParam(defaultValue="") String q,Authentication actor) {
+        return ResponseEntity.ok().header("Cache-Control","no-store").body(access.people(kind,id,q,actor));
+    }
     @GetMapping("/api/shared-work-admin/access")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<List<AccountGrant>> accounts(Authentication actor){

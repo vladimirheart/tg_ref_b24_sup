@@ -419,6 +419,7 @@
   }
 
   function resetTaskForm() {
+    window.SharedWorkAccess?.openObject('TASK', null);
     taskForm?.reset();
     if (taskId) taskId.value = '';
     if (taskBody) taskBody.innerHTML = '';
@@ -471,6 +472,7 @@
       setEditorMode(false);
       dirty = false;
       showTaskModal();
+      window.SharedWorkAccess?.openObject('TASK', String(task.id));
     } catch (error) {
       showError('Не удалось открыть задачу', error);
     }
@@ -730,5 +732,7 @@
       return null;
     });
 
+  window.addEventListener('shared-work:changed', () => Promise.resolve().then(loadProjects).then(loadTasks).catch(error => showError('Не удалось обновить задачи', error)));
+  window.addEventListener('shared-work:denied', event => { if (event.detail?.kind === 'TASK') { hideTaskModal(true); loadTasks().catch(error => showError('Не удалось обновить задачи', error)); } });
   window.__tasksPrimaryReady = true;
 })();

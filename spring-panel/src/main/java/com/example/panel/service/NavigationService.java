@@ -45,7 +45,8 @@ public class NavigationService {
         model.addAttribute("canEditKnowledgeBase", permissionService.hasAuthority(authentication, "PAGE_KNOWLEDGE_BASE"));
         model.addAttribute("canViewScopedAiSources", flags!=null && flags.isFoundationEnabled() && flags.isUiSelector()
                 && permissionService.hasAuthority(authentication,"PAGE_KNOWLEDGE_BASE"));
-        model.addAttribute("canManageTasks", permissionService.hasAuthority(authentication, "PAGE_TASKS"));
+        model.addAttribute("canManageTasks", permissionService.hasAuthority(authentication, "PAGE_TASKS")
+                || permissionService.hasAuthority(authentication, "ROLE_ADMIN"));
         boolean canManageChannels = ChannelManagementAccess.isAllowed(authentication);
         model.addAttribute("canManageChannels", canManageChannels);
         model.addAttribute("canManageChannelsInSettings", canManageChannels && ChannelManagementAccess.hasSettingsPage(authentication));

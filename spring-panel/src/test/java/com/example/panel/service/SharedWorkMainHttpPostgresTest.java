@@ -93,6 +93,66 @@ class SharedWorkMainHttpPostgresTest {
             .param("body_html","<p>changed</p>").param("assignee","viewer").param("project_ids",projects)
             .with(authentication(actor(who))).with(csrf())).andReturn();
     }
+    @Test void panelCapabilitiesUseCurrentAdminAndStringIdentity()throws Exception {
+        mvc.perform(get("/api/shared-work/context").with(authentication(actor(ADMIN))))
+            .andExpect(status().isOk()).andExpect(header().string("Cache-Control","no-store"))
+            .andExpect(jsonPath("$.userId").value(Long.toString(ADMIN)))
+            .andExpect(jsonPath("$.systemAdmin").value(true)).andExpect(jsonPath("$.canCreateTask").value(true))
+            .andExpect(jsonPath("$.canCreateProject").value(true));
+        mvc.perform(get("/api/shared-work/context").with(authentication(actor(USER))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.systemAdmin").value(false))
+            .andExpect(jsonPath("$.canCreateTask").value(false));
+        creationGrant(USER);
+        mvc.perform(get("/api/shared-work/context").with(authentication(actor(USER))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.canCreateTask").value(true));
+        jdbc.update("DELETE FROM user_authorities WHERE user_id=? AND authority='ROLE_ADMIN'",ADMIN);
+        mvc.perform(get("/api/shared-work/context").with(authentication(actor(ADMIN)))).andExpect(status().isNotFound());
+    }
+    @Test void ownerPickerIsScopedCurrentAndPreservesExactNumericIdentity()throws Exception {
+        creationGrant(USER);long task=task(USER,"picker");
+        member("TASK",task,VIEWER,"VIEWER");
+        jdbc.execute("INSERT INTO users(id,username,password) OVERRIDING SYSTEM VALUE VALUES(13,'business-admin','unused');"+
+            "INSERT INTO user_authorities VALUES(13,'PAGE_TASKS'),(13,'ROLE_PORTAL_ADMIN')");
+        String route="/api/shared-work/TASK/"+task;
+        mvc.perform(get(route+"/access").with(authentication(actor(VIEWER))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(Long.toString(task)))
+            .andExpect(jsonPath("$.canManage").value(false)).andExpect(jsonPath("$.canWrite").value(false));
+        mvc.perform(get(route+"/people").with(authentication(actor(VIEWER)))).andExpect(status().isNotFound());
+        mvc.perform(get(route+"/people").param("q"," SysAdmin/Ю ").with(authentication(actor(USER))))
+            .andExpect(status().isOk()).andExpect(header().string("Cache-Control","no-store"))
+            .andExpect(jsonPath("$[0].userId").value(Long.toString(ADMIN))).andExpect(jsonPath("$[0].username").value(ADMIN_NAME))
+            .andExpect(jsonPath("$.length()").value(1));
+        mvc.perform(get(route+"/people").param("q","business-admin").with(authentication(actor(USER))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        jdbc.update("UPDATE users SET enabled=FALSE WHERE id=?",VIEWER);
+        mvc.perform(get(route+"/people").param("q","viewer").with(authentication(actor(USER))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        mvc.perform(get(route+"/people").param("q","x".repeat(101)).with(authentication(actor(USER)))).andExpect(status().isBadRequest());
+    }
+    @Test void panelGrantMemberTransferAndRevokeRoundTrip()throws Exception {
+        creationGrant(USER);long project=project(USER,"round trip");
+        String route="/api/shared-work/PROJECT/"+project;
+        mvc.perform(get(route+"/access").with(authentication(actor(USER))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.canManage").value(true));
+        mvc.perform(put(route+"/members/"+VIEWER).contentType("application/json").content("{\"role\":\"EDITOR\"}")
+            .with(authentication(actor(USER))).with(csrf())).andExpect(status().isNoContent());
+        mvc.perform(get(route+"/access").with(authentication(actor(VIEWER))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.canWrite").value(true)).andExpect(jsonPath("$.canManage").value(false));
+        mvc.perform(put(route+"/owner/"+VIEWER).with(authentication(actor(USER))).with(csrf())).andExpect(status().isNoContent());
+        mvc.perform(get(route+"/access").with(authentication(actor(USER))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.canWrite").value(true)).andExpect(jsonPath("$.canManage").value(false));
+        mvc.perform(get(route+"/access").with(authentication(actor(VIEWER))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.canManage").value(true));
+        mvc.perform(delete(route+"/members/"+USER).with(authentication(actor(VIEWER))).with(csrf())).andExpect(status().isNoContent());
+        mvc.perform(get(route+"/access").with(authentication(actor(USER)))).andExpect(status().isNotFound());
+        mvc.perform(put("/api/shared-work-admin/access/"+VIEWER).contentType("application/json")
+            .content("{\"canRead\":false,\"canCreateTask\":false,\"canCreateProject\":false}")
+            .with(authentication(actor(ADMIN))).with(csrf())).andExpect(status().isNoContent());
+        mvc.perform(get(route+"/access").with(authentication(actor(VIEWER)))).andExpect(status().isNotFound());
+        mvc.perform(get(route+"/access").with(authentication(actor(ADMIN))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.canManage").value(true));
+    }
+
     @Test void systemAdminHasFullTaskCrudWithoutPagesGrantsOrMembership()throws Exception{
         long task=task(ADMIN,"Admin only");
         assertThat(jdbc.queryForObject("SELECT shared_owner_user_id FROM tasks WHERE id=?",Long.class,task)).isEqualTo(ADMIN);

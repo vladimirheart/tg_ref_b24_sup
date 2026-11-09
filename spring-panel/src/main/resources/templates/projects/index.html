@@ -18,6 +18,7 @@
   <datalist id="projectUsersList"><option th:each="u : ${users}" th:value="${u.username}" th:label="${u.fullName != null and !#strings.isEmpty(u.fullName) ? u.fullName + ' · ' + u.username : u.username}"></option></datalist>
 
   <main class="main-content container-fluid py-4 page-shell projects-page-shell ops-page-shell">
+    <section th:replace="~{fragments/shared-work-access :: moduleAccess}"></section>
     <div class="page-header-card projects-header-card ops-list-shell">
       <div class="projects-header-row ops-page-head">
         <div>
@@ -27,7 +28,7 @@
         </div>
         <div class="ops-page-actions">
           <a class="btn btn-outline-secondary" th:href="@{/tasks}"><i class="bi bi-list-task"></i><span>Задачи</span></a>
-          <button id="createProjectBtn" class="btn btn-primary" type="button"><i class="bi bi-plus-lg"></i><span>Создать проект</span></button>
+          <button id="createProjectBtn" data-work-create="PROJECT" disabled class="btn btn-primary" type="button"><i class="bi bi-plus-lg"></i><span>Создать проект</span></button>
         </div>
       </div>
 
@@ -65,10 +66,11 @@
               <div class="col-12"><label class="form-label">Описание</label><textarea class="form-control" name="description" rows="4"></textarea></div>
             </form>
           </div>
+          <section th:replace="~{fragments/shared-work-access :: objectAccess('PROJECT')}"></section>
           <div class="modal-footer">
-            <button id="archiveProjectBtn" class="btn btn-outline-danger me-auto" type="button" hidden>Архивировать</button>
+            <button id="archiveProjectBtn" data-work-write disabled class="btn btn-outline-danger me-auto" type="button" hidden>Архивировать</button>
             <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Закрыть</button>
-            <button id="saveProjectBtn" class="btn btn-primary" type="button">Сохранить</button>
+            <button id="saveProjectBtn" data-work-write disabled class="btn btn-primary" type="button">Сохранить</button>
           </div>
         </div>
       </div>
@@ -77,7 +79,8 @@
 
   <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
   <script th:src="@{/js/modal-helpers.js}"></script>
-  <script th:src="@{/js/projects.js?v=20260924-01-274-csrf-r1}"></script>
+  <script th:src="@{/js/shared-work-access.js?v=20261109-r304}"></script>
+  <script th:src="@{/js/projects.js?v=20261109-r304}"></script>
   <script th:src="@{/js/modal-transitions.js}"></script>
 </body>
 </html>

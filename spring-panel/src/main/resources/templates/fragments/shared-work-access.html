@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<body>
+<section th:fragment="moduleAccess" data-work-module class="mb-3">
+  <button type="button" data-work-toggle class="btn btn-outline-secondary" hidden>Доступ к задачам и проектам</button>
+  <div data-work-grants class="card card-body mt-2" hidden>
+    <h2 class="h5">Допуск к модулю</h2>
+    <p class="text-muted">Чтение разрешает участие в выбранных задачах и проектах. Состав каждого объекта настраивается отдельно. Системный администратор имеет полный доступ.</p>
+    <button type="button" data-work-reload class="btn btn-sm btn-outline-secondary align-self-start">Обновить</button>
+    <div data-work-accounts class="mt-2"></div>
+  </div>
+  <p data-work-module-status class="small mt-2" role="status" aria-live="polite"></p>
+</section>
+<section th:fragment="objectAccess(kind)" th:attr="data-work-object=${kind}" class="border-top p-3" hidden>
+  <h3 class="h6">Доступ и участники</h3>
+  <p data-work-status class="small" role="status" aria-live="polite"></p>
+  <ul data-work-members class="list-group mb-2" aria-label="Участники"></ul>
+  <div data-work-manage hidden>
+    <p class="small text-muted">Новый участник должен иметь допуск к модулю. Участие в проекте не открывает его задачи автоматически.</p>
+    <div class="input-group mb-2">
+      <input data-work-search class="form-control" type="search" maxlength="100" placeholder="Поиск пользователя" aria-label="Поиск пользователя">
+      <button data-work-find class="btn btn-outline-secondary" type="button">Найти</button>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <select data-work-person class="form-select" aria-label="Пользователь"></select>
+      <select data-work-role class="form-select" aria-label="Права участника">
+        <option value="VIEWER">Чтение</option><option value="EDITOR">Редактирование</option>
+      </select>
+      <button data-work-add class="btn btn-outline-primary" type="button" disabled>Добавить / изменить</button>
+      <button data-work-transfer class="btn btn-outline-warning" type="button" disabled>Передать владение</button>
+    </div>
+    <p class="small text-muted mt-2 mb-0">При передаче прежний владелец остаётся редактором. Для старого объекта без владельца администратор может назначить нового.</p>
+  </div>
+</section>
+</body>
+</html>

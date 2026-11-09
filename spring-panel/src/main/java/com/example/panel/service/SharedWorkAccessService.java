@@ -30,6 +30,41 @@ public class SharedWorkAccessService {
     public record AccountGrant(String userId,String username,boolean canRead,boolean canCreateTask,boolean canCreateProject) {}
     public record Member(String userId,String username,String role) {}
 
+    public record Capabilities(String userId,boolean systemAdmin,boolean canCreateTask,boolean canCreateProject) {}
+    public record ObjectAccess(String kind,String id,boolean canWrite,boolean canManage,List<Member> members) {}
+    public record Person(String userId,String username) {}
+
+    public Capabilities capabilities(Authentication authentication) {
+        var result=sql.query(READER+"SELECT id,system_admin,can_create_task,can_create_project FROM reader",
+            actorArgs(authentication),(rs,row)->new Capabilities(rs.getString("id"),rs.getBoolean("system_admin"),
+                rs.getBoolean("can_create_task"),rs.getBoolean("can_create_project")));
+        if(result.size()!=1)throw missing();return result.get(0);
+    }
+    public ObjectAccess objectAccess(Kind kind,long id,Authentication authentication) {
+        var roster=members(kind,id,authentication);
+        boolean administrator=isSystemAdministrator(authentication);
+        String actorId=Long.toString(GeneralTicketActor.from(authentication).userId());
+        String role=roster.stream().filter(member->member.userId().equals(actorId)).map(Member::role).findFirst().orElse("");
+        return new ObjectAccess(kind.name(),Long.toString(id),administrator||role.equals("OWNER")||role.equals("EDITOR"),
+            administrator||role.equals("OWNER"),roster);
+    }
+    /** Candidate lookup is owner/admin only; labels never substitute for numeric identity. */
+    public List<Person> people(Kind kind,long id,String query,Authentication authentication) {
+        var access=objectAccess(kind,id,authentication);
+        if(!access.canManage())throw missing();
+        if(query==null)query="";
+        if(query.length()>100)throw badRequest();
+        var candidates=jdbc.query("SELECT account.id,account.username FROM users account WHERE "+ACCOUNT+
+            " AND position(lower(?) IN lower(account.username))>0 ORDER BY account.id LIMIT 100",
+            (rs,row)->new Person(rs.getString(1),rs.getString(2)),query);
+        var result=new java.util.ArrayList<Person>();
+        for(var person:candidates){
+            try{requireEligibleTarget(Long.parseLong(person.userId()));result.add(person);}
+            catch(ResponseStatusException denied){if(denied.getStatusCode().value()!=404)throw denied;}
+        }
+        return result;
+    }
+
     private static final String ACCOUNT = GeneralTicketAccessService.CURRENT_ACCOUNT;
     // System administrator is unrestricted within shared work. Business/portal roles never imply this authority.
     private static final String ADMIN = """

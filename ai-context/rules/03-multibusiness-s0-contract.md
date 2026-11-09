@@ -28,7 +28,39 @@ production/рабочий в старых записях, именах Compose �
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
+## Source R304 — 2026-11-09: управление доступом из панели завершено в source
+
+На страницах задач и проектов доступны общие допуски к модулю для системного
+администратора; внутри карточки — состав, поиск текущих допущенных пользователей,
+VIEWER/EDITOR, отзыв и подтверждаемая передача владельца. Результат каждой записи
+повторно читается с сервера, включая потерю OWNER после передачи. Пользователю
+доступны только разрешённые действия; ROLE_ADMIN находит разделы в навигации
+также без PAGE_TASKS. Новые endpoints context/access/people возвращают текущие
+capabilities и string BIGINT IDs; кандидаты видны только OWNER/системному admin.
+
+Панель защищена от stale response другой карточки/поиска, повторного click,
+XSS в именах и автоматического повтора mutation с неизвестным исходом. При
+отказе roster очищается, запись блокируется, карточка закрывается и список
+обновляется. CSRF обязателен. Create buttons включаются по текущим capabilities.
+
+374 Java tests/11 suites +13 Node UI flows GREEN:372 одним validation-v1
+(18 actual HTTP/JPA cases),2 actual Thymeleaf/navigation в ui-template-validation-v2,
+13 UI save/reload/member/revoke/transfer/cancel/stale/error cases там же.
+Это targeted compile на frozen R303 bytecode, не image build/browser/provider
+приёмка. Все12 source inputs проверены перед применением от411b85067.
+
+UI grants/members/owner больше не является нереализованным пунктом. Остаются
+аудит доступа, late notification/SSE READ, прочие projections/background producers
+и отдельные incident/system/AI/S6 остатки. Рабочая V87/backend R299/bots R295,
+Compose R300, flags/principals прежние; новых migrations нет, V88 не активирована.
+Source applied; staging/commit/push/deployment=false, task🟡. Evidence:
+../iguana-runtime/tg_ref_b24_sup/releases/r304-work-access-ui-20261109/,
+validation-v1/proof.json, ui-template-validation-v2/proof.json, final-suites.json.
+
 ## Source R303 — 2026-11-09: основные пути общих работ и полный доступ системного администратора
+
+Исторический checkpoint R303: UI остаток ниже выполнен в source R304;
+границы поздней доставки/аудита и рабочей активации сохраняются.
 
 Уточнение пользователя: системный администратор имеет полные права на задачи,
 проекты и стадии Kanban. Текущий ROLE_ADMIN получает создание, чтение, изменение,
@@ -6230,8 +6262,9 @@ unowned записи доступен администратору, без owner
 READ его задач. Требуемая граница распространяется на списки, counts, поиск,
 экспорт, уведомления и realtime. В R303 подключены основные CRUD/list/count/
 pagination/project links/Kanban/server model/task analytics; скрытые связи и
-placements сохраняются при посторонних изменениях. Поздняя доставка/SSE,
-остальные related-object/background/report пути и UI управления ещё требуют
+placements сохраняются при посторонних изменениях. R304 подключил UI общих
+допусков/участников/владельца и проверил save/reload/revoke/transfer. Поздняя
+доставка/SSE, аудит и остальные related-object/background/report пути ещё требуют
 wiring/приёмки; эти остатки не считаются завершёнными по наличию kernel.
 
 Source V88 не выдаёт grants и не выбирает владельца старых строк. Рабочая
@@ -6248,11 +6281,11 @@ notifications и аудит остальных global/system полномочи�
 | Три пустых `messages.business` | Dataset тестовый, не переносится | **СНЯТО R190:** решения по этим строкам не требуются; новые unresolved остаются fail-closed |
 | 3 history channel mismatch | Dataset тестовый, не переносится | **СНЯТО R190:** классификация старой истории не требуется; новый child scope определяется canonical ticket |
 | Mixed channels | Явный выбор бизнеса или «Без бизнеса» до первого вопроса; без выбора flow не запускается | **УТОЧНЕНО 2026-10-16:** general — отдельный scope, не unresolved. **PENDING:** UX-представление и precedence для иных verified sources |
-| Ручные задачи / global Kanban | Старые строки не классифицируются автоматически | **РЕШЕНО R301/R303:** полный system ROLE_ADMIN; основные create/CRUD/query/links/Kanban подключены к R302. UI, audit, late delivery/SSE и остальные producers/projections pending; ticket READ независим |
+| Ручные задачи / global Kanban | Старые строки не классифицируются автоматически | **РЕШЕНО R301/R303:** полный system ROLE_ADMIN; основные create/CRUD/query/links/Kanban подключены к R302. UI R304 готов в source; audit, late delivery/SSE и остальные producers/projections pending; ticket READ независим |
 | Новые incidents / system notifications | 105 старых инцидентов не классифицируются и не переносятся | **PENDING:** модель business/shared/global для новых событий, получатели и отдельные permissions |
 | Existing ticket route | Legacy route доступен только в подтверждённом unique window | **РЕШЕНО S2A:** opaque immutable `ticket_public_id`; internal fallback — обязательный composite locator |
 | Roles | Global page permissions не выдаются автоматически; channel management требует системного ROLE_ADMIN + права страницы (R184) | **PENDING:** оставшаяся global/system и business capability policy |
-| Projects/boards | Не показывают inaccessible tasks | **РЕШЕНО R301/R303:** current system ROLE_ADMIN имеет полный доступ; остальные — отдельные grants/numeric participants. Основные reads/writers/links/boards подключены; UI и прочие проекции/доставка pending |
+| Projects/boards | Не показывают inaccessible tasks | **РЕШЕНО R301/R303:** current system ROLE_ADMIN имеет полный доступ; остальные — отдельные grants/numeric participants. Основные reads/writers/links/boards подключены; UI R304 готов в source; прочие проекции/доставка pending |
 
 ## Поэтапное применение
 

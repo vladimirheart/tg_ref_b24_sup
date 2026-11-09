@@ -64,7 +64,39 @@ Platform-specific:
 в local `JPA/SQLite` business-path для ticket/channel/feedback/blacklist
 операций.
 
+## Source R304 — 2026-11-09: управление доступом из панели завершено в source
+
+На страницах задач и проектов доступны общие допуски к модулю для системного
+администратора; внутри карточки — состав, поиск текущих допущенных пользователей,
+VIEWER/EDITOR, отзыв и подтверждаемая передача владельца. Результат каждой записи
+повторно читается с сервера, включая потерю OWNER после передачи. Пользователю
+доступны только разрешённые действия; ROLE_ADMIN находит разделы в навигации
+также без PAGE_TASKS. Новые endpoints context/access/people возвращают текущие
+capabilities и string BIGINT IDs; кандидаты видны только OWNER/системному admin.
+
+Панель защищена от stale response другой карточки/поиска, повторного click,
+XSS в именах и автоматического повтора mutation с неизвестным исходом. При
+отказе roster очищается, запись блокируется, карточка закрывается и список
+обновляется. CSRF обязателен. Create buttons включаются по текущим capabilities.
+
+374 Java tests/11 suites +13 Node UI flows GREEN:372 одним validation-v1
+(18 actual HTTP/JPA cases),2 actual Thymeleaf/navigation в ui-template-validation-v2,
+13 UI save/reload/member/revoke/transfer/cancel/stale/error cases там же.
+Это targeted compile на frozen R303 bytecode, не image build/browser/provider
+приёмка. Все12 source inputs проверены перед применением от411b85067.
+
+UI grants/members/owner больше не является нереализованным пунктом. Остаются
+аудит доступа, late notification/SSE READ, прочие projections/background producers
+и отдельные incident/system/AI/S6 остатки. Рабочая V87/backend R299/bots R295,
+Compose R300, flags/principals прежние; новых migrations нет, V88 не активирована.
+Source applied; staging/commit/push/deployment=false, task🟡. Evidence:
+../iguana-runtime/tg_ref_b24_sup/releases/r304-work-access-ui-20261109/,
+validation-v1/proof.json, ui-template-validation-v2/proof.json, final-suites.json.
+
 ## Source R303 — 2026-11-09: основные пути общих работ и полный доступ системного администратора
+
+Исторический checkpoint R303: UI остаток ниже выполнен в source R304;
+границы поздней доставки/аудита и рабочей активации сохраняются.
 
 Уточнение пользователя: системный администратор имеет полные права на задачи,
 проекты и стадии Kanban. Текущий ROLE_ADMIN получает создание, чтение, изменение,

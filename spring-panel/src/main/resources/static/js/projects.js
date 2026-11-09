@@ -92,9 +92,12 @@
     form.elements.description.value = project?.description || '';
     archiveBtn.hidden = !project?.id || project?.status === 'archived';
     meta.textContent = project?.project_key || 'Новый проект';
+    window.SharedWorkAccess?.openObject('PROJECT', project?.id ? String(project.id) : null);
     modal().show();
   }
 
+  window.addEventListener('shared-work:changed', () => load().catch(showLoadError));
+  window.addEventListener('shared-work:denied', event => { if (event.detail?.kind === 'PROJECT') { modal().hide(); load().catch(showLoadError); } });
   createBtn.addEventListener('click', () => openProject(null));
   includeArchived.addEventListener('change', () => load().catch(showLoadError));
   grid.addEventListener('click', (event) => {

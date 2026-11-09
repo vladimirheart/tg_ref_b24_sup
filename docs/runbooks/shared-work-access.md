@@ -1,9 +1,31 @@
-# Доступ общих задач, проектов и Kanban — R303
+# Доступ общих задач, проектов и Kanban — R304
 
 R301: общие межбизнесовые работы с отдельными правами и участниками.
 R302: source V88, ядро авторизации и control API. R303: основные CRUD/list/
 project links/Kanban/analytics подключены; реализован полный доступ системного
-администратора по уточнению пользователя. Общая задача01-278 остаётся🟡.
+администратора по уточнению пользователя. R304 добавил управление допусками,
+участниками и владельцами из панели; общая задача01-278 остаётся🟡.
+
+## Работа в панели
+
+Откройте «Задачи» или «Проекты». Системному администратору доступна кнопка
+«Доступ к задачам и проектам»: для пользователя включите чтение и нужные права
+создания, нажмите «Сохранить». Значения перечитываются с сервера; допуск к модулю
+сам по себе не раскрывает чужие объекты.
+
+Откройте карточку существующей задачи/проекта. Раздел «Доступ и участники»
+показывает состав. Владелец либо системный администратор может найти пользователя
+с допуском к модулю, выбрать чтение/редактирование и добавить или изменить участие.
+«Отозвать» закрывает последующие запросы этого участника. «Передать владение»
+требует подтверждения; прежний OWNER становится EDITOR и после reload теряет
+управление составом. Администратор может назначить владельца unowned объекта.
+
+Для проверки сохранения закройте и заново откройте карточку/раздел допусков.
+Реальные права определяет сервер при каждом запросе; отказ очищает UI состава
+и блокирует запись. Неопределённый результат записи не повторяется автоматически:
+панель перечитывает состояние. Поиск показывает до100 подходящих строк каталога;
+при необходимости уточните имя. Labels сохраняют точное имя, выбор передаёт
+numeric userId строкой без округления. Интерфейс не требует ввода numeric ID.
 
 ## Действующая модель
 
@@ -58,6 +80,9 @@ Cross-object writes проходят единый transaction advisory gate, boa
 
 | Route | Допуск |
 | --- | --- |
+| GET /api/shared-work/context | Текущий module reader либо ROLE_ADMIN; capabilities |
+| GET /api/shared-work/{kind}/{id}/access | READ объекта либо ROLE_ADMIN; текущие write/manage и состав |
+| GET /api/shared-work/{kind}/{id}/people?q= | OWNER либо ROLE_ADMIN; текущие eligible candidates |
 | GET /api/shared-work-admin/access | Текущий ROLE_ADMIN |
 | PUT /api/shared-work-admin/access/{userId} | Текущий ROLE_ADMIN + CSRF |
 | GET /api/shared-work/{kind}/{id}/members | Текущий ROLE_ADMIN либо обычный READ объекта |
@@ -83,8 +108,8 @@ links, Kanban columns/cards и task analytics/CSV. Доступ к проект�
 старый текстовый personal scope доступен только системному администратору.
 Уведомления фильтруют кандидатов по текущему READ до записи.
 
-Остаются UI управления grants/участниками/owner и save/reload/revoke приёмка,
-аудит изменений доступа, повторный READ при поздней доставке/SSE, остальные
+UI grants/участников/owner и программная save/reload/revoke/transfer проверка
+выполнены R304. Остаются аудит изменений доступа, повторный READ при поздней доставке/SSE, остальные
 search/report/related-object projections и trusted background/auto-close
 producers без authenticated principal. Incident/system notification policy
 и оставшиеся системные полномочия требуют отдельной проработки. Нельзя объявлять
@@ -92,6 +117,15 @@ producers без authenticated principal. Incident/system notification policy
 в общей задаче; historical S2B снятR190.
 
 ## Проверка и рабочая активация
+
+R304:374 Java tests/11 suites +13 Node cases GREEN: validation-v1 —372,
+ui-template-validation-v2 —2 Thymeleaf/navigation +13 UI. Проверены новые current
+capabilities, owner-only candidate lookup, raw BIGINT, выдача/перечитывание grants,
+member/owner/revoke HTTP round trip, реальные HTML fragments и UI действия.
+Это source/test проверка; рабочий browser/provider rollout ещё не выполнен.
+Evidence: ../iguana-runtime/tg_ref_b24_sup/releases/r304-work-access-ui-20261109/.
+
+Ниже — прежний технический proof R303:
 
 validation-v7:369 tests/10 suites одним GREEN run, failures/errors/skips0:
 246 GENERAL,98 ACL,15 actual HTTP/JPA/security,2 Flyway clean/upgrade,
