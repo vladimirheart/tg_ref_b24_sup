@@ -1,5 +1,10 @@
 # MAX: пересылки и ответы с вложениями — R292
 
+R299: устранён SQL channel-lock deadlock одновременных selected-media ingress
+в Telegram/VK/MAX;66 новых PG cases GREEN. MAX fixture JDBC adapters исправлены,
+runner теперь75 contracts. Backend fix ещё требует отдельного выпуска; рабочий
+runtime R297 на другой машине не менялся. Подробности ниже.
+
 R292 подготовлен как source change задачи 01-278 в другой сессии и включён
 в Build R296/sourceR295. R297 активировал этот image на Windows-машине рабочего
 тестового экземпляра: V86/V87 и отдельные SQL/Rabbit principals уже применены,
@@ -100,6 +105,27 @@ Node: 7 новых BUSINESS/GENERAL renderer cases и прежние R117/R134/R
 GREEN. PowerShell5.1 acceptance runner self-test/parser GREEN. Это не live
 MAX/provider/Redis restart acceptance и не проверка полного рабочего Boot fleet.
 
+### R299: SQL concurrency и JDBC adapters
+
+Два concurrent signed ingress одного канала раньше повышали channel FOR SHARE
+до FOR UPDATE и получали deadlock. R299 сохраняет channel SHARE, ticket/active
+UPDATE и точный advisory guard.66 новых PG cases проверяют3 платформы и оба
+scope: parallel roots, quota, stale admission/DB rebind, channel UPDATE во время
+byte read и reconstructed-service replay; общий targeted proof397/13 suites.
+См. [контракт и граница выпуска](child-transport-isolation.md#r299-одновременные-selected-media-записи).
+
+В MAX IT channel/active repository adapters явно типизированы Long/String
+Mockito arguments перед JDBC varargs. Прежний generic getArgument(0) давал
+ClassCastException Long/String→Object[];6 regression contracts воспроизводят
+ошибку старой формы и используют те же factory methods, что actual IT fixture.
+Теперь полный runner требует75 contracts (прежние69 +6 adapters), Phase=R299
+в прежнем r292-proof.json.42 media +15 principal IT и assertions не изменены.
+Пользователь09 ноября: runner ещё не запускался.75 local contracts не являются
+результатом57 Docker IT; engine здесь недоступен. Запуск ниже работает с clean
+committed source, отдельно от рабочего runtime. Backend/bots он не обновляет.
+Для исправления рабочего образа нужен отдельный backend/inbound-worker release;
+child artifacts/миграции/provision/flags не менялись.
+
 ### Исправленная инфраструктура R298
 
 Docker29 может не создавать host mappings у контейнера только в internal
@@ -120,7 +146,7 @@ PowerShell5.1 parser/SelfTest GREEN. Это ещё не Docker42. Для пов�
 runner сам передаёт api.version=1.44 тестовой JVM, не меняет daemon settings.
 MAX42 и principal15 запускаются раздельно; failed/startup XML и оба Maven logs
 сохраняются даже при частичном результате. Успех — только все57 без skips,
-IntegrationPassed=true, ExistingContainersUnchanged=true. Phase=R298 в прежнем
+IntegrationPassed=true, ExistingContainersUnchanged=true. Сейчас Phase=R299 в прежнем
 r292-proof.json. У cleanup точные owner+nonce/image/role/isolation guards обеих
 сетей; existing containers остаются под прежней проверкой неизменности.
 
@@ -128,7 +154,7 @@ r292-proof.json. У cleanup точные owner+nonce/image/role/isolation guards
 пересборка или перезапуск рабочего backend/bots для него не требуются.
 
 Подготовлены 42 MAX PostgreSQL/Rabbit cases: прежние38 и4 новых BUSINESS/GENERAL
-forward/reply chain/replay cases. Повторный полный запуск R298 остаётся `PENDING_DOCKER`: local
+forward/reply chain/replay cases. Повторный полный запуск R299 остаётся `PENDING_DOCKER`: local
 desktop-linux engine в source-сессии недоступен. На машине с локальным Docker/
 JDK17 после пользовательского commit:
 
@@ -136,12 +162,12 @@ JDK17 после пользовательского commit:
 powershell.exe -NoProfile -File .\java-bot\bot-feedback-acceptance\run-max-media-acceptance.ps1
 ```
 
-Ожидаются 69 wire/isolation/fixture contracts и57 IT (42 media +15 SQL principal cases),
+Ожидаются 75 wire/isolation/fixture/adapter contracts и57 IT (42 media +15 SQL principal cases),
 без skips. Оператор создаёт detached source/test containers, проверяет
 неизменность существующих контейнеров и пишет `r292-proof.json`.
-`-ValidateOnly` выполняет compile/69 contracts, не закрывает инфраструктурную
+`-ValidateOnly` выполняет compile/75 contracts, не закрывает инфраструктурную
 приёмку. 15 Docker principal cases уже GREEN в R297; runner повторяет их вместе
-с42 MAX для единого57-case proof. Не приписывать local69 результат Docker42.
+с42 MAX для единого57-case proof. Не приписывать local75 результат Docker42.
 
 После выкладки проверить через тестового клиента BUSINESS и GENERAL:
 

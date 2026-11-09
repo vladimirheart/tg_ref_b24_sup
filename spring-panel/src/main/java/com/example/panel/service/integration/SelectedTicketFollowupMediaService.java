@@ -56,7 +56,7 @@ public class SelectedTicketFollowupMediaService {
                 AND ticket.questionnaire_version=4 AND ticket.status IN ('open','pending','in_progress')
                 AND channel.is_active=TRUE AND channel.platform=?
                 AND NOT EXISTS(SELECT 1 FROM tickets other WHERE other.ticket_id=ticket.ticket_id AND other.user_id<>ticket.user_id)
-            """+(lock?" FOR UPDATE OF ticket,channel,active":""),(rs,row)->{
+            """+(lock?" FOR UPDATE OF ticket,active FOR SHARE OF channel":""),(rs,row)->{
                 Long business=(Long)rs.getObject("business_id");boolean general=rs.getBoolean("is_general");
                 if(general ? business!=null || !"USER_SELECTION".equals(rs.getString("general_selection_source")) || !flags.isGeneralChannelResolution()
                     : business==null || business<=0 || !"USER_SELECTION".equals(rs.getString("business_selection_source"))) throw denied();
@@ -70,7 +70,7 @@ public class SelectedTicketFollowupMediaService {
         return rows.get(0);
     }
 
-    /** Caller holds the legacy-ID guard; root/channel/active row locks serialize close and new media. */
+    /** Root/active locks serialize quota; the shared channel lock freezes routing without upgrading the principal's read lock. */
     public SelectedQuestionnaireMediaValidator.Verified verify(InboundClientMessageEvent event) {
         if(!"telegram".equals(event.platform()) || event.channelId()==null || event.userId()==null
                 || event.providerMessageId()==null || !event.providerMessageId().matches("[1-9][0-9]{0,18}")

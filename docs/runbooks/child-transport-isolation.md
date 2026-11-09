@@ -27,6 +27,40 @@ service network. Principal15 из R297 уже GREEN; повторный общи
 Это только test tooling: рабочие backend/bots перезапускать или provisioning
 повторять не требуется; runtime R297 получен в другой машине/сессии.
 
+## R299: одновременные selected-media записи
+
+Child principal удерживает channel/principal FOR SHARE до конца ingress
+transaction. Selected media verifier сохраняет FOR UPDATE для ticket/active,
+но канал читает с FOR SHARE. Повышать channel lock до FOR UPDATE в этом пути
+нельзя: параллельные ingress одного канала взаимно блокируют такое повышение.
+Advisory lock по точному legacy ticket ID сохраняется; последнее свободное
+место в quota выдаётся одному событию. Чужие roots не сериализуются общим
+исключительным channel lock. Изменение platform/is_active и principal revoke
+по-прежнему ждёт окончания текущей транзакции.
+Семантика row locks: [PostgreSQL16](https://www.postgresql.org/docs/16/explicit-locking.html#LOCKING-ROWS).
+
+Proof R299: старый source —6 real deadlocks; новый —66 PG cases для Telegram/VK/
+MAX × BUSINESS/GENERAL без ошибок. Проверены параллельные roots, последний slot,
+реальные DB platform/active/principal/root-channel/business/status changes после
+раннего admission, blocked channel UPDATE во время actual byte read до commit,
+повтор processed event после пересоздания production services без второго file
+read/history/metadata. Узкие JDBC repository adapters, настоящие principal/
+listener/ingestion/transaction/storage/metadata/inbox; это не live broker/SDK,
+Redis/session/process restart и не вся cross-platform приёмка. Всего397 targeted
+JVM cases/13 suites, включая79 actual SQL cases и75 acceptance contracts GREEN.
+
+Deployment=false. Runtime R297 на другой машине остаётся sourceR295; backend
+lock fix туда ещё не попал. Для применения нужен отдельный backend release,
+обязательно с обновлением inbound worker. API/DTO/child JAR/schema/flags прежние;
+V86/V87/provision повторять не нужно. Runtime Compose брать из R297 actual
+private/compose.final.json, не подменять старым R280 override. Этот source step
+не выполняет сборку рабочего image, rollout или provider send.
+
+MAX acceptance adapters также исправлены: generic Mockito argument больше не
+приводится к Object[] на JDBC varargs границе. Runner ожидает75 contracts и
+прежние42+15 IT, Phase=R299; исходные IT assertions не менялись. Пользователь
+09 ноября подтвердил отсутствие запуска. [Команда](max-linked-questionnaire-media.md#r299-sql-concurrency-и-jdbc-adapters).
+
 ## Что меняется
 
 В режиме `rabbitmq` launcher больше не передаёт child общий control-plane API

@@ -64,6 +64,38 @@ Platform-specific:
 в local `JPA/SQLite` business-path для ticket/channel/feedback/blacklist
 операций.
 
+## Source R299 — 2026-11-09: selected media без channel lock upgrade
+
+На отдельной nonce-owned PostgreSQL16.15 воспроизведён настоящий deadlock:
+два signed ingress в одном канале удерживают FOR SHARE от child principal,
+а media verifier раньше повышал каждый channel lock до FOR UPDATE. Шесть
+случаев Telegram/VK/MAX × BUSINESS/GENERAL на старом source завершились
+PostgreSQL deadlock detected. В require() теперь FOR UPDATE OF ticket,active
+и FOR SHARE OF channel. Legacy-ID advisory lock и root/active locks сохраняют
+quota/close serialization; channel SHARE по-прежнему запрещает route/active
+mutation до commit, но допускает параллельные обращения одного канала.
+
+GREEN:397 targeted JVM tests/13 suites,0 failures/errors/skips,72 новых.
+Из них66 новых actual PostgreSQL cases:6 parallel roots,6 last-slot quota,
+36 stale-admission DB drift/reconstructed writer,12 channel mutation during
+byte read/commit и6 reconstructed-service replay. Ещё13 прежних V87/Hibernate
+cases на том же отдельном test cluster, итого79 actual SQL cases. Signed
+principal/listener/ingestion, storage bytes, metadata/inbox и transactions —
+production beans; repositories используют narrow JDBC adapters. Это не полный
+Boot/JPA/broker/Redis/SDK или process/fleet restart proof.
+
+Исправлен также воспроизведённый ClassCastException JDBC varargs в MAX IT
+channel/active adapters. Их actual factory methods покрыты6 новыми contracts;
+runner теперь требует75 contracts, Phase=R299 (имя r292-proof.json сохранено).
+MAX42 и principal15 матрицы/assertions прежние. Пользователь09 ноября подтвердил,
+что Docker runner ещё не запускался; полный57 gate и provider/S6 остаются.
+
+Из production source изменён только backend verifier. Рабочий экземпляр
+на другой машине/в другой сессии остаётся на Runtime R297/sourceR295: исправление
+туда НЕ выпущено. Нужен отдельный выпуск backend, включая inbound worker;
+новые child JAR/DTO/API/migrations/provision/flags не требуются. Acceptance runner
+проверяет новый source отдельно и сам рабочий runtime не обновляет. Задача🟡.
+
 ## Source R298 — 2026-11-06: запуск MAX acceptance на Docker 29
 
 Исправлена тестовая инфраструктура, остановившая 42 MAX PG/Rabbit cases в R297.

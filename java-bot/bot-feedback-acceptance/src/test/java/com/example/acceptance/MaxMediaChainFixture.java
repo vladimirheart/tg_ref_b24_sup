@@ -103,15 +103,21 @@ final class MaxMediaChainFixture implements AutoCloseable {
         }catch(Throwable failure){try{close();}catch(Throwable cleanup){failure.addSuppressed(cleanup);}throw failure;}
     }
     @SuppressWarnings("unchecked") <T>T transactional(T target){var proxy=new ProxyFactory(target);proxy.setProxyTargetClass(true);proxy.addAdvice(new TransactionInterceptor(manager,new AnnotationTransactionAttributeSource()));return(T)proxy.getProxy();}
+    static ChannelRepository channelRepository(JdbcTemplate jdbc){
+        var channels=mock(ChannelRepository.class);when(channels.findById(anyLong())).thenAnswer(c->jdbc.query("SELECT id,platform FROM channels WHERE id=?",(r,n)->{var channel=new Channel();channel.setId(r.getLong(1));channel.setPlatform(r.getString(2));return channel;},c.getArgument(0,Long.class)).stream().findFirst());return channels;
+    }
+    static TicketActiveRepository activeRepository(JdbcTemplate jdbc){
+        var active=mock(TicketActiveRepository.class);when(active.findById(anyString())).thenAnswer(c->jdbc.query("SELECT ticket_id FROM ticket_active WHERE ticket_id=?",(r,n)->{var a=new TicketActive();a.setTicketId(r.getString(1));return a;},c.getArgument(0,String.class)).stream().findFirst());
+        when(active.save(any(TicketActive.class))).thenAnswer(c->{TicketActive a=c.getArgument(0);jdbc.update("UPDATE ticket_active SET user_identity=?,last_seen=? WHERE ticket_id=?",a.getUserIdentity(),a.getLastSeen(),a.getTicketId());return a;});return active;
+    }
     void backend()throws Exception{
         var storage=new AttachmentObjectStorageService(new ObjectStorageProperties(),files.toString(),files.resolve("kb").toString(),files.resolve("photos").toString(),files.resolve("avatars").toString());
         var flags=new MultibusinessFeatureFlags();flags.getFoundation().setEnabled(true);flags.setTicketWriteRequiresBusiness(true);flags.setSharedChannelResolution(true);flags.setGeneralChannelResolution(true);
         admission=transactional(new SelectedTicketFollowupMediaService(jdbc,flags,storage));
-        var channels=mock(ChannelRepository.class);when(channels.findById(anyLong())).thenAnswer(c->jdbc.query("SELECT id,platform FROM channels WHERE id=?",(r,n)->{var channel=new Channel();channel.setId(r.getLong(1));channel.setPlatform(r.getString(2));return channel;},c.getArgument(0)).stream().findFirst());
+        var channels=channelRepository(jdbc);
         var tickets=mock(TicketRepository.class);when(tickets.findById(any(TicketId.class))).thenAnswer(c->{TicketId id=c.getArgument(0);return jdbc.query("SELECT channel_id,questionnaire_version,questionnaire_catalog_sha256 FROM tickets WHERE user_id=? AND ticket_id=?",(r,n)->{var root=new Ticket();root.setId(id);var channel=new Channel();channel.setId(r.getLong(1));root.setChannel(channel);root.setQuestionnaireVersion(r.getInt(2));root.setQuestionnaireCatalogSha256(r.getString(3));return root;},id.getUserId(),id.getTicketId()).stream().findFirst();});
         var history=mock(ChatHistoryRepository.class);when(history.save(any(ChatHistory.class))).thenAnswer(c->{beforeHistory.get().run();ChatHistory h=c.getArgument(0);Long id=jdbc.queryForObject("INSERT INTO chat_history(user_id,sender,message,timestamp,ticket_id,ticket_owner_user_id,message_type,attachment,channel_id,tg_message_id,reply_to_tg_id,forwarded_from,file_name,source_link_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",Long.class,h.getUserId(),h.getSender(),h.getMessage(),h.getTimestamp(),h.getTicketId(),h.getTicketOwnerUserId(),h.getMessageType(),h.getAttachment(),h.getChannel().getId(),h.getTgMessageId(),h.getReplyToTgId(),h.getForwardedFrom(),h.getFileName(),h.getSourceLinkJson());h.setId(id);return h;});
-        var active=mock(TicketActiveRepository.class);when(active.findById(anyString())).thenAnswer(c->jdbc.query("SELECT ticket_id FROM ticket_active WHERE ticket_id=?",(r,n)->{var a=new TicketActive();a.setTicketId(r.getString(1));return a;},c.getArgument(0)).stream().findFirst());
-        when(active.save(any(TicketActive.class))).thenAnswer(c->{TicketActive a=c.getArgument(0);jdbc.update("UPDATE ticket_active SET user_identity=?,last_seen=? WHERE ticket_id=?",a.getUserIdentity(),a.getLastSeen(),a.getTicketId());return a;});
+        var active=activeRepository(jdbc);
         var inbox=transactional(new IntegrationInboundEventInboxService(jdbc,mapper));
         var target=new InboundClientMessageIngestionService(inbox,new LegacyTicketIdConcurrencyGuard(jdbc),channels,tickets,history,mock(MessageRepository.class),active,new ChatAttachmentMetadataService(jdbc,storage));target.setSelectedMedia(admission);ingestion=transactional(target);
         var proxy=new ProxyFactory(new InboundClientMessageListener(ingestion, new ChildBotInboundPrincipalService(jdbc, childCredentials())));proxy.setProxyTargetClass(true);

@@ -182,10 +182,11 @@ try {
     Invoke-Maven 'spring-panel' 'panel-compile.log' @('compile', '-DskipTests', '-Dmaven.compiler.useIncrementalCompilation=false', '-Dstyle.color=never')
     $compiled = $true
     $reactor = @('-f', 'pom.xml', '-Pfeedback-chain-acceptance', '-pl', ':bot-feedback-acceptance', '-am', 'test', '-Dsurefire.failIfNoSpecifiedTests=false', '-Dmaven.compiler.useIncrementalCompilation=false', '-DargLine=-Xmx384m', '-Dstyle.color=never')
-    Invoke-Maven 'java-bot' 'contracts.log' ($reactor + @('-Dtest=MaxMediaChainContractTest,MaxLinkedMediaWireContractTest,MaxMediaFixtureNetworkTest'))
+    Invoke-Maven 'java-bot' 'contracts.log' ($reactor + @('-Dtest=MaxMediaChainContractTest,MaxLinkedMediaWireContractTest,MaxMediaFixtureNetworkTest,MaxMediaRepositoryAdaptersTest'))
     $contracts = Assert-Report 'MaxMediaChainContractTest' 26
     $contracts += (Assert-Report 'MaxLinkedMediaWireContractTest' 8)
     $contracts += (Assert-Report 'MaxMediaFixtureNetworkTest' 35)
+    $contracts += (Assert-Report 'MaxMediaRepositoryAdaptersTest' 6)
     if (-not $ValidateOnly) {
         $integrationStarted = $true
         $matrix = Invoke-IntegrationMatrix $reactor $nonce
@@ -228,7 +229,7 @@ finally {
         } catch { $unchanged = $false; if (-not $failure) { $failure = $_ } }
     }
     [pscustomobject]@{
-        Phase = 'R298'; SourceCommit = $sourceCommit; Nonce = $nonce; Compiled = $compiled; ContractTests = $contracts; PrincipalTests = $principals
+        Phase = 'R299'; SourceCommit = $sourceCommit; Nonce = $nonce; Compiled = $compiled; ContractTests = $contracts; PrincipalTests = $principals
         FixtureTopology = 'internal-services-loopback-relay'; DockerApiVersion = if ($ValidateOnly) { $null } else { '1.44' }
         IntegrationAttempted = $integrationStarted; IntegrationExecuted = ($integration -gt 0 -or $principals -gt 0)
         MaxMediaIntegrationTests = $integration; PrincipalIntegrationExecuted = ($principals -gt 0)

@@ -64,7 +64,7 @@ class MaxFollowupMediaVerifierTest {
     @ParameterizedTest @MethodSource("accepted") void wholeMaxBatchUsesFrozenRootAndEveryActualByte(boolean general,String provider,int count)throws Exception{
         f.root(general,0);var event=f.event("max",provider,count);assertThatCode(()->f.verifyMax(event)).doesNotThrowAnyException();var verified=f.verifyMax(event);assertThat(verified).hasSize(count);
         for(var item:event.mediaBatch()){assertThat(verified.get(item.attachmentPath()).size()).isEqualTo(3);assertThat(verified.get(item.attachmentPath()).sha256()).isEqualTo(f.sha);}
-        var read=f.reads.get(0);assertThat(read[0].toString()).contains("FOR UPDATE OF ticket,channel,active");assertThat(Arrays.copyOfRange(read,2,6)).containsExactly(55L,1001L,f.ticketId,"max");
+        var read=f.reads.get(0);assertThat(read[0].toString()).contains("FOR UPDATE OF ticket,active FOR SHARE OF channel");assertThat(Arrays.copyOfRange(read,2,6)).containsExactly(55L,1001L,f.ticketId,"max");
     }
     @ParameterizedTest @CsvSource({"false,0","true,0","false,9","true,9"}) void maxAdmissionHasItsOwnVersionAndFrozenQuota(boolean general,int used)throws Exception{
         f.root(general,used);var proof=f.admit();assertThat(proof.version()).isEqualTo(3);assertThat(proof.remainingFiles()).isEqualTo(10-used);assertThat(proof.ticketId()).isEqualTo(f.ticketId);assertThat(proof.scopeKind()).isEqualTo(general?"GENERAL":"BUSINESS");assertThat(proof.businessId()).isEqualTo(general?null:7L);assertThat(proof.catalogSha256()).isEqualTo(f.catalog);
