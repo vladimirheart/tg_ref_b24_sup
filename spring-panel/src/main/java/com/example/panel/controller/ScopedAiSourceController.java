@@ -130,6 +130,21 @@ public class ScopedAiSourceController {
         return redirect(businessId,kind,key);
     }
 
+    @PostMapping("/erase-content")
+    public RedirectView eraseContent(Authentication authentication,HttpServletResponse response,
+            @RequestParam Long businessId,@RequestParam Kind kind,@RequestParam String key,
+            @RequestParam long sourceId,@RequestParam long revision,@RequestParam(defaultValue="false") boolean confirmed) {
+        enabled(response);
+        selected(businessId,authentication);
+        configure(businessId,authentication);
+        validKey(key);
+        if (sourceId<1 || revision<1 || !confirmed) badRequest();
+        if (!sources.eraseContentExpected(businessId,authentication,kind,key,sourceId,revision)) conflict();
+        RedirectView view=new RedirectView("/business-ai-sources?businessId="+businessId,true);
+        view.setExposeModelAttributes(false);
+        return view;
+    }
+
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<String> malformedParameter() {
         return ResponseEntity.badRequest().cacheControl(CacheControl.noStore()).body("Некорректные параметры материала");

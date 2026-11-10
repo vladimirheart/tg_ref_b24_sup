@@ -125,6 +125,27 @@ public class ScopedAiSourceService {
         return write(sql,args);
     }
 
+    /** Explicitly redact title/body, retaining immutable ownership and metadata-only audit.
+     * A stale memory origin must not prevent its owning business from erasing the content.
+     */
+    public boolean eraseContentExpected(Long businessId,Authentication authentication,Kind kind,String key,
+                                         long expectedSourceId,long expectedRevision) {
+        var account=boundActor(authentication);
+        if (account==null || !validActor(businessId,account.getUsername()) || kind==null || !validKey(key)
+                || expectedSourceId<1 || expectedRevision<1) return false;
+        var args=boundParameters(businessId,account,kind,key)
+            .addValue("expectedSourceId",expectedSourceId,Types.BIGINT).addValue("revision",expectedRevision,Types.BIGINT)
+            .addValue("erasedTitle","Материал очищен",Types.VARCHAR).addValue("erasedBody","Содержимое очищено.",Types.VARCHAR);
+        String sql="""
+            WITH changed AS (UPDATE ai_scoped_sources source SET title=:erasedTitle,body=:erasedBody,status='ARCHIVED',
+                revision=source.revision+1,updated_by_user_id=actor.id,updated_by=actor.username,updated_at=CURRENT_TIMESTAMP
+              FROM (SELECT CAST(:businessId AS BIGINT) AS business_id) owner
+            """+ACTOR+BOUND_ACTOR+" WHERE "+SOURCE_KEY
+            +" AND source.id=:expectedSourceId AND source.revision=:revision"+READ+CONFIGURE
+            +" RETURNING source.*)"+auditInsert("revise");
+        return write(sql,args);
+    }
+
     public List<BusinessOption> availableBusinesses(Authentication authentication) {
         var account=boundActor(authentication);
         if (flags==null || account==null) return List.of();

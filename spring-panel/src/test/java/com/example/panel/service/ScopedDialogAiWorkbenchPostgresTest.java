@@ -216,6 +216,35 @@ class ScopedDialogAiWorkbenchPostgresTest {
         } else verifyNoInteractions(escalation);
         verifyNoInteractions(retrieval,normalizer,llm,rawState,outcomes);
     }
+    @ParameterizedTest @ValueSource(strings={"KNOWLEDGE","MEMORY"})
+    void erasedContentInvalidatesHandoffEvidenceWithoutDeletingChatOrMetadata(String kindName) {
+        var kind=ScopedAiSourceService.Kind.valueOf(kindName);
+        String key=key();
+        if (kind==ScopedAiSourceService.Kind.KNOWLEDGE) approved(1,"admin",key);
+        else {
+            assertThat(memory("admin",key)).isTrue();
+            assertThat(sources.revise(1L,boundControlActor(),kind,key,1,"refund","refund approved",ScopedAiSourceService.Status.APPROVED)).isTrue();
+        }
+        var source=sources.find(1L,boundControlActor(),kind,key).orElseThrow();
+        assertThat(knowledge.record(scope,"refund")).isTrue();
+        assertThat(knowledge.candidates(scope,boundControlActor())).extracting(ScopedAiSourceService.Summary::id).containsExactly(source.id());
+        var history=jdbc.queryForList("SELECT * FROM chat_history ORDER BY id");
+        var evidence=jdbc.queryForList("SELECT * FROM ai_scoped_handoff_evidence ORDER BY event_id,source_id");
+        var memoryEvidence=jdbc.queryForList("SELECT * FROM ai_scoped_memory_evidence ORDER BY source_id");
+        assertThat(sources.eraseContentExpected(1L,boundControlActor(),kind,key,source.id(),source.revision())).isTrue();
+        assertThat(sources.isCurrentCandidate(scope,boundControlActor(),source)).isFalse();
+        assertThat(sources.retrieve(scope,boundControlActor(),"refund",20)).isEmpty();
+        assertThat(knowledge.candidates(scope,boundControlActor())).isEmpty();
+        var cleared=sources.find(1L,boundControlActor(),kind,key).orElseThrow();
+        assertThat(cleared.body()).isEqualTo("Содержимое очищено.");
+        // Even a later reviewed new text must not revive a previously frozen evidence revision.
+        assertThat(sources.reviseExpected(1L,boundControlActor(),kind,key,source.id(),cleared.revision(),"refund","new reviewed refund",ScopedAiSourceService.Status.APPROVED)).isTrue();
+        assertThat(knowledge.candidates(scope,boundControlActor())).isEmpty();
+        assertThat(jdbc.queryForList("SELECT * FROM chat_history ORDER BY id")).isEqualTo(history);
+        assertThat(jdbc.queryForList("SELECT * FROM ai_scoped_handoff_evidence ORDER BY event_id,source_id")).isEqualTo(evidence);
+        assertThat(jdbc.queryForList("SELECT * FROM ai_scoped_memory_evidence ORDER BY source_id")).isEqualTo(memoryEvidence);
+    }
+
     @Test void additiveUpgradePreservesV63DataAndDoesNotClassifyHistory() {
         var upgrade=PostgresqlJdbcTestSupport.freshJdbcTemplate("workbench_upgrade");
         org.flywaydb.core.Flyway.configure().dataSource(upgrade.getDataSource())

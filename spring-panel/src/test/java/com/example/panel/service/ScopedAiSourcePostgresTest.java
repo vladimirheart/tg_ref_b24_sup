@@ -400,6 +400,112 @@ class ScopedAiSourcePostgresTest {
         verifyNoInteractions(observed);
     }
 
+    @ParameterizedTest @ValueSource(strings={"KNOWLEDGE","MEMORY"})
+    void explicitErasureRemovesOnlyContentAndInvalidatesOldCandidates(String sourceKind) {
+        Source original=approved(Kind.valueOf(sourceKind),"erase");
+        assertThat(service.isCurrentCandidate(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),original)).isTrue();
+        var before=jdbc.queryForMap("SELECT id,business_id,source_kind,source_key,origin_ticket_id,created_at FROM ai_scoped_sources WHERE id=?",original.id());
+        assertThat(service.createKnowledge(2L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"foreign"),"erase","Foreign title",BODY+" B")).isTrue();
+        var foreign=jdbc.queryForMap("SELECT * FROM ai_scoped_sources WHERE business_id=2");
+        assertThat(erase(original,"admin")).isTrue();
+        var cleared=service.find(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"viewer"),original.kind(),original.key()).orElseThrow();
+        assertThat(cleared.title()).isEqualTo("Материал очищен");
+        assertThat(cleared.body()).isEqualTo("Содержимое очищено.");
+        assertThat(cleared.status()).isEqualTo(ARCHIVED);
+        assertThat(cleared.revision()).isEqualTo(original.revision()+1);
+        assertThat(jdbc.queryForMap("SELECT id,business_id,source_kind,source_key,origin_ticket_id,created_at FROM ai_scoped_sources WHERE id=?",original.id())).isEqualTo(before);
+        assertThat(jdbc.queryForMap("SELECT * FROM ai_scoped_sources WHERE business_id=2")).isEqualTo(foreign);
+        assertThat(jdbc.queryForMap("SELECT actor_user_id,actor,revision,action FROM ai_scoped_source_events WHERE source_id=? ORDER BY revision DESC LIMIT 1",original.id()))
+            .containsEntry("actor_user_id",1L).containsEntry("actor","admin").containsEntry("revision",3L).containsEntry("action","revise");
+        assertThat(jdbc.queryForList("SELECT * FROM ai_scoped_source_events").toString()).doesNotContain(BODY,"Foreign title");
+        assertThat(service.retrieve(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),"решения",20)).isEmpty();
+        assertThat(service.isCurrentCandidate(scope,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),original)).isFalse();
+        var after=snapshots();
+        assertThat(erase(original,"admin")).isFalse();
+        assertThat(snapshots()).isEqualTo(after);
+    }
+
+    @ParameterizedTest @ValueSource(strings={"viewer","operator","manager","foreign","global-admin","all-viewer","all-admin","admin"})
+    void erasureRequiresLiveBusinessConfigureRatherThanSystemRole(String actor) {
+        Source original=approved(KNOWLEDGE,"erase");
+        var before=snapshots();
+        boolean configure=actor.equals("admin") || actor.equals("all-admin");
+        assertThat(erase(original,actor)).isEqualTo(configure);
+        if (!configure) assertThat(snapshots()).isEqualTo(before);
+    }
+
+    @ParameterizedTest @ValueSource(strings={"revoke","disabled","blocked","identity_collision","archive","role","rename","reuse"})
+    void erasureRechecksTheBoundAccountInsideSql(String mutation) {
+        Source original=approved(KNOWLEDGE,"erase");
+        var actor=com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin");
+        var before=snapshots();
+        var observed=spy(new NamedParameterJdbcTemplate(jdbc));
+        doAnswer(call->{
+            if (mutation.equals("rename") || mutation.equals("reuse")) {
+                jdbc.update("UPDATE users SET username='renamed' WHERE id=1");
+                if (mutation.equals("reuse")) {
+                    jdbc.update("INSERT INTO users VALUES(9,'admin',TRUE,FALSE)");
+                    jdbc.update("INSERT INTO business_memberships VALUES(9,1,'ADMIN',TRUE)");
+                }
+            } else mutateActor(mutation);
+            return new NamedParameterJdbcTemplate(jdbc).update(call.getArgument(0,String.class),call.getArgument(1,SqlParameterSource.class));
+        }).when(observed).update(anyString(),any(SqlParameterSource.class));
+        assertThat(new ScopedAiSourceService(observed,flags).eraseContentExpected(1L,actor,original.kind(),original.key(),original.id(),original.revision())).isFalse();
+        assertThat(snapshots()).isEqualTo(before);
+    }
+
+    @ParameterizedTest @ValueSource(strings={"business","missing"})
+    void frozenBusinessCanEraseMemoryEvenAfterTheOriginMovesOrDisappears(String mutation) {
+        Source original=approved(MEMORY,"erase");
+        mutateOwner(30,mutation);
+        var tickets=jdbc.queryForList("SELECT * FROM tickets ORDER BY user_id");
+        assertThat(service.find(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),MEMORY,original.key())).isEmpty();
+        assertThat(erase(original,"admin")).isTrue();
+        assertThat(jdbc.queryForMap("SELECT business_id,body,status,revision FROM ai_scoped_sources WHERE id=?",original.id()))
+            .containsEntry("business_id",1L).containsEntry("body","Содержимое очищено.").containsEntry("status","ARCHIVED").containsEntry("revision",3L);
+        assertThat(jdbc.queryForList("SELECT * FROM tickets ORDER BY user_id")).isEqualTo(tickets);
+    }
+
+    @Test
+    void erasureFreezesBusinessKindKeyIdAndRevisionAndRollsBackOnAuditFailure() {
+        Source original=approved(KNOWLEDGE,"erase");
+        var actor=com.example.panel.support.AiControlIdentityFixture.login(jdbc,"all-admin");
+        var before=snapshots();
+        assertThat(service.eraseContentExpected(2L,actor,KNOWLEDGE,"erase",original.id(),2)).isFalse();
+        assertThat(service.eraseContentExpected(1L,actor,MEMORY,"erase",original.id(),2)).isFalse();
+        assertThat(service.eraseContentExpected(1L,actor,KNOWLEDGE,"other",original.id(),2)).isFalse();
+        assertThat(service.eraseContentExpected(1L,actor,KNOWLEDGE,"erase",original.id()+1,2)).isFalse();
+        assertThat(service.eraseContentExpected(1L,actor,KNOWLEDGE,"erase",original.id(),1)).isFalse();
+        assertThat(snapshots()).isEqualTo(before);
+        jdbc.execute("ALTER TABLE ai_scoped_source_events ADD CONSTRAINT reject_erase CHECK(FALSE) NOT VALID");
+        assertThat(erase(original,"admin")).isFalse();
+        assertThat(snapshots()).isEqualTo(before);
+    }
+
+    @Test
+    void invalidErasureInputsAndUnboundOrMismatchedPrincipalsCannotWrite() {
+        var observed=mock(NamedParameterJdbcOperations.class);
+        var guarded=new ScopedAiSourceService(observed,flags);
+        var actor=com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin");
+        assertThat(guarded.eraseContentExpected(null,actor,KNOWLEDGE,"erase",1,1)).isFalse();
+        assertThat(guarded.eraseContentExpected(1L,actor,null,"erase",1,1)).isFalse();
+        assertThat(guarded.eraseContentExpected(1L,actor,KNOWLEDGE," ",1,1)).isFalse();
+        assertThat(guarded.eraseContentExpected(1L,actor,KNOWLEDGE,"erase",0,1)).isFalse();
+        assertThat(guarded.eraseContentExpected(1L,actor,KNOWLEDGE,"erase",1,0)).isFalse();
+        var unbound=org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated("admin",null,List.of());
+        assertThat(guarded.eraseContentExpected(1L,unbound,KNOWLEDGE,"erase",1,1)).isFalse();
+        verifyNoInteractions(observed);
+        Source original=approved(KNOWLEDGE,"erase");
+        var before=snapshots();
+        assertThat(service.eraseContentExpected(1L,com.example.panel.support.AiControlIdentityFixture.auth(5,"admin"),KNOWLEDGE,"erase",original.id(),2)).isFalse();
+        assertThat(snapshots()).isEqualTo(before);
+    }
+
+    private boolean erase(Source source,String actor) {
+        return service.eraseContentExpected(source.businessId(),com.example.panel.support.AiControlIdentityFixture.login(jdbc,actor),
+            source.kind(),source.key(),source.id(),source.revision());
+    }
+
     private Source approved(Kind kind,String key) {
         assertThat(kind==KNOWLEDGE ? service.createKnowledge(1L,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),key,"Title",BODY)
             :service.createMemory(origin,com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin"),key,"Title",BODY)).isTrue();

@@ -3,6 +3,24 @@
 Документ фиксирует текущий runtime contract между `spring-panel` и `java-bot`
 после `Phase 5` рефакторинга.
 
+## Source R308: AI хранится до ручного удаления
+
+Решение пользователя: «Всё хранить до ручного удаления, без автоочистки».
+В редакторе business-owned KNOWLEDGE/MEMORY есть подтверждаемая очистка title/body
+с архивированием и новой revision. Действуют PAGE_KNOWLEDGE_BASE, CSRF, текущие
+business CONFIGURE, frozen ID/version и атомарный metadata-аудит. Старые AI
+кандидаты/handoff references больше не проходят; чужие источники, chat_history
+и metadata/evidence не удаляются. Автоматическая очистка не добавлена.
+Это не общий purge всех AI state/events или backup. [Контракт и приёмка](runbooks/ai-data-boundaries.md).
+
+312 tests/6 suites GREEN, failures/errors/skips=0;2 main/3 test sources пересобраны, real PostgreSQL/HTTP/Thymeleaf.
+R307 baseline3e894783e (12 файлов) committed/pushed пользователем. Новых
+migrations/flags нет; backend source update ещё не является runtime выпуском.
+Рабочий Docker/проект находится на другой машине и в другой сессии. Для R306–R308
+нужен новый image panel-web/ops-worker с текущими Compose/ENV/mounts/rollback;
+bot children и инфраструктура этим scope не менялись. Runtime R305/V89 ниже
+остаётся последним документированным выпуском.
+
 ## Source R307: изоляция старой AI-цепочки
 
 Legacy ticket AI больше не принимает BUSINESS/GENERAL raw ID. Foundation или

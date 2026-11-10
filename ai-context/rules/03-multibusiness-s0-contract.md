@@ -12,6 +12,47 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 код не должен подставлять бизнес по текстовому имени, каналу, последнему выбору
 оператора или иной эвристике.
 
+## Source R308 — ручная очистка содержимого AI-материалов
+
+Решение пользователя от 10 ноября 2026: «Всё хранить до ручного удаления, без
+автоочистки». Для AI-данных нет автоматического срока удаления; задания очистки
+не добавляются. Срок больше не является PENDING product decision.
+
+В редакторе существующего KNOWLEDGE/MEMORY добавлено отдельное действие
+«Очистить содержимое». Нужны PAGE_KNOWLEDGE_BASE, текущий business ADMIN либо
+ALL_BUSINESSES ADMIN, CSRF и явное подтверждение. Заголовок и текст заменяются
+фиксированными заглушками, статус ARCHIVED, revision+1. Одна SQL-команда повторно
+проверяет numeric/raw actor, active business и права, immutable business/kind/key/
+source ID и ожидаемую revision; запись metadata-аудита атомарна. ROLE_ADMIN сам
+по себе не даёт доступа к AI бизнеса. Старые формы не восстанавливают прежний
+текст, старые retrieval/handoff references перестают подходить по revision/status.
+
+Для очистки MEMORY проверяется неизменный бизнес материала, без чтения текущего
+обращения: смена/удаление origin не мешает владельцу очистить текст из ранее
+открытой формы. Просмотр/редактирование и получение кандидатов сохраняют проверку
+текущего origin. Это не полный purge: ID/key/origin, metadata-аудит, fingerprints,
+chat_history и резервные копии сохраняются; старых title/body в source-аудите нет.
+Archive без очистки по-прежнему сохраняет текст. Общая ручная очистка scoped
+state/events и обнаружение осиротевших материалов ещё не реализованы.
+
+312 tests/6 suites GREEN, failures/errors/skips=0. Реальные PostgreSQL и полный Spring HTTP/Thymeleaf/CSRF:
+две разновидности материала, business/admin matrix, старые/подменённые формы,
+отзыв прав/блокировка/rename-reuse до финального SQL, ошибка аудита с откатом,
+сохранность чужого бизнеса/чатов/evidence, invalidation старого handoff.
+1459 Java sources cache сверены с R307; изменённые2 main/3 test sources
+пересобраны, HTML загружен реальным Thymeleaf. Полный repository suite/image
+build не выполнялся; прежние channel-test failures R306 вне этого scope.
+
+Baseline HEAD/origin/main/actual remote=3e894783e3d2c84f3cd4575fbbedba0b6ddada82,
+parent9cf506526d9ca8ed5d44297579015a00effa024f; проверены12 файлов R307.
+R306/R307 committed/pushed пользователем, deployment ими не подтверждён.
+Рабочий проект/Docker на другой машине и в другой сессии. Здесь только source
+и nonce-owned native PostgreSQL fixture; рабочие БД/очереди/provider не трогались.
+Нет новых migrations/flags/config, staging/commit/push/deployment. Нужен новый
+backend image для panel-web/ops-worker; последний документированный runtime
+R305/V89 и его rollback pointers сохранены. Задача01-278 остаётся🟡.
+Подробности и приёмка: [AI boundaries](../../docs/runbooks/ai-data-boundaries.md).
+
 ## Source R307 — legacy AI отделён от бизнес-диалогов
 
 Воспроизведён и закрыт обход: уникальный raw ID BUSINESS/GENERAL ранее открывал

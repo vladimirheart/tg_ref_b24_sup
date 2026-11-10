@@ -340,6 +340,91 @@ class ScopedAiSourceHttpPostgresTest {
         assertUnchanged(sourceA);
     }
 
+    @Test
+    void renderedErasureFormRequiresExplicitConfirmationAndRealCsrfAndClearsOnlyOneBusiness() throws Exception {
+        var opened=mvc.perform(auth(edit(sourceA),admin)).andExpect(status().isOk()).andReturn();
+        String html=opened.getResponse().getContentAsString();
+        var form=Pattern.compile("<form[^>]*data-ai-source-erase-form[^>]*>([\\s\\S]*?)</form>").matcher(html);
+        assertThat(form.find()).isTrue();
+        String fields=form.group(1);
+        assertThat(fields).contains("name=\"confirmed\"","required","Восстановить их из панели будет нельзя");
+        var before=sourceRows();
+        mvc.perform(auth(replace(erase(sourceA),"confirmed","false"),admin).with(csrf())).andExpect(status().isBadRequest());
+        mvc.perform(auth(erase(sourceA).with(r->{r.removeParameter("confirmed");return r;}),admin).with(csrf())).andExpect(status().isBadRequest());
+        mvc.perform(auth(erase(sourceA),admin)).andExpect(redirectedUrl("/error/403"));
+        assertThat(sourceRows()).isEqualTo(before);
+        mvc.perform(auth(erase(sourceA),admin).cookie(opened.getResponse().getCookies()).param("_csrf",hidden(fields,"_csrf")))
+            .andExpect(redirectedUrl(ROOT+"?businessId="+businessA))
+            .andExpect(header().string("Cache-Control",containsString("no-store")));
+        var cleared=sources.find(businessA,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),KNOWLEDGE,KEY).orElseThrow();
+        assertThat(cleared.title()).isEqualTo("Материал очищен");
+        assertThat(cleared.body()).isEqualTo("Содержимое очищено.");
+        assertThat(cleared.status()).isEqualTo(ScopedAiSourceService.Status.ARCHIVED);
+        assertThat(cleared.revision()).isEqualTo(2);
+        assertThat(sources.find(businessB,com.example.panel.support.AiControlIdentityFixture.login(jdbc,foreign),KNOWLEDGE,KEY)).contains(sourceB);
+        mvc.perform(auth(edit(cleared),admin)).andExpect(status().isOk()).andExpect(content().string(not(containsString("PRIVATE_A"))));
+        var after=sourceRows();
+        mvc.perform(auth(erase(sourceA),admin).with(csrf())).andExpect(status().isConflict());
+        mvc.perform(auth(revise(sourceA),admin).with(csrf())).andExpect(status().isConflict());
+        assertThat(sourceRows()).isEqualTo(after);
+    }
+
+    @ParameterizedTest @ValueSource(strings={"viewer","operator","manager","foreign","global","all"})
+    void erasureUsesTheBusinessAdminMatrix(String actor) throws Exception {
+        String identity=switch(actor) {case "viewer"->viewer;case "operator"->operator;case "manager"->manager;case "foreign"->foreign;case "global"->global;default->all;};
+        var before=sourceRows();
+        mvc.perform(auth(erase(sourceA),identity).with(csrf()))
+            .andExpect(actor.equals("all")?status().is3xxRedirection():status().isForbidden());
+        if (!actor.equals("all")) assertThat(sourceRows()).isEqualTo(before);
+        mvc.perform(auth(edit(sourceB),foreign)).andExpect(status().isOk());
+    }
+
+    @Test
+    void erasureIsAbsentForReadOnlyAndNewFormsAndCannotBeRetargetedByAnAllAdmin() throws Exception {
+        mvc.perform(auth(edit(sourceA),viewer)).andExpect(status().isOk()).andExpect(content().string(not(containsString("data-ai-source-erase"))));
+        mvc.perform(auth(get(ROOT+"/new").param("businessId",Long.toString(businessA)),admin)).andExpect(status().isOk()).andExpect(content().string(not(containsString("data-ai-source-erase"))));
+        var before=sourceRows();
+        mvc.perform(auth(replace(erase(sourceA),"businessId",Long.toString(businessB)),all).with(csrf())).andExpect(status().isConflict());
+        mvc.perform(auth(replace(erase(sourceA),"sourceId",Long.toString(sourceB.id())),all).with(csrf())).andExpect(status().isConflict());
+        mvc.perform(auth(replace(erase(sourceA),"revision","0"),all).with(csrf())).andExpect(status().isBadRequest());
+        assertThat(sourceRows()).isEqualTo(before);
+    }
+
+    @ParameterizedTest @ValueSource(strings={"revoke","disabled","blocked","archive","collision"})
+    void erasureDeniesRevocationBetweenControllerPrecheckAndFinalSql(String mutation) throws Exception {
+        var before=sourceRows();
+        doAnswer(call->{mutate(mutation);return call.callRealMethod();}).when(sources).eraseContentExpected(eq(businessA),
+            org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class),eq(KNOWLEDGE),eq(KEY),eq(sourceA.id()),eq(1L));
+        mvc.perform(auth(erase(sourceA),admin).with(csrf())).andExpect(status().isConflict());
+        assertThat(sourceRows()).isEqualTo(before);
+    }
+
+    @Test
+    void existingMemoryFormCanEraseContentAfterOriginMovesWithoutReadingTheNewBusiness() throws Exception {
+        assertThat(sources.createMemory(origin,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),"erase-memory","Memory title","Private memory")).isTrue();
+        var memory=sources.find(businessA,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),MEMORY,"erase-memory").orElseThrow();
+        mvc.perform(auth(edit(memory),admin)).andExpect(status().isOk());
+        jdbc.update("UPDATE tickets SET business_id=? WHERE user_id=? AND ticket_id=?",businessB,origin.ticketUserId(),origin.ticketId());
+        mvc.perform(auth(edit(memory),admin)).andExpect(status().isNotFound());
+        mvc.perform(auth(erase(memory),admin).with(csrf())).andExpect(redirectedUrl(ROOT+"?businessId="+businessA));
+        assertThat(jdbc.queryForMap("SELECT business_id,body,status FROM ai_scoped_sources WHERE id=?",memory.id()))
+            .containsEntry("business_id",businessA).containsEntry("body","Содержимое очищено.").containsEntry("status","ARCHIVED");
+        assertThat(jdbc.queryForObject("SELECT business_id FROM tickets WHERE user_id=? AND ticket_id=?",Long.class,origin.ticketUserId(),origin.ticketId())).isEqualTo(businessB);
+    }
+
+    @ParameterizedTest @ValueSource(strings={"foundation","selector"})
+    void erasureRespectsTheExistingFeatureGates(String disabled) throws Exception {
+        if (disabled.equals("foundation")) flags.getFoundation().setEnabled(false); else flags.setUiSelector(false);
+        var before=sourceRows();
+        mvc.perform(auth(erase(sourceA),admin).with(csrf())).andExpect(status().isNotFound());
+        assertThat(sourceRows()).isEqualTo(before);
+    }
+
+    private MockHttpServletRequestBuilder erase(Source source) {
+        return post(ROOT+"/erase-content").param("businessId",source.businessId().toString()).param("kind",source.kind().name())
+            .param("key",source.key()).param("sourceId",Long.toString(source.id())).param("revision",Long.toString(source.revision())).param("confirmed","true");
+    }
+
     // Exercise the production cookie repository and XOR handler without replacing the filter's repository,
     // which SecurityMockMvcRequestPostProcessors.csrf() does. The rendered-form test also uses an actual GET token.
     private RequestPostProcessor csrf() {
@@ -402,7 +487,7 @@ class ScopedAiSourceHttpPostgresTest {
         String name=kind.equals("case-changed")?admin.toUpperCase(java.util.Locale.ROOT):kind.equals("padded")?" "+admin+" ":admin;
         var principal=new com.example.panel.security.PanelUserPrincipal(id,name,"unused",true,granted);
         RequestPostProcessor identity=kind.equals("unbound")?user(admin).authorities(granted):user(principal);var before=sourceRows();
-        for(var request:List.of(get(ROOT).param("businessId",Long.toString(businessA)),edit(sourceA),get(ROOT+"/new").param("businessId",Long.toString(businessA)),create("mismatched-principal").with(csrf()),revise(sourceA).with(csrf())))mvc.perform(request.with(identity)).andExpect(redirectedUrl("http://localhost/login"));
+        for(var request:List.of(get(ROOT).param("businessId",Long.toString(businessA)),edit(sourceA),get(ROOT+"/new").param("businessId",Long.toString(businessA)),create("mismatched-principal").with(csrf()),revise(sourceA).with(csrf()),erase(sourceA).with(csrf())))mvc.perform(request.with(identity)).andExpect(redirectedUrl("http://localhost/login"));
         org.mockito.Mockito.verify(sources,org.mockito.Mockito.never()).availableBusinesses(org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class));assertThat(sourceRows()).isEqualTo(before);
     }
     @ParameterizedTest @ValueSource(strings={"removed","role-only"})
@@ -436,7 +521,7 @@ class ScopedAiSourceHttpPostgresTest {
         mvc.perform(get(ROOT).cookie(session)).andExpect(redirectedUrl("http://localhost/login"));
     }
     private List<MockHttpServletRequestBuilder> preparedRequests() {
-        return List.of(auth(get(ROOT).param("businessId",Long.toString(businessA)),admin),auth(edit(sourceA),admin),auth(get(ROOT+"/new").param("businessId",Long.toString(businessA)),admin),auth(create("prepared-session"),admin).with(csrf()),auth(revise(sourceA),admin).with(csrf()));
+        return List.of(auth(get(ROOT).param("businessId",Long.toString(businessA)),admin),auth(edit(sourceA),admin),auth(get(ROOT+"/new").param("businessId",Long.toString(businessA)),admin),auth(create("prepared-session"),admin).with(csrf()),auth(revise(sourceA),admin).with(csrf()),auth(erase(sourceA),admin).with(csrf()));
     }
     private Map<String,List<String>> sourceRows() {
         return Map.of("sources",jdbc.queryForList("SELECT to_jsonb(s)::TEXT FROM ai_scoped_sources s WHERE business_id IN (?,?) ORDER BY id",String.class,businessA,businessB),"events",jdbc.queryForList("SELECT to_jsonb(s)::TEXT FROM ai_scoped_source_events s WHERE business_id IN (?,?) ORDER BY id",String.class,businessA,businessB));
