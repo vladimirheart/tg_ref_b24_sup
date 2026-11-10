@@ -82,6 +82,36 @@ public class NotificationService {
     @Autowired
     private MultibusinessFeatureFlags multibusinessFeatureFlags;
 
+    @Autowired private SharedWorkAccessService sharedWorkAccess;
+    private record WorkScope(long userId,List<Long> tasks,List<Long> projects) {}
+    private WorkScope workScope(String identity) {
+        var actor=GeneralTicketActor.from(SharedWorkAccessService.current());
+        if(sharedWorkAccess==null||actor==null||!actor.username().toLowerCase(Locale.ROOT).equals(identity))return null;
+        var tasks=sharedWorkAccess.visibleIds(SharedWorkAccessService.Kind.TASK,SharedWorkAccessService.current()).stream().map(Long::valueOf).toList();
+        var projects=sharedWorkAccess.visibleIds(SharedWorkAccessService.Kind.PROJECT,SharedWorkAccessService.current()).stream().map(Long::valueOf).toList();
+        return new WorkScope(actor.userId(),tasks.isEmpty()?List.of(0L):tasks,projects.isEmpty()?List.of(0L):projects);
+    }
+    /** Typed shared-work writer: route expansion has already happened, current READ is checked here. */
+    public void notifySharedWork(SharedWorkAccessService.Kind kind,long objectId,Set<String> candidates,String excluded,String text,String url) {
+        if(!StringUtils.hasText(text)||candidates==null||sharedWorkAccess==null)return;
+        for(String name:sharedWorkAccess.readableRecipients(kind,objectId,candidates)) {
+            if(name.equals(excluded))continue;
+            var person=sharedWorkAccess.eligibleReader(name);
+            if(person==null)continue;
+            long recipientId=Long.parseLong(person.userId());
+            sharedWorkAccess.requireStored(kind,objectId,SharedWorkAccessService.Access.READ,recipientId,name);
+            jdbcTemplate.update("INSERT INTO notifications(user_identity,text,url,is_read,created_at,shared_work_kind,shared_work_id,shared_recipient_user_id) VALUES(?,?,?,FALSE,CURRENT_TIMESTAMP,?,?,?)",
+                name.toLowerCase(Locale.ROOT),normalizeNotificationText(text),normalizeUrl(url),kind.name(),objectId,recipientId);
+            Runnable invalidate=()->{
+                try{uiEventStreamService.publishSharedWorkNotificationsChanged(name,kind,objectId,recipientId);}
+                catch(RuntimeException failure){org.slf4j.LoggerFactory.getLogger(NotificationService.class).warn("Shared-work notification refresh failed; row remains readable",failure);}
+            };
+            if(org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive())
+                org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(new org.springframework.transaction.support.TransactionSynchronization(){@Override public void afterCommit(){invalidate.run();}});
+            else throw new IllegalStateException("Shared-work notification requires a transaction");
+        }
+    }
+
     private boolean allowLegacyNotifications() {
         return multibusinessFeatureFlags == null || !multibusinessFeatureFlags.isStrictReadScope();
     }
@@ -98,21 +128,27 @@ public class NotificationService {
         this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<NotificationDto> findForUser(String userIdentity) {
         String identity = normalizeIdentity(userIdentity);
-        return notificationRepository.findVisibleForUser(identity, allowLegacyNotifications()).stream()
+        var scope=workScope(identity);
+        return (scope==null?notificationRepository.findVisibleForUser(identity,allowLegacyNotifications()):
+            notificationRepository.findSharedVisibleForUser(identity,allowLegacyNotifications(),scope.userId(),scope.tasks(),scope.projects())).stream()
                 .map(this::toDto)
                 .toList();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public NotificationPage findPageForUser(String userIdentity, String cursor, int requestedLimit) {
         String identity = normalizeIdentity(userIdentity);
         int limit = normalizeNotificationPageLimit(requestedLimit);
         NotificationCursor decodedCursor = decodeNotificationCursor(cursor);
         org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, limit + 1);
-        List<Notification> rows = decodedCursor == null
+        var scope=workScope(identity);
+        List<Notification> rows = scope!=null ? (decodedCursor==null
+                ? notificationRepository.findSharedVisiblePage(identity,allowLegacyNotifications(),scope.userId(),scope.tasks(),scope.projects(),pageable)
+                : notificationRepository.findSharedPageBefore(identity,allowLegacyNotifications(),scope.userId(),scope.tasks(),scope.projects(),decodedCursor.createdAt(),decodedCursor.id(),pageable))
+                : decodedCursor == null
                 ? notificationRepository.findVisiblePage(identity, allowLegacyNotifications(), pageable)
                 : notificationRepository.findPageBefore(
                         identity,
@@ -169,23 +205,30 @@ public class NotificationService {
     private record NotificationCursor(OffsetDateTime createdAt, Long id) {
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public NotificationSummary summary(String userIdentity) {
         String identity = normalizeIdentity(userIdentity);
-        long unread = notificationRepository.countVisibleUnread(identity, allowLegacyNotifications());
+        var scope=workScope(identity);
+        long unread = scope==null?notificationRepository.countVisibleUnread(identity,allowLegacyNotifications()):
+            notificationRepository.countSharedVisibleUnread(identity,allowLegacyNotifications(),scope.userId(),scope.tasks(),scope.projects());
         return new NotificationSummary(unread);
     }
 
     public void markAsRead(String userIdentity, Long id) {
         String identity = normalizeIdentity(userIdentity);
-        if (notificationRepository.markVisibleAsRead(id, identity, allowLegacyNotifications()) > 0) {
+        var scope=workScope(identity);
+        int changed=scope==null?notificationRepository.markVisibleAsRead(id,identity,allowLegacyNotifications()):
+            notificationRepository.markSharedVisibleAsRead(identity,allowLegacyNotifications(),scope.userId(),scope.tasks(),scope.projects(),id);
+        if (changed > 0) {
             uiEventStreamService.publishNotificationsChanged(identity, "notification_marked_read");
         }
     }
 
     public long markAllAsRead(String userIdentity) {
         String identity = normalizeIdentity(userIdentity);
-        int updated = notificationRepository.markAllVisibleAsRead(identity, allowLegacyNotifications());
+        var scope=workScope(identity);
+        int updated = scope==null?notificationRepository.markAllVisibleAsRead(identity,allowLegacyNotifications()):
+            notificationRepository.markAllSharedVisibleAsRead(identity,allowLegacyNotifications(),scope.userId(),scope.tasks(),scope.projects());
         if (updated == 0) {
             return 0;
         }
@@ -313,7 +356,7 @@ public class NotificationService {
         }
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public Set<String> findDialogRecipients(String ticketId) {
         if (!legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)) {
             return Set.of();
@@ -355,7 +398,7 @@ public class NotificationService {
         notifyDialogUsersExcluding(ticketId, recipients, excludedIdentity, text, url);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public Set<String> findScopedDialogRecipients(UiEventTicketScope scope) {
         if (!isCurrentNotificationScope(scope)) {
             return Set.of();
@@ -527,7 +570,7 @@ public class NotificationService {
                 + URLEncoder.encode(normalizedTicketId, StandardCharsets.UTF_8).replace("+", "%20");
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public Set<String> findAllOperatorRecipients() {
         Set<String> recipients = new LinkedHashSet<>();
         recipients.addAll(loadOperatorRecipients(usersJdbcTemplate));

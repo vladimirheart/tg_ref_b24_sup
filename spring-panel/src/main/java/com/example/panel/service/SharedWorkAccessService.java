@@ -124,6 +124,7 @@ public class SharedWorkAccessService {
         mutationGate();
         positive(targetId);
         if(grant==null||(!grant.canRead()&&(grant.canCreateTask()||grant.canCreateProject())))throw badRequest();
+        var before=jdbc.queryForList("SELECT can_read,can_create_task,can_create_project FROM shared_work_grants WHERE user_id=?",targetId);
         var args=adminArgs(authentication).addValue("targetId",targetId,Types.BIGINT)
             .addValue("read",grant.canRead()).addValue("task",grant.canCreateTask()).addValue("project",grant.canCreateProject());
         var result=sql.queryForMap(ADMIN+"""
@@ -139,6 +140,8 @@ public class SharedWorkAccessService {
             """,args);
         if(!Boolean.TRUE.equals(result.get("authorized")))throw administratorDenied();
         if(!Boolean.TRUE.equals(result.get("changed")))throw missing();
+        var after=jdbc.queryForList("SELECT can_read,can_create_task,can_create_project FROM shared_work_grants WHERE user_id=?",targetId);
+        if(!before.equals(after))audit("GRANT",targetId,"GRANT_SET",authentication,targetId,before,after);
     }
 
     public void require(Kind kind,long id,Access access,Authentication authentication) {
@@ -158,11 +161,14 @@ public class SharedWorkAccessService {
                 INSERT INTO %s(%s,user_id,access_role) SELECT id,shared_owner_user_id,'OWNER' FROM owned
                 ON CONFLICT(%s,user_id) DO NOTHING RETURNING user_id
             )
-            SELECT EXISTS(SELECT 1 FROM changed) OR EXISTS(
+            SELECT (EXISTS(SELECT 1 FROM changed) OR EXISTS(
                 SELECT 1 FROM owned JOIN %s member ON member.%s=owned.id
-                WHERE member.user_id=owned.shared_owner_user_id AND member.access_role='OWNER')
+                WHERE member.user_id=owned.shared_owner_user_id AND member.access_role='OWNER')) authorized,EXISTS(SELECT 1 FROM changed) inserted
             """;
-        if(!Boolean.TRUE.equals(sql.queryForObject(query.formatted(kind.roots,kind.create,kind.members,kind.key,kind.key,kind.members,kind.key),args,Boolean.class)))throw missing();
+        var result=sql.queryForMap(query.formatted(kind.roots,kind.create,kind.members,kind.key,kind.key,kind.members,kind.key),args);
+        if(!Boolean.TRUE.equals(result.get("authorized")))throw missing();
+        if(Boolean.TRUE.equals(result.get("inserted")))
+            audit(kind.name(),id,"CREATED",authentication,GeneralTicketActor.from(authentication).userId(),java.util.Map.of(),java.util.Map.of("ownerUserId",Long.toString(GeneralTicketActor.from(authentication).userId())));
     }
 
     public List<String> visibleIds(Kind kind,Authentication authentication) {
@@ -211,6 +217,13 @@ public class SharedWorkAccessService {
         try{require(kind,id,Access.READ,authentication);return true;}
         catch(ResponseStatusException denied){if(denied.getStatusCode().value()==404)return false;throw denied;}
     }
+    /** Only trusted SQL column names and numeric database IDs; used before search/count/LIMIT in legacy projections. */
+    public String taskPredicate(String column) {
+        if(!column.matches("[A-Za-z_][A-Za-z0-9_.]*"))throw new IllegalArgumentException("Invalid task column");
+        if(GeneralTicketActor.from(current())==null)return "FALSE";
+        var ids=visibleIds(Kind.TASK,current());
+        return ids.isEmpty()?"FALSE":column+" IN ("+String.join(",",ids)+")";
+    }
     public List<Long> visibleLongIds(Kind kind) {
         return visibleIds(kind,current()).stream().map(Long::valueOf).toList();
     }
@@ -230,20 +243,27 @@ public class SharedWorkAccessService {
         if(targetId==owner)throw new ResponseStatusException(HttpStatus.CONFLICT,"Владелец не изменяется через состав участников");
         requireEligibleTarget(targetId);
         var args=new MapSqlParameterSource("id",id).addValue("targetId",targetId).addValue("role",role.name());
+        var previous=jdbc.queryForList("SELECT access_role FROM "+kind.members+" WHERE "+kind.key+"=? AND user_id=?",id,targetId);
         int changed=sql.update("INSERT INTO "+kind.members+"("+kind.key+",user_id,access_role) VALUES(:id,:targetId,:role) ON CONFLICT("+kind.key+",user_id) DO UPDATE SET access_role=EXCLUDED.access_role,updated_at=CURRENT_TIMESTAMP",args);
         if(changed!=1)throw missing();
+        if(previous.isEmpty()||!role.name().equals(previous.get(0).get("access_role")))audit(kind.name(),id,"MEMBER_SET",authentication,targetId,previous,java.util.Map.of("role",role.name()));
     }
 
     public void removeMember(Kind kind,long id,long targetId,Authentication authentication) {
         positive(targetId);long owner=lock(kind,id,Access.OWNER,authentication);
         if(targetId==owner)throw new ResponseStatusException(HttpStatus.CONFLICT,"Нельзя удалить владельца");
-        sql.update("DELETE FROM "+kind.members+" WHERE "+kind.key+"=:id AND user_id=:targetId",
+        var previous=jdbc.queryForList("SELECT access_role FROM "+kind.members+" WHERE "+kind.key+"=? AND user_id=?",id,targetId);
+        int changed=sql.update("DELETE FROM "+kind.members+" WHERE "+kind.key+"=:id AND user_id=:targetId",
             new MapSqlParameterSource("id",id).addValue("targetId",targetId));
+        if(changed!=0)audit(kind.name(),id,"MEMBER_REMOVED",authentication,targetId,previous,java.util.Map.of());
     }
 
     private long lock(Kind kind,long id,Access access,Authentication authentication) {
+        return lockStored(kind,id,access,actorArgs(authentication));
+    }
+    private long lockStored(Kind kind,long id,Access access,MapSqlParameterSource args) {
         if(access!=Access.READ)mutationGate();
-        positive(id);var args=actorArgs(authentication).addValue("id",id);
+        positive(id);args.addValue("id",id);
         String roles=switch(access){case READ->"'OWNER','EDITOR','VIEWER'";case WRITE->"'OWNER','EDITOR'";case OWNER->"'OWNER'";};
         String rootLock=access==Access.READ?"":" FOR UPDATE OF root";
         var owners=sql.query(READER+"""
@@ -264,11 +284,73 @@ public class SharedWorkAccessService {
     }
 
     public void transferOwner(Kind kind,long id,long targetId,Authentication authentication) {
-        positive(targetId);lock(kind,id,Access.OWNER,authentication);requireEligibleTarget(targetId);
+        positive(targetId);long previous=lock(kind,id,Access.OWNER,authentication);requireEligibleTarget(targetId);
         var args=new MapSqlParameterSource("id",id).addValue("target",targetId);
         sql.update("UPDATE "+kind.members+" SET access_role='EDITOR',updated_at=CURRENT_TIMESTAMP WHERE "+kind.key+"=:id AND access_role='OWNER'",args);
         sql.update("INSERT INTO "+kind.members+"("+kind.key+",user_id,access_role) VALUES(:id,:target,'OWNER') ON CONFLICT("+kind.key+",user_id) DO UPDATE SET access_role='OWNER',updated_at=CURRENT_TIMESTAMP",args);
         sql.update("UPDATE "+kind.roots+" SET shared_owner_user_id=:target WHERE id=:id",args);
+        if(previous!=targetId)audit(kind.name(),id,"OWNER_TRANSFERRED",authentication,targetId,
+            java.util.Map.of("ownerUserId",Long.toString(previous)),java.util.Map.of("ownerUserId",Long.toString(targetId)));
+    }
+    public Person eligibleReader(String username) {
+        if(username==null)return null;
+        var people=jdbc.query("SELECT account.id,account.username FROM users account WHERE account.username=? AND "+ACCOUNT,
+            (rs,row)->new Person(rs.getString(1),rs.getString(2)),username);
+        if(people.size()!=1)return null;
+        try{requireEligibleTarget(Long.parseLong(people.get(0).userId()));return people.get(0);}
+        catch(ResponseStatusException denied){if(denied.getStatusCode().value()==404)return null;throw denied;}
+    }
+    @Transactional(propagation=Propagation.MANDATORY)
+    public void requireStored(Kind kind,long id,Access access,long userId,String username) {
+        var actor=GeneralTicketActor.stored(userId,username);
+        lockStored(kind,id,access,storedArgs(actor,PanelRolePermissionSnapshot.capture(jdbc,userId,username)));
+    }
+    @Transactional(propagation=Propagation.REQUIRES_NEW)
+    public boolean deliverIfReadable(Kind kind,long id,long userId,String username,Runnable delivery) {
+        try{requireStored(kind,id,Access.READ,userId,username);}
+        catch(ResponseStatusException denied){if(denied.getStatusCode().value()==404)return false;throw denied;}
+        delivery.run();return true;
+    }
+    @Transactional(propagation=Propagation.MANDATORY)
+    public void registerSystemCreated(long id,long ownerId,String ownerName) {
+        mutationGate();requireEligibleTarget(ownerId);
+        var owners=jdbc.query("SELECT id FROM tasks WHERE id=? AND shared_owner_user_id=? FOR UPDATE",(rs,row)->rs.getLong(1),id,ownerId);
+        if(owners.size()!=1)throw missing();
+        int inserted=jdbc.update("INSERT INTO shared_task_members(task_id,user_id,access_role) VALUES(?,?,'OWNER') ON CONFLICT DO NOTHING",id,ownerId);
+        if(inserted==1)audit("TASK",id,"SYSTEM_CREATED",null,"auto_close",ownerId,java.util.Map.of(),java.util.Map.of("ownerUserId",Long.toString(ownerId)));
+    }
+
+    @Transactional(propagation=Propagation.MANDATORY)
+    public void registerSystemParticipant(long taskId,long userId) {
+        mutationGate();requireEligibleTarget(userId);
+        jdbc.update("INSERT INTO shared_task_members(task_id,user_id,access_role) VALUES(?,?,'EDITOR') ON CONFLICT DO NOTHING",taskId,userId);
+        audit("TASK",taskId,"MEMBER_SET",null,"auto_close",userId,java.util.Map.of(),java.util.Map.of("role","EDITOR"));
+    }
+
+    public record AuditEvent(String id,String kind,String objectId,String action,String actorUserId,String actorName,
+                             String targetUserId,String beforeState,String afterState,String occurredAt) {}
+    public List<AuditEvent> history(Kind kind,Long id,long before,Authentication authentication) {
+        if(before<=0)throw badRequest();
+        if(kind==null){if(!isSystemAdministrator(authentication))throw administratorDenied();}
+        else lock(kind,id,Access.OWNER,authentication);
+        return jdbc.query("SELECT * FROM shared_work_access_audit WHERE id<?"+
+            (kind==null?"":" AND kind=? AND object_id=?")+" ORDER BY id DESC LIMIT 50",
+            (rs,row)->new AuditEvent(rs.getString("id"),rs.getString("kind"),rs.getString("object_id"),rs.getString("action"),
+                rs.getString("actor_user_id"),rs.getString("actor_name"),rs.getString("target_user_id"),
+                rs.getString("before_state"),rs.getString("after_state"),rs.getString("occurred_at")),
+            kind==null?new Object[]{before}:new Object[]{before,kind.name(),id});
+    }
+    private void audit(String kind,long id,String action,Authentication authentication,Long target,
+                       Object before,Object after) {
+        var actor=GeneralTicketActor.from(authentication);
+        audit(kind,id,action,actor.userId(),actor.username(),target,before,after);
+    }
+    private void audit(String kind,long id,String action,Long actorId,String actorName,Long target,Object before,Object after) {
+        try{
+            var mapper=new com.fasterxml.jackson.databind.ObjectMapper();
+            jdbc.update("INSERT INTO shared_work_access_audit(kind,object_id,action,actor_user_id,actor_name,target_user_id,before_state,after_state) VALUES(?,?,?,?,?,?,?::jsonb,?::jsonb)",
+                kind,id,action,actorId,actorName,target,mapper.writeValueAsString(before),mapper.writeValueAsString(after));
+        }catch(com.fasterxml.jackson.core.JsonProcessingException failure){throw new IllegalStateException("Cannot serialize shared-work audit",failure);}
     }
     private void requireEligibleTarget(long id) {
         var names=jdbc.query("SELECT account.username FROM users account WHERE account.id=? AND "+ACCOUNT+" FOR SHARE OF account",(rs,row)->rs.getString(1),id);

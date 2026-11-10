@@ -20,6 +20,8 @@ import org.springframework.util.StringUtils;
 @Service
 public class ManagerReportService {
 
+    @org.springframework.beans.factory.annotation.Autowired private SharedWorkAccessService sharedAccess;
+    @org.springframework.beans.factory.annotation.Autowired private org.springframework.jdbc.core.JdbcTemplate jdbc;
     private static final Logger log = LoggerFactory.getLogger(ManagerReportService.class);
 
     private final SharedConfigService sharedConfigService;
@@ -73,6 +75,7 @@ public class ManagerReportService {
         );
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public Map<String, Object> buildOlapPreview(List<DialogListItem> dialogs,
                                                  DashboardAnalyticsService.DashboardFilters filters,
                                                  OlapPreviewRequest request) {
@@ -92,8 +95,11 @@ public class ManagerReportService {
             ? filters.endDate().plusDays(1).atStartOfDay().minusSeconds(1).atOffset(OffsetDateTime.now().getOffset())
             : OffsetDateTime.now().plusYears(20);
 
-        long tasks = request.includeTasks() ? taskRepository.countByCreatedAtBetween(from, to) : 0;
-        long systemChanges = request.includeSystemChanges() ? taskHistoryRepository.countByAtBetween(from, to) : 0;
+        String scope=sharedAccess==null?"FALSE":sharedAccess.taskPredicate("t.id");
+        long tasks = request.includeTasks() && jdbc!=null
+            ? jdbc.queryForObject("SELECT count(*) FROM tasks t WHERE t.created_at BETWEEN ? AND ? AND "+scope,Long.class,from,to) : 0;
+        long systemChanges = request.includeSystemChanges() && jdbc!=null
+            ? jdbc.queryForObject("SELECT count(*) FROM task_history h JOIN tasks t ON t.id=h.task_id WHERE h.at BETWEEN ? AND ? AND "+scope,Long.class,from,to) : 0;
 
         List<Map<String, Object>> rows = new ArrayList<>();
         grouped.forEach((key, value) -> rows.add(Map.of(

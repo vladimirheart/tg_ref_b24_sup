@@ -29,6 +29,8 @@ import org.springframework.util.StringUtils;
 @Service
 public class PanelTaskService {
 
+    @org.springframework.beans.factory.annotation.Autowired private SharedWorkAccessService sharedAccess;
+    @org.springframework.beans.factory.annotation.Autowired private UiEventTicketAccessService ticketAccess;
     private static final int SEQUENCE_ROW_ID = 1;
     private static final String DEFAULT_STATUS = "Новая";
 
@@ -59,36 +61,39 @@ public class PanelTaskService {
         this.taskDomainFoundationService = taskDomainFoundationService;
     }
 
-    @Transactional
-    public Task createTask(TaskPayload payload) {
-        return createTask(payload, true);
-    }
+    /** Unowned legacy entry points are closed; callers must provide a current canonical source scope. */
+    public Task createTask(TaskPayload payload) { throw new IllegalStateException("A current ticket scope is required"); }
+    public Task createTask(TaskPayload payload,boolean notifyParticipants) { return createTask(payload); }
 
     @Transactional
-    public Task createTask(TaskPayload payload, boolean notifyParticipants) {
-        OffsetDateTime now = OffsetDateTime.now();
-
-        Task task = new Task();
-        task.setSeq(nextSequenceValue());
-        applyPayload(task, payload, now);
-        taskRepository.save(task);
-        taskDomainFoundationService.recordSaved(
-            task,
-            null,
-            true,
-            payload.creator(),
-            payload.tag(),
-            serializeProjectIds(payload.projectIds())
-        );
-
-        savePeople(task, "co", payload.coExecutors());
-        savePeople(task, "watcher", payload.watchers());
-        appendHistory(task, "Задача создана");
-        linkTickets(task, payload.ticketIds());
-        if (notifyParticipants) {
-            notifyParticipants(task, payload.coExecutors(), payload.watchers(),
-                "Новая задача «" + displayTitle(task) + "»", "/tasks", now);
+    public Task createFollowUpTask(TaskPayload payload,UiEventTicketScope scope) {
+        if(sharedAccess==null||ticketAccess==null)throw new IllegalStateException("Shared-work services are required");
+        sharedAccess.beginMutation();
+        if(scope==null||!scope.isValid()||payload==null||payload.ticketIds()==null||payload.ticketIds().size()!=1
+            ||!scope.ticketId().equals(payload.ticketIds().get(0))||!"dialog_auto_close".equals(payload.source()))
+            throw new IllegalArgumentException("Invalid follow-up source");
+        var owner=sharedAccess.eligibleReader(payload.assignee());
+        if(owner==null)throw new IllegalArgumentException("Follow-up owner has no current shared-work access");
+        long ownerId=Long.parseLong(owner.userId());
+        if(!ticketAccess.canReadTicketForRecipient(new UiEventRecipient(ownerId,owner.username()),scope))
+            throw new IllegalArgumentException("Follow-up owner cannot read the source ticket");
+        OffsetDateTime now=OffsetDateTime.now();
+        Task task=new Task();task.setSeq(sharedAccess.nextTaskSequence());applyPayload(task,payload,now);
+        task.setCreator("auto_close");task.setAssignee(owner.username());task.setSharedOwnerUserId(ownerId);
+        taskRepository.saveAndFlush(task);sharedAccess.registerSystemCreated(task.getId(),ownerId,owner.username());
+        taskDomainFoundationService.recordSystemCreated(task,"auto_close",payload.tag(),payload.projectIds(),ownerId,owner.username());
+        var accepted=new ArrayList<String>();
+        for(String candidate:sanitizeValues(payload.coExecutors())) {
+            var person=sharedAccess.eligibleReader(candidate);
+            if(person==null)continue;
+            long userId=Long.parseLong(person.userId());
+            if(userId==ownerId||!ticketAccess.canReadTicketForRecipient(new UiEventRecipient(userId,person.username()),scope))continue;
+            sharedAccess.registerSystemParticipant(task.getId(),userId);accepted.add(person.username());
         }
+        savePeople(task,"co",accepted);appendHistory(task,"Задача создана автоматически");
+        TaskLink link=new TaskLink();TaskLinkId key=new TaskLinkId();
+        key.setTaskId(task.getId());key.setUserId(scope.ticketUserId());key.setTicketId(scope.ticketId());
+        link.setId(key);link.setTask(task);taskLinkRepository.save(link);
         return task;
     }
 
@@ -97,8 +102,8 @@ public class PanelTaskService {
         task.setTitle(clean(payload.title()));
         task.setBodyHtml(clean(payload.bodyHtml()));
 
-        String creator = clean(payload.creator());
-        String assignee = clean(payload.assignee());
+        String creator = payload.creator();
+        String assignee = payload.assignee();
         if (!StringUtils.hasText(assignee)) {
             assignee = creator;
         }
@@ -219,7 +224,7 @@ public class PanelTaskService {
         }
         Set<String> sanitized = new LinkedHashSet<>();
         for (String value : people) {
-            String normalized = clean(value);
+            String normalized = StringUtils.hasText(value)?value:null;
             if (normalized != null) {
                 sanitized.add(normalized);
             }

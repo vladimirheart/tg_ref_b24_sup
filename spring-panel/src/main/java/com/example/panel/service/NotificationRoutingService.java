@@ -113,6 +113,14 @@ public class NotificationRoutingService {
         notificationService.notifyUsersExcluding(recipients, excludedIdentity, text, url);
     }
 
+    @org.springframework.transaction.annotation.Transactional
+    public void notifyTask(String event,long taskId,Set<String> baseRecipients,String text,String url,String excludedIdentity) {
+        if(!StringUtils.hasText(text))return;
+        NotificationRouteConfig route=loadRoute("tasks",event);
+        if(!route.enabled())return;
+        notificationService.notifySharedWork(SharedWorkAccessService.Kind.TASK,taskId,resolveRecipients(route,baseRecipients),excludedIdentity,text,url);
+    }
+
     public Set<String> findDepartmentRecipients(String department) {
         if (!StringUtils.hasText(department)) {
             return Set.of();

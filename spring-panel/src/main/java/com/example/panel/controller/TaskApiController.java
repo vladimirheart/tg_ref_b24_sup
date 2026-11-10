@@ -186,7 +186,7 @@ public class TaskApiController {
         String text = isNew
                 ? "Новая задача " + displayNo + ": " + safeTitle
                 : "Обновлена задача " + displayNo + ": " + safeTitle;
-        notificationRoutingService.notify("tasks", "task_saved", recipients, text, "/tasks#task=" + saved.getId(), actor);
+        notificationRoutingService.notifyTask("task_saved", saved.getId(), recipients, text, "/tasks#task=" + saved.getId(), actor);
         log.info("Task {} saved (id={}, creator={}, assignee={}, status={})",
                 saved.getSeq(), saved.getId(), saved.getCreator(), saved.getAssignee(), saved.getStatus());
         return Map.of("ok", true, "id", saved.getId());
@@ -263,9 +263,9 @@ public class TaskApiController {
         Set<String> recipients = sharedAccess.readableRecipients(com.example.panel.service.SharedWorkAccessService.Kind.TASK,task.getId(),resolveTaskRecipients(task, null, null));
         String displayNo = task.getSeq() != null ? "DL_" + task.getSeq() : "DL_" + task.getId();
         String safeAuthor = StringUtils.hasText(saved.getAuthor()) ? saved.getAuthor().trim() : "оператор";
-        notificationRoutingService.notify(
-                "tasks",
+        notificationRoutingService.notifyTask(
                 "task_comment_added",
+                task.getId(),
                 recipients,
                 "Новый комментарий в задаче " + displayNo + " от " + safeAuthor,
                 "/tasks#task=" + task.getId(),
@@ -333,7 +333,7 @@ public class TaskApiController {
         dto.put("tags", taskDomainFoundationService.listTags(task.getId()));
         dto.put("projects", taskDomainFoundationService.listProjects(task.getId()));
         dto.put("events", taskDomainFoundationService.listEvents(task.getId()));
-        dto.put("incidents", incidentService.listIncidentSummariesForTask(task.getId()));
+        dto.put("incidents", sharedAccess.isSystemAdministrator(com.example.panel.service.SharedWorkAccessService.current()) ? incidentService.listIncidentSummariesForTask(task.getId()) : List.of());
         return dto;
     }
 

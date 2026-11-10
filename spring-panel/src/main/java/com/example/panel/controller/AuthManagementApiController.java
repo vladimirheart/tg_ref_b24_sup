@@ -181,7 +181,7 @@ public class AuthManagementApiController {
             fields.put("enabled", true);
         }
         if (userColumns.contains("registration_date")) {
-            fields.put("registration_date", OffsetDateTime.now().toString());
+            fields.put("registration_date", OffsetDateTime.now());
         }
 
         addOptionalUserField(fields, payload, userColumns, "full_name");

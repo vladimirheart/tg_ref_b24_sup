@@ -47,19 +47,20 @@ class SharedWorkMainHttpPostgresTest {
         jdbc=PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType("shared_main_http");
         String schema=jdbc.queryForObject("SELECT current_schema()",String.class);
         Flyway.configure().dataSource(jdbc.getDataSource()).schemas(schema).defaultSchema(schema)
-            .locations("classpath:db/migration/postgresql").target("88").load().migrate();
+            .locations("classpath:db/migration/postgresql").target("89").load().migrate();
         context=new AnnotationConfigWebApplicationContext();context.setServletContext(new org.springframework.mock.web.MockServletContext());
         context.register(Config.class);context.refresh();
         mvc=MockMvcBuilders.webAppContextSetup(context)
             .apply(org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity()).build();
     }
+    @AfterEach void clearIdentity(){org.springframework.security.core.context.SecurityContextHolder.clearContext();}
     @AfterAll static void stop(){if(context!=null)context.close();}
     @BeforeEach void data(){
-        jdbc.execute("TRUNCATE users,tasks,projects,task_seq RESTART IDENTITY CASCADE;INSERT INTO task_seq VALUES(1,0)");
+        jdbc.execute("TRUNCATE users,tasks,projects,task_seq,shared_work_access_audit RESTART IDENTITY CASCADE;INSERT INTO task_seq VALUES(1,0)");
         jdbc.update("INSERT INTO users(id,username,password,role_id) OVERRIDING SYSTEM VALUE VALUES(?,?,'unused',NULL),(11,'owner','unused',NULL),(12,'viewer','unused',NULL)",ADMIN,ADMIN_NAME);
         jdbc.update("INSERT INTO user_authorities VALUES(?,'ROLE_ADMIN'),(11,'PAGE_TASKS'),(12,'PAGE_TASKS')",ADMIN);
         jdbc.execute("INSERT INTO shared_work_grants(user_id,can_read) VALUES(11,TRUE),(12,TRUE)");
-        reset(context.getBean(NotificationRoutingService.class));
+        reset(context.getBean(NotificationRoutingService.class),context.getBean(UiEventTicketAccessService.class),context.getBean(UiEventFanoutPublisher.class));
     }
     static Authentication actor(long id) {
         String name=id==ADMIN?ADMIN_NAME:id==USER?"owner":"viewer";
@@ -288,7 +289,7 @@ class SharedWorkMainHttpPostgresTest {
     }
     @Test void notificationsUseExactCurrentlyReadableRecipients()throws Exception{
         long task=task(ADMIN,"Private notification");
-        verify(context.getBean(NotificationRoutingService.class)).notify(eq("tasks"),eq("task_saved"),eq(Set.of(ADMIN_NAME)),anyString(),anyString(),eq(ADMIN_NAME));
+        verify(context.getBean(NotificationRoutingService.class)).notifyTask(eq("task_saved"),eq(task),eq(Set.of(ADMIN_NAME)),anyString(),anyString(),eq(ADMIN_NAME));
         assertThat(jdbc.queryForObject("SELECT actor FROM task_events WHERE task_id=? AND event_type='TASK_CREATED'",String.class,task)).isEqualTo(ADMIN_NAME);
     }
     @Test void csrfStillProtectsAnUnrestrictedAdministrator()throws Exception{
@@ -296,6 +297,138 @@ class SharedWorkMainHttpPostgresTest {
             .with(authentication(actor(ADMIN)))).andExpect(status().isForbidden());
         assertThat(jdbc.queryForObject("SELECT count(*) FROM projects",Integer.class)).isZero();
     }
+    static <T> T as(long who,java.util.function.Supplier<T> action) {
+        var security=org.springframework.security.core.context.SecurityContextHolder.getContext();
+        var previous=security.getAuthentication();security.setAuthentication(actor(who));
+        try{return action.get();}finally{security.setAuthentication(previous);}
+    }
+    @Test void auditRoundTripIsImmutableIdempotentAndOwnerOnly()throws Exception {
+        creationGrant(USER);long object=task(USER,"audited");
+        member("TASK",object,VIEWER,"EDITOR");member("TASK",object,VIEWER,"EDITOR");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM shared_work_access_audit WHERE kind='TASK' AND object_id=? AND action='MEMBER_SET'",Integer.class,object)).isEqualTo(1);
+        mvc.perform(get("/api/shared-work/TASK/"+object+"/history").with(authentication(actor(USER))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$[0].action").value("MEMBER_SET"))
+            .andExpect(jsonPath("$[0].actorUserId").value(Long.toString(ADMIN)));
+        mvc.perform(get("/api/shared-work/TASK/"+object+"/history").with(authentication(actor(VIEWER)))).andExpect(status().isNotFound());
+        mvc.perform(get("/api/shared-work-admin/history").with(authentication(actor(ADMIN))))
+            .andExpect(status().isOk()).andExpect(header().string("Cache-Control","no-store"));
+        mvc.perform(get("/api/shared-work-admin/history").with(authentication(actor(USER)))).andExpect(status().isForbidden());
+        assertThatThrownBy(()->jdbc.update("UPDATE shared_work_access_audit SET actor_name='forged'")).hasMessageContaining("append-only");
+        assertThatThrownBy(()->jdbc.update("DELETE FROM shared_work_access_audit")).hasMessageContaining("append-only");
+    }
+    @Test void typedNotificationsFilterBeforePagingCountsAndReadAfterRevoke()throws Exception {
+        long object=task(ADMIN,"secret");member("TASK",object,USER,"VIEWER");
+        var notifications=context.getBean(NotificationService.class);
+        notifications.notifySharedWork(SharedWorkAccessService.Kind.TASK,object,Set.of("owner","viewer"),null,"private title","/tasks#task="+object);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM notifications",Integer.class)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT shared_recipient_user_id FROM notifications",Long.class)).isEqualTo(USER);
+        as(USER,()->{assertThat(notifications.summary("owner").unreadCount()).isEqualTo(1);assertThat(notifications.findPageForUser("owner",null,1).items()).hasSize(1);return null;});
+        mvc.perform(delete("/api/shared-work/TASK/"+object+"/members/"+USER).with(authentication(actor(ADMIN))).with(csrf())).andExpect(status().isNoContent());
+        as(USER,()->{
+            assertThat(notifications.findForUser("owner")).isEmpty();assertThat(notifications.findPageForUser("owner",null,1).items()).isEmpty();
+            assertThat(notifications.summary("owner").unreadCount()).isZero();notifications.markAllAsRead("owner");return null;
+        });
+        assertThat(jdbc.queryForObject("SELECT is_read FROM notifications",Boolean.class)).isFalse();
+    }
+    @Test void routeExpansionNeverAddsAnUnreadableRecipient()throws Exception {
+        long object=task(ADMIN,"route");member("TASK",object,USER,"VIEWER");
+        var config=mock(SharedConfigService.class);
+        when(config.loadSettings()).thenReturn(Map.of("notification_routing",Map.of("tasks",Map.of("task_saved",Map.of(
+            "enabled",true,"audienceStrategy","base_plus_route","targetMode","employees_only","employeeUsernames",List.of("viewer"),"deliveryMode","all")))));
+        var routing=new NotificationRoutingService(config,context.getBean(NotificationService.class),jdbc,jdbc);
+        routing.notifyTask("task_saved",object,Set.of("owner"),"private title","/tasks#task="+object,null);
+        assertThat(jdbc.queryForList("SELECT user_identity FROM notifications",String.class)).containsExactly("owner");
+    }
+    @Test void untypedTaskNoticeAndDifferentNumericAccountStayHidden()throws Exception {
+        long object=task(ADMIN,"same name");member("TASK",object,USER,"VIEWER");
+        var notifications=context.getBean(NotificationService.class);
+        notifications.notifySharedWork(SharedWorkAccessService.Kind.TASK,object,Set.of("owner"),null,"private","/tasks#task="+object);
+        jdbc.update("INSERT INTO notifications(user_identity,text,url,is_read,created_at) VALUES('owner','legacy private','/tasks',FALSE,CURRENT_TIMESTAMP)");
+        as(USER,()->{assertThat(notifications.findForUser("owner")).hasSize(1);return null;});
+        jdbc.update("DELETE FROM users WHERE id=?",USER);
+        jdbc.update("INSERT INTO users(id,username,password) OVERRIDING SYSTEM VALUE VALUES(13,'owner','unused')");
+        var stale=actor(USER);
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(stale);
+        assertThat(notifications.findForUser("owner")).isEmpty();
+        assertThatThrownBy(()->jdbc.update("INSERT INTO notifications(user_identity,text,shared_work_kind) VALUES('owner','invalid','TASK')"))
+            .hasMessageContaining("notification_shared_work_scope");
+    }
+    static class RecordingEmitter extends org.springframework.web.servlet.mvc.method.annotation.SseEmitter {
+        final List<Object> data=new ArrayList<>();
+        @Override public void send(SseEventBuilder event) {
+            for(var part:event.build())if(part.getData() instanceof Map<?,?>)data.add(part.getData());
+        }
+    }
+    @SuppressWarnings("unchecked")
+    @Test void delayedSharedRealtimeRechecksReadAndNeverSendsPrivateFields()throws Exception {
+        long object=task(ADMIN,"late");member("TASK",object,USER,"VIEWER");
+        var stream=context.getBean(UiEventStreamService.class);var emitter=new RecordingEmitter();
+        var registry=(ConcurrentMap<UiEventRecipient,java.util.concurrent.CopyOnWriteArraySet<org.springframework.web.servlet.mvc.method.annotation.SseEmitter>>)
+            org.springframework.test.util.ReflectionTestUtils.getField(stream,"emittersByUser");
+        registry.clear();registry.put(new UiEventRecipient(USER,"owner"),new java.util.concurrent.CopyOnWriteArraySet<>(List.of(emitter)));
+        stream.publishSharedWorkNotificationsChanged("owner",SharedWorkAccessService.Kind.TASK,object,USER);
+        assertThat(emitter.data).hasSize(1);
+        assertThat(((Map<?,?>)emitter.data.get(0)).containsKey("reason")).isTrue();
+        assertThat(((Map<?,?>)emitter.data.get(0)).keySet().size()).isEqualTo(2);
+        mvc.perform(delete("/api/shared-work/TASK/"+object+"/members/"+USER).with(authentication(actor(ADMIN))).with(csrf())).andExpect(status().isNoContent());
+        stream.publishSharedWorkNotificationsChanged("owner",SharedWorkAccessService.Kind.TASK,object,USER);
+        assertThat(emitter.data).hasSize(1);registry.clear();
+    }
+    @Test void backgroundTaskHasNumericOwnerScopeAndProjectWithoutSession()throws Exception {
+        long project=project(ADMIN,"background");member("PROJECT",project,USER,"EDITOR");
+        var scope=new UiEventTicketScope(901L," source/Ю ","a".repeat(32),"BUSINESS",7L);
+        jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,is_general) VALUES(?,?,?,FALSE)",scope.ticketUserId(),scope.ticketId(),scope.ticketPublicId());
+        when(context.getBean(UiEventTicketAccessService.class).canReadTicketForRecipient(any(),eq(scope))).thenReturn(true);
+        var payload=new PanelTaskService.TaskPayload("follow up",null,"forged creator","owner",null,null,null,"dialog_auto_close",
+            List.of(),List.of(),List.of(scope.ticketId()),List.of(project));
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        var task=context.getBean(PanelTaskService.class).createFollowUpTask(payload,scope);
+        assertThat(task.getSharedOwnerUserId()).isEqualTo(USER);assertThat(task.getCreator()).isEqualTo("auto_close");
+        assertThat(jdbc.queryForObject("SELECT access_role FROM shared_task_members WHERE task_id=? AND user_id=?",String.class,task.getId(),USER)).isEqualTo("OWNER");
+        assertThat(jdbc.queryForObject("SELECT ticket_id FROM task_links WHERE task_id=?",String.class,task.getId())).isEqualTo(scope.ticketId());
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM task_project_memberships WHERE task_id=? AND project_id=?",Integer.class,task.getId(),project)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT actor_user_id FROM shared_work_access_audit WHERE kind='TASK' AND object_id=? AND action='SYSTEM_CREATED'",Long.class,task.getId())).isNull();
+    }
+    @Test void backgroundDenialRollsBackRootSequenceAndAudit()throws Exception {
+        long project=project(ADMIN,"private project");
+        var scope=new UiEventTicketScope(901L,"source","a".repeat(32),"BUSINESS",7L);
+        when(context.getBean(UiEventTicketAccessService.class).canReadTicketForRecipient(any(),eq(scope))).thenReturn(true);
+        var payload=new PanelTaskService.TaskPayload("follow up",null,"forged","owner",null,null,null,"dialog_auto_close",
+            List.of(),List.of(),List.of("source"),List.of(project));
+        assertThatThrownBy(()->context.getBean(PanelTaskService.class).createFollowUpTask(payload,scope)).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM tasks",Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT val FROM task_seq WHERE id=1",Long.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM shared_work_access_audit WHERE kind='TASK'",Integer.class)).isZero();
+    }
+
+    @Test void taskSearchAndOlapCountsUseSameCurrentSharedRead()throws Exception {
+        long shown=task(ADMIN,"visible"),hidden=task(ADMIN,"hidden");member("TASK",shown,USER,"VIEWER");
+        var catalog=context.getBean(IncidentRelatedObjectService.class);
+        as(USER,()->{
+            var rows=(List<?>)catalog.search("task","",30).get("items");assertThat(rows).hasSize(1);
+            assertThat(catalog.selectionLabel("task",Long.toString(shown))).contains("visible");
+            assertThatThrownBy(()->catalog.selectionLabel("task",Long.toString(hidden))).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+            var filters=new DashboardAnalyticsService.DashboardFilters(null,null,List.of());
+            var result=context.getBean(ManagerReportService.class).buildOlapPreview(List.of(),filters,new ManagerReportService.OlapPreviewRequest("location",false,true,true));
+            assertThat(((Map<?,?>)result.get("totals")).get("tasks")).isEqualTo(1L);
+            return null;
+        });
+        as(ADMIN,()->{assertThat((List<?>)catalog.search("task","",30).get("items")).hasSize(2);return null;});
+    }
+    @Test void linkedDialogHistoryCannotExposeUnreadableTaskHistory()throws Exception {
+        long shown=task(ADMIN,"visible"),hidden=task(ADMIN,"hidden");member("TASK",shown,USER,"VIEWER");
+        jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,is_general) VALUES(901,'context-source',?,FALSE)","b".repeat(32));
+        jdbc.update("INSERT INTO task_links(task_id,user_id,ticket_id) VALUES(?,901,'context-source'),(?,901,'context-source')",shown,hidden);
+        jdbc.update("DELETE FROM task_history");
+        jdbc.update("INSERT INTO task_history(task_id,at,text) VALUES(?,CURRENT_TIMESTAMP,'visible workflow'),(?,CURRENT_TIMESTAMP,'hidden workflow')",shown,hidden);
+        var service=context.getBean(DialogClientContextReadService.class);
+        as(USER,()->{
+            var rows=service.loadRelatedEvents("context-source",30);
+            assertThat(rows).hasSize(1);assertThat(rows.toString()).contains("visible workflow").doesNotContain("hidden workflow");return null;
+        });
+        as(ADMIN,()->{assertThat(service.loadRelatedEvents("context-source",30)).hasSize(2);return null;});
+    }
+
     @Configuration(proxyBeanMethods=false) @EnableWebSecurity @EnableMethodSecurity @EnableWebMvc @EnableTransactionManagement
     static class Config {
         @Bean JdbcTemplate jdbcTemplate(){return jdbc;}
@@ -303,7 +436,7 @@ class SharedWorkMainHttpPostgresTest {
             var bean=new LocalContainerEntityManagerFactoryBean();bean.setDataSource(jdbc.getDataSource());
             bean.setManagedTypes(org.springframework.orm.jpa.persistenceunit.PersistenceManagedTypes.of(
                 Task.class.getName(),TaskSequence.class.getName(),TaskComment.class.getName(),TaskHistory.class.getName(),
-                TaskPerson.class.getName(),Project.class.getName(),TaskProjectMembership.class.getName(),com.example.panel.entity.Tag.class.getName(),
+                Notification.class.getName(),TaskPerson.class.getName(),Project.class.getName(),TaskProjectMembership.class.getName(),com.example.panel.entity.Tag.class.getName(),
                 TaskTag.class.getName(),TaskEvent.class.getName(),ProjectBoard.class.getName(),BoardColumn.class.getName(),BoardTaskPlacement.class.getName()));
             bean.setJpaVendorAdapter(new HibernateJpaVendorAdapter());
             bean.setJpaPropertyMap(Map.of("hibernate.hbm2ddl.auto","validate","hibernate.dialect","org.hibernate.dialect.PostgreSQLDialect","hibernate.physical_naming_strategy","org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy"));
@@ -326,10 +459,35 @@ class SharedWorkMainHttpPostgresTest {
         @Bean ProjectBoardRepository boards(EntityManagerFactory f){return repo(f,ProjectBoardRepository.class);}
         @Bean BoardColumnRepository columns(EntityManagerFactory f){return repo(f,BoardColumnRepository.class);}
         @Bean BoardTaskPlacementRepository placements(EntityManagerFactory f){return repo(f,BoardTaskPlacementRepository.class);}
+        @Bean IncidentRelatedObjectService relatedObjects(){return new IncidentRelatedObjectService(jdbc,mock(BusinessAccessService.class));}
+        @Bean DialogClientContextReadService dialogContext(LegacyTicketIdJdbcGuard guard){return new DialogClientContextReadService(jdbc,new com.example.panel.support.PanelTimestampSqlSupport(),guard);}
+        @Bean ManagerReportService managerReport(TaskRepository t,TaskHistoryRepository h){
+            var dashboard=mock(DashboardAnalyticsService.class);
+            when(dashboard.filterDialogs(anyList(),any())).thenReturn(List.of());
+            return new ManagerReportService(mock(SharedConfigService.class),t,h,dashboard);
+        }
+        @Bean NotificationRepository notificationRows(EntityManagerFactory f){return repo(f,NotificationRepository.class);}
+        @Bean TaskLinkRepository taskLinks(){
+            var links=mock(TaskLinkRepository.class);
+            when(links.save(any(TaskLink.class))).thenAnswer(inv->{
+                TaskLink link=inv.getArgument(0);var key=link.getId();
+                jdbc.update("INSERT INTO task_links(task_id,user_id,ticket_id) VALUES(?,?,?)",key.getTaskId(),key.getUserId(),key.getTicketId());
+                return link;
+            });return links;
+        }
+        @Bean com.example.panel.config.MultibusinessFeatureFlags flags(){return new com.example.panel.config.MultibusinessFeatureFlags();}
+        @Bean LegacyTicketIdJdbcGuard guard(){return new LegacyTicketIdJdbcGuard(jdbc);}
+        @Bean UiEventStreamService streams(UiEventFanoutPublisher fanout,LegacyTicketIdJdbcGuard g,UiEventTicketAccessService a){return new UiEventStreamService(fanout,g,a);}
+        @Bean NotificationService notificationService(NotificationRepository n,UiEventStreamService s,LegacyTicketIdJdbcGuard g){return new NotificationService(n,jdbc,jdbc,s,g);}
+        @Bean PanelTaskService systemTasks(TaskRepository t,TaskSequenceRepository s,TaskPersonRepository p,TaskHistoryRepository h,TaskLinkRepository l,NotificationRepository n,TicketRepository tickets,TaskDomainFoundationService d){return new PanelTaskService(t,s,p,h,l,n,tickets,d);}
         @Bean SharedWorkAccessService access(){return new SharedWorkAccessService(jdbc);}
         @Bean static org.springframework.beans.factory.config.BeanFactoryPostProcessor externalServices(){
             return factory->{
                 factory.registerSingleton("notifications",mock(NotificationRoutingService.class));
+                factory.registerSingleton("ticketAccess",mock(UiEventTicketAccessService.class));
+                factory.registerSingleton("fanout",mock(UiEventFanoutPublisher.class));
+                factory.registerSingleton("ticketRepository",mock(TicketRepository.class));
+                factory.registerSingleton("dialogLookup",mock(DialogLookupReadService.class));
                 factory.registerSingleton("incidents",mock(IncidentService.class));
                 factory.registerSingleton("navigation",mock(NavigationService.class));
                 factory.registerSingleton("panelUsers",mock(PanelUserRepository.class));

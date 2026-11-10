@@ -1,10 +1,12 @@
-# Доступ общих задач, проектов и Kanban — R304
+# Доступ общих задач, проектов и Kanban — R305
 
 R301: общие межбизнесовые работы с отдельными правами и участниками.
 R302: source V88, ядро авторизации и control API. R303: основные CRUD/list/
 project links/Kanban/analytics подключены; реализован полный доступ системного
 администратора по уточнению пользователя. R304 добавил управление допусками,
-участниками и владельцами из панели; общая задача01-278 остаётся🟡.
+участниками и владельцами из панели. R305 включил этот контур в рабочем
+экземпляре вместе с V88/V89, аудитом, текущим READ уведомлений/SSE и trusted
+background producer. Общая задача01-278 остаётся🟡.
 
 ## Работа в панели
 
@@ -26,6 +28,12 @@ project links/Kanban/analytics подключены; реализован пол
 панель перечитывает состояние. Поиск показывает до100 подходящих строк каталога;
 при необходимости уточните имя. Labels сохраняют точное имя, выбор передаёт
 numeric userId строкой без округления. Интерфейс не требует ввода numeric ID.
+
+Раскройте «Журнал изменений доступа» в карточке либо в разделе общих допусков.
+Владелец/системный администратор видит историю объекта, общий журнал доступен
+только системному администратору. Запись показывает действие, actor, время,
+before/after; «Ещё» загружает следующие50 записей. История сохраняется при удалении
+объекта/учётной записи; она не редактируется через панель.
 
 ## Действующая модель
 
@@ -58,7 +66,9 @@ CSRF, валидность данных и внешние ключи обяза�
 
 V88 добавляет shared_work_grants, shared_task_members/shared_project_members и
 nullable shared_owner_user_id. Начальных grants/участников нет. Старые creator/
-lead не превращаются во владельца автоматически. Новых migrations в R303 нет.
+lead не превращаются во владельца автоматически. R305 применил V88 и новую
+V89 в рабочем экземпляре. V89 добавляет append-only shared_work_access_audit
+и typed recipient/object поля notifications, без переноса старых записей.
 
 Основные task/project writers сохраняют root, numeric owner из authenticated
 principal и OWNER в одной транзакции; ошибка регистрации откатывает всё.
@@ -80,6 +90,8 @@ Cross-object writes проходят единый transaction advisory gate, boa
 
 | Route | Допуск |
 | --- | --- |
+| GET /api/shared-work-admin/history?before= | Текущий ROLE_ADMIN; общий аудит |
+| GET /api/shared-work/{kind}/{id}/history?before= | OWNER либо текущий ROLE_ADMIN; аудит объекта |
 | GET /api/shared-work/context | Текущий module reader либо ROLE_ADMIN; capabilities |
 | GET /api/shared-work/{kind}/{id}/access | READ объекта либо ROLE_ADMIN; текущие write/manage и состав |
 | GET /api/shared-work/{kind}/{id}/people?q= | OWNER либо ROLE_ADMIN; текущие eligible candidates |
@@ -97,6 +109,10 @@ canCreateTask/canCreateProject; создание без canRead запрещен
 Неавторизованный object lookup возвращает404, не раскрывая существование.
 Неверные ID/role/hierarchy дают400, изменение OWNER через member API —409.
 Control API возвращает BIGINT IDs строками, read responses — no-store.
+History возвращает до50 событий в порядке убывания id. before — exclusive
+string BIGINT cursor последней строки; ID нельзя округлять через JavaScript Number.
+Аудит атомарен с mutation; повтор без изменения grants/member не добавляет событие.
+Trigger запрещает UPDATE/DELETE; это не защита от владельца БД/TRUNCATE.
 
 ## Подключённые пути и остатки
 
@@ -106,17 +122,55 @@ links, Kanban columns/cards и task analytics/CSV. Доступ к проект�
 проверяется независимо; скрытые связи/placements не удаляются при постороннем
 изменении. Personal board имеет numeric scope PERSONAL_USER:<users.id>;
 старый текстовый personal scope доступен только системному администратору.
-Уведомления фильтруют кандидатов по текущему READ до записи.
+Manager reports, dialog task history и incident task picker применяют текущую
+видимость до counts/LIMIT. Incident summaries task DTO видит только system admin,
+пока отдельная incident policy не определена.
 
-UI grants/участников/owner и программная save/reload/revoke/transfer проверка
-выполнены R304. Остаются аудит изменений доступа, повторный READ при поздней доставке/SSE, остальные
-search/report/related-object projections и trusted background/auto-close
-producers без authenticated principal. Incident/system notification policy
-и оставшиеся системные полномочия требуют отдельной проработки. Нельзя объявлять
-все проекции защищёнными по наличию основных guards. AI/privacy и S6 остаются
-в общей задаче; historical S2B снятR190.
+Уведомления сначала разворачивают настроенную аудиторию, затем проверяют READ
+каждого numeric получателя. Typed kind/object/recipient неизменяемы в записи;
+списки, unread count, read mutations и поздний SSE повторно проверяют текущие
+права и identity. Отзыв module/member/account/role закрывает уже сохранённую
+запись. Старые unowned task/project notices не становятся обходом.
+SSE клиенту отправляет только reason/emittedAt, внутренний scope удаляется.
+
+Auto-close использует отдельный trusted writer без имитации входа пользователя:
+eligible numeric owner, source ticket READ, canonical source tuple, project
+READ/WRITE при наличии ссылки; root/OWNER/sequence/link/system audit атомарны.
+Небезопасный GENERAL/unresolved legacy вызов без подходящего scope пропускается.
+Старые unauthenticated create overloads закрыты.
+
+UI, аудит, notification/SSE, task projections и auto-close R305 реализованы
+и активированы. Самостоятельные incidents/system notifications, historical
+incident snapshots и остальные global/system capabilities требуют отдельной
+policy; AI/privacy и S6 остаются в общей задаче. Historical S2B снятR190.
 
 ## Проверка и рабочая активация
+
+R305:454 Java tests/19 suites,15 Node flows и22 real-browser checks GREEN.
+Проверены две реальные сессии, UI grant save/reload, создание проекта/задачи,
+VIEWER, передача owner и потеря управления, member/module revoke без logout,
+настоящее уведомление/SSE и скрытие сохранённого уведомления после revoke.
+Аудит просмотрен в фактической панели. Временные users/roles/объекты удалены,
+audit22 сохранён; исходные tasks5/projects2/notifications14150 прежние.
+
+Web image0ccec24e7fd5, workerfe7a2c56160b; baseline bd0d76982 +uncommitted R305
+patch, не отдельный committed SHA. Web-only дополнение исправляет PostgreSQL
+registration_date binding. По1 healthy replica/restart0, health/readiness200UP.
+18 других containers и3 bot children прежние, bot-runner остаётся R295.
+V88/V89 применены без backfill/seeds; flags/.env/principals прежние.
+Актуальный Compose для web/worker:
+../iguana-runtime/tg_ref_b24_sup/releases/r305-shared-lifecycle-20261109/private/registration-v2/compose.final.json.
+Не подставлять старый R300 image при последующих Compose операциях.
+
+До миграций сохранён и изолированно восстановлен DB backup; rollback images
+rollback-r305-r299-20261109 и rollback-r305-web-core-20261110 сохранены.
+Первый pre-migration отказ действительно вернул backend на R299/V87.
+После успешной V89 downgrade рабочей БД не проверялся; image rollback
+не отменяет migrations. Это локальная приёмка shared works, не общий S6.
+Полные fingerprints/proofs: Runtime R305 в карточке01-278 и release evidence
+../iguana-runtime/tg_ref_b24_sup/releases/r305-shared-lifecycle-20261109/.
+
+Далее — исторические source proofs до активации R305.
 
 R304:374 Java tests/11 suites +13 Node cases GREEN: validation-v1 —372,
 ui-template-validation-v2 —2 Thymeleaf/navigation +13 UI. Проверены новые current

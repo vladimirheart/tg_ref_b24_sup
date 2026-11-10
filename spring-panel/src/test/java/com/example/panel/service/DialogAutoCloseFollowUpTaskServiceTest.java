@@ -83,17 +83,18 @@ class DialogAutoCloseFollowUpTaskServiceTest {
         Channel channel = new Channel();
         channel.setId(7L);
         channel.setDeliverySettings("{\"auto_close_follow_up_project_id\":42}");
+        bindTicketAccess(service);
         service.createTaskForAutoClosedDialog("T-100", channel);
 
         ArgumentCaptor<PanelTaskService.TaskPayload> payloadCaptor = ArgumentCaptor.forClass(PanelTaskService.TaskPayload.class);
-        verify(panelTaskService).createTask(payloadCaptor.capture(), eq(false));
+        verify(panelTaskService).createFollowUpTask(payloadCaptor.capture(), any(UiEventTicketScope.class));
         PanelTaskService.TaskPayload payload = payloadCaptor.getValue();
 
         assertThat(payload.assignee()).isEqualTo("owner");
         assertThat(payload.creator()).isEqualTo("auto_close");
         assertThat(payload.source()).isEqualTo("dialog_auto_close");
         assertThat(payload.ticketIds()).containsExactly("T-100");
-        assertThat(payload.coExecutors()).containsExactly("helper", "reviewer");
+        assertThat(payload.coExecutors()).containsExactly("helper", "HELPER", "reviewer");
         assertThat(payload.projectIds()).containsExactly(42L);
         assertThat(payload.bodyHtml()).contains("/dialogs?ticketId=T-100");
         assertThat(payload.bodyHtml()).contains("Открыть обращение №20260928-007");
@@ -129,6 +130,7 @@ class DialogAutoCloseFollowUpTaskServiceTest {
             uniqueTicketGuard("T-101")
         );
 
+        bindTicketAccess(service);
         service.createTaskForAutoClosedDialog("T-101");
 
         verifyNoInteractions(panelTaskService, messageRepository, projectRepository, jdbcTemplate);
@@ -151,6 +153,7 @@ class DialogAutoCloseFollowUpTaskServiceTest {
             new ObjectMapper(), jdbcTemplate, transactionManager(), guard
         );
 
+        bindTicketAccess(service);
         service.createTaskForAutoClosedDialog(ticketId);
 
         verifyNoInteractions(panelTaskService, responsibleRepository, messageRepository, projectRepository,
@@ -170,6 +173,7 @@ class DialogAutoCloseFollowUpTaskServiceTest {
             mock(JdbcTemplate.class), transactionManager(), guard
         );
 
+        bindTicketAccess(service);
         service.createTaskForAutoClosedDialog(" T-100 ");
 
         verify(guard).hasUniqueTicket(" T-100 ");
@@ -196,11 +200,12 @@ class DialogAutoCloseFollowUpTaskServiceTest {
                 new DialogTaskDisplayService(lookup), new ObjectMapper(), mock(JdbcTemplate.class),
                 transactionManager(), guard);
 
+        bindTicketAccess(service);
         service.createTaskForAutoClosedDialog(ticketId);
 
         ArgumentCaptor<PanelTaskService.TaskPayload> payloadCaptor =
                 ArgumentCaptor.forClass(PanelTaskService.TaskPayload.class);
-        verify(panelTaskService).createTask(payloadCaptor.capture(), eq(false));
+        verify(panelTaskService).createFollowUpTask(payloadCaptor.capture(), any(UiEventTicketScope.class));
         PanelTaskService.TaskPayload payload = payloadCaptor.getValue();
         assertThat(payload.ticketIds()).containsExactly(ticketId);
         assertThat(payload.title()).isEqualTo("Проверить автозакрытое обращение №20261012-046");
@@ -213,6 +218,11 @@ class DialogAutoCloseFollowUpTaskServiceTest {
         verify(messageRepository).findByTicketId(ticketId);
     }
 
+    private void bindTicketAccess(DialogAutoCloseFollowUpTaskService service) {
+        var access=mock(UiEventTicketAccessService.class);
+        when(access.captureScope(any(String.class))).thenAnswer(i->Optional.of(new UiEventTicketScope(902L,i.getArgument(0),"a".repeat(32),"BUSINESS",7L)));
+        org.springframework.test.util.ReflectionTestUtils.setField(service,"ticketAccess",access);
+    }
     private LegacyTicketIdJdbcGuard uniqueTicketGuard(String ticketId) {
         LegacyTicketIdJdbcGuard guard = mock(LegacyTicketIdJdbcGuard.class);
         when(guard.hasUniqueTicket(ticketId)).thenReturn(true);

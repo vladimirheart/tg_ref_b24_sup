@@ -17,6 +17,8 @@ import org.springframework.web.server.ResponseStatusException;
 /** Search is not an authorization token: selection is checked again on every incident write. */
 @Service
 public class IncidentRelatedObjectService {
+    @org.springframework.beans.factory.annotation.Autowired private SharedWorkAccessService sharedAccess;
+    private String taskScope(){return sharedAccess==null?"FALSE":sharedAccess.taskPredicate("id");}
     private static final Map<String, String> PAGES = Map.of(
             "ticket", "PAGE_DIALOGS", "task", "PAGE_TASKS", "object_passport", "PAGE_OBJECT_PASSPORTS");
     private static final List<String> TYPES = List.of("ticket", "task", "object_passport", "external_object");
@@ -34,7 +36,7 @@ public class IncidentRelatedObjectService {
                 "can_create_external", hasAuthority("ROLE_ADMIN"));
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public Map<String, Object> search(String type, String query, Integer limit) {
         requireType(type);
         String search = query == null ? "" : query.strip();
@@ -52,12 +54,12 @@ public class IncidentRelatedObjectService {
         return Map.of("items", items, "type", type);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public void validateSelection(String type, String key) {
         selection(type, key);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public String selectionLabel(String type, String key) {
         return selection(type, key);
     }
@@ -106,8 +108,8 @@ public class IncidentRelatedObjectService {
                     SELECT id::text AS value, 'DL_' || COALESCE(seq, id)::text || ' · ' || COALESCE(title, '') AS label,
                            COALESCE(status, '') AS detail,
                            concat_ws(' ', id, 'DL_' || COALESCE(seq, id)::text, title) AS search_text,
-                           created_at AS sort_time FROM tasks
-                    """;
+                           created_at AS sort_time FROM tasks WHERE
+                    """+taskScope();
             case "object_passport" -> """
                     SELECT p.id::text AS value,
                            COALESCE(NULLIF(p.passport_number, ''), '#' || p.id::text) || ' · ' || COALESCE(o.name, 'Объект') AS label,
@@ -169,11 +171,11 @@ public class IncidentRelatedObjectService {
     }
 
     private boolean canRead(String type) {
-        return "external_object".equals(type) || hasAuthority(PAGES.get(type));
+        return "external_object".equals(type) || ("task".equals(type) && hasAuthority("ROLE_ADMIN")) || hasAuthority(PAGES.get(type));
     }
 
     private void requireIncidentPage() {
-        if (PAGES.values().stream().noneMatch(this::hasAuthority)) throw new AccessDeniedException("Нет доступа к инцидентам.");
+        if (!hasAuthority("ROLE_ADMIN") && PAGES.values().stream().noneMatch(this::hasAuthority)) throw new AccessDeniedException("Нет доступа к инцидентам.");
     }
 
     private boolean hasAuthority(String authority) {

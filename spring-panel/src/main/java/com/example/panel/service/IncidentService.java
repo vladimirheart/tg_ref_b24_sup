@@ -1340,20 +1340,8 @@ public class IncidentService {
     }
 
     private String resolveTaskLabel(String relationKey) {
-        Long taskId = parseLong(relationKey);
-        if (taskId == null) {
-            return "Task " + relationKey;
-        }
-        Optional<Task> task = taskRepository.findById(taskId);
-        if (task.isEmpty()) {
-            return "Task " + relationKey;
-        }
-        Task entity = task.get();
-        String displayNo = entity.getSeq() != null ? "DL_" + entity.getSeq() : "DL_" + entity.getId();
-        if (StringUtils.hasText(entity.getTitle())) {
-            return displayNo + ": " + entity.getTitle().trim();
-        }
-        return displayNo;
+        try{return relatedObjects.selectionLabel("task",relationKey);}
+        catch(org.springframework.security.access.AccessDeniedException|ResponseStatusException denied){return "Недоступная задача";}
     }
 
     private String resolveObjectPassportLabel(String relationKey) {

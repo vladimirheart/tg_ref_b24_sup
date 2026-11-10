@@ -1,115 +1,54 @@
 package com.example.panel.service;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-import com.example.panel.entity.Task;
-import com.example.panel.entity.TaskLink;
-import com.example.panel.entity.TaskSequence;
-import com.example.panel.entity.Ticket;
-import com.example.panel.entity.TicketId;
-import com.example.panel.repository.NotificationRepository;
-import com.example.panel.repository.TaskHistoryRepository;
-import com.example.panel.repository.TaskLinkRepository;
-import com.example.panel.repository.TaskPersonRepository;
-import com.example.panel.repository.TaskRepository;
-import com.example.panel.repository.TaskSequenceRepository;
-import com.example.panel.repository.TicketRepository;
+import com.example.panel.entity.*;
+import com.example.panel.repository.*;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.test.util.ReflectionTestUtils;
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.*;
 
 class PanelTaskServiceTest {
-
-    @Test
-    void linksOnlyTicketResolvedUniquelyByLegacyId() {
-        TaskRepository taskRepository = mock(TaskRepository.class);
-        TaskSequenceRepository taskSequenceRepository = mock(TaskSequenceRepository.class);
-        TaskLinkRepository taskLinkRepository = mock(TaskLinkRepository.class);
-        TicketRepository ticketRepository = mock(TicketRepository.class);
-        TaskSequence sequence = new TaskSequence();
-        sequence.setId(1);
-        sequence.setVal(41L);
-        when(taskSequenceRepository.findById(1)).thenReturn(Optional.of(sequence));
-        when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> {
-            Task saved = invocation.getArgument(0);
-            saved.setId(77L);
-            return saved;
-        });
-        Ticket uniqueTicket = new Ticket();
-        TicketId ticketId = new TicketId();
-        ticketId.setUserId(901L);
-        ticketId.setTicketId("T-UNIQUE");
-        uniqueTicket.setId(ticketId);
-        when(ticketRepository.findUniqueByLegacyTicketId("T-UNIQUE")).thenReturn(Optional.of(uniqueTicket));
-        when(ticketRepository.findUniqueByLegacyTicketId("T-AMBIGUOUS")).thenReturn(Optional.empty());
-
-        PanelTaskService service = new PanelTaskService(
-            taskRepository,
-            taskSequenceRepository,
-            mock(TaskPersonRepository.class),
-            mock(TaskHistoryRepository.class),
-            taskLinkRepository,
-            mock(NotificationRepository.class),
-            ticketRepository,
-            mock(TaskDomainFoundationService.class)
-        );
-
-        service.createTask(new PanelTaskService.TaskPayload(
-            "Follow up", null, "operator", "operator", null, null, null, "panel",
-            List.of(), List.of(), List.of("T-UNIQUE", "T-AMBIGUOUS", " T-UNIQUE "), List.of()
-        ), false);
-
-        ArgumentCaptor<TaskLink> linkCaptor = ArgumentCaptor.forClass(TaskLink.class);
-        verify(taskLinkRepository).save(linkCaptor.capture());
-        assertThat(linkCaptor.getValue().getId().getTaskId()).isEqualTo(77L);
-        assertThat(linkCaptor.getValue().getId().getUserId()).isEqualTo(901L);
-        assertThat(linkCaptor.getValue().getId().getTicketId()).isEqualTo("T-UNIQUE");
-        verify(ticketRepository).findUniqueByLegacyTicketId("T-UNIQUE");
-        verify(ticketRepository).findUniqueByLegacyTicketId("T-AMBIGUOUS");
-        verify(ticketRepository).findUniqueByLegacyTicketId(" T-UNIQUE ");
-        verify(taskLinkRepository, times(1)).save(any(TaskLink.class));
+    private final TaskRepository tasks=mock(TaskRepository.class);
+    private final TaskLinkRepository links=mock(TaskLinkRepository.class);
+    private final TaskDomainFoundationService domain=mock(TaskDomainFoundationService.class);
+    private final SharedWorkAccessService access=mock(SharedWorkAccessService.class);
+    private final UiEventTicketAccessService tickets=mock(UiEventTicketAccessService.class);
+    private final String raw=" Owner/Ю ";
+    private final UiEventTicketScope scope=new UiEventTicketScope(902L," T/100? Ю ","a".repeat(32),"BUSINESS",7L);
+    private PanelTaskService service(){
+        var service=new PanelTaskService(tasks,mock(TaskSequenceRepository.class),mock(TaskPersonRepository.class),
+            mock(TaskHistoryRepository.class),links,mock(NotificationRepository.class),mock(TicketRepository.class),domain);
+        ReflectionTestUtils.setField(service,"sharedAccess",access);ReflectionTestUtils.setField(service,"ticketAccess",tickets);
+        return service;
     }
-
-    @Test
-    void savesExactCanonicalTupleForSpaceContainingTicketId() {
-        TaskRepository taskRepository = mock(TaskRepository.class);
-        TaskSequenceRepository sequenceRepository = mock(TaskSequenceRepository.class);
-        TaskLinkRepository linkRepository = mock(TaskLinkRepository.class);
-        TicketRepository ticketRepository = mock(TicketRepository.class);
-        TaskSequence sequence = new TaskSequence();
-        sequence.setId(1);
-        sequence.setVal(41L);
-        when(sequenceRepository.findById(1)).thenReturn(Optional.of(sequence));
-        when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> {
-            Task task = invocation.getArgument(0);
-            task.setId(77L);
-            return task;
-        });
-        Ticket ticket = new Ticket();
-        TicketId id = new TicketId();
-        id.setUserId(902L);
-        id.setTicketId(" T-UNIQUE ");
-        ticket.setId(id);
-        when(ticketRepository.findUniqueByLegacyTicketId(" T-UNIQUE ")).thenReturn(Optional.of(ticket));
-        PanelTaskService service = new PanelTaskService(
-            taskRepository, sequenceRepository, mock(TaskPersonRepository.class), mock(TaskHistoryRepository.class),
-            linkRepository, mock(NotificationRepository.class), ticketRepository, mock(TaskDomainFoundationService.class)
-        );
-
-        service.createTask(new PanelTaskService.TaskPayload(
-            "Follow up", null, "operator", "operator", null, null, null, "panel",
-            List.of(), List.of(), List.of(" T-UNIQUE ", " T-UNIQUE "), List.of()
-        ), false);
-
-        ArgumentCaptor<TaskLink> linkCaptor = ArgumentCaptor.forClass(TaskLink.class);
-        verify(linkRepository).save(linkCaptor.capture());
-        assertThat(linkCaptor.getValue().getId().getUserId()).isEqualTo(902L);
-        assertThat(linkCaptor.getValue().getId().getTicketId()).isEqualTo(" T-UNIQUE ");
+    private PanelTaskService.TaskPayload payload(){
+        return new PanelTaskService.TaskPayload("Follow up",null,"forged",raw,null,null,null,"dialog_auto_close",
+            List.of(),List.of(),List.of(scope.ticketId()),List.of());
+    }
+    @Test void legacyUnownedCreationIsClosed(){
+        assertThatThrownBy(()->service().createTask(payload())).isInstanceOf(IllegalStateException.class);
+        verifyNoInteractions(tasks,links);
+    }
+    @Test void trustedFollowUpKeepsExactOwnerAndCanonicalTuple(){
+        when(access.eligibleReader(raw)).thenReturn(new SharedWorkAccessService.Person("9007199254740993",raw));
+        when(access.nextTaskSequence()).thenReturn(42L);
+        when(tickets.canReadTicketForRecipient(any(),eq(scope))).thenReturn(true);
+        when(tasks.saveAndFlush(any())).thenAnswer(inv->{Task t=inv.getArgument(0);t.setId(77L);return t;});
+        Task task=service().createFollowUpTask(payload(),scope);
+        assertThat(task.getSharedOwnerUserId()).isEqualTo(9007199254740993L);
+        assertThat(task.getAssignee()).isEqualTo(raw);assertThat(task.getCreator()).isEqualTo("auto_close");
+        var link=ArgumentCaptor.forClass(TaskLink.class);verify(links).save(link.capture());
+        assertThat(link.getValue().getId().getTicketId()).isEqualTo(scope.ticketId());
+        assertThat(link.getValue().getId().getUserId()).isEqualTo(902L);
+        verify(access).registerSystemCreated(77L,9007199254740993L,raw);
+    }
+    @Test void missingCurrentModuleOrTicketReadNeverCreatesOrFallsBack(){
+        assertThatThrownBy(()->service().createFollowUpTask(payload(),scope)).isInstanceOf(IllegalArgumentException.class);
+        when(access.eligibleReader(raw)).thenReturn(new SharedWorkAccessService.Person("11",raw));
+        assertThatThrownBy(()->service().createFollowUpTask(payload(),scope)).isInstanceOf(IllegalArgumentException.class);
+        verifyNoInteractions(tasks,links);
     }
 }

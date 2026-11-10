@@ -28,6 +28,65 @@ production/рабочий в старых записях, именах Compose �
 приоритет над прежними требованиями переноса тестовых данных. Само уточнение
 не выполняет очистку БД и не меняет среду.
 
+## Runtime R305 — 2026-11-10: общие работы активированы и проверены
+
+В рабочем тестовом экземпляре включены R302–R305: отдельные допуски,
+участники и владельцы задач/проектов/Kanban, полный доступ текущего системного
+ROLE_ADMIN, журнал изменений доступа, typed уведомления с повторным READ
+при чтении/доставке/SSE и trusted auto-close producer. Manager report,
+dialog task history и incident task picker используют текущую видимость
+до counts/LIMIT; task DTO скрывает incident summaries от обычных участников.
+Полная самостоятельная incident/system policy этим не объявляется готовой.
+
+V88/V89 реально применены: рабочая схема87→89, без backfill, начальных grants,
+участников и автоматического ownership старых строк. Миграции извлечены из
+собранного JAR, предварительно проверены восстановлением backup в отдельную
+PostgreSQL. db-migrate и инфраструктура не пересоздавались; flags и bot principals
+не менялись. При первом неудачном pre-migration validate backend восстановлен
+на R299/V87; следующий исправленный выпуск успешно применил обе миграции.
+Это проверенный возврат приложения до миграции, не проверка downgrade V89.
+
+Фактическая база source — bd0d76982b8a8e078ffdde9f6b6833e14c451c89 плюс
+незакоммиченный R305 patch; staging/commit/push не выполнялись.
+panel-web: image0ccec24e7fd5, source manifest SHA256
+045059A41608F89190ED4F3CDBF9C51619FD24B5F4F68CD465529ADBCF138C5C.
+ops-worker: imagefe7a2c56160b, core manifest SHA256
+1515545F1CF40B01FF8EE7C93D6C98984BAC4EE2488EEE8598DE84E8AD7AE023.
+Последующее web-only исправление регистрации связывает registration_date
+как OffsetDateTime вместо varchar; остальные backend classes совпадают с core.
+Обе роли обновлены через Compose --no-deps, по1 replica/healthy/restart0,
+с сохранением ENV/HostConfig/mounts. Боты остаются R295/6bc6ae23a/image29f36986a0db;
+18 нетаргетных контейнеров и3 child PID/start ticks прежние.
+
+454 Java tests/19 suites GREEN:452 одним validation-v4 и2 новых PostgreSQL
+registration cases отдельно;15 Node flows GREEN. Выполнена полная Maven/Sass
+сборка core; финальная web-упаковка включает отдельно скомпилированное
+исправление регистрации. Реальный Edge/admin + отдельная обычная сессия:
+22 проверки GREEN, включая UI save/reload/owner transfer/revoke, сохранённое
+уведомление и настоящий SSE. Временные users/roles/tasks/projects/уведомления
+удалены; исходные5 задач/2 проекта/14150 уведомлений сохранены,22 audit events
+остались. Health/readiness HTTP200/UP. Ошибочный JSON comment request
+проверочного скрипта исправлен на multipart; последующий прогон GREEN.
+Отдельный WARN RMS license refresh claim loss не относится к shared-work
+и не объявляется исправленным этим выпуском.
+
+Актуальный Compose input для web/worker:
+../iguana-runtime/tg_ref_b24_sup/releases/r305-shared-lifecycle-20261109/private/registration-v2/compose.final.json.
+Исходный .env неизменен. Rollback images сохранены:
+iguana-panel:rollback-r305-r299-20261109 и
+iguana-panel:rollback-r305-web-core-20261110.
+Backup БД до V88/V89 восстановлен и проверен отдельно; SHA256
+ce3f65fec274bbfd783227661330fb5dec70f603ea5db2f99a403ced679dd805.
+Восстановление рабочей БД с V89 не разыгрывалось; одно возвращение image
+не отменяет миграции. Evidence вне .tmp:
+../iguana-runtime/tg_ref_b24_sup/releases/r305-shared-lifecycle-20261109/
+(validation-v4, validation-registration-v1, live-ui-v8-proof.json,
+working-migration-v2-proof.json, registration-deployment-v2-proof.json,
+runtime-final-proof.json). Это локальный выпуск, не полная S6/§7.1 приёмка.
+
+Ниже сохранены исторические checkpoints; их прежние pending/runtime состояния
+не заменяют фактический R305. Общая задача01-278 остаётся🟡.
+
 ## Source R304 — 2026-11-09: управление доступом из панели завершено в source
 
 На страницах задач и проектов доступны общие допуски к модулю для системного
@@ -6263,15 +6322,33 @@ READ его задач. Требуемая граница распростран
 экспорт, уведомления и realtime. В R303 подключены основные CRUD/list/count/
 pagination/project links/Kanban/server model/task analytics; скрытые связи и
 placements сохраняются при посторонних изменениях. R304 подключил UI общих
-допусков/участников/владельца и проверил save/reload/revoke/transfer. Поздняя
-доставка/SSE, аудит и остальные related-object/background/report пути ещё требуют
-wiring/приёмки; эти остатки не считаются завершёнными по наличию kernel.
+допусков/участников/владельца. R305 добавил append-only аудит с before/after,
+numeric actor/target и raw actor snapshot, UI history и50-row cursor paging;
+изменения grants/members/owner/create и их аудит атомарны. История не имеет FK
+на удаляемый account/root. UPDATE/DELETE запрещены trigger; защита от
+администратора БД или TRUNCATE этим не обещается.
 
-Source V88 не выдаёт grants и не выбирает владельца старых строк. Рабочая
-миграция/активация — отдельный выпуск после wiring и проверок. Решение о полном
-доступе реализовано в контуре общих работ; правила новых incidents/system
-notifications и аудит остальных global/system полномочий остаются отдельным
-пунктом. Business ADMIN не становится системным администратором.
+Typed уведомления замораживают kind/objectId/numeric recipient; текущие account,
+PAGE_TASKS/module/member READ проверяются до записи, до list/count/pagination/
+read mutation и непосредственно при SSE emit под READ locks. Recipient expansion
+происходит до фильтрации. Legacy unowned task/project уведомления не открывают
+обход. После revoke/username reuse старый recipient не сохраняет допуск.
+Публичный SSE содержит только reason/emittedAt, без внутренних scope metadata.
+
+Trusted auto-close не подменяет SecurityContext: отдельно проверяет текущего
+eligible numeric owner, canonical source ticket READ и project READ/WRITE.
+Root/owner/OWNER/sequence/source link/system audit регистрируются атомарно;
+unresolved/GENERAL legacy fallback без подходящего scope не создаёт задачу.
+Manager report, dialog task history, incident task picker фильтруют доступ
+до counts/LIMIT; incident summaries в task DTO разрешены системному admin.
+
+V88/V89 применены в рабочем R305; начальных grants, автоматического ownership
+и backfill нет. Старые строки доступны системному admin; numeric владелец
+восстанавливается явно. 454 Java +15 Node и22 real-browser проверки GREEN,
+включая stale session revoke и настоящие уведомление/SSE.
+Правила новых incidents/system notifications, historical incident snapshots
+и оставшихся global/system полномочий — отдельный пункт. Business ADMIN
+не становится системным администратором.
 
 ## Legacy compatibility и decision table
 
@@ -6281,11 +6358,11 @@ notifications и аудит остальных global/system полномочи�
 | Три пустых `messages.business` | Dataset тестовый, не переносится | **СНЯТО R190:** решения по этим строкам не требуются; новые unresolved остаются fail-closed |
 | 3 history channel mismatch | Dataset тестовый, не переносится | **СНЯТО R190:** классификация старой истории не требуется; новый child scope определяется canonical ticket |
 | Mixed channels | Явный выбор бизнеса или «Без бизнеса» до первого вопроса; без выбора flow не запускается | **УТОЧНЕНО 2026-10-16:** general — отдельный scope, не unresolved. **PENDING:** UX-представление и precedence для иных verified sources |
-| Ручные задачи / global Kanban | Старые строки не классифицируются автоматически | **РЕШЕНО R301/R303:** полный system ROLE_ADMIN; основные create/CRUD/query/links/Kanban подключены к R302. UI R304 готов в source; audit, late delivery/SSE и остальные producers/projections pending; ticket READ независим |
+| Ручные задачи / global Kanban | Старые строки не классифицируются автоматически | **РЕШЕНО R301/R303:** полный system ROLE_ADMIN; основные create/CRUD/query/links/Kanban подключены к R302. UI/audit/late READ уведомлений и SSE/trusted auto-close/task projections активированы R305/V89;22 real-browser checks GREEN; ticket READ независим |
 | Новые incidents / system notifications | 105 старых инцидентов не классифицируются и не переносятся | **PENDING:** модель business/shared/global для новых событий, получатели и отдельные permissions |
 | Existing ticket route | Legacy route доступен только в подтверждённом unique window | **РЕШЕНО S2A:** opaque immutable `ticket_public_id`; internal fallback — обязательный composite locator |
 | Roles | Global page permissions не выдаются автоматически; channel management требует системного ROLE_ADMIN + права страницы (R184) | **PENDING:** оставшаяся global/system и business capability policy |
-| Projects/boards | Не показывают inaccessible tasks | **РЕШЕНО R301/R303:** current system ROLE_ADMIN имеет полный доступ; остальные — отдельные grants/numeric participants. Основные reads/writers/links/boards подключены; UI R304 готов в source; прочие проекции/доставка pending |
+| Projects/boards | Не показывают inaccessible tasks | **РЕШЕНО R301/R303:** current system ROLE_ADMIN имеет полный доступ; остальные — отдельные grants/numeric participants. Основные reads/writers/links/boards подключены; UI, аудит, task projections и typed delivery/SSE активированы R305/V89; полный incident/system контур отдельно |
 
 ## Поэтапное применение
 

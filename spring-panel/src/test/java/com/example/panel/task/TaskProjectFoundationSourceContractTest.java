@@ -37,7 +37,7 @@ class TaskProjectFoundationSourceContractTest {
             .contains("dto.put(\"projects\", taskDomainFoundationService.listProjects(task.getId()))")
             .contains("dto.put(\"tags\", taskDomainFoundationService.listTags(task.getId()))")
             .contains("dto.put(\"events\", taskDomainFoundationService.listEvents(task.getId()))");
-        assertThat(panelTaskService).contains("taskDomainFoundationService.recordSaved");
+        assertThat(panelTaskService).contains("taskDomainFoundationService.recordSystemCreated").contains("registerSystemCreated").contains("createFollowUpTask");
         assertThat(domainService)
             .contains("TASK_CREATED")
             .contains("FIELD_CHANGED")

@@ -103,6 +103,13 @@ public class TaskDomainFoundationService {
     }
 
     @Transactional
+    public void recordSystemCreated(Task task,String actor,String rawTags,List<Long> projects,long ownerId,String username) {
+        recordCreated(task,actor,rawTags);
+        if(projects!=null&&!projects.isEmpty())syncProjectsAs(task,new LinkedHashSet<>(projects),actor,
+            (projectId,access)->sharedAccess.requireStored(com.example.panel.service.SharedWorkAccessService.Kind.PROJECT,projectId,access,ownerId,username));
+    }
+
+    @Transactional
     public void recordCreated(Task task, String actor, String rawTags) {
         recordSaved(task, null, true, actor, rawTags, null);
     }
@@ -204,6 +211,9 @@ public class TaskDomainFoundationService {
     }
 
     private void syncProjects(Task task, LinkedHashSet<Long> desiredProjectIds, String actor) {
+        syncProjectsAs(task,desiredProjectIds,actor,(projectId,access)->sharedAccess.require(com.example.panel.service.SharedWorkAccessService.Kind.PROJECT,projectId,access,com.example.panel.service.SharedWorkAccessService.current()));
+    }
+    private void syncProjectsAs(Task task,Set<Long> desiredProjectIds,String actor,java.util.function.BiConsumer<Long,com.example.panel.service.SharedWorkAccessService.Access> authorize) {
         List<TaskProjectMembership> existing = taskProjectMembershipRepository.findByTask_IdOrderByAddedAtAsc(task.getId());
         Map<Long, TaskProjectMembership> existingByProject = new LinkedHashMap<>();
         for (TaskProjectMembership membership : existing) {
@@ -214,8 +224,8 @@ public class TaskDomainFoundationService {
         }
 
         for(Long projectId:desiredProjectIds) {
-            sharedAccess.require(com.example.panel.service.SharedWorkAccessService.Kind.PROJECT,projectId,com.example.panel.service.SharedWorkAccessService.Access.READ,com.example.panel.service.SharedWorkAccessService.current());
-            if(!existingByProject.containsKey(projectId))sharedAccess.require(com.example.panel.service.SharedWorkAccessService.Kind.PROJECT,projectId,com.example.panel.service.SharedWorkAccessService.Access.WRITE,com.example.panel.service.SharedWorkAccessService.current());
+            authorize.accept(projectId,com.example.panel.service.SharedWorkAccessService.Access.READ);
+            if(!existingByProject.containsKey(projectId))authorize.accept(projectId,com.example.panel.service.SharedWorkAccessService.Access.WRITE);
         }
         Map<Long, Project> desiredProjects = new LinkedHashMap<>();
         if (!desiredProjectIds.isEmpty()) {

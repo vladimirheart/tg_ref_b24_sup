@@ -10,7 +10,7 @@ class Element {
   append(...children){children.forEach(child=>this.appendChild(child));}
   replaceChildren(...children){this.children=children;}
   addEventListener(name,fn){(this.listeners[name]??=[]).push(fn);}
-  async fire(name='click'){for(const fn of this.listeners[name]||[])await fn({target:this,preventDefault(){}});await tick();}
+  async fire(name='click'){if(name==='click'&&this.onclick)await this.onclick();for(const fn of this.listeners[name]||[])await fn({target:this,preventDefault(){}});await tick();}
   getAttribute(name){return this[name]||'';}
   querySelector(selector){return this.selectors[selector]||null;}
   querySelectorAll(selector){
@@ -24,10 +24,10 @@ class Element {
 function fixture(options={}){
   const module=new Element(),root=new Element(),modal=new Element(),create=new Element('button'),requests=[],events=[];
   create.dataset.workCreate='TASK';create.disabled=true;root.dataset.workObject='TASK';root.modal=modal;
-  const selectors=['status','members','manage','search','person','role','find','add','transfer'];
-  for(const name of selectors){const el=new Element(['find','add','transfer'].includes(name)?'button':['person','role'].includes(name)?'select':name==='search'?'input':'div');root.selectors['[data-work-'+name+']']=el;root.appendChild(el);}
+  const selectors=['status','members','manage','search','person','role','find','add','transfer','history','history-more'];
+  for(const name of selectors){const el=new Element(['find','add','transfer','history-more'].includes(name)?'button':['person','role'].includes(name)?'select':name==='search'?'input':'div');root.selectors['[data-work-'+name+']']=el;root.appendChild(el);}
   root.selectors['[data-work-role]'].value='VIEWER';
-  for(const name of ['toggle','grants','reload','accounts','module-status'])module.selectors['[data-work-'+name+']']=new Element(['toggle','reload'].includes(name)?'button':'div');
+  for(const name of ['toggle','grants','reload','accounts','module-status','history','history-more'])module.selectors['[data-work-'+name+']']=new Element(['toggle','reload','history-more'].includes(name)?'button':'div');
   module.selectors['[data-work-grants]'].hidden=true;
   const write=new Element('button');modal.querySelectorAll=()=>[write];
   let manage=options.manage!==false, revoked=false,failMutation=!!options.failMutation;
@@ -41,6 +41,7 @@ function fixture(options={}){
     if(url==='/api/shared-work/context')return response({userId:'11',systemAdmin:options.admin!==false,canCreateTask:options.create!==false,canCreateProject:true});
     if(url==='/api/shared-work-admin/access')return response(accounts);
     if(url==='/api/shared-work-admin/access/11'){Object.assign(accounts[0],JSON.parse(opts.body));return response(null,204);}
+    if(url.includes('/history'))return response([{id:'9007199254740993',action:'MEMBER_SET',actorName:'<img actor>',occurredAt:'date',beforeState:'{}',afterState:'{"role":"EDITOR"}'}]);
     if(url.endsWith('/access'))return revoked?response({},404):response({kind:'TASK',id:url.split('/')[4],canWrite:options.write!==false,canManage:manage,members});
     if(url.includes('/people?'))return options.peopleDenied?response({},403):response([{userId:'9007199254740993',username:' SysAdmin/Ю '}]);
     if(opts.method==='PUT'||opts.method==='DELETE'){
@@ -134,4 +135,25 @@ test('tasks and projects include access panels and updated scripts',()=>{
     assert(html.includes('shared-work-access.js?v=20261109-r304'));assert(html.includes(page+'.js?v=20261109-r304'));
     assert(html.includes('data-work-write disabled'));assert(html.includes('data-work-create='));
   }
+});
+
+test('audit renders raw actor and states as text and pages string BIGINT cursor',async()=>{
+  const f=fixture();
+  const records=Array.from({length:50},(_,i)=>({id:String(9007199254740993n-BigInt(i)),action:'MEMBER_SET',actorName:'<img actor>',occurredAt:'date',beforeState:'{}',afterState:'{"role":"EDITOR"}'}));
+  f.responses.set('/api/shared-work/TASK/7/history',f.response(records));
+  const cursor=records.at(-1).id;
+  f.responses.set('/api/shared-work/TASK/7/history?before='+cursor,f.response([records[0]]));
+  await f.open('7');
+  assert.equal(f.el('history').children.length,50);assert.equal(f.el('history-more').hidden,false);
+  assert.match(f.el('history').children[0].children[0].textContent,/<img actor>/);
+  await f.el('history-more').fire();
+  assert.equal(f.el('history').children.length,51);assert.equal(f.el('history-more').hidden,true);
+  assert(f.requests.some(r=>r.url.endsWith('?before='+cursor)));
+});
+test('late audit cannot populate a different object',async()=>{
+  const f=fixture();let resolve;
+  f.responses.set('/api/shared-work/TASK/7/history',new Promise(r=>{resolve=r;}));
+  const old=f.open('7');await tick();await f.open('8');
+  resolve(f.response([{id:'1',actorName:'stale actor',action:'GRANT_SET',occurredAt:'old',beforeState:'{}',afterState:'{}'}]));await old;
+  assert.equal(f.el('history').children.length,1);assert.doesNotMatch(f.el('history').children[0].children[0].textContent,/stale actor/);
 });

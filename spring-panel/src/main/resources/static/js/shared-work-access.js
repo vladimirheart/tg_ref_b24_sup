@@ -41,6 +41,8 @@
   function clear(root) {
     $(root, '[data-work-members]')?.replaceChildren();
     $(root, '[data-work-person]')?.replaceChildren();
+    $(root, '[data-work-history]')?.replaceChildren();
+    const more = $(root, '[data-work-history-more]'); if (more) more.hidden = true;
     const manage = $(root, '[data-work-manage]'); if (manage) manage.hidden = true;
     for (const selector of ['[data-work-add]', '[data-work-transfer]']) { const button = $(root, selector); if (button) button.disabled = true; }
     writable(root, false);
@@ -51,6 +53,31 @@
     if (state && !same(state)) return;
     clear(root); status(root, error.message);
     if ([401,403,404].includes(error.status)) window.dispatchEvent(new CustomEvent('shared-work:denied', { detail: { kind: state?.kind } }));
+  }
+  async function history(root, url, valid, append = false) {
+    const list = $(root, '[data-work-history]'), more = $(root, '[data-work-history-more]');
+    if (!list || !more) return;
+    if (!append) { list.replaceChildren(); more.hidden = true; more.dataset.before = ''; }
+    const before = append ? more.dataset.before : '';
+    more.disabled = true;
+    try {
+      const rows = await request(url + (before ? '?before=' + encodeURIComponent(before) : ''));
+      if (!valid()) return;
+      const labels = { CREATED: 'Создание', SYSTEM_CREATED: 'Автоматическое создание', GRANT_SET: 'Допуск к модулю',
+        MEMBER_SET: 'Права участника', MEMBER_REMOVED: 'Отзыв участия', OWNER_TRANSFERRED: 'Передача владения' };
+      for (const event of rows) {
+        if (!id(event.id)) throw new Error('Некорректный ответ журнала.');
+        const item = node('li', undefined, 'list-group-item');
+        item.appendChild(node('div', event.occurredAt + ' · ' + (labels[event.action] || event.action) + ' · ' + event.actorName));
+        const detail = node('details'); detail.appendChild(node('summary', 'Изменение'));
+        detail.appendChild(node('pre', event.beforeState + ' → ' + event.afterState)); item.appendChild(detail); list.appendChild(item);
+      }
+      more.dataset.before = rows.at(-1)?.id || '';
+      more.hidden = rows.length < 50;
+      more.onclick = () => history(root, url, valid, true);
+    } catch (error) {
+      if (valid()) { list.replaceChildren(node('li', error.message, 'list-group-item')); more.hidden = true; }
+    } finally { if (valid()) more.disabled = false; }
   }
   async function people(state) {
     const root = roots.get(state.kind), selector = $(root, '[data-work-person]');
@@ -115,7 +142,7 @@
         $(root, '[data-work-members]').appendChild(row);
       }
       status(root, view.canWrite ? 'Доступ к редактированию подтверждён.' : 'Доступно только чтение.');
-      if (view.canManage) await people(state);
+      if (view.canManage) { await people(state); if (same(state)) await history(root, base(state) + '/history', () => same(state)); }
     } catch (error) { deny(root, error, state); }
   }
   async function loadAccounts() {
@@ -160,6 +187,7 @@
         row.appendChild(save); container.appendChild(row);
       }
       message.textContent = '';
+      await history(moduleRoot, '/api/shared-work-admin/history', () => generation === moduleGeneration);
     } catch (error) {
       if (generation === moduleGeneration) { container.replaceChildren(); message.textContent = error.message; }
     }

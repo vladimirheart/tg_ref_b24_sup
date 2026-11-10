@@ -32,6 +32,7 @@ import org.springframework.util.StringUtils;
 @Service
 public class DialogAutoCloseFollowUpTaskService {
 
+    @org.springframework.beans.factory.annotation.Autowired private UiEventTicketAccessService ticketAccess;
     private static final Logger log = LoggerFactory.getLogger(DialogAutoCloseFollowUpTaskService.class);
     private static final String TASK_CREATOR = "auto_close";
     private static final String TASK_SOURCE = "dialog_auto_close";
@@ -102,7 +103,9 @@ public class DialogAutoCloseFollowUpTaskService {
         List<String> coExecutors = loadCoExecutors(ticketId, responsible);
         List<Long> payloadProjectIds = resolveConfiguredProjectIds(configuredProjectId);
 
-        panelTaskService.createTask(new PanelTaskService.TaskPayload(
+        var scope=ticketAccess==null?java.util.Optional.<UiEventTicketScope>empty():ticketAccess.captureScope(ticketId);
+        if(scope.isEmpty())return;
+        panelTaskService.createFollowUpTask(new PanelTaskService.TaskPayload(
             buildTitle(ticketId, message),
             buildBodyHtml(ticketId, message, responsible, coExecutors),
             TASK_CREATOR,
@@ -115,7 +118,7 @@ public class DialogAutoCloseFollowUpTaskService {
             List.of(),
             List.of(ticketId),
             payloadProjectIds
-        ), false);
+        ), scope.get());
     }
 
     private Long resolveFollowUpProjectId(Channel channel) {
@@ -171,7 +174,7 @@ public class DialogAutoCloseFollowUpTaskService {
     private String resolveResponsible(String ticketId) {
         return ticketResponsibleRepository.findById(ticketId)
             .map(TicketResponsible::getResponsible)
-            .map(this::trimToNull)
+            .filter(StringUtils::hasText)
             .orElse(null);
     }
 
@@ -191,12 +194,12 @@ public class DialogAutoCloseFollowUpTaskService {
             if (usernames == null || usernames.isEmpty()) {
                 return List.of();
             }
-            String normalizedResponsible = normalizeIdentity(responsible);
+            String normalizedResponsible = responsible;
             Set<String> seen = new LinkedHashSet<>();
             List<String> coExecutors = new ArrayList<>();
             for (String username : usernames) {
-                String trimmed = trimToNull(username);
-                String normalized = normalizeIdentity(trimmed);
+                String trimmed = StringUtils.hasText(username)?username:null;
+                String normalized = trimmed;
                 if (trimmed == null || normalized == null || normalized.equals(normalizedResponsible) || !seen.add(normalized)) {
                     continue;
                 }

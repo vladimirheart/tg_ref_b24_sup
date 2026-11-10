@@ -17,6 +17,8 @@ import java.util.Map;
 
 @Service
 public class DialogClientContextReadService {
+    @org.springframework.beans.factory.annotation.Autowired private SharedWorkAccessService sharedAccess;
+    private String taskScope(){return sharedAccess==null?"FALSE":sharedAccess.taskPredicate("t.id");}
 
     private static final Logger log = LoggerFactory.getLogger(DialogClientContextReadService.class);
 
@@ -169,6 +171,7 @@ public class DialogClientContextReadService {
         );
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public List<Map<String, Object>> loadRelatedEvents(String ticketId, int limit) {
         if (!legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId) || limit <= 0) {
             return List.of();
@@ -201,7 +204,9 @@ public class DialogClientContextReadService {
                                    COALESCE(th.text, 'Обновление workflow') AS detail,
                                    th.id AS sort_id
                               FROM task_links tl
-                              JOIN tasks t ON t.id = tl.task_id
+                              JOIN tasks t ON t.id = tl.task_id AND
+                            """ + taskScope() + """
+
                               LEFT JOIN task_history th ON th.task_id = t.id
                              WHERE tl.ticket_id = ?
                                AND 1 = (SELECT COUNT(*)
@@ -255,7 +260,9 @@ public class DialogClientContextReadService {
                                        COALESCE(th.text, 'Обновление workflow') AS detail,
                                        th.id AS sort_id
                                   FROM task_links tl
-                                  JOIN tasks t ON t.id = tl.task_id
+                                  JOIN tasks t ON t.id = tl.task_id AND
+                            """ + taskScope() + """
+
                                   LEFT JOIN task_history th ON th.task_id = t.id
                                  WHERE tl.ticket_id = ?
                                    AND 1 = (SELECT COUNT(*)

@@ -18,6 +18,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @Service
 public class UiEventStreamService {
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private SharedWorkAccessService sharedWorkAccess;
     private static final long EMITTER_TIMEOUT_MS = 0L;
 
     private final UiEventFanoutPublisher fanoutPublisher;
@@ -68,6 +70,13 @@ public class UiEventStreamService {
             return;
         }
         publishToUser(userIdentity, "notifications_changed", basePayload(reason, null, null));
+    }
+
+    public void publishSharedWorkNotificationsChanged(String username,SharedWorkAccessService.Kind kind,long id,long recipientId) {
+        var payload=basePayload("shared_work_changed",null,null);
+        payload.put("sharedWorkKind",kind.name());payload.put("sharedWorkId",Long.toString(id));
+        payload.put("sharedRecipientId",Long.toString(recipientId));
+        publishToUser(username,"notifications_changed",payload);
     }
 
     public void publishScopedDialogsChanged(String reason, UiEventTicketScope scope) {
@@ -178,6 +187,19 @@ public class UiEventStreamService {
                                String eventName,
                                Map<String, Object> payload,
                                UiEventTicketScope scope) {
+        if (payload!=null && (payload.containsKey("sharedWorkKind")||payload.containsKey("sharedWorkId")||payload.containsKey("sharedRecipientId"))) {
+            if(sharedWorkAccess==null||!"notifications_changed".equals(eventName)||scope!=null)return;
+            try {
+                if(!(payload.get("sharedWorkKind") instanceof String kind)||!(payload.get("sharedWorkId") instanceof String objectId)
+                    ||!(payload.get("sharedRecipientId") instanceof String recipientId)
+                    ||!objectId.matches("[1-9][0-9]*")||!recipientId.matches("[1-9][0-9]*")
+                    ||Long.parseLong(recipientId)!=recipient.userId())return;
+                var publicPayload=Map.<String,Object>of("reason","shared_work_changed","emittedAt",nowUtc());
+                sharedWorkAccess.deliverIfReadable(SharedWorkAccessService.Kind.valueOf(kind),Long.parseLong(objectId),
+                    recipient.userId(),recipient.username(),()->sendToEmitter(recipient,emitter,eventName,publicPayload,null));
+            }catch(IllegalArgumentException invalid){return;}
+            return;
+        }
         if (isTicketBound(eventName, payload, scope)) {
             Object ticketId = payload != null ? payload.get("ticketId") : null;
             if (!(ticketId instanceof String rawId) || scope == null || !rawId.equals(scope.ticketId())
