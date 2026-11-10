@@ -1423,7 +1423,7 @@ public class IncidentService {
             event,
             recipients,
             text,
-            "/dialogs?incidentId=" + incident.getIncidentKey(),
+            "/incidents?incidentId=" + incident.getId(),
             actor
         );
     }

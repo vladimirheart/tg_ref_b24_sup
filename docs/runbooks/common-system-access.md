@@ -47,7 +47,29 @@ R306 добавляет один main class; изменённые sources ско
 baseline proof сохранены в .tmp/r306-*. Ранние собственные RED исправлены
 в test fixtures (bean name/duplicate bean/normalizer mock), product asserts сохранены.
 
-## Активация на машине проекта
+## Рабочий выпуск R309
+
+R306 включён в рабочие web/worker на этой машине; health/readiness200UP,
+V89/flags/.env прежние, боты и инфраструктура не обновлялись.
+23 actual Edge проверки подтвердили обычную сессию без page grants, внешний
+объект, UI create/reload инцидента, реальную доставку notice/SSE, переход в
+нужную карточку и личный read; блокировка закрывает инциденты/inbox/monitoring
+в уже открытой сессии. Чтение monitoring/can_edit проверено live, сохранение
+monitoring — в изолированных HTTP tests; рабочую конфигурацию не меняли.
+
+R309 исправляет обе новые ссылки producer/outbox: /incidents?incidentId=<id>.
+Раньше они указывали на /dialogs и скрывались строгим inbox R306. Workbench
+принимает строковый numeric ID напрямую, даже вне первой страницы; stale/invalid
+query не подменяет ID. Старые уведомления не переклассифицированы.
+Исправлен boolean binding блокировки пользователя; PostgreSQL block/unblock
+и реальный stale session проверены. Каналы/боты остаются закрыты обычной сессии.
+
+Web imageee124b5d137e, worker9201cfbf6d5a; HEAD5dd39138a +uncommitted R309 patch.
+Compose и rollback pointers — Runtime R309 в карточке01-278.528 Java/21 suites,
+11 new Node cases и прежние UI regressions GREEN; полный repository suite
+не объявляется GREEN. Тестовые записи удалены, общая S6 остаётся отдельно.
+
+## Историческая инструкция активации source R306
 
 Текущая сессия — source/test на другой машине. Рабочие Docker/БД/Redis/queues/
 provider не использовались и не изменялись. Disposable native PostgreSQL имеет

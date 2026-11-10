@@ -174,7 +174,7 @@ class IncidentServiceTest {
         verify(ticketRepository).findUniqueByLegacyTicketId(" null ");
         assertThat((List<?>) incident.get("watchers")).hasSize(2);
         assertThat((List<?>) incident.get("events")).hasSize(1);
-        verify(notificationRoutingService).notify(eq("incidents"), eq("incident_created"), any(), any(), any(), eq("Commander"));
+        verify(notificationRoutingService).notify(eq("incidents"), eq("incident_created"), any(), any(), eq("/incidents?incidentId=77"), eq("Commander"));
         verify(incidentRouteDeliveryOutboxService).enqueueIncidentRoutes(any(Incident.class), eq("incident_created"), eq("Incident создан"), any(), eq("Commander"));
     }
 

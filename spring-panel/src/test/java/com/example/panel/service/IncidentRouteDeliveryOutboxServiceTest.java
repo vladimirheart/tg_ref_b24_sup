@@ -114,6 +114,10 @@ class IncidentRouteDeliveryOutboxServiceTest {
         service.dispatchBatch();
 
         assertThat(queued).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("SELECT incident_url FROM incident_route_delivery_outbox WHERE incident_id=7", String.class))
+            .isEqualTo("/incidents?incidentId=7");
+        assertThat(jdbcTemplate.queryForObject("SELECT payload_json::jsonb->>'incident_url' FROM incident_route_delivery_outbox WHERE incident_id=7", String.class))
+            .isEqualTo("/incidents?incidentId=7");
         assertThat(jdbcTemplate.queryForObject(
             "SELECT status FROM incident_route_delivery_outbox WHERE incident_id = 7 AND route_id = 11",
             String.class

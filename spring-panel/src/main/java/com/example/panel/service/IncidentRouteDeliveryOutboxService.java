@@ -325,11 +325,8 @@ public class IncidentRouteDeliveryOutboxService {
     }
 
     private String buildIncidentUrl(Incident incident) {
-        String incidentKey = normalize(incident.getIncidentKey());
-        if (!StringUtils.hasText(incidentKey)) {
-            return "/dialogs";
-        }
-        return "/dialogs?incidentId=" + incidentKey;
+        Long id = incident.getId();
+        return id != null && id > 0 ? "/incidents?incidentId=" + id : "/incidents";
     }
 
     private void recoverStaleProcessing() {

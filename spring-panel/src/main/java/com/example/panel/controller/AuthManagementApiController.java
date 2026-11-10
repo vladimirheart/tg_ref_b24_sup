@@ -271,7 +271,7 @@ public class AuthManagementApiController {
             }
             boolean blocked = Boolean.TRUE.equals(payload.get("is_blocked"));
             updates.add("is_blocked = ?");
-            params.add(blocked ? 1 : 0);
+            params.add(blocked);
             if (userColumns.contains("enabled")) {
                 updates.add("enabled = ?");
                 params.add(!blocked);

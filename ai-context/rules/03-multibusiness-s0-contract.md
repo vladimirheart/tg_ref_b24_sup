@@ -12,6 +12,57 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 код не должен подставлять бизнес по текстовому имени, каналу, последнему выбору
 оператора или иной эвристике.
 
+## Runtime R309 — 2026-11-10: R306–R308 выпущены, инциденты проверены
+
+На текущей машине рабочего экземпляра проверены clean HEAD/origin/main/remote
+5dd39138a785fe430d078e626f8fb04bba89db18 и три новых commits R306–R308.
+Backend пересобран и обновлён через Compose --no-deps, по1 web/worker replica,
+healthy/restart0. БД V89, миграции/backfill/flags/principals не запускались
+и не менялись.18 прочих контейнеров и3 bot child PID/start ticks сохранены;
+боты остаются R295/image29f36986a0db. ENV/HostConfig/mounts прежние.
+
+В ходе приёмки исправлены два реальных дефекта. Incident participants и route
+outbox создавали /dialogs?incidentId=INC-..., скрытый строгим inbox R306:
+новые уведомления теперь ведут на /incidents?incidentId=<numeric id>.
+Workbench открывает точный строковый ID, включая объект вне первой страницы;
+обновление списка не возвращает пользователя к прежней ссылке. JS version
+обновлён для существующих browser caches. Старые notices не переклассифицировались.
+Кроме того, блокировка пользователя передавала integer1/0 в PostgreSQL boolean:
+теперь binding boolean; реальная блокировка/разблокировка и stale session
+отказ проверены. Подсказка внешнего каталога соответствует общему доступу R306.
+
+Текущий source — указанная база плюс незакоммиченный R309 patch, не отдельный
+committed SHA. Worker image9201cfbf6d5a/core manifest
+212eeb9ca990b7fb6f7713b02ed66769207b2cd34fca8f51b88ce8c6af63d222.
+Web imageee124b5d137e/auth manifest
+5b97c4a9c8038feb1448849ae6a47bf3578da5baad482879c3bab811e4404224;
+от core отличается один AuthManagementApiController.class.
+Текущий Compose web/worker: releases/r309-backend-activation-20261110/private/compose.auth.final.json
+в ../iguana-runtime/tg_ref_b24_sup/. Предыдущие distinct R305 images сохранены
+в rollback-r309-panel-web-20261110 и rollback-r309-ops-worker-20261110;
+rollback-r309-web-core-20261110 указывает на core9201cfbf6d5a.
+Откат этого выпуска не разыгрывался; старый R305 DB backup/recovery сохранён.
+
+528 Java tests/21 suites GREEN:525 в20 наборах плюс3 registration/block cases;
+полные749 main/710 test sources и Sass собраны.11 новых Node deep-link checks,
+прежние create/shared-work UI regressions GREEN.23 real Edge checks GREEN:
+обычная numeric сессия без page grants, создание внешнего объекта/инцидента из
+UI, reload, реальный notice/SSE/deep link, личная отметка read, запрет bot/channel/
+task scope и отзыв common доступа в уже открытой заблокированной сессии.
+Monitoring READ/can_edit проверены live; его изменения — в isolated HTTP tests,
+рабочие monitoring settings не менялись.2 своих инцидента/2 внешних объекта,
+временные users/roles/уведомления удалены. Health/readiness200UP, acceptance
+backend ERROR/fatal0. Staging/commit/push не выполнялись.
+
+Код AI R307/R308 установлен; рабочий AI catalog по прежним rollout flags
+возвращает404. Live erase/LLM/provider/auto-reply не запускались. AI erase,
+business isolation, CAS и invalidation проверены на отдельной PostgreSQL и
+реальном Spring HTTP; это не активация скрытого AI UI и не полная S6.
+Evidence: ../iguana-runtime/tg_ref_b24_sup/releases/r309-backend-activation-20261110/
+(test-gate.json, validation-auth/proof.json, image-auth-proof.json,
+deployment-proof.json, deployment-auth-proof.json, live-ui-v5-proof.json,
+runtime-final-proof.json). Общая задача🟡; следующие source checkpoints исторические.
+
 ## Source R308 — ручная очистка содержимого AI-материалов
 
 Решение пользователя от 10 ноября 2026: «Всё хранить до ручного удаления, без
@@ -6474,7 +6525,7 @@ V88/V89 применены в рабочем R305; начальных grants, а
 | 3 history channel mismatch | Dataset тестовый, не переносится | **СНЯТО R190:** классификация старой истории не требуется; новый child scope определяется canonical ticket |
 | Mixed channels | Явный выбор бизнеса или «Без бизнеса» до первого вопроса; без выбора flow не запускается | **УТОЧНЕНО 2026-10-16:** general — отдельный scope, не unresolved. **PENDING:** UX-представление и precedence для иных verified sources |
 | Ручные задачи / global Kanban | Старые строки не классифицируются автоматически | **РЕШЕНО R301/R303:** полный system ROLE_ADMIN; основные create/CRUD/query/links/Kanban подключены к R302. UI/audit/late READ уведомлений и SSE/trusted auto-close/task projections активированы R305/V89;22 real-browser checks GREEN; ticket READ независим |
-| Новые incidents / system notifications | 105 старых инцидентов не классифицируются и не переносятся | **PENDING:** модель business/shared/global для новых событий, получатели и отдельные permissions |
+| Инциденты / system notifications | Общий контур, личный inbox; исходные dialog/task/project проверки независимы | **РЕШЕНО R306, runtime R309:** доступ любой текущей действующей numeric сессии панели; доставка по маршрутам/наблюдателям, CSRF для mutations, block/reuse закрывает stale сессию; bot/channel management сохраняет ROLE_ADMIN + page gate |
 | Existing ticket route | Legacy route доступен только в подтверждённом unique window | **РЕШЕНО S2A:** opaque immutable `ticket_public_id`; internal fallback — обязательный composite locator |
 | Roles | Global page permissions не выдаются автоматически; channel management требует системного ROLE_ADMIN + права страницы (R184) | **PENDING:** оставшаяся global/system и business capability policy |
 | Projects/boards | Не показывают inaccessible tasks | **РЕШЕНО R301/R303:** current system ROLE_ADMIN имеет полный доступ; остальные — отдельные grants/numeric participants. Основные reads/writers/links/boards подключены; UI, аудит, task projections и typed delivery/SSE активированы R305/V89; полный incident/system контур отдельно |

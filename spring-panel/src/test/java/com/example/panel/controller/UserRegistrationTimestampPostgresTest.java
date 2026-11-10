@@ -41,6 +41,20 @@ class UserRegistrationTimestampPostgresTest {
         assertThat(encoder.matches("TestR305Safe+",jdbc.queryForObject("SELECT password FROM users WHERE username='r305_user'",String.class))).isTrue();
         assertThat(jdbc.queryForObject("SELECT enabled FROM users WHERE username='r305_user'",Boolean.class)).isTrue();
     }
+    @Test void blocksAndUnblocksUsingRealPostgresBooleanBinding()throws Exception{
+        var admin=new TestingAuthenticationToken("admin","unused","ROLE_ADMIN");
+        mvc.perform(post("/api/users").principal(admin).contentType("application/json")
+            .content("{\"username\":\"r309_target\",\"password\":\"TestR309Safe+\"}"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true));
+        long id=jdbc.queryForObject("SELECT id FROM users WHERE username='r309_target'",Long.class);
+        for(boolean blocked:new boolean[]{true,false}){
+            mvc.perform(patch("/api/users/"+id).principal(admin).contentType("application/json")
+                .content("{\"is_blocked\":"+blocked+"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true));
+            assertThat(jdbc.queryForObject("SELECT is_blocked FROM users WHERE id=?",Boolean.class,id)).isEqualTo(blocked);
+            assertThat(jdbc.queryForObject("SELECT enabled FROM users WHERE id=?",Boolean.class,id)).isEqualTo(!blocked);
+        }
+    }
     @Test void timestampFixKeepsCaseInsensitiveDuplicateProtection()throws Exception{
         for(String name:new String[]{"R305_Duplicate","r305_duplicate"}){
             var result=mvc.perform(post("/api/users").principal(new TestingAuthenticationToken("admin","unused","ROLE_ADMIN"))

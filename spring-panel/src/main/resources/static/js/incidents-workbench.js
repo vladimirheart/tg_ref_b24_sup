@@ -24,6 +24,8 @@
     mtta: document.getElementById('incidentOpsMtta'),
     mttr: document.getElementById('incidentOpsMttr')
   };
+  const requestedIncidentId = new URLSearchParams(window.location.search).get('incidentId');
+  let pendingInitialIncidentId = /^[1-9]\d{0,18}$/.test(requestedIncidentId || '') ? requestedIncidentId : null;
   const payloadModalElement = document.getElementById('incidentWorkbenchPayloadModal');
   const payloadContentNode = document.getElementById('incidentWorkbenchPayloadContent');
   const payloadModal = payloadModalElement && window.bootstrap ? new window.bootstrap.Modal(payloadModalElement) : null;
@@ -1184,7 +1186,10 @@ function restoreIncidentDetailFocus(
                 ? payload.items
                 : [];
 
-        if (
+        if (pendingInitialIncidentId) {
+            state.selectedIncidentId = pendingInitialIncidentId;
+            pendingInitialIncidentId = null;
+        } else if (
             !state.selectedIncidentId ||
             !state.incidents.some(
                 (item) =>

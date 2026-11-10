@@ -30,7 +30,7 @@ class IncidentRouteIdentityBoundaryTest {
         assertThat(envelope.get("owner")).isEqualTo(raw);assertThat(envelope.get("requested_by")).isEqualTo(raw);
         assertThat(envelope.get("route_target")).isEqualTo(raw);
         f.outbox.dispatchBatch();
-        verify(f.notifications).notifyUser(eq(raw),anyString(),eq("/dialogs?incidentId=INC-7"));
+        verify(f.notifications).notifyUser(eq(raw),anyString(),eq("/incidents?incidentId=7"));
         verifyNoMoreInteractions(f.notifications);assertThat(f.jdbc.delivered).isEqualTo(1);assertThat(f.jdbc.failed).isZero();
     }
 

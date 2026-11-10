@@ -103,7 +103,25 @@ BUSINESS и GENERAL сначала воспроизведены RED на R306; �
 не выполнялась; полный repository suite не объявляется GREEN. Известные8
 baseline channel-test failures R306 не повторялись и не исправлялись этим scope.
 
-## Активация и оставшаяся работа
+## Рабочий выпуск R309 и оставшаяся работа
+
+R307/R308 включены в новые backend images на машине текущей сессии:
+web ee124b5d137e, worker9201cfbf6d5a; V89, flags и настройки прежние.
+Полная сборка, повторные native PostgreSQL/Spring HTTP наборы и приёмка
+common incident обычной сессией пройдены. Рабочий AI catalog возвращает404
+при прежних rollout flags: live очистка пользовательских материалов,
+внешний LLM/provider и auto-reply не запускались. Рабочие AI данные не удалялись.
+Очистка KNOWLEDGE/MEMORY, CAS, business isolation, origin loss и invalidation
+проверены в отдельной PostgreSQL/HTTP. Это не включение скрытого UI или S6.
+Сводка528 Java/21 suites включает3 новых registration/block cases;
+новый R309 patch исправляет incident deep links и PostgreSQL boolean binding.
+
+Остаются ручная очистка scoped state/events, поиск orphan материалов, media/LLM
+context и scoped client delivery, явное разрешение auto-reply и итоговая S6.
+Согласованное хранение до ручного удаления без автоочистки не является PENDING.
+Актуальный Compose/rollback/evidence — Runtime R309 в карточке01-278.
+
+## Историческая инструкция активации source R307/R308
 
 Рабочие Docker/проект находятся на другой машине и в другой сессии. Здесь
 только source worktree и изолированная nonce-owned native PostgreSQL. Рабочие

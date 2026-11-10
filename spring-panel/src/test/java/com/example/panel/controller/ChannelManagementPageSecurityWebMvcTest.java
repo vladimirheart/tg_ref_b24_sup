@@ -31,6 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ChannelManagementPageSecurityWebMvcTest {
     @Autowired private MockMvc mvc;
     @MockBean private TaskRepository tasks;
+    @MockBean private SharedWorkAccessService sharedWorkAccess;
     @MockBean private ChannelRepository channels;
     @MockBean private PanelUserRepository users;
     @MockBean private ProjectRepository projects;
