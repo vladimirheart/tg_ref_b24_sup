@@ -14,6 +14,10 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     String TICKET_VISIBLE_SCOPE = """
         ((:allowLegacy = TRUE AND n.ticket_scope_kind IS NULL)
+         OR (n.ticket_scope_kind IS NULL AND n.url ~ '^/(incidents|settings)([/?#]|$)'
+             AND EXISTS (SELECT 1 FROM users recipient WHERE lower(recipient.username)=n.user_identity
+                 AND recipient.enabled=TRUE AND COALESCE(recipient.is_blocked,FALSE)=FALSE
+                 AND 1=(SELECT COUNT(*) FROM users duplicate WHERE lower(duplicate.username)=n.user_identity)))
          OR (n.ticket_scope_kind IN ('BUSINESS', 'UNRESOLVED') AND EXISTS (
              SELECT 1 FROM tickets owner
               WHERE owner.user_id = n.ticket_user_id AND owner.ticket_id = n.ticket_id

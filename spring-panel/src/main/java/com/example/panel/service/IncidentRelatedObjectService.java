@@ -24,16 +24,18 @@ public class IncidentRelatedObjectService {
     private static final List<String> TYPES = List.of("ticket", "task", "object_passport", "external_object");
     private final JdbcTemplate jdbc;
     private final BusinessAccessService businessAccess;
+    private final SharedSystemAccessService systemAccess;
 
     public IncidentRelatedObjectService(JdbcTemplate jdbc, BusinessAccessService businessAccess) {
         this.jdbc = jdbc;
         this.businessAccess = businessAccess;
+        this.systemAccess = new SharedSystemAccessService(jdbc);
     }
 
     public Map<String, Object> capabilities() {
         requireIncidentPage();
         return Map.of("types", TYPES.stream().filter(this::canRead).toList(),
-                "can_create_external", hasAuthority("ROLE_ADMIN"));
+                "can_create_external", true);
     }
 
     @Transactional
@@ -79,7 +81,6 @@ public class IncidentRelatedObjectService {
     @Transactional
     public Map<String, Object> createExternal(Map<String, Object> payload) {
         requireIncidentPage();
-        if (!hasAuthority("ROLE_ADMIN")) throw new AccessDeniedException("Создавать внешние объекты может только администратор портала.");
         String name = text(payload, "name", 200, true);
         String number = text(payload, "external_number", 200, false);
         String url = text(payload, "external_url", 2048, false);
@@ -175,7 +176,7 @@ public class IncidentRelatedObjectService {
     }
 
     private void requireIncidentPage() {
-        if (!hasAuthority("ROLE_ADMIN") && PAGES.values().stream().noneMatch(this::hasAuthority)) throw new AccessDeniedException("Нет доступа к инцидентам.");
+        systemAccess.requireCurrentAccount();
     }
 
     private boolean hasAuthority(String authority) {

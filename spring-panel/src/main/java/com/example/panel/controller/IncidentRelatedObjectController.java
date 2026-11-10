@@ -3,6 +3,7 @@ package com.example.panel.controller;
 import com.example.panel.service.IncidentRelatedObjectService;
 import java.util.Map;
 import org.springframework.security.access.prepost.PreAuthorize;
+import com.example.panel.service.SharedSystemAccessService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -12,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/incidents")
-@PreAuthorize("hasAnyAuthority('PAGE_DIALOGS','PAGE_TASKS','PAGE_OBJECT_PASSPORTS')")
+@PreAuthorize(SharedSystemAccessService.REQUIRE)
 public class IncidentRelatedObjectController {
     private final IncidentRelatedObjectService service;
     public IncidentRelatedObjectController(IncidentRelatedObjectService service) { this.service = service; }
@@ -28,6 +29,5 @@ public class IncidentRelatedObjectController {
     }
 
     @PostMapping("/external-objects")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN') and hasAnyAuthority('PAGE_DIALOGS','PAGE_TASKS','PAGE_OBJECT_PASSPORTS')")
     public Map<String, Object> create(@RequestBody Map<String, Object> payload) { return service.createExternal(payload); }
 }

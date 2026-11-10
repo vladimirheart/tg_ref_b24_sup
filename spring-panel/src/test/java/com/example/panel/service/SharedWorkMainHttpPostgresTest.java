@@ -56,6 +56,8 @@ class SharedWorkMainHttpPostgresTest {
     @AfterEach void clearIdentity(){org.springframework.security.core.context.SecurityContextHolder.clearContext();}
     @AfterAll static void stop(){if(context!=null)context.close();}
     @BeforeEach void data(){
+        context.getBean(com.example.panel.config.MultibusinessFeatureFlags.class).setStrictReadScope(false);
+        reset(context.getBean(IncidentService.class),context.getBean(IncidentMonitoringPolicyService.class),context.getBean(ChannelTransportService.class));
         jdbc.execute("TRUNCATE users,tasks,projects,task_seq,shared_work_access_audit RESTART IDENTITY CASCADE;INSERT INTO task_seq VALUES(1,0)");
         jdbc.update("INSERT INTO users(id,username,password,role_id) OVERRIDING SYSTEM VALUE VALUES(?,?,'unused',NULL),(11,'owner','unused',NULL),(12,'viewer','unused',NULL)",ADMIN,ADMIN_NAME);
         jdbc.update("INSERT INTO user_authorities VALUES(?,'ROLE_ADMIN'),(11,'PAGE_TASKS'),(12,'PAGE_TASKS')",ADMIN);
@@ -429,6 +431,111 @@ class SharedWorkMainHttpPostgresTest {
         as(ADMIN,()->{assertThat(service.loadRelatedEvents("context-source",30)).hasSize(2);return null;});
     }
 
+    static Authentication commonActor() {
+        return UsernamePasswordAuthenticationToken.authenticated(new PanelUserPrincipal(USER,"owner","unused",true,List.of()),null,List.of());
+    }
+    void commonOnly() {
+        jdbc.update("DELETE FROM user_authorities WHERE user_id=?",USER);
+        jdbc.update("DELETE FROM shared_work_grants WHERE user_id=?",USER);
+    }
+    @Test void commonIncidentsAndMonitoringNeedNoPageBusinessOrSharedGrant()throws Exception {
+        commonOnly();var incident=context.getBean(IncidentService.class);
+        when(incident.listIncidents(any(),any(),any(),any(),any(),any(),any())).thenReturn(Map.of("items",List.of(Map.of("id","7"))));
+        when(incident.createIncident(anyMap(),eq("owner"))).thenReturn(Map.of("incident",Map.of("id","7")));
+        when(context.getBean(IncidentMonitoringPolicyService.class).overview()).thenReturn(Map.of("items",List.of()));
+        mvc.perform(get("/incidents").with(authentication(commonActor()))).andExpect(status().isOk()).andExpect(view().name("incidents/index"));
+        mvc.perform(get("/api/panel-users/options").with(authentication(commonActor()))).andExpect(status().isOk());
+        mvc.perform(get("/api/incidents").with(authentication(commonActor()))).andExpect(status().isOk()).andExpect(jsonPath("$.items[0].id").value("7"));
+        mvc.perform(post("/api/incidents").with(authentication(commonActor())).with(csrf()).contentType("application/json").content("{}"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.incident.id").value("7"));
+        mvc.perform(get("/api/incidents/monitoring").with(authentication(commonActor()))).andExpect(status().isOk()).andExpect(jsonPath("$.can_edit").value(true));
+        mvc.perform(patch("/api/incidents/monitoring/smtp").with(authentication(commonActor())).with(csrf()).contentType("application/json").content("{}"))
+            .andExpect(status().isOk());
+        verify(context.getBean(IncidentMonitoringPolicyService.class)).update("smtp",Map.of(),"owner");
+        mvc.perform(post("/api/incidents").with(authentication(commonActor())).contentType("application/json").content("{}"))
+            .andExpect(status().isForbidden());
+        mvc.perform(get("/api/channels").with(authentication(commonActor()))).andExpect(status().isForbidden());
+        mvc.perform(post("/api/channels").with(authentication(commonActor())).with(csrf()).contentType("application/json").content("{}"))
+            .andExpect(status().isForbidden());
+        verifyNoInteractions(context.getBean(ChannelTransportService.class));
+    }
+    @Test void commonExternalCatalogDoesNotOpenPrivateSourcePickers()throws Exception {
+        commonOnly();
+        mvc.perform(get("/api/incidents/related-object-options").with(authentication(commonActor())))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.types.length()").value(1)).andExpect(jsonPath("$.types[0]").value("external_object"))
+            .andExpect(jsonPath("$.can_create_external").value(true));
+        var result=mvc.perform(post("/api/incidents/external-objects").with(authentication(commonActor())).with(csrf()).contentType("application/json")
+            .content("{\"name\":\"Common server\"}")).andExpect(status().isOk()).andReturn();
+        long external=id(result,"item.value");
+        assertThat(jdbc.queryForObject("SELECT created_by FROM incident_external_objects WHERE id=?",String.class,external)).isEqualTo("owner");
+        mvc.perform(get("/api/incidents/related-objects").param("type","external_object").with(authentication(commonActor())))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].value").value(Long.toString(external)));
+        for(String type:List.of("task","ticket","object_passport"))
+            mvc.perform(get("/api/incidents/related-objects").param("type",type).with(authentication(commonActor()))).andExpect(status().isForbidden());
+    }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"disabled","blocked","renamed","reused","deleted","wrong-id","trimmed","plain-principal"})
+    void staleOrNonCanonicalAccountCannotUseCommonApi(String mutation)throws Exception {
+        commonOnly();Authentication who=commonActor();
+        switch(mutation){
+            case "disabled"->jdbc.update("UPDATE users SET enabled=FALSE WHERE id=?",USER);
+            case "blocked"->jdbc.update("UPDATE users SET is_blocked=TRUE WHERE id=?",USER);
+            case "renamed"->jdbc.update("UPDATE users SET username='renamed' WHERE id=?",USER);
+            case "deleted"->jdbc.update("DELETE FROM users WHERE id=?",USER);
+            case "reused"->{jdbc.update("DELETE FROM users WHERE id=?",USER);jdbc.execute("INSERT INTO users(id,username,password) OVERRIDING SYSTEM VALUE VALUES(13,'owner','unused')");}
+            case "wrong-id"->who=UsernamePasswordAuthenticationToken.authenticated(new PanelUserPrincipal(VIEWER,"owner","unused",true,List.of()),null,List.of());
+            case "trimmed"->who=UsernamePasswordAuthenticationToken.authenticated(new PanelUserPrincipal(USER," owner ","unused",true,List.of()),null,List.of());
+            case "plain-principal"->who=UsernamePasswordAuthenticationToken.authenticated("owner",null,List.of());
+            default->throw new IllegalArgumentException(mutation);
+        }
+        for(String route:List.of("/incidents","/api/incidents","/api/incidents/monitoring","/api/incidents/related-object-options","/api/notifications","/api/notifications/unread_count","/api/panel-users/options"))
+            mvc.perform(get(route).with(authentication(who))).andExpect(status().isForbidden());
+        mvc.perform(post("/api/incidents").with(authentication(who)).with(csrf()).contentType("application/json").content("{}"))
+            .andExpect(status().isForbidden());
+        mvc.perform(post("/api/notifications/read-all").with(authentication(who)).with(csrf())).andExpect(status().isForbidden());
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM notifications",Integer.class)).isZero();
+        verifyNoInteractions(context.getBean(IncidentService.class),context.getBean(IncidentMonitoringPolicyService.class));
+    }
+    @Test void commonApiRejectsAnonymousAndPreservesRawNumericAccount()throws Exception {
+        mvc.perform(get("/api/incidents")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/notifications")).andExpect(status().isUnauthorized());
+        assertThat(context.getBean(SharedSystemAccessService.class).canAccess(actor(ADMIN))).isTrue();
+        jdbc.update("UPDATE users SET username=? WHERE id=?",ADMIN_NAME.strip(),ADMIN);
+        assertThat(context.getBean(SharedSystemAccessService.class).canAccess(actor(ADMIN))).isFalse();
+    }
+    @Test void ordinaryTaskReaderCanSeeCommonIncidentSummaries()throws Exception {
+        long object=task(ADMIN,"incident link");member("TASK",object,USER,"VIEWER");
+        when(context.getBean(IncidentService.class).listIncidentSummariesForTask(object)).thenReturn(List.of(Map.of("id","7","title","Common incident")));
+        mvc.perform(get("/api/tasks/"+object).with(authentication(actor(USER)))).andExpect(status().isOk())
+            .andExpect(jsonPath("$.incidents[0].title").value("Common incident"));
+        mvc.perform(get("/api/tasks/"+object).with(authentication(actor(VIEWER)))).andExpect(status().isNotFound());
+    }
+    @Test void strictInboxKeepsCommonNoticesButFiltersPrivateAndUnclassifiedBeforePagesAndRead()throws Exception {
+        commonOnly();var notices=context.getBean(NotificationService.class);
+        context.getBean(com.example.panel.config.MultibusinessFeatureFlags.class).setStrictReadScope(true);
+        notices.notifyUsers(Set.of("owner","viewer"),"Common incident","/incidents?incident=7");
+        notices.notifyUser("owner","System message","/settings#system");
+        for(String url:List.of("/dialogs/T-1","/general","/tasks","/projects","/incidents-private"))
+            notices.notifyUser("owner","Private or unclassified",url);
+        notices.notifyUser("owner","Unknown legacy",null);
+        long privateId=jdbc.queryForObject("SELECT id FROM notifications WHERE url='/tasks'",Long.class);
+        var first=mvc.perform(get("/api/notifications").param("limit","1").with(authentication(commonActor())))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].text").value("System message"))
+            .andExpect(jsonPath("$.hasMore").value(true)).andReturn();
+        String cursor=json.readTree(first.getResponse().getContentAsByteArray()).path("nextCursor").asText();
+        mvc.perform(get("/api/notifications").param("limit","1").param("cursor",cursor).with(authentication(commonActor())))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].text").value("Common incident")).andExpect(jsonPath("$.hasMore").value(false));
+        mvc.perform(get("/api/notifications/unread_count").with(authentication(commonActor())))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.unread").value(2));
+        mvc.perform(post("/api/notifications/"+privateId+"/read").with(authentication(commonActor())).with(csrf())).andExpect(status().isOk());
+        mvc.perform(post("/api/notifications/read-all").with(authentication(commonActor())).with(csrf()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.updated").value(2));
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM notifications WHERE is_read",Integer.class)).isEqualTo(2);
+        assertThat(jdbc.queryForObject("SELECT is_read FROM notifications WHERE id=?",Boolean.class,privateId)).isFalse();
+        // The bell remains personal: another recipient's copy is neither read nor acknowledged.
+        assertThat(jdbc.queryForObject("SELECT is_read FROM notifications WHERE user_identity='viewer'",Boolean.class)).isFalse();
+    }
+
     @Configuration(proxyBeanMethods=false) @EnableWebSecurity @EnableMethodSecurity @EnableWebMvc @EnableTransactionManagement
     static class Config {
         @Bean JdbcTemplate jdbcTemplate(){return jdbc;}
@@ -481,6 +588,16 @@ class SharedWorkMainHttpPostgresTest {
         @Bean NotificationService notificationService(NotificationRepository n,UiEventStreamService s,LegacyTicketIdJdbcGuard g){return new NotificationService(n,jdbc,jdbc,s,g);}
         @Bean PanelTaskService systemTasks(TaskRepository t,TaskSequenceRepository s,TaskPersonRepository p,TaskHistoryRepository h,TaskLinkRepository l,NotificationRepository n,TicketRepository tickets,TaskDomainFoundationService d){return new PanelTaskService(t,s,p,h,l,n,tickets,d);}
         @Bean SharedWorkAccessService access(){return new SharedWorkAccessService(jdbc);}
+        @Bean SharedSystemAccessService sharedSystemAccessService(){return new SharedSystemAccessService(jdbc);}
+        @Bean IncidentMonitoringPolicyService monitoring(){return mock(IncidentMonitoringPolicyService.class);}
+        @Bean ChannelTransportService channelTransport(){return mock(ChannelTransportService.class);}
+        @Bean ChannelApiController channelApi(ChannelTransportService s){return new ChannelApiController(s);}
+        @Bean IncidentApiController incidentApi(IncidentService s){return new IncidentApiController(s,mock(IncidentOpsMetricsService.class),mock(IncidentOpsEscalationService.class),mock(IncidentRouteDeliveryDiagnosticsService.class));}
+        @Bean IncidentMonitoringPolicyController monitoringApi(IncidentMonitoringPolicyService s){return new IncidentMonitoringPolicyController(s);}
+        @Bean IncidentWorkbenchPageController incidentPage(NavigationService s){return new IncidentWorkbenchPageController(s);}
+        @Bean IncidentRelatedObjectController relatedApi(IncidentRelatedObjectService s){return new IncidentRelatedObjectController(s);}
+        @Bean NotificationApiController notificationApi(NotificationService s){return new NotificationApiController(s);}
+        @Bean PanelUserOptionsController employeeOptions(PanelUserRepository users){return new PanelUserOptionsController(users);}
         @Bean static org.springframework.beans.factory.config.BeanFactoryPostProcessor externalServices(){
             return factory->{
                 factory.registerSingleton("notifications",mock(NotificationRoutingService.class));
@@ -495,6 +612,7 @@ class SharedWorkMainHttpPostgresTest {
                 factory.registerSingleton("permissions",mock(PermissionService.class));
                 factory.registerSingleton("views",mock(TaskAnalyticsViewService.class));
                 var display=mock(DialogTaskDisplayService.class);
+                when(display.normalizeNotificationText(any())).thenAnswer(i->i.getArgument(0,String.class));
                 when(display.normalizeTitle(any())).thenAnswer(i->i.getArgument(0));
                 when(display.normalizeBodyHtml(any())).thenAnswer(i->i.getArgument(0));
                 factory.registerSingleton("display",display);

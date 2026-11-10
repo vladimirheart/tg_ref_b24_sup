@@ -28,6 +28,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(NotificationApiController.class)
 @AutoConfigureMockMvc(addFilters = false)
 class NotificationApiControllerWebMvcTest {
+    // Routing slices mock only account eligibility; the PostgreSQL/HTTP suite uses the real guard.
+    @MockBean(name="sharedSystemAccessService") com.example.panel.service.SharedSystemAccessService sharedSystemAccessService;
+    @org.junit.jupiter.api.BeforeEach void currentAccount() {
+        org.mockito.Mockito.when(sharedSystemAccessService.canAccess(org.mockito.ArgumentMatchers.nullable(org.springframework.security.core.Authentication.class))).thenReturn(true);
+    }
+
 
     @Autowired
     private MockMvc mockMvc;
@@ -73,21 +79,6 @@ class NotificationApiControllerWebMvcTest {
     }
 
     @Test
-    void listPassesCursorAndFallsBackToAllIdentityWhenAuthenticationIsMissing() throws Exception {
-        when(notificationService.findPageForUser("all", "cursor-2", 20))
-                .thenReturn(new NotificationPage(List.of(), null, false));
-
-        mockMvc.perform(get("/api/notifications")
-                        .param("cursor", "cursor-2"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items").isArray())
-                .andExpect(jsonPath("$.items").isEmpty())
-                .andExpect(jsonPath("$.hasMore").value(false));
-
-        verify(notificationService).findPageForUser("all", "cursor-2", 20);
-    }
-
-    @Test
     void invalidCursorReturnsBadRequest() throws Exception {
         when(notificationService.findPageForUser("operator", "bad", 20))
                 .thenThrow(new IllegalArgumentException("bad cursor"));
@@ -121,15 +112,6 @@ class NotificationApiControllerWebMvcTest {
     }
 
     @Test
-    void markAsReadFallsBackToAllIdentityWhenAuthenticationIsMissing() throws Exception {
-        mockMvc.perform(post("/api/notifications/77/read"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true));
-
-        verify(notificationService).markAsRead("all", 77L);
-    }
-
-    @Test
     void markAllAsReadUsesAuthenticatedUsername() throws Exception {
         when(notificationService.markAllAsRead("watcher_peer")).thenReturn(3L);
 
@@ -142,15 +124,11 @@ class NotificationApiControllerWebMvcTest {
     }
 
     @Test
-    void markAllAsReadFallsBackToAllIdentityWhenAuthenticationIsMissing() throws Exception {
-        when(notificationService.markAllAsRead("all")).thenReturn(2L);
-
-        mockMvc.perform(post("/api/notifications/read-all"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.updated").value(2));
-
-        verify(notificationService).markAllAsRead("all");
+    void missingIdentityNeverFallsBackToAnotherInbox() throws Exception {
+        mockMvc.perform(get("/api/notifications")).andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/notifications/77/read")).andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/notifications/read-all")).andExpect(status().isForbidden());
+        org.mockito.Mockito.verifyNoInteractions(notificationService);
     }
 
     private Authentication userDetailsAuthentication(String username) {

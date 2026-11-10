@@ -29,7 +29,9 @@ import static org.mockito.Mockito.*;
 
 class IncidentRelatedObjectPostgresqlTest {
     private static void login(String username, String... authorities) {
-        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(username, "unused",
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(new com.example.panel.security.PanelUserPrincipal(
+                username.equals("Admin") ? 11L : username.equals("admin") ? 12L : username.equals(" Admin ") ? 13L : 14L,
+                username,"unused",true,Arrays.stream(authorities).map(SimpleGrantedAuthority::new).toList()), "unused",
                 Arrays.stream(authorities).map(SimpleGrantedAuthority::new).toList()));
     }
     @AfterEach void logout() { SecurityContextHolder.clearContext(); }
@@ -40,11 +42,15 @@ class IncidentRelatedObjectPostgresqlTest {
         final IncidentRelatedObjectService service = new IncidentRelatedObjectService(jdbc, scope);
         Fixture() {
             new ResourceDatabasePopulator(new ClassPathResource("db/migration/postgresql/V82__incident_external_objects.sql")).execute(jdbc.getDataSource());
-            jdbc.execute("CREATE TABLE users(id bigint, username text)");
-            jdbc.execute("INSERT INTO users VALUES (11, 'Admin'), (12, 'admin'), (13, ' Admin ')");
+            jdbc.execute("CREATE TABLE users(id bigint PRIMARY KEY, username text,enabled boolean DEFAULT TRUE,is_blocked boolean DEFAULT FALSE,role_id bigint)");
+            jdbc.execute("INSERT INTO users(id,username) VALUES (11, 'Admin'), (12, 'admin'), (13, ' Admin '),(14,'reader')");
             jdbc.execute("CREATE TABLE tickets(user_id bigint, ticket_id text, business_id bigint, is_general boolean, status text, created_at timestamptz)");
             jdbc.execute("CREATE TABLE messages(ticket_id text UNIQUE, problem text, client_name text, created_at timestamptz)");
-            jdbc.execute("CREATE TABLE tasks(id bigint, seq bigint, title text, status text, created_at timestamptz)");
+            jdbc.execute("CREATE TABLE tasks(id bigint PRIMARY KEY, seq bigint, title text, status text, created_at timestamptz)");
+            jdbc.execute("CREATE TABLE projects(id bigint PRIMARY KEY);CREATE TABLE roles(id bigint PRIMARY KEY,name text,permissions text);CREATE TABLE user_authorities(user_id bigint,authority text)");
+            new ResourceDatabasePopulator(new ClassPathResource("db/migration/postgresql/V88__shared_work_access.sql")).execute(jdbc.getDataSource());
+            jdbc.execute("INSERT INTO user_authorities VALUES(11,'PAGE_TASKS');INSERT INTO shared_work_grants(user_id,can_read) VALUES(11,TRUE)");
+            org.springframework.test.util.ReflectionTestUtils.setField(service,"sharedAccess",new SharedWorkAccessService(jdbc));
             jdbc.execute("CREATE TABLE objects(id bigint, name text, address text)");
             jdbc.execute("CREATE TABLE object_passports(id bigint, object_id bigint, passport_number text, created_at timestamptz)");
         }
@@ -59,9 +65,11 @@ class IncidentRelatedObjectPostgresqlTest {
 
     @Test void searchUsesHumanNumbersTitlesLiteralQueryAndOpaqueIds() {
         var f = new Fixture(); login("Admin", "PAGE_DIALOGS", "PAGE_TASKS", "PAGE_OBJECT_PASSPORTS");
+        f.jdbc.update("UPDATE users SET username='other' WHERE id=12"); // no case-fold ambiguity for the shared task reader
         String exact = " T/1?&%# Ю "; f.ticket(exact, null, false);
         f.jdbc.update("INSERT INTO messages VALUES (?, 'Не работает касса', 'Анна', '2026-10-26 10:00:00Z')", exact);
-        f.jdbc.update("INSERT INTO tasks VALUES (9007199254740993,42,'Заменить кабель','Новая',now())");
+        f.jdbc.update("INSERT INTO tasks VALUES (9007199254740993,42,'Заменить кабель','Новая',now(),11)");
+        f.jdbc.update("INSERT INTO shared_task_members(task_id,user_id,access_role) VALUES(9007199254740993,11,'OWNER')");
         f.jdbc.update("INSERT INTO objects VALUES (1, 'Ресторан 7 Гвардейская', 'Волгоград')");
         f.jdbc.update("INSERT INTO object_passports VALUES (17,1,'PS-17',now())");
         assertThat(f.service.search("ticket", "20261026-001", 20).toString()).contains(exact, "касса", "Анна");
@@ -93,21 +101,21 @@ class IncidentRelatedObjectPostgresqlTest {
         f.service.search("ticket", "", 20); verify(f.scope).resolveAccessibleBusinessIds(13L);
     }
 
-    @Test void pageAndGlobalAdminPermissionsAreCheckedByTheServiceNotOnlyController() {
-        var f = new Fixture(); login("Admin", "ROLE_ADMIN");
-        assertThatThrownBy(() -> f.service.capabilities()).isInstanceOf(AccessDeniedException.class);
-        assertThatThrownBy(() -> f.external()).isInstanceOf(AccessDeniedException.class);
-        login("Admin", "PAGE_TASKS", "BUSINESS_ADMIN", "ALL_BUSINESSES");
-        assertThat(f.service.capabilities().get("types")).isEqualTo(List.of("task", "external_object"));
-        assertThat(f.service.capabilities().get("can_create_external")).isEqualTo(false);
-        assertThatThrownBy(() -> f.external()).isInstanceOf(AccessDeniedException.class);
+    @Test void commonCatalogAccessStillChecksCurrentAccountAndPrivateSourcePages() {
+        var f = new Fixture(); login("Admin");
+        assertThat(f.service.capabilities().get("types")).isEqualTo(List.of("external_object"));
+        assertThat(f.service.capabilities().get("can_create_external")).isEqualTo(true);
+        String id=f.external();
         assertThatThrownBy(() -> f.service.search("ticket", "", 20)).isInstanceOf(AccessDeniedException.class);
         assertThatThrownBy(() -> f.service.validateSelection("object_passport", "1")).isInstanceOf(AccessDeniedException.class);
-        assertThat(f.jdbc.queryForObject("SELECT count(*) FROM incident_external_objects", Integer.class)).isZero();
-        login("Admin", "ROLE_ADMIN", "PAGE_TASKS"); String id = f.external();
-        login("reader", "PAGE_DIALOGS");
+        assertThatThrownBy(() -> f.service.search("task", "", 20)).isInstanceOf(AccessDeniedException.class);
+        login("reader");
         assertThat(f.service.search("external_object", "EXT-7", 20).toString()).contains(id, "Внешний сервер");
         f.service.validateSelection("external_object", id);
+        f.jdbc.update("UPDATE users SET enabled=FALSE WHERE id=14");
+        assertThatThrownBy(() -> f.service.capabilities()).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> f.external()).isInstanceOf(AccessDeniedException.class);
+        assertThat(f.jdbc.queryForObject("SELECT count(*) FROM incident_external_objects", Integer.class)).isEqualTo(1);
     }
 
     @Test void catalogValidatesInputDoesNotFetchLinksAndPreservesExactActorAndLargeIdentity() {
@@ -169,6 +177,7 @@ class IncidentRelatedObjectPostgresqlTest {
         // Also compile and execute every picker query against the actual complete migration chain,
         // not only the small fixtures above. Use the real canonical scope resolver here.
         login("Admin", "ROLE_ADMIN", "PAGE_DIALOGS", "PAGE_TASKS", "PAGE_OBJECT_PASSPORTS");
+        jdbc.update("INSERT INTO users(id,username,password) OVERRIDING SYSTEM VALUE VALUES(11,'Admin','unused')");
         var lookup = new IncidentRelatedObjectService(jdbc, new BusinessAccessService(jdbc));
         for (String type : List.of("ticket", "task", "object_passport", "external_object")) {
             assertThat(lookup.search(type, "", 5).get("items")).isEqualTo(List.of());

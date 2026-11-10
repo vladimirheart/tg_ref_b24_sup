@@ -26,7 +26,17 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(IncidentApiController.class)
 @AutoConfigureMockMvc
+@org.springframework.context.annotation.Import(IncidentApiControllerWebMvcTest.MethodSecurity.class)
 class IncidentApiControllerWebMvcTest {
+    @org.springframework.boot.test.context.TestConfiguration
+    @org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
+    static class MethodSecurity {}
+    // Routing slices mock only account eligibility; the PostgreSQL/HTTP suite uses the real guard.
+    @MockBean(name="sharedSystemAccessService") com.example.panel.service.SharedSystemAccessService sharedSystemAccessService;
+    @org.junit.jupiter.api.BeforeEach void currentAccount() {
+        org.mockito.Mockito.when(sharedSystemAccessService.canAccess(org.mockito.ArgumentMatchers.nullable(org.springframework.security.core.Authentication.class))).thenReturn(true);
+    }
+
 
     @Autowired
     private MockMvc mockMvc;

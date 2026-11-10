@@ -20,6 +20,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/notifications")
+@org.springframework.security.access.prepost.PreAuthorize(com.example.panel.service.SharedSystemAccessService.REQUIRE)
 public class NotificationApiController {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationApiController.class);
@@ -72,7 +73,7 @@ public class NotificationApiController {
 
     private String resolveIdentity(Authentication authentication) {
         if (authentication == null) {
-            return "all";
+            throw new org.springframework.security.access.AccessDeniedException("Требуется учётная запись панели.");
         }
         Object principal = authentication.getPrincipal();
         if (principal instanceof UserDetails userDetails) {

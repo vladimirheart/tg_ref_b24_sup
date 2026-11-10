@@ -3,6 +3,24 @@
 Документ фиксирует текущий runtime contract между `spring-panel` и `java-bot`
 после `Phase 5` рефакторинга.
 
+## Source R306: общий контур инцидентов, отдельный runtime
+
+По решению «все всем, кроме распределения настроек бота» инциденты, их
+monitoring/маршруты/внешний каталог и персональный inbox доступны всем текущим
+действующим numeric panel accounts. Source-object READ, bot/channel administration
+и распределение настроек бота сохраняют свои проверки. Общие incident/system
+notices не теряются при strictReadScope; чужой inbox и private ticket/task/project
+уведомления этим не открываются. См. [контракт](runbooks/common-system-access.md).
+
+162 tests/17 suites GREEN в source/test session;127 baseline tests GREEN до правок.
+8 прежних failures ChannelApiControllerWebMvcTest подтверждены отдельно на
+неизменённом5b3a09013, полный suite не объявляется GREEN. Рабочий Docker/проект
+на другой машине и в другой сессии; текущая проверка не является deployment.
+Нативный PostgreSQL использован только как изолированная nonce-owned fixture.
+Новых migrations/flags нет. R306 требует нового backend image для panel-web/
+ops-worker; bot-runner, children, provider и инфраструктура не изменялись.
+Исторический Runtime R305 ниже остаётся последним подтверждённым выпуском.
+
 ## Launcher Contract
 
 - основной источник правды: `app.bots.*` в `spring-panel/src/main/resources/application.yml`;

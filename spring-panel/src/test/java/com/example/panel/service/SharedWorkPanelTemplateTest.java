@@ -13,6 +13,15 @@ import static org.mockito.Mockito.*;
 import com.example.panel.repository.PanelUserRepository;
 
 class SharedWorkPanelTemplateTest {
+    @Test void ordinaryNumericAccountCanDiscoverIncidentsWithoutPages() {
+        var service=new NavigationService(new PermissionService(),mock(PanelUserRepository.class),mock(UnblockRequestService.class),mock(PanelUserPhotoService.class));
+        var actor=org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated(
+            new com.example.panel.security.PanelUserPrincipal(11,"ordinary","unused",true,java.util.List.of()),null,java.util.List.of());
+        var model=new ExtendedModelMap();service.enrich(model,actor);
+        assertThat(model.getAttribute("canViewIncidents")).isEqualTo(true);
+        assertThat(model.getAttribute("canManageChannels")).isEqualTo(false);
+        service.enrich(model,null);assertThat(model.getAttribute("canViewIncidents")).isEqualTo(false);
+    }
     @Test void actualThymeleafFragmentsComposeForBothObjectKinds() {
         var inline=new StringTemplateResolver();inline.setOrder(1);inline.setResolvablePatterns(Set.of("<*"));
         var files=new FileTemplateResolver();files.setOrder(2);

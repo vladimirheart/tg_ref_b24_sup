@@ -13,21 +13,19 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/incidents/monitoring")
+@PreAuthorize(com.example.panel.service.SharedSystemAccessService.REQUIRE)
 public class IncidentMonitoringPolicyController {
     private final IncidentMonitoringPolicyService policy;
     public IncidentMonitoringPolicyController(IncidentMonitoringPolicyService policy) { this.policy = policy; }
 
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('PAGE_DIALOGS','PAGE_TASKS','PAGE_OBJECT_PASSPORTS','PAGE_SETTINGS')")
     public Map<String, Object> get(Authentication auth) {
         Map<String, Object> result = new java.util.LinkedHashMap<>(policy.overview());
-        var authorities = auth.getAuthorities().stream().map(org.springframework.security.core.GrantedAuthority::getAuthority).toList();
-        result.put("can_edit", authorities.contains("ROLE_ADMIN") && authorities.contains("PAGE_SETTINGS"));
+        result.put("can_edit", true);
         return result;
     }
 
     @PatchMapping("/{direction}")
-    @PreAuthorize("hasAuthority('PAGE_SETTINGS') and hasAuthority('ROLE_ADMIN')")
     public Map<String, Object> update(@PathVariable String direction, @RequestBody Map<String, Object> payload, Authentication auth) {
         return policy.update(direction, payload, auth.getName());
     }

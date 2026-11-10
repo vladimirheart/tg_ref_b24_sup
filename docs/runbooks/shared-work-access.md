@@ -123,8 +123,8 @@ links, Kanban columns/cards и task analytics/CSV. Доступ к проект�
 изменении. Personal board имеет numeric scope PERSONAL_USER:<users.id>;
 старый текстовый personal scope доступен только системному администратору.
 Manager reports, dialog task history и incident task picker применяют текущую
-видимость до counts/LIMIT. Incident summaries task DTO видит только system admin,
-пока отдельная incident policy не определена.
+видимость до counts/LIMIT. Source R306 разрешает incident summaries любому
+текущему читателю задачи: инциденты общие для всех действующих panel accounts.
 
 Уведомления сначала разворачивают настроенную аудиторию, затем проверяют READ
 каждого numeric получателя. Typed kind/object/recipient неизменяемы в записи;
@@ -140,9 +140,9 @@ READ/WRITE при наличии ссылки; root/OWNER/sequence/link/system a
 Старые unauthenticated create overloads закрыты.
 
 UI, аудит, notification/SSE, task projections и auto-close R305 реализованы
-и активированы. Самостоятельные incidents/system notifications, historical
-incident snapshots и остальные global/system capabilities требуют отдельной
-policy; AI/privacy и S6 остаются в общей задаче. Historical S2B снятR190.
+и активированы. Общие incidents/system notifications согласованы и реализованы
+в source R306; см. [отдельный контракт](common-system-access.md). Рабочая
+активация R306, AI/privacy и S6 остаются в общей задаче. Historical S2B снятR190.
 
 ## Проверка и рабочая активация
 

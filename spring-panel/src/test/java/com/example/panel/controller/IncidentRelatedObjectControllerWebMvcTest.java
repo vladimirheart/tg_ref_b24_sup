@@ -17,30 +17,35 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(IncidentRelatedObjectController.class)
 @org.springframework.context.annotation.Import(IncidentRelatedObjectControllerWebMvcTest.MethodSecurity.class)
 class IncidentRelatedObjectControllerWebMvcTest {
+    // Routing slices mock only account eligibility; the PostgreSQL/HTTP suite uses the real guard.
+    @MockBean(name="sharedSystemAccessService") com.example.panel.service.SharedSystemAccessService sharedSystemAccessService;
+    @org.junit.jupiter.api.BeforeEach void currentAccount() {
+        org.mockito.Mockito.when(sharedSystemAccessService.canAccess(org.mockito.ArgumentMatchers.nullable(org.springframework.security.core.Authentication.class))).thenReturn(true);
+    }
+
     @org.springframework.boot.test.context.TestConfiguration
     @org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
     static class MethodSecurity {}
     @Autowired MockMvc mvc;
     @MockBean IncidentRelatedObjectService service;
 
-    @Test void searchRequiresIncidentPageAndPreservesLiteralQuery() throws Exception {
-        mvc.perform(get("/api/incidents/related-objects").param("type", "ticket").with(user("reader").authorities(() -> "PAGE_SETTINGS"))).andExpect(status().isForbidden());
-        verifyNoInteractions(service);
+    @Test void commonSearchPreservesLiteralQuery() throws Exception {
         when(service.search("ticket", " T/1?&%# Ю ", 20)).thenReturn(Map.of("items", List.of(Map.of("value", " T/1?&%# Ю ", "label", "20261026-001"))));
         mvc.perform(get("/api/incidents/related-objects").param("type", "ticket").param("query", " T/1?&%# Ю ").param("limit", "20")
                 .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].value").value(" T/1?&%# Ю "));
     }
-    @Test void createRequiresGlobalAdminAndPageAndCsrf() throws Exception {
+    @Test void everyCurrentAccountCanCreateExternalButCsrfIsRequired() throws Exception {
         String path = "/api/incidents/external-objects";
-        for (String[] authorities : List.of(new String[]{"PAGE_DIALOGS"}, new String[]{"ROLE_ADMIN"}, new String[]{"PAGE_TASKS", "BUSINESS_ADMIN", "ALL_BUSINESSES"})) {
+        when(service.createExternal(anyMap())).thenReturn(Map.of("item", Map.of("value", "9007199254740993", "label", "Сервер")));
+        for (String[] authorities : List.of(new String[]{}, new String[]{"ROLE_ADMIN"}, new String[]{"PAGE_TASKS", "BUSINESS_ADMIN", "ALL_BUSINESSES"})) {
             mvc.perform(post(path).with(user("user").authorities(java.util.Arrays.stream(authorities).map(org.springframework.security.core.authority.SimpleGrantedAuthority::new).toList()))
                     .with(csrf()).contentType("application/json").content("{\"name\":\"Сервер\"}"))
-                    .andExpect(status().isForbidden());
+                    .andExpect(status().isOk());
         }
         mvc.perform(post(path).with(user("admin").authorities(() -> "ROLE_ADMIN", () -> "PAGE_DIALOGS")).contentType("application/json").content("{\"name\":\"Сервер\"}"))
                 .andExpect(status().isForbidden());
-        verifyNoInteractions(service);
+        verify(service, times(3)).createExternal(anyMap());
         when(service.createExternal(anyMap())).thenReturn(Map.of("item", Map.of("value", "9007199254740993", "label", "Сервер")));
         mvc.perform(post(path).with(user("admin").authorities(() -> "ROLE_ADMIN", () -> "PAGE_DIALOGS")).with(csrf()).contentType("application/json").content("{\"name\":\"Сервер\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.item.value").value("9007199254740993"));

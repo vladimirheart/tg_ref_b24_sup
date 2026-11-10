@@ -6,6 +6,7 @@ import com.example.panel.service.IncidentRouteDeliveryDiagnosticsService;
 import com.example.panel.service.IncidentService;
 import java.util.Map;
 import org.springframework.security.access.prepost.PreAuthorize;
+import com.example.panel.service.SharedSystemAccessService;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/incidents")
-@PreAuthorize("hasAnyAuthority('PAGE_DIALOGS','PAGE_TASKS','PAGE_OBJECT_PASSPORTS')")
+@PreAuthorize(SharedSystemAccessService.REQUIRE)
 public class IncidentApiController {
 
     private final IncidentService incidentService;

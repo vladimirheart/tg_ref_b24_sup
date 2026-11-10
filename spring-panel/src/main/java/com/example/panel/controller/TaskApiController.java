@@ -333,7 +333,7 @@ public class TaskApiController {
         dto.put("tags", taskDomainFoundationService.listTags(task.getId()));
         dto.put("projects", taskDomainFoundationService.listProjects(task.getId()));
         dto.put("events", taskDomainFoundationService.listEvents(task.getId()));
-        dto.put("incidents", sharedAccess.isSystemAdministrator(com.example.panel.service.SharedWorkAccessService.current()) ? incidentService.listIncidentSummariesForTask(task.getId()) : List.of());
+        dto.put("incidents", incidentService.listIncidentSummariesForTask(task.getId()));
         return dto;
     }
 

@@ -7,7 +7,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Минимальный справочник для legacy/global назначений; scoped candidates его не используют. */
+/** Minimal common panel roster for incident assignments; scoped candidates use their own access checks. */
 @RestController
 public class PanelUserOptionsController {
     private final PanelUserRepository users;
@@ -15,7 +15,7 @@ public class PanelUserOptionsController {
     public PanelUserOptionsController(PanelUserRepository users) { this.users = users; }
 
     @GetMapping("/api/panel-users/options")
-    @PreAuthorize("hasAnyAuthority('PAGE_DIALOGS','PAGE_TASKS','PAGE_OBJECT_PASSPORTS','PAGE_SETTINGS','PAGE_USERS')")
+    @PreAuthorize(com.example.panel.service.SharedSystemAccessService.REQUIRE)
     public List<Option> options() {
         return users.findEmployeeOptions().stream()
             .filter(user -> user.enabled() && !user.blocked() && user.identityCount() == 1)
