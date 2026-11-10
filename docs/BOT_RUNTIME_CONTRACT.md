@@ -3,6 +3,64 @@
 Документ фиксирует текущий runtime contract между `spring-panel` и `java-bot`
 после `Phase 5` рефакторинга.
 
+## Runtime R315 — 2026-11-10: R311–R314 установлены, схема V91
+
+На машине текущей сессии сверены clean HEAD/origin/main/actual remote
+e41252b630e65e7d1cf91883dc51b39f7380f6c7 и38 файлов R311–R314 после R310.
+Новый backend собран именно из committed R314; функциональных source-правок
+R315 нет. Установлены очистка scoped AI history/control R311, проверка metadata
+R312, reviewed exact rules/delivery R313 и восстановление QUEUED R314.
+
+716 targeted tests/15 suites GREEN, failures/errors/skips0: native PostgreSQL,
+реальные Spring Security/Thymeleaf/CSRF, ingestion, правила и ревокация,
+claim/recovery/concurrency, две crash JVM с file-only provider double,
+handoff и прежние scoped AI regressions. Рабочая БД тестами не использовалась.
+Проверены1459 Java sources R310 cache и2375 unchanged class hashes;14 main/
+11 test Java пересобраны, текущих Java sources1465. Принятый R310 JAR сверен
+с baseline main bytecode; Maven resources/jar/repackage и Docker build GREEN.
+Это targeted compile/acceptance, не новая полная Java/Sass или repository-suite сборка.
+
+Web/worker используют image3998c9ea829a, tag iguana-panel:work-r315-e41252b63-20261110.
+JAR SHA256:214b3678163ff555725b1cfa1b02dfcdabed981f424927837c247515745e582d.
+Source manifest SHA256:01b65443670e1f43f2e9014c58f31ece56eaea6b0913e21fed0b26ac8a58e101.
+1912 packaged payloads сверены;3 bot JARs унаследованы без изменения.
+Для ограниченной памяти проверки выполнены с временной остановкой только
+web/worker; прежний R310 восстановлен после сборки перед отдельным cutover.
+
+Реальный V89 backup восстановлен в nonce-owned отдельный PostgreSQL и обновлён
+до V91: fingerprints всех157 прежних таблиц и история V1–V89 сохранены,
+новые rules/audit/receipts пусты. Перед рабочим cutover сохранён свежий custom
+backup с SHA256/TOC; его hash отличается от более раннего rehearsed backup,
+оба сохранены в private evidence. Рабочая БД из backup не восстанавливалась.
+
+Одноразовый Compose db-migrate выполнил ровно V90/V91; исходный stopped migrator
+не пересоздавался. V90 — пустые AI tables/nullable typed outbox link и guards,
+V91 — partial QUEUED index. Старые migrations/checksums, principals/grants и
+settings.json прежние; backfill/seeded approvals/flags не выполнялись.
+Через Compose --no-deps пересозданы только panel-web/ops-worker, по1 replica,
+healthy/restart0;18 остальных контейнеров и3 bot child PID/start ticks прежние.
+Боты остаются R295/image29f36986a0db. ENV/HostConfig/mounts/.env сохранены.
+
+Health/readiness200UP, ERROR/FATAL/OOM0 с начала новых backend containers.
+10 actual Edge gates GREEN: AI catalog/orphans/rules/workbench GET404,
+подтверждённые erase/clear-history/rule-create/revoke POST404, incidents/inbox200.
+AI UI сохраняет выключенные rollout flags; live erase/rule creation/provider/
+LLM/auto-reply не запускались. Положительная приёмка AI пока изолированная.
+
+Актуальный Compose: ../iguana-runtime/tg_ref_b24_sup/releases/r315-backend-activation-20261110/private/release/compose.final.json.
+Rollback tags rollback-r315-panel-web-20261110 и rollback-r315-ops-worker-20261110
+сохраняют image b2dc2f0fb876 (R310); наличие/hashes проверены. Откат backend,
+downgrade V91 и восстановление рабочей БД не разыгрывались.
+Evidence вне .tmp: ../iguana-runtime/tg_ref_b24_sup/releases/r315-backend-activation-20261110/
+(validation-v1/proof.json, bytecode-proof.json, image-proof.json,
+migration-rehearsal-v2-proof.json, backup-proof.json, working-migration-proof.json,
+deployment-proof.json, live-gates-proof.json, runtime-final-proof.json).
+Инструкция и текущая граница: [AI boundaries](runbooks/ai-data-boundaries.md).
+R311–R314 backend/V90/V91 выпуск больше не является остатком; controlled AI
+activation/provider checks и общая S6 ещё нужны. Задача🟡; staging/commit/push нет.
+Ниже сохранены исторические source/runtime checkpoints своих сессий.
+
+
 ## Source R314: scoped AI queue recovery
 
 WORKER/LEASED UiEventOutboxWatcher выполняет отдельный recovery pass: каждые5s,

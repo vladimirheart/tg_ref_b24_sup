@@ -1,4 +1,48 @@
-# Границы данных AI — R314
+# Границы данных AI — R315
+
+## Текущий рабочий выпуск — R315 / V91
+
+Рабочий проект находится на машине текущей сессии. Backend из committed
+R314/e41252b630e65e7d1cf91883dc51b39f7380f6c7 установлен в panel-web/ops-worker,
+image3998c9ea829a, по1 replica/healthy/restart0. R311–R314 и V90/V91 активированы
+на уровне кода/схемы. Health/readiness200UP, новых ERROR/FATAL/OOM0.
+Боты R295,18 остальных контейнеров и3 child PID/start ticks не менялись.
+ENV/mounts/.env/settings.json и principals/grants/AI flags сохранены.
+
+716 targeted tests/15 suites GREEN, failures/errors/skips0: реальные native
+PostgreSQL и Spring HTTP/Thymeleaf/CSRF, provider doubles и две crash JVM,
+cleanup/CAS/revoke/generation/channel, reviewed rules, delivery и QUEUED recovery.
+Пересобраны14 main/11 test Java поверх сверенного R310 cache1459 Java;
+2375 unchanged class hashes и1912 packaged payloads подтверждены. Это targeted
+compile/acceptance с Maven packaging/image build, не полный repository suite.
+
+Репетиция на реальном V89 backup: restore и ровно V90/V91, fingerprints всех157
+прежних таблиц и история V1–V89 сохранены, новые rules/receipts пусты.
+Перед рабочим cutover дополнительно сохранён свежий custom backup с SHA256/TOC;
+его hash отличается от более ранней восстановленной копии, обе сохранены.
+Одноразовый Compose db-migrate затем применил V90/V91 на рабочей БД;
+backfill, seeded approvals, изменение grants/flags и очистки не выполнялись.
+Рабочая БД не восстанавливалась из backup. Rollback images R310 сохранены,
+но откат backend или downgrade V91 не разыгрывались.
+
+10 real Edge gates GREEN: catalog/orphans/rules/workbench GET404 и подтверждённые
+erase/clear-history/create-rule/revoke-rule POST404 при прежних выключенных
+rollout flags; incidents/inbox200. Положительные AI сценарии проверены
+изолированно. Рабочие материалы/история не очищались, правила не создавались,
+LLM/provider/auto-reply не включались. Новый код сам по себе не разрешает отправки.
+
+Следующий рабочий AI шаг — controlled включение согласованного режима в
+выделенном BUSINESS, явный review одного безопасного ответа и приёмка typed
+active-ticket ingress/delivery/revoke/restart на выбранных тестовых получателях.
+Готовый QUEUED требует повторных proof; SENDING/UNKNOWN не переочередять.
+Непроверенный текст и вложения в LLM не разрешены. Сам LLM не нужен для
+согласованного дословного ответа. Live provider и общая S6 остаются отдельными gates.
+
+Актуальные Compose/rollback/evidence — Runtime R315 в
+[карточке01-278](../../ai-context/tasks/task-details/01-278.md).
+Ниже сохранены source-инструкции и checkpoints прежних сессий; указания о другой
+машине относятся к ним. Для текущего стенда сборка R311–R314 и V90/V91 выполнены,
+повторять migrator или backfill по старым pending-формулировкам не нужно.
 
 ## Восстановление очереди AI после остановки worker — R314
 
