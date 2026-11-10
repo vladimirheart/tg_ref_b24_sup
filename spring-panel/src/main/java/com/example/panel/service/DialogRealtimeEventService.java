@@ -256,6 +256,11 @@ public class DialogRealtimeEventService {
         if(scope!=null && scope.isValid()) publishTicketLifecycleChange(scope.ticketId(),channelId,"ai_reply_changed",scope);
     }
 
+    public void handleScopedAiReplyFailed(UiEventTicketScope scope,String state) {
+        if(scope!=null && scope.isValid() && ("CANCELLED".equals(state) || "UNKNOWN".equals(state)) && isCurrent(scope))
+            dialogAiAssistantService.requestScopedDeliveryReview(scope,"UNKNOWN".equals(state));
+    }
+
     public void handleScopedClientMessageEdited(UiEventTicketScope scope, Long channelId) {
         if (scope != null && scope.isValid()) {
             publishTicketLifecycleChange(scope.ticketId(), channelId, "client_message_edited", scope);

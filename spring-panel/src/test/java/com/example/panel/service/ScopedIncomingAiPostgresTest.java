@@ -35,6 +35,18 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 
 class ScopedIncomingAiPostgresTest {
+    @ParameterizedTest @ValueSource(strings={"UNKNOWN","CANCELLED"})
+    void failedRuleDeliveryHandsOffOnlyToTheCurrentBusinessWithoutLegacyAi(String state) {
+        realtime.handleScopedAiReplyFailed(scope,state);
+        assertThat(recipients()).isEqualTo(Set.of("reader","all-reader"));assertNoRawEffects();
+        jdbc.queryForList("SELECT text FROM notifications",String.class).forEach(text->
+            assertThat(text).contains(state.equals("UNKNOWN")?"Сначала проверьте доставку у провайдера":"Требуется ответ оператора"));
+    }
+    @Test void failedRuleDeliveryCannotRecaptureAMovedOwner() {
+        jdbc.update("UPDATE tickets SET business_id=2 WHERE user_id=10");
+        realtime.handleScopedAiReplyFailed(scope,"UNKNOWN");
+        assertThat(recipients()).isEmpty();assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ticket_ai_scoped_events",Integer.class)).isZero();assertNoRawEffects();
+    }
     @Test void deliveredRuleReplySuppressesTheRedundantHandoff() {
         realtime.handleScopedIncomingClientMessage(scope,9L,"question","text",null,false,true);
         assertThat(recipients()).isEmpty();

@@ -100,13 +100,23 @@ public class DialogAiAssistantMessageFlowService {
      */
     public void processScopedIncomingClientMessage(UiEventTicketScope scope, String message,
                                                    String messageType, String attachment) {
+        recordScopedHandoff(scope,message,"Требуется ответ оператора.");
+    }
+
+    public void requestScopedDeliveryReview(UiEventTicketScope scope,boolean ambiguous) {
+        if(scope!=null && "BUSINESS".equals(scope.scopeKind())) recordScopedHandoff(scope,null,ambiguous
+            ? "Результат автоответа неизвестен. Сначала проверьте доставку у провайдера; автоматического повтора не будет."
+            : "Автоответ отменён. Требуется ответ оператора.");
+    }
+
+    private void recordScopedHandoff(UiEventTicketScope scope,String message,String notice) {
         if (scope == null || !scope.isValid() || scopedPersistence == null
                 || !dialogAiAssistantConfigService.isAgentEnabled()
                 || !(scopedKnowledge==null ? scopedPersistence.recordHandoff(scope) : scopedKnowledge.record(scope,message))) {
             return;
         }
         dialogAiAssistantEscalationService.notifyScopedOperatorsEscalation(
-            scope, message, "Требуется ответ оператора.");
+            scope, message, notice);
     }
 
     public void processIncomingClientMessage(String ticketId, String message, String messageType, String attachment) {

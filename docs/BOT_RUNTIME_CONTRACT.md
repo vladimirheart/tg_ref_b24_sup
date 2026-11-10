@@ -3,6 +3,25 @@
 Документ фиксирует текущий runtime contract между `spring-panel` и `java-bot`
 после `Phase 5` рефакторинга.
 
+## Source R314: scoped AI queue recovery
+
+WORKER/LEASED UiEventOutboxWatcher выполняет отдельный recovery pass: каждые5s,
+lease scoped-ai-reply-recovery30s, до25 QUEUED receipts, независимо от UI cursor.
+Используются frozen full owner/event и прежний CAS→SENDING + final delivery proof.
+SENDING/UNKNOWN не подбираются, lease expiry не разрешает resend. При global
+pause QUEUED сохраняется; missing incoming event приводит к CANCELLED, не recapture.
+
+SENT/CANCELLED/UNKNOWN атомарно публикуют scoped ai_reply_changed с state metadata.
+Ошибки возвращаются в scoped panel handoff при актуальном допуске; UNKNOWN notice
+требует сначала проверить доставку у провайдера. Никаких исходных текстов в
+новом event, LLM/raw reply/group actions или новой Rabbit/provider wire schema.
+V91 — только partial queue index; V90 не меняется. java-bot source прежний.
+
+150 tests/5 suites GREEN;2 owned JVM crash probes и native PostgreSQL. Runtime
+на другой машине/сессии, здесь не deployed. Для source R314 нужен новый worker
+image и migrator91; для ещё не установленного R313 также его web/worker/V90
+rollout. Прежний последний документированный R310/V89 checkpoint сохранён.
+
 ## Source R313: scoped reviewed auto-reply
 
 Новый backend ingestion сохраняет public generation свежего текста и атомарно

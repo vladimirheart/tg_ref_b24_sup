@@ -20,6 +20,7 @@ import org.springframework.security.core.Authentication;
 class ScopedAiAutoReplyPostgresTest {
     private static JdbcTemplate jdbc;
     private static com.zaxxer.hikari.HikariDataSource pool;
+    private static final String RESTART_NONCE=UUID.randomUUID().toString().replace("-","");
     private static final AtomicLong IDS=new AtomicLong(9730000);
     private ScopedAiReplyRuleService rules;
     private ScopedAiSourceService sources;
@@ -37,9 +38,16 @@ class ScopedAiAutoReplyPostgresTest {
         pool=new com.zaxxer.hikari.HikariDataSource();pool.setJdbcUrl(isolated.getUrl());pool.setUsername(isolated.getUsername());pool.setPassword(isolated.getPassword());
         pool.setMaximumPoolSize(6);pool.setMinimumIdle(0);pool.setConnectionTimeout(15000);jdbc=new JdbcTemplate(pool);
         Flyway.configure().dataSource(jdbc.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").load().migrate();
+        jdbc.execute("CREATE TABLE r314_restart_owner(nonce TEXT NOT NULL)");
+        jdbc.update("INSERT INTO r314_restart_owner VALUES(?)",RESTART_NONCE);
     }
     @AfterAll static void closePool(){if(pool!=null)pool.close();}
     @BeforeEach void seed() {
+        // Close only previous test QUEUED rows; ambiguous SENDING/UNKNOWN stay intact across the suite.
+        for(long pending:jdbc.queryForList("SELECT incoming_event_id FROM ai_scoped_text_replies WHERE state='QUEUED'",Long.class)) {
+            jdbc.update("UPDATE ai_scoped_text_replies SET state='SENDING' WHERE incoming_event_id=? AND state='QUEUED'",pending);
+            jdbc.update("UPDATE ai_scoped_text_replies SET state='CANCELLED' WHERE incoming_event_id=? AND state='SENDING'",pending);
+        }
         long id=IDS.incrementAndGet();username="ai-reviewer-"+id;event=id;ruleKey=UUID.randomUUID().toString();sourceKey="source-"+id;
         business=jdbc.queryForObject("INSERT INTO businesses(code,display_name) VALUES(?,'fixture') RETURNING id",Long.class,"ai-auto-"+id);
         actor=jdbc.queryForObject("INSERT INTO users(username,password,enabled) VALUES(?,'unused',TRUE) RETURNING id",Long.class,username);
@@ -80,6 +88,121 @@ class ScopedAiAutoReplyPostgresTest {
         assertThat(jdbc.queryForList("SELECT decision_reason FROM ticket_ai_scoped_events WHERE ticket_public_id=? ORDER BY id",String.class,scope.ticketPublicId()))
             .containsExactly("event="+event+";state=QUEUED","event="+event+";state=SENDING","event="+event+";state=SENT");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ui_event_outbox WHERE ticket_public_id=? AND event_type='ai_reply_changed'",Integer.class,scope.ticketPublicId())).isEqualTo(1);
+    }
+    @Test void queuedRecoveryIsIndependentOfTheUiCursorAndNeverPreparesNewWork() {
+        assertThat(replies.prepare(scope,event)).isTrue();
+        var callbacks=mock(DialogRealtimeEventService.class);var checkpoint=mock(RuntimeWorkerCheckpointService.class);
+        when(checkpoint.readLongCursor(anyString())).thenReturn(Optional.of(Long.MAX_VALUE));
+        var coordination=mock(RuntimeCoordinationService.class);
+        doAnswer(call->{call.getArgument(2,Runnable.class).run();return null;}).when(coordination).runWithLease(anyString(),any(java.time.Duration.class),any(Runnable.class));
+        var watcher=new UiEventOutboxWatcher(jdbc,callbacks,coordination,checkpoint,new LegacyTicketIdJdbcGuard(jdbc),new UiEventTicketAccessService(jdbc,flags),null,replies);
+        watcher.watch();assertThat(state()).isEqualTo("QUEUED");verifyNoInteractions(transport);
+        watcher.recoverAiReplies();assertThat(state()).isEqualTo("SENT");watcher.recoverAiReplies();
+        verify(coordination,times(2)).runWithLease(eq("scoped-ai-reply-recovery"),eq(java.time.Duration.ofSeconds(30)),any(Runnable.class));
+        verify(transport,times(1)).sendTextGuarded(any(),anyLong(),eq(ANSWER),isNull(),any());
+    }
+    @ParameterizedTest @ValueSource(strings={"disabled","grant","source","rule","token-rotation","generation","owner","collision","closed","history-edit","auto-blocked","event-missing","page"})
+    void recoveryReprovesTheFrozenScopeAndCancellationReachesTheUi(String change) {
+        assertThat(replies.prepare(scope,event)).isTrue();
+        if(change.equals("event-missing"))jdbc.update("DELETE FROM ui_event_outbox WHERE id=?",event);
+        else if(change.equals("page"))jdbc.update("DELETE FROM user_authorities WHERE user_id=? AND authority='PAGE_KNOWLEDGE_BASE'",actor);
+        else mutate(change);
+        assertThat(replies.recoverQueued(25)).isEqualTo(1);assertThat(state()).isEqualTo("CANCELLED");verifyNoInteractions(transport);
+        var changed=jdbc.queryForMap("SELECT ticket_user_id,ticket_id,ticket_public_id,ticket_business_id,channel_id,message_text FROM ui_event_outbox WHERE event_type='ai_reply_changed' AND ticket_public_id=?",scope.ticketPublicId());
+        assertThat(changed).containsEntry("ticket_user_id",scope.ticketUserId()).containsEntry("ticket_id",scope.ticketId())
+            .containsEntry("ticket_public_id",scope.ticketPublicId()).containsEntry("ticket_business_id",business).containsEntry("channel_id",channel).containsEntry("message_text","CANCELLED");
+    }
+    @ParameterizedTest @ValueSource(strings={"foundation","selector","agent","assist_only","escalate_only"})
+    void recoveryLeavesQueueUntouchedWhileGloballyDisabled(String setting) {
+        assertThat(replies.prepare(scope,event)).isTrue();
+        if(setting.endsWith("only"))when(config.resolveAgentMode()).thenReturn(setting);else mutate(setting);
+        assertThat(replies.recoverQueued(25)).isZero();assertThat(state()).isEqualTo("QUEUED");verifyNoInteractions(transport);
+    }
+    @Test void recoveryCannotCreateAReplyFromAnUnqueuedIncomingEvent() {
+        assertThat(replies.recoverQueued(25)).isZero();assertThat(state()).isNull();verifyNoInteractions(transport);
+    }
+    @Test void recoveryUsesABoundedBatchAndDrainsLaterRowsOnTheNextPass() {
+        assertThat(replies.prepare(scope,event)).isTrue();queuePeer(100000);queuePeer(200000);
+        assertThat(replies.recoverQueued(1)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ai_scoped_text_replies WHERE state='QUEUED'",Integer.class)).isEqualTo(2);
+        assertThat(replies.recoverQueued(25)).isEqualTo(2);assertThat(replies.recoverQueued(25)).isZero();
+        verify(transport,times(3)).sendTextGuarded(any(),anyLong(),eq(ANSWER),isNull(),any());
+    }
+    @Test void concurrentRecoveryAndIngressMakeOnlyOneProviderAttempt() throws Exception {
+        assertThat(replies.prepare(scope,event)).isTrue();var executor=Executors.newFixedThreadPool(2);var start=new CountDownLatch(1);
+        try {
+            var a=executor.submit(()->{start.await();return replies.recoverQueued(25);});
+            var b=executor.submit(()->{start.await();return replies.process(scope,event);});start.countDown();
+            a.get(20,TimeUnit.SECONDS);b.get(20,TimeUnit.SECONDS);assertThat(state()).isEqualTo("SENT");
+            verify(transport,times(1)).sendTextGuarded(any(),anyLong(),eq(ANSWER),isNull(),any());
+        } finally {executor.shutdownNow();}
+    }
+    @Test void unknownResultIsPublishedAndRecoveryNeverRetriesIt() {
+        assertThat(replies.prepare(scope,event)).isTrue();
+        doThrow(new IllegalStateException("fake ambiguous result")).when(transport).sendTextGuarded(any(),anyLong(),anyString(),isNull(),any());
+        replies.recoverQueued(25);assertThat(state()).isEqualTo("UNKNOWN");assertThat(replies.recoverQueued(25)).isZero();
+        assertThat(jdbc.queryForObject("SELECT message_text FROM ui_event_outbox WHERE ticket_public_id=? AND event_type='ai_reply_changed'",String.class,scope.ticketPublicId())).isEqualTo("UNKNOWN");
+        verify(transport,times(1)).sendTextGuarded(any(),anyLong(),anyString(),isNull(),any());
+    }
+    @Test void failedDeliveryEventRefreshesTheCardAndRequestsScopedHandoff() {
+        assertThat(replies.prepare(scope,event)).isTrue();
+        doThrow(new IllegalStateException("fake ambiguous result")).when(transport).sendTextGuarded(any(),anyLong(),anyString(),isNull(),any());
+        replies.recoverQueued(25);
+        long changed=jdbc.queryForObject("SELECT id FROM ui_event_outbox WHERE ticket_public_id=? AND event_type='ai_reply_changed'",Long.class,scope.ticketPublicId());
+        var callbacks=mock(DialogRealtimeEventService.class);var checkpoint=mock(RuntimeWorkerCheckpointService.class);
+        when(checkpoint.readLongCursor(anyString())).thenReturn(Optional.of(changed-1));
+        var coordination=mock(RuntimeCoordinationService.class);
+        doAnswer(call->{call.getArgument(2,Runnable.class).run();return null;}).when(coordination).runWithLease(anyString(),any(java.time.Duration.class),any(Runnable.class));
+        new UiEventOutboxWatcher(jdbc,callbacks,coordination,checkpoint,new LegacyTicketIdJdbcGuard(jdbc),new UiEventTicketAccessService(jdbc,flags),null,replies).watch();
+        verify(callbacks).handleScopedAiReplyChanged(scope,channel);verify(callbacks).handleScopedAiReplyFailed(scope,"UNKNOWN");
+        verify(transport,times(1)).sendTextGuarded(any(),anyLong(),anyString(),isNull(),any());
+    }
+    @ParameterizedTest @ValueSource(strings={"host","port","database","schema","nonce","point","marker"})
+    void restartProbeRejectsRuntimeInputsBeforeConnecting(String unsafe)throws Exception {
+        var temp=java.nio.file.Files.createTempDirectory("r314-ai-restart-");
+        String[] args={pool.getJdbcUrl(),RESTART_NONCE,Long.toString(event),"QUEUED",temp.resolve("provider.txt").toString()};
+        switch(unsafe) {
+            case "host" -> args[0]=args[0].replace("127.0.0.1","postgres").replace("localhost","postgres");
+            case "port" -> args[0]=args[0].replaceFirst(":([0-9]+)/",":5432/");
+            case "database" -> args[0]=args[0].replace("/r290_edit","/runtime").replace("/iguana_test","/runtime");
+            case "schema" -> args[0]=args[0].replaceFirst("currentSchema=[a-z0-9_]+","currentSchema=public");
+            case "nonce" -> args[1]="not-a-test-nonce";
+            case "point" -> args[3]="RETRY";
+            case "marker" -> args[4]=java.nio.file.Path.of("runtime-provider.txt").toAbsolutePath().toString();
+            default -> throw new IllegalArgumentException(unsafe);
+        }
+        assertThatIllegalArgumentException().isThrownBy(()->ScopedAiReplyRestartWorker.validate(args));
+    }
+    @ParameterizedTest @ValueSource(strings={"QUEUED","SENDING"})
+    void abruptJvmExitPreservesTheDurableBoundary(String point)throws Exception {
+        var temp=java.nio.file.Files.createTempDirectory("r314-ai-restart-");var marker=temp.resolve("provider.txt");
+        var executable=java.nio.file.Path.of(System.getProperty("java.home"),"bin",System.getProperty("os.name").startsWith("Windows")?"java.exe":"java");
+        var command=new ProcessBuilder(executable.toString(),"-Xmx128m","-XX:ActiveProcessorCount=2","-cp",
+            System.getProperty("surefire.test.class.path",System.getProperty("java.class.path")),ScopedAiReplyRestartWorker.class.getName(),
+            pool.getJdbcUrl(),RESTART_NONCE,Long.toString(event),point,marker.toString());
+        var inherited=new HashMap<>(command.environment());command.environment().clear();
+        for(String name:List.of("SystemRoot","WINDIR","TEMP","TMP"))if(inherited.containsKey(name))command.environment().put(name,inherited.get(name));
+        var output=temp.resolve("child.log");var child=command.redirectErrorStream(true).redirectOutput(output.toFile()).start();
+        try {assertThat(child.waitFor(30,TimeUnit.SECONDS)).as("owned child finished: %s",output).isTrue();
+            assertThat(child.exitValue()).as(java.nio.file.Files.readString(output)).isZero();
+        } finally {if(child.isAlive())child.destroyForcibly().waitFor(10,TimeUnit.SECONDS);}
+        assertThat(state()).isEqualTo(point);
+        var restarted=new ScopedAiAutoReplyService(jdbc,flags,config,transport,new UiEventOutboxAppendService(jdbc,new LegacyTicketIdJdbcGuard(jdbc)));
+        if(point.equals("QUEUED")) {
+            assertThat(java.nio.file.Files.exists(marker)).isFalse();assertThat(restarted.recoverQueued(25)).isEqualTo(1);assertThat(state()).isEqualTo("SENT");
+            verify(transport,times(1)).sendTextGuarded(any(),anyLong(),eq(ANSWER),isNull(),any());
+        } else {
+            assertThat(java.nio.file.Files.readString(marker)).isEqualTo("provider-boundary");
+            assertThat(restarted.recoverQueued(25)).isZero();assertThat(state()).isEqualTo("SENDING");verifyNoInteractions(transport);
+        }
+    }
+    private void queuePeer(long offset) {
+        long owner=scope.ticketUserId()+offset;String raw=scope.ticketId()+"-peer-"+offset,publicId=UUID.randomUUID().toString().replace("-","");
+        jdbc.update("INSERT INTO messages(group_msg_id,user_id,ticket_id,channel_id,problem) VALUES(?,?,?,?,'fixture')",owner,owner,raw,channel);
+        jdbc.update("INSERT INTO tickets(user_id,ticket_id,group_msg_id,channel_id,ticket_public_id,business_id,is_general,status) VALUES(?,?,?,?,?,?,FALSE,'open')",owner,raw,owner,channel,publicId,business);
+        long history=jdbc.queryForObject("INSERT INTO chat_history(user_id,sender,message,ticket_id,message_type,channel_id,ticket_owner_user_id,ticket_public_id,timestamp) VALUES(?,'client',?,?,'text',?,?,?,CURRENT_TIMESTAMP) RETURNING id",Long.class,owner,QUESTION,raw,channel,owner,publicId);
+        jdbc.update("INSERT INTO ui_event_outbox(id,event_type,ticket_id,channel_id,message_text,message_type,ticket_user_id,ticket_public_id,ticket_scope_kind,ticket_business_id,incoming_history_id,created_at) VALUES(?,'client_message_created',?,?,?,'text',?,?,'BUSINESS',?,?,CURRENT_TIMESTAMP)",event+offset,raw,channel,QUESTION,owner,publicId,business,history);
+        assertThat(replies.prepare(new UiEventTicketScope(owner,raw,publicId,"BUSINESS",business),event+offset)).isTrue();
     }
     @ParameterizedTest @ValueSource(strings={"telegram","vk","max"})
     void knownPlatformsKeepTheCapturedClientDestination(String platform) {
@@ -247,6 +370,8 @@ class ScopedAiAutoReplyPostgresTest {
         assertThat(old.queryForObject("SELECT incoming_history_id FROM ui_event_outbox WHERE id=1",Long.class)).isNull();
         assertThat(old.queryForList("SELECT * FROM ai_scoped_reply_rules")).isEmpty();
         assertThat(old.queryForList("SELECT * FROM ai_scoped_text_replies")).isEmpty();
+        assertThat(old.queryForObject("SELECT indexdef FROM pg_indexes WHERE schemaname=current_schema() AND indexname='idx_ai_text_reply_queued'",String.class))
+            .contains("incoming_event_id").contains("WHERE (state = 'QUEUED'::text)");
     }
     private String state() {return jdbc.queryForList("SELECT state FROM ai_scoped_text_replies WHERE incoming_event_id=?",String.class,event).stream().findFirst().orElse(null);}
     private void mutate(String change) {
@@ -260,7 +385,7 @@ class ScopedAiAutoReplyPostgresTest {
             case "source" -> jdbc.update("UPDATE ai_scoped_sources SET body='Changed',revision=revision+1 WHERE id=?",source);
             case "rule" -> assertThat(rules.revoke(business,auth,ruleKey,1)).isTrue();
             case "token" -> jdbc.update("UPDATE channels SET is_active=FALSE WHERE id=?",channel);
-            case "token-rotation" -> jdbc.update("UPDATE channels SET token='other-fake-token' WHERE id=?",channel);
+            case "token-rotation" -> jdbc.update("UPDATE channels SET token=? WHERE id=?","other-fake-token-"+scope.ticketPublicId(),channel);
             case "platform" -> jdbc.update("UPDATE channels SET platform='unknown' WHERE id=?",channel);
             case "channel" -> jdbc.update("UPDATE tickets SET channel_id=NULL WHERE ticket_public_id=?",scope.ticketPublicId());
             case "generation" -> {

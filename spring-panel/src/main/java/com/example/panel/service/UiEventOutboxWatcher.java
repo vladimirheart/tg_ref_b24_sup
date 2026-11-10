@@ -122,6 +122,12 @@ public class UiEventOutboxWatcher {
         });
     }
 
+    @Scheduled(fixedDelayString = "${panel.ui-event-outbox.ai-recovery-interval-ms:5000}")
+    void recoverAiReplies() {
+        if(autoReplies!=null) runtimeCoordinationService.runWithLease("scoped-ai-reply-recovery",Duration.ofSeconds(30),
+            ()->autoReplies.recoverQueued(25));
+    }
+
     @Scheduled(fixedDelayString = "${panel.ui-event-outbox.cleanup-interval-ms:3600000}")
     void cleanup() {
         runtimeCoordinationService.runWithLease("ui-event-outbox-cleanup", Duration.ofMinutes(10), () -> {
@@ -172,7 +178,11 @@ public class UiEventOutboxWatcher {
                         autoReplies!=null && autoReplies.process(scope,eventId)
                 );
             }
-            case "ai_reply_changed" -> dialogRealtimeEventService.handleScopedAiReplyChanged(scope,channelId);
+            case "ai_reply_changed" -> {
+                dialogRealtimeEventService.handleScopedAiReplyChanged(scope,channelId);
+                if("CANCELLED".equals(messageText) || "UNKNOWN".equals(messageText))
+                    dialogRealtimeEventService.handleScopedAiReplyFailed(scope,messageText);
+            }
             case "client_message_edited" -> dialogRealtimeEventService.handleScopedClientMessageEdited(scope, channelId);
             case "operator_message_edited" -> dialogRealtimeEventService.handleScopedOperatorMessageEdited(scope, channelId);
             case "feedback_created" -> dialogRealtimeEventService.handleScopedFeedbackCreated(scope, rating);

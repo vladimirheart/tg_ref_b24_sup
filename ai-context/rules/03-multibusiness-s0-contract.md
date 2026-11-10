@@ -12,6 +12,59 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 код не должен подставлять бизнес по текстовому имени, каналу, последнему выбору
 оператора или иной эвристике.
 
+## Source R314 — восстановление неотправленной очереди AI
+
+После остановки worker между prepare/QUEUED и durable SENDING запись теперь
+подбирается отдельным проходом, независимо от курсора UI watcher. Существующий
+WORKER/LEASED workload раз в5 секунд берёт отдельную30-second lease и выбирает
+до25 QUEUED snapshots. Полные owner/public/business и event ID берутся из receipt,
+не recapture по raw ID. Повторно используются CAS claim и все R313 proof:
+rule/source/reviewer/page, current owner/history/channel, control/work revision,
+режим AI, лимиты и последняя provider boundary. Source rule не создаётся заново.
+При выключенных foundation/uiSelector/AI или assist_only/escalate_only очередь
+остаётся QUEUED до разрешённого режима; при возвращении режима proof повторяется.
+Потерянный incoming event не восстанавливается по истории: отправка отменяется.
+
+SENDING/UNKNOWN/SENT/CANCELLED подбор не меняет и не повторяет. Сбой после claim,
+в том числе ещё до сетевой отправки, считается неопределённым и требует ручной
+сверки. Истечение lease, рестарт и новый проход не снимают durable claim.
+Это восстановление никогда не предпринимавшейся отправки, не retry результата.
+
+Теперь все terminal outcomes атомарно пишут scoped ai_reply_changed с одним
+metadata state, без исходного вопроса/ответа. SENT обновляет карточку; CANCELLED
+и UNKNOWN дополнительно запрашивают текущий scoped handoff через panel pipeline,
+если AI/control/current owner это допускают. Для UNKNOWN оператору явно сказано
+сначала проверить доставку у провайдера. Recipients по текущему бизнесу/READ,
+с финальной SQL-проверкой перед notification INSERT. Legacy AI/LLM/media и
+автоответ из групп не вызываются. Группы остаются только для уведомлений.
+
+V91 добавляет только partial index очереди по incoming_event_id WHERE QUEUED:
+периодический scan не проходит по всей сохраняемой истории receipts. V90 и
+старые migrations не переписаны; backfill, очистки, seeded rules и изменения
+flags отсутствуют. Все AI данные хранятся до ручного удаления, как согласовано.
+
+150 tests/5 XML GREEN, failures/errors/skips=0:121 full delivery/PG tests,
+10 selected scoped callbacks,12 watcher и7 runtime ownership contracts. Два
+отдельных JVM завершены Runtime.halt: QUEUED после рестарта отправлен один раз,
+SENDING с marker provider-double не подбирается. Рабочих provider calls нет.
+Проверены recovery при cursor уже впереди, bounded batch, race с ingress,
+revocation/source/channel/generation/control, paused mode, missing event,
+UNKNOWN handoff и права получателей. Native fixture проверяет V89→V91 upgrade
+без изменения legacy history; index definition подтверждён. RED v1 сохранён:
+два сценария использовали один fake channel token; fixture сделана уникальной,
+assertions не ослаблены. Финальная validation-v3 также проверяет новый индекс.
+
+Baseline HEAD/origin/main/actual remote0c915d27d9ff082b7cdb4d0265c118d9037b0c0c,
+parent88cbf2b7738ea142e1a9c3c0417dc5687080e02f;22 файла R313 сверены. Cache1464
+Java R313 проверен;5 main/3 test пересобраны в sandbox, final snapshot1465 Java
+и5 resource inputs. Это targeted compile, не полный repository/image build.
+Nonce-owned native PostgreSQL остановлен. Рабочий Docker/проект — другая машина
+и другая сессия; рабочие DB/queues/provider/config/flags не использовались.
+Для включения нужны новый ops-worker image и migrator V91; если R313 ещё не
+выпущен, сначала выполнить его backend/V90 rollout. Последний документированный
+runtime R310/V89 и Compose/rollback pointers прежние. R311–R314 deployment здесь
+не подтверждён; текущая задача01-278 остаётся🟡, live provider/S6 не закрыты.
+
 ## Source R313 — разрешённые правила и доставка автоответа
 
 Режим, согласованный пользователем R312, реализован для новых текстовых BUSINESS

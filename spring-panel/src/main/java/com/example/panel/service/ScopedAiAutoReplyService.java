@@ -51,6 +51,21 @@ public class ScopedAiAutoReplyService {
             """,args(scope,eventId),Boolean.class));
         } catch(RuntimeException ex) { return false; }
     }
+    /** Recover only work that has never crossed the durable SENDING claim; independent of the UI cursor. */
+    int recoverQueued(int limit) {
+        if(limit<1 || !runtimeEnabled()) return 0;
+        try {
+            var queued=sql.query("""
+                SELECT incoming_event_id,ticket_user_id,ticket_id,ticket_public_id,business_id
+                  FROM ai_scoped_text_replies WHERE state='QUEUED'
+                 ORDER BY incoming_event_id LIMIT :limit
+                """,new MapSqlParameterSource("limit",Math.min(limit,25)),(rs,n)->new Queued(
+                    rs.getLong("incoming_event_id"),new UiEventTicketScope(rs.getLong("ticket_user_id"),
+                        rs.getString("ticket_id"),rs.getString("ticket_public_id"),"BUSINESS",rs.getLong("business_id"))));
+            for(var item:queued) dispatch(item.scope(),item.eventId());
+            return queued.size();
+        } catch(org.springframework.dao.DataAccessException ex) { return 0; }
+    }
     boolean prepare(UiEventTicketScope scope,long eventId) {
         if(!enabled(scope,eventId)) return false;
         try { return Boolean.TRUE.equals(tx.execute(status->{
@@ -96,11 +111,6 @@ public class ScopedAiAutoReplyService {
                 RETURNING id
                 """,snapshotArgs(scope,eventId,c).addValue("body",c.body()).addValue("providerId",result.telegramMessageId(),java.sql.Types.BIGINT),Long.class);
             finish(scope,eventId,"SENT",historyId);
-            sql.update("""
-                INSERT INTO ui_event_outbox(id,event_type,ticket_id,channel_id,created_at,ticket_user_id,ticket_public_id,
-                    ticket_scope_kind,ticket_business_id)
-                VALUES(:outId,'ai_reply_changed',:ticketId,:channelId,CURRENT_TIMESTAMP,:ticketUserId,:publicId,'BUSINESS',:businessId)
-                """,snapshotArgs(scope,eventId,c).addValue("outId",events.nextEventId()));
         }); } catch(RuntimeException ex) {
             // Provider may have accepted the request. A committed SENDING claim is never queued again.
             try { tx.executeWithoutResult(status->finish(scope,eventId,"UNKNOWN",null)); }
@@ -195,6 +205,14 @@ public class ScopedAiAutoReplyService {
             """,args(scope,eventId).addValue("state",state).addValue("historyId",historyId,java.sql.Types.BIGINT))!=1)
             throw new IllegalStateException("AI reply claim unavailable");
         audit(scope,eventId,state);
+        sql.update("""
+            INSERT INTO ui_event_outbox(id,event_type,ticket_id,channel_id,message_text,created_at,ticket_user_id,ticket_public_id,
+                ticket_scope_kind,ticket_business_id)
+            SELECT :outId,'ai_reply_changed',ticket_id,channel_id,state,CURRENT_TIMESTAMP,ticket_user_id,ticket_public_id,
+                'BUSINESS',business_id FROM ai_scoped_text_replies
+             WHERE incoming_event_id=:eventId AND ticket_user_id=:ticketUserId AND ticket_id=:ticketId
+               AND ticket_public_id=:publicId AND business_id=:businessId AND state=:state
+            """,args(scope,eventId).addValue("outId",events.nextEventId()).addValue("state",state));
     }
     private void audit(UiEventTicketScope scope,long eventId,String state) {
         sql.update("""
@@ -205,9 +223,13 @@ public class ScopedAiAutoReplyService {
     }
     private boolean enabled(UiEventTicketScope scope,long eventId) {
         return scope!=null && scope.isValid() && "BUSINESS".equals(scope.scopeKind()) && eventId>0
-            && flags.isFoundationEnabled() && flags.isUiSelector() && config.isAgentEnabled()
+            && runtimeEnabled();
+    }
+    private boolean runtimeEnabled() {
+        return flags.isFoundationEnabled() && flags.isUiSelector() && config.isAgentEnabled()
             && "auto_reply".equals(config.resolveAgentMode());
     }
+    private record Queued(long eventId,UiEventTicketScope scope) { }
     private MapSqlParameterSource args(UiEventTicketScope scope,long eventId) {
         var limits=config.scopedAutoReplyLimits();
         return new MapSqlParameterSource("eventId",eventId).addValue("ticketUserId",scope.ticketUserId())

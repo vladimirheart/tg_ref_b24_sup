@@ -1,4 +1,51 @@
-# Границы данных AI — R313
+# Границы данных AI — R314
+
+## Восстановление очереди AI после остановки worker — R314
+
+QUEUED означает, что durable provider claim ещё не был принят. Отдельный
+WORKER/LEASED проход с интервалом5s выбирает до25 таких записей, даже если UI
+cursor уже впереди. Все owner/source/rule/reviewer/channel/history/control/mode/
+limit proofs R313 повторяются до transport и на границе provider. Исходный
+incoming event должен существовать: без него CANCELLED, без поиска замены по raw ID.
+При global pause запись остаётся QUEUED; возвращение режима не отменяет proof.
+
+SENDING/UNKNOWN не являются очередью для повторной отправки. Рестарт, истечение
+lease и новый проход никогда не возвращают их в QUEUED. Даже сбой до фактического
+сетевого вызова после durable SENDING требует ручной сверки. При UNKNOWN
+уведомление прямо просит сначала проверить provider, а не отвечать повторно.
+Новая terminal metadata event обновляет карточку; handoff/уведомления проходят
+по текущему owner/business/READ и control. Удалённый/перемещённый owner не
+перепривязывается к новому бизнесу. AI-disabled не снимается ради уведомления.
+
+На рабочей машине/в runtime-сессии:
+
+1. Сверить фактический release/Compose/schema. Если R313/V90 уже установлен,
+   применить migrator V91 и обновить ops-worker новым backend image. V91 — partial
+   index idx_ai_text_reply_queued, без data migration/auto-cleanup/seeded approvals.
+   Если ещё установлен последний документированный R310/V89, требуется также
+   rollout R313 из следующего раздела: web/worker и V90. Старые migrations не менять.
+2. Проверить readiness, V91/index и WORKER ownership. Интервал можно задать
+   panel.ui-event-outbox.ai-recovery-interval-ms; по умолчанию5000. Не сбрасывать
+   UI checkpoint для запуска recovery и не включать AI flags автоматически.
+3. В выделенном тестовом контуре подготовить QUEUED, остановить worker до claim
+   и запустить: ожидается одна отправка либо CANCELLED при изменившемся proof.
+   Для SENDING/UNKNOWN ожидается отсутствие повторной отправки. Приёмка реального
+   провайдера и процессного fleet restart остаётся частью общей S6; не провоцировать
+   ambiguous outcome на чужих/рабочих получателях.
+
+Изолированная приёмка выполнена:150 tests/5 XML,0 failures/errors/skips.
+121 full delivery tests,10 scoped callbacks,12 watcher,7 runtime source contracts;
+2 дочерних JVM с Runtime.halt и file-only provider double. QUEUED сохраняется
+после crash и подбирается один раз, SENDING не подбирается. Дополнительно batch,
+cursor bypass, ingress/recovery race, proof revocation/missing event, terminal
+UI/handoff, UNKNOWN notice и V89→V91 без legacy reattribution. Final sources:
+1465 Java+5 resources, проверенный baseline cache1464 Java;5 main/3 test compile.
+Logs/XML .tmp/r314-*; owned PostgreSQL остановлен. RED v1 — повторный fake-token
+fixture, исправлен уникальным значением без изменения бизнес-assertions.
+
+Рабочий runtime здесь не наблюдался и не менялся. Последний документированный
+R310/V89 и прежние Compose/rollback pointers ниже сохранены. Это source recovery,
+не новый live channel/provider/restore/rebind или полный S6/§7.1 gate.
 
 ## Разрешённый дословный автоответ — R313
 

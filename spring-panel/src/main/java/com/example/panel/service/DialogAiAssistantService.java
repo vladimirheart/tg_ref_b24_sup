@@ -76,6 +76,11 @@ public class DialogAiAssistantService {
         }
     }
 
+    public void requestScopedDeliveryReview(UiEventTicketScope scope,boolean ambiguous) {
+        if(scope!=null && scope.isValid() && "BUSINESS".equals(scope.scopeKind()))
+            dialogAiAssistantMessageFlowService.requestScopedDeliveryReview(scope,ambiguous);
+    }
+
     public boolean submitOperatorLearningMapping(String ticketId,
                                                  String clientProblemMessage,
                                                  String operatorSolutionMessage,
