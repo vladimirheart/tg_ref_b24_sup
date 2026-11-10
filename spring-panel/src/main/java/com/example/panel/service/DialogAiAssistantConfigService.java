@@ -79,6 +79,15 @@ public class DialogAiAssistantConfigService {
         );
     }
 
+    /** Pure configuration snapshot: scoped callers must not use the legacy raw-ticket history guard. */
+    public ScopedAutoReplyLimits scopedAutoReplyLimits() {
+        return new ScopedAutoReplyLimits(
+            resolveDialogConfigInt("ai_agent_max_auto_replies_per_dialog",MAX_AUTO_REPLIES_PER_DIALOG_DEFAULT,1,20),
+            resolveDialogConfigInt("ai_agent_auto_reply_window_minutes",AUTO_REPLY_WINDOW_MINUTES_DEFAULT,1,1440),
+            resolveDialogConfigInt("ai_agent_auto_reply_cooldown_seconds",AUTO_REPLY_COOLDOWN_SECONDS_DEFAULT,0,3600));
+    }
+    public record ScopedAutoReplyLimits(int maxReplies,int windowMinutes,int cooldownSeconds) { }
+
     public AutoReplyGuard evaluateAutoReplyGuard(String ticketId) {
         int maxReplies = resolveDialogConfigInt("ai_agent_max_auto_replies_per_dialog", MAX_AUTO_REPLIES_PER_DIALOG_DEFAULT, 1, 20);
         int windowMinutes = resolveDialogConfigInt("ai_agent_auto_reply_window_minutes", AUTO_REPLY_WINDOW_MINUTES_DEFAULT, 1, 1440);

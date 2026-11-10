@@ -13,7 +13,7 @@
 <main class="main-content container-fluid py-4" data-scoped-dialog-ai>
     <a href="/business-dialogs">← Обращения</a>
     <h1 class="h3 mt-3">AI обращения</h1>
-    <p>Бизнес: <span th:text="${businessId}"></span>. Полноценные автоответы не включены: обработчик только передаёт обращение человеку.</p>
+    <p>Бизнес: <span th:text="${businessId}"></span>. Автоответ возможен по отдельному разрешённому правилу с проверенным текстом. Остальные сообщения передаются человеку.</p>
     <p th:if="${!canOperate}" class="alert alert-info">AI: только чтение.
         Отключён: <span th:text="${control.aiDisabled}"></span>;
         автоответы заблокированы: <span th:text="${control.autoReplyBlocked}"></span>.</p>
@@ -42,7 +42,7 @@
             <input type="hidden" name="eventThrough" th:value="${cleanup.eventThrough}">
             <p>Будут удалены прежние состояние, события и ссылки handoff, а также причина настройки AI этого обращения.
                 AI будет отключён, автоответы заблокированы. Сохранится отметка об очистке.</p>
-            <p>Переписка, материалы KNOWLEDGE/MEMORY и резервные копии сохранятся. Новые действия после открытия страницы не входят в очистку.</p>
+            <p>Переписка, материалы KNOWLEDGE/MEMORY, журнал доставки автоответов и резервные копии сохранятся. Журнал предотвращает повторную отправку. Новые действия после открытия страницы не входят в очистку.</p>
             <label><input type="checkbox" name="confirmed" value="true" required> Подтверждаю очистку служебной истории AI. Восстановить её из панели будет нельзя.</label>
             <button type="submit" class="btn btn-outline-danger mt-3">Очистить историю AI</button>
         </form>

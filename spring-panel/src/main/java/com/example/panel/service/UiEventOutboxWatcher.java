@@ -35,6 +35,7 @@ public class UiEventOutboxWatcher {
     private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
     private final UiEventTicketAccessService ticketAccess;
     private final GeneralTicketRealtimeService generalRealtime;
+    private final ScopedAiAutoReplyService autoReplies;
     private final AtomicLong lastProcessedId = new AtomicLong(0L);
 
     public UiEventOutboxWatcher(JdbcTemplate jdbcTemplate,
@@ -47,11 +48,19 @@ public class UiEventOutboxWatcher {
             legacyTicketIdJdbcGuard, ticketAccess, null);
     }
 
-    @org.springframework.beans.factory.annotation.Autowired
     public UiEventOutboxWatcher(JdbcTemplate jdbcTemplate, DialogRealtimeEventService dialogRealtimeEventService,
                                 RuntimeCoordinationService runtimeCoordinationService, RuntimeWorkerCheckpointService checkpointService,
                                 LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard, UiEventTicketAccessService ticketAccess,
                                 GeneralTicketRealtimeService generalRealtime) {
+        this(jdbcTemplate,dialogRealtimeEventService,runtimeCoordinationService,checkpointService,legacyTicketIdJdbcGuard,ticketAccess,generalRealtime,null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public UiEventOutboxWatcher(JdbcTemplate jdbcTemplate,DialogRealtimeEventService dialogRealtimeEventService,
+            RuntimeCoordinationService runtimeCoordinationService,RuntimeWorkerCheckpointService checkpointService,
+            LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard,UiEventTicketAccessService ticketAccess,
+            GeneralTicketRealtimeService generalRealtime,ScopedAiAutoReplyService autoReplies) {
+        this.autoReplies=autoReplies;
         this.jdbcTemplate = jdbcTemplate;
         this.dialogRealtimeEventService = dialogRealtimeEventService;
         this.runtimeCoordinationService = runtimeCoordinationService;
@@ -151,15 +160,19 @@ public class UiEventOutboxWatcher {
             case "ticket_created" -> dialogRealtimeEventService.handleScopedTicketCreated(scope, channelId, messageText);
             case "client_message_created" -> {
                 boolean initialClientMessage = isInitialClientMessageEvent(eventId, ticketId, scope);
-                dialogRealtimeEventService.handleScopedIncomingClientMessage(
+                if(autoReplies==null) dialogRealtimeEventService.handleScopedIncomingClientMessage(
+                    scope,channelId,messageText,messageType,attachment,!initialClientMessage);
+                else dialogRealtimeEventService.handleScopedIncomingClientMessage(
                         scope,
                         channelId,
                         messageText,
                         messageType,
                         attachment,
-                        !initialClientMessage
+                        !initialClientMessage,
+                        autoReplies!=null && autoReplies.process(scope,eventId)
                 );
             }
+            case "ai_reply_changed" -> dialogRealtimeEventService.handleScopedAiReplyChanged(scope,channelId);
             case "client_message_edited" -> dialogRealtimeEventService.handleScopedClientMessageEdited(scope, channelId);
             case "operator_message_edited" -> dialogRealtimeEventService.handleScopedOperatorMessageEdited(scope, channelId);
             case "feedback_created" -> dialogRealtimeEventService.handleScopedFeedbackCreated(scope, rating);

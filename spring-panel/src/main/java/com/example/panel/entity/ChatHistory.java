@@ -33,6 +33,12 @@ public class ChatHistory {
     @Column(name = "ticket_owner_user_id")
     private Long ticketOwnerUserId;
 
+    @Column(name = "ticket_public_id")
+    private String ticketPublicId;
+
+    public String getTicketPublicId() { return ticketPublicId; }
+    public void setTicketPublicId(String ticketPublicId) { this.ticketPublicId=ticketPublicId; }
+
     private String messageType;
 
     private String attachment;

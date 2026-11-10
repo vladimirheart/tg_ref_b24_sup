@@ -28,6 +28,26 @@ public class UiEventOutboxAppendService {
         append("ticket_reopened", ticketId, channelId, text, null, null, null);
     }
 
+    /** New BUSINESS text only, bound to the exact history child in the ingestion transaction. No backfill. */
+    public boolean publishClientMessage(TicketContext context,long historyId) {
+        if(context==null || !Boolean.FALSE.equals(context.general()) || context.businessId()==null
+            || context.publicId()==null || !context.publicId().matches("[a-f0-9]{32}") || historyId<1) return false;
+        return jdbcTemplate.update("""
+            INSERT INTO ui_event_outbox(id,event_type,ticket_id,channel_id,message_text,message_type,created_at,
+                ticket_user_id,ticket_public_id,ticket_scope_kind,ticket_business_id,incoming_history_id)
+            SELECT ?,'client_message_created',owner.ticket_id,owner.channel_id,history.message,'text',history.timestamp,
+                owner.user_id,owner.ticket_public_id,'BUSINESS',owner.business_id,history.id
+            FROM tickets owner JOIN chat_history history ON history.id=? AND history.ticket_owner_user_id=owner.user_id
+                AND history.user_id=owner.user_id AND history.ticket_id=owner.ticket_id
+                AND history.ticket_public_id=owner.ticket_public_id AND history.channel_id=owner.channel_id
+            WHERE owner.user_id=? AND owner.ticket_id=? AND owner.ticket_public_id=? AND owner.business_id=?
+                AND owner.channel_id=? AND owner.is_general=FALSE
+                AND 1=(SELECT COUNT(*) FROM tickets collision WHERE collision.ticket_id=owner.ticket_id)
+                AND history.sender='client' AND history.message_type='text' AND history.deleted_at IS NULL
+                AND NULLIF(btrim(history.attachment),'') IS NULL AND history.timestamp IS NOT NULL
+            """,nextEventId(),historyId,context.userId(),context.ticketId(),context.publicId(),context.businessId(),context.channelId())==1;
+    }
+
     public void publishClientMessageEdited(String ticketId, Long channelId, String text) {
         append("client_message_edited", ticketId, channelId, text, null, null, null);
     }

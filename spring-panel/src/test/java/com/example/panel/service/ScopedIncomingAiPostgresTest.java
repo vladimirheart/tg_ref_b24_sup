@@ -35,6 +35,12 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 
 class ScopedIncomingAiPostgresTest {
+    @Test void deliveredRuleReplySuppressesTheRedundantHandoff() {
+        realtime.handleScopedIncomingClientMessage(scope,9L,"question","text",null,false,true);
+        assertThat(recipients()).isEmpty();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ticket_ai_scoped_events",Integer.class)).isZero();
+        assertNoRawEffects();
+    }
     private static final String RAW = " ai/Ю?% ";
     private static final String PUBLIC = "a".repeat(32);
     private JdbcTemplate jdbc;

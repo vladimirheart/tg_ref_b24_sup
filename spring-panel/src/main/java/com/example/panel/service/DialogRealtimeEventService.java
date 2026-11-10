@@ -113,6 +113,11 @@ public class DialogRealtimeEventService {
 
     private void handleIncomingClientMessage(String ticketId, Long channelId, String message, String messageType,
                                              String attachment, boolean notifyBell, UiEventTicketScope scope) {
+        handleIncomingClientMessage(ticketId,channelId,message,messageType,attachment,notifyBell,scope,false);
+    }
+
+    private void handleIncomingClientMessage(String ticketId,Long channelId,String message,String messageType,
+            String attachment,boolean notifyBell,UiEventTicketScope scope,boolean aiHandled) {
         String normalizedTicketId = resolveUniqueTicketId(ticketId, scope);
         if (normalizedTicketId == null) {
             return;
@@ -137,7 +142,7 @@ public class DialogRealtimeEventService {
         }
         publishDialogsChanged("incoming_client_message", normalizedTicketId, scope);
         publishHistoryChanged(normalizedTicketId, channelId, "incoming_client_message", scope);
-        if (isCurrent(scope)) {
+        if (!aiHandled && isCurrent(scope)) {
             if (scope == null) {
                 dialogAiAssistantService.processIncomingClientMessage(normalizedTicketId, message, messageType, attachment);
             } else {
@@ -239,6 +244,16 @@ public class DialogRealtimeEventService {
         if (scope != null && scope.isValid()) {
             handleIncomingClientMessage(scope.ticketId(), channelId, message, messageType, attachment, notifyBell, scope);
         }
+    }
+
+    public void handleScopedIncomingClientMessage(UiEventTicketScope scope,Long channelId,String message,
+            String messageType,String attachment,boolean notifyBell,boolean aiHandled) {
+        if(scope!=null && scope.isValid())
+            handleIncomingClientMessage(scope.ticketId(),channelId,message,messageType,attachment,notifyBell,scope,aiHandled);
+    }
+
+    public void handleScopedAiReplyChanged(UiEventTicketScope scope,Long channelId) {
+        if(scope!=null && scope.isValid()) publishTicketLifecycleChange(scope.ticketId(),channelId,"ai_reply_changed",scope);
     }
 
     public void handleScopedClientMessageEdited(UiEventTicketScope scope, Long channelId) {

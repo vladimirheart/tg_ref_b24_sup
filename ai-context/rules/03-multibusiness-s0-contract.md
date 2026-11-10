@@ -12,6 +12,72 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 код не должен подставлять бизнес по текстовому имени, каналу, последнему выбору
 оператора или иной эвристике.
 
+## Source R313 — разрешённые правила и доставка автоответа
+
+Режим, согласованный пользователем R312, реализован для новых текстовых BUSINESS
+сообщений active-ticket ingestion. В редакторе материала появилась ссылка
+«Правила автоответа»: business ADMIN / ALL_BUSINESSES ADMIN с PAGE_KNOWLEDGE_BASE
+проверяет полный ответ, подтверждает разрешение и задаёт точный вопрос до500
+символов. Сравнение учитывает регистр, удаляет только обычные внешние пробелы.
+Ответ — дословное body APPROVED KNOWLEDGE/MEMORY до4000 символов. Отдельное правило
+замораживает source ID/revision, business и numeric/raw reviewer; APPROVED само
+по себе не даёт разрешения. После изменения/архивации/очистки материала старое
+правило не действует. Старое разрешение нужно отозвать, новое — явно проверить.
+Уникальное действующее правило на business/question, CAS-отзыв, атомарный
+metadata audit; список разрешений имеет pagination. ROLE_ADMIN без бизнес-прав
+недостаточен. Редактирования старого review и повторного включения revoked нет.
+
+Новый ingestion сохраняет ticket_public_id в свежую chat_history и в той же
+транзакции создаёт BUSINESS client_message_created с точным incoming_history_id.
+Final INSERT повторяет owner/public/business/channel и child identity; текст
+берётся из сохранённой строки, а не подставленного payload. Исторические строки
+и прежние outbox events не атрибутируются и не импортируются. Без typed child
+автоответ закрыт. Повторяющиеся вопросы работают через разные history IDs;
+повтор события/дубликат для одного child не вызывает повторную отправку.
+
+Scoped delivery проверяет root/messages, unique raw ID, active business/channel,
+current reviewer CONFIGURE/page, source revision/origin, точный текст и тип,
+отсутствие вложения/deletion/более позднего сообщения, ai_disabled и
+auto_reply_blocked. Нужны foundation+uiSelector, AI enabled и режим auto_reply;
+assist_only/escalate_only не отправляют. Существующие max/window/cooldown
+настройки проверяются по новому frozen owner, без legacy raw history/state.
+Снимок содержит owner work revision, control stamp и destination/body hashes.
+Проверки повторяются перед transport и последней границей провайдера.
+
+Durable QUEUED→SENDING→SENT/CANCELLED/UNKNOWN допускает один provider attempt.
+Неопределённый результат и сбой после provider acceptance не возвращаются в
+очередь; SENDING/UNKNOWN требуют ручной сверки, без автоматического retry.
+Успешный ответ записывается sender=ai_agent с точным owner/public/channel;
+metadata event и scoped SSE обновляют карточку. Обычные уведомления остаются;
+успешная отправка подавляет только избыточный AI handoff. При отказе сохраняется
+handoff. LLM, нормализация media, legacy AI/search/reply цепочки не вызываются;
+непроверенный входящий текст модели не передаётся. Наличие reviewed правила не
+является review всей переписки. Вложения в этом режиме не поддерживаются.
+
+254 targeted tests/6 Surefire XML GREEN, failures/errors/skips=0:88 delivery,
+84 full source/rules HTTP,60 ingestion,12 watcher,7 incoming callback cases,
+3 selected real transport-boundary cases. Native PostgreSQL, реальный Spring
+Security/Thymeleaf/CSRF и ORM ingestion; provider doubles, без live sends.
+Проверены V89→V90 без backfill/seeded approvals, новая схема, concurrent duplicate,
+revoke/late revision, owner/channel/generation, лимиты/режимы/control stamps,
+реальный producer replay и rollback после provider acceptance. RED logs/XML
+v1–v3 сохранены: ошибки fixtures/CSRF expectation и два native connection timeout;
+fixture pool и точный redirect /error/403 с проверкой отсутствия записи исправлены.
+Cache1460 Java R312 сверен; новые/изменённые9 main/4 test пересобраны в sandbox,
+final snapshot1464 Java и4 non-Java inputs. Полная repository/image сборка не заявляется.
+
+Baseline HEAD/origin/main/actual remote88cbf2b7738ea142e1a9c3c0417dc5687080e02f,
+parent67c3ae12c32e86df1bec632ccd11e8659e181249; проверены11 файлов R312.
+Рабочий Docker/проект остаётся на другой машине и в другой сессии. Здесь только
+nonce-owned native fixture; она остановлена. Runtime/DB/queues/flags/provider
+не использовались. Для рабочего включения нужны V90 и новый backend image
+panel-web/ops-worker; java-bot source не меняется. V90 additive: пустые rules/
+receipts и nullable outbox link, без изменения старых данных и включения flags.
+Ручная очистка истории R311 сохраняет delivery receipts для идемпотентности,
+как явно указано в форме; revoke сохраняет правило и metadata audit.
+Последний документированный runtime R310/V89 и rollback pointers прежние;
+R311/R312/R313 deployment здесь не подтверждён. Общая задача01-278 остаётся🟡.
+
 ## Source R312 — проверка метаданных текста для AI
 
 Решение пользователя R312 от10 ноября2026: целевой режим BUSINESS AI —

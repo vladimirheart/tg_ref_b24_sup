@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Правила автоответа</title>
+    <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
+    <link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body class="with-sidebar sidebar-pinned" data-ui-page="ai-sources">
+<div th:replace="~{fragments/navbar :: navbar('ai-sources')}"></div>
+<main class="main-content container-fluid py-4" data-ai-reply-rules>
+    <a th:href="@{/business-ai-sources/edit(businessId=${source.businessId},kind=${source.kind},key=${source.key})}">← Материал</a>
+    <h1 class="h3 mt-3">Правила автоответа</h1>
+    <p>Бизнес: <span th:text="${source.businessId}"></span>. Материал: <span th:text="${source.title}"></span>, версия <span th:text="${source.revision}"></span>.</p>
+    <p>Ответ отправляется дословно при точном совпадении вопроса, с учётом регистра и удалением обычных пробелов по краям.
+        Вложения и LLM не используются. После изменения материала отзовите прежнее правило и создайте новое.
+        Для отправки AI должен быть включён в режиме автоответа; действуют лимит ответов, интервал и настройки обращения.</p>
+    <section class="card card-body mb-3">
+        <h2 class="h5">Действующие разрешения</h2>
+        <div th:each="rule : ${rules}" class="border-bottom py-2">
+            <p>Вопрос: <span th:text="${rule.trigger}"></span>; версия материала: <span th:text="${rule.sourceRevision}"></span>.</p>
+            <form method="post" th:action="@{/business-ai-rules/revoke}">
+                <input type="hidden" name="businessId" th:value="${source.businessId}">
+                <input type="hidden" name="kind" th:value="${source.kind}"><input type="hidden" name="key" th:value="${source.key}">
+                <input type="hidden" name="ruleKey" th:value="${rule.key}"><input type="hidden" name="revision" th:value="${rule.revision}">
+                <button class="btn btn-outline-danger" type="submit">Отозвать разрешение</button>
+            </form>
+        </div>
+        <a th:if="${nextBefore != null}" th:href="@{/business-ai-rules(businessId=${source.businessId},kind=${source.kind},key=${source.key},before=${nextBefore})}">Следующие разрешения</a>
+    </section>
+    <form th:if="${source.status.name() == 'APPROVED' and source.body.length() &lt;= 4000}" method="post"
+          th:action="@{/business-ai-rules/create}" class="card card-body" data-ai-reply-rule-create>
+        <h2 class="h5">Разрешить точный автоответ</h2>
+        <input type="hidden" name="businessId" th:value="${source.businessId}">
+        <input type="hidden" name="kind" th:value="${source.kind}"><input type="hidden" name="key" th:value="${source.key}">
+        <input type="hidden" name="sourceId" th:value="${source.id}"><input type="hidden" name="sourceRevision" th:value="${source.revision}">
+        <input type="hidden" name="ruleKey" th:value="${ruleKey}">
+        <label for="exactQuestion">Точный вопрос клиента</label>
+        <textarea id="exactQuestion" name="trigger" rows="2" maxlength="500" required class="form-control mb-3"></textarea>
+        <label for="reviewedReply">Полный текст ответа клиенту</label>
+        <textarea id="reviewedReply" rows="8" readonly class="form-control mb-3" th:text="${source.body}"></textarea>
+        <label><input type="checkbox" name="reviewed" value="true" required> Я проверил весь ответ, удалил персональные данные и секреты и разрешаю отправлять его клиентам этого бизнеса по указанному правилу.</label>
+        <button class="btn btn-primary mt-3" type="submit">Разрешить автоответ</button>
+    </form>
+    <p th:unless="${source.status.name() == 'APPROVED' and source.body.length() &lt;= 4000}">Для нового правила нужен одобренный материал с ответом до 4000 символов.</p>
+</main>
+</body></html>

@@ -27,6 +27,16 @@ import org.mockito.ArgumentCaptor;
 
 class InboundClientMessageIngestionServiceTest {
 
+    @Test void newTextHistoryAndCanonicalEventShareTheCapturedPublicOwner() {
+        var f=r271Fixture(4,false);f.ticket().setTicketPublicId("a".repeat(32));
+        var publisher=mock(com.example.panel.service.UiEventOutboxAppendService.class);f.service().setScopedEvents(publisher);
+        f.service().ingest(r271Event("max","text",null),"integration.inbound.max");
+        var stored=ArgumentCaptor.forClass(ChatHistory.class);verify(f.history()).save(stored.capture());
+        assertThat(stored.getValue().getTicketPublicId()).isEqualTo("a".repeat(32));
+        assertThat(stored.getValue().getTicketOwnerUserId()).isEqualTo(7001L);
+        verify(publisher).publishClientMessage(new com.example.panel.service.UiEventOutboxAppendService.TicketContext("T-MAX",7001L,17L,"a".repeat(32),7L,false),100L);
+    }
+
     static java.util.stream.Stream<org.junit.jupiter.params.provider.Arguments> r271Cases() {
         return java.util.stream.Stream.of(false,true).flatMap(general->
             java.util.stream.Stream.of("max","telegram","vk","unknown").flatMap(platform->

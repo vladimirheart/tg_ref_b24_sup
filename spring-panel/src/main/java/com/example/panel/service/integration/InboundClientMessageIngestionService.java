@@ -29,6 +29,10 @@ public class InboundClientMessageIngestionService {
     private final TicketActiveRepository ticketActiveRepository;
     private final ChatAttachmentMetadataService chatAttachmentMetadataService;
     private SelectedTicketFollowupMediaService selectedMedia;
+    private com.example.panel.service.UiEventOutboxAppendService scopedEvents;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setScopedEvents(com.example.panel.service.UiEventOutboxAppendService scopedEvents) { this.scopedEvents=scopedEvents; }
 
     @org.springframework.beans.factory.annotation.Autowired
     public void setSelectedMedia(SelectedTicketFollowupMediaService selectedMedia) { this.selectedMedia=selectedMedia; }
@@ -139,6 +143,7 @@ public class InboundClientMessageIngestionService {
         history.setTimestamp(occurredAt);
         history.setTicketId(event.ticketId());
         history.setTicketOwnerUserId(ticket.getId().getUserId());
+        history.setTicketPublicId(ticket.getTicketPublicId());
         history.setMessageType(event.messageType());
         history.setAttachment(event.attachmentPath());
         history.setChannel(channel);
@@ -148,6 +153,10 @@ public class InboundClientMessageIngestionService {
         history.setForwardedFrom(event.sourceLink()!=null && "forward".equals(event.sourceLink().type()) ? event.sourceLink().authorName() : event.forwardedFrom());
         history.setFileName(event.attachmentName());
         ChatHistory saved = chatHistoryRepository.save(history);
+
+        if(scopedEvents!=null && saved.getId()!=null) scopedEvents.publishClientMessage(
+            new com.example.panel.service.UiEventOutboxAppendService.TicketContext(event.ticketId(),ticket.getId().getUserId(),
+                channel.getId(),ticket.getTicketPublicId(),ticket.getBusinessId(),ticket.isGeneral()),saved.getId());
 
         if(verified!=null) chatAttachmentMetadataService.upsertForChatHistory(saved.getId(),event.ticketId(),channel.getId(),
             event.attachmentPath(),event.attachmentName(),null,verified.size(),event.messageType(),verified.sha256());

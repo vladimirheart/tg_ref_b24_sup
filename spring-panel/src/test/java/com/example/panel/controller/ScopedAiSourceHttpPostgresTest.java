@@ -116,6 +116,8 @@ class ScopedAiSourceHttpPostgresTest {
     @Autowired private JdbcTemplate jdbc;
     @Autowired private MultibusinessFeatureFlags flags;
     @SpyBean private ScopedAiSourceService sources;
+    @SpyBean private com.example.panel.service.ScopedAiReplyRuleService replyRules;
+    @Autowired private com.example.panel.service.integration.InboundClientMessageIngestionService incoming;
     private long businessA,businessB,adminId,viewerId;
     private String admin,viewer,operator,manager,foreign,global,all;
     private Source sourceA,sourceB;
@@ -169,6 +171,67 @@ class ScopedAiSourceHttpPostgresTest {
             .andExpect(status().isOk()).andExpect(content().string(containsString("Title B secret")))
             .andExpect(content().string(not(containsString("Title A"))));
     }
+
+    @Test void explicitReplyRuleRequiresReviewAndCanBeRevokedWithCsrf() throws Exception {
+        approveReplySource();
+        var page=mvc.perform(auth(rulePage(),admin)).andExpect(status().isOk())
+            .andExpect(header().string("Cache-Control",containsString("no-store")))
+            .andExpect(content().string(containsString("data-ai-reply-rule-create")))
+            .andExpect(content().string(containsString("&lt;script&gt;"))).andReturn();
+        String rule=hidden(page.getResponse().getContentAsString(),"ruleKey");
+        mvc.perform(auth(ruleCreate(rule),admin)).andExpect(redirectedUrl("/error/403"));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ai_scoped_reply_rules WHERE business_id=?",Integer.class,businessA)).isZero();
+        mvc.perform(auth(ruleCreate(rule).param("reviewed","false"),admin).with(csrf())).andExpect(status().isBadRequest());
+        mvc.perform(auth(ruleCreate(rule).param("reviewed","true"),admin).with(csrf())).andExpect(status().is3xxRedirection());
+        assertThat(jdbc.queryForMap("SELECT source_id,source_revision,reviewed_by_user_id,reviewed_by FROM ai_scoped_reply_rules WHERE rule_key=?",rule))
+            .containsEntry("source_id",sourceA.id()).containsEntry("source_revision",2L).containsEntry("reviewed_by_user_id",adminId).containsEntry("reviewed_by",admin);
+        var revoke=post("/business-ai-rules/revoke").param("businessId",Long.toString(businessA)).param("kind","KNOWLEDGE").param("key",KEY).param("ruleKey",rule).param("revision","1");
+        mvc.perform(auth(revoke,admin).with(csrf())).andExpect(status().is3xxRedirection());
+        assertThat(jdbc.queryForObject("SELECT active FROM ai_scoped_reply_rules WHERE rule_key=?",Boolean.class,rule)).isFalse();
+    }
+    @ParameterizedTest @ValueSource(strings={"viewer","operator","manager","foreign","global"})
+    void replyRulePageAndMutationRequireBusinessConfigure(String role)throws Exception {
+        approveReplySource();String identity=switch(role){case "viewer"->viewer;case "operator"->operator;case "manager"->manager;case "foreign"->foreign;default->global;};
+        mvc.perform(auth(rulePage(),identity)).andExpect(status().isForbidden());
+        mvc.perform(auth(ruleCreate(UUID.randomUUID().toString()).param("reviewed","true"),identity).with(csrf())).andExpect(status().isForbidden());
+    }
+    @ParameterizedTest @ValueSource(strings={"revision","grant","blocked","page"})
+    void preparedRuleFormCannotSurviveSourceOrAuthorityChange(String change)throws Exception {
+        approveReplySource();var request=auth(ruleCreate(UUID.randomUUID().toString()).param("reviewed","true"),admin).with(csrf());
+        if(change.equals("revision"))jdbc.update("UPDATE ai_scoped_sources SET revision=revision+1,body='new unreviewed body' WHERE id=?",sourceA.id());
+        else if(change.equals("page"))jdbc.update("DELETE FROM user_authorities WHERE user_id=? AND authority='PAGE_KNOWLEDGE_BASE'",adminId);
+        else if(change.equals("grant"))mutate("revoke");else mutate("blocked");
+        mvc.perform(request).andExpect(change.equals("revision")?status().isConflict():change.equals("blocked")?redirectedUrl("http://localhost/login"):status().isForbidden());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ai_scoped_reply_rules WHERE business_id=?",Integer.class,businessA)).isZero();
+    }
+    @Test void ruleWriteRepeatsSourceRevisionAfterControllerPrecheck()throws Exception {
+        approveReplySource();
+        doAnswer(call->{jdbc.update("UPDATE ai_scoped_sources SET revision=revision+1,body='late change' WHERE id=?",sourceA.id());return call.callRealMethod();})
+            .when(replyRules).create(eq(businessA),org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.anyString(),org.mockito.ArgumentMatchers.anyString(),eq(sourceA.id()),eq(2L),eq(true));
+        mvc.perform(auth(ruleCreate(UUID.randomUUID().toString()).param("reviewed","true"),admin).with(csrf())).andExpect(status().isConflict());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ai_scoped_reply_rules WHERE business_id=?",Integer.class,businessA)).isZero();
+    }
+    @Test void replyRuleUiStaysHiddenWhenRolloutIsOff()throws Exception {
+        flags.setUiSelector(false);mvc.perform(auth(rulePage(),admin)).andExpect(status().isNotFound());
+    }
+    private void approveReplySource(){
+        assertThat(sources.reviseExpected(businessA,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),KNOWLEDGE,KEY,sourceA.id(),1,sourceA.title(),sourceA.body(),APPROVED)).isTrue();
+    }
+    @Test void realIngestionPersistsPublicHistoryAndItsEventInOneTransactionWithoutDuplicateReplay() {
+        long owner=origin.ticketUserId();
+        long channel=jdbc.queryForObject("INSERT INTO channels(token,channel_name,platform,is_active) VALUES(?,'fixture','telegram',TRUE) RETURNING id",Long.class,"fake-r313-"+owner);
+        jdbc.update("INSERT INTO messages(group_msg_id,user_id,ticket_id,channel_id,problem) VALUES(?,?,?,?,'fixture')",owner,owner,origin.ticketId(),channel);
+        jdbc.update("UPDATE tickets SET group_msg_id=?,channel_id=? WHERE user_id=? AND ticket_id=?",owner,channel,owner,origin.ticketId());
+        var event=new com.example.panel.service.integration.InboundClientMessageEvent(UUID.randomUUID().toString(),"client_message.active_ticket","telegram",channel,origin.ticketId(),owner,"fixture","fixture","Fixture","New question","text",null,null,"88",null,null,java.time.OffsetDateTime.now());
+        incoming.ingest(event,"integration.inbound.telegram");incoming.ingest(event,"integration.inbound.telegram");
+        var history=jdbc.queryForList("SELECT id,ticket_owner_user_id,ticket_public_id FROM chat_history WHERE ticket_id=?",origin.ticketId());
+        assertThat(history).hasSize(1);assertThat(history.get(0)).containsEntry("ticket_owner_user_id",owner).containsEntry("ticket_public_id",origin.ticketPublicId());
+        var captured=jdbc.queryForMap("SELECT incoming_history_id,ticket_user_id,ticket_public_id,ticket_business_id,message_text FROM ui_event_outbox WHERE ticket_id=? AND event_type='client_message_created'",origin.ticketId());
+        assertThat(captured).containsEntry("incoming_history_id",history.get(0).get("id")).containsEntry("ticket_user_id",owner)
+            .containsEntry("ticket_public_id",origin.ticketPublicId()).containsEntry("ticket_business_id",businessA).containsEntry("message_text","New question");
+    }
+    private MockHttpServletRequestBuilder rulePage(){return get("/business-ai-rules").param("businessId",Long.toString(businessA)).param("kind","KNOWLEDGE").param("key",KEY);}
+    private MockHttpServletRequestBuilder ruleCreate(String rule){return post("/business-ai-rules/create").param("businessId",Long.toString(businessA)).param("kind","KNOWLEDGE").param("key",KEY).param("sourceId",Long.toString(sourceA.id())).param("sourceRevision","2").param("ruleKey",rule).param("trigger","Точный вопрос?");}
 
     @ParameterizedTest @ValueSource(strings={"VIEWER","OPERATOR","MANAGER"})
     void nonConfigureRolesCanReadButCannotOpenCreateOrSubmitMutations(String role) throws Exception {

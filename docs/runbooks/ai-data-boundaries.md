@@ -1,4 +1,66 @@
-# Границы данных AI — R312
+# Границы данных AI — R313
+
+## Разрешённый дословный автоответ — R313
+
+Правило настраивается в редакторе материала через «Правила автоответа».
+Нужны PAGE_KNOWLEDGE_BASE и business ADMIN/ALL_BUSINESSES ADMIN. На странице
+показан полный текст APPROVED материала до4000 символов; отдельный checkbox
+подтверждает review и разрешение отправки. Вопрос до500 символов сравнивается
+точно и с учётом регистра; убираются только обычные внешние пробелы. При новой
+версии материала отозвать старое разрешение и создать новое. Действующие
+правила выводятся страницами по25 и отзываются по CAS revision. Revoke сохраняет
+правило/audit; сам по себе не очищает данные. Автоочистки нет.
+
+Нужны foundation+uiSelector, включённый AI и режим auto_reply. Действуют
+max/window/cooldown и ai_disabled/auto_reply_blocked. APPROVED без правила,
+assist_only/escalate_only, неполный owner/child, media, чужие business/channel/
+generation, изменённый ответ, утраченный reviewer/grant/page, новый диалоговый
+контекст или поздний control/work revision не разрешают отправку.
+
+Этот режим отправляет только проверенный текст источника и не обращается к
+LLM. Входящий вопрос используется локально для точного сравнения, не для prompt.
+Полный LLM payload всё ещё требует отдельного review, если будет нужен LLM.
+Ручной MEMORY preview R312 с NULL metadata не даёт права на автоматическую
+отправку. Typed link создаётся только для свежего текста active-ticket ingestion;
+начальные анкеты/legacy events без link остаются handoff. Backfill не нужен.
+
+Перед рабочей активацией на **машине проекта в другой агентской сессии**:
+
+1. Сверить там реальный source/runtime, собрать новый backend image из этого
+   exact source и обновить panel-web/ops-worker. Выпуск требует Flyway V90;
+   это additive nullable incoming_history_id и пустые rules/receipts tables,
+   без переноса/классификации данных и seeded approvals. Bot modules не менялись.
+   Проверить Flyway90, health/readiness, image/JAR и прежние flags; автоматическое
+   включение AI/rollout не является частью source apply.
+2. В выделенном BUSINESS создать/одобрить безопасный материал, открыть правила,
+   проверить полный ответ и разрешить один точный вопрос. Включить согласованный
+   тестовый режим. Отправить новый обычный текст через active-ticket ingress;
+   проверить history public/channel, incoming_history_id, один дословный ответ,
+   SENT receipt и отображение AI в карточке. Повторить на требуемых Telegram/VK/MAX
+   каналах без отправок посторонним адресатам.
+3. Проверить unmatched текст, вложение, отключение AI/автоответа, assist_only и
+   отзыв правила: ответа нет, handoff остаётся. Изменение версии источника не
+   должно использовать старое разрешение. Учесть cooldown/лимит при повторе
+   одинакового вопроса: новые вопросы имеют разные history IDs.
+4. Replay/concurrency и ambiguous-provider сценарии воспроизведены в изолированных
+   тестах. В рабочем контуре не сбрасывать checkpoint и не переочередить SENDING/
+   UNKNOWN для проверки: один provider attempt может уже быть принят. Требуется
+   ручная сверка с провайдером; автоматического retry нет. Очистка истории R311
+   сохраняет receipts, чтобы старое событие не отправилось повторно.
+
+254 tests/6 XML GREEN:88 delivery/PG migrations,84 full source/rules HTTP,
+60 ingestion,12 watcher,7 incoming callbacks и3 transport-boundary cases.
+Включены real ORM ingestion+inbox replay, review/CAS/CSRF/current rights,
+source revision, frozen destination, close/reopen/control stamps, режимы/лимиты,
+concurrent duplicate и rollback после provider acceptance. Провайдеры — doubles;
+живые сообщения/LLM не отправлялись. Cache1460 baseline Java проверен,
+final inputs1464 Java+4 resource files; scoped compile, не полный repository build.
+Logs/XML .tmp/r313-*; nonce-owned PostgreSQL остановлен. RED v1–v3 сохранены,
+исправлены fixture setup/точный CSRF redirect и соединения test harness.
+
+Последний документированный рабочий runtime — R310/V89/image b2dc2f0fb876;
+прежние Compose/rollback pointers ниже сохраняются. R313 здесь не deployed;
+не означает завершения всех channel/provider/restore/replay или S6/§7.1 gates.
 
 ## Режим AI и текстовая история — R312
 

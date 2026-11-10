@@ -50,6 +50,7 @@
         <label class="form-label" for="sourceReadOnly">Текст материала · только чтение</label>
         <textarea class="form-control" id="sourceReadOnly" rows="14" readonly th:text="${sourceBody}"></textarea>
     </section>
+    <p th:if="${!isNew and canConfigure}" class="mt-3"><a th:href="@{/business-ai-rules(businessId=${business.id},kind=${sourceKind},key=${sourceKey})}">Правила автоответа по этому материалу</a></p>
     <details th:if="${!isNew and canConfigure}" class="card card-body mt-4">
         <summary>Очистить содержимое</summary>
         <form method="post" th:action="@{/business-ai-sources/erase-content}" class="mt-3" data-ai-source-erase-form>

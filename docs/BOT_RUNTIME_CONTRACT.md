@@ -3,6 +3,29 @@
 Документ фиксирует текущий runtime contract между `spring-panel` и `java-bot`
 после `Phase 5` рефакторинга.
 
+## Source R313: scoped reviewed auto-reply
+
+Новый backend ingestion сохраняет public generation свежего текста и атомарно
+публикует BUSINESS UI outbox event с incoming_history_id. Auto-reply watcher
+требует этот typed child; NULL link старых событий не угадывается. Reply service
+фиксирует полный owner/business/channel, rule/source versions, control/work
+revision и destination fingerprint, затем повторяет proof на provider boundary.
+QUEUED→SENDING→terminal; после неопределённого результата автоматического retry
+нет. Ответ sender=ai_agent получает точный history owner/public/channel и scoped
+ai_reply_changed event. Вложения/LLM/legacy raw reply не используются.
+
+Отдельное reviewed правило создаёт business ADMIN/ALL_BUSINESSES ADMIN с page
+right, не системный ROLE_ADMIN сам по себе. APPROVED source не включает отправку.
+Режим auto_reply, AI enabled, лимиты и оба scoped блока обязательны. Начальные
+анкеты/legacy события без typed link остаются handoff. R313 не меняет bot modules,
+Rabbit wire/principal contract или рабочие child процессы.
+
+254 targeted tests/6 suites GREEN; real PostgreSQL/HTTP/ORM, provider doubles.
+Рабочее применение требует нового panel-web/ops-worker image и additive V90;
+rollout flags не включались. Рабочий экземпляр — другая машина/сессия, последний
+документированный runtime R310/V89 и Compose/rollback pointers сохраняются.
+R311–R313 deployment здесь не подтверждён. Приёмка: [AI boundaries](runbooks/ai-data-boundaries.md).
+
 ## Source R312: метаданные истории и согласованный режим AI
 
 Решение пользователя R312 от10 ноября2026: целевой режим BUSINESS AI —
