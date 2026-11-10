@@ -420,6 +420,125 @@ class ScopedAiSourceHttpPostgresTest {
         assertThat(sourceRows()).isEqualTo(before);
     }
 
+
+    private Source orphanFixture(boolean move) {
+        String key="orphan-"+IDS.incrementAndGet();
+        var actor=com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin);
+        assertThat(sources.createMemory(origin,actor,key,"ORPHAN_PRIVATE_TITLE",BODY)).isTrue();
+        var draft=sources.find(businessA,actor,MEMORY,key).orElseThrow();
+        assertThat(sources.reviseExpected(businessA,actor,MEMORY,key,draft.id(),1,"ORPHAN_PRIVATE_TITLE",BODY,APPROVED)).isTrue();
+        var memory=sources.find(businessA,actor,MEMORY,key).orElseThrow();
+        if(move)jdbc.update("UPDATE tickets SET business_id=? WHERE user_id=? AND ticket_id=?",businessB,origin.ticketUserId(),origin.ticketId());
+        return memory;
+    }
+
+    private MockHttpServletRequestBuilder orphanErase(Source memory) {
+        return post(ROOT+"/erase-orphan-content").param("businessId",memory.businessId().toString())
+            .param("key",memory.key()).param("sourceId",Long.toString(memory.id()))
+            .param("revision",Long.toString(memory.revision())).param("confirmed","true");
+    }
+
+    @Test void orphanCatalogRedactsContentAndRenderedCsrfFormErasesThenReloads()throws Exception {
+        Source memory=orphanFixture(true);
+        mvc.perform(auth(get(ROOT).param("businessId",Long.toString(businessA)),admin))
+            .andExpect(content().string(containsString("data-ai-source-orphans")));
+        mvc.perform(auth(get(ROOT).param("businessId",Long.toString(businessA)),viewer))
+            .andExpect(content().string(not(containsString("data-ai-source-orphans"))));
+        var opened=mvc.perform(auth(get(ROOT+"/orphans").param("businessId",Long.toString(businessA)),admin))
+            .andExpect(status().isOk()).andExpect(header().string("Cache-Control",containsString("no-store")))
+            .andExpect(content().string(containsString("data-ai-orphan-erase"))).andReturn();
+        String html=opened.getResponse().getContentAsString();
+        assertThat(html).doesNotContain(BODY,"ORPHAN_PRIVATE_TITLE",origin.ticketId(),origin.ticketPublicId(),"PRIVATE_B_SECRET","Business B secret");
+        assertThat(hidden(html,"sourceId")).isEqualTo(Long.toString(memory.id()));
+        assertThat(hidden(html,"key")).isEqualTo(memory.key());
+        assertThat(hidden(html,"revision")).isEqualTo("2");
+        var roots=jdbc.queryForList("SELECT to_jsonb(t)::TEXT FROM tickets t WHERE user_id=?",String.class,origin.ticketUserId());
+        mvc.perform(auth(orphanErase(memory),admin).cookie(opened.getResponse().getCookies()).param("_csrf",hidden(html,"_csrf")))
+            .andExpect(redirectedUrl(ROOT+"/orphans?businessId="+businessA))
+            .andExpect(header().string("Cache-Control",containsString("no-store")));
+        assertThat(jdbc.queryForMap("SELECT title,body,status,revision FROM ai_scoped_sources WHERE id=?",memory.id()))
+            .containsEntry("title","Материал очищен").containsEntry("body","Содержимое очищено.").containsEntry("status","ARCHIVED").containsEntry("revision",3L);
+        assertThat(jdbc.queryForList("SELECT to_jsonb(t)::TEXT FROM tickets t WHERE user_id=?",String.class,origin.ticketUserId())).isEqualTo(roots);
+        mvc.perform(auth(get(ROOT+"/orphans").param("businessId",Long.toString(businessA)),admin))
+            .andExpect(status().isOk()).andExpect(content().string(containsString("Содержимое уже очищено.")))
+            .andExpect(content().string(not(containsString("data-ai-orphan-erase"))));
+        mvc.perform(auth(orphanErase(memory),admin).with(csrf())).andExpect(status().isConflict());
+        assertThat(jdbc.queryForList("SELECT revision FROM ai_scoped_source_events WHERE source_id=? ORDER BY revision",Long.class,memory.id())).containsExactly(1L,2L,3L);
+    }
+
+    @ParameterizedTest @ValueSource(strings={"viewer","operator","manager","foreign","global","all"})
+    void orphanRecoveryUsesBusinessAdminPolicyNotSystemOrReadRole(String role)throws Exception {
+        Source memory=orphanFixture(true);
+        String identity=switch(role){case"viewer"->viewer;case"operator"->operator;case"manager"->manager;case"foreign"->foreign;case"global"->global;default->all;};
+        var before=sourceRows();
+        if(role.equals("all")){
+            mvc.perform(auth(get(ROOT+"/orphans").param("businessId",Long.toString(businessA)),identity)).andExpect(status().isOk());
+            mvc.perform(auth(orphanErase(memory),identity).with(csrf())).andExpect(status().is3xxRedirection());
+        }else{
+            mvc.perform(auth(get(ROOT+"/orphans").param("businessId",Long.toString(businessA)),identity)).andExpect(status().isForbidden());
+            mvc.perform(auth(orphanErase(memory),identity).with(csrf())).andExpect(status().isForbidden());
+            assertThat(sourceRows()).isEqualTo(before);
+        }
+    }
+
+    @Test void orphanFormsRequireCsrfConfirmationFrozenSourceAndStillLostOrigin()throws Exception {
+        Source memory=orphanFixture(false);
+        var before=sourceRows();
+        mvc.perform(auth(orphanErase(memory),admin).with(csrf())).andExpect(status().isConflict());
+        jdbc.update("UPDATE tickets SET business_id=? WHERE user_id=?",businessB,origin.ticketUserId());
+        mvc.perform(auth(orphanErase(memory),admin)).andExpect(redirectedUrl("/error/403"));
+        mvc.perform(auth(replace(orphanErase(memory),"confirmed","false"),admin).with(csrf())).andExpect(status().isBadRequest());
+        for(var request:List.of(replace(orphanErase(memory),"sourceId",Long.toString(sourceA.id())),
+                replace(orphanErase(memory),"revision","1"),replace(orphanErase(memory),"key","other-key"),
+                replace(orphanErase(memory),"businessId",Long.toString(businessB))))
+            mvc.perform(auth(request,all).with(csrf())).andExpect(status().isConflict());
+        mvc.perform(auth(get(ROOT+"/orphans").param("businessId",Long.toString(businessA)).param("before","0"),admin)).andExpect(status().isBadRequest());
+        assertThat(sourceRows()).isEqualTo(before);
+    }
+
+    @ParameterizedTest @ValueSource(strings={"foundation","selector"})
+    void orphanRoutesRemainBehindExistingRolloutFlags(String disabled)throws Exception {
+        Source memory=orphanFixture(true);var before=sourceRows();
+        if(disabled.equals("foundation"))flags.getFoundation().setEnabled(false);else flags.setUiSelector(false);
+        mvc.perform(auth(get(ROOT+"/orphans").param("businessId",Long.toString(businessA)),admin)).andExpect(status().isNotFound());
+        mvc.perform(auth(orphanErase(memory),admin).with(csrf())).andExpect(status().isNotFound());
+        assertThat(sourceRows()).isEqualTo(before);
+    }
+
+    @Test void restoredOriginAfterPrecheckRejectsOrphanEraseWithoutDataChange()throws Exception {
+        Source memory=orphanFixture(true);var before=sourceRows();
+        doAnswer(call->{jdbc.update("UPDATE tickets SET business_id=? WHERE user_id=?",businessA,origin.ticketUserId());return true;})
+            .when(sources).canConfigure(eq(businessA),org.mockito.ArgumentMatchers.any(org.springframework.security.core.Authentication.class));
+        mvc.perform(auth(orphanErase(memory),admin).with(csrf())).andExpect(status().isConflict());
+        assertThat(sourceRows()).isEqualTo(before);
+    }
+
+    @Test void orphanCatalogPaginatesTwentyFiveAndPostsExactLargeId()throws Exception {
+        jdbc.execute("ALTER SEQUENCE ai_scoped_sources_id_seq RESTART WITH 9007199254740993");
+        var actor=com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin);
+        var ids=new java.util.ArrayList<Long>();
+        for(int i=0;i<26;i++){String key="orphan-page-"+i;assertThat(sources.createMemory(origin,actor,key,"PAGE_PRIVATE_TITLE",BODY)).isTrue();ids.add(sources.find(businessA,actor,MEMORY,key).orElseThrow().id());}
+        jdbc.update("DELETE FROM tickets WHERE user_id=?",origin.ticketUserId());
+        var first=mvc.perform(auth(get(ROOT+"/orphans").param("businessId",Long.toString(businessA)),admin)).andExpect(status().isOk()).andReturn();
+        String html=first.getResponse().getContentAsString();
+        assertThat(html.split("data-ai-orphan-row",-1).length-1).isEqualTo(25);
+        assertThat(html).contains("data-ai-orphan-next").doesNotContain("PAGE_PRIVATE_TITLE",BODY);
+        assertThat(hidden(html,"sourceId")).isEqualTo(Long.toString(ids.get(25)));
+        long cursor=ids.get(1);
+        var second=mvc.perform(auth(get(ROOT+"/orphans").param("businessId",Long.toString(businessA)).param("before",Long.toString(cursor)),admin))
+            .andExpect(status().isOk()).andReturn();
+        String last=second.getResponse().getContentAsString();
+        assertThat(last.split("data-ai-orphan-row",-1).length-1).isEqualTo(1);
+        assertThat(last).doesNotContain("data-ai-orphan-next");
+        assertThat(hidden(last,"sourceId")).isEqualTo("9007199254740993");
+        mvc.perform(auth(post(ROOT+"/erase-orphan-content").param("businessId",Long.toString(businessA))
+                .param("key","orphan-page-0").param("sourceId",hidden(last,"sourceId")).param("revision","1").param("confirmed","true"),admin)
+                .cookie(second.getResponse().getCookies()).param("_csrf",hidden(last,"_csrf")))
+            .andExpect(status().is3xxRedirection());
+        assertThat(jdbc.queryForObject("SELECT body FROM ai_scoped_sources WHERE id=9007199254740993",String.class)).isEqualTo("Содержимое очищено.");
+    }
+
+
     private MockHttpServletRequestBuilder erase(Source source) {
         return post(ROOT+"/erase-content").param("businessId",source.businessId().toString()).param("kind",source.kind().name())
             .param("key",source.key()).param("sourceId",Long.toString(source.id())).param("revision",Long.toString(source.revision())).param("confirmed","true");
@@ -521,7 +640,8 @@ class ScopedAiSourceHttpPostgresTest {
         mvc.perform(get(ROOT).cookie(session)).andExpect(redirectedUrl("http://localhost/login"));
     }
     private List<MockHttpServletRequestBuilder> preparedRequests() {
-        return List.of(auth(get(ROOT).param("businessId",Long.toString(businessA)),admin),auth(edit(sourceA),admin),auth(get(ROOT+"/new").param("businessId",Long.toString(businessA)),admin),auth(create("prepared-session"),admin).with(csrf()),auth(revise(sourceA),admin).with(csrf()),auth(erase(sourceA),admin).with(csrf()));
+        return List.of(auth(get(ROOT).param("businessId",Long.toString(businessA)),admin),auth(edit(sourceA),admin),auth(get(ROOT+"/new").param("businessId",Long.toString(businessA)),admin),auth(create("prepared-session"),admin).with(csrf()),auth(revise(sourceA),admin).with(csrf()),auth(erase(sourceA),admin).with(csrf()),
+            auth(get(ROOT+"/orphans").param("businessId",Long.toString(businessA)),admin),auth(orphanErase(sourceA),admin).with(csrf()));
     }
     private Map<String,List<String>> sourceRows() {
         return Map.of("sources",jdbc.queryForList("SELECT to_jsonb(s)::TEXT FROM ai_scoped_sources s WHERE business_id IN (?,?) ORDER BY id",String.class,businessA,businessB),"events",jdbc.queryForList("SELECT to_jsonb(s)::TEXT FROM ai_scoped_source_events s WHERE business_id IN (?,?) ORDER BY id",String.class,businessA,businessB));

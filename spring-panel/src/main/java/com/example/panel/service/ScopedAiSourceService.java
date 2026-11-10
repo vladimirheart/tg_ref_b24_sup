@@ -25,6 +25,8 @@ import org.springframework.util.StringUtils;
 /** Internal curated-source APIs. HTTP callers still need page authority and CSRF. No global/legacy fallback. */
 @Service
 public class ScopedAiSourceService {
+    private static final String ERASED_TITLE = "Материал очищен";
+    private static final String ERASED_BODY = "Содержимое очищено.";
     private static final String ACTOR = " CROSS JOIN (SELECT CAST(:identity AS TEXT) AS user_identity) n ";
     private static final String BOUND_ACTOR = " JOIN users actor ON actor.id=:actorId AND actor.username=:actorName "
         +" AND actor.enabled=TRUE AND actor.is_blocked=FALSE AND lower(actor.username)=n.user_identity ";
@@ -130,20 +132,55 @@ public class ScopedAiSourceService {
      */
     public boolean eraseContentExpected(Long businessId,Authentication authentication,Kind kind,String key,
                                          long expectedSourceId,long expectedRevision) {
+        return eraseContentExpected(businessId,authentication,kind,key,expectedSourceId,expectedRevision,false);
+    }
+
+    /** Orphan cleanup must still prove the lost origin when the confirmed write executes. */
+    public boolean eraseOrphanContentExpected(Long businessId,Authentication authentication,String key,
+                                               long expectedSourceId,long expectedRevision) {
+        return eraseContentExpected(businessId,authentication,Kind.MEMORY,key,expectedSourceId,expectedRevision,true);
+    }
+
+    private boolean eraseContentExpected(Long businessId,Authentication authentication,Kind kind,String key,
+                                          long expectedSourceId,long expectedRevision,boolean orphanOnly) {
         var account=boundActor(authentication);
         if (account==null || !validActor(businessId,account.getUsername()) || kind==null || !validKey(key)
                 || expectedSourceId<1 || expectedRevision<1) return false;
         var args=boundParameters(businessId,account,kind,key)
             .addValue("expectedSourceId",expectedSourceId,Types.BIGINT).addValue("revision",expectedRevision,Types.BIGINT)
-            .addValue("erasedTitle","Материал очищен",Types.VARCHAR).addValue("erasedBody","Содержимое очищено.",Types.VARCHAR);
+            .addValue("erasedTitle",ERASED_TITLE,Types.VARCHAR).addValue("erasedBody",ERASED_BODY,Types.VARCHAR);
         String sql="""
             WITH changed AS (UPDATE ai_scoped_sources source SET title=:erasedTitle,body=:erasedBody,status='ARCHIVED',
                 revision=source.revision+1,updated_by_user_id=actor.id,updated_by=actor.username,updated_at=CURRENT_TIMESTAMP
               FROM (SELECT CAST(:businessId AS BIGINT) AS business_id) owner
             """+ACTOR+BOUND_ACTOR+" WHERE "+SOURCE_KEY
             +" AND source.id=:expectedSourceId AND source.revision=:revision"+READ+CONFIGURE
+            +(orphanOnly ? " AND NOT "+CURRENT_ORIGIN
+                +" AND NOT (source.title=:erasedTitle AND source.body=:erasedBody AND source.status='ARCHIVED')" : "")
             +" RETURNING source.*)"+auditInsert("revise");
         return write(sql,args);
+    }
+
+    /** Metadata-only recovery list: never select the source text or a current foreign origin. */
+    public List<OrphanSummary> orphaned(Long businessId,Authentication authentication,Long before,int limit) {
+        var account=boundActor(authentication);
+        if (account==null || !validActor(businessId,account.getUsername()) || (before!=null && before<1)) return List.of();
+        String sql="""
+            SELECT source.id,source.source_key,source.status,source.revision,
+                   (source.title=:erasedTitle AND source.body=:erasedBody AND source.status='ARCHIVED') AS content_erased
+              FROM ai_scoped_sources source JOIN (SELECT CAST(:businessId AS BIGINT) AS business_id) owner
+                ON owner.business_id=source.business_id
+            """+ACTOR+BOUND_ACTOR+" WHERE source.source_kind='MEMORY' AND NOT "+CURRENT_ORIGIN+READ+CONFIGURE+"""
+              AND (CAST(:before AS BIGINT) IS NULL OR source.id<:before)
+            ORDER BY source.id DESC LIMIT :limit
+            """;
+        var args=boundParameters(businessId,account,Kind.MEMORY,null).addValue("before",before,Types.BIGINT)
+            .addValue("limit",bounded(limit,51),Types.INTEGER)
+            .addValue("erasedTitle",ERASED_TITLE,Types.VARCHAR).addValue("erasedBody",ERASED_BODY,Types.VARCHAR);
+        try {
+            return jdbc.query(sql,args,(rs,row)->new OrphanSummary(rs.getLong("id"),rs.getString("source_key"),
+                Status.valueOf(rs.getString("status")),rs.getLong("revision"),rs.getBoolean("content_erased")));
+        } catch (DataAccessException ex) { return List.of(); }
     }
 
     public List<BusinessOption> availableBusinesses(Authentication authentication) {
@@ -317,6 +354,7 @@ public class ScopedAiSourceService {
     public enum Status { DRAFT,APPROVED,ARCHIVED }
     public record BusinessOption(long id,String displayName) { }
     public record Summary(long id,Kind kind,String key,String title,Status status,long revision) { }
+    public record OrphanSummary(long id,String key,Status status,long revision,boolean contentErased) { }
     public record Source(long id,Long businessId,Kind kind,String key,String title,String body,Status status,long revision,UiEventTicketScope origin) {
         @Override public String toString() { return "ScopedAiSource[id="+id+",businessId="+businessId+",kind="+kind+",revision="+revision+"]"; }
     }

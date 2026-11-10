@@ -1,12 +1,67 @@
-# Границы данных AI — R308
+# Границы данных AI — R310
+
+## MEMORY без исходного обращения — R310
+
+В каталоге AI-материалов нужного бизнеса открыть «Материалы без обращения».
+Нужны PAGE_KNOWLEDGE_BASE и текущий business ADMIN либо ALL_BUSINESSES ADMIN;
+системный ROLE_ADMIN без бизнес-допуска не даёт этого доступа.
+GET /business-ai-sources/orphans?businessId=... показывает только MEMORY,
+для которых больше нет точной canonical связи с исходным обращением.
+Удаление/смена бизнеса, поколения или owning tuple, GENERAL/UNRESOLVED и коллизия
+raw ID не дают читать материал через обычный каталог. Отдельный список показывает
+нейтральное «Сохранённое решение №ID», статус, revision и признак очистки;
+title/body/origin и сведения о текущем чужом обращении не раскрываются.
+
+Страница содержит25 записей. «Более ранние материалы» использует before=<точный ID>;
+business/account/CONFIGURE и проверка origin применяются до LIMIT. BIGINT IDs
+передаются строкой без округления. Поиск не читает текст материала.
+
+Чтобы стереть содержимое, отметить подтверждение в строке и нажать
+«Очистить содержимое». POST /business-ai-sources/erase-orphan-content требует
+businessId/key/sourceId/revision, CSRF и confirmed=true. Kind фиксирован MEMORY.
+В одной SQL-команде повторно проверяются текущий аккаунт/права, active business,
+неизменный владелец, CAS и отсутствие current origin. Если связь успела
+восстановиться, запись не меняется; старую форму нужно закрыть и обновить список.
+Title/body заменяются теми же заглушками R308, ARCHIVED,revision+1 и metadata audit
+атомарны. Уже очищенная строка остаётся видимой с отметкой и без формы;
+повторный POST не создаёт новую revision или запись аудита.
+
+400 — неверные параметры/нет подтверждения;403 — page/business отказ,
+невалидная сессия может получить штатный login redirect; CSRF использует штатный
+/error/403 redirect.409 — stale/подменённая форма, восстановленный origin,
+уже очищенный материал либо отзыв прав перед final SQL.404 — выключенные
+foundation/uiSelector flags. Ответы no-store, успешный redirect только
+в список того же бизнеса. Title/body — единственное удаляемое содержимое:
+ID/key/origin, chat_history, scoped state/events/control, evidence и backups
+сохраняются. Это ручная очистка материала, не удаление всех данных обращения.
+
+395 tests/6 suites GREEN, включая37 новых service/HTTP cases, failures/errors/skips0.
+Реальные native PostgreSQL и Spring HTTP/Thymeleaf/CSRF проверяют доступ,
+пагинацию, BIGINT>2^53, потерю/восстановление origin, CAS, повторный POST,
+отзыв/блокировку/rename-reuse перед SQL, audit rollback и сохранность чужих данных.
+Targeted2 main/2 test compile поверх сверенного R309 cache, упаковка и image build
+GREEN; новая полная Java/Sass сборка и полный repository suite не заявляются.
+
+Рабочие panel-web/ops-worker обновлены R310 через Compose --no-deps, по1 replica,
+image b2dc2f0fb876, база09718fa26 плюс незакоммиченный R310 patch. V89 и flags
+прежние, health/readiness UP, restart0, новых ERROR/FATAL/OOM0. Боты/инфраструктура
+не пересоздавались.5 Edge gates подтверждают AI catalog/orphan GET/POST404
+и incidents/inbox200. Положительная очистка — только изолированная HTTP-проверка;
+рабочие AI-данные не удалялись. AI UI, LLM/provider и auto-reply не включались.
+Актуальный Compose/rollback/evidence — Runtime R310 в
+[карточке01-278](../../ai-context/tasks/task-details/01-278.md).
+
+Остаются ручная очистка scoped state/events/control, media/LLM context и scoped
+client delivery, отдельный допуск auto-reply и итоговая S6. Поиск/очистка orphan
+MEMORY и согласованный срок хранения больше не являются незакрытыми пунктами.
 
 ## Хранение и ручная очистка — R308
 
 Согласовано пользователем: «Всё хранить до ручного удаления, без автоочистки».
 AI-данные не получают автоматический TTL или расписание удаления. Архивирование
 материала само по себе сохраняет текст. Нынешний шаг реализует очистку заголовка
-и текста KNOWLEDGE/MEMORY; общий purge scoped state/events и поиск orphan
-материалов пока остаются отдельной работой. Политика не меняет срок хранения
+и текста KNOWLEDGE/MEMORY; общий purge scoped state/events/control остаётся
+отдельной работой. Поиск orphan MEMORY добавлен R310 выше. Политика не меняет срок хранения
 инфраструктурных backup и истории monitoring.
 
 В редакторе существующего материала раскрыть «Очистить содержимое», отметить
@@ -28,12 +83,12 @@ foundation/uiSelector выключен. Ответы controller no-store; redire
 
 MEMORY сохраняет неизменного владельца. Ранее открытая форма позволяет очистить
 её текст после смены/удаления origin без чтения другого бизнеса; обычный editor/
-catalog/retrieval по-прежнему скрывает stale origin. Отдельного UI поиска orphan
-пока нет. Очистка увеличивает revision и снимает APPROVED, поэтому сохранённый
+catalog/retrieval по-прежнему скрывает stale origin. R310 добавил отдельный UI
+поиска orphan MEMORY без чтения её текста. Очистка увеличивает revision и снимает APPROVED, поэтому сохранённый
 кандидат и handoff evidence больше не допускаются. Новое последующее одобрение
 другого текста не оживляет старую frozen evidence revision.
 
-312 tests/6 suites GREEN, failures/errors/skips=0 в source sandbox. Проверены реальные native PostgreSQL и полный
+Проверка source R308:312 tests/6 suites GREEN, failures/errors/skips=0 в source sandbox. Проверены реальные native PostgreSQL и полный
 Spring Security/HTTP/Thymeleaf, включая CSRF из отрендеренной формы, оба kind,
 матрицу прав, revocation/rename-reuse перед SQL, CAS, audit rollback, origin loss
 и handoff invalidation.2 main/3 test sources пересобраны поверх проверенного
@@ -103,7 +158,7 @@ BUSINESS и GENERAL сначала воспроизведены RED на R306; �
 не выполнялась; полный repository suite не объявляется GREEN. Известные8
 baseline channel-test failures R306 не повторялись и не исправлялись этим scope.
 
-## Рабочий выпуск R309 и оставшаяся работа
+## Исторический рабочий выпуск R309
 
 R307/R308 включены в новые backend images на машине текущей сессии:
 web ee124b5d137e, worker9201cfbf6d5a; V89, flags и настройки прежние.
@@ -116,10 +171,11 @@ common incident обычной сессией пройдены. Рабочий A
 Сводка528 Java/21 suites включает3 новых registration/block cases;
 новый R309 patch исправляет incident deep links и PostgreSQL boolean binding.
 
-Остаются ручная очистка scoped state/events, поиск orphan материалов, media/LLM
-context и scoped client delivery, явное разрешение auto-reply и итоговая S6.
+После R309 оставались ручная очистка scoped state/events, поиск orphan материалов,
+media/LLM context и scoped client delivery, явное разрешение auto-reply и итоговая S6.
+R310 закрыл поиск/очистку orphan MEMORY; текущий остаток приведён в начале документа.
 Согласованное хранение до ручного удаления без автоочистки не является PENDING.
-Актуальный Compose/rollback/evidence — Runtime R309 в карточке01-278.
+Исторические Compose/rollback/evidence — Runtime R309 в карточке01-278.
 
 ## Историческая инструкция активации source R307/R308
 
@@ -141,8 +197,8 @@ pointer на машине проекта; не возвращать старые
 [общему контракту](common-system-access.md). Runtime/browser checks этого шага
 здесь не выполнялись.
 
-Срок согласован R308: хранение до ручного удаления, без автоочистки. Остаются
-ручная очистка scoped state/events и поиск orphan материалов, обработка media/LLM
+Срок согласован R308: хранение до ручного удаления, без автоочистки. На этом
+source-checkpoint оставались ручная очистка scoped state/events и поиск orphan материалов, обработка media/LLM
 контекста, фактическая scoped доставка и решение о допуске auto-reply. Право
 внешней отправки и auto-reply не подставлять вместо решения пользователя. Старые
 данные тестовые, heuristic migration/backfill не нужен; общая задача01-278🟡.

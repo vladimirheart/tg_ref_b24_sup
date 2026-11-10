@@ -50,6 +50,8 @@
     <section th:if="${business != null}" aria-labelledby="sourceCatalogTitle">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
             <h2 class="h4 mb-0" id="sourceCatalogTitle" th:text="${business.displayName}"></h2>
+            <a th:if="${canConfigure}" class="btn btn-outline-secondary" data-ai-source-orphans
+               th:href="@{/business-ai-sources/orphans(businessId=${business.id})}">Материалы без обращения</a>
             <a th:if="${canConfigure}" class="btn btn-primary" data-ai-source-create
                th:href="@{/business-ai-sources/new(businessId=${business.id})}">Добавить материал</a>
         </div>

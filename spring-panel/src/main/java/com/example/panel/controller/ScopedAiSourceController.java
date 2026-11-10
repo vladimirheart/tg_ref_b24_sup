@@ -67,6 +67,38 @@ public class ScopedAiSourceController {
         return "businesses/ai-sources";
     }
 
+    @GetMapping("/orphans")
+    public String orphans(Authentication authentication,Model model,HttpServletResponse response,
+            @RequestParam Long businessId,@RequestParam(required=false) Long before) {
+        enabled(response);
+        if (before!=null && before<1) badRequest();
+        var business=selected(businessId,authentication);
+        configure(businessId,authentication);
+        var rows=sources.orphaned(businessId,actor(authentication),before,PAGE_SIZE+1);
+        boolean more=rows.size()>PAGE_SIZE;
+        var visible=more ? rows.subList(0,PAGE_SIZE) : rows;
+        model.addAttribute("business",business);
+        model.addAttribute("sources",visible);
+        model.addAttribute("nextBefore",more ? visible.get(visible.size()-1).id() : null);
+        navigation.enrich(model,authentication);
+        return "businesses/ai-orphans";
+    }
+
+    @PostMapping("/erase-orphan-content")
+    public RedirectView eraseOrphanContent(Authentication authentication,HttpServletResponse response,
+            @RequestParam Long businessId,@RequestParam String key,@RequestParam long sourceId,
+            @RequestParam long revision,@RequestParam(defaultValue="false") boolean confirmed) {
+        enabled(response);
+        selected(businessId,authentication);
+        configure(businessId,authentication);
+        validKey(key);
+        if (sourceId<1 || revision<1 || !confirmed) badRequest();
+        if (!sources.eraseOrphanContentExpected(businessId,authentication,key,sourceId,revision)) conflict();
+        RedirectView view=new RedirectView("/business-ai-sources/orphans?businessId="+businessId,true);
+        view.setExposeModelAttributes(false);
+        return view;
+    }
+
     @GetMapping("/new")
     public String createForm(Authentication authentication,Model model,HttpServletResponse response,@RequestParam Long businessId) {
         enabled(response);

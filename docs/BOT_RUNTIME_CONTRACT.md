@@ -3,6 +3,55 @@
 Документ фиксирует текущий runtime contract между `spring-panel` и `java-bot`
 после `Phase 5` рефакторинга.
 
+## Runtime R310 — 2026-11-10: поиск и очистка MEMORY без обращения
+
+R309 проверен в обновлённом репозитории: HEAD/origin/main/actual remote =
+09718fa26026f02750ca9fd597683e7b9ce77303. Рабочий выпуск — эта committed база плюс
+незакоммиченный R310 patch; отдельного committed R310 SHA нет.
+
+Для бизнес-ADMIN/ALL_BUSINESSES ADMIN с PAGE_KNOWLEDGE_BASE добавлен каталог
+«Материалы без обращения». Он находит MEMORY с утраченной точной canonical
+связью, не показывая title/body/origin. Страница по25 записей, фильтры до LIMIT,
+BIGINT IDs без округления. Подтверждённая очистка проверяет неизменного владельца,
+актуальный аккаунт/CONFIGURE, ID/key/revision и отсутствие current origin в том
+же SQL, что меняет title/body на заглушки, ARCHIVED,revision+1 и пишет аудит.
+Восстановленная связь, stale/подменённая форма и повторная очистка отклоняются.
+Чаты, scoped state/events, evidence и backups сохраняются; автоочистки нет.
+
+395 tests/6 suites GREEN, failures/errors/skips0;37 новых service/HTTP cases.
+Native PostgreSQL, реальные Spring Security/Thymeleaf/CSRF: матрица прав,
+pagination, origin deletion/move/generation/collision, BIGINT>2^53,
+restore-before-write, отзыв прав/блокировка/rename-reuse и audit rollback.
+Проверены1459 исходников baseline cache,1461 main class payloads против
+принятого R309 JAR и2390 неизменённых main/test class hashes; пересобраны
+изменённые2 main/2 test Java. Maven resources/jar/repackage и image build GREEN,
+1901 packaged payloads сверены. Это targeted compile, не новая полная
+Java/Sass сборка и не полный repository suite.
+
+Через Compose --no-deps пересозданы только panel-web и ops-worker, по1 replica.
+Оба используют image b2dc2f0fb876, tag iguana-panel:work-r310-09718fa26-20261110.
+JAR SHA256:06379e23e6eccb0d43695631be48858a7d2a7eb5160164b63e17f542ac0fe7fa.
+Source-input manifest SHA256:aab7e8961121075aab1a55cfdb0e9f5ebd092a57dec16b432417cccddf00ddc4.
+Health/readiness200UP, restart0, ERROR/FATAL/OOM0 с начала этих контейнеров.
+18 остальных контейнеров и3 bot child PID/start ticks прежние; боты R295.
+Схема V89/hash, ENV/HostConfig/mounts/.env и прежние flags сохранены;
+migrations/backfill/provision/grants не выполнялись.
+
+Актуальный Compose: ../iguana-runtime/tg_ref_b24_sup/releases/r310-ai-orphan-cleanup-20261110/private/release/compose.final.json.
+Rollback tags rollback-r310-panel-web-20261110 и rollback-r310-ops-worker-20261110
+сохраняют distinct R309 images ee124b5d137e и9201cfbf6d5a. Откат не разыгрывался.
+5 реальных Edge gates GREEN: AI catalog/orphan GET/подтверждённый orphan POST404
+при прежних выключенных flags, incidents/inbox200. Положительная очистка проверена
+в изолированном HTTP; рабочие AI-данные не удалялись, LLM/provider/auto-reply не запускались.
+Это установленный код, не включение AI UI и не общая S6. Staging/commit/push нет.
+
+Evidence вне .tmp: ../iguana-runtime/tg_ref_b24_sup/releases/r310-ai-orphan-cleanup-20261110/
+(validation-v2/proof.json, bytecode-proof.json, artifact-proof.json, image-proof.json,
+deployment-proof.json, live-gates-proof.json, runtime-final-proof.json).
+Практическая инструкция: [AI boundaries](runbooks/ai-data-boundaries.md).
+Общая задача🟡. Ниже — исторические checkpoints; текущий остаток обновлён в карточке01-278.
+
+
 ## Runtime R309 — 2026-11-10: R306–R308 выпущены, инциденты проверены
 
 На текущей машине рабочего экземпляра проверены clean HEAD/origin/main/remote

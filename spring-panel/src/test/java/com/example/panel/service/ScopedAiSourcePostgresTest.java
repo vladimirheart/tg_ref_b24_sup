@@ -501,6 +501,104 @@ class ScopedAiSourcePostgresTest {
         assertThat(snapshots()).isEqualTo(before);
     }
 
+
+    @ParameterizedTest @ValueSource(strings={"business","generation","tuple","raw","general","missing","collision","unresolved"})
+    void orphanRecoveryListsOnlyMetadataAndErasesWithoutReadingTheLostOrigin(String mutation) {
+        Source original=approved(MEMORY,"recover");
+        mutateOwner(30,mutation);
+        var actor=com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin");
+        var roots=jdbc.queryForList("SELECT * FROM tickets ORDER BY user_id,ticket_id");
+        assertThat(service.find(1L,actor,MEMORY,original.key())).isEmpty();
+        var rows=service.orphaned(1L,actor,null,26);
+        assertThat(rows).hasSize(1);
+        assertThat(rows.get(0).id()).isEqualTo(original.id());
+        assertThat(rows.get(0).revision()).isEqualTo(original.revision());
+        assertThat(rows.get(0).contentErased()).isFalse();
+        assertThat(rows.toString()).doesNotContain(BODY,"Title",ORIGIN,PUBLIC);
+        assertThat(service.eraseOrphanContentExpected(1L,actor,original.key(),original.id(),original.revision())).isTrue();
+        assertThat(service.orphaned(1L,actor,null,26).get(0).contentErased()).isTrue();
+        assertThat(jdbc.queryForMap("SELECT body,status,revision FROM ai_scoped_sources WHERE id=?",original.id()))
+            .containsEntry("body","Содержимое очищено.").containsEntry("status","ARCHIVED").containsEntry("revision",3L);
+        assertThat(jdbc.queryForList("SELECT * FROM tickets ORDER BY user_id,ticket_id")).isEqualTo(roots);
+        assertThat(service.retrieve(scope,actor,"решения",20)).isEmpty();
+        var after=snapshots();
+        assertThat(service.eraseOrphanContentExpected(1L,actor,original.key(),original.id(),3)).isFalse();
+        assertThat(snapshots()).isEqualTo(after);
+    }
+
+    @ParameterizedTest @ValueSource(strings={"admin","all-admin","viewer","operator","manager","foreign","global-admin","all-viewer"})
+    void orphanMetadataAndErasureRequireConfigureOfItsImmutableBusiness(String identity) {
+        Source original=approved(MEMORY,"shared-key");
+        mutateOwner(30,"business");
+        var actor=com.example.panel.support.AiControlIdentityFixture.login(jdbc,identity);
+        boolean allowed=identity.equals("admin")||identity.equals("all-admin");
+        assertThat(service.orphaned(1L,actor,null,26)).hasSize(allowed?1:0);
+        assertThat(service.orphaned(2L,actor,null,26)).isEmpty();
+        var before=snapshots();
+        assertThat(service.eraseOrphanContentExpected(1L,actor,original.key(),original.id(),2)).isEqualTo(allowed);
+        if(!allowed)assertThat(snapshots()).isEqualTo(before);
+    }
+
+    @Test void orphanPaginationFiltersHealthyKnowledgeAndForeignRowsBeforeLimit() {
+        var actor=com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin");
+        var ids=new java.util.ArrayList<Long>();
+        for(int i=0;i<5;i++){
+            assertThat(service.createMemory(origin,actor,"orphan-"+i,"Secret title",BODY)).isTrue();
+            ids.add(service.find(1L,actor,MEMORY,"orphan-"+i).orElseThrow().id());
+        }
+        assertThat(service.createMemory(scope,actor,"healthy","Healthy",BODY)).isTrue();
+        for(int i=0;i<6;i++)assertThat(service.createKnowledge(1L,actor,"knowledge-"+i,"Knowledge",BODY)).isTrue();
+        var foreignScope=new UiEventTicketScope(20L,RAW.trim(),"b".repeat(32),"BUSINESS",2L);
+        var foreign=com.example.panel.support.AiControlIdentityFixture.login(jdbc,"foreign");
+        assertThat(service.createMemory(foreignScope,foreign,"orphan-4","FOREIGN_SECRET",BODY+" B")).isTrue();
+        mutateOwner(30,"missing");
+        var one=service.orphaned(1L,actor,null,2);
+        assertThat(one).extracting(ScopedAiSourceService.OrphanSummary::id).containsExactly(ids.get(4),ids.get(3));
+        var two=service.orphaned(1L,actor,one.get(1).id(),2);
+        assertThat(two).extracting(ScopedAiSourceService.OrphanSummary::id).containsExactly(ids.get(2),ids.get(1));
+        assertThat(service.orphaned(1L,actor,two.get(1).id(),2)).extracting(ScopedAiSourceService.OrphanSummary::id).containsExactly(ids.get(0));
+        assertThat(service.orphaned(1L,actor,ids.get(0),2)).isEmpty();
+        assertThat(service.orphaned(1L,actor,0L,2)).isEmpty();
+    }
+
+    @ParameterizedTest @ValueSource(strings={"restore","revoke","disabled","blocked","archive","rename","reuse"})
+    void orphanWriteRechecksOriginAndCurrentActorInsideFinalSql(String mutation) {
+        Source original=approved(MEMORY,"recover");
+        mutateOwner(30,"business");
+        var actor=com.example.panel.support.AiControlIdentityFixture.login(jdbc,"admin");
+        assertThat(service.orphaned(1L,actor,null,26)).hasSize(1);
+        var before=snapshots();
+        var observed=spy(new NamedParameterJdbcTemplate(jdbc));
+        doAnswer(call->{
+            if(mutation.equals("restore"))jdbc.update("UPDATE tickets SET business_id=1 WHERE user_id=30");
+            else if(mutation.equals("rename")||mutation.equals("reuse")){
+                jdbc.update("UPDATE users SET username='renamed' WHERE id=1");
+                if(mutation.equals("reuse")){jdbc.update("INSERT INTO users VALUES(9,'admin',TRUE,FALSE)");jdbc.update("INSERT INTO business_memberships VALUES(9,1,'ADMIN',TRUE)");}
+            }else mutateActor(mutation);
+            return new NamedParameterJdbcTemplate(jdbc).update(call.getArgument(0,String.class),call.getArgument(1,SqlParameterSource.class));
+        }).when(observed).update(anyString(),any(SqlParameterSource.class));
+        assertThat(new ScopedAiSourceService(observed,flags).eraseOrphanContentExpected(1L,actor,original.key(),original.id(),2)).isFalse();
+        assertThat(snapshots()).isEqualTo(before);
+    }
+
+    @Test void orphanErasureRejectsHealthyAndForgedFormsAndRollsBackAuditFailure() {
+        Source memory=approved(MEMORY,"recover"),knowledge=approved(KNOWLEDGE,"recover");
+        var actor=com.example.panel.support.AiControlIdentityFixture.login(jdbc,"all-admin");
+        var before=snapshots();
+        assertThat(service.eraseOrphanContentExpected(1L,actor,memory.key(),memory.id(),2)).isFalse();
+        assertThat(service.eraseOrphanContentExpected(1L,actor,knowledge.key(),knowledge.id(),2)).isFalse();
+        mutateOwner(30,"missing");
+        for(long id:new long[]{0,knowledge.id(),memory.id()+100})
+            assertThat(service.eraseOrphanContentExpected(1L,actor,memory.key(),id,2)).isFalse();
+        assertThat(service.eraseOrphanContentExpected(2L,actor,memory.key(),memory.id(),2)).isFalse();
+        assertThat(service.eraseOrphanContentExpected(1L,actor,"other-key",memory.id(),2)).isFalse();
+        assertThat(service.eraseOrphanContentExpected(1L,actor,memory.key(),memory.id(),1)).isFalse();
+        jdbc.execute("CREATE FUNCTION refuse_orphan_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'fixture audit failure'; END; $$");
+        jdbc.execute("CREATE TRIGGER refuse_orphan_audit BEFORE INSERT ON ai_scoped_source_events FOR EACH ROW EXECUTE FUNCTION refuse_orphan_audit()");
+        assertThat(service.eraseOrphanContentExpected(1L,actor,memory.key(),memory.id(),2)).isFalse();
+        assertThat(snapshots()).isEqualTo(before);
+    }
+
     private boolean erase(Source source,String actor) {
         return service.eraseContentExpected(source.businessId(),com.example.panel.support.AiControlIdentityFixture.login(jdbc,actor),
             source.kind(),source.key(),source.id(),source.revision());
