@@ -33,6 +33,20 @@
         <p th:if="${state != null}" th:text="${state['last_action']}"></p>
         <ul><li th:each="event : ${events}" th:text="${event['event_type'] + ' · ' + event['decision_reason']}"></li></ul>
     </section>
+    <details class="card card-body mb-3" th:if="${cleanup != null}">
+        <summary>Очистить служебную историю AI</summary>
+        <form method="post" th:action="@{/business-dialog-ai/{id}/clear-history(id=${publicId})}" class="mt-3" data-ai-history-clear>
+            <input type="hidden" name="businessId" th:value="${businessId}">
+            <input type="hidden" name="controlStamp" th:value="${cleanup.controlStamp}">
+            <input type="hidden" name="stateStamp" th:value="${cleanup.stateStamp}">
+            <input type="hidden" name="eventThrough" th:value="${cleanup.eventThrough}">
+            <p>Будут удалены прежние состояние, события и ссылки handoff, а также причина настройки AI этого обращения.
+                AI будет отключён, автоответы заблокированы. Сохранится отметка об очистке.</p>
+            <p>Переписка, материалы KNOWLEDGE/MEMORY и резервные копии сохранятся. Новые действия после открытия страницы не входят в очистку.</p>
+            <label><input type="checkbox" name="confirmed" value="true" required> Подтверждаю очистку служебной истории AI. Восстановить её из панели будет нельзя.</label>
+            <button type="submit" class="btn btn-outline-danger mt-3">Очистить историю AI</button>
+        </form>
+    </details>
     <section class="card card-body mb-3" th:if="${library}">
         <h2 class="h5">Одобренные материалы последнего handoff</h2>
         <p>Ссылки скрываются после изменения версии, архивации, отзыва прав или смены владельца. Они не разрешают автоответ.</p>

@@ -1,4 +1,59 @@
-# Границы данных AI — R310
+# Границы данных AI — R311
+
+## Служебная история актуального BUSINESS обращения — R311
+
+В AI-карточке обращения раскрыть «Очистить служебную историю AI», проверить
+описание и отметить подтверждение. Нужны PAGE_DIALOGS и текущий business ADMIN
+либо ALL_BUSINESSES ADMIN. OPERATOR/MANAGER могут менять прежний control,
+но не очищать историю; ROLE_ADMIN без бизнес-допуска недостаточен.
+PAGE_KNOWLEDGE_BASE для этой операции не нужен.
+
+Удаляются прежние scoped state/events и их handoff evidence; reason предыдущей
+настройки стирается. Control сохраняется с ai_disabled=true и auto_reply_blocked=true,
+новой updated_at и numeric/raw текущим автором. Сохраняется одна metadata-отметка
+ai_data_cleared/manual_cleanup_ai_disabled. Поэтому удаление данных не включает
+AI. Переписка, материалы KNOWLEDGE/MEMORY, их audit/memory evidence и backups
+не входят в эту операцию. Автоочистки нет. Это не purge всех поколений/orphan
+records; владелец должен быть актуальным каноническим BUSINESS обращением.
+
+POST /business-dialog-ai/{publicId}/clear-history требует businessId,
+controlStamp/stateStamp, eventThrough (точный BIGINT), confirmed=true и CSRF.
+Один snapshot замораживает версии mutable rows и границу событий. Один SQL
+повторно проверяет текущий numeric/raw аккаунт, active business/CONFIGURE,
+полную canonical tuple, unique raw ID и snapshot, затем атомарно изменяет
+control, удаляет прежние state/events/refs и добавляет audit. Ошибка audit или
+неуспешный финальный state CAS откатывает все изменения.
+
+Новые committed изменения до начала SQL дают409. События, поступившие во время
+очистки, сохраняются; одновременная смена state даёт полный rollback/409.
+Очистка не отменяет уже принятые действия. Повтор старого POST и старое control
+save не проходят.400 — параметры/checkbox,403 — page/CONFIGURE,404 — rollout
+flags/недоступный owner,409 — stale/forged форма/late revocation. Невалидная
+сессия получает прежний login redirect; CSRF denial — /error/403. Controller
+no-store; успешный redirect только в AI-карточку того же public ID.
+
+81 targeted tests/2 suites GREEN, failures/errors/skips=0: весь existing dialog HTTP suite плюс новый cleanup PostgreSQL
+suite. Реальные security/Thymeleaf/CSRF, roles, owner/CAS/late revoke/rename-reuse,
+сохранность чата/знаний/чужого бизнеса, audit rollback и два concurrent writers.
+Cache1459 Java sources сверен с R308; baseline5 main/7 test и текущие2 main/2 test
+пересобраны. Это targeted проверка, не полный repository suite/image build.
+Логи и XML .tmp/r311-validation-*, итог .tmp/r311-green.json.
+
+Приёмка на машине проекта после нового backend web/worker image, без новых migrations:
+
+1. На выделенном тестовом BUSINESS обращении business ADMIN видит форму очистки;
+   VIEWER/OPERATOR/MANAGER её не видят. Прежние rollout flags не менять этим шагом.
+   При выключенных foundation/uiSelector ожидается404, положительная приёмка
+   остаётся изолированной до отдельного включения AI UI.
+2. После подтверждённой очистки прежних state/events/refs и control reason нет;
+   один audit marker, AI отключён и auto-reply заблокирован. Другой бизнес,
+   переписка и curated материалы сохраняются.
+3. Старая вкладка clear/control получает409, отсутствие checkbox/CSRF и отзыв
+   прав не меняют данные. Новое действие требует обновлённой формы.
+
+Текущая сессия source-only: рабочий проект/Docker на другой машине. Последний
+документированный выпуск R310 с image b2dc2f0fb876 и его Compose/rollback pointers
+не изменён. R311 здесь не deployed, рабочие AI-данные не очищались.
 
 ## MEMORY без исходного обращения — R310
 
@@ -51,8 +106,9 @@ image b2dc2f0fb876, база09718fa26 плюс незакоммиченный R3
 Актуальный Compose/rollback/evidence — Runtime R310 в
 [карточке01-278](../../ai-context/tasks/task-details/01-278.md).
 
-Остаются ручная очистка scoped state/events/control, media/LLM context и scoped
-client delivery, отдельный допуск auto-reply и итоговая S6. Поиск/очистка orphan
+После R310 оставалась очистка scoped state/events/control; R311 реализовал
+операцию для актуального BUSINESS обращения выше. Остаются media/LLM context и
+scoped client delivery, отдельный допуск auto-reply, активация R311 и итоговая S6. Поиск/очистка orphan
 MEMORY и согласованный срок хранения больше не являются незакрытыми пунктами.
 
 ## Хранение и ручная очистка — R308

@@ -30,6 +30,49 @@ revision+1 и metadata audit атомарны. Нет автоматическо
 бизнеса, очистки чата/scoped state/events/evidence/backup или включения flags.
 
 
+## Source R311 — ручная очистка служебной истории AI обращения
+
+В карточке актуального BUSINESS обращения добавлена подтверждаемая очистка
+scoped state/events и handoff evidence. Причина прежнего control стирается;
+control сохраняется с ai_disabled=true и auto_reply_blocked=true, новой версией
+и текущим numeric/raw автором. Это предотвращает включение AI вследствие удаления
+настройки. Остаётся одна metadata-отметка ai_data_cleared без прежнего содержимого.
+Переписка, KNOWLEDGE/MEMORY, их source audit/memory evidence и backups сохраняются.
+Хранение до ручного удаления без автоочистки R308 не меняется.
+
+Нужны PAGE_DIALOGS и live business ADMIN либо ALL_BUSINESSES ADMIN; OPERATE
+и системный ROLE_ADMIN без бизнес-допуска недостаточны. PAGE_KNOWLEDGE_BASE
+не требуется, поскольку материалы не удаляются. Сервер сверяет текущие аккаунт,
+active business, полную canonical owner tuple и отсутствие raw-ID коллизии.
+Форма замораживает control/state timestamps и event ID boundary; CSRF и checkbox
+обязательны. Один SQL атомарно меняет control, удаляет прежние state/events/refs
+и пишет metadata audit. Сбой аудита или финального state CAS откатывает все CTE.
+
+Новые committed данные до начала очистки отвергают старую форму. События,
+поступившие во время операции, не удаляются; конкурентное изменение state
+приводит к полному rollback. Старый control POST не снимает новые блокировки.
+Очистка не отменяет уже принятые действия и не является purge всех поколений/
+осиротевших записей: требуется актуальное BUSINESS обращение с точным owner.
+
+81 targeted tests/2 suites GREEN, failures/errors/skips=0. Полный existing dialog HTTP suite и новые native PostgreSQL cases:
+реальные Spring Security/Thymeleaf/CSRF, ADMIN/ALL matrix, потеря page/grants,
+блокировка и rename-reuse между precheck/SQL, stale/forged owner/version, rollback
+и две настоящие конкурентные транзакции с barrier на control UPDATE.
+Повторно сверен cache1459 Java sources R308;5 main/7 test baseline изменений
+R309/R310 и текущие2 main/2 test пересобраны (новый test source увеличил count
+до1460). Полная image/Java/Sass или repository-suite сборка не заявляется.
+
+Fresh HEAD/origin/main/actual remote541b97edb5860722182d3932baf41cb3a6c2d5d1,
+parent09718fa26026f02750ca9fd597683e7b9ce77303; проверены13 файлов R310 и19 R309.
+Оба commits уже сохранены пользователем. Рабочий Docker/проект на другой машине
+и в другой сессии; Runtime R310 ниже — документированное внешнее evidence,
+а не действия текущей source-сессии. Использован новый nonce-owned native test
+cluster, после проверок остановлен. Рабочие DB/Redis/Rabbit/provider/flags не
+затрагивались. Нет новых migrations; R311 требует нового backend image
+panel-web/ops-worker на машине проекта. Source apply фиксируется отдельно;
+staging/commit/push/deployment не выполняются. Общая задача01-278 остаётся🟡.
+Приёмка: [AI boundaries](../../docs/runbooks/ai-data-boundaries.md).
+
 ## Runtime R310 — 2026-11-10: поиск и очистка MEMORY без обращения
 
 R309 проверен в обновлённом репозитории: HEAD/origin/main/actual remote =

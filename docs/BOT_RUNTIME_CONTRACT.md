@@ -3,6 +3,23 @@
 Документ фиксирует текущий runtime contract между `spring-panel` и `java-bot`
 после `Phase 5` рефакторинга.
 
+## Source R311: ручная очистка AI-истории актуального BUSINESS обращения
+
+PAGE_DIALOGS и текущий business ADMIN/ALL_BUSINESSES ADMIN получают отдельную
+подтверждаемую очистку state/events/handoff refs и прежней control reason.
+Control сохраняется с ai_disabled/auto_reply_blocked=true и новой версией;
+остаётся один content-free audit. Чат, KNOWLEDGE/MEMORY и backups сохраняются.
+CAS фиксирует timestamps и event boundary, текущие account/owner/CONFIGURE
+проверяются в SQL; audit/state-CAS failure откатывает всё. Конкурентные новые
+события сохраняются. Автоочистка и auto-reply не включены.
+
+81 targeted tests/2 suites GREEN, failures/errors/skips=0; native PostgreSQL и полный dialog HTTP/Thymeleaf/CSRF, включая
+настоящий concurrent state/event writer. R310 commit541b97edb проверен,13 файлов.
+Рабочий экземпляр на другой машине/в другой сессии; текущий source patch не
+deployed. Новых migrations/flags нет. Нужен новый backend image panel-web/ops-worker;
+бинарники ботов и инфраструктура не менялись. Runtime R310, Compose/rollback
+и внешнее evidence ниже сохранены. [Контракт и приёмка](runbooks/ai-data-boundaries.md).
+
 ## Runtime R310 — 2026-11-10: поиск и очистка MEMORY без обращения
 
 R309 проверен в обновлённом репозитории: HEAD/origin/main/actual remote =

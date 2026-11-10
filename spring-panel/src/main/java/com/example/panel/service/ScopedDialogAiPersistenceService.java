@@ -43,6 +43,14 @@ public class ScopedDialogAiPersistenceService {
             WHERE access_grant.user_id = actor.id AND access_grant.grant_scope = 'ALL_BUSINESSES'
               AND access_grant.is_active = TRUE AND access_grant.role_code IN ('OPERATOR','MANAGER','ADMIN')))
         """;
+    private static final String CONFIGURE = """
+        AND (EXISTS (SELECT 1 FROM business_memberships membership
+            WHERE membership.user_id=actor.id AND membership.business_id=owner.business_id
+              AND membership.is_active=TRUE AND membership.role_code='ADMIN')
+          OR EXISTS (SELECT 1 FROM business_access_grants access_grant
+            WHERE access_grant.user_id=actor.id AND access_grant.grant_scope='ALL_BUSINESSES'
+              AND access_grant.is_active=TRUE AND access_grant.role_code='ADMIN'))
+        """;
     private final NamedParameterJdbcOperations jdbc;
     private final MultibusinessFeatureFlags flags;
 
@@ -172,6 +180,77 @@ public class ScopedDialogAiPersistenceService {
             scope, authentication, " ORDER BY record.id DESC", Math.max(1, Math.min(limit, 50)));
     }
 
+    /** A single snapshot freezes the displayed history boundary and both mutable row versions. */
+    public Optional<CleanupSnapshot> cleanupSnapshot(UiEventTicketScope scope,Authentication authentication) {
+        var account=boundControlActor(authentication);
+        if (account==null || !valid(scope) || !"BUSINESS".equals(scope.scopeKind())) return Optional.empty();
+        String sql="SELECT COALESCE(control.updated_at::TEXT,'') AS control_stamp,COALESCE(state.updated_at::TEXT,'') AS state_stamp,"
+            +"(SELECT COALESCE(MAX(event.id),0) FROM ticket_ai_scoped_events event WHERE "+matchesOwner("event")+") AS event_through"
+            +cleanupOwner()+" WHERE "+ScopedAiSql.CURRENT_OWNER+READ+CONFIGURE
+            +" AND (control.ticket_public_id IS NULL OR "+matchesOwner("control")+")"
+            +" AND (state.ticket_public_id IS NULL OR "+matchesOwner("state")+")";
+        try {
+            var rows=jdbc.query(sql,readParameters(scope,account),(rs,row)->new CleanupSnapshot(
+                rs.getString("control_stamp"),rs.getString("state_stamp"),rs.getLong("event_through")));
+            return rows.size()==1 ? Optional.of(rows.get(0)) : Optional.empty();
+        } catch (DataAccessException ex) { return Optional.empty(); }
+    }
+
+    /** Erases the frozen history, never newer events. Retains a blocking control and one content-free audit event. */
+    public boolean clearHistoryExpected(UiEventTicketScope scope,Authentication authentication,CleanupSnapshot expected) {
+        var account=boundControlActor(authentication);
+        if (account==null || !valid(scope) || !"BUSINESS".equals(scope.scopeKind()) || expected==null
+                || expected.controlStamp()==null || expected.stateStamp()==null || expected.controlStamp().length()>100
+                || expected.stateStamp().length()>100 || expected.eventThrough()<0) return false;
+        var args=readParameters(scope,account).addValue("controlStamp",expected.controlStamp(),Types.VARCHAR)
+            .addValue("stateStamp",expected.stateStamp(),Types.VARCHAR).addValue("eventThrough",expected.eventThrough(),Types.BIGINT);
+        String authorized="SELECT owner.*,actor.id AS actor_id,actor.username AS actor_name"+cleanupOwner()
+            +" WHERE "+ScopedAiSql.CURRENT_OWNER+READ+CONFIGURE
+            +" AND (control.ticket_public_id IS NULL OR "+matchesOwner("control")+")"
+            +" AND (state.ticket_public_id IS NULL OR "+matchesOwner("state")+")"
+            +" AND control.updated_at IS NOT DISTINCT FROM CAST(NULLIF(:controlStamp,'') AS TIMESTAMPTZ)"
+            +" AND state.updated_at IS NOT DISTINCT FROM CAST(NULLIF(:stateStamp,'') AS TIMESTAMPTZ)"
+            +" AND :eventThrough=(SELECT COALESCE(MAX(event.id),0) FROM ticket_ai_scoped_events event WHERE "+matchesOwner("event")+")";
+        String changed;
+        if (expected.controlStamp().isEmpty()) {
+            changed="INSERT INTO ticket_ai_scoped_control ("+OWNER_COLUMNS
+                +",ai_disabled,auto_reply_blocked,reason,updated_by_user_id,updated_by) SELECT "+OWNER_VALUES
+                +",TRUE,TRUE,NULL,owner.actor_id,owner.actor_name FROM authorized owner"
+                +" ON CONFLICT (ticket_public_id,scope_business_key) DO NOTHING RETURNING *";
+        } else {
+            changed="UPDATE ticket_ai_scoped_control target SET ai_disabled=TRUE,auto_reply_blocked=TRUE,reason=NULL,"
+                +"updated_by_user_id=owner.actor_id,updated_by=owner.actor_name,"
+                +"updated_at=GREATEST(clock_timestamp(),target.updated_at+INTERVAL '1 microsecond') FROM authorized owner WHERE "
+                +matchesOwner("target")+" AND target.updated_at=CAST(:controlStamp AS TIMESTAMPTZ) RETURNING target.*";
+        }
+        String sql="WITH authorized AS MATERIALIZED ("+authorized+"), changed AS ("+changed+"), removed_state AS ("
+            +"DELETE FROM ticket_ai_scoped_state record USING changed owner WHERE "+matchesRecord("record")
+            +" AND record.updated_at=CAST(NULLIF(:stateStamp,'') AS TIMESTAMPTZ) RETURNING record.ticket_public_id), removed_events AS ("
+            +"DELETE FROM ticket_ai_scoped_events record USING changed owner WHERE "+matchesRecord("record")
+            +" AND record.id<=:eventThrough RETURNING record.id), removed_evidence AS ("
+            +"DELETE FROM ai_scoped_handoff_evidence WHERE event_id IN (SELECT id FROM removed_events) RETURNING event_id), audit AS ("
+            +"INSERT INTO ticket_ai_scoped_events("+OWNER_COLUMNS+",event_type,decision_reason) SELECT "+OWNER_COLUMNS
+            +",'ai_data_cleared','manual_cleanup_ai_disabled' FROM changed RETURNING id)"
+            // A failed state CAS must roll back every data-modifying CTE, including the blocking control and audit.
+            +" SELECT 1/CASE WHEN (SELECT COUNT(*) FROM audit)=1 AND (:stateStamp='' OR (SELECT COUNT(*) FROM removed_state)=1) THEN 1 ELSE 0 END";
+        try { return Integer.valueOf(1).equals(jdbc.queryForObject(sql,args,Integer.class)); }
+        catch (DataAccessException ex) { return false; }
+    }
+
+    private String cleanupOwner() {
+        return " FROM tickets owner"+READ_ACTOR
+            +" LEFT JOIN ticket_ai_scoped_control control ON control.ticket_public_id=owner.ticket_public_id AND control.scope_business_key=owner.business_id"
+            +" LEFT JOIN ticket_ai_scoped_state state ON state.ticket_public_id=owner.ticket_public_id AND state.scope_business_key=owner.business_id";
+    }
+    private String matchesOwner(String alias) {
+        return "ROW("+alias+".ticket_user_id,"+alias+".ticket_id,"+alias+".ticket_public_id,"+alias+".ticket_scope_kind,"+alias+".ticket_business_id)"
+            +" IS NOT DISTINCT FROM ROW(owner.user_id,owner.ticket_id,owner.ticket_public_id,'BUSINESS',owner.business_id)";
+    }
+    private String matchesRecord(String alias) {
+        return "ROW("+alias+".ticket_user_id,"+alias+".ticket_id,"+alias+".ticket_public_id,"+alias+".ticket_scope_kind,"+alias+".ticket_business_id)"
+            +" IS NOT DISTINCT FROM ROW(owner.ticket_user_id,owner.ticket_id,owner.ticket_public_id,owner.ticket_scope_kind,owner.ticket_business_id)";
+    }
+
     private List<Map<String, Object>> readOwned(String table, String columns, UiEventTicketScope scope,
                                                 Authentication authentication, String ordering, int limit) {
         var account=boundControlActor(authentication);
@@ -221,4 +300,5 @@ public class ScopedDialogAiPersistenceService {
     }
 
     public record Control(boolean aiDisabled, boolean autoReplyBlocked, String reason, String updatedBy, String updatedAt) { }
+    public record CleanupSnapshot(String controlStamp,String stateStamp,long eventThrough) { }
 }

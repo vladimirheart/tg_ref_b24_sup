@@ -43,6 +43,7 @@ public class ScopedDialogAiController {
         boolean library=auth.getAuthorities().stream().anyMatch(a->a.getAuthority().equals("PAGE_KNOWLEDGE_BASE"));
         model.addAttribute("library",library);
         model.addAttribute("canCurate",library && sources.canConfigure(scope.businessId(),auth));
+        model.addAttribute("cleanup",persistence.cleanupSnapshot(scope,auth).orElse(null));
         model.addAttribute("messages",library ? workbench.messages(scope,auth) : java.util.List.of());
         model.addAttribute("candidates",library ? knowledge.candidates(scope,auth) : java.util.List.of());
         model.addAttribute("sourceKey",UUID.randomUUID().toString());
@@ -57,6 +58,18 @@ public class ScopedDialogAiController {
         var scope=scope(publicId,auth,response,businessId);
         if (reason.length()>500 || expectedUpdatedAt.length()>100) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         if (!persistence.setControlExpected(scope,auth,expectedUpdatedAt,aiDisabled,autoReplyBlocked,reason)) conflict();
+        return redirect(publicId);
+    }
+    @PostMapping("/clear-history")
+    public RedirectView clearHistory(@PathVariable String publicId,Authentication auth,HttpServletResponse response,
+            @RequestParam Long businessId,@RequestParam(defaultValue="") String controlStamp,
+            @RequestParam(defaultValue="") String stateStamp,@RequestParam long eventThrough,
+            @RequestParam(defaultValue="false") boolean confirmed) {
+        var scope=scope(publicId,auth,response,businessId);
+        if (!sources.canConfigure(scope.businessId(),auth)) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        if (!confirmed || controlStamp.length()>100 || stateStamp.length()>100 || eventThrough<0)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        if (!persistence.clearHistoryExpected(scope,auth,new ScopedDialogAiPersistenceService.CleanupSnapshot(controlStamp,stateStamp,eventThrough))) conflict();
         return redirect(publicId);
     }
     @PostMapping("/memory")

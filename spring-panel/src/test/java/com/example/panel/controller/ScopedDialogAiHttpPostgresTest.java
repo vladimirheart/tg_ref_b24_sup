@@ -13,6 +13,7 @@ import com.example.panel.service.*;
 import com.example.panel.support.PostgresqlJdbcTestSupport;
 import jakarta.servlet.http.Cookie;
 import java.util.UUID;
+import java.util.List;
 import java.nio.file.Files;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
@@ -239,6 +240,7 @@ class ScopedDialogAiHttpPostgresTest {
         var read=auth(get(root),admin,true);
         var control=auth(control(""),admin,true).with(csrf());
         var memory=auth(memory(UUID.randomUUID().toString()),admin,true).with(csrf());
+        var clear=auth(clear(new ScopedDialogAiPersistenceService.CleanupSnapshot("","",0)),admin,true).with(csrf());
         switch(change) {
             case "disabled"->jdbc.update("UPDATE users SET enabled=FALSE WHERE id=?",adminId);
             case "blocked"->jdbc.update("UPDATE users SET is_blocked=TRUE WHERE id=?",adminId);
@@ -252,6 +254,7 @@ class ScopedDialogAiHttpPostgresTest {
         mvc.perform(read).andExpect(redirectedUrl("http://localhost/login"));
         mvc.perform(control).andExpect(redirectedUrl("http://localhost/login"));
         mvc.perform(memory).andExpect(redirectedUrl("http://localhost/login"));
+        mvc.perform(clear).andExpect(redirectedUrl("http://localhost/login"));
         org.mockito.Mockito.verify(work,org.mockito.Mockito.never()).resolve(eq(publicId),org.mockito.ArgumentMatchers.<org.springframework.security.core.Authentication>any());
         assertNoDialogWrites();
         if(change.endsWith("reuse"))mvc.perform(auth(get(root),admin,true)).andExpect(status().isOk());
@@ -266,6 +269,7 @@ class ScopedDialogAiHttpPostgresTest {
         mvc.perform(get(root).with(identity)).andExpect(redirectedUrl("http://localhost/login"));
         mvc.perform(control("").with(identity).with(csrf())).andExpect(redirectedUrl("http://localhost/login"));
         mvc.perform(memory(UUID.randomUUID().toString()).with(identity).with(csrf())).andExpect(redirectedUrl("http://localhost/login"));
+        mvc.perform(clear(new ScopedDialogAiPersistenceService.CleanupSnapshot("","",0)).with(identity).with(csrf())).andExpect(redirectedUrl("http://localhost/login"));
         org.mockito.Mockito.verify(work,org.mockito.Mockito.never()).resolve(eq(publicId),org.mockito.ArgumentMatchers.<org.springframework.security.core.Authentication>any());
         assertNoDialogWrites();
     }
@@ -279,6 +283,7 @@ class ScopedDialogAiHttpPostgresTest {
         if(authority.equals("PAGE_DIALOGS")) {
             mvc.perform(read).andExpect(status().isForbidden());
             mvc.perform(control).andExpect(status().isForbidden());
+            mvc.perform(auth(clear(new ScopedDialogAiPersistenceService.CleanupSnapshot("","",0)),admin,true).with(csrf())).andExpect(status().isForbidden());
             org.mockito.Mockito.verify(work,org.mockito.Mockito.never()).resolve(eq(publicId),org.mockito.ArgumentMatchers.<org.springframework.security.core.Authentication>any());
             assertNoDialogWrites();
         } else {
@@ -330,6 +335,72 @@ class ScopedDialogAiHttpPostgresTest {
         mvc.perform(post("/logout").cookie(requestCookies).param("_csrf",token)).andExpect(status().is3xxRedirection());
         mvc.perform(get(root).cookie(sessionCookie)).andExpect(redirectedUrl("http://localhost/login"));
     }
+    @Test void clearHistoryUsesRenderedCsrfConfirmationAndFrozenVersionsWithoutLibraryPage() throws Exception {
+        jdbc.update("DELETE FROM user_authorities WHERE user_id=? AND authority='PAGE_KNOWLEDGE_BASE'",adminId);
+        assertThat(knowledge.record(scope,"refund")).isTrue();
+        assertThat(persistence.setControlExpected(scope,com.example.panel.support.AiControlIdentityFixture.auth(adminId,admin),"",false,false,"private old reason")).isTrue();
+        var expected=persistence.cleanupSnapshot(scope,com.example.panel.support.AiControlIdentityFixture.auth(adminId,admin)).orElseThrow();
+        var chat=jdbc.queryForList("SELECT * FROM chat_history WHERE ticket_owner_user_id=? ORDER BY id",scope.ticketUserId());
+        var opened=mvc.perform(auth(get(root),admin,false)).andExpect(status().isOk()).andReturn();
+        var form=Pattern.compile("<form[^>]*data-ai-history-clear[^>]*>([\\s\\S]*?)</form>").matcher(opened.getResponse().getContentAsString());
+        assertThat(form.find()).isTrue();String fields=form.group(1);
+        assertThat(fields).contains("name=\"confirmed\"","required","AI будет отключён");
+        mvc.perform(auth(clear(expected),admin,false)).andExpect(redirectedUrl("/error/403"));
+        mvc.perform(auth(clear(expected).with(r->{r.removeParameter("confirmed");return r;}),admin,false).with(csrf())).andExpect(status().isBadRequest());
+        assertThat(persistence.cleanupSnapshot(scope,com.example.panel.support.AiControlIdentityFixture.auth(adminId,admin))).contains(expected);
+        mvc.perform(auth(clear(expected),admin,false).cookie(opened.getResponse().getCookies()).param("_csrf",hidden(fields,"_csrf")))
+            .andExpect(redirectedUrl(root)).andExpect(header().string("Cache-Control",containsString("no-store")));
+        assertThat(persistence.findState(scope,com.example.panel.support.AiControlIdentityFixture.auth(adminId,admin))).isEmpty();
+        assertThat(persistence.findControl(scope,com.example.panel.support.AiControlIdentityFixture.auth(adminId,admin)).orElseThrow().reason()).isNull();
+        assertThat(persistence.findEvents(scope,com.example.panel.support.AiControlIdentityFixture.auth(adminId,admin),10))
+            .hasSize(1).first().satisfies(e->assertThat(e).containsEntry("event_type","ai_data_cleared"));
+        mvc.perform(auth(clear(expected),admin,false).with(csrf())).andExpect(status().isConflict());
+        mvc.perform(auth(control(expected.controlStamp()),admin,false).with(csrf())).andExpect(status().isConflict());
+        assertThat(knowledge.record(scope,"refund")).isFalse();
+        assertThat(jdbc.queryForList("SELECT * FROM chat_history WHERE ticket_owner_user_id=? ORDER BY id",scope.ticketUserId())).isEqualTo(chat);
+    }
+    @ParameterizedTest @ValueSource(strings={"VIEWER","OPERATOR","MANAGER","ADMIN","ALL_ADMIN","ROLE_ADMIN"})
+    void clearHistoryPageAndPostUseBusinessConfigureRatherThanOperate(String role) throws Exception {
+        assertThat(knowledge.record(scope,"refund")).isTrue();
+        var expected=persistence.cleanupSnapshot(scope,com.example.panel.support.AiControlIdentityFixture.auth(adminId,admin)).orElseThrow();
+        jdbc.update("DELETE FROM business_memberships WHERE user_id=?",adminId);
+        if(role.equals("ALL_ADMIN"))jdbc.update("INSERT INTO business_access_grants(user_id,grant_scope,role_code) VALUES(?,'ALL_BUSINESSES','ADMIN')",adminId);
+        else if(role.equals("ROLE_ADMIN"))jdbc.update("INSERT INTO user_authorities(user_id,authority) VALUES(?,'ROLE_ADMIN')",adminId);
+        else jdbc.update("INSERT INTO business_memberships(user_id,business_id,role_code) VALUES(?,?,?)",adminId,business,role);
+        boolean allowed=role.equals("ADMIN")||role.equals("ALL_ADMIN");
+        if(!role.equals("ROLE_ADMIN"))mvc.perform(auth(get(root),admin,false)).andExpect(status().isOk())
+            .andExpect(content().string(allowed?containsString("data-ai-history-clear"):not(containsString("data-ai-history-clear"))));
+        mvc.perform(auth(clear(expected),admin,false).with(csrf())).andExpect(allowed?redirectedUrl(root):role.equals("ROLE_ADMIN")?status().isNotFound():status().isForbidden());
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM ticket_ai_scoped_state WHERE ticket_public_id=?",Long.class,publicId)).isEqualTo(allowed?0L:1L);
+    }
+    @ParameterizedTest @ValueSource(strings={"business","new-event","revoke","rename-reuse","blocked","page","foundation","selector"})
+    void clearHistoryCannotUseStaleScopePrivilegesOrVersions(String change) throws Exception {
+        assertThat(knowledge.record(scope,"refund")).isTrue();
+        var expected=persistence.cleanupSnapshot(scope,com.example.panel.support.AiControlIdentityFixture.auth(adminId,admin)).orElseThrow();
+        var request=auth(clear(expected),admin,false).with(csrf());
+        switch(change) {
+            case "business"->request.with(r->{r.setParameter("businessId",Long.toString(other));return r;});
+            case "new-event"->assertThat(knowledge.record(scope,"refund")).isTrue();
+            case "page"->jdbc.update("DELETE FROM user_authorities WHERE user_id=?",adminId);
+            case "foundation"->flags.getFoundation().setEnabled(false);
+            case "selector"->flags.setUiSelector(false);
+            default->doAnswer(call->{
+                if(change.equals("revoke"))jdbc.update("DELETE FROM business_memberships WHERE user_id=?",adminId);
+                else if(change.equals("blocked"))jdbc.update("UPDATE users SET is_blocked=TRUE WHERE id=?",adminId);
+                else {jdbc.update("UPDATE users SET username=? WHERE id=?","renamed-"+admin,adminId);jdbc.update("INSERT INTO business_memberships(user_id,business_id,role_code) VALUES(?,?,'ADMIN')",account(admin),business);}
+                return call.callRealMethod();
+            }).when(persistence).clearHistoryExpected(eq(scope),any(),eq(expected));
+        }
+        var before=jdbc.queryForList("SELECT to_jsonb(event)::TEXT FROM ticket_ai_scoped_events event WHERE ticket_public_id=? ORDER BY id",String.class,publicId);
+        mvc.perform(request).andExpect(change.equals("page")?status().isForbidden():List.of("foundation","selector").contains(change)?status().isNotFound():status().isConflict());
+        assertThat(jdbc.queryForList("SELECT to_jsonb(event)::TEXT FROM ticket_ai_scoped_events event WHERE ticket_public_id=? ORDER BY id",String.class,publicId)).isEqualTo(before);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM ticket_ai_scoped_control WHERE ticket_public_id=?",Long.class,publicId)).isZero();
+    }
+    private MockHttpServletRequestBuilder clear(ScopedDialogAiPersistenceService.CleanupSnapshot expected) {
+        return post(root+"/clear-history").param("businessId",Long.toString(business)).param("controlStamp",expected.controlStamp())
+            .param("stateStamp",expected.stateStamp()).param("eventThrough",Long.toString(expected.eventThrough())).param("confirmed","true");
+    }
+
     private void assertNoDialogWrites() {
         assertThat(jdbc.queryForObject("SELECT count(*) FROM ticket_ai_scoped_control WHERE ticket_public_id=?",Long.class,publicId)).isZero();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM ticket_ai_scoped_events WHERE ticket_public_id=?",Long.class,publicId)).isZero();
