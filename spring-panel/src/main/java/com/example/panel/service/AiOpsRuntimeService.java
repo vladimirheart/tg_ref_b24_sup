@@ -74,6 +74,7 @@ public class AiOpsRuntimeService {
 
     public Map<String, Object> loadDecisionTrace(String ticketId, Integer limit) {
         String ticket = exactTicketIdOrNull(ticketId);
+        if (!dialogAiAssistantService.allowsLegacyTicket(ticket)) return Map.of();
         int safeLimit = Math.max(5, Math.min(limit != null ? limit : 20, 100));
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("ticket_id", ticket);
@@ -90,6 +91,7 @@ public class AiOpsRuntimeService {
                                           String messageType,
                                           String attachment) {
         String ticket = exactTicketIdOrNull(ticketId);
+        if (!dialogAiAssistantService.allowsLegacyTicket(ticket)) return Map.of();
         AiInputNormalizerService.IncomingPayload payload = resolveIncomingPayload(ticket, message, messageType, attachment);
         String normalizedMessage = payload != null ? payload.message() : trim(message);
         AiIntentService.IntentMatch intentMatch = aiIntentService.extract(normalizedMessage);
@@ -117,6 +119,7 @@ public class AiOpsRuntimeService {
                                              String attachment,
                                              Integer limit) {
         String ticket = exactTicketIdOrNull(ticketId);
+        if (!dialogAiAssistantService.allowsLegacyTicket(ticket)) return Map.of();
         int safeLimit = Math.max(1, Math.min(limit != null ? limit : 5, 20));
         AiInputNormalizerService.IncomingPayload payload = resolveIncomingPayload(ticket, message, messageType, attachment);
         String normalizedMessage = payload != null ? payload.message() : trim(message);

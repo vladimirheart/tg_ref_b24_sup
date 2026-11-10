@@ -23,6 +23,7 @@ public class DialogAiAssistantService {
     private final DialogAiAssistantSuggestionService dialogAiAssistantSuggestionService;
     private final DialogAiAssistantMessageFlowService dialogAiAssistantMessageFlowService;
     private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
+    private final com.example.panel.config.MultibusinessFeatureFlags flags;
 
     public DialogAiAssistantService(AiMonitoringService aiMonitoringService,
                                     AiInputNormalizerService aiInputNormalizerService,
@@ -34,7 +35,8 @@ public class DialogAiAssistantService {
                                     DialogAiAssistantOperatorFeedbackService dialogAiAssistantOperatorFeedbackService,
                                     DialogAiAssistantSuggestionService dialogAiAssistantSuggestionService,
                                     DialogAiAssistantMessageFlowService dialogAiAssistantMessageFlowService,
-                                    LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
+                                    LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard,
+                                    com.example.panel.config.MultibusinessFeatureFlags flags) {
         this.aiMonitoringService = aiMonitoringService;
         this.aiInputNormalizerService = aiInputNormalizerService;
         this.aiRetrievalService = aiRetrievalService;
@@ -46,6 +48,7 @@ public class DialogAiAssistantService {
         this.dialogAiAssistantSuggestionService = dialogAiAssistantSuggestionService;
         this.dialogAiAssistantMessageFlowService = dialogAiAssistantMessageFlowService;
         this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
+        this.flags = flags;
     }
 
     public void processIncomingClientMessage(String ticketId, String message) {
@@ -272,7 +275,7 @@ public class DialogAiAssistantService {
                                                           String eventType,
                                                           String actor) {
         String normalizedTicketId = StringUtils.hasText(ticketId) ? ticketId : null;
-        if (normalizedTicketId != null && !legacyTicketIdJdbcGuard.hasUniqueTicket(normalizedTicketId)) {
+        if (normalizedTicketId != null && !allowsLegacyTicket(normalizedTicketId)) {
             return List.of();
         }
         return aiMonitoringService.loadMonitoringEvents(days, limit, normalizedTicketId, eventType, actor);
@@ -286,9 +289,15 @@ public class DialogAiAssistantService {
         return dialogAiAssistantReviewService.rejectPendingReviewByKey(queryKey, operator);
     }
 
+    /** The multibusiness pipeline has its own records and handoff; legacy AI is never its fallback. */
+    boolean allowsLegacyTicket(String ticketId) {
+        return flags != null && !flags.isFoundationEnabled() && !flags.isStrictReadScope()
+            && legacyTicketIdJdbcGuard.hasUniqueUnresolvedTicket(ticketId);
+    }
+
     private String uniqueTicketId(String ticketId) {
         String normalizedTicketId = StringUtils.hasText(ticketId) ? ticketId : null;
-        return normalizedTicketId != null && legacyTicketIdJdbcGuard.hasUniqueTicket(normalizedTicketId)
+        return normalizedTicketId != null && allowsLegacyTicket(normalizedTicketId)
                 ? normalizedTicketId
                 : null;
     }

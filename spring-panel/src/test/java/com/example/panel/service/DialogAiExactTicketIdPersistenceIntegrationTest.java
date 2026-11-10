@@ -150,7 +150,7 @@ class DialogAiExactTicketIdPersistenceIntegrationTest {
 
     private Fixture fixture(boolean extendedState, boolean extendedEvents) {
         JdbcTemplate jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplate("ai_exact_roundtrip_r32");
-        jdbc.execute("CREATE TABLE tickets(user_id BIGINT, ticket_id TEXT, channel_id BIGINT, PRIMARY KEY(user_id, ticket_id))");
+        jdbc.execute("CREATE TABLE tickets(user_id BIGINT, ticket_id TEXT, channel_id BIGINT, is_general BOOLEAN DEFAULT FALSE, business_id BIGINT, PRIMARY KEY(user_id, ticket_id))");
         jdbc.execute("CREATE TABLE ticket_ai_agent_dialog_control(ticket_id TEXT PRIMARY KEY, ai_disabled INTEGER, auto_reply_blocked INTEGER, reason TEXT, updated_by TEXT, updated_at TIMESTAMPTZ)");
         jdbc.execute("""
             CREATE TABLE ticket_ai_agent_state(
@@ -192,7 +192,7 @@ class DialogAiExactTicketIdPersistenceIntegrationTest {
         DialogAiAssistantService facade = new DialogAiAssistantService(
             monitoring, input, retrieval, review, mock(DialogAiSolutionMemoryService.class),
             state, config, feedback, mock(DialogAiAssistantSuggestionService.class),
-            mock(DialogAiAssistantMessageFlowService.class), new LegacyTicketIdJdbcGuard(jdbc));
+            mock(DialogAiAssistantMessageFlowService.class), new LegacyTicketIdJdbcGuard(jdbc), new com.example.panel.config.MultibusinessFeatureFlags());
         AiOpsRuntimeService runtime = new AiOpsRuntimeService(
             jdbc, facade, intent, retrieval, mock(AiPolicyService.class), mock(AiDecisionService.class),
             config, state, mock(DialogAiAssistantPolicyService.class), input, mock(AiControlledLlmService.class),

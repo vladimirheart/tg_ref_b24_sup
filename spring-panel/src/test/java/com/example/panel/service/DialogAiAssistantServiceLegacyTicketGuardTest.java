@@ -18,6 +18,83 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 class DialogAiAssistantServiceLegacyTicketGuardTest {
+    @ParameterizedTest
+    @ValueSource(strings={"BUSINESS","GENERAL"})
+    void classifiedRootsNeverReachLegacyAi(String kind) {
+        var fixture=guardedFixture();String raw=" Legacy/Ю ?% ";addTicket(fixture,1,raw);
+        if(kind.equals("BUSINESS"))fixture.jdbc().update("UPDATE tickets SET business_id=7 WHERE user_id=1");
+        else fixture.jdbc().update("UPDATE tickets SET is_general=TRUE WHERE user_id=1");
+        assertDeniedBeforeDelegates(fixture,raw);
+    }
+
+
+    @ParameterizedTest
+    @ValueSource(strings={"FOUNDATION","STRICT","NO_POLICY","MISSING_MARKER","READ_FAILURE","GENERAL_COLLISION","BUSINESS_COLLISION","UNKNOWN_MARKER"})
+    void currentPolicyAndScopeAreCheckedBeforeEveryLegacyDelegate(String mutation) {
+        var flags=new com.example.panel.config.MultibusinessFeatureFlags();
+        var f=guardedFixture(mutation.equals("NO_POLICY") ? null : flags);String raw=" T/AI ?&%# Ю ";addTicket(f,1,raw);
+        switch(mutation) {
+            case "FOUNDATION" -> flags.getFoundation().setEnabled(true);
+            case "STRICT" -> flags.setStrictReadScope(true);
+            case "NO_POLICY" -> {}
+            case "MISSING_MARKER" -> f.jdbc().execute("ALTER TABLE tickets DROP COLUMN is_general");
+            case "READ_FAILURE" -> f.jdbc().execute("DROP TABLE tickets");
+            case "GENERAL_COLLISION" -> f.jdbc().update("INSERT INTO tickets(user_id,ticket_id,is_general) VALUES(2,?,TRUE)",raw);
+            case "BUSINESS_COLLISION" -> f.jdbc().update("INSERT INTO tickets(user_id,ticket_id,business_id) VALUES(2,?,7)",raw);
+            case "UNKNOWN_MARKER" -> f.jdbc().update("UPDATE tickets SET is_general=NULL");
+            default -> throw new IllegalArgumentException(mutation);
+        }
+        assertDeniedBeforeDelegates(f,raw);
+    }
+
+    @ParameterizedTest @ValueSource(strings={"FOUNDATION","STRICT","CLASSIFIED"})
+    void legacyCompatibilityIsNarrowAndNeverCachesAnEarlierPermission(String mutation) {
+        var flags=new com.example.panel.config.MultibusinessFeatureFlags();var f=guardedFixture(flags);
+        String raw=" Legacy/Ю ?% ";addTicket(f,1,raw);
+        var flow=(DialogAiAssistantMessageFlowService)f.protectedDelegates()[9];
+        f.service().processIncomingClientMessage(raw,"old unresolved message","text",null);
+        verify(flow).processIncomingClientMessage(raw,"old unresolved message","text",null);
+        org.mockito.Mockito.clearInvocations(f.protectedDelegates());
+        if(mutation.equals("FOUNDATION"))flags.getFoundation().setEnabled(true);
+        else if(mutation.equals("STRICT"))flags.setStrictReadScope(true);
+        else f.jdbc().update("UPDATE tickets SET business_id=7");
+        assertDeniedBeforeDelegates(f,raw);
+    }
+
+    private <T>T isolated(Class<T> type,List<Object> dependencies) { T dependency=mock(type);dependencies.add(dependency);return dependency; }
+
+    @ParameterizedTest @ValueSource(strings={"BUSINESS","GENERAL","FOUNDATION","STRICT"})
+    void legacyHttpDebugNeverLoadsMediaContextOrCallsLlmEvenWhenOuterPageAllows(String kind)throws Exception {
+        var flags=new com.example.panel.config.MultibusinessFeatureFlags();var f=guardedFixture(flags);String raw="T-AI";addTicket(f,1,raw);
+        switch(kind){
+            case "BUSINESS"->f.jdbc().update("UPDATE tickets SET business_id=7");
+            case "GENERAL"->f.jdbc().update("UPDATE tickets SET is_general=TRUE");
+            case "FOUNDATION"->flags.getFoundation().setEnabled(true);
+            case "STRICT"->flags.setStrictReadScope(true);
+            default->throw new IllegalArgumentException(kind);
+        }
+        List<Object> dependencies=new java.util.ArrayList<>();
+        var runtime=new AiOpsRuntimeService(isolated(JdbcTemplate.class,dependencies),f.service(),
+            isolated(AiIntentService.class,dependencies),isolated(AiRetrievalService.class,dependencies),
+            isolated(AiPolicyService.class,dependencies),isolated(AiDecisionService.class,dependencies),
+            isolated(DialogAiAssistantConfigService.class,dependencies),isolated(DialogAiAssistantStateService.class,dependencies),
+            isolated(DialogAiAssistantPolicyService.class,dependencies),isolated(AiInputNormalizerService.class,dependencies),
+            isolated(AiControlledLlmService.class,dependencies),isolated(AiOfflineEvaluationService.class,dependencies),
+            new com.fasterxml.jackson.databind.ObjectMapper(),isolated(SharedConfigService.class,dependencies),new com.example.panel.support.PanelTimestampSqlSupport());
+        var controller=new com.example.panel.controller.DialogAiOpsController(new DialogAiOpsService(f.service(),runtime),mock(DialogAuthorizationService.class));
+        var mvc=org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup(controller).build();
+        for(String root:List.of("/api/dialogs/"+raw,"/api/dialog-ticket")){
+            mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(root+"/ai-decision-trace").param("ticketId",raw))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.trace").isEmpty());
+            for(String action:List.of("ai-reclassify","ai-retrieve-debug"))
+                mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(root+"/"+action).param("ticketId",raw)
+                    .contentType("application/json").content("{\"message\":\"private prompt\",\"messageType\":\"photo\",\"attachment\":\"private/media-key\"}"))
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.result").isEmpty());
+        }
+        verifyNoInteractions(dependencies.toArray());verifyNoInteractions(f.protectedDelegates());
+    }
 
     @Test
     void incomingMessageSkipsAmbiguousLegacyTicketIdBeforeAiFlow() {
@@ -27,7 +104,7 @@ class DialogAiAssistantServiceLegacyTicketGuardTest {
 
         service.processIncomingClientMessage("T-DUPLICATE", "message", "text", null);
 
-        verify(legacyTicketIdJdbcGuard).hasUniqueTicket("T-DUPLICATE");
+        verify(legacyTicketIdJdbcGuard).hasUniqueUnresolvedTicket("T-DUPLICATE");
         verifyNoInteractions(messageFlowService);
     }
 
@@ -121,11 +198,17 @@ class DialogAiAssistantServiceLegacyTicketGuardTest {
     }
 
     private GuardFixture guardedFixture() {
+        return guardedFixture(new com.example.panel.config.MultibusinessFeatureFlags());
+    }
+
+    private GuardFixture guardedFixture(com.example.panel.config.MultibusinessFeatureFlags flags) {
         JdbcTemplate jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplate("ai_facade_exact_id_r31");
         jdbc.execute("""
             CREATE TABLE tickets (
                 user_id BIGINT,
                 ticket_id TEXT,
+                is_general BOOLEAN DEFAULT FALSE,
+                business_id BIGINT,
                 PRIMARY KEY (user_id, ticket_id)
             )
             """);
@@ -141,7 +224,7 @@ class DialogAiAssistantServiceLegacyTicketGuardTest {
         DialogAiAssistantMessageFlowService flow = mock(DialogAiAssistantMessageFlowService.class);
         DialogAiAssistantService service = new DialogAiAssistantService(
             monitoring, input, retrieval, review, memory, state, config, feedback, suggestions, flow,
-            new LegacyTicketIdJdbcGuard(jdbc));
+            new LegacyTicketIdJdbcGuard(jdbc), flags);
         return new GuardFixture(jdbc, service, state, config, monitoring,
             new Object[]{monitoring, input, retrieval, review, memory, state, config, feedback, suggestions, flow});
     }
@@ -171,7 +254,7 @@ class DialogAiAssistantServiceLegacyTicketGuardTest {
                 mock(DialogAiAssistantOperatorFeedbackService.class),
                 mock(DialogAiAssistantSuggestionService.class),
                 messageFlowService,
-                legacyTicketIdJdbcGuard
+                legacyTicketIdJdbcGuard, new com.example.panel.config.MultibusinessFeatureFlags()
         );
     }
 }

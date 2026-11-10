@@ -108,7 +108,7 @@ class ScopedIncomingAiPostgresTest {
             escalation, raw(DialogAiAssistantMessageOutcomeService.class), new ScopedDialogAiPersistenceService(jdbc, flags)));
         facade = spy(new DialogAiAssistantService(raw(AiMonitoringService.class), normalizer, retrieval,
             raw(DialogAiAssistantReviewService.class), memory, state, config,
-            raw(DialogAiAssistantOperatorFeedbackService.class), suggestions, flow, guard));
+            raw(DialogAiAssistantOperatorFeedbackService.class), suggestions, flow, guard, flags));
         ChannelRepository channels = mock(ChannelRepository.class);
         when(channels.findById(9L)).thenReturn(Optional.empty());
         realtime = new DialogRealtimeEventService(notices, facade, mock(AlertQueueService.class),

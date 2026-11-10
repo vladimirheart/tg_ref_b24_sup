@@ -41,6 +41,19 @@ public class LegacyTicketIdJdbcGuard {
         }
     }
 
+    /** Legacy AI cannot borrow a classified BUSINESS/GENERAL root, including a colliding raw ID. */
+    public boolean hasUniqueUnresolvedTicket(String ticketId) {
+        if (!StringUtils.hasText(ticketId)) return false;
+        try {
+            List<Boolean> candidates = jdbcTemplate.query(
+                "SELECT (business_id IS NULL AND is_general = FALSE) FROM tickets WHERE ticket_id = ? LIMIT 2",
+                (rs, rowNum) -> rs.getObject(1, Boolean.class), ticketId);
+            return candidates.size() == 1 && Boolean.TRUE.equals(candidates.get(0));
+        } catch (DataAccessException ex) {
+            return false;
+        }
+    }
+
     public boolean hasUniqueTicket(String ticketId) {
         if (!StringUtils.hasText(ticketId)) {
             return false;

@@ -12,6 +12,41 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 код не должен подставлять бизнес по текстовому имени, каналу, последнему выбору
 оператора или иной эвристике.
 
+## Source R307 — legacy AI отделён от бизнес-диалогов
+
+Воспроизведён и закрыт обход: уникальный raw ID BUSINESS/GENERAL ранее открывал
+старую общую AI-цепочку через DialogAiAssistantService. Теперь ticket-bound
+incoming/replies/learning/suggestions/control/review/events и три debug entrypoints
+AiOpsRuntimeService используют один guard. При foundation.enabled либо
+strictReadScope legacy ticket AI отключён полностью. При обоих выключенных
+допустим только один точный UNRESOLVED root (business_id NULL, is_general FALSE).
+Коллизия со строкой другого scope, неизвестный marker, отсутствие policy/schema
+или ошибка SQL закрывают доступ до history/media/context/LLM/delegates.
+Общие hasUniqueTicket/hasUniqueNonGeneralTicket для других модулей не изменены.
+
+Scoped incoming/handoff, business-owned KNOWLEDGE/MEMORY и их actor/owner
+проверки сохранены. Нет fallback к legacy LLM/learning/client reply; отправка
+внешнему LLM и новый auto-reply этим шагом не разрешены. Сроки retention,
+удаление и полный scoped LLM/media/delivery остаются отдельной работой.
+
+282 tests/15 suites GREEN, failures/errors/skips0. Два regression cases сначала RED на прежней
+реализации, затем GREEN;33 legacy facade cases включают24 HTTP debug requests
+с настоящими PostgreSQL guard/facade/runtime. Целевое ожидание — отсутствие
+загрузки контекста/вложений и вызовов LLM даже при разрешении внешнего page gate.
+Legacy exact-ID round trips и scoped incoming regression сохранены. Использован
+проверенный bytecode cache R306 (1459 Java sources сверены, LF/CRLF нормализован);
+изменённые3 main/4 test sources пересобраны. Полный repository suite/image build
+не объявляется GREEN/выполненным.
+
+Baseline HEAD/origin/main/remote=9cf506526d9ca8ed5d44297579015a00effa024f:
+R306 уже committed/pushed пользователем, ровно24 файла, parent5b3a09013.
+Текущая сессия — только source/test; рабочий проект/Docker на другой машине
+и в другой сессии. Использована отдельная nonce-owned native PostgreSQL fixture,
+рабочие БД/Redis/Rabbit/provider не трогались. Новых migrations/flags/principals
+нет, deployment не выполнялся. Последний документированный runtime остаётся R305;
+активация R306/R307 требует нового backend image для panel-web/ops-worker.
+Проверки и остаток: [AI boundaries](../../docs/runbooks/ai-data-boundaries.md).
+
 ## Source R306 — общие инциденты и системные уведомления
 
 Решение пользователя от 10 ноября 2026: «все всем, кроме распределения настроек бота».

@@ -3,6 +3,23 @@
 Документ фиксирует текущий runtime contract между `spring-panel` и `java-bot`
 после `Phase 5` рефакторинга.
 
+## Source R307: изоляция старой AI-цепочки
+
+Legacy ticket AI больше не принимает BUSINESS/GENERAL raw ID. Foundation или
+strictReadScope отключают этот вход целиком, включая operator feedback/learning,
+control/review/suggestions и decision-trace/reclassify/retrieve-debug до media/
+history/LLM. Совместимость без обоих флагов допускает только уникальный exact
+UNRESOLVED root. Scoped incoming/handoff и curated business sources сохранены;
+новый scoped LLM/auto-reply не включён. [Контракт и приёмка](runbooks/ai-data-boundaries.md).
+
+282 tests/15 suites GREEN, failures/errors/skips0. R306 baseline9cf506526 committed/pushed,
+проверено24 файла предыдущего commit; изменённые3 main/4 test sources пересобраны
+поверх проверенного R306 cache. Новых migrations/flags нет; Docker/рабочий проект
+на другой машине. Текущая native PostgreSQL — только nonce-owned test fixture.
+R307 не deployed; обновление backend web/worker может включить R306 вместе с ним.
+OperatorNotificationWatcher принадлежит роли WORKER, bot children не менялись.
+Последний подтверждённый runtime R305 и его rollback pointers сохранены.
+
 ## Source R306: общий контур инцидентов, отдельный runtime
 
 По решению «все всем, кроме распределения настроек бота» инциденты, их

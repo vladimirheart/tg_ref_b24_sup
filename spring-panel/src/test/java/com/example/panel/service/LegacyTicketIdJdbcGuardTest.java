@@ -23,6 +23,10 @@ class LegacyTicketIdJdbcGuardTest {
                 """);
         LegacyTicketIdJdbcGuard guard = new LegacyTicketIdJdbcGuard(jdbc);
         assertThat(guard.hasUniqueTicket("GENERAL")).isTrue();
+        assertThat(guard.hasUniqueUnresolvedTicket("UNRESOLVED")).isTrue();
+        assertThat(guard.hasUniqueUnresolvedTicket(" T/Ю?&%+ ")).isTrue();
+        for(String id:new String[]{"GENERAL","BUSINESS","COLLISION","UNKNOWN","ABSENT","T/Ю?&%+"," ",null})
+            assertThat(guard.hasUniqueUnresolvedTicket(id)).as("legacy AI id=%s",id).isFalse();
         assertThat(guard.hasUniqueNonGeneralTicket("GENERAL")).isFalse();
         assertThat(guard.hasUniqueNonGeneralTicket("BUSINESS")).isTrue();
         assertThat(guard.hasUniqueNonGeneralTicket("UNRESOLVED")).isTrue();
@@ -41,7 +45,9 @@ class LegacyTicketIdJdbcGuardTest {
         LegacyTicketIdJdbcGuard guard = new LegacyTicketIdJdbcGuard(jdbc);
         assertThat(guard.hasUniqueNonGeneralTicket("T")).isFalse();
         assertThat(guard.hasUniqueTicket("T")).isTrue();
+        assertThat(guard.hasUniqueUnresolvedTicket("T")).isFalse();
         jdbc.execute("DROP TABLE tickets");
+        assertThat(guard.hasUniqueUnresolvedTicket("T")).isFalse();
         assertThat(guard.hasUniqueNonGeneralTicket("T")).isFalse();
     }
 
