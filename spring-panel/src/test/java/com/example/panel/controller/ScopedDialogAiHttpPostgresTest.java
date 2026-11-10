@@ -401,6 +401,46 @@ class ScopedDialogAiHttpPostgresTest {
             .param("stateStamp",expected.stateStamp()).param("eventThrough",Long.toString(expected.eventThrough())).param("confirmed","true");
     }
 
+    @ParameterizedTest @ValueSource(strings={"question-generation","answer-generation","question-channel","answer-channel","missing-root-channel","both"})
+    void foreignHistoryMetadataIsExcludedFromHtmlAndCurationPost(String mutation) throws Exception {
+        long ownChannel=channel(),foreignChannel=channel();
+        jdbc.update("UPDATE tickets SET channel_id=? WHERE ticket_public_id=?",ownChannel,publicId);
+        jdbc.update("UPDATE chat_history SET ticket_public_id=?,channel_id=? WHERE ticket_owner_user_id=?",publicId,ownChannel,scope.ticketUserId());
+        mvc.perform(auth(get(root),admin,true)).andExpect(status().isOk()).andExpect(content().string(containsString("reviewed solution")));
+        long changed=mutation.startsWith("answer")?aId:qId;
+        if(mutation.endsWith("generation"))jdbc.update("UPDATE chat_history SET ticket_public_id=? WHERE id=?",UUID.randomUUID().toString().replace("-",""),changed);
+        else if(mutation.equals("missing-root-channel"))jdbc.update("UPDATE tickets SET channel_id=NULL WHERE ticket_public_id=?",publicId);
+        else if(mutation.equals("both"))jdbc.update("UPDATE chat_history SET ticket_public_id=?,channel_id=? WHERE id=?",UUID.randomUUID().toString().replace("-",""),foreignChannel,changed);
+        else jdbc.update("UPDATE chat_history SET channel_id=? WHERE id=?",foreignChannel,changed);
+        var before=jdbc.queryForList("SELECT to_jsonb(history)::TEXT FROM chat_history history WHERE ticket_owner_user_id=? ORDER BY id",String.class,scope.ticketUserId());
+        mvc.perform(auth(get(root),admin,true)).andExpect(status().isOk())
+            .andExpect(content().string(not(containsString(changed==aId?"reviewed solution":"private &lt;script&gt;prompt&lt;/script&gt;"))));
+        mvc.perform(auth(memory(UUID.randomUUID().toString()),admin,true).with(csrf())).andExpect(status().isConflict());
+        assertNoCurationRows();
+        assertThat(jdbc.queryForList("SELECT to_jsonb(history)::TEXT FROM chat_history history WHERE ticket_owner_user_id=? ORDER BY id",String.class,scope.ticketUserId())).isEqualTo(before);
+    }
+    @ParameterizedTest @ValueSource(strings={"generation","channel"})
+    void finalCurationSqlRechecksHistoryMetadataAfterTheControllerPrecheck(String mutation) throws Exception {
+        long ownChannel=channel(),foreignChannel=channel();
+        jdbc.update("UPDATE tickets SET channel_id=? WHERE ticket_public_id=?",ownChannel,publicId);
+        jdbc.update("UPDATE chat_history SET ticket_public_id=?,channel_id=? WHERE ticket_owner_user_id=?",publicId,ownChannel,scope.ticketUserId());
+        mvc.perform(auth(get(root),admin,true)).andExpect(status().isOk()).andExpect(content().string(containsString("reviewed solution")));
+        doAnswer(call->{
+            if(mutation.equals("generation"))jdbc.update("UPDATE chat_history SET ticket_public_id=? WHERE id=?",UUID.randomUUID().toString().replace("-",""),aId);
+            else jdbc.update("UPDATE chat_history SET channel_id=? WHERE id=?",foreignChannel,aId);
+            return call.callRealMethod();
+        }).when(work).createMemory(eq(scope),any(org.springframework.security.core.Authentication.class),anyString(),eq(qId),eq(aId),anyString(),anyString(),anyString(),anyString(),eq(true));
+        mvc.perform(auth(memory(UUID.randomUUID().toString()),admin,true).with(csrf())).andExpect(status().isConflict());
+        assertNoCurationRows();
+    }
+    private long channel() {
+        return jdbc.queryForObject("INSERT INTO channels(token,channel_name,platform,is_active) VALUES(?,'R312 disposable','telegram',FALSE) RETURNING id",Long.class,UUID.randomUUID().toString());
+    }
+    private void assertNoCurationRows() {
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM ai_scoped_sources WHERE business_id=?",Long.class,business)).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM ai_scoped_source_events WHERE business_id=?",Long.class,business)).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM ai_scoped_memory_evidence evidence JOIN ai_scoped_sources source ON source.id=evidence.source_id WHERE source.business_id=?",Long.class,business)).isZero();
+    }
     private void assertNoDialogWrites() {
         assertThat(jdbc.queryForObject("SELECT count(*) FROM ticket_ai_scoped_control WHERE ticket_public_id=?",Long.class,publicId)).isZero();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM ticket_ai_scoped_events WHERE ticket_public_id=?",Long.class,publicId)).isZero();

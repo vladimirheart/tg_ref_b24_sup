@@ -3,6 +3,26 @@
 Документ фиксирует текущий runtime contract между `spring-panel` и `java-bot`
 после `Phase 5` рефакторинга.
 
+## Source R312: метаданные истории и согласованный режим AI
+
+Решение пользователя R312 от10 ноября2026: целевой режим BUSINESS AI —
+«Автоответ клиенту по разрешённым правилам». В LLM разрешён только текст,
+который оператор явно проверил перед отправкой, без вложений. Это не разрешение
+передавать непроверенное входящее сообщение/всю переписку или media по одному
+глобальному enabled flag. Review одного источника не подтверждает остальной
+payload обращения. Продуктовый допуск auto-reply больше не PENDING; реализация
+правил/контроля проверенного текста, scoped client delivery и рабочая активация
+ещё впереди. R312 не включает LLM/auto-reply и не выполняет внешних запросов.
+
+AI preview и final createMemory сверяют явно заданные history public ID/channel
+с current canonical root; mismatch закрывает чтение и запись до LIMIT/INSERT.
+NULL metadata сохраняет прежний ручной composite-owner контракт, без вывода
+business/generation и без разрешения egress. 138 targeted tests/5 Surefire XML GREEN, failures/errors/skips=0;1 main/5 test compile
+поверх проверенного cache1460 Java. R311 baseline67c3ae12c (10 файлов) проверен.
+Рабочий проект на другой машине. Новых migrations/flags нет; R311/R312 ещё
+source, нужен новый backend web/worker image. Runtime R310/rollback сохранены.
+[Контракт и приёмка](runbooks/ai-data-boundaries.md).
+
 ## Source R311: ручная очистка AI-истории актуального BUSINESS обращения
 
 PAGE_DIALOGS и текущий business ADMIN/ALL_BUSINESSES ADMIN получают отдельную

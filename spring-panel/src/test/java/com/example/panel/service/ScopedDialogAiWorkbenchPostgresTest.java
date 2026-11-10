@@ -36,8 +36,8 @@ class ScopedDialogAiWorkbenchPostgresTest {
         jdbc.execute("CREATE TABLE users(id BIGINT PRIMARY KEY,username TEXT,enabled BOOLEAN,is_blocked BOOLEAN)");
         jdbc.execute("CREATE TABLE business_memberships(user_id BIGINT,business_id BIGINT,role_code TEXT,is_active BOOLEAN)");
         jdbc.execute("CREATE TABLE business_access_grants(user_id BIGINT,grant_scope TEXT,role_code TEXT,is_active BOOLEAN)");
-        jdbc.execute("CREATE TABLE tickets(user_id BIGINT,ticket_id TEXT,ticket_public_id TEXT,business_id BIGINT,is_general BOOLEAN,PRIMARY KEY(user_id,ticket_id))");
-        jdbc.execute("CREATE TABLE chat_history(id BIGINT PRIMARY KEY,ticket_owner_user_id BIGINT,ticket_id TEXT,sender TEXT,message TEXT,message_type TEXT,attachment TEXT,deleted_at TIMESTAMPTZ)");
+        jdbc.execute("CREATE TABLE tickets(user_id BIGINT,ticket_id TEXT,ticket_public_id TEXT,business_id BIGINT,is_general BOOLEAN,channel_id BIGINT,PRIMARY KEY(user_id,ticket_id))");
+        jdbc.execute("CREATE TABLE chat_history(id BIGINT PRIMARY KEY,ticket_owner_user_id BIGINT,ticket_id TEXT,sender TEXT,message TEXT,message_type TEXT,attachment TEXT,deleted_at TIMESTAMPTZ,ticket_public_id TEXT,channel_id BIGINT)");
         for (int v=62;v<=64;v++) {
             String name=switch(v) {case 62->"scoped_ai_records";case 63->"business_owned_ai_sources";default->"scoped_ai_handoff_evidence";};
             jdbc.execute(Files.readString(Path.of("src/main/resources/db/migration/postgresql/V"+v+"__"+name+".sql")));
@@ -46,8 +46,8 @@ class ScopedDialogAiWorkbenchPostgresTest {
         jdbc.update("INSERT INTO users VALUES(1,'admin',TRUE,FALSE),(2,'foreign',TRUE,FALSE),(3,'all',TRUE,FALSE)");
         jdbc.update("INSERT INTO business_memberships VALUES(1,1,'ADMIN',TRUE),(2,2,'ADMIN',TRUE)");
         jdbc.update("INSERT INTO business_access_grants VALUES(3,'ALL_BUSINESSES','ADMIN',TRUE)");
-        jdbc.update("INSERT INTO tickets VALUES(10,?,?,1,FALSE),(20,?,?,2,FALSE)",RAW,"a".repeat(32),RAW.trim(),"b".repeat(32));
-        jdbc.update("INSERT INTO chat_history VALUES(40,10,?,'client','refund question','text',NULL,NULL),"
+        jdbc.update("INSERT INTO tickets VALUES(10,?,?,1,FALSE,101),(20,?,?,2,FALSE,102)",RAW,"a".repeat(32),RAW.trim(),"b".repeat(32));
+        jdbc.update("INSERT INTO chat_history(id,ticket_owner_user_id,ticket_id,sender,message,message_type,attachment,deleted_at) VALUES(40,10,?,'client','refund question','text',NULL,NULL),"
             +"(41,10,?,'operator','refund answer','text',NULL,NULL),(42,10,?,'operator','AI secret','ai_agent',NULL,NULL),"
             +"(43,NULL,?,'client','unlinked secret','text',NULL,NULL)",RAW,RAW,RAW,RAW);
         flags=new MultibusinessFeatureFlags(); work=new ScopedDialogAiWorkbenchService(jdbc);
@@ -130,7 +130,7 @@ class ScopedDialogAiWorkbenchPostgresTest {
             case "generation"->jdbc.update("UPDATE tickets SET ticket_public_id=? WHERE ticket_id=?","c".repeat(32),RAW);
             case "tuple"->jdbc.update("UPDATE tickets SET user_id=99 WHERE ticket_id=?",RAW);
             case "general"->jdbc.update("UPDATE tickets SET business_id=NULL,is_general=TRUE WHERE ticket_id=?",RAW);
-            case "collision"->jdbc.update("INSERT INTO tickets VALUES(99,?,?,2,FALSE)",RAW,"c".repeat(32));
+            case "collision"->jdbc.update("INSERT INTO tickets VALUES(99,?,?,2,FALSE,102)",RAW,"c".repeat(32));
             case "missing"->jdbc.update("DELETE FROM tickets WHERE ticket_id=?",RAW);
             case "grant"->jdbc.update("DELETE FROM business_memberships WHERE user_id=1");
             case "blocked"->jdbc.update("UPDATE users SET is_blocked=TRUE WHERE id=1");
@@ -245,6 +245,36 @@ class ScopedDialogAiWorkbenchPostgresTest {
         assertThat(jdbc.queryForList("SELECT * FROM ai_scoped_memory_evidence ORDER BY source_id")).isEqualTo(memoryEvidence);
     }
 
+    @ParameterizedTest @ValueSource(strings={"question-generation","answer-generation","question-channel","answer-channel","missing-root-channel","both"})
+    void explicitForeignHistoryMetadataCannotEnterAiPreviewOrMemory(String mutation) {
+        jdbc.update("UPDATE chat_history SET ticket_public_id=?,channel_id=101 WHERE ticket_owner_user_id=10",scope.ticketPublicId());
+        assertThat(work.messages(scope,boundControlActor())).extracting(ScopedDialogAiWorkbenchService.Message::id).containsExactly(41L,40L);
+        long changed=mutation.startsWith("answer")?41:40;
+        if(mutation.endsWith("generation"))jdbc.update("UPDATE chat_history SET ticket_public_id=? WHERE id=?","b".repeat(32),changed);
+        else if(mutation.equals("missing-root-channel"))jdbc.update("UPDATE tickets SET channel_id=NULL WHERE user_id=10");
+        else if(mutation.equals("both"))jdbc.update("UPDATE chat_history SET ticket_public_id=?,channel_id=102 WHERE id=?","b".repeat(32),changed);
+        else jdbc.update("UPDATE chat_history SET channel_id=102 WHERE id=?",changed);
+        boolean visible=work.messages(scope,boundControlActor()).stream().anyMatch(m->m.id()==changed);
+        boolean created=memory("admin",key());
+        assertThat(java.util.List.of(visible,created)).as("explicit history metadata: %s",mutation).containsExactly(false,false);
+        assertThat(jdbc.queryForList("SELECT * FROM ai_scoped_sources")).isEmpty();
+        assertThat(jdbc.queryForList("SELECT * FROM ai_scoped_source_events")).isEmpty();
+        assertThat(jdbc.queryForList("SELECT * FROM ai_scoped_memory_evidence")).isEmpty();
+    }
+    @ParameterizedTest @ValueSource(strings={"legacy-null","current","partial"})
+    void currentAndLegacyNullHistoryMetadataPreserveReviewedCuration(String kind) {
+        if(!kind.equals("legacy-null"))jdbc.update("UPDATE chat_history SET ticket_public_id=?,channel_id=101 WHERE ticket_owner_user_id=10",scope.ticketPublicId());
+        if(kind.equals("partial")){jdbc.update("UPDATE chat_history SET channel_id=NULL WHERE id=40");jdbc.update("UPDATE chat_history SET ticket_public_id=NULL WHERE id=41");}
+        var before=jdbc.queryForList("SELECT * FROM chat_history ORDER BY id");
+        assertThat(work.messages(scope,boundControlActor())).extracting(ScopedDialogAiWorkbenchService.Message::id).containsExactly(41L,40L);
+        assertThat(memory("admin",key())).isTrue();
+        assertThat(jdbc.queryForList("SELECT * FROM chat_history ORDER BY id")).isEqualTo(before);
+    }
+    @Test void foreignHistoryIsFilteredBeforeTheFiftyMessageLimit() {
+        jdbc.update("INSERT INTO chat_history(id,ticket_owner_user_id,ticket_id,sender,message,message_type,ticket_public_id,channel_id)"
+            +" SELECT i,10,?,'client','foreign private text','text',?,102 FROM generate_series(100,159) i",RAW,"b".repeat(32));
+        assertThat(work.messages(scope,boundControlActor())).extracting(ScopedDialogAiWorkbenchService.Message::id).containsExactly(41L,40L);
+    }
     @Test void additiveUpgradePreservesV63DataAndDoesNotClassifyHistory() {
         var upgrade=PostgresqlJdbcTestSupport.freshJdbcTemplate("workbench_upgrade");
         org.flywaydb.core.Flyway.configure().dataSource(upgrade.getDataSource())

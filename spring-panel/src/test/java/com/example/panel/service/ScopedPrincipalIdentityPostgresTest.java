@@ -50,7 +50,7 @@ class ScopedPrincipalIdentityPostgresTest {
             CREATE TABLE ui_event_outbox(id BIGINT PRIMARY KEY,event_type TEXT,ticket_id TEXT,channel_id BIGINT,created_at TIMESTAMPTZ,
                 ticket_user_id BIGINT,ticket_public_id TEXT,ticket_scope_kind TEXT,ticket_business_id BIGINT);
             CREATE TABLE chat_history(id BIGINT PRIMARY KEY,ticket_owner_user_id BIGINT,ticket_id TEXT,sender TEXT,message TEXT,
-                message_type TEXT,attachment TEXT,deleted_at TIMESTAMPTZ);
+                message_type TEXT,attachment TEXT,deleted_at TIMESTAMPTZ,ticket_public_id TEXT,channel_id BIGINT);
             INSERT INTO businesses(id) VALUES(11),(22);
             INSERT INTO users(id,username) VALUES(1,'admin'),(2,'viewer'),(3,'foreign'),(4,'all-reader'),(5,'target'),(6,' admin ');
             INSERT INTO business_memberships(user_id,business_id,role_code) VALUES(1,11,'ADMIN'),(2,11,'VIEWER'),(3,22,'ADMIN'),(5,11,'OPERATOR'),(6,22,'ADMIN');

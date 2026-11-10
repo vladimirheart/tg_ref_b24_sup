@@ -30,6 +30,8 @@ public class ScopedDialogAiWorkbenchService {
         """;
     private static final String TEXT_HISTORY="""
         history.ticket_owner_user_id=owner.user_id AND history.ticket_id=owner.ticket_id
+        AND (history.ticket_public_id IS NULL OR history.ticket_public_id=owner.ticket_public_id)
+        AND (history.channel_id IS NULL OR history.channel_id=owner.channel_id)
         AND history.deleted_at IS NULL AND history.sender IN ('client','operator')
         AND COALESCE(history.message_type,'text') IN ('text','operator_message')
         AND COALESCE(history.attachment,'')='' AND btrim(COALESCE(history.message,''))<>''

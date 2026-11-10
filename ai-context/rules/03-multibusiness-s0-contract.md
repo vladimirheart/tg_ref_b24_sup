@@ -12,6 +12,49 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 код не должен подставлять бизнес по текстовому имени, каналу, последнему выбору
 оператора или иной эвристике.
 
+## Source R312 — проверка метаданных текста для AI
+
+Решение пользователя R312 от10 ноября2026: целевой режим BUSINESS AI —
+«Автоответ клиенту по разрешённым правилам». В LLM разрешён только текст,
+который оператор явно проверил перед отправкой, без вложений. Это не разрешение
+передавать непроверенное входящее сообщение/всю переписку или media по одному
+глобальному enabled flag. Review одного источника не подтверждает остальной
+payload обращения. Продуктовый допуск auto-reply больше не PENDING; реализация
+правил/контроля проверенного текста, scoped client delivery и рабочая активация
+ещё впереди. R312 не включает LLM/auto-reply и не выполняет внешних запросов.
+
+Воспроизведён и закрыт обход в scoped AI preview/createMemory: совпадение
+ticket_owner_user_id/raw ticket_id больше не игнорирует явно записанные
+chat_history.ticket_public_id и channel_id. Ненулевой public ID должен совпасть
+с current root, ненулевой channel — с каналом root. При неизвестном root channel
+нельзя использовать строку с явным history channel. Один TEXT_HISTORY predicate
+действует до ORDER/LIMIT50, при выборе вопроса и ответа и в final INSERT+audit+
+evidence. Изменение метаданных после controller precheck даёт409 без curation rows.
+
+Существующий ручной curation допускает NULL metadata по прежнему composite owner
+контракту. Никакой business/generation для таких строк не угадывается и backfill
+не выполняется; это не полная historical child attribution и не допуск текста
+к LLM. Current account/READ/CONFIGURE, текстовые ограничения и fingerprints
+сохранены. Чаты, готовые материалы, AI control/state/events и runtime не меняются.
+
+138 targeted tests/5 Surefire XML GREEN, failures/errors/skips=0. Шесть real PostgreSQL regressions сначала RED на R311: и preview,
+и createMemory принимали чужие метаданные. Финальные assertions не ослаблены.
+Проверены preview/curation, поздняя смена metadata через Spring HTTP/CSRF,
+фильтрация до LIMIT, current/NULL/partial positives и исходные identity gates.
+Полностью повторены workbench и dialog HTTP; остальные XML — выбранные
+positive identity/fixture cases. Cache1460 Java sources сверен с R311;
+изменённые1 main/5 test sources пересобраны, полный repository/image build не заявляется.
+
+Baseline HEAD/origin/main/actual remote67c3ae12c32e86df1bec632ccd11e8659e181249,
+parent541b97edb5860722182d3932baf41cb3a6c2d5d1; проверены10 файлов R311.
+Рабочий экземпляр/Docker на другой машине и в другой сессии. Здесь nonce-owned
+native PostgreSQL fixture, после проверки остановлена; рабочие DB/очереди/
+provider/config/flags не использовались. Используются уже существующие V66
+public ID и channel fields, новых migrations нет. Для активации нужен новый
+backend image panel-web/ops-worker. Последний документированный runtime R310
+и его Compose/rollback pointers сохранены, R311/R312 deployment не подтверждён.
+Задача01-278 остаётся🟡. [Приёмка AI](../../docs/runbooks/ai-data-boundaries.md).
+
 ## R310 — ручная очистка MEMORY без текущего обращения
 
 Продолжение согласованного R308 хранения до ручного удаления. Отдельный

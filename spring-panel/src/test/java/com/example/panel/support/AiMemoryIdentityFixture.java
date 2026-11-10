@@ -11,7 +11,8 @@ public final class AiMemoryIdentityFixture {
     public static final String KEY="12345678-1234-1234-1234-123456789abc";
     public static void schema(JdbcTemplate jdbc,boolean existingUsers)throws Exception {
         AiControlIdentityFixture.schema(jdbc,existingUsers);
-        jdbc.execute("CREATE TABLE chat_history(id BIGINT PRIMARY KEY,ticket_owner_user_id BIGINT,ticket_id TEXT,sender TEXT,message TEXT,message_type TEXT,attachment TEXT,deleted_at TIMESTAMPTZ)");
+        jdbc.execute("ALTER TABLE tickets ADD COLUMN channel_id BIGINT");
+        jdbc.execute("CREATE TABLE chat_history(id BIGINT PRIMARY KEY,ticket_owner_user_id BIGINT,ticket_id TEXT,sender TEXT,message TEXT,message_type TEXT,attachment TEXT,deleted_at TIMESTAMPTZ,ticket_public_id TEXT,channel_id BIGINT)");
         for(String migration:List.of("V63__business_owned_ai_sources.sql","V64__scoped_ai_handoff_evidence.sql"))jdbc.execute(Files.readString(Path.of("src/main/resources/db/migration/postgresql/"+migration)));
     }
     public static void seed(JdbcTemplate jdbc,String name,String password) {

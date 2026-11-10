@@ -1,4 +1,49 @@
-# Границы данных AI — R311
+# Границы данных AI — R312
+
+## Режим AI и текстовая история — R312
+
+Решение пользователя R312 от10 ноября2026: целевой режим BUSINESS AI —
+«Автоответ клиенту по разрешённым правилам». В LLM разрешён только текст,
+который оператор явно проверил перед отправкой, без вложений. Это не разрешение
+передавать непроверенное входящее сообщение/всю переписку или media по одному
+глобальному enabled flag. Review одного источника не подтверждает остальной
+payload обращения. Продуктовый допуск auto-reply больше не PENDING; реализация
+правил/контроля проверенного текста, scoped client delivery и рабочая активация
+ещё впереди. R312 не включает LLM/auto-reply и не выполняет внешних запросов.
+
+ScopedDialogAiWorkbenchService использует один TEXT_HISTORY фильтр для preview,
+вопроса и ответа MEMORY. Кроме composite owner проверяется соответствие явно
+заданного history.ticket_public_id current root и history.channel_id каналу root.
+Если root channel неизвестен, строка с известным channel не подходит. Фильтр
+работает до LIMIT50 и повторно в final INSERT+audit+evidence; stale metadata
+после открытия формы даёт409 без создания источника/аудита/evidence.
+
+NULL public ID/channel допускаются только по прежнему manual curation контракту
+с user/raw owner, текущим READ/CONFIGURE и reviewed текстом. Это не доказательство
+исторического business/generation каждой строки и не отдельное подтверждение
+передачи её в LLM. Автоматический backfill не нужен: старые данные тестовые R190.
+Фильтр не читает media/URLs, не обращается к LLM и не отправляет ответ клиенту.
+
+138 targeted tests/5 Surefire XML GREEN, failures/errors/skips=0. Все workbench и dialog HTTP tests плюс выбранные identity positives
+двух общих fixtures и principal tests.6 native regressions были RED на R311;
+проверены NULL/current/partial positives, чужой question/answer generation/channel,
+root без канала,60 посторонних строк до LIMIT и late mutation через HTTP/CSRF.
+Cache1460 Java сверены;1 main/5 test compile. Logs/XML .tmp/r312-*.
+
+После нового backend web/worker image на машине проекта (без новых migrations):
+
+1. В выделенном тестовом BUSINESS обращении строки с явным чужим public ID или
+   каналом отсутствуют в AI preview. Подставленные ID/fingerprints в MEMORY POST
+   дают409; новых source/audit/evidence нет, исходная переписка не изменена.
+2. Соответствующие metadata и прежние NULL metadata сохраняют ручной reviewed
+   MEMORY roundtrip. Права PAGE_DIALOGS/PAGE_KNOWLEDGE_BASE/CONFIGURE и CSRF прежние.
+3. Прежние rollout flags сохраняются: если AI UI выключен, ожидается404. Этот
+   выпуск не включает auto-reply/LLM и не требует проверки отправки провайдеру.
+
+Рабочий Docker/проект — другая машина/сессия. R311/R312 здесь не deployed;
+последний документированный runtime R310/V89/image b2dc2f0fb876 и его
+Compose/rollback/evidence pointers сохранены. Следующая реализация — разрешённые
+scoped правила автоответа и client delivery с отдельным review LLM payload.
 
 ## Служебная история актуального BUSINESS обращения — R311
 
