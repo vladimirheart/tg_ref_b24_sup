@@ -3,7 +3,21 @@
 Документ фиксирует текущий runtime contract между `spring-panel` и `java-bot`
 после `Phase 5` рефакторинга.
 
-## Runtime R320 — 2026-11-11: настоящий Telegram BUSINESS и точный replay
+## Runtime R321 — 2026-11-11: mirror profile и explicit API override
+
+Для сохранённого telegram-ftl-dev-ru-mirror адрес telegram.ftl-dev.ru:443
+является Bot API mirror, не CONNECT forward proxy. Explicit platform_config.base_url
+отключает существующее legacy mirror detection. Сочетание official base_url R320
+с выбранным mirror profile привело к405 CONNECT и отказу startup getMe.
+R321 удалил только этот override канала1, сохранил профиль и запустил child1.
+Фактические API root=https://telegram.ftl-dev.ru и network mode=direct подтверждены
+по окружению процесса; getMe/long polling ownership прошли. Остальные children/
+containers/images/settings/flags прежние, rebuild не требовался.
+Panel profile probe проверяет TCP reachability и не доказывает поддержку CONNECT
+или корректность Bot API. Код probe/startup status не менялся.
+Evidence и конфигурационный rollback — Runtime R321 карточки01-278.
+
+## Исторический Runtime R320 — 2026-11-11: настоящий Telegram BUSINESS и точный replay
 
 Пользовательский выбор BUSINESS4 создал canonical root с questionnaire v4 и
 замороженными template/catalog fingerprints. Вложение получено follow-up событием;

@@ -1,4 +1,16 @@
-# Границы данных AI — R320
+# Границы данных AI — R321
+
+## Текущий маршрут Telegram1 — R321
+
+Пользователь выбрал сохранённый mirror profile. Explicit official base_url R320
+мешал распознаванию зеркала и приводил к405 CONNECT/startup getMe failure.
+Удалён только этот override, выбранный профиль сохранён; child1 успешно запущен.
+Фактический API root — https://telegram.ftl-dev.ru, network mode=direct без CONNECT.
+Зелёный probe профиля проверяет TCP доступность, не Telegram API/туннель.
+Предыдущие502 зеркала не объявлены исправленными. Остальные каналы/images/Compose/
+flags/settings и AI permissions/rules не менялись. Новой отправки/LLM/сборки нет.
+Evidence/rollback — Runtime R321 карточки01-278. Ниже сохранена приёмка R320;
+её официальный direct маршрут был состоянием того теста, не текущим каналом1.
 
 ## Текущая реальная Telegram приёмка — R320
 

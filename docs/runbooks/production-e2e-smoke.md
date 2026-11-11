@@ -192,7 +192,7 @@ R290 его не перезапускала и текущий runtime state не
 
 <a id="01-278-s6-acceptance"></a>
 
-### 7.2. 01-278: конечный лист приёмки S6 — R320
+### 7.2. 01-278: конечный лист приёмки S6 — R321
 
 Рабочий экземпляр R319 проверен на машине текущей runtime-сессии. Пометки
 «другая машина» в source checkpoints относятся к их исходным сессиям. Этот лист
@@ -261,6 +261,12 @@ Telegram1 — PATCH исходных platform_config/delivery_settings из за
 private/direct-route-rollback.json и normal restart child1 после drain;
 остальные каналы не менять. Отмена QA AI допуска — revoke одного owned rule и
 блокировка AI control текущего root, с сохранением sources/history/receipts.
+R321: пользователь вернул сохранённый mirror profile канала1. Конфликтующий
+official base_url удалён через admin PATCH, профиль сохранён; процесс теперь
+использует https://telegram.ftl-dev.ru как Bot API root без CONNECT. getMe/long polling
+подтверждены, другие children/containers/images/flags/settings не менялись.
+Зелёный panel probe профиля проверяет только TCP доступность. Исходный platform_config
+сохранён отдельно в R321/private/channel-rollback.json; S6 gates этим стартом не закрыты.
 Исходные release/rollback pointers сохранены. Этот лист
 сам не запускает rollout/replay/send/restart и не даёт разрешения на чужих получателей.
 
