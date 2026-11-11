@@ -160,6 +160,8 @@ public class IntegrationInboundEventInboxService {
         if (!record.isReclaimable(now.minus(STALE_PROCESSING_TIMEOUT))) {
             return false;
         }
+        // The read and update can race another recovery worker, including a newer failed attempt.
+        // Claim only the exact status/attempt observed above; a stale reader must not steal it.
         int updated = jdbcTemplate.update("""
                 UPDATE integration_inbound_event_inbox
                    SET status = ?,
@@ -170,7 +172,8 @@ public class IntegrationInboundEventInboxService {
                        last_error = NULL,
                        attempt_count = COALESCE(attempt_count, 0) + 1
                  WHERE event_id = ?
-                   AND status <> ?
+                   AND status = ?
+                   AND COALESCE(attempt_count, 0) = ?
                 """,
             "processing",
             routingKey,
@@ -178,7 +181,8 @@ public class IntegrationInboundEventInboxService {
             now,
             now,
             eventId,
-            "processed"
+            record.status(),
+            record.attemptCount()
         );
         return updated > 0;
     }
@@ -186,7 +190,7 @@ public class IntegrationInboundEventInboxService {
     private ExistingInboxRecord loadExistingRecord(String eventId) {
         return jdbcTemplate.query("""
                 SELECT status, processing_started_at, updated_at, received_at,
-                       event_kind, platform, channel_id, ticket_id, payload_json
+                       event_kind, platform, channel_id, ticket_id, payload_json, attempt_count
                   FROM integration_inbound_event_inbox
                  WHERE event_id = ?
                 """,
@@ -201,7 +205,7 @@ public class IntegrationInboundEventInboxService {
                     parseOffsetDateTime(rs.getString("received_at")),
                     rs.getString("event_kind"), rs.getString("platform"),
                     rs.getObject("channel_id", Long.class), rs.getString("ticket_id"),
-                    rs.getString("payload_json")
+                    rs.getString("payload_json"), rs.getInt("attempt_count")
                 );
             },
             eventId
@@ -259,7 +263,8 @@ public class IntegrationInboundEventInboxService {
                                        String platform,
                                        Long channelId,
                                        String ticketId,
-                                       String payloadJson) {
+                                       String payloadJson,
+                                       int attemptCount) {
 
         private boolean isReclaimable(OffsetDateTime staleThreshold) {
             if ("failed".equalsIgnoreCase(status) || "received".equalsIgnoreCase(status)) {

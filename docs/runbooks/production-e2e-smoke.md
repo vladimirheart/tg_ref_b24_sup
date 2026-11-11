@@ -190,6 +190,51 @@ R290 его не перезапускала и текущий runtime state не
 в список нереализованных программных блоков. Откат и первый production запуск
 сохраняют собственные gates этого runbook и production-launch-checklist.
 
+<a id="01-278-s6-acceptance"></a>
+
+### 7.2. 01-278: конечный лист приёмки S6 — R317
+
+Рабочий экземпляр — на другой машине/в другой runtime-сессии. Этот лист
+объединяет оставшиеся проверки; наличие source кода или старого пункта backlog
+не требует нового refactor. Дальнейшие исправления привязаны к конкретному FAIL.
+Задача остаётся 🟡 до общей приёмки пользователем.
+
+Уже полученные proof сохраняются и не запускаются заново без изменения пути:
+
+| Принятый этап | Evidence и границы |
+| --- | --- |
+| Доставка/оценка R289/R290 | Пользователь подтвердил прежние живые тесты; остался только in-flight launcher/fleet restart §7.1. |
+| MAX/principals R301 | 90 contracts +42 MAX +15 principal =147 GREEN; не live callback. |
+| Shared work/common system R305/R309 | Выпуск V89, права, аудит и доставка приняты; политика не переоткрывается. |
+| Backup/schema/backend R315 | Отдельный restore V89→V91 и fingerprints157 таблиц, выпуск R311–R314; не рабочий DB restore/downgrade. |
+| AI UI/Telegram R316 | 32 Edge checks, один подтверждённый SENT, signed AMQP replay до/после worker restart; не реальный callback/создание root ботом. |
+| Concurrent replay R317 | 15 native PG claims для Telegram/VK/MAX, общий targeted пакет192/5 GREEN; backend release ещё не выполнен. |
+
+Открыты пять runtime gates. Для каждого сохранить PASS/FAIL, дату, фактические
+revision/image/Compose/flags, платформу/канал, full ticket owner/public/business
+identity, event ID и путь к evidence вне Git. Непроведённый gate — PENDING,
+не PASS. Секреты, client payload и закрытые дампы в Git не помещать.
+
+| Gate | Проверка и критерий завершения | Статус |
+| --- | --- | --- |
+| S6-UI | One/many/ALL_BUSINESSES/GENERAL: list/direct/search/export/count/media/SSE не раскрывают чужой scope; save/reload/revoke действуют в следующем запросе. Системный ROLE_ADMIN сам по себе не выдаёт business AI доступ. Ранее принятые проверки использовать как evidence; допроверить только непокрытые комбинации. | PENDING |
+| S6-PROVIDER | Telegram/VK/MAX: реальный входящий callback → анкета → canonical BUSINESS/GENERAL root, текст/вложение → панель → реальный ответ клиенту. Сверить bytes/size/SHA256 скачанного вложения, owner/history, отсутствие дублей после точного replay. Для BUSINESS AI — разрешённое reviewed exact правило и один SENT; GENERAL/начальная анкета без incoming_history_id сохраняют handoff. | PENDING |
+| S6-RESTORE | В выделенном контуре восстановить DB и нужные media bytes; проверить возобновление сохранённой анкеты/утрату Redis session/rebind, frozen template/catalog и прежний owner. Повтор исходного события не создаёт новые history/media/ответы; противоречивый контекст отклоняется. Изолированный schema restore R315 засчитывается в своей части; рабочую БД ради этого листа не перезаписывать. | PENDING |
+| S6-RESTART | Выполнить только оставшийся in-flight restart штатного bot launcher/fleet по §7.1: прежний unacked wire, одна подтверждённая доставка/rating; UNKNOWN/SENDING без повторного provider call. Worker restart R316 и старые isolated JVM probes уже засчитаны в своих границах. | MANUAL_PENDING |
+| S6-ROLLOUT | Сверить совместимость фактических backend/children/schema и rollout flags; подтвердить controlled enable/disable и возврат к сохранённому image/flags в выделенном окне. Сохранить до/после ready/health/queue/DLQ и rollback evidence. Наличие rollback tag само по себе не доказывает выполненный откат. | PENDING |
+
+Для R317 нужен согласованный выпуск только backend web/worker; новые migration,
+child JAR, provisioning и включение flags не требуются. Последний документированный
+Compose — releases/r316-ai-activation-20261111/private/compose.finalize.v4.json
+под ../iguana-runtime/tg_ref_b24_sup; перед действиями runtime-сессия сверяет его
+с реально действующим. Исходные R316 rollback pointers сохраняются. Этот лист
+сам не запускает rollout/replay/send/restart и не даёт разрешения на чужих получателей.
+
+Выбранный exact-rule auto-reply не использует LLM; разработка LLM/full-payload
+review нужна только при отдельном расширении режима. Historical S2B/backfill
+снят R190. TLS/iiko/RMS operational checklist ведётся отдельно и не становится
+новым программным блоком 01-278.
+
 ## 8. Минимальные SQL/API-проверки после smoke
 
 ### 8.1. SQL

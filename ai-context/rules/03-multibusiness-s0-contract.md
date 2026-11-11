@@ -12,6 +12,23 @@ S0-контракт от `2026-10-10`; S1 source foundation подготовле
 код не должен подставлять бизнес по текстовому имени, каналу, последнему выбору
 оператора или иной эвристике.
 
+## R317 — конкурентное восстановление inbox
+
+Recovery failed/received/stale processing допускает только один захват исходной
+попытки: UPDATE сверяет observed status и attempt_count. Отдельного чтения
+reclaimable и условия «не processed» недостаточно. Проигравший возвращает false,
+не меняет routing/payload/attempt_count и не начинает domain writes. Если новая
+попытка успела снова стать failed, старый читатель всё равно отклоняется по номеру.
+Нормальная новая попытка может затем восстановить failure; processed сохраняется.
+R316 write-transaction atomicity, frozen questionnaire/media checks и запрет
+AI SENDING/UNKNOWN retry не меняются. Нет новой миграции или provider permission.
+
+15 deterministic native PG cases (две реальные транзакции с барьером чтения)
+для Telegram/VK/MAX;12 RED на baseline и15 GREEN после fix. Всего192 tests/
+5 suites GREEN,0 failures/errors/skips. Source-сессия не управляет рабочим
+Docker другой машины. R317 требует backend release, V91/children прежние.
+Итоговые runtime gates: [production smoke §7.2](../../docs/runbooks/production-e2e-smoke.md#01-278-s6-acceptance).
+
 ## R316 — подтверждение входящего события вместе с данными
 
 Успех integration inbox подтверждается только в транзакции, сохраняющей
