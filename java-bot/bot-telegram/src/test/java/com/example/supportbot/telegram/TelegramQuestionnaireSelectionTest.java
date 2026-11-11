@@ -124,7 +124,7 @@ class TelegramQuestionnaireSelectionTest {
         assertThat(command.providerEventKey()).isEqualTo("telegram-message:1001:4");assertThat(state().submittedTicketId).isEqualTo("T-TG");
         assertThat(sent).allMatch(request->request.getChatId().equals("1001"));verifyNoInteractions(local,attachments,feedback);
     }
-    @ParameterizedTest @ValueSource(strings={"Business A","1","/business ffffffffffff 7","/business 123456abcdef 999"})
+    @ParameterizedTest @ValueSource(strings={"Business A","/business ffffffffffff 7","/business 123456abcdef 999"})
     void invalidChoicesCannotChooseOrReachFeedback(String text) {
         receive(1,"/start");receive(2,text);assertThat(state().selected).isNull();assertThat(state().answers).isEmpty();
         verify(runtime,never()).selectQuestionnaire(any(),any(),anyLong());verifyNoInteractions(feedback);
@@ -201,6 +201,66 @@ class TelegramQuestionnaireSelectionTest {
         receive(1,"/start");String old=choice(0);receive(2,"/cancel");receive(3,old);
         assertThat(store.load(TelegramQuestionnaireHandler.SESSION_PLATFORM,55L,1001L,TelegramQuestionnaireHandler.State.class)).isEmpty();
         verify(runtime,times(1)).questionnaireChoices(channel);
+    }
+    @ParameterizedTest @ValueSource(strings={"1","1. Business A","2","2. Business B"})
+    void currentVisibleNumbersAndButtonsSelectCanonicalBusiness(String input) {
+        receive(1,"/start");receive(2,input);assertThat(state().selected.businessId()).isEqualTo(input.startsWith("1")?7L:8L);
+        assertThat(state().answers).isEmpty();verify(tickets,never()).createConversationTicket(any());
+    }
+    @Test void clientMenuAndKeyboardHideCanonicalIdsCodesAndNonce() {
+        receive(1,"/start");var menu=sent.get(0);assertThat(menu.getText()).contains("1. Business A","2. Business B","номер варианта")
+            .doesNotContain("#7","#8","(a)","(b)",state().nonce,"/business");
+        var keyboard=(ReplyKeyboardMarkup)menu.getReplyMarkup();assertThat(keyboard.getKeyboard().stream().flatMap(Collection::stream).map(button->button.getText()).toList())
+            .containsExactly("1. Business A","2. Business B");
+    }
+    @ParameterizedTest @ValueSource(strings={"0","01","3","999999","1. Foreign"})
+    void invalidVisibleNumbersCannotSelectAnotherBusiness(String input) {
+        receive(1,"/start");receive(2,input);assertThat(state().selected).isNull();verify(tickets,never()).createConversationTicket(any());
+    }
+    @Test void numericSelectionUsesVisiblePagePositionsRatherThanCanonicalBusinessIds() {
+        r152LargeMenu(false);receive(1,"/start");receive(2,TelegramQuestionnaireMenu.pageButton(state().nonce,12,true));
+        receive(3,"1");assertThat(state().selected).isNull();receive(4,"104");assertThat(state().selected.businessId()).isEqualTo(7L);
+        assertThat(state().answers).isEmpty();verify(tickets,never()).createConversationTicket(any());
+    }
+    @Test void numericGeneralSelectionIsAvailableOnlyFromItsCurrentCatalog() {
+        generalMenu();receive(1,"/start");receive(2,"2");assertThat(state().selected.scopeKind()).isEqualTo("GENERAL");
+        verify(runtime).selectGeneralQuestionnaire(channel,catalog);verify(tickets,never()).createConversationTicket(any());
+    }
+    @ParameterizedTest @ValueSource(strings={"/cancel","/start"})
+    void registeredCommandsKeepRootAfterConfirmationFailureAndCacheLoss(String command) throws Exception {
+        first();doThrow(new TelegramApiException("lost confirmation")).when(bot).execute(any(SendMessage.class));
+        assertThatThrownBy(()->receive(4,"Two")).hasMessageContaining("delivery failed");
+        String frozen=store.load(TelegramQuestionnaireHandler.SESSION_PLATFORM,55L,1001L,TelegramQuestionnaireHandler.State.class).orElseThrow().rawPayload();
+        when(tickets.findByTicketId("T-TG")).thenReturn(Optional.of(new TicketService.TicketWithUser(1001L,"T-TG","open")));
+        var active=new TicketActive();active.setTicketId("T-TG");when(tickets.findActiveTicketForUser(eq(1001L),anyString(),eq(55L))).thenReturn(Optional.of(active));
+        resetDeliveryCache();rebuild();receive(5,command);
+        assertThat(store.load(TelegramQuestionnaireHandler.SESSION_PLATFORM,55L,1001L,TelegramQuestionnaireHandler.State.class).orElseThrow().rawPayload()).isEqualTo(frozen);
+        assertThat(sent.get(sent.size()-1).getText()).contains("уже зарегистрировано").doesNotContain("Вопросник недоступен");
+        receive(6,"Followup after command");verify(tickets,times(1)).createConversationTicket(any());verify(runtime,times(1)).questionnaireChoices(channel);
+        verify(tickets).recordActiveClientMessage(argThat(c->c.ticketId().equals("T-TG")&&c.text().equals("Followup after command")));
+    }
+    @ParameterizedTest @ValueSource(strings={"/cancel","/start"})
+    void acceptedButNotYetReadableRootCannotLoseSessionOnCommands(String command) {
+        complete();receive(5,command);assertThat(state().submittedTicketId).isEqualTo("T-TG");
+        assertThat(sent.get(sent.size()-1).getText()).contains("ожидает регистрации");verify(tickets,times(1)).createConversationTicket(any());
+        verify(runtime,times(1)).questionnaireChoices(channel);
+    }
+    @ParameterizedTest @ValueSource(strings={"closed","resolved"})
+    void completedCanonicalRootAllowsFreshStartWithoutBorrowingOldScope(String status) {
+        complete();String old=choice(0);when(tickets.findByTicketId("T-TG")).thenReturn(Optional.of(new TicketService.TicketWithUser(1001L,"T-TG",status)));
+        receive(5,"/start");assertThat(state().submittedTicketId).isNull();assertThat(state().selected).isNull();assertThat(state().answers).isEmpty();
+        receive(6,old);assertThat(state().selected).isNull();verify(tickets,times(1)).createConversationTicket(any());
+    }
+    @Test void existingRootExplainsConflictWithoutPretendingTemplateChanged() {
+        var active=new TicketActive();active.setTicketId("OTHER");when(tickets.findActiveTicketForUser(eq(1001L),anyString(),eq(55L))).thenReturn(Optional.of(active));
+        complete();assertThat(sent.get(sent.size()-1).getText()).contains("незавершённое обращение").doesNotContain("Вопросник недоступен");
+        assertThat(state().answers).containsEntry("free-first","One").containsEntry("free-second","Two");assertThat(state().submissionMessageId).isNull();
+        verify(tickets,never()).createConversationTicket(any());
+    }
+    @Test void commandsRejectForeignCanonicalOwnerInsteadOfResettingSavedRoot() {
+        complete();when(tickets.findByTicketId("T-TG")).thenReturn(Optional.of(new TicketService.TicketWithUser(2002L,"T-TG","open")));
+        assertThatThrownBy(()->receive(5,"/cancel")).hasMessageContaining("foreign owner");assertThat(state().submittedTicketId).isEqualTo("T-TG");
+        verify(tickets,times(1)).createConversationTicket(any());
     }
     @Test void newMessageDuringPendingPublicationGetsExplicitRetryInsteadOfBeingConsumed() {
         first();when(tickets.createConversationTicket(any())).thenThrow(new IllegalStateException("test queue failure"))

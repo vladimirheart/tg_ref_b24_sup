@@ -6,7 +6,7 @@ import java.util.regex.Pattern;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 
-/** Reply buttons are text messages; their generation token must survive delayed delivery. */
+/** Visible option numbers address the current saved page; old signed buttons remain valid only for their generation. */
 final class TelegramQuestionnaireMenu {
     private static final Pattern CODE=Pattern.compile("^/business ([a-f0-9]{12}) ([1-9][0-9]{0,18})$");
     private static final Pattern BUTTON=Pattern.compile("^.+ \\[([a-f0-9]{12}):([1-9][0-9]{0,18})\\]$");
@@ -44,6 +44,20 @@ final class TelegramQuestionnaireMenu {
             return catalog.choices().stream().anyMatch(choice->"BUSINESS".equals(choice.scopeKind()) && java.util.Objects.equals(choice.businessId(),id))?Optional.of(new Action(false,id)):Optional.empty();
         } catch(NumberFormatException ex) {return Optional.empty();}
     }
+    static Optional<Action> resolve(ChoiceCatalog catalog,String nonce,int currentPage,String text) {
+        validatePage(catalog,nonce,currentPage);
+        var legacy=resolve(catalog,nonce,text);if(legacy.isPresent() || text==null)return legacy;
+        String value=text.strip();
+        if("Далее".equals(value) && currentPage+1<pages(catalog))return Optional.of(new Action(true,currentPage+1));
+        if("Назад".equals(value) && currentPage>0)return Optional.of(new Action(true,currentPage-1));
+        int first=currentPage*8,last=Math.min(first+8,catalog.choices().size());
+        for(int index=first;index<last;index++) {
+            if(!value.equals(Integer.toString(index+1)) && !value.equals(visibleButton(catalog,index)))continue;
+            var choice=catalog.choices().get(index);
+            return Optional.of(new Action(false,choice.general()?0:choice.businessId(),choice.general()));
+        }
+        return Optional.empty();
+    }
     static int pages(ChoiceCatalog catalog) {return (catalog.choices().size()+7)/8;}
     static String button(ChoiceCatalog catalog,String nonce,int index) {
         validate(catalog,nonce);var choice=catalog.choices().get(index);
@@ -53,27 +67,31 @@ final class TelegramQuestionnaireMenu {
     static String pageButton(String nonce,int page,boolean next) {
         return (next?"Далее":"Назад")+" ["+nonce+":page:"+page+"]";
     }
+    private static String visibleButton(ChoiceCatalog catalog,int index) {
+        return (index+1)+". "+shorten(catalog.choices().get(index).displayName(),90);
+    }
     static ReplyKeyboardMarkup keyboard(ChoiceCatalog catalog,String nonce,int page) {
         validatePage(catalog,nonce,page);List<KeyboardRow> rows=new ArrayList<>();
         for(int i=page*8;i<Math.min(page*8+8,catalog.choices().size());i+=2) {
-            var row=new KeyboardRow();row.add(button(catalog,nonce,i));
-            if(i+1<Math.min(page*8+8,catalog.choices().size())) row.add(button(catalog,nonce,i+1));
+            var row=new KeyboardRow();row.add(visibleButton(catalog,i));
+            if(i+1<Math.min(page*8+8,catalog.choices().size())) row.add(visibleButton(catalog,i+1));
             rows.add(row);
         }
         var navigation=new KeyboardRow();
-        if(page>0) navigation.add(pageButton(nonce,page-1,false));
-        if(page+1<pages(catalog)) navigation.add(pageButton(nonce,page+1,true));
+        if(page>0) navigation.add("Назад");
+        if(page+1<pages(catalog)) navigation.add("Далее");
         if(!navigation.isEmpty()) rows.add(navigation);
         return ReplyKeyboardMarkup.builder().keyboard(rows).resizeKeyboard(true).oneTimeKeyboard(true).build();
     }
     static String text(ChoiceCatalog catalog,String nonce,int page) {
         validatePage(catalog,nonce,page);
-        var text=new StringBuilder("Выберите бизнес или «Без бизнеса» до первого вопроса. Страница ").append(page+1).append('/').append(pages(catalog)).append(".\n");
+        var text=new StringBuilder(catalog.choices().stream().anyMatch(c->c.general())?"Выберите бизнес или «Без бизнеса».":"Выберите бизнес.");
+        if(pages(catalog)>1)text.append(" Страница ").append(page+1).append('/').append(pages(catalog)).append('.');
+        text.append('\n');
         for(int i=page*8;i<Math.min(page*8+8,catalog.choices().size());i++) {
-            var choice=catalog.choices().get(i);
-            text.append(choice.general()?"Без бизнеса":"#"+choice.businessId()).append(" — ").append(shorten(choice.displayName()+" ("+choice.code()+")",180)).append('\n');
+            text.append(visibleButton(catalog,i)).append('\n');
         }
-        return text.append("Нажмите кнопку или отправьте /business ").append(nonce).append(" ID. Новый выбор — /start, отмена — /cancel.").toString();
+        return text.append("Нажмите кнопку или отправьте номер варианта. /start — начать заново, /cancel — отменить заполнение анкеты.").toString();
     }
     private static void validatePage(ChoiceCatalog catalog,String nonce,int page) {
         validate(catalog,nonce);if(page<0 || page>=pages(catalog)) throw new IllegalStateException("Invalid saved questionnaire page");

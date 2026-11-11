@@ -1,6 +1,38 @@
-# Границы данных AI — R321
+# Границы данных AI — R322
 
-## Текущий маршрут Telegram1 — R321
+## Текущий рабочий intake — R322
+
+Telegram1: только рабочие «Суши»/«Блины», без GENERAL/QA бизнес4. GENERAL MAX2/
+Telegram3 сохранён. Рабочие scoped копии стандартной анкеты и199 активных локаций
+подготовлены через admin API; старые шаблоны/дерево и история обращений сохранены.
+Меню скрывает technical ID/code/nonce, принимает номер или кнопку. /start и
+/cancel сохраняют уже зарегистрированное обращение при потере подтверждения.
+
+QA exact rule отозван, AI у QA root заблокирован, прежние два тестовых обращения
+завершены. Временные GENERAL READ/OPERATE grants admin1 для закрытия owned теста
+отозваны, effective grants0. Sources/history/audit/receipts сохранены.
+Прежний AI trigger больше не отправлять; следующий AI тест требует отдельного
+тестового scope. Новых provider сообщений/LLM calls агент не выполнял.
+Хранение до ручного удаления, UNKNOWN/SENDING не повторялись.
+
+Установлен runner image33810b091477: только Telegram artifact изменён,
+155 tests/3 suites GREEN. Web/worker R318 imagea7518faf8c41 и V91 сохранены.
+Flags/migrations/backfill не менялись. Текущий Compose —
+releases/r322-telegram-questionnaire-recovery-20261111/private/compose.final-v2.json
+под ../iguana-runtime/tg_ref_b24_sup. Image rollback — tag
+rollback-r322-v2-bot-runner-20261111 (9e850142b705), Compose —
+private/compose.before-v2.json этого release; конфигурационные snapshots отдельно.
+Этот image rollback не отменяет working bindings/resources; не применять старые
+intake/flags rollback инструкции к рабочим бизнесам без отдельного плана.
+Telegram1/MAX2 работают; Telegram3 после normal restart/одного повторного старта
+получает502 mirror getMe. Official read-only getMe200; пользователь явно выбрал
+оставить зеркало даже при недоступности бота. Автоматического перехода на
+официальный API нет; после решения новые старты/settings mutations не выполнялись.
+Evidence — mirror-preference-proof.json R322. Общий health/readiness UP, но fleet
+целиком здоровым не объявляется.
+Evidence и границы ещё открытой приёмки — Runtime R322 карточки01-278.
+
+## Маршрут Telegram1, сохранённый из R321
 
 Пользователь выбрал сохранённый mirror profile. Explicit official base_url R320
 мешал распознаванию зеркала и приводил к405 CONNECT/startup getMe failure.
@@ -12,7 +44,7 @@ flags/settings и AI permissions/rules не менялись. Новой отп�
 Evidence/rollback — Runtime R321 карточки01-278. Ниже сохранена приёмка R320;
 её официальный direct маршрут был состоянием того теста, не текущим каналом1.
 
-## Текущая реальная Telegram приёмка — R320
+## Историческая реальная Telegram приёмка — R320
 
 Настоящий BUSINESS4 root получен через вопросник Telegram1. Scoped скачивание
 проверило все154 bytes и SHA256 тестового файла; exact replay двух исходных

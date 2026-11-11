@@ -3,7 +3,38 @@
 Документ фиксирует текущий runtime contract между `spring-panel` и `java-bot`
 после `Phase 5` рефакторинга.
 
-## Runtime R321 — 2026-11-11: mirror profile и explicit API override
+## Runtime R322 — 2026-11-11: рабочая анкета и номер варианта
+
+Telegram1 имеет только BUSINESS1 «Суши» / BUSINESS2 «Блины»; GENERAL отключён
+для этого канала по уточнению пользователя. GENERAL MAX2/Telegram3 сохранён.
+Меню/кнопки показывают порядковый номер и название без canonical ID/code/nonce.
+Число относится к варианту текущей сохранённой страницы, а не к business_id.
+Mapping берётся из frozen catalog; серверный signed selection по-прежнему
+проверяет binding/template/catalog. Старые signed кнопки принимаются только
+с сохранённым nonce; недоступные и чужие варианты отклоняются.
+
+Выбор бизнеса заменяет первый preset «Бизнес» базового шаблона; рабочие scoped
+копии сохраняют порядок тип → город → локация, с97/102 активными canonical locations.
+Legacy шаблоны/дерево сохранены. /cancel отменяет заполнение, но не опубликованное
+обращение; /start не сбрасывает активный submitted/pending marker даже при потере
+подтверждения или временной недоступности canonical read. Closed/resolved root
+разрешает новую анкету; foreign owner отклоняется; active-root conflict имеет
+отдельное сообщение вместо generic «Вопросник недоступен».
+
+155 targeted tests/3 suites и реальные signed catalog/selected/options/menu
+probes GREEN. Обновлён только Telegram JAR в runner image33810b091477,
+baseline c0ab155b0 + непроиндексированный patch; launcher/VK/MAX JAR сохранены.
+Runner cutover нормально перезапустил children; Telegram1/MAX2 работают,
+Telegram3 не прошёл getMe из-за502 сохранённого mirror (official read-only probe200).
+Повтор старта дал тот же отказ. Пользователь явно выбрал сохранить зеркало даже
+при недоступности бота; официальный API не является согласованным fallback.
+После решения настройки/запуск не менялись; mirror-preference-proof.json R322.
+Полная fleet readiness не подтверждена; backend R318/V91,
+flags и выбранный mirror profile прежние. QA AI rule отозван, тестовые roots
+завершены с сохранением истории. Текущий Compose/rollback/evidence —
+Runtime R322 карточки01-278. Пять S6 gates остаются открытыми.
+
+## Исторический Runtime R321 — 2026-11-11: mirror profile и explicit API override
 
 Для сохранённого telegram-ftl-dev-ru-mirror адрес telegram.ftl-dev.ru:443
 является Bot API mirror, не CONNECT forward proxy. Explicit platform_config.base_url

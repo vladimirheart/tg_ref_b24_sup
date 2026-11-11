@@ -192,7 +192,24 @@ R290 его не перезапускала и текущий runtime state не
 
 <a id="01-278-s6-acceptance"></a>
 
-### 7.2. 01-278: конечный лист приёмки S6 — R321
+### 7.2. 01-278: конечный лист приёмки S6 — R322
+
+Текущий checkpoint — Runtime R322 карточки01-278. Telegram1 подключён только
+к рабочим «Суши»/«Блины», GENERAL и QA бизнес из его меню убраны. Стандартные
+вопросы после scope и199 активных локаций доступны; меню показывает номера/
+названия и принимает кнопку или1/2.155 tests/3 suites, реальные signed catalog/
+selection/options/menu probes GREEN; клиентский проход чистого меню v2 ещё ожидается.
+Установлен runner image33810b091477 (только Telegram artifact), Compose —
+R322/private/compose.final-v2.json; rollback image9e850142b705/tag
+rollback-r322-v2-bot-runner-20261111 и private/compose.before-v2.json сохранены.
+Web/worker R318/V91/flags и сохранённый mirror profile прежние. Telegram1/MAX2
+работают, Telegram3 getMe получает502 выбранного mirror; official read-only probe200.
+Пользователь выбрал оставить зеркало Telegram3 даже при недоступности бота;
+автоматически переводить на официальный API не нужно. После решения новых запусков/
+изменений настроек нет (mirror-preference-proof.json R322); fleet readiness FAIL.
+QA rule отозван, прежние тестовые roots завершены; старый AI trigger не использовать.
+Следующую AI/GENERAL приёмку готовить в отдельном тестовом scope.
+Все пять gates ниже остаются открытыми. Состояния R319–R321 ниже исторические.
 
 Рабочий экземпляр R319 проверен на машине текущей runtime-сессии. Пометки
 «другая машина» в source checkpoints относятся к их исходным сессиям. Этот лист
@@ -218,9 +235,10 @@ SHA256, exact replay двух подписанных wire без новых root
 После отдельного502 зеркала только канал1 переведён на официальный API/direct;
 Redis questionnaire сохранился при нормальном restart child1. Отдельный DIRECT
 panel reply ID10469 подтверждён получателем. Исходная попытка502 не повторялась.
-Подготовлен QA reviewed exact AI trigger S6-AI-795118ad86c3; его входящий текст/
-SENT/replay ещё ожидаются, правило пока активно. GENERAL/VK/MAX и общие gates
-этим результатом не закрываются. Доказательства — Runtime R320 карточки01-278.
+В R320 был подготовлен QA reviewed exact AI trigger; его входящий текст/
+SENT/replay не были приняты. В R322 правило отозвано, AI root заблокирован и
+тест завершён. GENERAL/VK/MAX и общие gates этим результатом не закрываются.
+Доказательства — Runtime R320/R322 карточки01-278.
 
 Открыты пять runtime gates. Для каждого сохранить PASS/FAIL, дату, фактические
 revision/image/Compose/flags, платформу/канал, full ticket owner/public/business
@@ -244,13 +262,14 @@ Foundation/ui-selector ON; strict-read/manual creation OFF. Добавлены �
 QA бизнес/три templates/bindings, старые roots не перераспределены.
 После реального FAIL исправлен и обновлён только bot-runner:
 imagedaafdaadb69e, baseline7493c908e +непроиндексированный client fix.
-Текущий Compose — releases/r319-s6-telegram-20261111/private/compose.channel-fix.json
+Исторический Compose R319 — releases/r319-s6-telegram-20261111/private/compose.channel-fix.json
 под ../iguana-runtime/tg_ref_b24_sup. Rollback runner image29f36986a0db сохранён
 tag rollback-r319-bot-runner-20261111; backend imagea7518faf8c41 — двумя tags
 rollback-r319-panel-web/ops-worker-20261111. Фактические runner-only защитные
 возвраты прежнего образа не доказывают полный S6-ROLLOUT и in-flight restart.
 
-Для возврата intake в drained окне остановить children, через admin API выключить
+Исторический план возврата R319 (не применять автоматически к working R322):
+в drained окне остановить children, через admin API выключить
 новые shared-general1/channel1-business4/business4-template и GENERAL2/3 bindings,
 вернуть MAX2 template tpl_mpnp8g3k1qcg, затем восстановить прежние backend flags/
 Compose и запустить children. Использованные QA templates/tickets/audits/receipts

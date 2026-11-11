@@ -49,7 +49,9 @@ public class TelegramQuestionnaireHandler {
             throw new IllegalStateException("Invalid Telegram questionnaire owner/channel");
         for(int attempt=0;attempt<3;attempt++) {
             try {return process(update,message,channel,sender,captureBootstrap,fileSource);}
-            catch(ScopedRuntimeConfigUnavailableException ex) {
+            catch(ActiveTicketConflictException ex) {
+                send(sender,message.getChatId(),"У вас уже есть незавершённое обращение в этом канале. Дождитесь его закрытия оператором, прежде чем создавать новое. Команда /cancel отменяет только заполнение анкеты.");return true;
+            } catch(ScopedRuntimeConfigUnavailableException ex) {
                 send(sender,message.getChatId(),"Вопросник недоступен или изменился. Для нового выбора отправьте /start.");return true;
             } catch(SessionStateConflictException ex) {if(attempt==2) throw ex;}
         }
@@ -92,12 +94,23 @@ public class TelegramQuestionnaireHandler {
             }
         }
         if("/cancel".equalsIgnoreCase(text) || "/start".equalsIgnoreCase(text)) {
+            if(session!=null && session.state.submittedTicketId!=null) {
+                var canonical=tickets.findByTicketId(session.state.submittedTicketId);
+                if(canonical.isPresent() && !Objects.equals(canonical.get().userId(),session.state.userId))
+                    throw new IllegalStateException("Telegram questionnaire command has a foreign owner");
+                if(canonical.isEmpty() || !Set.of("closed","resolved").contains(Objects.toString(canonical.get().status(),"").toLowerCase(Locale.ROOT))) {
+                    send(sender,message.getChatId(),canonical.isEmpty()
+                        ?"Обращение уже принято и ожидает регистрации. Команды /cancel и /start его не отменяют. Дождитесь регистрации обращения."
+                        :"Обращение уже зарегистрировано и остаётся открытым. Команды /cancel и /start его не отменяют. Продолжайте переписку здесь; новое обращение можно создать после закрытия текущего оператором.");
+                    return true;
+                }
+            }
             if(session!=null) {
                 if(!store.deleteIfUnchanged(SESSION_PLATFORM,channel.getId(),session.state.userId,session.raw))
                     throw new SessionStateConflictException("Telegram questionnaire delete conflict");
                 session=null;
             }
-            if("/cancel".equalsIgnoreCase(text)) {send(sender,message.getChatId(),"Текущая заявка отменена.");return true;}
+            if("/cancel".equalsIgnoreCase(text)) {send(sender,message.getChatId(),"Заполнение анкеты отменено.");return true;}
         }
         if(session==null) {
             if(TelegramQuestionnaireMenu.reserved(text)) {send(sender,message.getChatId(),"Для выбора вопросника отправьте /start.");return true;}
@@ -113,7 +126,7 @@ public class TelegramQuestionnaireHandler {
         if(hasMedia(message)) {acceptMedia(sender,session,channel,message,fileSource);return true;}
         if(!message.hasText()) {send(sender,message.getChatId(),"Отправьте текст или поддерживаемое вложение.");return true;}
         if(session.state.selected==null) {
-            var action=TelegramQuestionnaireMenu.resolve(session.state.catalog,session.state.nonce,text);
+            var action=TelegramQuestionnaireMenu.resolve(session.state.catalog,session.state.nonce,session.state.page,text);
             if(action.isPresent()) {
                 if(action.get().page()) session.state.page=(int)action.get().value();
                 else {
@@ -198,7 +211,7 @@ public class TelegramQuestionnaireHandler {
         var state=session.state;
         if(state.submissionMessageId==null) {
             if(tickets.findActiveTicketForUser(state.userId,identity(state),state.channelId).isPresent())
-                throw new ScopedRuntimeConfigUnavailableException("A different active Telegram root already exists");
+                throw new ActiveTicketConflictException();
             var current="GENERAL".equals(state.selected.scopeKind())?runtime.selectGeneralQuestionnaire(channel,state.catalog)
                 :runtime.selectQuestionnaire(channel,state.catalog,state.selected.businessId());
             if(!QuestionnaireScope.fromSelection(current).equals(QuestionnaireScope.fromSelection(state.selected)))
@@ -222,6 +235,8 @@ public class TelegramQuestionnaireHandler {
         send(sender,state.chatId,number.map(n->"Спасибо! Ваше обращение №"+n+" отправлено оператору.")
                 .orElse("Спасибо! Обращение принято. Номер появится после регистрации."));
     }
+
+    private static final class ActiveTicketConflictException extends RuntimeException {}
 
     private void followup(Consumer<SendMessage> sender,Session session,Channel channel,Message message,String text) {
         if(!openRoot(sender,session)) return;
