@@ -12,11 +12,13 @@ Iguana - многоканальная support CRM и операторская п
 Статус задачи01-278, выполненная MAX PG/Rabbit приёмка R301 и оставшиеся блоки:
 [карточка задачи](ai-context/tasks/task-details/01-278.md).
 
-Рабочий backend R316: imagec05e3e159639, baseline7a2ad5969 +uncommitted
-исправление атомарности inbound inbox и безопасная диагностика UNKNOWN.
-AI UI включён; один Telegram автоответ подтверждён получателем, replay/restart
+Рабочий backend R318 из committed63f1fb416: imagea7518faf8c41.
+Установлены исправление гонки inbox R317 и отдельная критичность категорий
+P1–P5 с настройкой шаблонов и диаграммами дашборда.
+AI UI включён; в R316 один Telegram автоответ подтверждён получателем, replay/restart
 worker не создал дубля. QA rules отозваны, тестовые обращения завершены/AI заблокирован.
-300 targeted tests/5 suites GREEN, схема V91 прежняя, health/readiness UP.
+342 targeted Java tests/9 suites и18 рабочих browser checks GREEN, схема V91
+прежняя, health/readiness UP. Настройки/flags и боты R295 сохранены.
 Общие инциденты и доставка проверены через реальные сессии.
 Текущие Compose/rollback, границы хранения и оставшаяся приёмка:
 [AI boundaries](docs/runbooks/ai-data-boundaries.md).

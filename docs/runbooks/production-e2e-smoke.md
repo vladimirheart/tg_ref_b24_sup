@@ -208,7 +208,7 @@ R290 его не перезапускала и текущий runtime state не
 | Shared work/common system R305/R309 | Выпуск V89, права, аудит и доставка приняты; политика не переоткрывается. |
 | Backup/schema/backend R315 | Отдельный restore V89→V91 и fingerprints157 таблиц, выпуск R311–R314; не рабочий DB restore/downgrade. |
 | AI UI/Telegram R316 | 32 Edge checks, один подтверждённый SENT, signed AMQP replay до/после worker restart; не реальный callback/создание root ботом. |
-| Concurrent replay R317 | 15 native PG claims для Telegram/VK/MAX, общий targeted пакет192/5 GREEN; backend release ещё не выполнен. |
+| Concurrent replay R317 / backend R318 | 15 native PG claims для Telegram/VK/MAX повторно GREEN в342 tests/9 suites; committed63f1fb416/imagea7518faf8c41 установлен на web/worker, V91/flags/children сохранены. Не реальный provider callback. |
 
 Открыты пять runtime gates. Для каждого сохранить PASS/FAIL, дату, фактические
 revision/image/Compose/flags, платформу/канал, full ticket owner/public/business
@@ -223,11 +223,13 @@ identity, event ID и путь к evidence вне Git. Непроведённы�
 | S6-RESTART | Выполнить только оставшийся in-flight restart штатного bot launcher/fleet по §7.1: прежний unacked wire, одна подтверждённая доставка/rating; UNKNOWN/SENDING без повторного provider call. Worker restart R316 и старые isolated JVM probes уже засчитаны в своих границах. | MANUAL_PENDING |
 | S6-ROLLOUT | Сверить совместимость фактических backend/children/schema и rollout flags; подтвердить controlled enable/disable и возврат к сохранённому image/flags в выделенном окне. Сохранить до/после ready/health/queue/DLQ и rollback evidence. Наличие rollback tag само по себе не доказывает выполненный откат. | PENDING |
 
-Для R317 нужен согласованный выпуск только backend web/worker; новые migration,
-child JAR, provisioning и включение flags не требуются. Последний документированный
-Compose — releases/r316-ai-activation-20261111/private/compose.finalize.v4.json
-под ../iguana-runtime/tg_ref_b24_sup; перед действиями runtime-сессия сверяет его
-с реально действующим. Исходные R316 rollback pointers сохраняются. Этот лист
+R317 установлен R318 вместе с отдельной критичностью категорий P1–P5:
+342 Java/9 suites, Edge320/1440 и18 рабочих checks GREEN, health/readiness UP/DLQ0.
+Новые migration/child JAR/provisioning и включение flags не требовались.
+Текущий Compose — releases/r318-backend-update-20261111/private/compose.final.json
+под ../iguana-runtime/tg_ref_b24_sup; он сверен с реально действующим.
+Rollback R318 tags сохраняют imagec05e3e159639/прежний Compose; наличие tag
+не означает разыгранный откат. Исходные release/rollback pointers сохранены. Этот лист
 сам не запускает rollout/replay/send/restart и не даёт разрешения на чужих получателей.
 
 Выбранный exact-rule auto-reply не использует LLM; разработка LLM/full-payload

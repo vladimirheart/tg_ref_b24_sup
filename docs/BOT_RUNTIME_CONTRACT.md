@@ -3,6 +3,25 @@
 Документ фиксирует текущий runtime contract между `spring-panel` и `java-bot`
 после `Phase 5` рефакторинга.
 
+## Runtime R318 — 2026-11-11: R317 и критичность категорий выпущены
+
+Рабочие panel-web/ops-worker обновлены из committed63f1fb416, imagea7518faf8c41,
+по1 replica/healthy/restart0. CAS захвата inbox R317 установлен вместе с отдельным
+изменением P1–P5 для категорий/дашборда. Все текущие веб-ресурсы включены в JAR.
+Схема V91, ENV/settings/flags сохранены; migrator/backfill/provisioning нет.
+Боты R295, их PID/start time и18 остальных контейнеров прежние: новых bot/DTO/
+protocol изменений не было, rebuild/restart ботов не требовался.
+
+342 targeted Java tests/9 suites, Edge fixture320/1440 и18 реальных panel checks
+GREEN. Health/readiness UP, DLQ0; рабочие settings не сохранялись, внешних тестовых
+сообщений нет. Один ERROR в web — ранний проверочный GET к POST-only отчётному
+endpoint; оператор исправлен, неожиданных ошибок нет. Полная S6 не закрыта.
+Актуальный Compose:
+../iguana-runtime/tg_ref_b24_sup/releases/r318-backend-update-20261111/private/compose.final.json.
+Rollback R318 tags сохраняют imagec05e3e159639/прежний Compose.
+Полные hashes, evidence и границы — Runtime R318 в
+[карточке01-278](../ai-context/tasks/task-details/01-278.md).
+
 ## R317 — конкурентное восстановление inbox
 
 Recovery failed/received/stale processing допускает только один захват исходной
@@ -17,7 +36,8 @@ AI SENDING/UNKNOWN retry не меняются. Нет новой миграци
 15 deterministic native PG cases (две реальные транзакции с барьером чтения)
 для Telegram/VK/MAX;12 RED на baseline и15 GREEN после fix. Всего192 tests/
 5 suites GREEN,0 failures/errors/skips. Source-сессия не управляет рабочим
-Docker другой машины. R317 требует backend release, V91/children прежние.
+Docker другой машины. Этот source checkpoint закрыт backend release R318 выше;
+V91/children прежние.
 Итоговые runtime gates: [production smoke §7.2](runbooks/production-e2e-smoke.md#01-278-s6-acceptance).
 
 ## Runtime R316 — 2026-11-11: AI activation и атомарный inbox

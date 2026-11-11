@@ -1,6 +1,30 @@
-# Границы данных AI — R316
+# Границы данных AI — R318
 
-## Текущий рабочий выпуск — R316 / V91
+## Текущий рабочий выпуск — R318 / V91
+
+На рабочей машине текущей runtime-сессии web/worker обновлены из committed
+63f1fb416e9af73fa80a2a78a808924795bf0188, imagea7518faf8c41. Установлены CAS
+захвата inbox R317 и отдельное изменение категорий/дашборда P1–P5.
+AI protocol/permissions, ENV/settings/flags не менялись: foundation/ui-selector ON,
+manual creation OFF. Миграций/backfill нет, V91/история прежние; боты R295,
+их процессы и18 остальных контейнеров сохранены. Health/readiness UP, DLQ0.
+
+342 targeted Java tests/9 suites GREEN включают прежние AI delivery/rollback/
+recovery и15 новых concurrent claims. Edge fixture320/1440 и18 рабочих checks
+прошли без сохранения настроек и отправки внешних тестовых сообщений.
+Новые approvals/rules не выдавались, UNKNOWN/SENDING не переочередялись.
+Предыдущая принятая AI UI/Telegram проверка R316 сохраняет свои границы;
+этот rebuild не является новой provider/callback или общей S6 приёмкой.
+
+Актуальный Compose:
+../iguana-runtime/tg_ref_b24_sup/releases/r318-backend-update-20261111/private/compose.final.json.
+Rollback R318 tags сохраняют imagec05e3e159639 и прежний Compose/flags.
+Полные hashes/evidence/логи — Runtime R318 в
+[карточке01-278](../../ai-context/tasks/task-details/01-278.md).
+Один ERROR web относится к раннему smoke GET на POST-only отчёт; исправленный
+оператор проходит, неожиданных ошибок нет. Реальный rollback не разыгрывался.
+
+## Историческая AI-активация — R316 / V91
 
 На машине проекта panel-web/ops-worker работают с imagec05e3e159639:
 baseline7a2ad5969 +непроиндексированные R316 source changes. Health/readiness UP,
