@@ -8,9 +8,11 @@ project links/Kanban/analytics подключены; реализован пол
 экземпляре вместе с V88/V89, аудитом, текущим READ уведомлений/SSE и trusted
 background producer. Общая задача01-278 остаётся🟡.
 
-Текущий backend — R315/R314 e41252b63: web/worker image3998c9ea829a, схема V91.
-Актуальный Compose: ../iguana-runtime/tg_ref_b24_sup/releases/r315-backend-activation-20261110/private/release/compose.final.json.
-R305 ниже — историческая приёмка самого shared-work контура; R315 сохраняет её
+Текущий backend — R316: web/worker imagec05e3e159639, baseline7a2ad5969 +
+uncommitted R316, схема V91 прежняя. AI foundation/ui-selector включены;
+manual creation выключен. Health/readiness UP.
+Актуальный Compose: ../iguana-runtime/tg_ref_b24_sup/releases/r316-ai-activation-20261111/private/compose.finalize.v4.json.
+R305 ниже — историческая приёмка самого shared-work контура; R316 сохраняет её
 модель. Не возвращать старые images из прежнего Compose при последующих up.
 
 ## Работа в панели

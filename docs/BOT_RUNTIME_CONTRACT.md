@@ -3,6 +3,27 @@
 Документ фиксирует текущий runtime contract между `spring-panel` и `java-bot`
 после `Phase 5` рефакторинга.
 
+## Runtime R316 — 2026-11-11: AI activation и атомарный inbox
+
+Текущие panel-web/ops-worker: imagec05e3e159639, baseline7a2ad5969 +
+непроиндексированные R316 source changes, по1 replica/healthy; схема V91 прежняя.
+Актуальный Compose: ../iguana-runtime/tg_ref_b24_sup/releases/r316-ai-activation-20261111/private/compose.finalize.v4.json.
+Foundation/ui-selector включены, временный manual creation выключен.
+Успешный integration inbox commit теперь атомарен с history/root/typed outbox;
+known rollback оставляет failed. Старые ложные processed и AI UNKNOWN не сбрасываются.
+
+300 targeted tests/5 suites GREEN;32 рабочих Edge проверки AI UI.
+Подписанный Telegram child AMQP ingress дал один реальный SENT, пользователь
+подтвердил получение; replay до/после restart worker не создал второго ответа.
+QA root подготовлен отдельно: это не проверка настоящего входящего callback/
+анкеты. Все QA rules отозваны, обращения завершены и AI заблокирован.
+Первый malformed QA wire архивирован и адресно выведен из DLQ; health/readiness UP.
+Боты R295 и18 остальных контейнеров сохранены; миграций/backfill нет.
+Полные image/JAR/rollback/evidence и остаток — Runtime R316 в
+[карточке01-278](../ai-context/tasks/task-details/01-278.md) и
+[AI boundaries](runbooks/ai-data-boundaries.md). Общая S6 не объявляется принятой.
+Ниже сохранены исторические checkpoints.
+
 ## Runtime R315 — 2026-11-10: R311–R314 установлены, схема V91
 
 На машине текущей сессии сверены clean HEAD/origin/main/actual remote

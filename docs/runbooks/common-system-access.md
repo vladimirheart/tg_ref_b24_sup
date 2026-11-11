@@ -47,14 +47,15 @@ R306 добавляет один main class; изменённые sources ско
 baseline proof сохранены в .tmp/r306-*. Ранние собственные RED исправлены
 в test fixtures (bean name/duplicate bean/normalizer mock), product asserts сохранены.
 
-## Текущий runtime R315 и историческая приёмка R309
+## Текущий runtime R316 и историческая приёмка R309
 
-Текущие web/worker — image3998c9ea829a из committed R314/e41252b63, схема V91.
-R315 установил AI изменения R311–R314 с сохранением этой общей модели доступа,
-settings/principals/flags;10 Edge gates включают incidents/inbox200.
-Актуальные Compose/rollback/evidence — Runtime R315 в карточке01-278.
+Текущие web/worker — imagec05e3e159639, baseline7a2ad5969 +uncommitted R316,
+схема V91 прежняя. Модель общего доступа/settings/principals сохранена;
+foundation/ui-selector включены только для controlled AI activation, manual
+creation выключен.32 Edge AI gates включают incidents/inbox200.
+Актуальные Compose/rollback/evidence — Runtime R316 в карточке01-278.
 Ниже сохранена более широкая функциональная приёмка common доступа R309;
-весь её браузерный набор R315 повторно не запускал.
+весь её браузерный набор R316 повторно не запускал.
 
 R306 включён в рабочие web/worker на этой машине; health/readiness200UP,
 V89/flags/.env прежние, боты и инфраструктура не обновлялись.

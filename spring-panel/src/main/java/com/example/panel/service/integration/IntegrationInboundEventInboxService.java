@@ -10,6 +10,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 public class IntegrationInboundEventInboxService {
@@ -19,11 +24,19 @@ public class IntegrationInboundEventInboxService {
 
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
+    private TransactionTemplate rollbackFailure;
 
     public IntegrationInboundEventInboxService(JdbcTemplate jdbcTemplate,
                                                ObjectMapper objectMapper) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void configureTransactionManager(
+            @org.springframework.beans.factory.annotation.Qualifier("transactionManager") PlatformTransactionManager manager) {
+        rollbackFailure = new TransactionTemplate(manager);
+        rollbackFailure.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -75,12 +88,12 @@ public class IntegrationInboundEventInboxService {
         return reclaimExistingEvent(eventId, routingKey, payload, now);
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.MANDATORY)
     public void markProcessed(String eventId) {
         complete(eventId);
     }
 
-    /** Versioned batches commit their inbox result together with every history/metadata row. */
+    /** Both success entry points commit with their owning history/metadata transaction. */
     @Transactional(propagation = Propagation.MANDATORY)
     public void markProcessedWithWrites(String eventId) {
         complete(eventId);
@@ -95,6 +108,21 @@ public class IntegrationInboundEventInboxService {
                        last_error = NULL
                  WHERE event_id = ?
                 """, "processed", eventId);
+        if (rollbackFailure != null && TransactionSynchronizationManager.isActualTransactionActive()
+                && TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCompletion(int status) {
+                    if (status != TransactionSynchronization.STATUS_ROLLED_BACK) return;
+                    rollbackFailure.executeWithoutResult(ignored -> jdbcTemplate.update("""
+                        UPDATE integration_inbound_event_inbox
+                           SET status='failed', processed_at=NULL, updated_at=CURRENT_TIMESTAMP,
+                               last_error='Inbound write transaction rolled back before commit'
+                         WHERE event_id=? AND status<>'processed'
+                        """, eventId));
+                }
+            });
+        }
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

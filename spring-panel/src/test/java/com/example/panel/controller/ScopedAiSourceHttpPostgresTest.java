@@ -118,6 +118,8 @@ class ScopedAiSourceHttpPostgresTest {
     @SpyBean private ScopedAiSourceService sources;
     @SpyBean private com.example.panel.service.ScopedAiReplyRuleService replyRules;
     @Autowired private com.example.panel.service.integration.InboundClientMessageIngestionService incoming;
+    @Autowired private com.example.panel.service.integration.IntegrationInboundEventInboxService incomingInbox;
+    @Autowired private org.springframework.transaction.PlatformTransactionManager incomingTransactions;
     private long businessA,businessB,adminId,viewerId;
     private String admin,viewer,operator,manager,foreign,global,all;
     private Source sourceA,sourceB;
@@ -217,6 +219,73 @@ class ScopedAiSourceHttpPostgresTest {
     private void approveReplySource(){
         assertThat(sources.reviseExpected(businessA,com.example.panel.support.AiControlIdentityFixture.login(jdbc,admin),KNOWLEDGE,KEY,sourceA.id(),1,sourceA.title(),sourceA.body(),APPROVED)).isTrue();
     }
+    @Test void inboundLateJpaFlushFailureCannotRemainProcessed() {
+        var event=atomicIncoming(null);
+        org.assertj.core.api.Assertions.assertThatThrownBy(()->incoming.ingest(event,"integration.inbound.telegram"))
+            .isInstanceOf(RuntimeException.class);
+        assertAtomicIncomingRolledBack(event);
+    }
+    @Test void inboundLateJpaFailureCanRecoverTheExactEventWithoutDuplicateHistory() {
+        var event=atomicIncoming(null);
+        org.assertj.core.api.Assertions.assertThatThrownBy(()->incoming.ingest(event,"integration.inbound.telegram"))
+            .isInstanceOf(RuntimeException.class);
+        assertAtomicIncomingRolledBack(event);
+        jdbc.update("INSERT INTO ticket_active(ticket_id,user_identity,last_seen) VALUES(?,'fixture-identity',CURRENT_TIMESTAMP)",event.ticketId());
+        incoming.ingest(event,"integration.inbound.telegram");
+        incoming.ingest(event,"integration.inbound.telegram");
+        assertAtomicIncomingCommittedOnce(event,2);
+    }
+    @Test void enclosingRollbackDoesNotCommitInboundSuccessOrLoseItsReplay() {
+        var event=atomicIncoming("fixture-identity");
+        new org.springframework.transaction.support.TransactionTemplate(incomingTransactions).executeWithoutResult(status->{
+            incoming.ingest(event,"integration.inbound.telegram");
+            status.setRollbackOnly();
+        });
+        assertAtomicIncomingRolledBack(event);
+        incoming.ingest(event,"integration.inbound.telegram");
+        incoming.ingest(event,"integration.inbound.telegram");
+        assertAtomicIncomingCommittedOnce(event,2);
+    }
+    @Test void inboxSuccessRequiresTheOwningWriteTransaction() {
+        var event=atomicIncoming("fixture-identity");
+        assertThat(incomingInbox.beginProcessing(event.eventId(),event.eventKind(),event.platform(),event.channelId(),
+            event.ticketId(),"integration.inbound.telegram",event,event.occurredAt())).isTrue();
+        org.assertj.core.api.Assertions.assertThatThrownBy(()->incomingInbox.markProcessed(event.eventId()))
+            .isInstanceOf(org.springframework.transaction.IllegalTransactionStateException.class);
+        assertThat(jdbc.queryForObject("SELECT status FROM integration_inbound_event_inbox WHERE event_id=?",String.class,event.eventId())).isEqualTo("processing");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM chat_history WHERE ticket_id=?",Integer.class,event.ticketId())).isZero();
+    }
+    private com.example.panel.service.integration.InboundClientMessageEvent atomicIncoming(String identity) {
+        long owner=origin.ticketUserId();
+        long channel=jdbc.queryForObject("INSERT INTO channels(token,channel_name,platform,is_active) VALUES(?,'fixture','telegram',TRUE) RETURNING id",Long.class,"fake-r316-"+owner);
+        jdbc.update("INSERT INTO messages(group_msg_id,user_id,ticket_id,channel_id,problem) VALUES(?,?,?,?,'fixture')",owner,owner,origin.ticketId(),channel);
+        jdbc.update("UPDATE tickets SET group_msg_id=?,channel_id=? WHERE user_id=? AND ticket_id=?",owner,channel,owner,origin.ticketId());
+        return new com.example.panel.service.integration.InboundClientMessageEvent(UUID.randomUUID().toString(),
+            "client_message.active_ticket","telegram",channel,origin.ticketId(),owner,identity,null,null,
+            "Atomic inbound fixture","text",null,null,"916",null,null,java.time.OffsetDateTime.now());
+    }
+    private void assertAtomicIncomingRolledBack(com.example.panel.service.integration.InboundClientMessageEvent event) {
+        var receipt=jdbc.queryForMap("SELECT status,processed_at,last_error,attempt_count FROM integration_inbound_event_inbox WHERE event_id=?",event.eventId());
+        assertThat(receipt).containsEntry("status","failed").containsEntry("processed_at",null).containsEntry("attempt_count",1);
+        assertThat(receipt.get("last_error")).asString().contains("rolled back");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM chat_history WHERE ticket_id=?",Integer.class,event.ticketId())).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ui_event_outbox WHERE ticket_id=? AND event_type='client_message_created'",Integer.class,event.ticketId())).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ticket_active WHERE ticket_id=?",Integer.class,event.ticketId())).isZero();
+    }
+    private void assertAtomicIncomingCommittedOnce(com.example.panel.service.integration.InboundClientMessageEvent event,int attempts) {
+        assertThat(jdbc.queryForMap("SELECT status,last_error,attempt_count FROM integration_inbound_event_inbox WHERE event_id=?",event.eventId()))
+            .containsEntry("status","processed").containsEntry("last_error",null).containsEntry("attempt_count",attempts);
+        var children=jdbc.queryForList("SELECT id,ticket_owner_user_id,ticket_public_id,channel_id FROM chat_history WHERE ticket_id=?",event.ticketId());
+        assertThat(children).hasSize(1);
+        assertThat(children.get(0)).containsEntry("ticket_owner_user_id",origin.ticketUserId())
+            .containsEntry("ticket_public_id",origin.ticketPublicId()).containsEntry("channel_id",event.channelId());
+        var outbox=jdbc.queryForList("SELECT incoming_history_id,ticket_public_id,ticket_business_id FROM ui_event_outbox WHERE ticket_id=? AND event_type='client_message_created'",event.ticketId());
+        assertThat(outbox).hasSize(1);
+        assertThat(outbox.get(0)).containsEntry("incoming_history_id",children.get(0).get("id"))
+            .containsEntry("ticket_public_id",origin.ticketPublicId()).containsEntry("ticket_business_id",businessA);
+    }
+
+
     @Test void realIngestionPersistsPublicHistoryAndItsEventInOneTransactionWithoutDuplicateReplay() {
         long owner=origin.ticketUserId();
         long channel=jdbc.queryForObject("INSERT INTO channels(token,channel_name,platform,is_active) VALUES(?,'fixture','telegram',TRUE) RETURNING id",Long.class,"fake-r313-"+owner);

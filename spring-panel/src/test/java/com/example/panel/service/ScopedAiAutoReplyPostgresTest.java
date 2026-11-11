@@ -144,6 +144,28 @@ class ScopedAiAutoReplyPostgresTest {
         assertThat(jdbc.queryForObject("SELECT message_text FROM ui_event_outbox WHERE ticket_public_id=? AND event_type='ai_reply_changed'",String.class,scope.ticketPublicId())).isEqualTo("UNKNOWN");
         verify(transport,times(1)).sendTextGuarded(any(),anyLong(),anyString(),isNull(),any());
     }
+    @ParameterizedTest @ValueSource(strings={"provider","exception"})
+    void unknownDiagnosticsExcludePayloadCredentialsAndProviderTextAndNeverRetry(String failure) {
+        var logger=(ch.qos.logback.classic.Logger)org.slf4j.LoggerFactory.getLogger(ScopedAiAutoReplyService.class);
+        var appender=new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        appender.start();logger.addAppender(appender);
+        String sensitive="secret-token/private-recipient/provider-response/"+ANSWER;
+        try {
+            if(failure.equals("provider")) doReturn(DialogReplyTransportService.DialogReplyTransportResult.failure(sensitive,sensitive,"critical","transient",403,sensitive,sensitive,sensitive,1L))
+                .when(transport).sendTextGuarded(any(),anyLong(),anyString(),isNull(),any());
+            else doThrow(new IllegalStateException(sensitive,new IllegalArgumentException(sensitive)))
+                .when(transport).sendTextGuarded(any(),anyLong(),anyString(),isNull(),any());
+            assertThat(replies.process(scope,event)).isFalse();assertThat(state()).isEqualTo("UNKNOWN");
+            assertThat(replies.recoverQueued(25)).isZero();assertThat(replies.process(scope,event)).isFalse();
+            verify(transport,times(1)).sendTextGuarded(any(),anyLong(),anyString(),isNull(),any());
+            assertThat(appender.list).hasSize(1);
+            var diagnostic=appender.list.get(0);
+            assertThat(diagnostic.getFormattedMessage()).contains("eventId="+event)
+                .contains(failure.equals("provider")?"httpStatus=403":"exceptionType=IllegalStateException, causeType=IllegalArgumentException")
+                .doesNotContain(sensitive,ANSWER,QUESTION,username,scope.ticketId(),scope.ticketPublicId());
+            assertThat(diagnostic.getThrowableProxy()).isNull();
+        } finally {logger.detachAppender(appender);appender.stop();}
+    }
     @Test void failedDeliveryEventRefreshesTheCardAndRequestsScopedHandoff() {
         assertThat(replies.prepare(scope,event)).isTrue();
         doThrow(new IllegalStateException("fake ambiguous result")).when(transport).sendTextGuarded(any(),anyLong(),anyString(),isNull(),any());

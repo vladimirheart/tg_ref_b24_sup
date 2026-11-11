@@ -12,12 +12,14 @@ Iguana - многоканальная support CRM и операторская п
 Статус задачи01-278, выполненная MAX PG/Rabbit приёмка R301 и оставшиеся блоки:
 [карточка задачи](ai-context/tasks/task-details/01-278.md).
 
-Рабочий backend R315 из committed R314/e41252b63 включает R311–R314:
-очистку AI-истории, проверку metadata, reviewed правила автоответа и восстановление
-QUEUED после рестарта. V90/V91 применены, health/readiness UP.
+Рабочий backend R316: imagec05e3e159639, baseline7a2ad5969 +uncommitted
+исправление атомарности inbound inbox и безопасная диагностика UNKNOWN.
+AI UI включён; один Telegram автоответ подтверждён получателем, replay/restart
+worker не создал дубля. QA rules отозваны, тестовые обращения завершены/AI заблокирован.
+300 targeted tests/5 suites GREEN, схема V91 прежняя, health/readiness UP.
 Общие инциденты и доставка проверены через реальные сессии.
-AI UI сохраняет прежние выключенные rollout flags; положительные AI-проверки
-изолированы. Границы хранения и инструкция: [AI boundaries](docs/runbooks/ai-data-boundaries.md).
+Текущие Compose/rollback, границы хранения и оставшаяся приёмка:
+[AI boundaries](docs/runbooks/ai-data-boundaries.md).
 Общие задачи, проекты и Kanban активированы с R305:
 отдельные права и участники, полный доступ системного ROLE_ADMIN, журнал
 изменений и проверка допуска при доставке уведомлений/SSE. Сквозная проверка

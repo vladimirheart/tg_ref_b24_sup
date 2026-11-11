@@ -15,6 +15,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 /** One provider attempt per captured incoming event/history. No raw-ID recapture, media or LLM calls. */
 @Service
 public class ScopedAiAutoReplyService {
+    private static final org.slf4j.Logger log=org.slf4j.LoggerFactory.getLogger(ScopedAiAutoReplyService.class);
     private static final String DESTINATION="""
         encode(sha256(convert_to(jsonb_build_array(destination.id,destination.token,destination.platform,
             destination.platform_config,destination.delivery_settings,destination.credential_id)::text,'UTF8')),'hex')
@@ -102,6 +103,8 @@ public class ScopedAiAutoReplyService {
             var result=transport.sendTextGuarded(c.channel(),scope.ticketUserId(),c.body(),null,
                 ()->capture(scope,eventId).filter(current->same(c,current) && matches(scope,eventId,current)).isPresent());
             if(result==null || !result.success()) {
+                if(result==null || !"scope_denied".equals(result.classification()))
+                    log.warn("AI reply delivery unconfirmed: eventId={}, httpStatus={}",eventId,result==null?null:result.httpStatus());
                 finish(scope,eventId,result!=null && "scope_denied".equals(result.classification())?"CANCELLED":"UNKNOWN",null);return;
             }
             Long historyId=sql.queryForObject("""
@@ -112,6 +115,8 @@ public class ScopedAiAutoReplyService {
                 """,snapshotArgs(scope,eventId,c).addValue("body",c.body()).addValue("providerId",result.telegramMessageId(),java.sql.Types.BIGINT),Long.class);
             finish(scope,eventId,"SENT",historyId);
         }); } catch(RuntimeException ex) {
+            log.warn("AI reply delivery unconfirmed: eventId={}, exceptionType={}, causeType={}",eventId,
+                ex.getClass().getSimpleName(),ex.getCause()==null?"none":ex.getCause().getClass().getSimpleName());
             // Provider may have accepted the request. A committed SENDING claim is never queued again.
             try { tx.executeWithoutResult(status->finish(scope,eventId,"UNKNOWN",null)); }
             catch(RuntimeException ignored) { /* Leave SENDING for manual reconciliation. */ }

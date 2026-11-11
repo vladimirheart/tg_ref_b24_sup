@@ -1,6 +1,53 @@
-# Границы данных AI — R315
+# Границы данных AI — R316
 
-## Текущий рабочий выпуск — R315 / V91
+## Текущий рабочий выпуск — R316 / V91
+
+На машине проекта panel-web/ops-worker работают с imagec05e3e159639:
+baseline7a2ad5969 +непроиндексированные R316 source changes. Health/readiness UP,
+по1 replica/healthy/restart0. Боты R295 и18 остальных контейнеров сохранены.
+Миграций/backfill нет; схема и история V91 прежние, .env/settings.json сохранены.
+Полные hashes, rollback и evidence — Runtime R316 в
+[карточке01-278](../../ai-context/tasks/task-details/01-278.md).
+
+AI UI включён через единственный runtime SPRING_APPLICATION_JSON с canonical
+nested foundation.enabled=true, ui-selector=true, manual-ticket-creation=false.
+Flat MULTIBUSINESS_FOUNDATION_ENABLED не использовать: реальный Spring Binder
+для read-only alias требует setter; эта ошибка воспроизведена и исправлена
+до принятого выпуска. Исходные env-файлы не редактировались.
+Активный Compose:
+../iguana-runtime/tg_ref_b24_sup/releases/r316-ai-activation-20261111/private/compose.finalize.v4.json.
+Не выполнять up по старому Compose: он вернёт прежние image/flags.
+
+В выделенном QA BUSINESS проверены создание/одобрение/reload KNOWLEDGE,
+полный просмотр reviewed ответа, явное разрешение правила и его отзыв,
+ADMIN/VIEWER/revoke, CSRF/stale version, карточка AI и ручная очистка истории.
+32 реальные Edge проверки GREEN. ROLE_ADMIN не заменяет текущий business ADMIN
+для управления AI. Доступ к исходным бизнесам1/2 не выдавался.
+
+Для нового typed active-ticket события подписанный child AMQP ingress дал
+один SENT с Telegram ID10455; пользователь подтвердил ровно одно сообщение.
+Replay до/после restart ops-worker сохранил тот же ID, один receipt и один ответ.
+Canonical root подготовлен для теста; настоящий provider callback/начальная
+анкета здесь не проверены. LLM/вложения не вызывались.
+Три QA-обращения завершены (resolved), AI/auto-reply заблокированы, активных
+правил нет. История, sources и receipts не удалялись автоматически.
+
+Предшествующий UNKNOWN оставлен неизменным, пользователь сообщил об отсутствии
+сообщения. Новая проверка использовала отдельные body/trigger/root/event;
+это не retry UNKNOWN. Причина прежней попытки не подтверждена. Новая диагностика
+пишет только eventId, HTTP status и классы исключений, без содержимого/credentials.
+SENDING/UNKNOWN по-прежнему сверяются вручную; их нельзя переочередять.
+Успех inbox теперь атомарен с доменными записями; known rollback даёт failed,
+а старые ложные processed не переоткрываются. Первый malformed QA wire полностью
+архивирован и адресно ACK из DLQ без purge/replay; все DLQ0, общий health UP.
+
+300 targeted tests/5 suites GREEN (агрегат177 неизменённых cases +123 повторно
+проверенных delivery cases); рабочая БД тестами не использовалась.
+Остаются реальные provider ingress/restore/cross-platform сценарии и общая S6.
+Отдельный LLM допустим только после review полного payload; для согласованного
+дословного автоответа LLM не нужен. Повторять V90/V91 или закрытые UI gates не нужно.
+
+## Исторический выпуск — R315 / V91
 
 Рабочий проект находится на машине текущей сессии. Backend из committed
 R314/e41252b630e65e7d1cf91883dc51b39f7380f6c7 установлен в panel-web/ops-worker,
