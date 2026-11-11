@@ -192,7 +192,7 @@ R290 его не перезапускала и текущий runtime state не
 
 <a id="01-278-s6-acceptance"></a>
 
-### 7.2. 01-278: конечный лист приёмки S6 — R319
+### 7.2. 01-278: конечный лист приёмки S6 — R320
 
 Рабочий экземпляр R319 проверен на машине текущей runtime-сессии. Пометки
 «другая машина» в source checkpoints относятся к их исходным сессиям. Этот лист
@@ -211,6 +211,16 @@ R290 его не перезапускала и текущий runtime state не
 | AI UI/Telegram R316 | 32 Edge checks, один подтверждённый SENT, signed AMQP replay до/после worker restart; не реальный callback/создание root ботом. |
 | Concurrent replay R317 / backend R318 | 15 native PG claims для Telegram/VK/MAX повторно GREEN в342 tests/9 suites; committed63f1fb416/imagea7518faf8c41 установлен на web/worker, V91/flags/children сохранены. Не реальный provider callback. |
 | Intake/исправление старта R319 | BUSINESS4/GENERAL выбор Telegram1, GENERAL MAX2/Telegram3 настроены. Реальный /start дошёл до polling и выявил403 token-only channel lookup. Клиент исправлен,690 bot tests/16 suites GREEN, bot-runner обновлён. Новый клиент с тремя действующими child окружениями проходит own-channel API; шесть unscoped/foreign запросов403. Пользователь подтвердил появление меню после исправления; полный provider сценарий ещё не принят. |
+
+R320 дополнительно принял HUMAN BUSINESS ветку Telegram1: настоящий root с
+замороженным template/catalog v4, scoped карточка и скачивание исходных154 bytes/
+SHA256, exact replay двух подписанных wire без новых root/history/media/outbound.
+После отдельного502 зеркала только канал1 переведён на официальный API/direct;
+Redis questionnaire сохранился при нормальном restart child1. Отдельный DIRECT
+panel reply ID10469 подтверждён получателем. Исходная попытка502 не повторялась.
+Подготовлен QA reviewed exact AI trigger S6-AI-795118ad86c3; его входящий текст/
+SENT/replay ещё ожидаются, правило пока активно. GENERAL/VK/MAX и общие gates
+этим результатом не закрываются. Доказательства — Runtime R320 карточки01-278.
 
 Открыты пять runtime gates. Для каждого сохранить PASS/FAIL, дату, фактические
 revision/image/Compose/flags, платформу/канал, full ticket owner/public/business
@@ -246,6 +256,11 @@ rollback-r319-panel-web/ops-worker-20261111. Фактические runner-only 
 Compose и запустить children. Использованные QA templates/tickets/audits/receipts
 сохранить. Старый Compose без согласованного возврата bindings неприменим.
 Полный flags rollback пока не разыгран. Все пять gates выше остаются открытыми.
+R320 не менял Compose/images/flags/schema. Независимый возврат маршрута только
+Telegram1 — PATCH исходных platform_config/delivery_settings из защищённого
+private/direct-route-rollback.json и normal restart child1 после drain;
+остальные каналы не менять. Отмена QA AI допуска — revoke одного owned rule и
+блокировка AI control текущего root, с сохранением sources/history/receipts.
 Исходные release/rollback pointers сохранены. Этот лист
 сам не запускает rollout/replay/send/restart и не даёт разрешения на чужих получателей.
 

@@ -1,4 +1,26 @@
-# Границы данных AI — R319
+# Границы данных AI — R320
+
+## Текущая реальная Telegram приёмка — R320
+
+Настоящий BUSINESS4 root получен через вопросник Telegram1. Scoped скачивание
+проверило все154 bytes и SHA256 тестового файла; exact replay двух исходных
+подписанных wire не изменил root/history/media/inbox и не создал outbound.
+Отдельный ответ DIRECT из panel reply API получил ID10469 и подтверждён получателем.
+Первый502 прежнего mirror не повторялся, неопределённый исход сохранён в ledger.
+Только канал1 переведён на официальный Telegram API/direct; после normal restart
+child1 сохранённый Redis вопросник побайтно прежний. Каналы2/3 не менялись.
+
+В бизнесе4 подготовлены безопасный QA KNOWLEDGE, явное одобрение revision2 и
+одно точное reviewed правило S6-AI-795118ad86c3; AI control настоящего root включён.
+Новый входящий текст/AI SENT/replay ещё ожидаются: не объявлять их PASS по наличию
+правила или по прежнему R316 SENT. QA rule пока активен; после теста отозвать его
+и заблокировать AI root через актуальные формы, сохранив материалы/audit/receipts.
+Root после штатного auto_close возобновлён панелью; общий таймер не менялся.
+LLM и передача вложений в модель не используются, хранение — до ручного удаления.
+
+Runtime code совпадает с committed568df16a2 после EOL normalization;
+images/Compose/flags/V91 прежние, rebuild/migration/backfill не требовались.
+Точный checkpoint и route rollback — Runtime R320 карточки01-278.
 
 ## Текущий intake — R319 / V91
 

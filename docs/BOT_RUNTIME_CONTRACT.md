@@ -3,7 +3,27 @@
 Документ фиксирует текущий runtime contract между `spring-panel` и `java-bot`
 после `Phase 5` рефакторинга.
 
-## Runtime R319 — 2026-11-11: canonical channel при первом запросе
+## Runtime R320 — 2026-11-11: настоящий Telegram BUSINESS и точный replay
+
+Пользовательский выбор BUSINESS4 создал canonical root с questionnaire v4 и
+замороженными template/catalog fingerprints. Вложение получено follow-up событием;
+scoped скачивание из настоящей панели совпало со всеми154 bytes/SHA256 исходника.
+Повтор создания root и media event с исходными bytes/AMQP properties/child identity
+оставил прежние root/history/file/inbox без нового outbound; wire независимо
+перехвачен copy observer и сверён. Это подтверждённая HUMAN BUSINESS ветка Telegram,
+не общая provider/AI/GENERAL/VK/MAX или in-flight launcher приёмка.
+
+Прежний Bot API mirror давал502. Только канал1 переключён через panel API на
+platform_config.base_url=https://api.telegram.org и network_route.mode=direct.
+Child1 нормально перезапущен; остальные children/containers/images/flags/V91 прежние.
+Сохранённый вопросник Redis после restart побайтно прежний. Отдельный DIRECT
+ответ ID10469 подтверждён получателем; первая502 попытка не повторялась.
+Reviewed QA AI правило подготовлено, новый текст-триггер/AI ответ ещё ожидаются.
+Код R319 зафиксирован пользователем в568df16a2 и совпал с установленным payload
+после CRLF/LF normalization; новой сборки не требовалось.
+Evidence/rollback/активный QA rule — Runtime R320 карточки01-278.
+
+## Исторический Runtime R319 — 2026-11-11: canonical channel при первом запросе
 
 Telegram token-only channel lookup обязан передавать launcher-owned
 app.bot-runtime.channel-id и platform. Отрицательный support-bot.channel-id
