@@ -340,6 +340,32 @@
           <article class="chart-panel data-panel ops-panel" data-panel-id="category-chart">
             <div class="chart-panel-head">
               <div>
+                <span class="section-kicker">Категории</span>
+                <h3 class="chart-panel-title">Категории обращений</h3>
+                <p class="chart-panel-description">Критичность категории — рядом с названием. Обращение с несколькими категориями учитывается в каждой.</p>
+              </div>
+            </div>
+            <div class="chart-container">
+              <canvas id="categoryChart" role="img" aria-label="Обращения по категориям с флагами критичности P1–P5"></canvas>
+            </div>
+          </article>
+
+          <article class="chart-panel data-panel ops-panel" data-panel-id="priority-chart">
+            <div class="chart-panel-head">
+              <div>
+                <span class="section-kicker">Критичность</span>
+                <h3 class="chart-panel-title">Обращения по критичности</h3>
+                <p class="chart-panel-description">P1 — наивысшая, P5 — минимальная. Каждое обращение учитывается один раз по самой высокой критичности его категорий. Без назначенного флага — «Без критичности».</p>
+              </div>
+            </div>
+            <div class="chart-container">
+              <canvas id="priorityChart" role="img" aria-label="Количество обращений по критичности от P1 до P5 и без критичности"></canvas>
+            </div>
+          </article>
+
+          <article class="chart-panel data-panel ops-panel" data-panel-id="direction-chart">
+            <div class="chart-panel-head">
+              <div>
                 <span class="section-kicker">Направления</span>
                 <div class="panel-title-row">
                   <h3 class="chart-panel-title">Направления обращений</h3>
@@ -351,7 +377,7 @@
               </div>
             </div>
             <div class="chart-container">
-              <canvas id="categoryChart"></canvas>
+              <canvas id="directionChart"></canvas>
             </div>
           </article>
 
@@ -794,7 +820,9 @@
                 callback: function(value) {
                   const label = this.getLabelForValue(value);
                   const limit = this.chart.width < 520 ? 12 : 32;
-                  return label.length > limit ? label.slice(0, limit - 1) + '…' : label;
+                  const priority = label.match(/ · P[1-5]$/)?.[0] || '';
+                  const suffix = '…' + priority;
+                  return label.length > limit ? label.slice(0, limit - suffix.length) + suffix : label;
                 }
               }
             }
@@ -2264,6 +2292,14 @@ function updateStaffTimeStats(staffStats) {
 
         // Столбчатые диаграммы
         updateChart('categoryChart', 'bar', chartData.category, getChartPalette('default'), true, {
+          horizontal: true,
+          maxBars: 7
+        });
+        updateChart('priorityChart', 'bar', chartData.priority, getChartPalette('warm'), true, {
+          horizontal: true,
+          maxBars: 6
+        });
+        updateChart('directionChart', 'bar', chartData.direction, getChartPalette('default'), true, {
           horizontal: true,
           maxBars: 7
         });

@@ -137,7 +137,11 @@
       }
       if (summaryEl) {
         const categories = Array.from(card.querySelectorAll('.category-item-input'))
-          .map((input) => (input.value || '').trim())
+          .map((input) => {
+            const name = (input.value || '').trim();
+            const priority = input.closest('.input-group')?.querySelector('.category-item-priority')?.value;
+            return name && priority ? `${name} · ${priority}` : name;
+          })
           .filter((value) => value);
         if (!categories.length) {
           summaryEl.textContent = 'Нет категорий. Добавьте элементы в шаблон.';
@@ -311,7 +315,7 @@
       const itemsContainer = card.querySelector('[data-category-items]');
       if (itemsContainer) {
         if (categories.length) {
-          categories.forEach((category) => addCategoryRow(itemsContainer, category));
+          categories.forEach((category) => addCategoryRow(itemsContainer, category, data.category_priorities?.[category] || ''));
         } else {
           addCategoryRow(itemsContainer);
         }
@@ -322,7 +326,7 @@
       return card;
     }
 
-    function addCategoryRow(source, value = '') {
+    function addCategoryRow(source, value = '', priority = 'P3') {
       let container = null;
       if (source instanceof HTMLElement && source.matches('[data-category-items]')) {
         container = source;
@@ -334,8 +338,16 @@
       const row = document.createElement('div');
       row.className = 'input-group input-group-sm';
       row.innerHTML = `
-        <input type="text" class="form-control category-item-input" placeholder="Категория">
-        <button class="btn btn-outline-danger" type="button" data-category-row-remove>✕</button>
+        <input type="text" class="form-control category-item-input" placeholder="Категория" aria-label="Название категории">
+        <select class="form-select category-item-priority flex-grow-0 w-auto" aria-label="Критичность категории">
+          <option value="">Без флага</option>
+          <option value="P1">P1</option>
+          <option value="P2">P2</option>
+          <option value="P3">P3</option>
+          <option value="P4">P4</option>
+          <option value="P5">P5</option>
+        </select>
+        <button class="btn btn-outline-danger" type="button" data-category-row-remove aria-label="Удалить категорию">✕</button>
       `;
       container.appendChild(row);
       const input = row.querySelector('input');
@@ -343,6 +355,9 @@
         input.value = value || '';
         input.addEventListener('input', () => updateCategoryTemplateSummary(container.closest('[data-category-template]')));
       }
+      const prioritySelect = row.querySelector('.category-item-priority');
+      prioritySelect.value = /^P[1-5]$/.test(priority) ? priority : '';
+      prioritySelect.addEventListener('change', () => updateCategoryTemplateSummary(container.closest('[data-category-template]')));
       updateCategoryTemplateSummary(container.closest('[data-category-template]'));
     }
 
@@ -1066,10 +1081,17 @@
           const categories = Array.from(card.querySelectorAll('.category-item-input'))
             .map((input) => (input.value || '').trim())
             .filter((value) => value);
+          const categoryPriorities = Object.create(null);
+          card.querySelectorAll('.category-item-input').forEach((input) => {
+            const name = (input.value || '').trim();
+            const priority = input.closest('.input-group')?.querySelector('.category-item-priority')?.value;
+            if (name && /^P[1-5]$/.test(priority)) categoryPriorities[name] = priority;
+          });
           return {
             id: templateId,
             name: name || `Шаблон категорий ${index + 1}`,
             categories,
+            category_priorities: categoryPriorities,
           };
         })
         .filter(Boolean);

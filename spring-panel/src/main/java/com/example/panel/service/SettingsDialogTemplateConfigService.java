@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import com.example.panel.model.dialog.DialogCategoryPriorities;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -23,7 +24,7 @@ public class SettingsDialogTemplateConfigService {
                               Authentication authentication,
                               List<String> updateWarnings) {
         if (payload.containsKey("dialog_category_templates")) {
-            dialogConfig.put("category_templates", payload.get("dialog_category_templates"));
+            dialogConfig.put("category_templates", DialogCategoryPriorities.normalizeTemplates(payload.get("dialog_category_templates")));
         }
         if (payload.containsKey("dialog_question_templates")) {
             logger.warn("Persisting legacy operator workspace question templates via dialog_config.question_templates; bot runtime continues to use bot_settings.question_templates as canonical bot contract");

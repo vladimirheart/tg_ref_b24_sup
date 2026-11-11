@@ -1,6 +1,8 @@
 package com.example.panel.service;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.security.core.Authentication;
 
 import java.util.ArrayList;
@@ -9,12 +11,60 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class SettingsDialogTemplateConfigServiceTest {
+
+    private final SettingsDialogTemplateConfigService service =
+            new SettingsDialogTemplateConfigService(mock(SettingsMacroTemplateService.class));
+
+    @Test
+    void savesPriorityMetadataWithoutChangingCategoryNamesOrOtherTemplateFields() {
+        Map<String, Object> template = Map.of("id", "cat-1", "name", "Поддержка",
+                "categories", List.of("Касса", "Сеть", "Старая категория"),
+                "category_priorities", Map.of("Касса", " p1 ", "Сеть", "P5", "Удалённая", "P2"));
+        Map<String, Object> config = new LinkedHashMap<>();
+
+        service.applySettings(Map.of("dialog_category_templates", List.of(template)), config, null, new ArrayList<>());
+
+        assertEquals(List.of(Map.of("id", "cat-1", "name", "Поддержка",
+                "categories", List.of("Касса", "Сеть", "Старая категория"),
+                "category_priorities", Map.of("Касса", "P1", "Сеть", "P5"))), config.get("category_templates"));
+        // The request must stay intact, including metadata of a removed category.
+        assertEquals(" p1 ", ((Map<?, ?>) template.get("category_priorities")).get("Касса"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"P0", "P6", "urgent"})
+    void rejectsInvalidPriorityBeforeUpdatingConfig(String priority) {
+        Map<String, Object> config = new LinkedHashMap<>();
+        var payload = Map.<String, Object>of("dialog_category_templates", List.of(Map.of(
+                "categories", List.of("Касса"), "category_priorities", Map.of("Касса", priority))));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.applySettings(payload, config, null, new ArrayList<>()));
+        assertEquals(Map.of(), config);
+    }
+
+    @Test
+    void rejectsConflictingPriorityForTheSameCategoryAcrossTemplates() {
+        var payload = Map.<String, Object>of("dialog_category_templates", List.of(
+                Map.of("categories", List.of("Касса"), "category_priorities", Map.of("Касса", "P1")),
+                Map.of("categories", List.of("касса"), "category_priorities", Map.of("касса", "P3"))));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.applySettings(payload, new LinkedHashMap<>(), null, new ArrayList<>()));
+    }
+
+    @Test
+    void stillAcceptsLegacyTemplatesWithoutPriorities() {
+        var templates = List.of(Map.of("id", "cat-legacy", "categories", List.of("Касса")));
+        Map<String, Object> config = new LinkedHashMap<>();
+        service.applySettings(Map.of("dialog_category_templates", templates), config, null, new ArrayList<>());
+        assertEquals(templates, config.get("category_templates"));
+    }
 
     @Test
     void applySettingsUsesMacroNormalizationResultAndCopiesTemplateGovernanceKeys() {

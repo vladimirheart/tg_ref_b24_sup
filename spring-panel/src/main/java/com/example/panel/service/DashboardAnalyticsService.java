@@ -1,6 +1,7 @@
 package com.example.panel.service;
 
 import com.example.panel.entity.Channel;
+import com.example.panel.model.dialog.DialogCategoryPriorities;
 import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.repository.ChannelRepository;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -358,19 +359,8 @@ public class DashboardAnalyticsService {
         Map<String, Long> byNetwork = aggregate(dialogs, dialog -> resolvePartnerType(dialog, locationCatalog));
         Map<String, Long> byDirection = loadStructuredAttributeChart(dialogs, "direction");
         Map<String, Long> byBotProduct = loadStructuredAttributeChart(dialogs, "bot_product");
-        Map<String, Long> byCategory = aggregate(dialogs, dialog -> {
-            String categories = dialog.categoriesSafe();
-            if (!StringUtils.hasText(categories) || "—".equals(categories)) {
-                return "Без категории";
-            }
-            if (categories.contains(",")) {
-                return categories.split(",")[0].trim();
-            }
-            return categories;
-        });
-        if (!byDirection.isEmpty()) {
-            byCategory = byDirection;
-        }
+        DashboardCategoryAnalytics.Result categoryStats = DashboardCategoryAnalytics.build(
+                dialogs, DialogCategoryPriorities.fromSettings(sharedConfigService.loadSettings()));
         Map<String, Long> byCity = aggregate(dialogs, dialog -> {
             String city = dialog.city();
             return StringUtils.hasText(city) ? city : "Без города";
@@ -380,7 +370,8 @@ public class DashboardAnalyticsService {
             return StringUtils.hasText(location) ? location : "Без ресторана";
         });
 
-        return new ChartsBlock(byChannel, byBusiness, byNetwork, byCategory, byBotProduct, byCity, topTen(byRestaurant));
+        return new ChartsBlock(byChannel, byBusiness, byNetwork, categoryStats.categories(),
+                categoryStats.priorities(), byDirection, byBotProduct, byCity, topTen(byRestaurant));
     }
 
     private Map<String, Long> loadStructuredAttributeChart(List<DialogListItem> dialogs, String attributeKey) {
@@ -840,6 +831,8 @@ public class DashboardAnalyticsService {
                                Map<String, Long> business,
                                Map<String, Long> network,
                                Map<String, Long> category,
+                               Map<String, Long> priority,
+                               Map<String, Long> direction,
                                Map<String, Long> botProduct,
                                Map<String, Long> city,
                                Map<String, Long> restaurant) {
@@ -849,6 +842,8 @@ public class DashboardAnalyticsService {
             map.put("business", business);
             map.put("network", network);
             map.put("category", category);
+            map.put("priority", priority);
+            map.put("direction", direction);
             map.put("bot_product", botProduct);
             map.put("city", city);
             map.put("restaurant", restaurant);
