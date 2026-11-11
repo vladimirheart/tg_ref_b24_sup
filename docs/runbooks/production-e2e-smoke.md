@@ -192,9 +192,10 @@ R290 его не перезапускала и текущий runtime state не
 
 <a id="01-278-s6-acceptance"></a>
 
-### 7.2. 01-278: конечный лист приёмки S6 — R317
+### 7.2. 01-278: конечный лист приёмки S6 — R319
 
-Рабочий экземпляр — на другой машине/в другой runtime-сессии. Этот лист
+Рабочий экземпляр R319 проверен на машине текущей runtime-сессии. Пометки
+«другая машина» в source checkpoints относятся к их исходным сессиям. Этот лист
 объединяет оставшиеся проверки; наличие source кода или старого пункта backlog
 не требует нового refactor. Дальнейшие исправления привязаны к конкретному FAIL.
 Задача остаётся 🟡 до общей приёмки пользователем.
@@ -209,6 +210,7 @@ R290 его не перезапускала и текущий runtime state не
 | Backup/schema/backend R315 | Отдельный restore V89→V91 и fingerprints157 таблиц, выпуск R311–R314; не рабочий DB restore/downgrade. |
 | AI UI/Telegram R316 | 32 Edge checks, один подтверждённый SENT, signed AMQP replay до/после worker restart; не реальный callback/создание root ботом. |
 | Concurrent replay R317 / backend R318 | 15 native PG claims для Telegram/VK/MAX повторно GREEN в342 tests/9 suites; committed63f1fb416/imagea7518faf8c41 установлен на web/worker, V91/flags/children сохранены. Не реальный provider callback. |
+| Intake/исправление старта R319 | BUSINESS4/GENERAL выбор Telegram1, GENERAL MAX2/Telegram3 настроены. Реальный /start дошёл до polling и выявил403 token-only channel lookup. Клиент исправлен,690 bot tests/16 suites GREEN, bot-runner обновлён. Новый клиент с тремя действующими child окружениями проходит own-channel API; шесть unscoped/foreign запросов403. Пользователь подтвердил появление меню после исправления; полный provider сценарий ещё не принят. |
 
 Открыты пять runtime gates. Для каждого сохранить PASS/FAIL, дату, фактические
 revision/image/Compose/flags, платформу/канал, full ticket owner/public/business
@@ -225,11 +227,26 @@ identity, event ID и путь к evidence вне Git. Непроведённы�
 
 R317 установлен R318 вместе с отдельной критичностью категорий P1–P5:
 342 Java/9 suites, Edge320/1440 и18 рабочих checks GREEN, health/readiness UP/DLQ0.
-Новые migration/child JAR/provisioning и включение flags не требовались.
-Текущий Compose — releases/r318-backend-update-20261111/private/compose.final.json
-под ../iguana-runtime/tg_ref_b24_sup; он сверен с реально действующим.
-Rollback R318 tags сохраняют imagec05e3e159639/прежний Compose; наличие tag
-не означает разыгранный откат. Исходные release/rollback pointers сохранены. Этот лист
+В самом R318 новые migration/child JAR/provisioning и включение flags не требовались.
+R319 сохранил backend/V91 и включил ticket-write-requires-business,
+shared-channel-resolution, general-channel-resolution, general-ticket-queue.
+Foundation/ui-selector ON; strict-read/manual creation OFF. Добавлены только
+QA бизнес/три templates/bindings, старые roots не перераспределены.
+После реального FAIL исправлен и обновлён только bot-runner:
+imagedaafdaadb69e, baseline7493c908e +непроиндексированный client fix.
+Текущий Compose — releases/r319-s6-telegram-20261111/private/compose.channel-fix.json
+под ../iguana-runtime/tg_ref_b24_sup. Rollback runner image29f36986a0db сохранён
+tag rollback-r319-bot-runner-20261111; backend imagea7518faf8c41 — двумя tags
+rollback-r319-panel-web/ops-worker-20261111. Фактические runner-only защитные
+возвраты прежнего образа не доказывают полный S6-ROLLOUT и in-flight restart.
+
+Для возврата intake в drained окне остановить children, через admin API выключить
+новые shared-general1/channel1-business4/business4-template и GENERAL2/3 bindings,
+вернуть MAX2 template tpl_mpnp8g3k1qcg, затем восстановить прежние backend flags/
+Compose и запустить children. Использованные QA templates/tickets/audits/receipts
+сохранить. Старый Compose без согласованного возврата bindings неприменим.
+Полный flags rollback пока не разыгран. Все пять gates выше остаются открытыми.
+Исходные release/rollback pointers сохранены. Этот лист
 сам не запускает rollout/replay/send/restart и не даёт разрешения на чужих получателей.
 
 Выбранный exact-rule auto-reply не использует LLM; разработка LLM/full-payload

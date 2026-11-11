@@ -1,6 +1,30 @@
-# Границы данных AI — R318
+# Границы данных AI — R319
 
-## Текущий рабочий выпуск — R318 / V91
+## Текущий intake — R319 / V91
+
+Backend R318/imagea7518faf8c41 сохранён. Intake BUSINESS/GENERAL включён для
+проверки настоящего входящего сценария: Telegram1 — QA BUSINESS4 либо «Без бизнеса»;
+MAX2/Telegram3 — GENERAL. Foundation/ui-selector ON; четыре intake flags ON;
+strict-read-scope/manual-ticket-creation OFF. Права AI, правила допуска ответа
+и хранение до ручного удаления сохранены; новых approvals/rules/LLM вызовов нет.
+
+Исправлен реальный403 определения канала до /start: клиент передаёт canonical
+launcher channel ID, серверная изоляция сохранена. Только bot-runner обновлён
+на imagedaafdaadb69e, baseline7493c908e +непроиндексированный fix; три bot JAR
+пересобраны,690 tests/16 suites GREEN. Приёмка создания настоящего BUSINESS/
+GENERAL root и AI ответа из такого диалога остаётся открытой. Старый SENT R316
+не подменяет её. UNKNOWN/SENDING не переочередялись.
+
+Текущий Compose:
+../iguana-runtime/tg_ref_b24_sup/releases/r319-s6-telegram-20261111/private/compose.channel-fix.json.
+Runner rollback-r319-bot-runner-20261111 сохраняет image29f36986a0db;
+backend rollback-r319-panel-web/ops-worker-20261111 — imagea7518faf8c41.
+Возврат intake требует согласованно отключить новые bindings, восстановить
+template MAX2 и прежние flags в drained окне: одного старого Compose недостаточно.
+Не удалять использованные QA templates/history/receipts, не повторять UNKNOWN.
+Точный порядок и evidence — Runtime R319/конечный лист S6 в карточке01-278.
+
+## Исторический рабочий выпуск — R318 / V91
 
 На рабочей машине текущей runtime-сессии web/worker обновлены из committed
 63f1fb416e9af73fa80a2a78a808924795bf0188, imagea7518faf8c41. Установлены CAS

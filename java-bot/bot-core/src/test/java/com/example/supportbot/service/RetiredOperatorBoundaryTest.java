@@ -17,7 +17,7 @@ class RetiredOperatorBoundaryTest {
         server.createContext("/",exchange->{calls.incrementAndGet();exchange.sendResponseHeaders(500,-1);exchange.close();});server.start();
         try {
             var properties=new IntegrationPanelApiProperties();properties.setToken("r295-fake");properties.setBaseUrl("http://127.0.0.1:"+server.getAddress().getPort());
-            var client=new PanelChannelClient(properties,new ObjectMapper(),new PanelApiRequestHeadersFactory(properties));
+            var client=new PanelChannelClient(properties,new ObjectMapper(),new PanelApiRequestHeadersFactory(properties),new BotRuntimeSenderIdentity(22,"telegram"));
             assertThat(client.updateSupportChatId(22L,"-100222")).isEmpty();assertThat(calls.get()).isZero();
         } finally { server.stop(0); }
     }

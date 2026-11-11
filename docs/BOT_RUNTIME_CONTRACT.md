@@ -3,7 +3,31 @@
 Документ фиксирует текущий runtime contract между `spring-panel` и `java-bot`
 после `Phase 5` рефакторинга.
 
-## Runtime R318 — 2026-11-11: R317 и критичность категорий выпущены
+## Runtime R319 — 2026-11-11: canonical channel при первом запросе
+
+Telegram token-only channel lookup обязан передавать launcher-owned
+app.bot-runtime.channel-id и platform. Отрицательный support-bot.channel-id
+служебного чата не является canonical channel ID. PanelChannelClient берёт
+identity из BotRuntimeSenderIdentity; явный чужой ID не заменяет своим,
+а отклоняет до HTTP. Сервер продолжает запрещать unscoped/foreign lookup;
+нет fallback к старому поиску по токену или ослабления ChildBotRequestScopeService.
+Это исправляет реальный403 на /start до входа в вопросник и действует также
+для VK/MAX. Проверены HMAC тела, ID больше JS safe integer и запреты границы.
+
+690 bot tests/16 suites GREEN; три bot JAR пересобраны, bot-runner обновлён
+с image29f36986a0db наdaafdaadb69e (baseline7493c908e +непроиндексированный fix).
+Его launcher/backend R295, ENV/mounts/resources и1 replica сохранены.
+Web/worker R318/V91 остаются прежними. Три действующих child окружения проходят
+реальный новый клиент; unscoped/foreign HTTP403 сохраняется. Пользователь подтвердил
+меню Telegram /start после исправления; полный provider сценарий ещё требует приёмки.
+
+Intake R319: Telegram1 — BUSINESS4/«Без бизнеса», MAX2 и Telegram3 — GENERAL;
+четыре intake flags включены на backend, strict-read/manual creation выключены.
+Текущий Compose/rollback/evidence — Runtime R319 в
+[карточке01-278](../ai-context/tasks/task-details/01-278.md).
+Обычный restart после drain не закрывает in-flight gate §7.1 smoke runbook.
+
+## Исторический Runtime R318 — 2026-11-11: R317 и критичность категорий выпущены
 
 Рабочие panel-web/ops-worker обновлены из committed63f1fb416, imagea7518faf8c41,
 по1 replica/healthy/restart0. CAS захвата inbox R317 установлен вместе с отдельным

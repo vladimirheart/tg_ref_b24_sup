@@ -47,15 +47,17 @@ R306 добавляет один main class; изменённые sources ско
 baseline proof сохранены в .tmp/r306-*. Ранние собственные RED исправлены
 в test fixtures (bean name/duplicate bean/normalizer mock), product asserts сохранены.
 
-## Текущий runtime R318 и историческая приёмка R309
+## Текущий runtime R319 и историческая приёмка R309
 
 Текущие web/worker — imagea7518faf8c41 из committed63f1fb416,
 схема V91 прежняя. Модель общего доступа/settings/principals сохранена;
-foundation/ui-selector включены только для controlled AI activation, manual
-creation выключен.32 Edge AI gates R316 (включая incidents/inbox200) сохраняются
+foundation/ui-selector и BUSINESS/GENERAL intake включены; strict-read-scope/manual
+creation выключены. R319 обновил только bot-runner для canonical channel lookup
+/start (imagedaafdaadb69e, baseline7493c908e +непроиндексированный fix).
+32 Edge AI gates R316 (включая incidents/inbox200) сохраняются
 как исторический proof; R318 проверил текущие dashboard/settings без изменения
 этой модели доступа.
-Актуальные Compose/rollback/evidence — Runtime R318 в карточке01-278.
+Актуальные Compose/rollback/evidence — Runtime R319 в карточке01-278.
 Ниже сохранена более широкая функциональная приёмка common доступа R309;
 весь её браузерный набор R318 повторно не запускал.
 

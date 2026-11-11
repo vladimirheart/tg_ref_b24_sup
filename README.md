@@ -17,8 +17,15 @@ Iguana - многоканальная support CRM и операторская п
 P1–P5 с настройкой шаблонов и диаграммами дашборда.
 AI UI включён; в R316 один Telegram автоответ подтверждён получателем, replay/restart
 worker не создал дубля. QA rules отозваны, тестовые обращения завершены/AI заблокирован.
-342 targeted Java tests/9 suites и18 рабочих browser checks GREEN, схема V91
-прежняя, health/readiness UP. Настройки/flags и боты R295 сохранены.
+342 targeted Java tests/9 suites и18 рабочих browser checks R318 — GREEN.
+В R319 включён intake BUSINESS/GENERAL: Telegram1 предлагает QA бизнес и
+«Без бизнеса»; MAX2 и Telegram3 направляют новые обращения «Без бизнеса».
+Исправлен отказ /start: клиент определения канала передаёт ID из launcher identity,
+не ослабляя серверную изоляцию. 690 bot tests/16 suites GREEN; три bot JAR
+пересобраны, обновлён только bot-runner (imagedaafdaadb69e, baseline7493c908e
++непроиндексированное исправление). Backend R318 и схема V91 сохранены.
+Полная provider-приёмка ещё открыта; текущие настройки/rollback — Runtime R319
+в карточке задачи.
 Общие инциденты и доставка проверены через реальные сессии.
 Текущие Compose/rollback, границы хранения и оставшаяся приёмка:
 [AI boundaries](docs/runbooks/ai-data-boundaries.md).

@@ -10,8 +10,11 @@ background producer. Общая задача01-278 остаётся🟡.
 
 Текущий backend — R318: web/worker imagea7518faf8c41 из committed63f1fb416,
 схема V91 прежняя. AI foundation/ui-selector включены;
-manual creation выключен. Health/readiness UP.
-Актуальный Compose: ../iguana-runtime/tg_ref_b24_sup/releases/r318-backend-update-20261111/private/compose.final.json.
+manual creation выключен. R319 включил intake BUSINESS/GENERAL;
+strict-read-scope остаётся OFF. Модель shared work не менялась.
+Только bot-runner обновлён исправлением canonical channel lookup /start,
+imagedaafdaadb69e (baseline7493c908e +непроиндексированный fix).
+Актуальный Compose: ../iguana-runtime/tg_ref_b24_sup/releases/r319-s6-telegram-20261111/private/compose.channel-fix.json.
 R305 ниже — историческая приёмка самого shared-work контура; R318 сохраняет её
 модель. Не возвращать старые images из прежнего Compose при последующих up.
 

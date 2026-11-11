@@ -25,14 +25,17 @@ public class PanelChannelClient {
     private final IntegrationPanelApiProperties properties;
     private final ObjectMapper objectMapper;
     private final PanelApiRequestHeadersFactory requestHeadersFactory;
+    private final BotRuntimeSenderIdentity runtimeIdentity;
     private final HttpClient httpClient;
 
     public PanelChannelClient(IntegrationPanelApiProperties properties,
                               ObjectMapper objectMapper,
-                              PanelApiRequestHeadersFactory requestHeadersFactory) {
+                              PanelApiRequestHeadersFactory requestHeadersFactory,
+                              BotRuntimeSenderIdentity runtimeIdentity) {
         this.properties = properties;
         this.objectMapper = objectMapper;
         this.requestHeadersFactory = requestHeadersFactory;
+        this.runtimeIdentity = runtimeIdentity;
         this.httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
@@ -56,11 +59,17 @@ public class PanelChannelClient {
         if (!isEnabled()) {
             return Optional.empty();
         }
+        // Token-only callers still have a launcher-owned channel identity. Never send
+        // an unscoped lookup or replace an explicitly requested foreign channel.
+        OutboundSenderIdentity identity = runtimeIdentity.forToken(platform, token);
+        if (identity == null || channelId != null && !identity.channelId().equals(channelId)) {
+            return Optional.empty();
+        }
         return send(
             "/internal/api/bot/channels/resolve",
             "POST",
-            new ChannelResolveRequest(channelId, token, channelName, platform)
-        );
+            new ChannelResolveRequest(identity.channelId(), token, channelName, platform)
+        ).filter(channel -> identity.matches(channel, platform));
     }
 
     public Optional<Channel> updateSupportChatId(Long channelId, String supportChatId) {
