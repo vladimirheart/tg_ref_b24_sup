@@ -37,6 +37,8 @@
 
   if (!stateEl) return;
 
+  const canViewDialogs = document.body?.dataset?.canViewDialogs === 'true';
+
   const AUTO_REFRESH_MS = 20000;
   const filters = { eventType: '', actor: '' };
   const memoryFilters = { query: '' };
@@ -313,7 +315,7 @@
         <td>${ticketLabel}</td>
         <td class="text-end">
           <div class="btn-group btn-group-sm" role="group">
-            <button class="btn btn-outline-primary" type="button" data-ai-review-open ${ticketId ? '' : 'disabled'}>Открыть</button>
+            <button class="btn btn-outline-primary" type="button" data-ai-review-open ${ticketId && canViewDialogs ? '' : 'disabled'}>Открыть</button>
             <button class="btn btn-primary" type="button" data-ai-review-approve>Принять</button>
             <button class="btn btn-outline-secondary" type="button" data-ai-review-reject>Отклонить</button>
           </div>
@@ -895,7 +897,7 @@
       const queryKey = String(row.getAttribute('data-ai-review-key') || '').trim();
       const ticketId = exactLegacyTicketId(row.getAttribute('data-ai-review-ticket'));
       const openBtn = event.target.closest('[data-ai-review-open]');
-      if (openBtn && ticketId) {
+      if (openBtn && ticketId && canViewDialogs) {
         window.location.href = `/dialogs?ticketId=${encodeURIComponent(ticketId)}`;
         return;
       }

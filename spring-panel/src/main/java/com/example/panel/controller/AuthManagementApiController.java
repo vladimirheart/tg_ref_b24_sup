@@ -39,19 +39,6 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api")
 public class AuthManagementApiController {
 
-    private static final List<Map<String, String>> AVAILABLE_PAGE_PERMISSIONS = List.of(
-        Map.of("key", "dialogs", "label", "Диалоги"),
-        Map.of("key", "tasks", "label", "Задачи"),
-        Map.of("key", "clients", "label", "Клиенты"),
-        Map.of("key", "object_passports", "label", "Паспорта объектов"),
-        Map.of("key", "knowledge_base", "label", "База знаний"),
-        Map.of("key", "dashboard", "label", "Отчёты"),
-        Map.of("key", "analytics", "label", "Аналитика"),
-        Map.of("key", "channels", "label", "Каналы"),
-        Map.of("key", "settings", "label", "Настройки"),
-        Map.of("key", "user_management", "label", "Пользователи и роли")
-    );
-
     private static final List<Map<String, String>> EDITABLE_FIELD_PERMISSIONS = List.of(
         Map.of("key", "user.create", "label", "Создание пользователя"),
         Map.of("key", "user.username", "label", "Изменение логина пользователя"),
@@ -104,7 +91,10 @@ public class AuthManagementApiController {
                 editableFields.add(Map.of("key", "settings." + key, "label", "Изменение настроек: " + label)));
 
         Map<String, Object> catalog = Map.of(
-            "pages", AVAILABLE_PAGE_PERMISSIONS,
+            "pages", com.example.panel.security.PanelAccessPolicy.PAGE_CATALOG.stream()
+                    .map(page -> Map.of("key", page.key(), "label", page.label())).toList(),
+            "legacy_pages", com.example.panel.security.PanelAccessPolicy.LEGACY_PAGES.keySet(),
+            "page_access_note", com.example.panel.security.PanelAccessPolicy.PAGE_ACCESS_NOTE,
             "fields", Map.of("edit", editableFields, "view", VIEWABLE_FIELD_PERMISSIONS)
         );
 

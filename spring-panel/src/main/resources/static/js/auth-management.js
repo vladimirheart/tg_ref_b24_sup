@@ -2873,6 +2873,16 @@
       });
 
       wrapper.appendChild(row);
+      if (groupKey === 'pages') {
+        const legacyPages = new Set(this.state.catalog?.legacy_pages || []);
+        row.dataset.preservedPermissions = JSON.stringify([...selected].filter(key => legacyPages.has(key)));
+        if (this.state.catalog?.page_access_note) {
+          const note = document.createElement('p');
+          note.className = 'form-text mb-0';
+          note.textContent = this.state.catalog.page_access_note;
+          wrapper.appendChild(note);
+        }
+      }
       return wrapper;
     }
 
@@ -3041,7 +3051,7 @@
     }
 
     collectPermissionsFromGroup(group) {
-      const selected = [];
+      const selected = JSON.parse(group.dataset.preservedPermissions || '[]');
       const wildcard = group.querySelector(`input[type="checkbox"][value="${PERMISSION_WILDCARD}"]`);
       if (wildcard && wildcard.checked) {
         return [PERMISSION_WILDCARD];

@@ -15,17 +15,33 @@ import org.springframework.security.core.context.SecurityContextHolder;
 /** Shared vocabulary for role grants, individual overrides, HTTP checks and UI capabilities. */
 public final class PanelAccessPolicy {
     private static final ObjectMapper JSON = new ObjectMapper();
-    public static final Map<String, String> PAGES = Map.ofEntries(
-            Map.entry("dialogs", "PAGE_DIALOGS"), Map.entry("tasks", "PAGE_TASKS"),
-            Map.entry("clients", "PAGE_CLIENTS"), Map.entry("object_passports", "PAGE_OBJECT_PASSPORTS"),
-            Map.entry("knowledge_base", "PAGE_KNOWLEDGE_BASE"), Map.entry("dashboard", "PAGE_DASHBOARD"),
-            Map.entry("analytics", "PAGE_ANALYTICS"), Map.entry("channels", "PAGE_CHANNELS"),
-            Map.entry("settings", "PAGE_SETTINGS"), Map.entry("user_management", "PAGE_USERS"));
+    public record Page(String key, String label, String authority) {}
+    public static final List<Page> PAGE_CATALOG = List.of(
+            new Page("dialogs", "Диалоги", "PAGE_DIALOGS"),
+            new Page("ai_ops", "AI Ops", "PAGE_AI_OPS"),
+            new Page("tasks", "Задачи и проекты", "PAGE_TASKS"),
+            new Page("clients", "Клиенты", "PAGE_CLIENTS"),
+            new Page("object_passports", "Паспорт объектов", "PAGE_OBJECT_PASSPORTS"),
+            new Page("knowledge_base", "База знаний и AI-источники", "PAGE_KNOWLEDGE_BASE"),
+            new Page("dashboard", "Отчёты", "PAGE_DASHBOARD"),
+            new Page("analytics", "Аналитика", "PAGE_ANALYTICS"),
+            new Page("settings", "Настройки", "PAGE_SETTINGS"));
+    public static final Map<String, String> PAGES;
+    // Existing standalone routes remain compatible, but are no longer offered as current pages.
+    public static final Map<String, String> LEGACY_PAGES = Map.of(
+            "channels", "PAGE_CHANNELS", "user_management", "PAGE_USERS");
+    public static final String PAGE_ACCESS_NOTE = "Главная доступна после входа, Инциденты — действующим пользователям панели. "
+            + "Задачи и Проекты используют общее право, как и База знаний и AI-источники. "
+            + "AI-источники отображаются при включённом модуле. Каналы, пользователи и роли находятся в Настройках; "
+            + "права на их изменение выдаются отдельно.";
     public static final Map<String, String> BLOCKS;
     public static final List<String> USER_FIELDS = List.of("user.create", "user.username", "user.password", "user.role",
             "user.delete", "user.block", "role.create", "role.name", "role.description", "role.pages",
             "role.fields.edit", "role.fields.view", "role.delete");
     static {
+        Map<String, String> pages = new LinkedHashMap<>();
+        PAGE_CATALOG.forEach(page -> pages.put(page.key(), page.authority()));
+        PAGES = java.util.Collections.unmodifiableMap(pages);
         Map<String, String> blocks = new LinkedHashMap<>();
         blocks.put("channels", "Каналы и запуск ботов");
         blocks.put("bot_templates", "Шаблоны и параметры ботов");
@@ -58,6 +74,7 @@ public final class PanelAccessPolicy {
 
     public static Set<String> managedAuthorities() {
         Set<String> result = new LinkedHashSet<>(PAGES.values());
+        result.addAll(LEGACY_PAGES.values());
         BLOCKS.keySet().forEach(block -> result.add(editAuthority("settings." + block)));
         USER_FIELDS.forEach(field -> result.add(editAuthority(field)));
         return result;
@@ -77,7 +94,7 @@ public final class PanelAccessPolicy {
         Map<String, Object> permissions = parse(raw);
         Set<String> result = new LinkedHashSet<>();
         if (permissions.get("pages") instanceof List<?> pages) {
-            PAGES.forEach((page, authority) -> { if (pages.contains("*") || pages.contains(page)) result.add(authority); });
+            result.addAll(pageAuthorities(pages));
         }
         if (permissions.get("fields") instanceof Map<?, ?> fields && fields.get("edit") instanceof List<?> edit) {
             BLOCKS.keySet().forEach(block -> {
@@ -86,6 +103,15 @@ public final class PanelAccessPolicy {
             });
             USER_FIELDS.forEach(field -> { if (edit.contains("*") || edit.contains(field)) result.add(editAuthority(field)); });
         }
+        return result;
+    }
+
+    public static Set<String> pageAuthorities(List<?> pages) {
+        Set<String> result = new LinkedHashSet<>();
+        if (pages == null) return result;
+        boolean all = pages.contains("*");
+        PAGES.forEach((page, authority) -> { if (all || pages.contains(page)) result.add(authority); });
+        LEGACY_PAGES.forEach((page, authority) -> { if (all || pages.contains(page)) result.add(authority); });
         return result;
     }
 

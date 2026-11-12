@@ -137,6 +137,18 @@ class SettingsPermissionBoundaryWebMvcTest {
                 .andExpect(status().isForbidden());
     }
 
+    @Test void individualPageRowsUseTheSameCurrentCatalogAsRoles() throws Exception {
+        when(users.queryForList(startsWith("SELECT u.id, u.username"), eq(7L)))
+                .thenReturn(List.of(Map.of("id", 7L, "username", "target", "role_name", "reader",
+                        "permissions", "{\"pages\":[\"ai_ops\"]}")));
+        mvc.perform(get("/api/users/7/permissions").with(user("viewer").authorities(() -> "PAGE_SETTINGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rows[?(@.kind == 'page')].key").value(org.hamcrest.Matchers.contains(
+                        "dialogs", "ai_ops", "tasks", "clients", "object_passports", "knowledge_base", "dashboard", "analytics", "settings")))
+                .andExpect(jsonPath("$.rows[?(@.key == 'ai_ops')].label").value(org.hamcrest.Matchers.contains("AI Ops")))
+                .andExpect(jsonPath("$.rows[?(@.key == 'ai_ops')].inherited").value(org.hamcrest.Matchers.contains(true)));
+    }
+
     @Test void userOverrideCannotGrantAPermissionTheEditorDoesNotHave() throws Exception {
         when(users.queryForList(startsWith("SELECT u.id, u.username"), eq(7L)))
                 .thenReturn(List.of(Map.of("id", 7L, "username", "target", "role_name", "reader", "permissions", "{}")));

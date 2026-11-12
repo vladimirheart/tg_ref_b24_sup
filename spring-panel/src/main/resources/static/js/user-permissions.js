@@ -1,9 +1,6 @@
 (function () {
   'use strict';
   let modal, instance, userId, initial;
-  const pageNames = { dialogs: 'Диалоги', tasks: 'Задачи', clients: 'Клиенты', object_passports: 'Паспорта объектов',
-    knowledge_base: 'База знаний', dashboard: 'Отчёты', analytics: 'Аналитика', channels: 'Каналы', settings: 'Настройки',
-    user_management: 'Пользователи и роли' };
   const actionNames = { 'user.create': 'Создание пользователей', 'user.username': 'Изменение логинов и профилей',
     'user.password': 'Изменение паролей', 'user.role': 'Назначение ролей', 'user.delete': 'Удаление пользователей',
     'user.block': 'Блокировка пользователей', 'role.create': 'Создание ролей', 'role.name': 'Название роли',
@@ -40,7 +37,7 @@
         cell.className = 'fw-semibold pt-3'; cell.textContent = ({ page: 'Просмотр страниц', settings: 'Изменение блоков настроек', action: 'Управление пользователями и ролями' })[group];
       }
       const tr = body.insertRow();
-      const label = row.kind === 'page' ? pageNames[row.key] || row.label : actionNames[row.key] || row.label;
+      const label = row.kind === 'page' ? row.label : actionNames[row.key] || row.label;
       tr.insertCell().textContent = label;
       tr.insertCell().textContent = row.inherited ? 'Разрешено' : 'Запрещено';
       const select = document.createElement('select'); select.className = 'form-select form-select-sm';

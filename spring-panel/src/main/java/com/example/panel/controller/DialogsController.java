@@ -53,7 +53,7 @@ public class DialogsController {
     }
 
     @GetMapping("/ai-ops")
-    @PreAuthorize("hasAuthority('PAGE_DIALOGS')")
+    @PreAuthorize("hasAuthority('PAGE_AI_OPS')")
     public String aiOps(Authentication authentication, Model model) {
         String operatorIdentity = authentication != null ? authentication.getName() : "anonymous";
         navigationService.enrich(model, authentication);

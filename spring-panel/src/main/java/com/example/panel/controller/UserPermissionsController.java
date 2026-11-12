@@ -38,7 +38,8 @@ public class UserPermissionsController {
         Set<String> direct = direct(userId);
         Set<String> effective = PanelAccessPolicy.effective(inherited, direct);
         List<Map<String, Object>> rows = new ArrayList<>();
-        PanelAccessPolicy.PAGES.forEach((key, authority) -> rows.add(row("page", key, key, authority, inherited, direct, effective)));
+        PanelAccessPolicy.PAGE_CATALOG.forEach(page -> rows.add(row("page", page.key(), page.label(),
+                page.authority(), inherited, direct, effective)));
         PanelAccessPolicy.BLOCKS.forEach((key, label) -> rows.add(row("settings", key, label,
                 PanelAccessPolicy.editAuthority("settings." + key), inherited, direct, effective)));
         PanelAccessPolicy.USER_FIELDS.forEach(key -> rows.add(row("action", key, key,

@@ -14,6 +14,15 @@ import static org.mockito.Mockito.when;
 
 class UserRepositoryUserDetailsServiceTest {
 
+    @Test void loginAndRoleEditingUseTheSamePageCatalogIncludingAiOpsAndLegacyCompatibility() {
+        assertThat(UserRepositoryUserDetailsService.mapPagePermissionsToAuthorities(List.of("ai_ops")))
+                .containsExactly("PAGE_AI_OPS");
+        assertThat(UserRepositoryUserDetailsService.mapPagePermissionsToAuthorities(List.of("*")))
+                .containsExactlyInAnyOrderElementsOf(PanelAccessPolicy.roleAuthorities("{\"pages\":[\"*\"]}"));
+        assertThat(UserRepositoryUserDetailsService.mapPagePermissionsToAuthorities(List.of("channels", "user_management")))
+                .containsExactlyInAnyOrder("PAGE_CHANNELS", "PAGE_USERS");
+    }
+
     @Test
     void individualOverridesAreAppliedAfterTheRoleGrants() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);

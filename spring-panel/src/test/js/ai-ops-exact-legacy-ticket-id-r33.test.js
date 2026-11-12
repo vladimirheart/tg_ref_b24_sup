@@ -48,6 +48,7 @@ async function boot(options = {}) {
   const initialItems = options.items || [];
   let handler = null;
   const document = {
+    body: { dataset: { canViewDialogs: options.canViewDialogs === false ? 'false' : 'true' } },
     cookie: options.cookie || '', hidden: false,
     getElementById: id => elements.get(id) || null,
     querySelector: selector => selector === 'meta[name="_csrf"]' && options.meta !== false
@@ -131,6 +132,13 @@ async function checkTestbench(app, ticketId) {
 }
 
 (async () => {
+  await test('ai_ops_only_does_not_offer_dialog_navigation', async () => {
+    const app = await boot({ canViewDialogs: false, items: [{ query_key: 'key', last_ticket_id: ' T/1 Ю ' }] });
+    assert.match(app.elements.get('aiOpsReviewTableBody').innerHTML, /data-ai-review-open disabled/);
+    const { buttons } = rowFor(' T/1 Ю ');
+    await app.click('aiOpsReviewTableBody', buttons['[data-ai-review-open]']);
+    assert.equal(app.location.href, '/ai-ops');
+  });
   const validIds = [
     'T-EXACT', ' T-EXACT ', 'T-EXACT ', ' T-EXACT', '\tT-EXACT\t',
     '\u00a0T-EXACT\u00a0', ' null ', 'null', ' NULL ', '0',
@@ -271,7 +279,7 @@ async function checkTestbench(app, ticketId) {
     assert(!/const ticketId = String\([^\n]*\)\.trim\(\)/.test(source));
   });
   console.log('AI_OPS_EXACT_ID_TESTS_GREEN=' + passed);
-  if (failures.length || passed !== 32) {
+  if (failures.length || passed !== 33) {
     console.error('AI_OPS_EXACT_ID_TEST_RESULT=RED; failures=' + failures.length);
     process.exitCode = 1;
   } else {

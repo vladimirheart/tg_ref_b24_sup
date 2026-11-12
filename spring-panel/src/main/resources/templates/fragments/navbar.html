@@ -81,7 +81,7 @@
                     <span class="label"><span class="nav-label-main">Главная</span>
                         <span class="nav-label-sub">Быстрый пульс панели</span></span>
                 </a>
-                <a class="nav-link" data-page-key="dialogs" data-nav-group="workspace"
+                <a class="nav-link" data-page-key="dialogs" data-nav-group="workspace" th:if="${canViewDialogs}"
                    th:classappend="${active}=='dialogs' ? ' active'"
                    th:href="@{/dialogs}">
                     <span class="icon" aria-hidden="true">💬</span>
@@ -90,7 +90,7 @@
                         <span class="nav-label-sub">Текущие обращения и ответы</span>
                     </span>
                 </a>
-                <a class="nav-link" data-page-key="ai-ops" data-nav-group="workspace"
+                <a class="nav-link" data-page-key="ai-ops" data-nav-group="workspace" th:if="${canViewAiOps}"
                    th:classappend="${active}=='ai-ops' ? ' active'"
                    th:href="@{/ai-ops}">
                     <span class="icon" aria-hidden="true">🤖</span>

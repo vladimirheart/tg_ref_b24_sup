@@ -33,7 +33,8 @@
 <link rel="stylesheet" th:href="@{/css/app.css(v='20261022-neutral-ops-r9')}">
 <link rel="stylesheet" th:href="@{/css/sidebar.css(v='20261022-neutral-ops-r7')}">
 </head>
-<body class="with-sidebar sidebar-pinned" data-ui-page="ai-ops" data-ui-density="compact">
+<body class="with-sidebar sidebar-pinned" data-ui-page="ai-ops" data-ui-density="compact"
+      th:attr="data-can-view-dialogs=${canViewDialogs}">
 <div th:replace="~{fragments/navbar :: navbar('ai-ops')}"></div>
 
 <main class="main-content container-fluid py-4 page-shell aiops-shell ops-page-shell">
@@ -342,7 +343,7 @@
 
 <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
 <script th:src="@{/js/common.js}"></script>
-<script th:src="@{/js/ai-ops.js(v='20261012-01-278-r54')}"></script>
+<script th:src="@{/js/ai-ops.js(v='20261112-page-permissions')}"></script>
 <script th:src="@{/js/employee-discounts.js}"></script>
 </body>
 </html>

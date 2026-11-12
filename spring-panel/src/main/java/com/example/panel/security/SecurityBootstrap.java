@@ -135,6 +135,7 @@ public class SecurityBootstrap {
         List<String> required = List.of(
             "ROLE_ADMIN",
             "PAGE_DIALOGS",
+            "PAGE_AI_OPS",
             "PAGE_ANALYTICS",
             "PAGE_DASHBOARD",
             "PAGE_CLIENTS",

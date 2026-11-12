@@ -140,7 +140,7 @@ class DialogAiOpsControllerWebMvcTest {
 
     @Test
     void aiMonitoringEventsSupportsCsvFormat() throws Exception {
-        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_monitoring_events"), eq("T-703")))
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_ai_ticket"), eq("ai_monitoring_events"), eq("T-703")))
             .thenReturn(null);
         when(dialogAiOpsService.loadMonitoringEvents(7, 10, "T-703", "decision", "operator"))
             .thenReturn(List.of(Map.of("ticket_id", "T-703")));
@@ -219,7 +219,7 @@ class DialogAiOpsControllerWebMvcTest {
 
     @Test
     void aiSolutionMemoryUpdateRequiresBothTexts() throws Exception {
-        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_solution_memory_update"), eq((String) null)))
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_ai_ops"), eq("ai_solution_memory_update"), eq((String) null)))
             .thenReturn(null);
 
         mockMvc.perform(post("/api/dialogs/ai-solution-memory/query-1")
@@ -238,7 +238,7 @@ class DialogAiOpsControllerWebMvcTest {
 
     @Test
     void aiSolutionMemoryRollbackRequiresHistoryId() throws Exception {
-        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_solution_memory_rollback"), eq((String) null)))
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_ai_ops"), eq("ai_solution_memory_rollback"), eq((String) null)))
             .thenReturn(null);
 
         mockMvc.perform(post("/api/dialogs/ai-solution-memory/query-2/rollback")
@@ -253,7 +253,7 @@ class DialogAiOpsControllerWebMvcTest {
 
     @Test
     void aiReviewsQueueDelegatesOptionalLimit() throws Exception {
-        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_reviews_queue"), eq((String) null)))
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_ai_ops"), eq("ai_reviews_queue"), eq((String) null)))
             .thenReturn(null);
         when(dialogAiOpsService.loadPendingReviewsQueue(25))
             .thenReturn(List.of(Map.of("query_key", "q-1")));
@@ -367,7 +367,7 @@ class DialogAiOpsControllerWebMvcTest {
 
     @Test
     void aiReclassifyAcceptsMessageTypeAlias() throws Exception {
-        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_reclassify"), eq("T-710")))
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_ai_ticket"), eq("ai_reclassify"), eq("T-710")))
             .thenReturn(null);
         when(dialogAiOpsService.reclassify("T-710", "hello", "image", "file.png"))
             .thenReturn(Map.of("success", true, "classification", "faq"));
@@ -390,7 +390,7 @@ class DialogAiOpsControllerWebMvcTest {
 
     @Test
     void aiReclassifyDelegatesNullRequestBody() throws Exception {
-        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_reclassify"), eq("T-710A")))
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_ai_ticket"), eq("ai_reclassify"), eq("T-710A")))
             .thenReturn(null);
         when(dialogAiOpsService.reclassify("T-710A", null, null, null))
             .thenReturn(Map.of("success", true, "classification", "unknown"));
@@ -406,7 +406,7 @@ class DialogAiOpsControllerWebMvcTest {
 
     @Test
     void aiRetrieveDebugAcceptsAliasAndOptionalLimit() throws Exception {
-        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_retrieve_debug"), eq("T-711")))
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_ai_ticket"), eq("ai_retrieve_debug"), eq("T-711")))
             .thenReturn(null);
         when(dialogAiOpsService.retrieveDebug("T-711", "need help", "text", null, 3))
             .thenReturn(Map.of("success", true, "items", List.of(Map.of("score", 0.91))));
@@ -429,7 +429,7 @@ class DialogAiOpsControllerWebMvcTest {
 
     @Test
     void aiRetrieveDebugDelegatesNullRequestBody() throws Exception {
-        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_retrieve_debug"), eq("T-711B")))
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_ai_ticket"), eq("ai_retrieve_debug"), eq("T-711B")))
             .thenReturn(null);
         when(dialogAiOpsService.retrieveDebug("T-711B", null, null, null, null))
             .thenReturn(Map.of("success", true, "items", List.of()));
@@ -460,7 +460,7 @@ class DialogAiOpsControllerWebMvcTest {
 
     @Test
     void aiSolutionMemoryUpdateAcceptsCamelCaseAliases() throws Exception {
-        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_solution_memory_update"), eq((String) null)))
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_ai_ops"), eq("ai_solution_memory_update"), eq((String) null)))
             .thenReturn(null);
         when(dialogAiOpsService.updateSolutionMemory("query-3", "Q", "A", true, false, "operator"))
             .thenReturn(Map.of("success", true, "updated", true));
@@ -484,7 +484,7 @@ class DialogAiOpsControllerWebMvcTest {
 
     @Test
     void aiSolutionMemoryDeleteDelegatesOperator() throws Exception {
-        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_solution_memory_delete"), eq((String) null)))
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_ai_ops"), eq("ai_solution_memory_delete"), eq((String) null)))
             .thenReturn(null);
         when(dialogAiOpsService.deleteSolutionMemory("query-4", "operator"))
             .thenReturn(Map.of("success", true, "deleted", true));
@@ -499,7 +499,7 @@ class DialogAiOpsControllerWebMvcTest {
 
     @Test
     void aiSolutionMemoryHistoryDelegatesLimit() throws Exception {
-        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_solution_memory_history"), eq((String) null)))
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_ai_ops"), eq("ai_solution_memory_history"), eq((String) null)))
             .thenReturn(null);
         when(dialogAiOpsService.loadSolutionMemoryHistory("query-5", 15))
             .thenReturn(Map.of("success", true, "items", List.of(Map.of("history_id", 41))));
@@ -514,7 +514,7 @@ class DialogAiOpsControllerWebMvcTest {
 
     @Test
     void aiSolutionMemoryListDelegatesQueryAndLimit() throws Exception {
-        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_solution_memory"), eq((String) null)))
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_ai_ops"), eq("ai_solution_memory"), eq((String) null)))
             .thenReturn(null);
         when(dialogAiOpsService.loadSolutionMemory(20, "vpn"))
             .thenReturn(Map.of("success", true, "items", List.of(Map.of("query_key", "vpn-reset"))));
@@ -530,7 +530,7 @@ class DialogAiOpsControllerWebMvcTest {
 
     @Test
     void aiMonitoringSummaryDelegatesOptionalDays() throws Exception {
-        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_monitoring_summary"), eq((String) null)))
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_ai_ops"), eq("ai_monitoring_summary"), eq((String) null)))
             .thenReturn(null);
         when(dialogAiOpsService.loadMonitoringSummary(30))
             .thenReturn(Map.of("success", true, "totals", Map.of("decisions", 10)));
@@ -545,7 +545,7 @@ class DialogAiOpsControllerWebMvcTest {
 
     @Test
     void approveAiReviewByKeyDelegatesOperator() throws Exception {
-        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_review_approve_key"), eq((String) null)))
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_ai_ops"), eq("ai_review_approve_key"), eq((String) null)))
             .thenReturn(null);
         when(dialogAiOpsService.approveReviewByKey("review-1", "operator"))
             .thenReturn(Map.of("success", true, "approved", true));
@@ -560,7 +560,7 @@ class DialogAiOpsControllerWebMvcTest {
 
     @Test
     void rejectAiReviewByKeyDelegatesOperator() throws Exception {
-        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_review_reject_key"), eq((String) null)))
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_ai_ops"), eq("ai_review_reject_key"), eq((String) null)))
             .thenReturn(null);
         when(dialogAiOpsService.rejectReviewByKey("review-2", "operator"))
             .thenReturn(Map.of("success", true, "rejected", true));
@@ -575,7 +575,7 @@ class DialogAiOpsControllerWebMvcTest {
 
     @Test
     void aiIntentsDelegatesFilters() throws Exception {
-        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_intents"), eq((String) null)))
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_ai_ops"), eq("ai_intents"), eq((String) null)))
             .thenReturn(null);
         when(dialogAiOpsService.loadIntents(10, "vpn", true))
             .thenReturn(Map.of("success", true, "items", List.of(Map.of("intent_key", "vpn.reset"))));
@@ -592,7 +592,7 @@ class DialogAiOpsControllerWebMvcTest {
 
     @Test
     void upsertAiIntentAcceptsAliases() throws Exception {
-        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_intents_update"), eq((String) null)))
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_ai_ops"), eq("ai_intents_update"), eq((String) null)))
             .thenReturn(null);
         when(dialogAiOpsService.upsertIntent(
             "vpn.reset",
@@ -636,7 +636,7 @@ class DialogAiOpsControllerWebMvcTest {
 
     @Test
     void upsertAiIntentRejectsMissingIntentKey() throws Exception {
-        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_intents_update"), eq((String) null)))
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_ai_ops"), eq("ai_intents_update"), eq((String) null)))
             .thenReturn(null);
 
         mockMvc.perform(post("/api/dialogs/ai-intents")
@@ -651,7 +651,7 @@ class DialogAiOpsControllerWebMvcTest {
 
     @Test
     void aiKnowledgeUnitsDelegatesFilters() throws Exception {
-        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_knowledge_units"), eq((String) null)))
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_ai_ops"), eq("ai_knowledge_units"), eq((String) null)))
             .thenReturn(null);
         when(dialogAiOpsService.loadKnowledgeUnits(30, "vpn", "approved"))
             .thenReturn(Map.of("success", true, "items", List.of(Map.of("unit_key", "kb-1"))));
@@ -684,7 +684,7 @@ class DialogAiOpsControllerWebMvcTest {
 
     @Test
     void aiMonitoringEventsReturnsJsonPayloadByDefault() throws Exception {
-        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_monitoring_events"), eq("T-712")))
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_ai_ticket"), eq("ai_monitoring_events"), eq("T-712")))
             .thenReturn(null);
         when(dialogAiOpsService.loadMonitoringEvents(14, 50, "T-712", "decision", "operator"))
             .thenReturn(List.of(Map.of("ticket_id", "T-712", "event_type", "decision")));
@@ -704,7 +704,7 @@ class DialogAiOpsControllerWebMvcTest {
 
     @Test
     void upsertAiKnowledgeUnitAcceptsAliases() throws Exception {
-        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_knowledge_units_update"), eq((String) null)))
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_ai_ops"), eq("ai_knowledge_units_update"), eq((String) null)))
             .thenReturn(null);
         when(dialogAiOpsService.upsertKnowledgeUnit(
             "unit-1",
@@ -744,7 +744,7 @@ class DialogAiOpsControllerWebMvcTest {
 
     @Test
     void upsertAiKnowledgeUnitRejectsMissingBodyText() throws Exception {
-        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_knowledge_units_update"), eq((String) null)))
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_ai_ops"), eq("ai_knowledge_units_update"), eq((String) null)))
             .thenReturn(null);
 
         mockMvc.perform(post("/api/dialogs/ai-knowledge-units")
@@ -763,7 +763,7 @@ class DialogAiOpsControllerWebMvcTest {
 
     @Test
     void aiOfflineEvalReturnsSummaryPayload() throws Exception {
-        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_offline_eval"), eq((String) null)))
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_ai_ops"), eq("ai_offline_eval"), eq((String) null)))
             .thenReturn(null);
         when(dialogAiOpsService.loadOfflineEvalSummary())
             .thenReturn(Map.of("success", true, "summary", Map.of("precision", 0.93)));
@@ -777,7 +777,7 @@ class DialogAiOpsControllerWebMvcTest {
 
     @Test
     void aiOfflineEvalRunDelegatesOperator() throws Exception {
-        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_offline_eval_run"), eq((String) null)))
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_ai_ops"), eq("ai_offline_eval_run"), eq((String) null)))
             .thenReturn(null);
         when(dialogAiOpsService.runOfflineEvalNow("operator"))
             .thenReturn(Map.of("success", true, "job_started", true));

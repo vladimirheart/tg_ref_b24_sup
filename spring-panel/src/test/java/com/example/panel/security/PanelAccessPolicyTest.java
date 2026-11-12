@@ -18,6 +18,30 @@ class PanelAccessPolicyTest {
     @AfterEach void cleanup() { SecurityContextHolder.clearContext(); }
     static Set<String> blocks() { return PanelAccessPolicy.BLOCKS.keySet(); }
 
+    @Test void currentPageCatalogHasAiOpsAndExplicitSharedPagesButNoRetiredEntries() {
+        assertThat(PanelAccessPolicy.PAGE_CATALOG).extracting(PanelAccessPolicy.Page::key)
+                .containsExactly("dialogs", "ai_ops", "tasks", "clients", "object_passports", "knowledge_base",
+                        "dashboard", "analytics", "settings");
+        assertThat(PanelAccessPolicy.PAGE_CATALOG).extracting(PanelAccessPolicy.Page::label)
+                .contains("AI Ops", "Задачи и проекты", "База знаний и AI-источники", "Паспорт объектов")
+                .doesNotContain("Каналы", "Пользователи и роли");
+        assertThat(PanelAccessPolicy.PAGE_CATALOG).extracting(PanelAccessPolicy.Page::authority).doesNotHaveDuplicates();
+    }
+
+    @Test void aiOpsIsIndependentFromDialogsAndSupportsIndividualDenials() {
+        assertThat(PanelAccessPolicy.roleAuthorities("{\"pages\":[\"ai_ops\"]}"))
+                .containsExactly("PAGE_AI_OPS");
+        assertThat(PanelAccessPolicy.roleAuthorities("{\"pages\":[\"dialogs\"]}"))
+                .containsExactly("PAGE_DIALOGS");
+        assertThat(PanelAccessPolicy.effective(PanelAccessPolicy.roleAuthorities("{\"pages\":[\"*\"]}"),
+                Set.of("DENY_PAGE_AI_OPS"))).doesNotContain("PAGE_AI_OPS").contains("PAGE_DIALOGS");
+    }
+
+    @Test void retiredPageGrantsRemainCompatibleWithoutGrantingAllSettings() {
+        assertThat(PanelAccessPolicy.roleAuthorities("{\"pages\":[\"channels\",\"user_management\"]}"))
+                .containsExactlyInAnyOrder("PAGE_CHANNELS", "PAGE_USERS");
+    }
+
     @ParameterizedTest @MethodSource("blocks")
     void aSettingsPageGrantDoesNotAllowEditingAnyBlock(String block) {
         var viewer = new UsernamePasswordAuthenticationToken("viewer", "", AuthorityUtils.createAuthorityList("PAGE_SETTINGS"));

@@ -36,6 +36,7 @@ public class DialogAuthorizationService {
 
     public Map<String, Object> resolveWorkspacePermissions(Authentication authentication) {
         boolean canDialog = permissionService.hasAuthority(authentication, "PAGE_DIALOGS");
+        boolean canAiOps = permissionService.hasAuthority(authentication, "PAGE_AI_OPS");
         boolean canBulk = canDialog && (permissionService.hasAuthority(authentication, "DIALOG_BULK_ACTIONS")
                 || permissionService.hasAuthority(authentication, "ROLE_ADMIN"));
         return Map.of(
@@ -43,7 +44,9 @@ public class DialogAuthorizationService {
                 "can_assign", canDialog,
                 "can_close", canDialog,
                 "can_snooze", canDialog,
-                "can_bulk", canBulk
+                "can_bulk", canBulk,
+                "can_ai_ops", canAiOps,
+                "can_ai_ticket", canDialog || canAiOps
         );
     }
 

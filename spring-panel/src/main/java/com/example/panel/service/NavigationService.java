@@ -41,6 +41,8 @@ public class NavigationService {
     }
 
     public void enrich(Model model, Authentication authentication) {
+        model.addAttribute("canViewDialogs", permissionService.hasAuthority(authentication, "PAGE_DIALOGS"));
+        model.addAttribute("canViewAiOps", permissionService.hasAuthority(authentication, "PAGE_AI_OPS"));
         model.addAttribute("canViewAnalytics", permissionService.hasAuthority(authentication, "PAGE_ANALYTICS"));
         model.addAttribute("canViewDashboard", permissionService.hasAuthority(authentication, "PAGE_DASHBOARD"));
         model.addAttribute("canEditKnowledgeBase", permissionService.hasAuthority(authentication, "PAGE_KNOWLEDGE_BASE"));

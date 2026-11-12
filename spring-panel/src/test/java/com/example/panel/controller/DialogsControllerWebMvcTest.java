@@ -211,7 +211,7 @@ class DialogsControllerWebMvcTest {
         stubNavigationDefaults();
 
         mockMvc.perform(get("/ai-ops")
-                        .with(user("operator").authorities(() -> "PAGE_DIALOGS"))
+                        .with(user("operator").authorities(() -> "PAGE_AI_OPS"))
                         .with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(view().name("dialogs/ai-ops"))
@@ -235,7 +235,10 @@ class DialogsControllerWebMvcTest {
                 DialogMyDialogs.empty());
 
         mockMvc.perform(get("/dialogs")
-                        .with(user("operator").authorities(() -> "PAGE_DIALOGS", () -> "PAGE_CHANNELS")))
+                        .with(user("operator").authorities(() -> "PAGE_DIALOGS", () -> "PAGE_CHANNELS"))
+                        .principal(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                "operator", "", org.springframework.security.core.authority.AuthorityUtils
+                                        .createAuthorityList("PAGE_DIALOGS", "PAGE_CHANNELS"))))
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("data-page-key=\"channels\"")));
     }
@@ -257,7 +260,10 @@ class DialogsControllerWebMvcTest {
                         .with(user("operator").authorities(
                                 () -> "PAGE_DIALOGS",
                                 () -> "PAGE_CHANNELS",
-                                () -> "PAGE_SETTINGS")))
+                                () -> "PAGE_SETTINGS"))
+                        .principal(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                "operator", "", org.springframework.security.core.authority.AuthorityUtils
+                                        .createAuthorityList("PAGE_DIALOGS", "PAGE_CHANNELS", "PAGE_SETTINGS"))))
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("data-page-key=\"settings\"")))
                 .andExpect(content().string(org.hamcrest.Matchers.not(
@@ -276,7 +282,8 @@ class DialogsControllerWebMvcTest {
     }
 
     private void stubNavigationDefaults() {
-        when(permissionService.hasAuthority(any(), anyString())).thenReturn(false);
+        when(permissionService.hasAuthority(any(), anyString())).thenAnswer(invocation ->
+                List.of("PAGE_DIALOGS", "PAGE_AI_OPS").contains(invocation.getArgument(1, String.class)));
         when(permissionService.isSuperUser(any())).thenReturn(false);
         when(panelUserRepository.findByUsernameIgnoreCase("operator")).thenReturn(Optional.empty());
         when(unblockRequestService.countPendingRequests()).thenReturn(0L);

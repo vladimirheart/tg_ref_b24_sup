@@ -170,13 +170,25 @@ class AuthManagementApiControllerWebMvcTest {
         when(usersJdbcTemplate.queryForList(startsWith("SELECT id FROM users"), eq("operator")))
             .thenReturn(List.of(Map.of("id", 21L)));
 
-        mockMvc.perform(get("/api/auth/state")
+        var result = mockMvc.perform(get("/api/auth/state")
                 .with(user("operator").authorities(() -> "PAGE_SETTINGS")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.roles[0].name").value("reviewer"))
+            .andExpect(jsonPath("$.catalog.pages[*].key").value(org.hamcrest.Matchers.contains(
+                    "dialogs", "ai_ops", "tasks", "clients", "object_passports", "knowledge_base", "dashboard", "analytics", "settings")))
+            .andExpect(jsonPath("$.catalog.pages[1].label").value("AI Ops"))
+            .andExpect(jsonPath("$.catalog.legacy_pages").value(org.hamcrest.Matchers.containsInAnyOrder("channels", "user_management")))
+            .andExpect(jsonPath("$.catalog.page_access_note").value(org.hamcrest.Matchers.containsString("Инциденты")))
             .andExpect(jsonPath("$.roles[0].permissions.pages[0]").value("dialogs"))
             .andExpect(jsonPath("$.roles[0].permissions.fields.edit[0]").value("user.create"))
-            .andExpect(jsonPath("$.roles[0].permissions.fields.view[0]").value("user.password"));
+            .andExpect(jsonPath("$.roles[0].permissions.fields.view[0]").value("user.password")).andReturn();
+        String capture = System.getProperty("iguana.pages.capture");
+        if (capture != null) {
+            var destination = java.nio.file.Path.of(capture).toAbsolutePath();
+            java.nio.file.Files.createDirectories(destination.getParent());
+            java.nio.file.Files.writeString(destination, result.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8),
+                    java.nio.charset.StandardCharsets.UTF_8);
+        }
     }
 
     @Test

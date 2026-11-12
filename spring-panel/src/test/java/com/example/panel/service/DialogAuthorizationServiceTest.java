@@ -65,6 +65,24 @@ class DialogAuthorizationServiceTest {
         verifyNoInteractions(dialogAuditService);
     }
 
+    @Test void dialogOperatorsCannotUseGlobalAiOpsWithoutThePageGrant() {
+        assertThat(service.requirePermission(authentication, "can_ai_ops", "ai_monitoring_summary", null)
+                .getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        verifyNoInteractions(legacyTicketIdJdbcGuard, dialogAuditService);
+    }
+
+    @Test void aiOpsOperatorsCanUseGlobalToolsButCannotReplyToDialogs() {
+        when(permissionService.hasAuthority(authentication, "PAGE_DIALOGS")).thenReturn(false);
+        when(permissionService.hasAuthority(authentication, "PAGE_AI_OPS")).thenReturn(true);
+        assertThat(service.requirePermission(authentication, "can_ai_ops", "ai_monitoring_summary", null)).isNull();
+        assertThat(service.resolveWorkspacePermissions(authentication)).containsEntry("can_reply", false);
+        when(legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket("T-UNIQUE")).thenReturn(true);
+        assertThat(service.requirePermission(authentication, "can_ai_ticket", "ai_reclassify", "T-UNIQUE")).isNull();
+        assertThat(service.requirePermission(authentication, "can_ai_ticket", "ai_reclassify", "GENERAL")
+                .getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        verifyNoInteractions(dialogAuditService);
+    }
+
     @Test
     void doesNotRequireTicketGuardForGlobalAction() {
         assertThat(service.requirePermission(authentication, "can_reply", "ai_reviews_queue", null)).isNull();
