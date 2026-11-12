@@ -25,6 +25,10 @@ import org.springframework.test.web.servlet.MockMvc;
 @WebMvcTest(SettingsParametersController.class)
 @AutoConfigureMockMvc
 class SettingsParametersControllerWebMvcTest {
+    @org.junit.jupiter.api.BeforeEach
+    void parameterPermissions() {
+        when(settingsParameterService.permissionBlock(org.mockito.ArgumentMatchers.anyLong())).thenReturn("parameters");
+    }
 
     @Autowired
     private MockMvc mockMvc;
@@ -37,7 +41,7 @@ class SettingsParametersControllerWebMvcTest {
         when(settingsParameterService.listParameters(true))
             .thenReturn(Map.of("city", List.of(Map.of("id", 1, "value", "Москва"))));
 
-        mockMvc.perform(get("/api/settings/parameters").with(user("admin").authorities(() -> "PAGE_SETTINGS")))
+        mockMvc.perform(get("/api/settings/parameters").with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.city[0].value").value("Москва"));
     }
@@ -48,7 +52,7 @@ class SettingsParametersControllerWebMvcTest {
             .thenReturn(Map.of("success", true, "data", Map.of("city", List.of())));
 
         mockMvc.perform(post("/api/settings/parameters")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -68,7 +72,7 @@ class SettingsParametersControllerWebMvcTest {
             .thenReturn(Map.of("success", true, "data", Map.of("city", List.of(Map.of("value", "Казань")))));
 
         mockMvc.perform(put("/api/settings/parameters/15")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -85,7 +89,7 @@ class SettingsParametersControllerWebMvcTest {
             .thenReturn(Map.of("success", true, "data", Map.of()));
 
         mockMvc.perform(delete("/api/settings/parameters/27")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true));
@@ -97,7 +101,7 @@ class SettingsParametersControllerWebMvcTest {
             .thenReturn(Map.of("success", true, "data", Map.of("city", List.of(Map.of("value", "Тула")))));
 
         mockMvc.perform(post("/api/settings/parameters/")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -117,7 +121,7 @@ class SettingsParametersControllerWebMvcTest {
             .thenReturn(Map.of("success", true, "data", Map.of("city", List.of(Map.of("value", "Пермь")))));
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/settings/parameters/33")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""

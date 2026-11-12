@@ -63,6 +63,12 @@ public class SettingsParameterService {
         return fetchParametersGrouped(includeDeleted);
     }
 
+    public String permissionBlock(long id) {
+        var rows = jdbcTemplate.queryForList("SELECT param_type FROM settings_parameters WHERE id = ?", id);
+        if (rows.size() != 1) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND);
+        return com.example.panel.security.PanelAccessPolicy.parameterBlock(stringValue(rows.get(0).get("param_type")));
+    }
+
     public Map<String, Object> createParameter(Map<String, Object> payload) {
         String paramType = stringValue(payload.get("param_type"));
         rejectPrivateParameter(paramType);

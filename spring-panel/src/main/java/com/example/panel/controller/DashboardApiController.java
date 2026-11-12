@@ -38,7 +38,7 @@ public class DashboardApiController {
     }
 
     @PostMapping("/data")
-    @PreAuthorize("hasAuthority('PAGE_DIALOGS')")
+    @PreAuthorize("hasAuthority('PAGE_DASHBOARD')")
     public Map<String, Object> data(@RequestBody(required = false) DashboardFilterRequest request,
                                     Authentication authentication) {
         String operator = authentication != null ? authentication.getName() : null;
@@ -51,7 +51,7 @@ public class DashboardApiController {
     }
 
     @PostMapping("/restaurant-options")
-    @PreAuthorize("hasAuthority('PAGE_DIALOGS')")
+    @PreAuthorize("hasAuthority('PAGE_DASHBOARD')")
     public Map<String, Object> restaurantOptions(@RequestBody(required = false) DashboardFilterRequest request,
                                                  Authentication authentication) {
         String operator = authentication != null ? authentication.getName() : null;
@@ -65,7 +65,7 @@ public class DashboardApiController {
 
 
     @PostMapping("/manager-report")
-    @PreAuthorize("hasAuthority('PAGE_DIALOGS')")
+    @PreAuthorize("hasAuthority('PAGE_DASHBOARD')")
     public Map<String, Object> managerReport(@RequestBody(required = false) DashboardFilterRequest request,
                                              Authentication authentication) {
         String operator = authentication != null ? authentication.getName() : null;
@@ -77,7 +77,7 @@ public class DashboardApiController {
     }
 
     @PostMapping("/olap-preview")
-    @PreAuthorize("hasAuthority('PAGE_DIALOGS')")
+    @PreAuthorize("hasAuthority('PAGE_DASHBOARD')")
     public Map<String, Object> olapPreview(@RequestBody(required = false) OlapFilterRequest request, Authentication authentication) {
         String operator = authentication != null ? authentication.getName() : null;
         List<DialogListItem> dialogs = dialogLookupReadService.loadDialogs(operator);

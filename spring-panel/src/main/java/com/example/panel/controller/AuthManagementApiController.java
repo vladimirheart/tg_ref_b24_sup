@@ -99,15 +99,18 @@ public class AuthManagementApiController {
     public Map<String, Object> getAuthState(Authentication authentication) {
         List<Map<String, Object>> users = fetchUsers(authentication);
         List<Map<String, Object>> roles = fetchRoles();
+        List<Map<String, String>> editableFields = new ArrayList<>(EDITABLE_FIELD_PERMISSIONS);
+        com.example.panel.security.PanelAccessPolicy.BLOCKS.forEach((key, label) ->
+                editableFields.add(Map.of("key", "settings." + key, "label", "Изменение настроек: " + label)));
 
         Map<String, Object> catalog = Map.of(
             "pages", AVAILABLE_PAGE_PERMISSIONS,
-            "fields", Map.of("edit", EDITABLE_FIELD_PERMISSIONS, "view", VIEWABLE_FIELD_PERMISSIONS)
+            "fields", Map.of("edit", editableFields, "view", VIEWABLE_FIELD_PERMISSIONS)
         );
 
         Map<String, Object> capabilities = Map.of(
             "fields", Map.of(
-                "edit", buildCapabilityMap(authentication, EDITABLE_FIELD_PERMISSIONS, "edit"),
+                "edit", buildCapabilityMap(authentication, editableFields, "edit"),
                 "view", buildCapabilityMap(authentication, VIEWABLE_FIELD_PERMISSIONS, "view")
             )
         );
@@ -143,7 +146,14 @@ public class AuthManagementApiController {
         if (!hasEditPermission(authentication, "user.create")) {
             return Map.of("success", false, "error", "Недостаточно прав для создания пользователя");
         }
-        return createUserFromPayload(RequestPayloadUtils.readPayload(request, objectMapper));
+        Map<String, Object> payload = RequestPayloadUtils.readPayload(request, objectMapper);
+        if (payload.get("role_id") != null && !hasEditPermission(authentication, "user.role"))
+            throw new org.springframework.security.access.AccessDeniedException("Нет права назначать роли");
+        requireAssignableRole(authentication, payload.get("role_id"));
+        if ("admin".equalsIgnoreCase(stringValue(payload.get("username")))
+                && !permissionService.isSuperUser(authentication))
+            throw new org.springframework.security.access.AccessDeniedException("Системный логин защищён");
+        return createUserFromPayload(payload);
     }
 
     private Map<String, Object> createUserFromPayload(Map<String, Object> payload) {
@@ -218,6 +228,8 @@ public class AuthManagementApiController {
         Long currentUserId = resolveCurrentUserId(authentication);
         boolean isSelf = currentUserId != null && currentUserId.equals(userId);
 
+        if (!isSelf) requireUnprotectedAccount(authentication, userId);
+
         if (hasEditPermission(authentication, "user.username") && payload.containsKey("username") && userColumns.contains("username")) {
             if (!(payload.get("username") instanceof String rawUsername)) {
                 return credentialFailure("username", "Укажите логин пользователя.");
@@ -226,6 +238,8 @@ public class AuthManagementApiController {
             boolean unchanged = current.size() == 1 && rawUsername.equals(current.get(0).get("username"));
             if (!unchanged) {
                 String username = normalizeCredentialLogin(rawUsername);
+                if ("admin".equalsIgnoreCase(username) && !permissionService.isSuperUser(authentication))
+                    throw new org.springframework.security.access.AccessDeniedException("Системный логин защищён");
                 String error = credentialLoginError(username);
                 if (!error.isEmpty()) return credentialFailure("username", error);
                 Integer existing = usersJdbcTemplate.queryForObject(
@@ -254,6 +268,7 @@ public class AuthManagementApiController {
 
         if (hasEditPermission(authentication, "user.role")
             && payload.containsKey("role_id") && userColumns.contains("role_id")) {
+            requireAssignableRole(authentication, payload.get("role_id"));
             updates.add("role_id = ?");
             params.add(payload.get("role_id"));
         }
@@ -316,6 +331,7 @@ public class AuthManagementApiController {
         if (!hasEditPermission(authentication, "user.delete")) {
             return Map.of("success", false, "error", "Недостаточно прав для удаления пользователя");
         }
+        requireUnprotectedAccount(authentication, userId);
         Long currentUserId = resolveCurrentUserId(authentication);
         if (currentUserId != null && currentUserId.equals(userId)) {
             return Map.of("success", false, "error", "Нельзя удалить собственную учётную запись");
@@ -345,7 +361,10 @@ public class AuthManagementApiController {
         if (!hasEditPermission(authentication, "role.create")) {
             return Map.of("success", false, "error", "Недостаточно прав для создания роли");
         }
-        return createRoleFromPayload(RequestPayloadUtils.readPayload(request, objectMapper));
+        Map<String, Object> payload = RequestPayloadUtils.readPayload(request, objectMapper);
+        requireDelegableRole(authentication, payload.get("name"), payload.get("permissions"));
+        requireInitialRolePermissions(authentication, payload.get("permissions"));
+        return createRoleFromPayload(payload);
     }
 
     private Map<String, Object> createRoleFromPayload(Map<String, Object> payload) {
@@ -375,6 +394,12 @@ public class AuthManagementApiController {
     public Map<String, Object> updateRole(@PathVariable long roleId,
                                           Authentication authentication,
                                           @RequestBody Map<String, Object> payload) {
+        if (!permissionService.isSuperUser(authentication)) {
+            var existingRole = usersJdbcTemplate.queryForList("SELECT name FROM roles WHERE id = ?", roleId);
+            if ((!existingRole.isEmpty() && UserPermissionsController.protectedRole(existingRole.get(0).get("name")))
+                    || UserPermissionsController.protectedRole(payload.get("name")))
+                throw new org.springframework.security.access.AccessDeniedException("Системная роль защищена");
+        }
         List<String> updates = new ArrayList<>();
         List<Object> params = new ArrayList<>();
 
@@ -397,11 +422,10 @@ public class AuthManagementApiController {
             params.add(stringValue(payload.get("description")));
         }
         if (payload.containsKey("permissions")) {
-            if (!(hasEditPermission(authentication, "role.pages")
-                || hasEditPermission(authentication, "role.fields.edit")
-                || hasEditPermission(authentication, "role.fields.view"))) {
+            if (!(hasEditPermission(authentication, "role.pages") || hasEditPermission(authentication, "role.fields.edit")
+                    || hasEditPermission(authentication, "role.fields.view")))
                 return Map.of("success", false, "error", "Недостаточно прав для изменения разрешений роли");
-            }
+            requireRolePermissionUpdate(authentication, roleId, payload.get("permissions"));
             updates.add("permissions = ?");
             params.add(encodePermissions(payload.get("permissions")));
         }
@@ -419,10 +443,15 @@ public class AuthManagementApiController {
     @DeleteMapping("/roles/{roleId}")
     @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
     public Map<String, Object> deleteRole(@PathVariable long roleId, Authentication authentication) {
-        Set<String> userColumns = loadUserColumns();
         if (!hasEditPermission(authentication, "role.delete")) {
             return Map.of("success", false, "error", "Недостаточно прав для удаления роли");
         }
+        if (!permissionService.isSuperUser(authentication)) {
+            var role = usersJdbcTemplate.queryForList("SELECT name FROM roles WHERE id = ?", roleId);
+            if (role.stream().anyMatch(row -> UserPermissionsController.protectedRole(row.get("name"))))
+                throw new org.springframework.security.access.AccessDeniedException("Системная роль защищена");
+        }
+        Set<String> userColumns = loadUserColumns();
         if (userColumns.contains("role_id")) {
             Integer usage = usersJdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM users WHERE role_id = ?",
@@ -448,9 +477,13 @@ public class AuthManagementApiController {
         if (file.isEmpty()) {
             return Map.of("success", false, "error", "Файл не может быть пустым");
         }
+        if (userId == null && !hasEditPermission(authentication, "user.create"))
+            throw new org.springframework.security.access.AccessDeniedException("Нет права загружать фото для нового пользователя");
         if (userId != null && !canEditUserDetails(authentication, userId)) {
             return Map.of("success", false, "error", "Not enough permissions to update user photo.");
         }
+        if (userId != null && !userId.equals(resolveCurrentUserId(authentication)))
+            requireUnprotectedAccount(authentication, userId);
         String extension = extractExtension(file.getOriginalFilename());
         if (!isAllowedImageExtension(extension)) {
             return Map.of("success", false, "error", "Поддерживаются изображения PNG, JPG, GIF или WebP.");
@@ -490,6 +523,7 @@ public class AuthManagementApiController {
             boolean isSelf = userId != null && userId.equals(currentId);
             Map<String, Object> user = new LinkedHashMap<>();
             user.put("id", userId);
+            user.put("permissions_user_id", userId == null ? "" : userId.toString());
             user.put("username", row.get("username"));
             user.put("full_name", row.get("full_name"));
             user.put("role", row.getOrDefault("role_name", row.get("role")));
@@ -582,15 +616,106 @@ public class AuthManagementApiController {
         if (!StringUtils.hasText(permissionKey)) {
             return false;
         }
+        String authority = com.example.panel.security.PanelAccessPolicy.editAuthority(permissionKey);
+        Set<String> tokenRights = authentication == null ? Set.of() : authentication.getAuthorities().stream()
+                .map(org.springframework.security.core.GrantedAuthority::getAuthority).collect(java.util.stream.Collectors.toSet());
+        if ("edit".equals(mode) && tokenRights.contains("DENY_" + authority)) return false;
+        if (permissionKey.startsWith("settings."))
+            return com.example.panel.security.PanelAccessPolicy.has(authentication, authority);
         if (permissionService.isSuperUser(authentication)
             || permissionService.hasAuthority(authentication, "ROLE_PORTAL_ADMIN")) {
             return true;
         }
-        if (!permissionService.hasAuthority(authentication, "PAGE_SETTINGS")) {
+        if (!permissionService.hasAuthority(authentication, "PAGE_SETTINGS")
+                && !permissionService.hasAuthority(authentication, "PAGE_USERS")) {
             return false;
         }
         Map<String, Object> currentPermissions = resolveCurrentRolePermissions(authentication);
+        if (!Boolean.TRUE.equals(currentPermissions.get("__verified_account"))) return false;
+        if ("edit".equals(mode) && tokenRights.contains(authority)) {
+            Long id = resolveCurrentUserId(authentication);
+            List<String> direct = usersJdbcTemplate.query("SELECT authority FROM user_authorities WHERE user_id = ?",
+                    (rs, row) -> rs.getString("authority"), id);
+            if (direct.contains("DENY_" + authority)) return false;
+            if (direct.contains(authority)) return true;
+        }
         return containsPermission(extractFieldPermissions(currentPermissions, mode), permissionKey);
+    }
+
+    private void requireRolePermissionUpdate(Authentication actor, long roleId, Object raw) {
+        if (raw != null && !(raw instanceof Map<?, ?>))
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST);
+        if (permissionService.isSuperUser(actor)) return;
+        Map<?, ?> requested = raw instanceof Map<?, ?> map ? map : Map.of();
+        var rows = usersJdbcTemplate.queryForList("SELECT name, permissions FROM roles WHERE id = ?", roleId);
+        if (rows.size() != 1) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND);
+        boolean admin = permissionService.isSuperUser(actor);
+        if (!admin && UserPermissionsController.protectedRole(rows.get(0).get("name")))
+            throw new org.springframework.security.access.AccessDeniedException("Системная роль защищена");
+        Map<String, Object> previous = parsePermissions(rows.get(0).get("permissions"));
+        Object nextFields = requested.get("fields");
+        Map<?, ?> previousFields = previous.get("fields") instanceof Map<?, ?> map ? map : Map.of();
+        Map<?, ?> fields = nextFields instanceof Map<?, ?> map ? map : Map.of();
+        if ((!permissionValues(previous.get("pages")).equals(permissionValues(requested.get("pages"))) && !hasEditPermission(actor, "role.pages"))
+                || (!permissionValues(previousFields.get("edit")).equals(permissionValues(fields.get("edit"))) && !hasEditPermission(actor, "role.fields.edit"))
+                || (!permissionValues(previousFields.get("view")).equals(permissionValues(fields.get("view"))) && !hasEditPermission(actor, "role.fields.view")))
+            throw new org.springframework.security.access.AccessDeniedException("Нет права изменять эту группу разрешений роли");
+        if (!admin) {
+            Set<String> previousRights = com.example.panel.security.PanelAccessPolicy.roleAuthorities(encodePermissions(previous));
+            Set<String> nextRights = com.example.panel.security.PanelAccessPolicy.roleAuthorities(encodePermissions(raw));
+            Set<String> changedRights = new java.util.LinkedHashSet<>(previousRights);
+            changedRights.addAll(nextRights);
+            Set<String> unchangedRights = new java.util.LinkedHashSet<>(previousRights);
+            unchangedRights.retainAll(nextRights);
+            changedRights.removeAll(unchangedRights);
+            for (String right : changedRights)
+                if (!com.example.panel.security.PanelAccessPolicy.has(actor, right))
+                    throw new org.springframework.security.access.AccessDeniedException("Нельзя выдать роли право выше собственных полномочий");
+        }
+    }
+
+    private Set<?> permissionValues(Object raw) {
+        return raw instanceof List<?> list ? new java.util.LinkedHashSet<>(list) : Set.of();
+    }
+
+    private void requireInitialRolePermissions(Authentication actor, Object raw) {
+        if (raw == null) return;
+        if (!(raw instanceof Map<?, ?> permissions))
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST);
+        Map<?, ?> fields = permissions.get("fields") instanceof Map<?, ?> map ? map : Map.of();
+        if ((!permissionValues(permissions.get("pages")).isEmpty() && !hasEditPermission(actor, "role.pages"))
+                || (!permissionValues(fields.get("edit")).isEmpty() && !hasEditPermission(actor, "role.fields.edit"))
+                || (!permissionValues(fields.get("view")).isEmpty() && !hasEditPermission(actor, "role.fields.view")))
+            throw new org.springframework.security.access.AccessDeniedException("Нет права задавать эту группу разрешений новой роли");
+    }
+
+    private void requireAssignableRole(Authentication actor, Object id) {
+        if (permissionService.isSuperUser(actor)) return;
+        if (id == null || id.toString().isBlank()) return;
+        var roles = usersJdbcTemplate.queryForList("SELECT name, permissions FROM roles WHERE id = ?", id);
+        if (roles.size() != 1) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST);
+        requireDelegableRole(actor, roles.get(0).get("name"), roles.get(0).get("permissions"));
+    }
+
+    private void requireUnprotectedAccount(Authentication actor, long id) {
+        if (permissionService.isSuperUser(actor)) return;
+        var rows = usersJdbcTemplate.queryForList("SELECT u.username, r.name AS role_name FROM users u LEFT JOIN roles r ON r.id = u.role_id WHERE u.id = ?", id);
+        if (rows.stream().anyMatch(row -> UserPermissionsController.systemUsername(row.get("username"))
+                || UserPermissionsController.protectedRole(row.get("role_name"))))
+            throw new org.springframework.security.access.AccessDeniedException("Системный администратор защищён");
+        var direct = usersJdbcTemplate.queryForList("SELECT authority FROM user_authorities WHERE user_id = ?", id);
+        if (direct.stream().anyMatch(row -> java.util.Set.of("ROLE_ADMIN", "ROLE_PORTAL_ADMIN").contains(row.get("authority"))))
+            throw new org.springframework.security.access.AccessDeniedException("Системный администратор защищён");
+    }
+
+    private void requireDelegableRole(Authentication actor, Object name, Object permissions) {
+        if (permissionService.isSuperUser(actor)) return;
+        if (UserPermissionsController.protectedRole(name))
+            throw new org.springframework.security.access.AccessDeniedException("Системная роль защищена");
+        Object encoded = permissions instanceof Map<?, ?> ? encodePermissions(permissions) : permissions;
+        for (String right : com.example.panel.security.PanelAccessPolicy.roleAuthorities(encoded))
+            if (!com.example.panel.security.PanelAccessPolicy.has(actor, right))
+                throw new org.springframework.security.access.AccessDeniedException("Нельзя назначить роль выше собственных полномочий");
     }
 
     private Map<String, Object> resolveCurrentRolePermissions(Authentication authentication) {
@@ -613,7 +738,9 @@ public class AuthManagementApiController {
                 || asBoolean(account.get("is_blocked"))) {
             return Map.of();
         }
-        return parsePermissions(account.get("permissions"));
+        Map<String, Object> verified = new LinkedHashMap<>(parsePermissions(account.get("permissions")));
+        verified.put("__verified_account", true);
+        return verified;
     }
 
     private List<String> extractFieldPermissions(Map<String, Object> permissions, String mode) {

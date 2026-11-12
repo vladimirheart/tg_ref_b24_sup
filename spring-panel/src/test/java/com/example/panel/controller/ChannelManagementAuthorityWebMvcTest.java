@@ -102,10 +102,16 @@ class ChannelManagementAuthorityWebMvcTest {
             new Actor("operator","ROLE_PORTAL_ADMIN","PAGE_SETTINGS"), new Actor("operator","BUSINESS_ADMIN","PAGE_CHANNELS"),
             new Actor("operator","ALL_BUSINESSES","PAGE_SETTINGS"), new Actor("operator","ROLE_ADMIN","PAGE_DIALOGS"),
             new Actor("admin","PAGE_CHANNELS","PAGE_SETTINGS"), new Actor(" admin ","PAGE_SETTINGS"))
-            .map(actor -> Arguments.of(route, actor)));
+            .filter(actor -> {
+                var rights = Arrays.asList(actor.authorities());
+                boolean page = rights.contains("PAGE_SETTINGS") || rights.contains("PAGE_CHANNELS");
+                boolean edit = rights.contains("ROLE_ADMIN") || rights.contains("ROLE_PORTAL_ADMIN") || rights.contains("EDIT_SETTINGS_CHANNELS");
+                return !page || (route.writes() && !edit);
+            }).map(actor -> Arguments.of(route, actor)));
     }
     static Stream<Arguments> allowed() {
-        return ROUTES.stream().flatMap(route -> Stream.of("PAGE_CHANNELS", "PAGE_SETTINGS").map(authority -> Arguments.of(route, authority)));
+        return ROUTES.stream().flatMap(route -> Stream.of("PAGE_CHANNELS", "PAGE_SETTINGS")
+                .flatMap(authority -> Stream.of("ROLE_ADMIN", "EDIT_SETTINGS_CHANNELS").map(edit -> Arguments.of(route, authority, edit))));
     }
     static Stream<Arguments> csrfFailures() {
         return ROUTES.stream().filter(Route::writes).flatMap(route -> Stream.of("PAGE_CHANNELS", "PAGE_SETTINGS")
@@ -121,8 +127,8 @@ class ChannelManagementAuthorityWebMvcTest {
     }
 
     @ParameterizedTest @MethodSource("allowed")
-    void systemAdminWithEitherManagementPageAuthorityRetainsDelegation(Route route, String authority) throws Exception {
-        var req = build(route).with(user("manager").authorities(new SimpleGrantedAuthority("ROLE_ADMIN"),new SimpleGrantedAuthority(authority)));
+    void explicitEditorWithEitherManagementPageAuthorityCanManageChannels(Route route, String authority, String edit) throws Exception {
+        var req = build(route).with(user("manager").authorities(new SimpleGrantedAuthority(edit),new SimpleGrantedAuthority(authority)));
         if (route.writes()) req.with(csrf());
         var response = mvc.perform(req).andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true));
         if (!route.operation().startsWith("bot-")) response.andExpect(jsonPath("$.marker").value(route.operation()));

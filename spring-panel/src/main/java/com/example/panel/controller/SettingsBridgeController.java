@@ -23,6 +23,7 @@ public class SettingsBridgeController {
     @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public Map<String, Object> updateSettings(@RequestBody Map<String, Object> payload,
                                               Authentication authentication) {
+        com.example.panel.security.PanelAccessPolicy.requirePayload(payload);
         return settingsUpdateService.updateSettings(payload, authentication);
     }
 }

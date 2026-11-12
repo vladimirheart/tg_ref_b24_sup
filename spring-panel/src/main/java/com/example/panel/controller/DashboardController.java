@@ -33,7 +33,7 @@ public class DashboardController {
     }
 
     @GetMapping("/dashboard")
-    @PreAuthorize("hasAuthority('PAGE_DIALOGS')")
+    @PreAuthorize("hasAuthority('PAGE_DASHBOARD')")
     public String dashboard(Authentication authentication, Model model) {
         navigationService.enrich(model, authentication);
         model.addAttribute("activePage", "dashboard");

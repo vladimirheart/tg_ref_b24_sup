@@ -555,6 +555,10 @@
       openBtn.dataset.action = 'open-user';
       openBtn.textContent = 'Открыть';
       actionsWrapper.appendChild(openBtn);
+      const permissionsBtn = document.createElement('button');
+      permissionsBtn.type = 'button'; permissionsBtn.className = 'btn btn-outline-secondary btn-sm';
+      permissionsBtn.dataset.userPermissions = user.permissions_user_id || String(user.id); permissionsBtn.textContent = 'Права';
+      actionsWrapper.appendChild(permissionsBtn);
 
       const deleteBtn = document.createElement('button');
       deleteBtn.type = 'button';

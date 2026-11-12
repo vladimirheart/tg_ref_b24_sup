@@ -43,7 +43,9 @@ class PermissionIdentityBoundaryTest {
     void establishedUnpaddedAdminCompatibilityIsPreserved(String username) {
         var actor = authenticated(username);
         assertTrue(permissions.isSuperUser(actor));
-        assertTrue(permissions.hasAuthority(actor, "PAGE_SETTINGS"));
+        assertFalse(permissions.hasAuthority(actor, "PAGE_SETTINGS"));
+        assertTrue(permissions.hasAuthority(authenticated(username, "PAGE_SETTINGS"), "PAGE_SETTINGS"));
+        assertTrue(permissions.hasAuthority(actor, "DIALOG_MACRO_PUBLISH"));
         assertTrue(permissions.hasAnyRole(actor, Set.of("SUPERVISOR")));
     }
 
@@ -56,7 +58,9 @@ class PermissionIdentityBoundaryTest {
     void explicitAdministrativeRoleStillGrantsPrivileges(String username, String role) {
         var actor = authenticated(username, role);
         assertTrue(permissions.isSuperUser(actor));
-        assertTrue(permissions.hasAuthority(actor, "PAGE_SETTINGS"));
+        assertFalse(permissions.hasAuthority(actor, "PAGE_SETTINGS"));
+        assertTrue(permissions.hasAuthority(authenticated(username, role, "PAGE_SETTINGS"), "PAGE_SETTINGS"));
+        assertTrue(permissions.hasAuthority(actor, "DIALOG_MACRO_PUBLISH"));
         assertTrue(permissions.hasAnyRole(actor, Set.of("SUPERVISOR")));
     }
 

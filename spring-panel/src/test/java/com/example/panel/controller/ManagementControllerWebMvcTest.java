@@ -54,6 +54,8 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 @AutoConfigureMockMvc
 @Import({NavigationService.class, BotSettingsPayloadNormalizer.class, AutoCloseConfigNormalizer.class, ObjectPassportPageModelAssembler.class})
 class ManagementControllerWebMvcTest {
+    @MockBean
+    private com.example.panel.service.SharedWorkAccessService sharedWorkAccessService;
 
     @Autowired
     private MockMvc mockMvc;

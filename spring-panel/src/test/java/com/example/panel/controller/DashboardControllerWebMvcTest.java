@@ -44,7 +44,7 @@ class DashboardControllerWebMvcTest {
         when(dialogLookupReadService.loadSummary()).thenReturn(new DialogSummary(0, 0, 0, Collections.emptyList()));
         when(dialogLookupReadService.loadDialogs(anyString())).thenReturn(Collections.emptyList());
 
-        mockMvc.perform(get("/dashboard").with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+        mockMvc.perform(get("/dashboard").with(user("operator").authorities(() -> "PAGE_DASHBOARD")))
             .andExpect(status().isOk())
             .andExpect(view().name("dashboard/index"))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-preferences.js")))

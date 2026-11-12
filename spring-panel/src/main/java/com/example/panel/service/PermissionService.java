@@ -27,7 +27,7 @@ public class PermissionService {
         if (authentication == null || !authentication.isAuthenticated()) {
             return false;
         }
-        if (isSuperUser(authentication)) {
+        if (isSuperUser(authentication) && !authority.startsWith("PAGE_")) {
             return true;
         }
         return authentication.getAuthorities().stream()

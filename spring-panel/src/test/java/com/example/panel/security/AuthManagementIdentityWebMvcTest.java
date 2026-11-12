@@ -101,6 +101,10 @@ class AuthManagementIdentityWebMvcTest {
         });
         when(jdbc.queryForList(startsWith("SELECT u.*"))).thenAnswer(c -> accounts.values().stream().map(LinkedHashMap::new).toList());
         when(jdbc.queryForList(startsWith("SELECT id, name, description, permissions FROM roles"))).thenReturn(List.of());
+        when(jdbc.queryForList(eq("SELECT name, permissions FROM roles WHERE id = ?"), any(Object.class)))
+            .thenReturn(List.of(Map.of("name", "fixture-target", "permissions", "{}")));
+        when(jdbc.queryForList(eq("SELECT name FROM roles WHERE id = ?"), anyLong()))
+            .thenReturn(List.of(Map.of("name", "fixture-target")));
         when(jdbc.queryForList(eq("SELECT username FROM users WHERE id = ?"),anyLong())).thenAnswer(c -> {var row=accounts.get(c.<Long>getArgument(1));return row==null?List.of():List.of(Map.of("username",row.get("username")));});
         when(jdbc.query(eq("SELECT photo FROM users WHERE id = ?"),org.mockito.ArgumentMatchers.<RowMapper<String>>any(),anyLong())).thenAnswer(c -> List.of(accounts.get(c.<Long>getArgument(2)).get("photo")));
         when(photos.storeUploadedAvatar(any(),any())).thenReturn(new PanelUserPhotoService.StoredAvatar("fixture.png","/fixture/avatar.png"));
@@ -162,6 +166,8 @@ class AuthManagementIdentityWebMvcTest {
     }
     @ParameterizedTest @MethodSource("actions")
     void ownFieldsStillAuthorizeAllSupportedManagementWrites(Action action) throws Exception {
+        if (action.key.equals("role.pages")) authorities=List.of("PAGE_SETTINGS", "PAGE_DIALOGS");
+        if (action.key.equals("role.fields.edit")) authorities=List.of("PAGE_SETTINGS", "EDIT_USER_CREATE");
         account(7L,"reader",action.key);account(200L,"target");var session=login("reader");collision();
         action(session,action).andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true));assertThat(writes).hasSize(1);
     }
@@ -223,8 +229,8 @@ class AuthManagementIdentityWebMvcTest {
         send(login("reader"),"PATCH","/api/users/7",Map.of("photo","")).andExpect(jsonPath("$.success").value(true));
         assertThat(accounts.get(7L).get("photo")).isEqualTo("");verify(photos).deleteUserAvatarFiles(7L);assertThat(writes).hasSize(1);
     }
-    @Test void pageUsersAloneDoesNotGainSettingsFieldPermissions() throws Exception {
-        authorities=List.of("PAGE_USERS");account(7L,"reader","user.create");action(login("reader"),actions().findFirst().orElseThrow()).andExpect(jsonPath("$.success").value(false));assertThat(writes).isEmpty();
+    @Test void usersPageWithAnExplicitFieldGrantCanManageUsers() throws Exception {
+        authorities=List.of("PAGE_USERS");account(7L,"reader","user.create");action(login("reader"),actions().findFirst().orElseThrow()).andExpect(jsonPath("$.success").value(true));assertThat(writes).hasSize(1);
     }
     @Test void managementPageGateStillPrecedesTheHandler() throws Exception {
         authorities=List.of("PAGE_DIALOGS");account(7L,"reader","user.create");action(login("reader"),actions().findFirst().orElseThrow()).andExpect(status().isForbidden());assertThat(writes).isEmpty();

@@ -163,6 +163,7 @@
             <div class="sidebar-nav-group" data-nav-group="admin">
                 <div class="sidebar-section-label">Администрирование</div>
                 <a class="nav-link" data-page-key="dashboard" data-nav-group="admin"
+                   th:if="${canViewDashboard}"
                    th:classappend="${active}=='dashboard' ? ' active'"
                    th:href="@{/dashboard}">
                     <span class="icon" aria-hidden="true">📊</span>

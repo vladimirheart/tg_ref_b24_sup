@@ -104,6 +104,8 @@ public class SecurityConfig {
 
         http.addFilterBefore(new SessionAuthorityFilter(users, publicRequests, contexts, securityProperties.getRememberMeKey()),
                 org.springframework.security.web.authentication.AnonymousAuthenticationFilter.class);
+        http.addFilterAfter(new SettingsWritePermissionFilter(),
+                org.springframework.security.web.authentication.AnonymousAuthenticationFilter.class);
         UserLastActivityFilter activityFilter = userLastActivityFilter.getIfAvailable();
         if (activityFilter != null) {
             http.addFilterAfter(activityFilter, org.springframework.security.web.authentication.AnonymousAuthenticationFilter.class);

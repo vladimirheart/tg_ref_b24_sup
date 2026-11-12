@@ -42,6 +42,7 @@ public class NavigationService {
 
     public void enrich(Model model, Authentication authentication) {
         model.addAttribute("canViewAnalytics", permissionService.hasAuthority(authentication, "PAGE_ANALYTICS"));
+        model.addAttribute("canViewDashboard", permissionService.hasAuthority(authentication, "PAGE_DASHBOARD"));
         model.addAttribute("canEditKnowledgeBase", permissionService.hasAuthority(authentication, "PAGE_KNOWLEDGE_BASE"));
         model.addAttribute("canViewScopedAiSources", flags!=null && flags.isFoundationEnabled() && flags.isUiSelector()
                 && permissionService.hasAuthority(authentication,"PAGE_KNOWLEDGE_BASE"));

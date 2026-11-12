@@ -38,6 +38,8 @@ public class SettingsParametersController {
     @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_OBJECT_PASSPORTS')")
     public Map<String, Object> createParameter(HttpServletRequest request) throws IOException {
         Map<String, Object> payload = RequestPayloadUtils.readPayload(request, objectMapper);
+        com.example.panel.security.PanelAccessPolicy.requireBlock(
+                com.example.panel.security.PanelAccessPolicy.parameterBlock(String.valueOf(payload.get("param_type"))));
         return settingsParameterService.createParameter(payload);
     }
 
@@ -48,12 +50,14 @@ public class SettingsParametersController {
     @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_OBJECT_PASSPORTS')")
     public Map<String, Object> updateParameter(@PathVariable long paramId,
                                                @RequestBody Map<String, Object> payload) {
+        com.example.panel.security.PanelAccessPolicy.requireBlock(settingsParameterService.permissionBlock(paramId));
         return settingsParameterService.updateParameter(paramId, payload);
     }
 
     @DeleteMapping("/api/settings/parameters/{paramId}")
     @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_OBJECT_PASSPORTS')")
     public Map<String, Object> deleteParameter(@PathVariable long paramId) {
+        com.example.panel.security.PanelAccessPolicy.requireBlock(settingsParameterService.permissionBlock(paramId));
         return settingsParameterService.deleteParameter(paramId);
     }
 }

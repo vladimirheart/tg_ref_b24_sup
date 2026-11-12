@@ -520,6 +520,7 @@
     function prepareParameterModal(type) {
       if (!elements.parameterModalEl) return false;
       state.parameterModalType = type;
+      elements.parameterModalEl.dataset.paramType = type;
       const titleEl = elements.parameterModalEl.querySelector('[data-param-modal-title]');
       if (titleEl) {
         const label = getParameterTitles()[type] || (type === getCityParameterType() ? getCityParameterLabel() : 'Значения параметра');

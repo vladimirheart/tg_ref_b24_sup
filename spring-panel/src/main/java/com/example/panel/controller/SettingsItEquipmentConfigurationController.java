@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/settings/it-equipment")
+@org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('PAGE_SETTINGS','PAGE_OBJECT_PASSPORTS')")
 public class SettingsItEquipmentConfigurationController {
 
     private final SettingsItEquipmentConfigurationService configurationService;

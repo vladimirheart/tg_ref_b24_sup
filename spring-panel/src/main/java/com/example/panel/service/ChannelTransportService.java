@@ -55,7 +55,9 @@ public class ChannelTransportService {
     public ResponseEntity<Map<String, Object>> getChannels() {
         List<Channel> channels = channelRepository.findAll();
         try {
-            updateTelegramBotInfoIfMissing(channels);
+            if (com.example.panel.security.PanelAccessPolicy.canEdit(
+                    org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication(), "channels"))
+                updateTelegramBotInfoIfMissing(channels);
         } catch (RuntimeException ex) {
             log.warn("Failed to refresh Telegram bot info: {}", ex.getMessage());
         }

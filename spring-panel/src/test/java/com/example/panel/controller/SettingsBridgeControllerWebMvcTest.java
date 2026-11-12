@@ -37,7 +37,7 @@ class SettingsBridgeControllerWebMvcTest {
                 .thenReturn(Map.of("success", true, "warnings", java.util.List.of("warn")));
 
         mockMvc.perform(post("/settings")
-                        .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                        .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                         .with(csrf())
                         .contentType("application/json")
                         .content("""
@@ -69,7 +69,7 @@ class SettingsBridgeControllerWebMvcTest {
                 .thenReturn(Map.of("success", true, "saved", true));
 
         mockMvc.perform(put("/settings")
-                        .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                        .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                         .with(csrf())
                         .contentType("application/json")
                         .content("""
@@ -88,12 +88,12 @@ class SettingsBridgeControllerWebMvcTest {
                 .thenReturn(Map.of("success", true, "updated", true));
 
         mockMvc.perform(patch("/settings/")
-                        .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                        .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                         .with(csrf())
                         .contentType("application/json")
                         .content("""
                                 {
-                                  "reporting": {"enabled": true}
+                                  "reporting_config": {"enabled": true}
                                 }
                                 """))
                 .andExpect(status().isOk())
@@ -107,12 +107,12 @@ class SettingsBridgeControllerWebMvcTest {
                 .thenReturn(Map.of("success", true, "applied", true));
 
         mockMvc.perform(post("/settings/")
-                        .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                        .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                         .with(csrf())
                         .contentType("application/json")
                         .content("""
                                 {
-                                  "integration": {"enabled": true}
+                                  "integration_network": {"enabled": true}
                                 }
                                 """))
                 .andExpect(status().isOk())

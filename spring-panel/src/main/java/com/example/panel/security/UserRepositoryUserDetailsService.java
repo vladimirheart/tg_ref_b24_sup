@@ -27,7 +27,7 @@ class UserRepositoryUserDetailsService implements UserDetailsService {
             Map.entry("clients", "PAGE_CLIENTS"),
             Map.entry("object_passports", "PAGE_OBJECT_PASSPORTS"),
             Map.entry("knowledge_base", "PAGE_KNOWLEDGE_BASE"),
-            Map.entry("dashboard", "PAGE_ANALYTICS"),
+            Map.entry("dashboard", "PAGE_DASHBOARD"),
             Map.entry("analytics", "PAGE_ANALYTICS"),
             Map.entry("channels", "PAGE_CHANNELS"),
             Map.entry("settings", "PAGE_SETTINGS"),
@@ -92,9 +92,8 @@ class UserRepositoryUserDetailsService implements UserDetailsService {
     }
 
     private List<GrantedAuthority> loadAuthorities(Long userId, boolean strict) {
-        Set<String> authorityNames = new LinkedHashSet<>();
-        authorityNames.addAll(loadDirectAuthorities(userId, strict));
-        authorityNames.addAll(loadRoleAuthorities(userId, strict));
+        Set<String> authorityNames = PanelAccessPolicy.effective(
+                loadRoleAuthorities(userId, strict), loadDirectAuthorities(userId, strict));
 
         if (authorityNames.isEmpty()) {
             authorityNames.add("ROLE_USER");
@@ -129,6 +128,7 @@ class UserRepositoryUserDetailsService implements UserDetailsService {
             }
             Map<String, Object> row = rows.get(0);
             Set<String> result = new LinkedHashSet<>(mapPagePermissionsToAuthorities(extractPagePermissions(row.get("permissions"))));
+            result.addAll(PanelAccessPolicy.roleAuthorities(row.get("permissions")));
             String roleName = stringValue(row.get("role_name"));
             if ("admin".equalsIgnoreCase(roleName)) {
                 result.add("ROLE_ADMIN");
@@ -264,6 +264,7 @@ class UserRepositoryUserDetailsService implements UserDetailsService {
             jdbcTemplate.update("INSERT INTO user_authorities(user_id, authority) VALUES (?, ?)", userId, "ROLE_ADMIN");
             jdbcTemplate.update("INSERT INTO user_authorities(user_id, authority) VALUES (?, ?)", userId, "PAGE_DIALOGS");
             jdbcTemplate.update("INSERT INTO user_authorities(user_id, authority) VALUES (?, ?)", userId, "PAGE_ANALYTICS");
+            jdbcTemplate.update("INSERT INTO user_authorities(user_id, authority) VALUES (?, ?)", userId, "PAGE_DASHBOARD");
             jdbcTemplate.update("INSERT INTO user_authorities(user_id, authority) VALUES (?, ?)", userId, "PAGE_KNOWLEDGE_BASE");
             jdbcTemplate.update("INSERT INTO user_authorities(user_id, authority) VALUES (?, ?)", userId, "PAGE_CLIENTS");
             jdbcTemplate.update("INSERT INTO user_authorities(user_id, authority) VALUES (?, ?)", userId, "PAGE_TASKS");

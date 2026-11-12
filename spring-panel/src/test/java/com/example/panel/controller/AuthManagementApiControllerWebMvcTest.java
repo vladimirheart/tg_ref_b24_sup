@@ -104,7 +104,7 @@ class AuthManagementApiControllerWebMvcTest {
             .thenReturn(List.of(Map.of("id", 7L)));
 
         mockMvc.perform(get("/api/auth/state")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS")))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.users[0].username").value("admin"))
             .andExpect(jsonPath("$.roles[0].name").value("portal-admin"))
@@ -221,7 +221,7 @@ class AuthManagementApiControllerWebMvcTest {
             .thenReturn(List.of(Map.of("id", 7L)));
 
         mockMvc.perform(get("/api/users")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS")))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].username").value("broken-phones"))
             .andExpect(jsonPath("$[0].phones").isArray())
@@ -270,7 +270,7 @@ class AuthManagementApiControllerWebMvcTest {
         )));
 
         mockMvc.perform(get("/api/roles")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS")))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].name").value("broken-role"))
             .andExpect(jsonPath("$[0].permissions.pages").isArray())
@@ -282,7 +282,7 @@ class AuthManagementApiControllerWebMvcTest {
     @Test
     void updateOrgStructurePersistsPayloadThroughSharedConfigBoundary() throws Exception {
         mockMvc.perform(post("/api/auth/org-structure")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -306,7 +306,7 @@ class AuthManagementApiControllerWebMvcTest {
     @Test
     void updateOrgStructureAcceptsRawPayloadWithoutWrapper() throws Exception {
         mockMvc.perform(post("/api/auth/org-structure")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -328,7 +328,7 @@ class AuthManagementApiControllerWebMvcTest {
     @Test
     void updateOrgStructureSupportsTrailingSlashRoute() throws Exception {
         mockMvc.perform(post("/api/auth/org-structure/")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -349,7 +349,7 @@ class AuthManagementApiControllerWebMvcTest {
             .thenReturn(1);
 
         mockMvc.perform(post("/api/users")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -368,7 +368,7 @@ class AuthManagementApiControllerWebMvcTest {
         when(permissionService.isSuperUser(any())).thenReturn(true);
 
         mockMvc.perform(post("/api/users")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -389,7 +389,7 @@ class AuthManagementApiControllerWebMvcTest {
         when(permissionService.hasAuthority(any(), eq("PAGE_SETTINGS"))).thenReturn(false);
 
         mockMvc.perform(post("/api/users")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -411,7 +411,7 @@ class AuthManagementApiControllerWebMvcTest {
         when(passwordEncoder.encode("secret")).thenReturn("hashed-secret");
 
         mockMvc.perform(post("/api/users")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -434,7 +434,7 @@ class AuthManagementApiControllerWebMvcTest {
         when(passwordEncoder.encode("secret")).thenReturn("hashed-secret");
 
         mockMvc.perform(post("/api/users/")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -458,7 +458,7 @@ class AuthManagementApiControllerWebMvcTest {
         when(passwordEncoder.encode("secret")).thenReturn("hashed-secret");
 
         mockMvc.perform(post("/api/users")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -494,7 +494,7 @@ class AuthManagementApiControllerWebMvcTest {
         when(permissionService.isSuperUser(any())).thenReturn(true);
 
         mockMvc.perform(patch("/api/users/7")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("{}"))
@@ -510,7 +510,7 @@ class AuthManagementApiControllerWebMvcTest {
         ReflectionTestUtils.setField(controller, "userColumns", Set.of("password", "is_blocked"));
 
         mockMvc.perform(patch("/api/users/7")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -524,7 +524,7 @@ class AuthManagementApiControllerWebMvcTest {
 
         verify(usersJdbcTemplate).update(
             eq("UPDATE users SET is_blocked = ?, password = ? WHERE id = ?"),
-            eq(1),
+            eq(true),
             eq("hashed-next-secret"),
             eq(7L)
         );
@@ -536,7 +536,7 @@ class AuthManagementApiControllerWebMvcTest {
         ReflectionTestUtils.setField(controller, "userColumns", Set.of("full_name"));
 
         mockMvc.perform(put("/api/users/12")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -561,7 +561,7 @@ class AuthManagementApiControllerWebMvcTest {
         ReflectionTestUtils.setField(controller, "userColumns", Set.of("password", "password_hash"));
 
         mockMvc.perform(patch("/api/users/7")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -586,7 +586,7 @@ class AuthManagementApiControllerWebMvcTest {
         ReflectionTestUtils.setField(controller, "userColumns", Set.of("is_blocked", "enabled"));
 
         mockMvc.perform(patch("/api/users/7")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -599,7 +599,7 @@ class AuthManagementApiControllerWebMvcTest {
 
         verify(usersJdbcTemplate).update(
             eq("UPDATE users SET is_blocked = ?, enabled = ? WHERE id = ?"),
-            eq(1),
+            eq(true),
             eq(false),
             eq(7L)
         );
@@ -611,7 +611,7 @@ class AuthManagementApiControllerWebMvcTest {
         ReflectionTestUtils.setField(controller, "userColumns", Set.of("full_name", "email", "department", "photo", "birth_date"));
 
         mockMvc.perform(patch("/api/users/7")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -643,7 +643,7 @@ class AuthManagementApiControllerWebMvcTest {
         ReflectionTestUtils.setField(controller, "userColumns", Set.of("phones"));
 
         mockMvc.perform(patch("/api/users/7")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -669,7 +669,7 @@ class AuthManagementApiControllerWebMvcTest {
         ReflectionTestUtils.setField(controller, "userColumns", Set.of("role_id", "role"));
 
         mockMvc.perform(patch("/api/users/7")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -698,7 +698,7 @@ class AuthManagementApiControllerWebMvcTest {
         when(passwordEncoder.encode("secret")).thenReturn("hashed-secret");
 
         mockMvc.perform(post("/api/users")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -727,7 +727,7 @@ class AuthManagementApiControllerWebMvcTest {
         when(passwordEncoder.encode("secret")).thenReturn("hashed-secret");
 
         mockMvc.perform(post("/api/users")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -744,7 +744,7 @@ class AuthManagementApiControllerWebMvcTest {
             eq("fresh"),
             eq("hashed-secret"),
             eq(true),
-            anyString()
+            org.mockito.ArgumentMatchers.any(java.time.OffsetDateTime.class)
         );
     }
 
@@ -775,7 +775,7 @@ class AuthManagementApiControllerWebMvcTest {
         when(usersJdbcTemplate.update("DELETE FROM users WHERE id = ?", 41L)).thenReturn(0);
 
         mockMvc.perform(delete("/api/users/41")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(false))
@@ -788,7 +788,7 @@ class AuthManagementApiControllerWebMvcTest {
         when(usersJdbcTemplate.update("DELETE FROM users WHERE id = ?", 42L)).thenReturn(1);
 
         mockMvc.perform(delete("/api/users/42")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true));
@@ -801,7 +801,7 @@ class AuthManagementApiControllerWebMvcTest {
         when(permissionService.hasAuthority(any(), eq("PAGE_SETTINGS"))).thenReturn(false);
 
         mockMvc.perform(delete("/api/users/41")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(false))
@@ -815,7 +815,7 @@ class AuthManagementApiControllerWebMvcTest {
             .thenReturn(1);
 
         mockMvc.perform(post("/api/roles")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -833,7 +833,7 @@ class AuthManagementApiControllerWebMvcTest {
         when(permissionService.isSuperUser(any())).thenReturn(true);
 
         mockMvc.perform(post("/api/roles")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -853,7 +853,7 @@ class AuthManagementApiControllerWebMvcTest {
         when(permissionService.hasAuthority(any(), eq("PAGE_SETTINGS"))).thenReturn(false);
 
         mockMvc.perform(post("/api/roles")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -873,7 +873,7 @@ class AuthManagementApiControllerWebMvcTest {
             .thenReturn(0);
 
         mockMvc.perform(post("/api/roles")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -907,7 +907,7 @@ class AuthManagementApiControllerWebMvcTest {
             .thenReturn(0);
 
         mockMvc.perform(post("/api/roles")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -934,7 +934,7 @@ class AuthManagementApiControllerWebMvcTest {
             .thenReturn(0);
 
         mockMvc.perform(post("/api/roles/")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -952,7 +952,7 @@ class AuthManagementApiControllerWebMvcTest {
         when(permissionService.isSuperUser(any())).thenReturn(true);
 
         mockMvc.perform(patch("/api/roles/5")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("{}"))
@@ -966,7 +966,7 @@ class AuthManagementApiControllerWebMvcTest {
         when(permissionService.isSuperUser(any())).thenReturn(true);
 
         mockMvc.perform(patch("/api/roles/5")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -995,7 +995,7 @@ class AuthManagementApiControllerWebMvcTest {
         when(permissionService.isSuperUser(any())).thenReturn(true);
 
         mockMvc.perform(put("/api/roles/6")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -1018,7 +1018,7 @@ class AuthManagementApiControllerWebMvcTest {
         when(permissionService.isSuperUser(any())).thenReturn(true);
 
         mockMvc.perform(patch("/api/roles/5")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -1049,7 +1049,7 @@ class AuthManagementApiControllerWebMvcTest {
         when(permissionService.hasAuthority(any(), eq("PAGE_SETTINGS"))).thenReturn(false);
 
         mockMvc.perform(patch("/api/roles/5")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -1069,7 +1069,7 @@ class AuthManagementApiControllerWebMvcTest {
         when(permissionService.isSuperUser(any())).thenReturn(true);
 
         mockMvc.perform(patch("/api/roles/13")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -1094,7 +1094,7 @@ class AuthManagementApiControllerWebMvcTest {
         when(permissionService.hasAuthority(any(), eq("PAGE_SETTINGS"))).thenReturn(false);
 
         mockMvc.perform(patch("/api/roles/5")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -1112,7 +1112,7 @@ class AuthManagementApiControllerWebMvcTest {
         when(permissionService.isSuperUser(any())).thenReturn(true);
 
         mockMvc.perform(patch("/api/roles/5")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -1132,7 +1132,7 @@ class AuthManagementApiControllerWebMvcTest {
         when(permissionService.hasAuthority(any(), eq("PAGE_SETTINGS"))).thenReturn(false);
 
         mockMvc.perform(patch("/api/roles/5")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf())
                 .contentType("application/json")
                 .content("""
@@ -1175,7 +1175,7 @@ class AuthManagementApiControllerWebMvcTest {
         when(usersJdbcTemplate.update("DELETE FROM roles WHERE id = ?", 77L)).thenReturn(0);
 
         mockMvc.perform(delete("/api/roles/77")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(false))
@@ -1206,7 +1206,7 @@ class AuthManagementApiControllerWebMvcTest {
         when(permissionService.hasAuthority(any(), eq("PAGE_SETTINGS"))).thenReturn(false);
 
         mockMvc.perform(delete("/api/roles/77")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(false))
@@ -1224,7 +1224,7 @@ class AuthManagementApiControllerWebMvcTest {
         )).thenReturn(2);
 
         mockMvc.perform(delete("/api/roles/8")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(false))
@@ -1245,7 +1245,7 @@ class AuthManagementApiControllerWebMvcTest {
         when(usersJdbcTemplate.update("DELETE FROM roles WHERE id = ?", 9L)).thenReturn(1);
 
         mockMvc.perform(delete("/api/roles/9")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true));
@@ -1258,7 +1258,7 @@ class AuthManagementApiControllerWebMvcTest {
         when(usersJdbcTemplate.update("DELETE FROM roles WHERE id = ?", 10L)).thenReturn(1);
 
         mockMvc.perform(delete("/api/roles/10")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true));
@@ -1273,7 +1273,7 @@ class AuthManagementApiControllerWebMvcTest {
     @Test
     void getUserPasswordAlwaysReturnsStaticDenial() throws Exception {
         mockMvc.perform(get("/api/users/12/password")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS")))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.error").value("Просмотр пароля недоступен"));
@@ -1290,7 +1290,7 @@ class AuthManagementApiControllerWebMvcTest {
 
         mockMvc.perform(multipart("/api/users/photo-upload")
                 .file(file)
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(false))
@@ -1299,6 +1299,7 @@ class AuthManagementApiControllerWebMvcTest {
 
     @Test
     void uploadUserPhotoRejectsUnsupportedExtension() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
         MockMultipartFile file = new MockMultipartFile(
             "photo",
             "avatar.txt",
@@ -1308,7 +1309,7 @@ class AuthManagementApiControllerWebMvcTest {
 
         mockMvc.perform(multipart("/api/users/photo-upload")
                 .file(file)
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(false))
@@ -1317,6 +1318,7 @@ class AuthManagementApiControllerWebMvcTest {
 
     @Test
     void uploadUserPhotoStoresAllowedImageAndReturnsMetadata() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
         MockMultipartFile file = new MockMultipartFile(
             "photo",
             "avatar.png",
@@ -1328,7 +1330,7 @@ class AuthManagementApiControllerWebMvcTest {
 
         mockMvc.perform(multipart("/api/users/photo-upload")
                 .file(file)
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
@@ -1338,6 +1340,7 @@ class AuthManagementApiControllerWebMvcTest {
 
     @Test
     void uploadUserPhotoSupportsTrailingSlashRoute() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
         MockMultipartFile file = new MockMultipartFile(
             "photo",
             "avatar.webp",
@@ -1349,7 +1352,7 @@ class AuthManagementApiControllerWebMvcTest {
 
         mockMvc.perform(multipart("/api/users/photo-upload/")
                 .file(file)
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
                 .with(csrf()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))

@@ -87,7 +87,7 @@ public class SettingsPageController {
             settings.put("auto_close_config", normalizedAutoCloseConfig);
             settings.put("bot_settings", botSettingsPayloadNormalizer.normalize(settings.get("bot_settings")));
             settings.remove("unblock_request_cooldown_minutes");
-            model.addAttribute("settingsPayload", settings);
+            model.addAttribute("settingsPayload", com.example.panel.security.SettingsSecretMasker.settings(settings, authentication));
             model.addAttribute("autoCloseFallbackHours",
                     autoCloseConfigNormalizer.resolveFallbackHours(normalizedAutoCloseConfig));
             model.addAttribute("autoCloseFollowUpProjectId",

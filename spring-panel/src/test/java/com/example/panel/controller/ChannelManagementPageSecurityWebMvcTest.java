@@ -64,21 +64,21 @@ class ChannelManagementPageSecurityWebMvcTest {
     }
 
     @ParameterizedTest @MethodSource("nonAdmins")
-    void channelPageRejectsBeforeCatalogLookup(String username,String[] rights) throws Exception {
+    void channelPageCanBeViewedWithItsPagePermission(String username,String[] rights) throws Exception {
         mvc.perform(get("/channels").with(user(username).authorities(authorities(rights))))
-            .andExpect(status().isForbidden());
+            .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/settings?open=channels"));
         verifyNoInteractions(channels,config,locations);
     }
 
     @ParameterizedTest @MethodSource("nonAdmins")
-    void settingsStillOpensButChannelTileAndEditorsAreNotRendered(String username,String[] rights) throws Exception {
+    void settingsShowsChannelWorkspaceForInspectionWithWritesGuardedSeparately(String username,String[] rights) throws Exception {
         mvc.perform(get("/settings?open=channels").with(user(username).authorities(authorities(rights))))
             .andExpect(status().isOk()).andExpect(view().name("settings/index"))
-            .andExpect(model().attribute("canManageChannels",false))
-            .andExpect(content().string(not(containsString("data-settings-overview-target=\"channelsModal\""))))
-            .andExpect(content().string(not(containsString("id=\"channelsModal\""))))
-            .andExpect(content().string(not(containsString("id=\"addChannelModal\""))))
-            .andExpect(content().string(not(containsString("id=\"channelEditorModal\""))))
+            .andExpect(model().attribute("canManageChannels",true))
+            .andExpect(content().string(containsString("data-settings-overview-target=\"channelsModal\"")))
+            .andExpect(content().string(containsString("id=\"channelsModal\"")))
+            .andExpect(content().string(containsString("id=\"addChannelModal\"")))
+            .andExpect(content().string(containsString("id=\"channelEditorModal\"")))
             .andExpect(content().string(containsString("id=\"reportingModal\"")));
         verifyNoInteractions(channels);
     }

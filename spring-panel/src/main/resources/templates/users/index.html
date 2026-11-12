@@ -2,6 +2,7 @@
 <html lang="ru" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
+    <meta name="_csrf" th:content="${_csrf.token}">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Пользователи — iguana</title>
     <link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
@@ -35,6 +36,7 @@
 			<table class="table align-middle admin-table">
 				<thead>
                 <tr>
+                    <th>Права</th>
                     <th>Логин</th>
                     <th>Имя</th>
                     <th>Роль</th>
@@ -45,9 +47,10 @@
                 </thead>
                 <tbody>
                 <tr th:if="${#lists.isEmpty(users)}">
-                    <td colspan="6" class="admin-empty-cell">Пользователи не найдены</td>
+                    <td colspan="7" class="admin-empty-cell">Пользователи не найдены</td>
                 </tr>
                 <tr th:each="user : ${users}">
+                    <td><button type="button" class="btn btn-outline-secondary btn-sm" th:attr="data-user-permissions=${user.id}">Права</button></td>
                     <td th:text="${user.username}"></td>
                     <td th:text="${user.fullName} ?: '—'"></td>
                     <td th:text="${user.role} ?: (user.roleRef != null ? user.roleRef.name : '—')"></td>
@@ -68,5 +71,7 @@
     </div>
 </main>
 <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script th:src="@{/js/common.js}"></script>
+<script src="/js/user-permissions.js?v=20261112"></script>
 </body>
 </html>
