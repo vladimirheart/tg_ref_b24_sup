@@ -369,9 +369,10 @@
                     <div class="d-flex flex-column flex-lg-row gap-2 align-items-lg-center">
                       <button type="button" class="btn btn-success" id="channelEditorBotStartBtn">Запустить бота</button>
                       <button type="button" class="btn btn-outline-danger" id="channelEditorBotStopBtn">Остановить</button>
+                      <button type="button" class="btn btn-outline-primary" id="channelEditorBotRestartBtn" disabled>Перезапустить</button>
                       <div class="channel-editor-status-strip" data-channel-editor-bot-status>
                         <span class="small text-muted">Процесс:</span>
-                        <span class="badge bg-secondary-subtle text-secondary" data-channel-editor-bot-status-badge>—</span>
+                        <span class="badge bg-secondary-subtle text-secondary" data-channel-editor-bot-status-badge role="status" aria-live="polite">—</span>
                         <span class="small text-muted" data-channel-editor-bot-status-details></span>
                       </div>
                     </div>

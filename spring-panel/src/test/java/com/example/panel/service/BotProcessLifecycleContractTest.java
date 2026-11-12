@@ -68,22 +68,35 @@ class BotProcessLifecycleContractTest {
 
         Channel channel = new Channel();
         channel.setId(310L);
+        channel.setActive(true);
         channel.setPlatform("telegram");
         channel.setToken("telegram-test-token");
         channel.setBotUsername("probe_bot");
         channel.setSupportChatId("0");
 
-        BotProcessService.BotProcessStatus startStatus = service.start(channel);
+        try {
+            BotProcessService.BotProcessStatus startStatus = service.start(channel);
 
-        assertThat(startStatus.running()).isTrue();
-        assertThat(service.status(310L).running()).isTrue();
-        assertThat(Files.exists(tempDir.resolve("run").resolve("bot-310.pid"))).isTrue();
+            assertThat(startStatus.running()).as(startStatus.message()).isTrue();
+            assertThat(service.status(310L).running()).isTrue();
+            assertThat(Files.exists(tempDir.resolve("run").resolve("bot-310.pid"))).isTrue();
 
-        BotProcessService.BotProcessStatus stopStatus = service.stop(310L);
+            long firstPid = Long.parseLong(Files.readString(tempDir.resolve("run/bot-310.pid")).trim());
+            BotProcessService.BotProcessStatus restartStatus = service.start(channel);
+            assertThat(restartStatus.running()).isTrue();
+            long replacementPid = Long.parseLong(Files.readString(tempDir.resolve("run/bot-310.pid")).trim());
+            assertThat(replacementPid).isNotEqualTo(firstPid);
+            assertThat(ProcessHandle.of(firstPid).map(ProcessHandle::isAlive).orElse(false)).isFalse();
+            assertThat(ProcessHandle.of(replacementPid).map(ProcessHandle::isAlive).orElse(false)).isTrue();
 
-        assertThat(stopStatus.message()).isEqualTo("stopped");
-        assertThat(service.status(310L).running()).isFalse();
-        assertThat(Files.exists(tempDir.resolve("run").resolve("bot-310.pid"))).isFalse();
+            BotProcessService.BotProcessStatus stopStatus = service.stop(310L);
+
+            assertThat(stopStatus.message()).isEqualTo("stopped");
+            assertThat(service.status(310L).running()).isFalse();
+            assertThat(Files.exists(tempDir.resolve("run").resolve("bot-310.pid"))).isFalse();
+        } finally {
+            service.stop(310L);
+        }
     }
 
     private void createRunnableProbeJar(Path jarPath) throws Exception {

@@ -210,6 +210,7 @@ class BotProcessApiControllerWebMvcTest {
     }
 
     @Test
+    @org.springframework.security.test.context.support.WithMockUser(authorities = {"PAGE_SETTINGS", "EDIT_SETTINGS_CHANNELS"})
     void runtimeContractReturnsStructuredContractPayload() throws Exception {
         Channel channel = new Channel();
         channel.setId(51L);
@@ -248,6 +249,7 @@ class BotProcessApiControllerWebMvcTest {
     }
 
     @Test
+    @org.springframework.security.test.context.support.WithMockUser(authorities = {"PAGE_SETTINGS", "EDIT_SETTINGS_CHANNELS"})
     void runtimeContractReturnsStructuredContractPayloadForMaxChannel() throws Exception {
         Channel channel = new Channel();
         channel.setId(52L);

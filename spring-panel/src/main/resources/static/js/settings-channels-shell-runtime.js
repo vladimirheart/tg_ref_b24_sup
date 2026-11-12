@@ -403,6 +403,7 @@
       showNotification: typeof options.showNotification === 'function' ? options.showNotification : null,
       startBot: (...args) => settingsChannelsBotRuntime.startBot(...args),
       stopBot: (...args) => settingsChannelsBotRuntime.stopBot(...args),
+      restartBot: (...args) => settingsChannelsBotRuntime.restartBot(...args),
     });
     const settingsChannelsBotRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsChannelsBotRuntime', {
       getChannelsRegistry: () => state.channelsRegistry,

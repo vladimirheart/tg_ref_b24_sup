@@ -414,10 +414,11 @@
           </td>
           <td class="text-center align-top channels-status-cell">
             <div class="channels-runtime-control-row">
-              <span class="badge bg-light text-secondary border border-secondary-subtle" data-channel-bot-runtime-status="${prepared.id}" data-ui-ellipsis-reveal tabindex="0">Процесс: проверка…</span>
+              <span class="badge bg-light text-secondary border border-secondary-subtle" data-channel-bot-runtime-status="${prepared.id}" role="status" aria-live="polite" data-ui-ellipsis-reveal tabindex="0">Процесс: проверка…</span>
               <div class="d-flex justify-content-center channels-channel-actions">
                 <button type="button" class="btn btn-sm btn-outline-success channels-icon-button" data-channel-start="${prepared.id}" aria-label="Запустить" title="Запустить" disabled><i class="bi bi-play-fill" aria-hidden="true"></i></button>
                 <button type="button" class="btn btn-sm btn-outline-danger channels-icon-button" data-channel-stop="${prepared.id}" aria-label="Остановить" title="Остановить" hidden><i class="bi bi-stop-fill" aria-hidden="true"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-primary channels-icon-button" data-channel-restart="${prepared.id}" aria-label="Перезапустить" title="Перезапустить" disabled><i class="bi bi-arrow-clockwise" aria-hidden="true"></i></button>
                 <button type="button" class="btn btn-sm btn-outline-primary channels-icon-button" data-channel-edit="${prepared.id}" aria-label="Редактировать" title="Редактировать"><i class="bi bi-pencil" aria-hidden="true"></i></button>
               </div>
             </div>
@@ -797,6 +798,14 @@
         if (channelId && typeof options.stopBot === 'function') {
           options.stopBot(channelId);
         }
+        return;
+      }
+
+      const restartBtn = event.target.closest('[data-channel-restart]');
+      if (restartBtn) {
+        event.preventDefault();
+        const channelId = restartBtn.getAttribute('data-channel-restart');
+        if (channelId && typeof options.restartBot === 'function') options.restartBot(channelId);
         return;
       }
 

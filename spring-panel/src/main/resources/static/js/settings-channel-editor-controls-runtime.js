@@ -16,6 +16,7 @@
       channelEditorSendTestBtn: document.getElementById('channelEditorSendTestBtn'),
       channelEditorBotStartBtn: document.getElementById('channelEditorBotStartBtn'),
       channelEditorBotStopBtn: document.getElementById('channelEditorBotStopBtn'),
+      channelEditorBotRestartBtn: document.getElementById('channelEditorBotRestartBtn'),
       channelEditorBotRefreshBtn: document.getElementById('channelEditorBotRefreshBtn'),
       channelEditorToggleTokenBtn: document.getElementById('channelEditorToggleTokenBtn'),
       channelEditorCopyTokenBtn: document.getElementById('channelEditorCopyTokenBtn'),
@@ -57,6 +58,12 @@
         const channelId = getChannelEditorState().channelId;
         if (channelId !== null) {
           options.channelBotRuntime?.stopBotForChannel?.(channelId);
+        }
+      });
+      elements.channelEditorBotRestartBtn?.addEventListener('click', () => {
+        const channelId = getChannelEditorState().channelId;
+        if (channelId !== null) {
+          options.channelBotRuntime?.restartBotForChannel?.(channelId);
         }
       });
       elements.channelEditorBotRefreshBtn?.addEventListener('click', () => {
