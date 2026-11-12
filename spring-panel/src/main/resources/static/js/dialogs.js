@@ -4495,7 +4495,6 @@
   initDialogTemplates();
   renderEmojiPanel();
   lastListMarker = buildDialogsMarkerFromRows(rowsList());
-  startDialogsPolling();
   loadColumnOrder();
   loadColumnState();
   restoreDialogPreferences();
@@ -4542,14 +4541,6 @@
   emitWorkspaceTelemetry('workspace_experiment_exposure', {
     reason: WORKSPACE_AB_TEST_CONFIG.enabled ? 'bootstrap' : 'experiment_disabled',
   });
-  if (viewTabs.length) {
-    const activeTab = Array.from(viewTabs).find((tab) => tab.dataset.dialogView === filterState.view)
-      || Array.from(viewTabs).find((tab) => tab.classList.contains('active'));
-    setViewTab(activeTab?.dataset.dialogView || filterState.view || 'all');
-  } else {
-    applyFilters();
-  }
-  void refreshDialogsList(); // Includes global counters and pinned dialogs outside the initial page.
   renderMyDialogsPanel();
   window.openDialogDetailsByTicketId = (ticketId, runtimeOptions = {}) => {
     const normalizedTicketId = exactLegacyTicketId(ticketId);
@@ -4574,7 +4565,6 @@
   };
   window.refreshAiReviewQueue = () => {};
 
-  void loadServerTriagePreferences();
   window.addEventListener('pagehide', event => { if (!event.persisted) dialogsListRuntime?.dispose(); });
   window.addEventListener('pageshow', event => { if (event.persisted) void refreshDialogsList(); });
   if (aiMonitoringSection && aiMonitoringState) {
@@ -4619,4 +4609,5 @@
   restoreColumnWidths();
   initDetailsResize();
   window.__dialogsPrimaryReady = true;
+  void dialogsListRuntime?.initializeList().finally(startDialogsPolling);
 })();

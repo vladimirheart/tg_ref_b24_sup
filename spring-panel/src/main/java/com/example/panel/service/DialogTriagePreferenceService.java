@@ -1,11 +1,12 @@
 package com.example.panel.service;
 
+import com.example.panel.model.dialog.DialogListQuery;
 import org.springframework.security.core.Authentication;
-
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -20,6 +21,18 @@ public class DialogTriagePreferenceService {
     public Map<String, Object> loadForOperator(Authentication authentication) {
         if (!UiPreferenceService.isBoundAccount(authentication)) return Map.of();
         return uiPreferenceService.loadDialogsTriageForUser(authentication);
+    }
+
+    public DialogListQuery initialListQuery(Map<String, Object> preferences) {
+        Map<String, Object> values = preferences == null ? Map.of() : preferences;
+        int pageSize;
+        try {
+            pageSize = Integer.parseInt(normalizePageSizePreference(values.get("page_size")));
+        } catch (NumberFormatException ex) {
+            pageSize = DialogListQuery.DEFAULT_SIZE;
+        }
+        return new DialogListQuery(1, pageSize, "", "", normalizeView(values.get("view")),
+                normalizeSlaWindowMinutes(values.get("sla_window_minutes")), normalizeSortMode(values.get("sort_mode")), List.of());
     }
 
     public Map<String, Object> saveForOperator(Authentication authentication,

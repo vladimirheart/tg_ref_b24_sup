@@ -21,11 +21,15 @@ async function main() {
       res.writeHead(404); res.end('{}'); return;
     }
     res.setHeader('Content-Type', ({ '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' })[path.extname(file)] || 'application/octet-stream');
-    fs.createReadStream(file).pipe(res);
+    // Preserve vendor SRI on Windows checkouts with autocrlf.
+    if (/\.(js|css)$/.test(file)) res.end(fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n'));
+    else fs.createReadStream(file).pipe(res);
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
-  const browser = await chromium.launch({ headless: true }), origin = `http://127.0.0.1:${server.address().port}`;
+  const browser = await chromium.launch({ headless: true,
+    ...(process.env.PLAYWRIGHT_BROWSER_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_BROWSER_EXECUTABLE } : {}) }),
+    origin = `http://127.0.0.1:${server.address().port}`;
   const results = [];
   try {
     for (const theme of ['light', 'dark']) for (const width of [390, 1440]) {

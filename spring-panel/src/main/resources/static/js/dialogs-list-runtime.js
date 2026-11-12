@@ -38,6 +38,9 @@
     let disposed = false;
     let lastAppliedQueryKey = null;
     let errorNotified = false;
+    let initialization = null;
+    let initializing = false;
+    let initialListReady = false;
     const emptyCell = emptyRow?.querySelector('td');
     const emptyText = emptyCell?.textContent || 'Диалоги не найдены';
 
@@ -332,12 +335,73 @@
       });
     }
 
-    async function loadServerTriagePreferences() {
+    function finishInitialList() {
+      if (initialListReady) return;
+      initialListReady = true;
+      window.DialogsFirstPaint?.ready();
+    }
+
+    async function initializeList() {
+      if (initialization) return initialization;
+      window.DialogsFirstPaint?.claim?.();
+      initializing = true;
+      initialization = (async () => {
+        try {
+          await loadServerTriagePreferences({ refresh: false });
+          if (disposed) return;
+          setViewTab(getFilterState().view || 'all', { persist: false, refresh: false });
+          initializing = false;
+          const query = listQuery();
+          const initialQuery = window.DIALOG_LIST_BOOTSTRAP?.query;
+          const matchesInitialPage = initialQuery && serverPagination
+            && Object.keys(query).every(key => JSON.stringify(query[key]) === JSON.stringify(initialQuery[key]));
+          if (matchesInitialPage) {
+            lastAppliedQueryKey = JSON.stringify(query);
+            syncSlaOrchestrationSignals(window.DIALOG_LIST_BOOTSTRAP?.slaOrchestration || null);
+            applySlaOrchestrationToRows();
+            renderServerPage();
+            options.updateAllSlaBadges();
+            finishInitialList();
+          } else {
+            // The default SSR page must not become an actionable result for another filter.
+            rowsList().forEach(row => row.remove());
+            setLastFilteredRows([]);
+            ensureEmptyRow();
+            if (emptyCell) emptyCell.textContent = 'Загрузка диалогов…';
+            emptyRow?.classList.remove('d-none');
+            await refreshDialogsList({ includeOverview: true });
+          }
+        } catch (_error) {
+          if (disposed) return;
+          rowsList().forEach(row => row.remove());
+          setLastFilteredRows([]);
+          ensureEmptyRow();
+          if (emptyCell) emptyCell.textContent = 'Не удалось загрузить диалоги. Повторите поиск или смену страницы.';
+          emptyRow?.classList.remove('d-none');
+          if (elements.pageState) elements.pageState.textContent = 'Не удалось загрузить список.';
+          options.showNotification?.('Не удалось загрузить страницу диалогов. Повторите запрос.', 'warning');
+          finishInitialList();
+        } finally {
+          initializing = false;
+        }
+      })();
+      return initialization;
+    }
+
+    async function loadServerTriagePreferences(runtimeOptions = {}) {
+      const generation = listGeneration;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
       try {
-        const response = await fetch('/api/dialogs/triage-preferences', { headers: { Accept: 'application/json' } });
-        if (!response.ok) return;
-        const payload = await response.json().catch(() => null);
-        if (!payload || payload.success !== true || !payload.preferences) return;
+        let payload;
+        const bootstrap = window.DIALOG_LIST_BOOTSTRAP?.preferences;
+        if (bootstrap && typeof bootstrap === 'object') payload = { success: true, preferences: bootstrap };
+        else {
+          const response = await fetch('/api/dialogs/triage-preferences', { headers: { Accept: 'application/json' }, signal: controller.signal });
+          if (!response.ok) return;
+          payload = await response.json().catch(() => null);
+        }
+        if (!payload || payload.success !== true || !payload.preferences || disposed || generation !== listGeneration) return;
         if (applyServerTriagePreferences(payload.preferences)) {
           if (elements.pageSizeSelect) {
             const filterState = getFilterState();
@@ -349,14 +413,16 @@
           }
           const activeTab = getViewTabs().find((tab) => tab.dataset.dialogView === getFilterState().view);
           if (activeTab) {
-            setViewTab(getFilterState().view);
-          } else {
+            setViewTab(getFilterState().view, { persist: false, refresh: runtimeOptions.refresh !== false });
+          } else if (runtimeOptions.refresh !== false) {
             applyFilters();
           }
         }
         triagePreferencesLoadedFromServer = true;
       } catch (_error) {
         // ignore network errors and continue with local defaults
+      } finally {
+        clearTimeout(timeout);
       }
     }
 
@@ -514,7 +580,7 @@
     }
 
     async function refreshDialogsList(runtimeOptions = {}) {
-      if (disposed || document.visibilityState === 'hidden') {
+      if (disposed || initializing || document.visibilityState === 'hidden') {
         return;
       }
       if (filterTimer) {
@@ -530,6 +596,11 @@
       activeRequest?.controller.abort();
       const request = { id: ++requestSequence, queryKey, generation: listGeneration, controller: new AbortController() };
       activeRequest = request;
+      let timedOut = false;
+      const initialTimeout = initialListReady ? null : setTimeout(() => {
+        timedOut = true;
+        request.controller.abort();
+      }, 10000);
       setListLoading(true);
       table?.setAttribute('aria-busy', 'true');
       try {
@@ -574,17 +645,19 @@
           options.requestSidebarNotificationRefresh('dialogs-list-change');
         }
       } catch (error) {
-        if (activeRequest !== request || request.generation !== listGeneration || disposed || error?.name === 'AbortError') return;
+        if (activeRequest !== request || request.generation !== listGeneration || disposed || (error?.name === 'AbortError' && !timedOut)) return;
         if (elements.pageState) elements.pageState.textContent = 'Не удалось обновить список. Повторите поиск или смену страницы.';
         if (emptyCell && !rowsList().length) emptyCell.textContent = 'Не удалось загрузить диалоги. Повторите поиск или смену страницы.';
         if (!errorNotified) options.showNotification?.('Не удалось загрузить страницу диалогов. Повторите запрос.', 'warning');
         errorNotified = true;
       } finally {
+        if (initialTimeout !== null) clearTimeout(initialTimeout);
         if (activeRequest === request) {
           activeRequest = null;
           setListLoading(false);
           table?.setAttribute('aria-busy', 'false');
           updateBulkActionsState();
+          finishInitialList();
           if (refreshQueued && !disposed) {
             refreshQueued = false;
             void refreshDialogsList();
@@ -1032,7 +1105,7 @@
       applyFilters({ resetPage: true });
     }
 
-    function setViewTab(nextView) {
+    function setViewTab(nextView, runtimeOptions = {}) {
       const filterState = getFilterState();
       const resolvedView = nextView || 'all';
       const previousView = filterState.view || 'all';
@@ -1076,8 +1149,8 @@
       if (previousView !== resolvedView) {
         options.emitWorkspaceTelemetry('triage_view_switch', { reason: `${previousView}->${resolvedView}` });
       }
-      persistDialogPreferences();
-      applyFilters({ resetPage: true });
+      if (runtimeOptions.persist !== false) persistDialogPreferences();
+      if (runtimeOptions.refresh !== false) applyFilters({ resetPage: true });
     }
 
     function visibleRows() {
@@ -1268,6 +1341,7 @@
     }
 
     return {
+      initializeList,
       syncDialogsTable,
       dispose,
       refreshDialogsList,

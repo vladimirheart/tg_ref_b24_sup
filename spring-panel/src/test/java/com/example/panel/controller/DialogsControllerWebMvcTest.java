@@ -2,11 +2,13 @@ package com.example.panel.controller;
 
 import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.model.dialog.DialogListItem;
+import com.example.panel.model.dialog.DialogListQuery;
 import com.example.panel.model.dialog.DialogMyDialogs;
 import com.example.panel.model.dialog.DialogSummary;
 import com.example.panel.repository.PanelUserRepository;
 import com.example.panel.service.DialogLookupReadService;
 import com.example.panel.service.DialogListReadService;
+import com.example.panel.service.DialogTriagePreferenceService;
 import com.example.panel.service.NavigationService;
 import com.example.panel.service.PanelUserPhotoService;
 import com.example.panel.service.PermissionService;
@@ -28,6 +30,8 @@ import java.util.Optional;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -50,8 +54,8 @@ class DialogsControllerWebMvcTest {
                 "client", "Клиент " + n, "Поддержка", 1L, "Telegram", "Город", "Ресторан",
                 "Проблема " + n, "2026-10-26T09:00:00Z", "open", false, null, null, null,
                 "2026-10-26", "09:00:00", "VIP", "user", "2026-10-26T09:00:00Z", 1, null, "Техническая поддержка", null, null)).toList();
-        stubDialogsPageData(new DialogSummary(10000, 2000, 8000, List.of()), dialogs,
-                new DialogMyDialogs(dialogs, List.of(), List.of()));
+        stubDialogsPageData(new DialogSummary(10000, 0, 10000, List.of()), dialogs,
+                new DialogMyDialogs(dialogs, List.of(), List.of()), Map.of("new", 10000, "unanswered", 0, "in_work", 0));
         var result = mockMvc.perform(get("/dialogs").with(user("operator")))
                 .andExpect(status().isOk()).andReturn();
         String html = result.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
@@ -77,6 +81,9 @@ class DialogsControllerWebMvcTest {
 
     @MockBean
     private DialogListReadService dialogListReadService;
+
+    @MockBean
+    private DialogTriagePreferenceService triagePreferences;
 
     @MockBean
     private SharedConfigService sharedConfigService;
@@ -270,14 +277,56 @@ class DialogsControllerWebMvcTest {
                         org.hamcrest.Matchers.containsString("data-page-key=\"channels\""))));
     }
 
+    @Test
+    void initialPageUsesSavedPreferencesAndEmbedsThemForClientWithoutAnotherDefaultQuery() throws Exception {
+        stubNavigationDefaults();
+        stubDialogsPageData(new DialogSummary(0, 0, 0, List.of()), List.of(), DialogMyDialogs.empty());
+        var preferences = Map.<String, Object>of("view", "active", "page_size", "50",
+                "sort_mode", "sla_priority", "sla_window_minutes", 30);
+        when(triagePreferences.loadForOperator(any())).thenReturn(preferences);
+        var expected = new DialogListQuery(1, 50, "", "", "active", 30, "sla_priority", List.of());
+
+        mockMvc.perform(get("/dialogs").with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("dialogTriagePreferences", preferences))
+                .andExpect(model().attribute("dialogListQuery", expected))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("DIALOG_LIST_BOOTSTRAP")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("\"pageSize\":50")));
+        verify(dialogListReadService).loadListPayload(anyString(), eq(expected), eq(true));
+        org.mockito.Mockito.verifyNoMoreInteractions(dialogListReadService);
+    }
+
+    @Test
+    void preferenceFailureKeepsBoundedServerPageAndAllowsClientToRetryPreferences() throws Exception {
+        stubNavigationDefaults();
+        stubDialogsPageData(new DialogSummary(0, 0, 0, List.of()), List.of(), DialogMyDialogs.empty());
+        when(triagePreferences.loadForOperator(any())).thenThrow(new IllegalStateException("test unavailable"));
+
+        mockMvc.perform(get("/dialogs").with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("dialogListQuery", DialogListQuery.defaults()))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("preferences: null")));
+        verify(dialogListReadService).loadListPayload(anyString(), eq(DialogListQuery.defaults()), eq(true));
+    }
+
     private void stubDialogsPageData(DialogSummary summary,
                                      List<DialogListItem> dialogs,
                                      DialogMyDialogs myDialogs) {
-        when(dialogListReadService.loadListPayload(anyString())).thenReturn(Map.of(
+        stubDialogsPageData(summary, dialogs, myDialogs, Map.of("new", myDialogs.newUnassigned().size(),
+                "unanswered", myDialogs.unanswered().size(), "in_work", myDialogs.inWork().size()));
+    }
+
+    private void stubDialogsPageData(DialogSummary summary,
+                                     List<DialogListItem> dialogs,
+                                     DialogMyDialogs myDialogs,
+                                     Map<String, Integer> myCounts) {
+        when(triagePreferences.initialListQuery(any())).thenAnswer(invocation ->
+                new DialogTriagePreferenceService(null).initialListQuery(invocation.getArgument(0)));
+        when(dialogListReadService.loadListPayload(anyString(), any(DialogListQuery.class), eq(true))).thenReturn(Map.of(
                 "summary", summary, "dialogs", dialogs,
                 "pagination", Map.of("page", 1, "page_size", 20, "total_items", summary.totalTickets()),
                 "my_dialogs", Map.of("new", myDialogs.newUnassigned(), "unanswered", myDialogs.unanswered(),
-                        "in_work", myDialogs.inWork(), "counts", Map.of())));
+                        "in_work", myDialogs.inWork(), "counts", myCounts)));
         when(sharedConfigService.loadSettings()).thenReturn(Map.of());
     }
 

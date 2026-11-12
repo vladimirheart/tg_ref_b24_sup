@@ -2,6 +2,7 @@ package com.example.panel.controller;
 
 import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.service.DialogListReadService;
+import com.example.panel.service.DialogTriagePreferenceService;
 import com.example.panel.service.NavigationService;
 import com.example.panel.service.SharedConfigService;
 import org.slf4j.Logger;
@@ -25,15 +26,18 @@ public class DialogsController {
     private final SharedConfigService sharedConfigService;
     private final MultibusinessFeatureFlags multibusinessFlags;
     private final DialogListReadService dialogListReadService;
+    private final DialogTriagePreferenceService triagePreferences;
 
     public DialogsController(NavigationService navigationService,
                              SharedConfigService sharedConfigService,
                              MultibusinessFeatureFlags multibusinessFlags,
-                             DialogListReadService dialogListReadService) {
+                             DialogListReadService dialogListReadService,
+                             DialogTriagePreferenceService triagePreferences) {
         this.navigationService = navigationService;
         this.sharedConfigService = sharedConfigService;
         this.multibusinessFlags = multibusinessFlags;
         this.dialogListReadService = dialogListReadService;
+        this.triagePreferences = triagePreferences;
     }
 
     @GetMapping("/dialogs")
@@ -71,7 +75,17 @@ public class DialogsController {
         model.addAttribute("businessSelectorAvailable",
                 multibusinessFlags.isFoundationEnabled() && multibusinessFlags.isUiSelector());
         try {
-            var payload = dialogListReadService.loadListPayload(operatorIdentity);
+            Map<String, Object> savedPreferences = null;
+            try {
+                savedPreferences = triagePreferences.loadForOperator(authentication);
+            } catch (RuntimeException ex) {
+                log.warn("Could not load initial dialog preferences for {}", operatorIdentity, ex);
+            }
+            var initialQuery = triagePreferences.initialListQuery(savedPreferences);
+            var payload = dialogListReadService.loadListPayload(operatorIdentity, initialQuery, true);
+            model.addAttribute("dialogTriagePreferences", savedPreferences);
+            model.addAttribute("dialogListQuery", initialQuery);
+            model.addAttribute("dialogSlaOrchestration", payload.get("sla_orchestration"));
             model.addAttribute("summary", payload.get("summary"));
             model.addAttribute("dialogs", payload.get("dialogs"));
             Map<?, ?> myDialogs = (Map<?, ?>) payload.get("my_dialogs");

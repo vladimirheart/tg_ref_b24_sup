@@ -32,6 +32,7 @@ class PagePermissionBoundaryWebMvcTest {
     @MockBean SharedConfigService config;
     @MockBean MultibusinessFeatureFlags flags;
     @MockBean DialogListReadService dialogs;
+    @MockBean DialogTriagePreferenceService triagePreferences;
     @MockBean DialogAiOpsService aiOps;
     @MockBean DialogAuditService audit;
     @MockBean DialogResponsibilityService responsibility;

@@ -28,7 +28,19 @@
     <link rel="stylesheet" th:href="@{/css/style.css(v='20261022-neutral-ops-r7')}">
     <link rel="stylesheet" th:href="@{/css/app.css(v='20261023-incidents-r12')}">
 	<link rel="stylesheet" th:href="@{/css/sidebar.css(v='20261022-neutral-ops-r7')}">
-    <script th:src="@{/js/dialogs-prepaint-runtime.js(v='20260923-01-272-s11-r3')}"></script>
+    <style data-dialogs-first-paint>
+        html.dialogs-list-preparing .dialogs-table-card { position: relative; min-height: 14rem; }
+        html.dialogs-list-preparing .dialogs-table-card > *,
+        html.dialogs-list-preparing .dialog-list-pagination,
+        html.dialogs-list-preparing .dialog-status-group,
+        html.dialogs-list-preparing .dialog-toolbar-controls { visibility: hidden; }
+        html.dialogs-list-preparing .dialogs-table-card::after {
+            content: 'Загружаем диалоги…'; position: absolute; inset: 0;
+            display: grid; place-content: start center; padding-top: 4rem;
+            color: var(--bs-secondary-color, #64748b);
+        }
+    </style>
+    <script th:src="@{/js/dialogs-prepaint-runtime.js(v='20261112-first-paint')}"></script>
     <script th:src="@{/js/common.js}"></script>
 
 </head>
@@ -577,7 +589,7 @@
         </div>
     </div>
 
-    <div class="d-flex flex-wrap justify-content-end align-items-center gap-2 mt-3">
+    <div class="d-flex flex-wrap justify-content-end align-items-center gap-2 mt-3 dialog-list-pagination">
         <div class="btn-group btn-group-sm" role="group" aria-label="Навигация по страницам списка диалогов">
             <button type="button" class="btn btn-outline-secondary" id="dialogPagePrev" aria-label="Предыдущая страница">←</button>
             <button type="button" class="btn btn-outline-secondary" id="dialogPageNext" aria-label="Следующая страница">></button>
@@ -1284,6 +1296,11 @@
   const RAW_MY_UNANSWERED_DIALOGS = /*[[${myUnansweredDialogs}]]*/ [];
   const RAW_MY_IN_WORK_DIALOGS = /*[[${myInWorkDialogs}]]*/ [];
   window.DIALOG_LIST_PAGINATION = /*[[${dialogListPagination}]]*/ null;
+  window.DIALOG_LIST_BOOTSTRAP = {
+    query: /*[[${dialogListQuery}]]*/ null,
+    preferences: /*[[${dialogTriagePreferences}]]*/ null,
+    slaOrchestration: /*[[${dialogSlaOrchestration}]]*/ null,
+  };
   window.DIALOG_MY_COUNTS = /*[[${myDialogsCounts}]]*/ null;
   window.INITIAL_MY_DIALOGS = {
     new: Array.isArray(RAW_MY_NEW_DIALOGS) ? RAW_MY_NEW_DIALOGS : [],
@@ -1291,7 +1308,7 @@
     in_work: Array.isArray(RAW_MY_IN_WORK_DIALOGS) ? RAW_MY_IN_WORK_DIALOGS : [],
   };
 </script>
-<th:block th:with="dialogsAssetVersion='20261026-01-282-pagination-v1'">
+<th:block th:with="dialogsAssetVersion='20261112-first-paint'">
 <script th:src="@{/js/dialogs-list-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-shell-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-avatar-runtime.js(v=${dialogsAssetVersion})}"></script>
