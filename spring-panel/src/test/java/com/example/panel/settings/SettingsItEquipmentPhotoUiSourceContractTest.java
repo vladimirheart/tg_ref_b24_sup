@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 class SettingsItEquipmentPhotoUiSourceContractTest {
 
     private String read(String relative) throws IOException {
-        return Files.readString(Path.of(relative), StandardCharsets.UTF_8);
+        return Files.readString(Path.of(relative), StandardCharsets.UTF_8).replace("\r\n", "\n");
     }
 
     @Test
@@ -44,7 +44,7 @@ class SettingsItEquipmentPhotoUiSourceContractTest {
                 .contains("class=\"visually-hidden\" id=\"itEquipmentPhotoEditFile\"");
 
         assertThat(template)
-                .contains("settings.css(v='20261022-neutral-ops-r7')")
+                .contains("settings.css(v='20261112-question-editor')")
                 .contains("equipment-media-runtime.js?v=20260922-01-272-s7")
                 .contains("settings-it-equipment-runtime.js?v=20260922-01-272-s7")
                 .contains("settings-page-shell.js?v=20260909-01-259-r4-6")

@@ -4414,3 +4414,122 @@ body[data-ui-page=settings] .settings-primary-modal .accordion-button:focus-visi
   background: var(--surface-card) !important;
   color: var(--color-text) !important;
 }
+
+/* Question template editor: one reading plane, optional settings on demand. */
+#botTemplateEditorModal .modal-content {
+  background: var(--surface-card);
+  color: var(--color-text);
+  backdrop-filter: none;
+  filter: none;
+}
+#botTemplateEditorModal .modal-body {
+  padding: 1.25rem;
+}
+#botTemplateEditorModal .form-label {
+  text-transform: none;
+  letter-spacing: normal;
+}
+#botTemplateEditorModal .form-control, #botTemplateEditorModal .form-select {
+  background-color: var(--surface-card);
+}
+#botTemplateEditorModal .bot-question-card {
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--surface-card);
+  box-shadow: none;
+}
+#botTemplateEditorModal .bot-question-card .card-body {
+  padding: 1rem;
+}
+#botTemplateEditorModal .bot-question-number {
+  font-size: 0.85rem;
+  font-weight: 650;
+  color: var(--color-text-muted);
+}
+#botTemplateEditorModal .bot-question-surface,
+#botTemplateEditorModal .bot-question-preview,
+#botTemplateEditorModal .bot-question-option,
+#botTemplateEditorModal [data-bot-question-options] {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border-color: var(--color-border) !important;
+  border-radius: 0.35rem !important;
+}
+#botTemplateEditorModal .bot-question-surface {
+  border: 0 !important;
+  padding: 0.4rem 0 !important;
+}
+#botTemplateEditorModal .bot-question-answer-copy + .form-text {
+  display: none;
+}
+#botTemplateEditorModal .bot-question-switch-surface > .small,
+#botTemplateEditorModal .bot-question-switch-surface > .form-text {
+  display: none;
+}
+#botTemplateEditorModal .bot-question-switch-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+#botTemplateEditorModal .bot-question-disclosure,
+#botTemplateEditorModal .bot-template-disclosure {
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  background: transparent;
+  margin-top: 0.75rem;
+}
+#botTemplateEditorModal .bot-question-disclosure > summary,
+#botTemplateEditorModal .bot-template-disclosure > summary {
+  cursor: pointer;
+  padding: 0.7rem 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+#botTemplateEditorModal .bot-question-disclosure > summary:focus-visible,
+#botTemplateEditorModal .bot-template-disclosure > summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+#botTemplateEditorModal .bot-question-disclosure[open] > summary,
+#botTemplateEditorModal .bot-template-disclosure[open] > summary {
+  color: var(--color-text);
+}
+#botTemplateEditorModal .bot-question-disclosure > .mt-3, #botTemplateEditorModal .bot-question-disclosure > .mt-1,
+#botTemplateEditorModal .bot-template-disclosure > .mt-3,
+#botTemplateEditorModal .bot-template-disclosure > .mt-1 {
+  margin-top: 0 !important;
+}
+#botTemplateEditorModal [data-bot-question-options] {
+  max-height: 20rem;
+  overflow-y: auto;
+  padding: 0.25rem !important;
+}
+#botTemplateEditorModal .bot-question-option {
+  padding: 0.6rem !important;
+  margin-bottom: 0.3rem !important;
+}
+#botTemplateEditorModal .bot-question-route-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+#botTemplateEditorModal .bot-question-preview {
+  margin-top: 0.25rem;
+}
+@media (max-width: 575.98px) {
+  #botTemplateEditorModal .modal-body {
+    padding: 0.8rem;
+  }
+  #botTemplateEditorModal .bot-question-card .card-body {
+    padding: 0.75rem;
+  }
+  #botTemplateEditorModal .btn-group {
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+  #botTemplateEditorModal .bot-question-route-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

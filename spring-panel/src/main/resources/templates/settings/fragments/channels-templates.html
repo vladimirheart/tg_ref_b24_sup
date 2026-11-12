@@ -200,15 +200,17 @@
               <input type="text" class="form-control" id="botTemplateNameInput" data-bot-template-name>
             </div>
             <div class="mb-3">
-              <label class="form-label" for="botTemplateDescriptionInput">Описание (необязательно)</label>
-              <textarea class="form-control" id="botTemplateDescriptionInput" rows="2" data-bot-template-description></textarea>
-            </div>
-            <div class="mb-3">
               <label class="form-label" for="botTemplateStartMessageInput">Стартовое авто-сообщение</label>
               <textarea class="form-control" id="botTemplateStartMessageInput" rows="3" data-bot-template-start-message></textarea>
               <div class="form-text">Отправляется клиенту один раз при старте нового обращения для выбранного шаблона.</div>
             </div>
-            <div class="row g-3 mb-3">
+            <details class="bot-template-disclosure mb-4">
+              <summary>Описание и автозакрытие</summary>
+              <div class="mb-3">
+                <label class="form-label" for="botTemplateDescriptionInput">Описание (необязательно)</label>
+                <textarea class="form-control" id="botTemplateDescriptionInput" rows="2" data-bot-template-description></textarea>
+              </div>
+              <div class="row g-3 mb-3">
               <div class="col-lg-4">
                 <label class="form-label" for="botTemplateFirstResponseTimeoutInput">Таймаут первого ответа, минут</label>
                 <input type="number" min="0" step="1" class="form-control" id="botTemplateFirstResponseTimeoutInput" data-bot-template-first-response-timeout>
@@ -219,21 +221,22 @@
                 <textarea class="form-control" id="botTemplateFirstResponseMessageInput" rows="3" data-bot-template-first-response-message></textarea>
                 <div class="form-text">Это сообщение бот отправит клиенту перед закрытием незавершённого сценария.</div>
               </div>
-            </div>
+              </div>
+            </details>
             <div class="mb-3">
               <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
                 <div>
-                  <h6 class="mb-1">Структура вопросов</h6>
-                  <p class="small text-muted mb-0">Настройте последовательность вопросов. Используйте свободный текст или готовые поля из справочников.</p>
+                  <h6 class="mb-1">Вопросы по порядку</h6>
+                  <p class="small text-muted mb-0">Добавьте вопросы и выберите формат ответа.</p>
                 </div>
                 <div class="btn-group btn-group-sm">
                   <button class="btn btn-outline-primary" type="button" data-bot-question-add data-type="custom">+ Свободный вопрос</button>
-                  <button class="btn btn-outline-success" type="button" data-bot-question-add data-type="select">+ Выбор из списка</button>
+                  <button class="btn btn-outline-secondary" type="button" data-bot-question-add data-type="select">+ Выбор из списка</button>
                   <button class="btn btn-outline-secondary" type="button" data-bot-question-add data-type="preset">+ Готовое поле</button>
                 </div>
               </div>
               <div class="mb-3" data-bot-preset-context hidden>
-                <label class="form-label" for="botPresetBusiness">Справочник для просмотра готовых полей</label>
+                <label class="form-label" for="botPresetBusiness">Справочник готовых полей</label>
                 <select class="form-select" id="botPresetBusiness" data-bot-preset-business>
                   <option value="legacy">Общий справочник (прежние каналы)</option>
                   <option value="general">Без бизнеса</option>
@@ -245,12 +248,12 @@
                 Готовые поля сейчас недоступны. Добавьте структуру локаций / готовые поля в разделе «Структура локаций», чтобы использовать этот тип вопроса.
               </div>
               <div class="d-flex flex-column gap-3" data-bot-questions-container></div>
-              <div class="card border-0 bg-light mt-3" data-bot-presets-summary>
+              <details class="bot-template-disclosure mt-3" data-bot-presets-summary>
+                <summary>Доступные готовые поля</summary>
                 <div class="card-body py-3">
-                  <div class="fw-semibold mb-1">Доступные готовые поля</div>
                   <div class="small text-muted" data-bot-preset-hints></div>
                 </div>
-              </div>
+              </details>
             </div>
           </div>
           <div class="modal-footer">

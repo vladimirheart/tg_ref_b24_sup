@@ -869,11 +869,15 @@
       selectionEnd: null,
       anchorOffsetTop: null,
       expandedOptions: [],
+      disclosures: [],
     };
     questionsContainer.querySelectorAll('.card[data-question-id]').forEach((card) => {
       if (!(card instanceof HTMLElement)) {
         return;
       }
+      card.querySelectorAll('details[data-question-section]').forEach((details) => {
+        uiState.disclosures.push({ questionId: card.dataset.questionId || '', section: details.dataset.questionSection, open: details.open });
+      });
       const activeRow = card.querySelector('[data-bot-question-option-active="true"]');
       if (!(activeRow instanceof HTMLElement)) {
         return;
@@ -918,6 +922,11 @@
       return;
     }
     const scrollContainer = resolveQuestionEditorScrollContainer();
+    (uiState.disclosures || []).forEach((entry) => {
+      const card = questionsContainer.querySelector(`.card[data-question-id="${escapeSelectorValue(entry.questionId)}"]`);
+      const details = card?.querySelector(`details[data-question-section="${escapeSelectorValue(entry.section)}"]`);
+      if (details) details.open = entry.open;
+    });
     if (scrollContainer instanceof HTMLElement && Number.isFinite(uiState.scrollTop)) {
       scrollContainer.scrollTop = uiState.scrollTop;
     }
@@ -2235,7 +2244,7 @@
     editorState.questionFlow.forEach((question, index) => {
       question.order = index + 1;
       const card = document.createElement('div');
-      card.className = 'card shadow-sm bot-question-card';
+      card.className = 'card bot-question-card';
       card.dataset.index = String(index);
       card.dataset.questionId = question.id || '';
       const preset = question.preset && question.preset.group && question.preset.field ? question.preset : null;
@@ -2355,8 +2364,7 @@
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
             <div class="d-flex align-items-center gap-2">
-              <span class="badge bg-primary rounded-pill">${index + 1}</span>
-              <span class="text-muted small">Порядок вопроса</span>
+              <span class="bot-question-number">Вопрос ${index + 1}</span>
             </div>
             <div class="btn-group btn-group-sm">
               <button class="btn btn-outline-secondary" type="button" data-bot-question-action="move-up" ${index === 0 ? 'disabled' : ''}>↑</button>
@@ -2506,6 +2514,25 @@
             : 'Пока ниже нет дополнительных вопросов, поэтому доступен только переход по порядку или сразу к финальному описанию проблемы.';
         }
       }
+      const sections = [
+        ['options', '[data-bot-question-options-wrapper]', 'Варианты ответа'],
+        ['analytics', '.bot-question-analytics-row', 'Аналитика и ключ ответа'],
+        ['routes', '.bot-question-route-rowset', 'Переходы по ответам'],
+        ['preview', '[data-bot-question-preview-wrapper]', 'Предпросмотр для клиента'],
+      ];
+      sections.forEach(([key, selector, label]) => {
+        const content = card.querySelector(selector);
+        if (!content || content.classList.contains('d-none')) return;
+        const details = document.createElement('details');
+        details.className = 'bot-question-disclosure';
+        details.dataset.questionSection = key;
+        const summary = document.createElement('summary');
+        summary.textContent = label;
+        if (key === 'analytics' && question.includeInDashboard) summary.textContent += ' · включена';
+        if (key === 'routes' && question.routes?.length) summary.textContent += ` · ${question.routes.length}`;
+        content.before(details);
+        details.append(summary, content);
+      });
       card.__questionMeta = meta;
       if (isPreset) {
         const select = card.querySelector('[data-bot-question-preset]');

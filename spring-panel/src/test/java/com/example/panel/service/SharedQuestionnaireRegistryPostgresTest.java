@@ -50,6 +50,21 @@ class SharedQuestionnaireRegistryPostgresTest {
         jdbc.update("INSERT INTO business_channel_bindings(channel_id,business_id,resolution_mode) VALUES(10,?,'EXPLICIT_SELECTION'),(10,?,'EXPLICIT_SELECTION')",a,b);
         registry.bind(a,"q-a");registry.bind(b,"q-b");
     }
+    @Test
+    void correctedBusinessNamesReachRuntimeChoicesWithoutChangingBindings() throws Exception {
+        var before = registry.choices(10).orElseThrow();
+        jdbc.execute(Files.readString(Path.of("src/main/resources/db/migration/postgresql/V93__business_display_names.sql")));
+        var after = registry.choices(10).orElseThrow();
+        assertThat(after.choices()).extracting(BusinessQuestionTemplateRegistryService.Choice::displayName)
+                .containsExactlyInAnyOrder("СушиВёсла", "Блинбери");
+        assertThat(after.choices()).extracting(BusinessQuestionTemplateRegistryService.Choice::businessId)
+                .containsExactlyInAnyOrder(a, b);
+        assertThat(after.catalogSha256()).isNotEqualTo(before.catalogSha256());
+        assertThat(registry.select(10, a, after.catalogSha256())).isPresent();
+        assertThat(registry.select(10, b, after.catalogSha256())).isPresent();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM business_channel_bindings WHERE is_active", Integer.class)).isEqualTo(2);
+    }
+
     private void save(String textA,String textB,boolean reversed) {
         var templates=new ArrayList<Map<String,Object>>(List.of(template("q-legacy","GLOBAL SECRET"),template("q-a",textA),template("q-b",textB)));
         if(reversed) Collections.reverse(templates);
