@@ -13,6 +13,7 @@
     const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content') || '';
     const idMatch = window.location.pathname.match(/object-passports\/(\d+)/);
     const passportId = idMatch ? Number(idMatch[1]) : null;
+    const documentsRuntime = !initialCreateMode && window.PassportDocumentsRuntime?.mount({ passportId, csrfToken });
 
     const loading = document.getElementById('passportWorkspaceLoading');
     const workspace = document.getElementById('passportWorkspace');
@@ -173,6 +174,7 @@
     }
 
     function activateTab(name) {
+        if (name === 'documents') documentsRuntime?.load();
         document.querySelectorAll('[data-passport-tab]').forEach((button) => {
             button.classList.toggle('is-active', button.dataset.passportTab === name);
         });

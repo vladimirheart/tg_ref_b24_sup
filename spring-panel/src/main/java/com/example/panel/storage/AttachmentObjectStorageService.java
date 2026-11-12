@@ -159,6 +159,18 @@ public class AttachmentObjectStorageService {
         return storeBinary(avatarsRoot, normalizeStorageKey(storedName), "avatars", contentType, inputStream);
     }
 
+    public StoredBinary storePassportDocument(String key, String contentType, InputStream inputStream) throws IOException {
+        return storeBinary(attachmentsRoot.resolve("passport_documents"), normalizeStorageKey(key), "passport_documents", contentType, inputStream);
+    }
+
+    public StoredBinary openPassportDocument(String key) throws IOException {
+        return openBinary(attachmentsRoot.resolve("passport_documents"), normalizeStorageKey(key), "passport_documents");
+    }
+
+    public void deletePassportDocument(String key) throws IOException {
+        deleteBinary(attachmentsRoot.resolve("passport_documents"), normalizeStorageKey(key), "passport_documents");
+    }
+
     public StoredBinary openAvatar(String storedName) throws IOException {
         return openBinary(avatarsRoot, normalizeStorageKey(storedName), "avatars");
     }

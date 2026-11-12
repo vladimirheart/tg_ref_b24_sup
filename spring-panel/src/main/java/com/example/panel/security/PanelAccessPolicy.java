@@ -35,6 +35,7 @@ public final class PanelAccessPolicy {
             + "AI-источники отображаются при включённом модуле. Каналы, пользователи и роли находятся в Настройках; "
             + "права на их изменение выдаются отдельно.";
     public static final Map<String, String> BLOCKS;
+    public static final Map<String, String> FEATURE_FIELDS = Map.of("passport.documents", "Изменение документов паспортов объектов");
     public static final List<String> USER_FIELDS = List.of("user.create", "user.username", "user.password", "user.role",
             "user.delete", "user.block", "role.create", "role.name", "role.description", "role.pages",
             "role.fields.edit", "role.fields.view", "role.delete");
@@ -77,6 +78,7 @@ public final class PanelAccessPolicy {
         result.addAll(LEGACY_PAGES.values());
         BLOCKS.keySet().forEach(block -> result.add(editAuthority("settings." + block)));
         USER_FIELDS.forEach(field -> result.add(editAuthority(field)));
+        FEATURE_FIELDS.keySet().forEach(field -> result.add(editAuthority(field)));
         return result;
     }
 
@@ -102,6 +104,7 @@ public final class PanelAccessPolicy {
                     result.add(editAuthority("settings." + block));
             });
             USER_FIELDS.forEach(field -> { if (edit.contains("*") || edit.contains(field)) result.add(editAuthority(field)); });
+            FEATURE_FIELDS.keySet().forEach(field -> { if (edit.contains("*") || edit.contains(field)) result.add(editAuthority(field)); });
         }
         return result;
     }

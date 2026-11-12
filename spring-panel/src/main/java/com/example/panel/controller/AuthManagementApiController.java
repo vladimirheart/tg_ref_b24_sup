@@ -89,6 +89,8 @@ public class AuthManagementApiController {
         List<Map<String, String>> editableFields = new ArrayList<>(EDITABLE_FIELD_PERMISSIONS);
         com.example.panel.security.PanelAccessPolicy.BLOCKS.forEach((key, label) ->
                 editableFields.add(Map.of("key", "settings." + key, "label", "Изменение настроек: " + label)));
+        com.example.panel.security.PanelAccessPolicy.FEATURE_FIELDS.forEach((key, label) ->
+                editableFields.add(Map.of("key", key, "label", label)));
 
         Map<String, Object> catalog = Map.of(
             "pages", com.example.panel.security.PanelAccessPolicy.PAGE_CATALOG.stream()

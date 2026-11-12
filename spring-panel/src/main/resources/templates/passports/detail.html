@@ -17,6 +17,7 @@
     <link rel="stylesheet" th:href="@{/css/app.css(v='20261022-neutral-ops-r9')}">
     <link rel="stylesheet" th:href="@{/css/sidebar.css(v='20261022-neutral-ops-r7')}">
     <link rel="stylesheet" th:href="@{/css/passport-ui-polish.css(v='20261005-01-280-r43')}">
+    <link rel="stylesheet" th:href="@{/css/passport-documents.css(v='20261112-documents')}">
 </head>
 <body class="with-sidebar sidebar-pinned passport-detail-page" data-ui-page="passports">
 <div th:replace="~{fragments/navbar :: navbar('passports')}"></div>
@@ -92,6 +93,9 @@
             <button class="passport-workspace-tab" type="button" data-passport-tab="photos">
                 Фото <span class="passport-tab-count" id="passportPhotosTabCount">0</span>
             </button>
+            <button class="passport-workspace-tab" type="button" data-passport-tab="documents">
+                Документы и история <span class="passport-tab-count" id="passportDocumentsTabCount">—</span>
+            </button>
         </nav>
 
         <th:block th:replace="~{passports/fragments/detail-overview :: overviewPanel}"></th:block>
@@ -103,6 +107,8 @@
         <th:block th:replace="~{passports/fragments/detail-activity :: activityPanels}"></th:block>
 
         <th:block th:replace="~{passports/fragments/detail-media :: photosPanel}"></th:block>
+
+        <th:block th:replace="~{passports/fragments/detail-documents :: documentsPanel}"></th:block>
     </div>
 
 
@@ -123,7 +129,8 @@
 <script src="/js/passport-detail-media-runtime.js?v=20260916-01-260-p4f"></script>
 <script src="/js/equipment-configuration-editor-runtime.js?v=20261005-01-280-r16"></script>
 <script src="/js/passport-detail-editor-runtime.js?v=20261006-modern-create-r12"></script>
-<script src="/js/passport-detail-page-runtime.js?v=20261006-modern-create-r12"></script>
+<script src="/js/passport-documents-runtime.js?v=20261112-documents"></script>
+<script src="/js/passport-detail-page-runtime.js?v=20261112-documents"></script>
 <script th:inline="javascript">
 (() => {
     const catalogRaw = /*[[${itEquipmentCatalog}]]*/ [];

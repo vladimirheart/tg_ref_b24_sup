@@ -1,0 +1,39 @@
+.passport-documents-filters { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; margin: 1.25rem 0 .75rem; }
+.passport-documents-filters .form-check { white-space: nowrap; }
+.passport-documents-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 1rem; }
+.passport-document-card { min-width: 0; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--bs-border-color, #dce1e7); border-radius: .75rem; background: var(--bs-body-bg, #fff); }
+.passport-document-card.is-archived { opacity: .75; }
+.passport-document-card__preview { border: 0; border-bottom: 1px solid var(--bs-border-color, #dce1e7); background: var(--bs-tertiary-bg, #f5f7fa); min-height: 145px; display: grid; place-items: center; color: var(--bs-secondary-color, #64748b); padding: .75rem; }
+.passport-document-card__preview img { width: 100%; height: 150px; object-fit: contain; }
+.passport-document-card__content { padding: 1rem; flex: 1; overflow-wrap: anywhere; }
+.passport-document-card__content h3 { font-size: 1rem; margin: .25rem 0 .5rem; }
+.passport-document-card__description { white-space: pre-wrap; font-size: .875rem; margin: .5rem 0; }
+.passport-document-card__actions { display: flex; flex-wrap: wrap; gap: .5rem; padding: 0 1rem 1rem; }
+.passport-document-dialog { width: min(780px, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); padding: 0; border: 1px solid var(--bs-border-color, #dce1e7); border-radius: .9rem; color: var(--bs-body-color, #212529); background: var(--bs-body-bg, #fff); }
+.passport-document-dialog::backdrop { background: rgb(15 23 42 / 55%); }
+.passport-document-dialog--viewer { width: min(1080px, calc(100vw - 2rem)); }
+.passport-document-dialog__header, .passport-document-dialog__footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; padding: 1rem 1.25rem; border-bottom: 1px solid var(--bs-border-color, #dce1e7); }
+.passport-document-dialog__header h2 { overflow-wrap: anywhere; }
+.passport-document-dialog__header { flex-wrap: nowrap; }
+.passport-document-dialog__header > div { min-width: 0; flex: 1; }
+.passport-document-dialog__header .btn-close { flex-shrink: 0; }
+.passport-document-dialog__body { padding: 1.25rem; min-width: 0; }
+.passport-document-dialog__footer { border-bottom: 0; border-top: 1px solid var(--bs-border-color, #dce1e7); }
+.passport-document-form-row, .passport-document-extra-field { display: grid; grid-template-columns: 1fr 1fr; align-items: start; gap: .75rem; }
+.passport-document-extra-field { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto; margin-bottom: .5rem; }
+.passport-document-local-preview img { max-width: 100%; max-height: 240px; object-fit: contain; }
+.passport-document-preview img { display: block; max-width: 100%; max-height: 65dvh; margin: auto; object-fit: contain; }
+.passport-document-preview iframe { width: 100%; height: 65dvh; border: 1px solid var(--bs-border-color, #dce1e7); border-radius: .5rem; }
+.passport-document-preview pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 65dvh; overflow: auto; padding: 1rem; background: var(--bs-tertiary-bg, #f5f7fa); }
+.passport-document-properties { display: grid; grid-template-columns: minmax(80px, 1fr) 3fr; gap: .5rem 1rem; margin-top: .75rem; }
+.passport-document-properties dt, .passport-document-properties dd { overflow-wrap: anywhere; white-space: pre-wrap; margin: 0; }
+.passport-document-history-row { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: .5rem; padding: .75rem 0; border-bottom: 1px solid var(--bs-border-color, #dce1e7); }
+@media (max-width: 575px) {
+  .passport-document-dialog { width: calc(100vw - 1rem); max-height: calc(100dvh - 1rem); }
+  .passport-document-form-row { grid-template-columns: 1fr; gap: 0; }
+  .passport-document-extra-field { grid-template-columns: minmax(0, 1fr) auto; }
+  .passport-document-extra-field [data-extra-value] { grid-column: 1; grid-row: 2; }
+  .passport-document-extra-field button { grid-column: 2; grid-row: 1 / 3; }
+  .passport-document-properties { grid-template-columns: 1fr; gap: .25rem; }
+  .passport-document-properties dd { margin-bottom: .75rem; }
+}

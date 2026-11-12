@@ -1,0 +1,61 @@
+<th:block xmlns:th="http://www.thymeleaf.org" th:fragment="documentsPanel">
+    <section class="passport-workspace-panel" data-passport-panel="documents" id="passportDocuments">
+        <div class="passport-section-toolbar">
+            <div><span class="passport-section-kicker">Материалы объекта</span><h2 class="mb-1">Документы и история</h2>
+                <p class="text-muted mb-0">Акты приёмки, инструкции, заметки о настройке и изменениях.</p></div>
+            <button class="btn btn-sm btn-primary" type="button" data-document-create hidden>Добавить запись</button>
+        </div>
+        <form class="passport-documents-filters" data-document-search>
+            <label class="flex-grow-1"><span class="visually-hidden">Поиск документов</span>
+                <input class="form-control" name="q" type="search" placeholder="Найти по названию, типу или описанию" maxlength="200"></label>
+            <button class="btn btn-outline-secondary" type="submit">Найти</button>
+            <label class="form-check mb-0"><input class="form-check-input" type="checkbox" name="archived">
+                <span class="form-check-label">Показывать архив</span></label>
+        </form>
+        <p class="small text-muted" data-document-status role="status" aria-live="polite"></p>
+        <div class="passport-documents-grid" data-document-list></div>
+        <button class="btn btn-outline-secondary mt-3" type="button" data-document-more hidden>Загрузить ещё</button>
+    </section>
+
+    <dialog class="passport-document-dialog" id="passportDocumentEditor" aria-labelledby="passportDocumentEditorTitle">
+        <div class="passport-document-dialog__header"><h2 class="h5 mb-0" id="passportDocumentEditorTitle">Новая запись</h2>
+            <button class="btn-close" type="button" data-document-editor-close aria-label="Закрыть редактор"></button></div>
+        <form id="passportDocumentForm">
+            <fieldset class="passport-document-dialog__body" data-document-fields>
+                <label class="form-label w-100">Название <span aria-hidden="true">*</span>
+                    <input class="form-control" name="title" required maxlength="240" placeholder="Например, приёмка кассы после настройки"></label>
+                <div class="passport-document-form-row">
+                    <label class="form-label">Тип записи<input class="form-control" name="category" maxlength="120" list="passportDocumentCategories" placeholder="Выберите или впишите свой">
+                        <datalist id="passportDocumentCategories"><option>Акт приёмки</option><option>Настройка оборудования</option><option>Инструкция</option><option>Изменение</option></datalist></label>
+                    <label class="form-label">Дата события<input class="form-control" name="event_date" type="date"></label>
+                </div>
+                <label class="form-label w-100">Описание<textarea class="form-control" name="description" rows="6" maxlength="20000" placeholder="Что настроили, кто принимал, что изменилось, результаты проверки…"></textarea></label>
+                <div class="d-flex justify-content-between align-items-center gap-2 mb-2"><span class="form-label mb-0">Дополнительные поля</span>
+                    <button class="btn btn-sm btn-outline-secondary" type="button" data-document-field-add>Добавить поле</button></div>
+                <div data-document-extra-fields></div>
+                <label class="form-label w-100 mt-3">Файл <span class="text-muted fw-normal">(необязательно, до 50 МБ)</span>
+                    <input class="form-control" type="file" name="file"></label>
+                <p class="small text-muted" data-document-current-file></p>
+                <div class="passport-document-local-preview" data-document-local-preview></div>
+                <p class="small text-muted mb-0">Описание и набор полей — свободные. Новая версия сохранит предыдущие данные и файл.</p>
+            </fieldset>
+            <div class="passport-document-dialog__footer"><p class="text-danger small mb-0 flex-grow-1" data-document-error role="alert"></p>
+                <button class="btn btn-outline-secondary" type="button" data-document-editor-close>Отмена</button>
+                <button class="btn btn-primary" type="submit" data-document-save>Сохранить</button></div>
+        </form>
+    </dialog>
+
+    <dialog class="passport-document-dialog passport-document-dialog--viewer" id="passportDocumentViewer" aria-labelledby="passportDocumentViewerTitle">
+        <div class="passport-document-dialog__header"><div class="min-w-0"><h2 class="h5 mb-1" id="passportDocumentViewerTitle">Документ</h2>
+            <p class="small text-muted mb-0" data-document-version-meta></p></div>
+            <button class="btn-close" type="button" data-document-viewer-close aria-label="Закрыть просмотр"></button></div>
+        <div class="passport-document-dialog__body">
+            <p data-document-viewer-status role="status"></p><div data-document-description></div><dl class="passport-document-properties" data-document-properties></dl>
+            <div class="passport-document-preview" data-document-preview></div>
+            <div class="d-flex flex-wrap gap-2 my-3"><a class="btn btn-outline-primary" data-document-download hidden>Скачать файл</a>
+                <button class="btn btn-outline-secondary" type="button" data-document-history-toggle>История версий</button></div>
+            <section data-document-history hidden><h3 class="h6">История версий</h3><div data-document-history-list></div>
+                <button class="btn btn-sm btn-outline-secondary" type="button" data-document-history-more hidden>Ещё версии</button></section>
+        </div>
+    </dialog>
+</th:block>

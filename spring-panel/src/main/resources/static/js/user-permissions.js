@@ -34,7 +34,7 @@
     payload.rows.forEach(row => {
       if (row.kind !== group) {
         group = row.kind; const heading = body.insertRow(); const cell = heading.insertCell(); cell.colSpan = 4;
-        cell.className = 'fw-semibold pt-3'; cell.textContent = ({ page: 'Просмотр страниц', settings: 'Изменение блоков настроек', action: 'Управление пользователями и ролями' })[group];
+        cell.className = 'fw-semibold pt-3'; cell.textContent = ({ page: 'Просмотр страниц', settings: 'Изменение блоков настроек', action: 'Права на изменение и управление' })[group];
       }
       const tr = body.insertRow();
       const label = row.kind === 'page' ? row.label : actionNames[row.key] || row.label;

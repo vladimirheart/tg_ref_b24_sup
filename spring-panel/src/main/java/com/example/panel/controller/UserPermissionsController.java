@@ -44,6 +44,8 @@ public class UserPermissionsController {
                 PanelAccessPolicy.editAuthority("settings." + key), inherited, direct, effective)));
         PanelAccessPolicy.USER_FIELDS.forEach(key -> rows.add(row("action", key, key,
                 PanelAccessPolicy.editAuthority(key), inherited, direct, effective)));
+        PanelAccessPolicy.FEATURE_FIELDS.forEach((key, label) -> rows.add(row("action", key, label,
+                PanelAccessPolicy.editAuthority(key), inherited, direct, effective)));
         boolean canEdit = PanelAccessPolicy.canEdit(actor, "access") && !protectedAccount(account, direct)
                 && !(actor.getPrincipal() instanceof PanelUserPrincipal principal && principal.getUserId() == userId);
         rows.forEach(row -> row.put("can_override", canEdit && PanelAccessPolicy.has(actor, row.get("authority").toString())));

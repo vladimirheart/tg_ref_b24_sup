@@ -18,6 +18,17 @@ class PanelAccessPolicyTest {
     @AfterEach void cleanup() { SecurityContextHolder.clearContext(); }
     static Set<String> blocks() { return PanelAccessPolicy.BLOCKS.keySet(); }
 
+    @Test void passportDocumentEditingIsIndependentOfPageAndSettingsGrants() {
+        assertThat(PanelAccessPolicy.roleAuthorities("{\"pages\":[\"object_passports\"],\"fields\":{\"edit\":[\"passport.documents\"]}}"))
+                .containsExactlyInAnyOrder("PAGE_OBJECT_PASSPORTS", "EDIT_PASSPORT_DOCUMENTS");
+        assertThat(PanelAccessPolicy.roleAuthorities("{\"pages\":[\"object_passports\"]}"))
+                .doesNotContain("EDIT_PASSPORT_DOCUMENTS");
+        assertThat(PanelAccessPolicy.effective(Set.of("ROLE_ADMIN"), Set.of("DENY_EDIT_PASSPORT_DOCUMENTS")))
+                .doesNotContain("EDIT_PASSPORT_DOCUMENTS");
+        assertThat(PanelAccessPolicy.roleAuthorities("{\"fields\":{\"edit\":[\"settings.*\"]}}"))
+                .doesNotContain("EDIT_PASSPORT_DOCUMENTS");
+    }
+
     @Test void currentPageCatalogHasAiOpsAndExplicitSharedPagesButNoRetiredEntries() {
         assertThat(PanelAccessPolicy.PAGE_CATALOG).extracting(PanelAccessPolicy.Page::key)
                 .containsExactly("dialogs", "ai_ops", "tasks", "clients", "object_passports", "knowledge_base",

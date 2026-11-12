@@ -4,6 +4,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponseWrapper;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -19,6 +20,16 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
         response.setHeader("X-Frame-Options", "DENY");
         response.setHeader("X-XSS-Protection", "1; mode=block");
         response.setHeader("Referrer-Policy", "same-origin");
-        filterChain.doFilter(request, response);
+        boolean documentPreview = "true".equals(request.getParameter("preview"))
+                && SettingsWritePermissionFilter.requestPath(request).matches(
+                        "/api/object_passports/[1-9][0-9]*/documents/[0-9a-fA-F-]{36}/revisions/[1-9][0-9]*/file");
+        // ResponseEntity adds headers. Replace the initial DENY only when this typed file response explicitly opts in.
+        filterChain.doFilter(request, new HttpServletResponseWrapper(response) {
+            @Override public void addHeader(String name, String value) {
+                if (documentPreview && "X-Frame-Options".equalsIgnoreCase(name) && "SAMEORIGIN".equals(value))
+                    super.setHeader(name, value);
+                else super.addHeader(name, value);
+            }
+        });
     }
 }

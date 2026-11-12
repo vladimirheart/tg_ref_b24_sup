@@ -56,6 +56,8 @@ public class SecurityConfig {
         var contexts = new DelegatingSecurityContextRepository(
                 new RequestAttributeSecurityContextRepository(), new HttpSessionSecurityContextRepository());
         http
+                // SecurityHeadersFilter supplies DENY by default. Typed document previews override it with SAMEORIGIN.
+                .headers(headers -> headers.frameOptions(frame -> frame.disable()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(publicRequests).permitAll()
                         .anyRequest().authenticated()
