@@ -208,7 +208,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         try {
             onMessage(actor, message);
         } catch (ScopedRuntimeConfigUnavailableException ex) {
-            sendQuestionnaireText(actor, message.getPeerId(), "Вопросник недоступен или изменился. Для нового выбора отправьте /start.", null);
+            sendQuestionnaireText(actor, message.getPeerId(), ex.userMessage("Вопросник недоступен или изменился. Для нового выбора отправьте /start."), null);
         } catch (SessionStateConflictException ex) {
             if (attempt + 1 >= SESSION_MUTATION_MAX_RETRIES) {
                 Long userId = message != null ? message.getFromId() : null;

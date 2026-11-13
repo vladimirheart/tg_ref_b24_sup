@@ -52,7 +52,7 @@ public class TelegramQuestionnaireHandler {
             catch(ActiveTicketConflictException ex) {
                 send(sender,message.getChatId(),"У вас уже есть незавершённое обращение в этом канале. Дождитесь его закрытия оператором, прежде чем создавать новое. Команда /cancel отменяет только заполнение анкеты.");return true;
             } catch(ScopedRuntimeConfigUnavailableException ex) {
-                send(sender,message.getChatId(),"Вопросник недоступен или изменился. Для нового выбора отправьте /start.");return true;
+                send(sender,message.getChatId(),ex.userMessage("Вопросник недоступен или изменился. Для нового выбора отправьте /start."));return true;
             } catch(SessionStateConflictException ex) {if(attempt==2) throw ex;}
         }
         throw new IllegalStateException("Unreachable questionnaire retry");

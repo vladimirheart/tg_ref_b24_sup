@@ -8,6 +8,7 @@ import com.example.supportbot.entity.*;
 import com.example.supportbot.service.*;
 import com.example.supportbot.service.PanelRuntimeConfigClient.*;
 import com.example.supportbot.settings.BotSettingsService;
+import com.example.supportbot.settings.dto.BotSettingsDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.*;
 import org.junit.jupiter.api.*;
@@ -117,6 +118,46 @@ class MaxQuestionnaireSelectionTest {
         return controller.handleUpdate(mapper.valueToTree(Map.of("update_type","message_created","update_id",id,"message",message)),"test-secret");
     }
     private String choice(int index) {var saved=state();return MaxQuestionnaireChoiceSupport.buttonText(saved.selection().catalog(),saved.selection().nonce(),index);}
+    @Test void unavailableFreshCatalogDoesNotTellTheUserToRepeatAnIneffectiveStart() {
+        when(runtime.questionnaireChoices(channel)).thenThrow(new ScopedRuntimeConfigUnavailableException("private details",Failure.CONFIGURATION));
+        assertThat(send("first-start","/start").getStatusCode().value()).isEqualTo(200);
+        assertThat(send("second-start","/start").getStatusCode().value()).isEqualTo(200);
+        var text=org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(messages,times(2)).sendToUser(eq(channel),eq(1001L),text.capture());
+        assertThat(text.getAllValues()).allSatisfy(value->assertThat(value).contains("QNR_CONFIG").doesNotContain("/start","private details"));
+        assertThat(store.load("max",55L,1001L,MaxConversationSession.State.class)).isEmpty();
+        verify(tickets,never()).createConversationTicket(any());
+    }
+
+    private void saveLegacyDraft() {
+        store.save("max",55L,1001L,new MaxConversationSession(1001L,2002L,"client","Client",List.of(),new BotSettingsDto()).snapshot());
+    }
+
+    @Test void explicitStartCanReplaceALegacyDraftAfterSwitchingToScopedQuestionnaires() {
+        saveLegacyDraft();
+        assertThat(send("restart-legacy","/start").getStatusCode().value()).isEqualTo(200);
+        assertThat(state().selection().catalog()).isEqualTo(catalog);
+        verify(api).sendQuestionnaireChoices(eq(1001L),eq(catalog),anyString());
+        verify(tickets,never()).createConversationTicket(any());
+    }
+
+    @Test void explicitCancelCanRemoveALegacyDraftEvenIfTheRuntimeIsUnavailable() {
+        saveLegacyDraft();
+        assertThat(send("cancel-legacy","/cancel").getBody()).containsEntry("cancelled",true);
+        assertThat(store.load("max",55L,1001L,MaxConversationSession.State.class)).isEmpty();
+        verify(runtime,never()).findChannelConfig(any());
+        verify(messages).sendToUser(channel,1001L,"Текущая заявка отменена.");
+    }
+
+    @Test void ordinaryTextCannotContinueALegacyDraftWhenItsScopeCannotBeVerified() {
+        saveLegacyDraft();
+        assertThat(send("legacy-answer","answer").getBody()).containsEntry("restart_questionnaire",true);
+        assertThat(state().selection()).isNull();
+        assertThat(state().answers()).isEmpty();
+        verify(runtime,never()).questionnaireChoices(any());
+        verify(tickets,never()).createConversationTicket(any());
+    }
+
     private void chooseA() {send("start","/start");send("choose",choice(0));}
     private void answerFirst() {chooseA();send("first","One");}
     private ScopedRuntimeConfigUnavailableException unavailable() {return new ScopedRuntimeConfigUnavailableException("test unavailable");}

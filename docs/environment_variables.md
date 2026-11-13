@@ -50,6 +50,14 @@
 | `APP_COORDINATION_BOT_SESSION_TTL` | TTL shared bot session snapshot в Redis/local session store | Java-бот |
 | `APP_BOT_AUTO_START_ENABLED` | включает panel-side auto-start child bot processes; для containerized contour должен быть `false` | Панель |
 | `SHARED_CONFIG_DIR` | абсолютный путь к `config/shared` для containerized/runtime deployment | Панель и бот |
+| `APP_MULTIBUSINESS_FOUNDATION_ENABLED` | canonical `multibusiness.foundation.enabled`; включает основу business/GENERAL режима, default `false` | Панель, compose |
+| `APP_MULTIBUSINESS_TICKET_WRITE_REQUIRES_BUSINESS` | включает scoped writer gate для старта опроса, default `false` | Панель, compose |
+| `APP_MULTIBUSINESS_SHARED_CHANNEL_RESOLUTION` | выбор BUSINESS/GENERAL вопросника в общем канале, default `false` | Панель, compose |
+| `APP_MULTIBUSINESS_GENERAL_CHANNEL_RESOLUTION` | вопросник выделенного GENERAL канала, default `false` | Панель, compose |
+| `APP_MULTIBUSINESS_GENERAL_TICKET_QUEUE` | очередь GENERAL обращений, default `false` | Панель, compose |
+| `APP_MULTIBUSINESS_UI_SELECTOR` | интерфейс business selector, default `false` | Панель, compose |
+| `APP_MULTIBUSINESS_STRICT_READ_SCOPE` | строгий business scope чтения, отдельный rollout, default `false` | Панель, compose |
+| `APP_MULTIBUSINESS_MANUAL_TICKET_CREATION` | ручное создание scoped обращений, отдельный rollout, default `false` | Панель, compose |
 | `IGUANA_POSTGRES_DB` | имя БД в dockerized contour | compose/infrastructure |
 | `IGUANA_POSTGRES_USER` | пользователь PostgreSQL в dockerized contour | compose/infrastructure |
 | `IGUANA_POSTGRES_PASSWORD` | пароль PostgreSQL в dockerized contour | compose/infrastructure |

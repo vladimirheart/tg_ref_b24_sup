@@ -140,6 +140,29 @@ class SharedQuestionnaireClientTest {
         assertThatThrownBy(()->client.choices(8)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
     }
 
+    @ParameterizedTest @ValueSource(ints={401,403,404,409,500,503})
+    void failedFreshStartHasAnActionableCauseWithoutAnEndlessRestartHint(int responseStatus) {
+        status=responseStatus;
+        var failure=catchThrowableOfType(()->client.choicesForStart(8),PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
+        assertThat(failure.failure()).isEqualTo(responseStatus==401 || responseStatus==403
+            ?PanelRuntimeConfigClient.Failure.ACCESS:responseStatus>=500?PanelRuntimeConfigClient.Failure.SERVICE
+            :PanelRuntimeConfigClient.Failure.CONFIGURATION);
+        assertThat(failure.userMessage("Restart with /start")).doesNotContain("/start").contains(failure.failure().code());
+    }
+
+    @Test void diagnosticsExcludeQueryParametersTokensAndPrivatePayloads() {
+        var logger=(ch.qos.logback.classic.Logger)org.slf4j.LoggerFactory.getLogger(PanelRuntimeConfigClient.class);
+        var appender=new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        appender.start();logger.addAppender(appender);
+        try {
+            var menu=client.choices(8);status=403;
+            assertThatThrownBy(()->client.selectForStart(menu,7)).isInstanceOf(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException.class);
+            assertThat(appender.list).isNotEmpty();
+            assertThat(appender.list.get(0).getFormattedMessage()).contains("QNR_ACCESS","httpStatus=403","/questionnaire/selection")
+                .doesNotContain("catalogSha256","businessId=","test-token","test-secret","Private A");
+        } finally {logger.detachAppender(appender);appender.stop();}
+    }
+
     private void v2(String kind) throws Exception {
         writerVersion="2";catalog.put("version",2);selected.put("version",2);
         Map<String,Object> template=Map.of("id","q-general","question_flow",List.of(Map.of("id","free","type","text","text","General private")));

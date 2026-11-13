@@ -157,6 +157,16 @@ class TelegramQuestionnaireSelectionTest {
         verify(tickets,times(2)).createConversationTicket(commands.capture());assertThat(commands.getAllValues().get(0)).isEqualTo(commands.getAllValues().get(1));
         assertThat(state().answers).containsEntry("free-second","Two");
     }
+    @Test void unavailableFreshCatalogDoesNotTellTheUserToRepeatAnIneffectiveStart() {
+        when(runtime.questionnaireChoices(channel)).thenThrow(new ScopedRuntimeConfigUnavailableException("private details",Failure.CONFIGURATION));
+        receive(1,"/start");receive(2,"/start");
+        assertThat(sent).hasSize(2);
+        assertThat(sent).extracting(SendMessage::getText).allSatisfy(text->assertThat(text)
+            .contains("QNR_CONFIG").doesNotContain("/start","private details"));
+        assertThat(store.load(TelegramQuestionnaireHandler.SESSION_PLATFORM,55L,1001L,TelegramQuestionnaireHandler.State.class)).isEmpty();
+        verify(tickets,never()).createConversationTicket(any());
+    }
+
     @Test void staleBeforeSelectionCannotRecaptureANewCatalog() {
         receive(1,"/start");when(runtime.selectQuestionnaire(channel,catalog,7L)).thenThrow(unavailable());receive(2,choice(0));
         assertThat(state().selected).isNull();verify(runtime,times(1)).questionnaireChoices(channel);

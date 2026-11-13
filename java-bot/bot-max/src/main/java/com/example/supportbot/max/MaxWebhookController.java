@@ -232,7 +232,8 @@ public class MaxWebhookController {
             var recorded=ticketService.findRecordedMaxMediaTicket(channel,userId,providerMessageId);
             if(recorded.isPresent())return completeDelivery(claim,ResponseEntity.ok(Map.of("ok",true,"ticket_id",recorded.get(),"media_replayed",true)));
         }
-        if(session!=null && session.scope()==null && session.selection()==null) {
+        if(session!=null && session.scope()==null && session.selection()==null
+                && !MaxCommandSupport.isStartCommand(text) && !MaxCommandSupport.isCancelCommand(text)) {
             var current=runtimeConfigService.findChannelConfig(channel);
             if(current.isPresent() && QuestionnaireScope.from(current.get())!=null)
                 throw new PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException("Legacy session requires a new scope selection");
@@ -304,7 +305,7 @@ public class MaxWebhookController {
                 session.acceptEvent(deliveryKey);
                 saveSession(session); // Frozen choice is durable before the first question is sent.
             } catch(PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException ex) {
-                return acknowledgeQuestionnaireRestart(claim, channel, userId);
+                return acknowledgeQuestionnaireRestart(claim, channel, userId, ex);
             }
             promptCurrentQuestion(channel,session);
             return completeDelivery(claim,ResponseEntity.ok(Map.of("ok",true,"business_selected",true)));
@@ -468,7 +469,7 @@ public class MaxWebhookController {
         return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "question_prompted", true)));
         } catch (PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException ex) {
             try {
-                return acknowledgeQuestionnaireRestart(claim, getChannel(), userId);
+                return acknowledgeQuestionnaireRestart(claim, getChannel(), userId, ex);
             } catch (RuntimeException warningFailure) {
                 // A failure inside this catch is not handled by the sibling RuntimeException catch.
                 webhookDeliveryGuardService.release(claim);
@@ -481,11 +482,12 @@ public class MaxWebhookController {
     }
 
     private ResponseEntity<Map<String, Object>> acknowledgeQuestionnaireRestart(BotWebhookDeliveryGuardService.DeliveryClaim claim,
-                                                                              Channel channel, Long userId) {
+                                                                              Channel channel, Long userId,
+                                                                              PanelRuntimeConfigClient.ScopedRuntimeConfigUnavailableException failure) {
         boolean delivered;
         try {
             delivered = messagingService.sendToUser(channel, userId,
-                    "Настройки опроса изменились или недоступны. Отправьте /start для нового выбора.");
+                    failure.userMessage("Настройки опроса изменились или недоступны. Отправьте /start для нового выбора."));
         } catch (RuntimeException deliveryFailure) {
             // Provider errors must not be mistaken for another runtime-config failure by the outer catch.
             throw new IllegalStateException("MAX questionnaire restart warning delivery failed", deliveryFailure);

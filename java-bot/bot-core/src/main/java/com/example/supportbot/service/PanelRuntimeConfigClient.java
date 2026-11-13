@@ -20,7 +20,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class PanelRuntimeConfigClient {
-
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(PanelRuntimeConfigClient.class);
 
     private final IntegrationPanelApiProperties properties;
     private final ObjectMapper objectMapper;
@@ -248,23 +248,36 @@ public class PanelRuntimeConfigClient {
         try {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw unavailable();
+                // 409 on the legacy lookup is the existing explicit-selection handshake.
+                if (response.statusCode()==409 && path.endsWith("/runtime-config")) throw unavailable();
+                if (response.statusCode()==409 && path.contains("selection?")) throw unavailable();
+                Failure failure=response.statusCode()==401 || response.statusCode()==403 ? Failure.ACCESS
+                    : response.statusCode()>=500 ? Failure.SERVICE : Failure.CONFIGURATION;
+                throw failure(path,failure,response.statusCode());
             }
             if(writerVersion>0 && !Integer.toString(writerVersion).equals(response.headers().firstValue("X-Iguana-Questionnaire-Writer-Version").orElse(null))) {
-                throw unavailable();
+                throw failure(path,Failure.VERSION,response.statusCode());
             }
-            if(writerVersion==4 && !"1".equals(response.headers().firstValue("X-Iguana-Questionnaire-Media-Version").orElse(null))) throw unavailable();
-            if(writerVersion==4 && requireVkMedia && !"1".equals(response.headers().firstValue("X-Iguana-Questionnaire-VK-Media-Version").orElse(null))) throw unavailable();
+            if(writerVersion==4 && !"1".equals(response.headers().firstValue("X-Iguana-Questionnaire-Media-Version").orElse(null))) throw failure(path,Failure.VERSION,response.statusCode());
+            if(writerVersion==4 && requireVkMedia && !"1".equals(response.headers().firstValue("X-Iguana-Questionnaire-VK-Media-Version").orElse(null))) throw failure(path,Failure.VERSION,response.statusCode());
             if(requireMaxMedia && (response.statusCode()!=200 || !response.headers().allValues("X-Iguana-Questionnaire-MAX-Media-Version").equals(List.of("1"))
                     || !response.headers().allValues("X-Iguana-Questionnaire-Writer-Version").equals(List.of("4"))
-                    || !response.headers().allValues("X-Iguana-Questionnaire-Media-Version").equals(List.of("1"))))throw unavailable();
-            return objectMapper.readValue(response.body(),type);
+                    || !response.headers().allValues("X-Iguana-Questionnaire-Media-Version").equals(List.of("1"))))throw failure(path,Failure.VERSION,response.statusCode());
+            try { return objectMapper.readValue(response.body(),type); }
+            catch(com.fasterxml.jackson.core.JsonProcessingException ex) { throw failure(path,Failure.RESPONSE,response.statusCode()); }
         } catch (IOException | InterruptedException ex) {
             if (ex instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
-            throw unavailable();
+            throw failure(path,Failure.SERVICE,0);
         }
+    }
+
+    private static ScopedRuntimeConfigUnavailableException failure(String path,Failure reason,int status) {
+        // No body, headers, query parameters, user answers, credentials or exception text.
+        log.warn("Questionnaire runtime lookup failed: operation={}, code={}, httpStatus={}",
+            path.split("\\?",2)[0],reason.code,status);
+        return new ScopedRuntimeConfigUnavailableException("Verified questionnaire runtime is unavailable",reason);
     }
 
     private URI resolve(String path) {
@@ -289,9 +302,28 @@ public class PanelRuntimeConfigClient {
         }
     }
 
+    public enum Failure {
+        CHANGED("QNR_CHANGED"), ACCESS("QNR_ACCESS"), SERVICE("QNR_SERVICE"),
+        CONFIGURATION("QNR_CONFIG"), VERSION("QNR_VERSION"), RESPONSE("QNR_RESPONSE");
+        private final String code;
+        Failure(String code) { this.code=code; }
+        public String code() { return code; }
+    }
+
     public static class ScopedRuntimeConfigUnavailableException extends RuntimeException {
+        private final Failure failure;
         public ScopedRuntimeConfigUnavailableException(String message) {
-            super(message);
+            this(message,Failure.CHANGED);
+        }
+        public ScopedRuntimeConfigUnavailableException(String message,Failure failure) {
+            super(message);this.failure=java.util.Objects.requireNonNull(failure);
+        }
+        public Failure failure() { return failure; }
+        public String userMessage(String changedMessage) {
+            if(failure==Failure.CHANGED) return changedMessage;
+            if(failure==Failure.SERVICE)
+                return "Сервис опроса временно недоступен. Попробуйте позже. Код: "+failure.code()+".";
+            return "Не удалось загрузить настройки опроса. Сообщите оператору код: "+failure.code()+".";
         }
     }
 

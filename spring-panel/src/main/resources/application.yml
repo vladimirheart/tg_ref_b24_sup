@@ -186,6 +186,17 @@ logging:
     com.example.panel.service.ChannelTransportService: WARN
     com.example.panel.service.IikoDepartmentLocationsSyncService: WARN
 
+multibusiness:
+  foundation:
+    enabled: ${APP_MULTIBUSINESS_FOUNDATION_ENABLED:false}
+  ticket-write-requires-business: ${APP_MULTIBUSINESS_TICKET_WRITE_REQUIRES_BUSINESS:false}
+  strict-read-scope: ${APP_MULTIBUSINESS_STRICT_READ_SCOPE:false}
+  shared-channel-resolution: ${APP_MULTIBUSINESS_SHARED_CHANNEL_RESOLUTION:false}
+  general-channel-resolution: ${APP_MULTIBUSINESS_GENERAL_CHANNEL_RESOLUTION:false}
+  general-ticket-queue: ${APP_MULTIBUSINESS_GENERAL_TICKET_QUEUE:false}
+  ui-selector: ${APP_MULTIBUSINESS_UI_SELECTOR:false}
+  manual-ticket-creation: ${APP_MULTIBUSINESS_MANUAL_TICKET_CREATION:false}
+
 management:
   endpoints:
     web:
