@@ -193,7 +193,7 @@ class ScopedAssignmentRoutingIdentityPostgresTest {
     private Channel saveChannel(Map<String,Object> rule) throws Exception {
         var repository=mock(ChannelRepository.class);var existing=channel("{}");when(repository.findById(channelId)).thenReturn(Optional.of(existing));
         when(repository.save(any())).thenAnswer(call->{Channel value=call.getArgument(0);jdbc.update("UPDATE channels SET questions_cfg=? WHERE id=?",value.getQuestionsCfg(),channelId);return value;});
-        var transport=new ChannelTransportService(repository,mapper,mock(SharedConfigService.class),mock(IntegrationNetworkService.class));
+        var transport=new ChannelTransportService(repository,mapper,mock(SharedConfigService.class),mock(IntegrationNetworkService.class), org.mockito.Mockito.mock(com.example.panel.service.ChildInfrastructureService.class));
         assertThat(transport.updateChannel(channelId,Map.of("questions_cfg",Map.of("assignmentRouting",rule))).getStatusCode().value()).isEqualTo(200);
         verify(repository).save(existing);
         return channel(jdbc.queryForObject("SELECT questions_cfg FROM channels WHERE id=?",String.class,channelId));

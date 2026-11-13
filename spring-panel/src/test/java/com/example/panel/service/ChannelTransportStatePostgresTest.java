@@ -160,7 +160,7 @@ class ChannelTransportStatePostgresTest {
             }
             return http;
         });
-        var service = new ChannelTransportService(channels, new ObjectMapper(), config, network);
+        var service = new ChannelTransportService(channels, new ObjectMapper(), config, network, org.mockito.Mockito.mock(com.example.panel.service.ChildInfrastructureService.class));
         var outer = new TransactionTemplate(transactions);
         outer.setIsolationLevel(TransactionDefinition.ISOLATION_REPEATABLE_READ);
         boolean sent = outer.execute(status -> {

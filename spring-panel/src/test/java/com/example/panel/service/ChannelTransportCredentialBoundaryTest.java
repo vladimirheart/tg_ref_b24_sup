@@ -146,7 +146,7 @@ class ChannelTransportCredentialBoundaryTest {
         final HttpClient http=mock(HttpClient.class);
         final HttpResponse<String> response=mock(HttpResponse.class);
         final Channel channel=new Channel();
-        final ChannelTransportService service=new ChannelTransportService(channels,new ObjectMapper(),config,network);
+        final ChannelTransportService service=new ChannelTransportService(channels,new ObjectMapper(),config,network, org.mockito.Mockito.mock(com.example.panel.service.ChildInfrastructureService.class));
         Fixture() throws Exception {
             channel.setId(ID);channel.setActive(true);channel.setPlatform("telegram");channel.setToken("old-inline");
             channel.setSupportChatId("-123");channel.setDeliverySettings("{\"broadcast_channel_id\":\"-456\"}");

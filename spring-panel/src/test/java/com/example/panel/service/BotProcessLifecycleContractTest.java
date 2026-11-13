@@ -127,7 +127,7 @@ class BotProcessLifecycleContractTest {
                                                BotProcessProperties botProcessProperties,
                                                BotRuntimeContractService botRuntimeContractService,
                                                Path botWorkingDir) {
-            super(sharedConfigService, botProcessProperties, botRuntimeContractService);
+            super(sharedConfigService, botProcessProperties, botRuntimeContractService, org.mockito.Mockito.mock(ChildInfrastructureService.class));
             this.botWorkingDir = botWorkingDir;
         }
 

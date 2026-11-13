@@ -43,16 +43,19 @@ public class BotProcessService {
     private final SharedConfigService sharedConfigService;
     private final BotProcessProperties botProcessProperties;
     private final BotRuntimeContractService botRuntimeContractService;
+    private final ChildInfrastructureService childInfrastructureService;
     private final Map<Long, Process> processes = new ConcurrentHashMap<>();
     private final Map<Long, OffsetDateTime> startedAt = new ConcurrentHashMap<>();
     private static final Pattern PID_FILE_PATTERN = Pattern.compile("bot-(\\d+)\\.pid");
 
     public BotProcessService(SharedConfigService sharedConfigService,
                              BotProcessProperties botProcessProperties,
-                             BotRuntimeContractService botRuntimeContractService) {
+                             BotRuntimeContractService botRuntimeContractService,
+                             ChildInfrastructureService childInfrastructureService) {
         this.sharedConfigService = sharedConfigService;
         this.botProcessProperties = botProcessProperties;
         this.botRuntimeContractService = botRuntimeContractService;
+        this.childInfrastructureService = childInfrastructureService;
     }
 
     static void applyBotProcessEnvironment(ProcessBuilder builder,
@@ -88,14 +91,16 @@ public class BotProcessService {
         if (channelId == null) {
             return BotProcessStatus.error("Канал не сохранён, сначала сохраните настройки.");
         }
-        stop(channelId);
-
         BotCredential credential = resolveCredential(channel);
         if (credential == null || credential.token().isBlank()) {
+            stop(channelId);
             return BotProcessStatus.error("Не найдены учётные данные бота для канала.");
         }
 
         try {
+            // A failed preflight must not stop an already working process.
+            childInfrastructureService.requireReady(channel);
+            stop(channelId);
             String botModule = botRuntimeContractService.resolveBotModule(channel);
             Path botWorkingDir = resolveBotWorkingDir();
             releaseReservedServerPortIfOccupied(channel);

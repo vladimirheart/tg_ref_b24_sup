@@ -70,6 +70,45 @@ class ChannelApiControllerWebMvcTest {
     @MockBean
     private ChannelRepository channelRepository;
 
+    @MockBean
+    private com.example.panel.service.ChildInfrastructureService infrastructure;
+
+    @Test
+    void createChannelAutomaticallyPreparesInfrastructure() throws Exception {
+        when(channelRepository.save(any(Channel.class))).thenAnswer(invocation -> {
+            Channel channel = invocation.getArgument(0);
+            channel.setId(288L);
+            return channel;
+        });
+        mockMvc.perform(post("/api/channels").contentType("application/json")
+                .content("{\"channel_name\":\"New MAX\",\"platform\":\"max\",\"token\":\"test-only-token\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.channel.id").value(288))
+            .andExpect(jsonPath("$.infrastructure.state").value("ready"));
+        verify(infrastructure).prepare(argThat(c -> c.getId() == 288L && "max".equals(c.getPlatform())));
+    }
+
+    @Test
+    void createChannelPreservesSavedChannelWhenPreparationFails() throws Exception {
+        when(channelRepository.save(any(Channel.class))).thenAnswer(invocation -> {
+            Channel channel = invocation.getArgument(0);
+            channel.setId(289L);
+            return channel;
+        });
+        when(infrastructure.prepare(any())).thenReturn(new com.example.panel.service.ChildInfrastructureService.Result(
+            "failed", "Подготовка не завершена. Повторите «Старт»."));
+        mockMvc.perform(post("/api/channels").contentType("application/json")
+                .content("{\"channel_name\":\"New MAX\",\"platform\":\"max\",\"token\":\"test-only-token\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.channel.id").value(289))
+            .andExpect(jsonPath("$.infrastructure.state").value("failed"))
+            .andExpect(jsonPath("$.infrastructure.message").value("Подготовка не завершена. Повторите «Старт»."));
+        verify(channelRepository).save(any(Channel.class));
+        verify(channelRepository, never()).deleteById(any());
+    }
+
     @Autowired
     private SharedConfigService sharedConfigService;
 
@@ -81,6 +120,8 @@ class ChannelApiControllerWebMvcTest {
 
     @BeforeEach
     void resetSharedConfigCredentials() {
+        org.mockito.Mockito.when(infrastructure.prepare(org.mockito.ArgumentMatchers.any()))
+            .thenReturn(new com.example.panel.service.ChildInfrastructureService.Result("ready", "Prepared"));
         sharedConfigService.saveBotCredentials(List.of());
         integrationNetworkService.reset();
     }

@@ -14,6 +14,7 @@
 
   function createRuntime(options = {}) {
     const state = {
+      addingChannel: false,
       vkWebhook: {
         channelId: null,
         groupId: null,
@@ -558,6 +559,7 @@
     }
 
     async function addChannel() {
+      if (state.addingChannel) return;
       const tokenInput = document.getElementById('new_token');
       const nameInput = document.getElementById('new_channel_name');
       const supportChatInput = document.getElementById('new_support_chat_id');
@@ -682,6 +684,14 @@
         }
       }
 
+      state.addingChannel = true;
+      const submitButton = elements.addChannelFormEl?.querySelector('[type="submit"]');
+      const submitLabel = submitButton?.innerHTML;
+      if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Добавляем и готовим бота…';
+      }
+      elements.addChannelFormEl?.setAttribute('aria-busy', 'true');
       try {
         const resp = await fetch('/api/channels', {
           method: 'POST',
@@ -695,10 +705,24 @@
         resetAddChannelForm();
         updateAddChannelValidationAlert('');
         requestCloseModal(elements.addChannelFormEl);
-        notifyChannelStatus('Канал «' + channelName + '» успешно добавлен.', 'success');
+        const infrastructure = data.infrastructure;
+        if (infrastructure?.state === 'failed') {
+          notifyChannelStatus('Канал «' + channelName + '» добавлен. ' + infrastructure.message, 'warning');
+        } else {
+          const details = infrastructure?.state === 'ready'
+            ? 'Доступы подготовлены; можно запускать бота.' : 'Можно запускать бота.';
+          notifyChannelStatus('Канал «' + channelName + '» добавлен. ' + details, 'success');
+        }
         loadChannels();
       } catch (error) {
         notifyChannelStatus('Ошибка добавления канала: ' + error.message, 'error');
+      } finally {
+        state.addingChannel = false;
+        elements.addChannelFormEl?.setAttribute('aria-busy', 'false');
+        if (submitButton) {
+          submitButton.innerHTML = submitLabel;
+          submitButton.disabled = window.SettingsPermissions?.canEdit('channels') === false;
+        }
       }
     }
 

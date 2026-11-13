@@ -30,7 +30,7 @@ class ChannelCredentialIdAllocationTest {
         var channels=mock(ChannelRepository.class);var config=mock(SharedConfigService.class);
         var channel=new Channel();channel.setId(1L);channel.setCredentialId(reference);channel.setActive(false);
         when(channels.findAll()).thenReturn(List.of(channel));when(config.loadBotCredentials()).thenReturn(catalog);
-        var service=new ChannelTransportService(channels,new ObjectMapper(),config,mock(IntegrationNetworkService.class));
+        var service=new ChannelTransportService(channels,new ObjectMapper(),config,mock(IntegrationNetworkService.class), org.mockito.Mockito.mock(com.example.panel.service.ChildInfrastructureService.class));
         var response=service.createBotCredential(Map.of("name","new","token","new-token","platform","telegram"));
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         assertThat(((Map<?,?>)response.getBody().get("credential")).get("id")).isEqualTo(expected);
@@ -43,7 +43,7 @@ class ChannelCredentialIdAllocationTest {
         var channels=mock(ChannelRepository.class);var config=mock(SharedConfigService.class);
         var channel=new Channel();channel.setCredentialId(reference);
         when(channels.findAll()).thenReturn(List.of(channel));when(config.loadBotCredentials()).thenReturn(catalog);
-        var service=new ChannelTransportService(channels,new ObjectMapper(),config,mock(IntegrationNetworkService.class));
+        var service=new ChannelTransportService(channels,new ObjectMapper(),config,mock(IntegrationNetworkService.class), org.mockito.Mockito.mock(com.example.panel.service.ChildInfrastructureService.class));
         var response=service.createBotCredential(Map.of("name","new","token","new-token","platform","telegram"));
         assertThat(response.getStatusCode().value()).isEqualTo(409);
         verify(config,never()).saveBotCredentials(any());

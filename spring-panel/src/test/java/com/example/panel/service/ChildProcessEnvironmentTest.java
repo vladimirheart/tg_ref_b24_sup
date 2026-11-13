@@ -9,7 +9,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 class ChildProcessEnvironmentTest {
     @ParameterizedTest @ValueSource(strings={"APP_INTERNAL_BOT_API_TOKEN","APP_INTERNAL_BOT_API_SIGNATURE_SECRET",
         "DATABASE_URL","SPRING_DATASOURCE_PASSWORD","SPRING_APPLICATION_JSON","SPRING_CONFIG_LOCATION","JAVA_TOOL_OPTIONS",
-        "JDK_JAVA_OPTIONS","MAVEN_OPTS","SPRING_RABBITMQ_ADDRESSES","SPRING_RABBITMQ_URI","APP_STORAGE_OBJECT_UNEXPECTED_SECRET"})
+        "JDK_JAVA_OPTIONS","MAVEN_OPTS","SPRING_RABBITMQ_ADDRESSES","SPRING_RABBITMQ_URI","APP_STORAGE_OBJECT_UNEXPECTED_SECRET",
+        "APP_BOTS_INFRASTRUCTURE_RABBITMQ_MANAGEMENT_URL","APP_BOTS_INFRASTRUCTURE_RABBITMQ_MANAGEMENT_USERNAME",
+        "APP_BOTS_INFRASTRUCTURE_RABBITMQ_MANAGEMENT_PASSWORD"})
     void inheritedControlPlaneAndOverrideInputsAreNotChildCredentials(String key) {
         var process=new ProcessBuilder("not-started");process.environment().put(key,"foreign-secret");
         var contract=Map.of("APP_PANEL_INTERNAL_API_TOKEN","iguana-child-v1:max:22:"+"a".repeat(64),

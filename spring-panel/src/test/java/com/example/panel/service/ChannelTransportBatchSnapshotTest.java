@@ -39,7 +39,7 @@ class ChannelTransportBatchSnapshotTest {
             else ChannelTransportPersistedStateTest.mutate(channel,change);
             return response;
         }).when(http).send(any(HttpRequest.class),any(HttpResponse.BodyHandler.class));
-        var service=new ChannelTransportService(repository,new ObjectMapper(),mock(SharedConfigService.class),network);
+        var service=new ChannelTransportService(repository,new ObjectMapper(),mock(SharedConfigService.class),network, org.mockito.Mockito.mock(com.example.panel.service.ChildInfrastructureService.class));
         var body=service.testChannel(id,Map.of("target_mode","both","message","test")).getBody();
         boolean stable=change.equals("unrelated-name");
         assertThat(body.get("success")).isEqualTo(true);

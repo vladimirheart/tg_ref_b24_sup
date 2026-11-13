@@ -50,7 +50,7 @@ class ChannelTransportLateCredentialChangeTest {
             }
             return http;
         });
-        var service=new ChannelTransportService(channels,new ObjectMapper(),config,network);
+        var service=new ChannelTransportService(channels,new ObjectMapper(),config,network, org.mockito.Mockito.mock(com.example.panel.service.ChildInfrastructureService.class));
         boolean sent=operation.equals("test")
             ? Boolean.TRUE.equals(service.testChannel(9007199254740993L,Map.of("target_mode","group","message","test")).getBody().get("success"))
             : service.sendConfiguredMessage(9007199254740993L,operation,"777","test").success();

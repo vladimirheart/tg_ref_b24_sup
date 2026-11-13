@@ -41,15 +41,18 @@ public class ChannelTransportService {
     private final ObjectMapper objectMapper;
     private final SharedConfigService sharedConfigService;
     private final IntegrationNetworkService integrationNetworkService;
+    private final ChildInfrastructureService childInfrastructureService;
 
     public ChannelTransportService(ChannelRepository channelRepository,
                                    ObjectMapper objectMapper,
                                    SharedConfigService sharedConfigService,
-                                   IntegrationNetworkService integrationNetworkService) {
+                                   IntegrationNetworkService integrationNetworkService,
+                                   ChildInfrastructureService childInfrastructureService) {
         this.channelRepository = channelRepository;
         this.objectMapper = objectMapper;
         this.sharedConfigService = sharedConfigService;
         this.integrationNetworkService = integrationNetworkService;
+        this.childInfrastructureService = childInfrastructureService;
     }
 
     public ResponseEntity<Map<String, Object>> getChannels() {
@@ -131,8 +134,10 @@ public class ChannelTransportService {
         updateTelegramBotInfo(channel, false);
 
         Channel saved = channelRepository.save(channel);
+        ChildInfrastructureService.Result infrastructure = childInfrastructureService.prepare(saved);
         Map<Long, Map<String, Object>> credentials = buildCredentialIndex(loadBotCredentials());
-        return ResponseEntity.ok(Map.of("success", true, "channel", toChannelResponse(saved, credentials)));
+        return ResponseEntity.ok(Map.of("success", true, "channel", toChannelResponse(saved, credentials),
+            "infrastructure", infrastructure));
     }
 
     public ResponseEntity<Map<String, Object>> updateChannel(long channelId, Map<String, Object> payload) {

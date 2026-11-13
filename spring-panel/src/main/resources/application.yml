@@ -66,6 +66,10 @@ app:
   datasource:
     mode: ${APP_DB_MODE:postgresql}
   bots:
+    infrastructure:
+      rabbitmq-management-url: ${APP_BOTS_INFRASTRUCTURE_RABBITMQ_MANAGEMENT_URL:http://${SPRING_RABBITMQ_HOST:localhost}:${APP_RABBITMQ_HTTP_PORT:15672}}
+      rabbitmq-management-username: ${APP_BOTS_INFRASTRUCTURE_RABBITMQ_MANAGEMENT_USERNAME:${SPRING_RABBITMQ_USERNAME:iguana}}
+      rabbitmq-management-password: ${APP_BOTS_INFRASTRUCTURE_RABBITMQ_MANAGEMENT_PASSWORD:${SPRING_RABBITMQ_PASSWORD:iguana}}
     launch-mode: ${APP_BOT_LAUNCH_MODE:auto} # auto -> prefer explicit/prebuilt jar, fallback to spring-boot:run in dev
     executable-jars:
       bot-telegram: ${APP_BOT_EXECUTABLE_JAR_TELEGRAM:}

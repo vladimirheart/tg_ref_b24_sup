@@ -56,6 +56,9 @@
 | `APP_POSTGRES_BIND_HOST` | bind host publish-порта PostgreSQL в dockerized contour; production-like default должен оставаться loopback-only | compose/infrastructure |
 | `IGUANA_RABBITMQ_USER` | пользователь RabbitMQ в dockerized contour | compose/infrastructure |
 | `IGUANA_RABBITMQ_PASSWORD` | пароль RabbitMQ в dockerized contour | compose/infrastructure |
+| `APP_BOTS_INFRASTRUCTURE_RABBITMQ_MANAGEMENT_URL` | backend URL management API для автоматической подготовки новых ботов, без `/api`; Compose default `http://rabbitmq:15672` | backend/bot-runner |
+| `APP_BOTS_INFRASTRUCTURE_RABBITMQ_MANAGEMENT_USERNAME` | необязательный отдельный management administrator; default серверный RabbitMQ username | backend/bot-runner |
+| `APP_BOTS_INFRASTRUCTURE_RABBITMQ_MANAGEMENT_PASSWORD` | необязательный пароль management administrator; не передаётся child | backend/bot-runner |
 | `APP_RABBITMQ_AMQP_BIND_HOST` | bind host AMQP publish-порта RabbitMQ | compose/infrastructure |
 | `APP_RABBITMQ_HTTP_BIND_HOST` | bind host management UI publish-порта RabbitMQ | compose/infrastructure |
 | `APP_REDIS_PORT` | publish-порт Redis в dockerized contour | compose/infrastructure |

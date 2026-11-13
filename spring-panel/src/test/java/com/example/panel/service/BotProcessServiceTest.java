@@ -366,7 +366,7 @@ class BotProcessServiceTest {
                 null,
                 properties,
                 botRuntimeContractService
-        );
+        , org.mockito.Mockito.mock(com.example.panel.service.ChildInfrastructureService.class));
     }
 
     private static final class TestableBotProcessService extends BotProcessService {
@@ -375,7 +375,7 @@ class BotProcessServiceTest {
         private final Duration pollInterval;
 
         private TestableBotProcessService(Duration readinessTimeout, Duration pollInterval) {
-            super(null, configureProperties(readinessTimeout, pollInterval), createRuntimeContractService(readinessTimeout, pollInterval));
+            super(null, configureProperties(readinessTimeout, pollInterval), createRuntimeContractService(readinessTimeout, pollInterval), mock(ChildInfrastructureService.class));
             this.readinessTimeout = readinessTimeout;
             this.pollInterval = pollInterval;
         }
@@ -397,7 +397,7 @@ class BotProcessServiceTest {
 
         private RecoveringBotProcessService(long forcedPid) {
             super(null, configureProperties(Duration.ofSeconds(5), Duration.ofMillis(50)),
-                createRuntimeContractService(Duration.ofSeconds(5), Duration.ofMillis(50)));
+                createRuntimeContractService(Duration.ofSeconds(5), Duration.ofMillis(50)), mock(ChildInfrastructureService.class));
             this.forcedPid = forcedPid;
         }
 

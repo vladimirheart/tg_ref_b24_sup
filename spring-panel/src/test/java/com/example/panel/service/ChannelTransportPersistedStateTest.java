@@ -157,7 +157,7 @@ class ChannelTransportPersistedStateTest {
         final HttpResponse<String> response = mock(HttpResponse.class);
         final Channel channel = new Channel();
         final Channel persisted;
-        final ChannelTransportService service = new ChannelTransportService(channels, new ObjectMapper(), config, network);
+        final ChannelTransportService service = new ChannelTransportService(channels, new ObjectMapper(), config, network, org.mockito.Mockito.mock(com.example.panel.service.ChildInfrastructureService.class));
         Fixture(boolean bound) throws Exception {
             channel.setId(ID);channel.setActive(true);channel.setPlatform("telegram");channel.setToken("inline-token");
             channel.setCredentialId(bound ? 7L : null);channel.setSupportChatId("-123");

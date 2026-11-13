@@ -87,7 +87,7 @@ class ChannelNotificationIdentityPostgresTest {
             Channel channel=channel(route("employees_only","all",List.of(),List.of()),shape);
             var repository=mock(ChannelRepository.class);when(repository.findById(7L)).thenReturn(Optional.of(channel));
             when(repository.save(any())).thenAnswer(call->call.getArgument(0));
-            var transport=new ChannelTransportService(repository,mapper,mock(SharedConfigService.class),mock(IntegrationNetworkService.class));
+            var transport=new ChannelTransportService(repository,mapper,mock(SharedConfigService.class),mock(IntegrationNetworkService.class), org.mockito.Mockito.mock(com.example.panel.service.ChildInfrastructureService.class));
             var routing=route("employees_only","all",List.of(identity.toUpperCase(Locale.ROOT),identity,"reader","READER","","  "),List.of(identity));
             var payload=mapper.readValue(channel(routing,shape).getQuestionsCfg(),Map.class);
             assertThat(transport.updateChannel(7,Map.of("questions_cfg",payload)).getStatusCode().value()).isEqualTo(200);

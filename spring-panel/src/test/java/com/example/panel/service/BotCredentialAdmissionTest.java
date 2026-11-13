@@ -67,7 +67,7 @@ class BotCredentialAdmissionTest {
     }
 
     private BotCredential resolve(SharedConfigService config, Channel channel) throws Exception {
-        var process = new BotProcessService(config, new BotProcessProperties(), mock(BotRuntimeContractService.class));
+        var process = new BotProcessService(config, new BotProcessProperties(), mock(BotRuntimeContractService.class), org.mockito.Mockito.mock(com.example.panel.service.ChildInfrastructureService.class));
         var method = BotProcessService.class.getDeclaredMethod("resolveCredential", Channel.class);
         method.setAccessible(true);
         return (BotCredential) method.invoke(process, channel);
