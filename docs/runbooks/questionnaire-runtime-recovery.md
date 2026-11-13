@@ -1,6 +1,37 @@
 # Восстановление запуска назначенных вопросников
 
-## Подтверждённые данные 13.11.2026
+## Текущий рабочий checkpoint R323 — 13.11.2026
+
+В текущей runtime-сессии Docker доступен на этой машине. Все три сервиса уже
+имели нужные APP_MULTIBUSINESS flags; повторять их включение не нужно.
+Найден отдельный отказ: stored template hash в четырёх existing bindings
+устарел после сохранения/отката шаблонов. Существующие BUSINESS1/2 и GENERAL2/3
+перепривязаны тем же штатным API на те же IDs, вопросы/маршруты сохранены.
+
+В panel-web установлено исправление save-boundary: изменение bot_settings
+обновляет только active bindings через штатные scope/preset validators.
+Удаление назначенного шаблона отклоняется; невалидное сохранение сохраняет
+прежние settings/bindings. Frozen session/catalog проверки не обходятся.
+Намеренно изменённая незавершённая анкета может потребовать нового /start.
+37 tests/5 suites, полный package и реальная save/reload/rollback проверка GREEN.
+
+Только panel-web обновлён до imagec76dd7608c93; worker/runner7091468ac8c7 прежние.
+Одна web-реплика, ENV/mounts/resources сохранены; V94/history и flags прежние,
+миграций/backfill нет. Все три child запущены, Telegram1/3 используют сохранённое
+зеркало, MAX не перезапускался. Health/readiness UP.
+Точный Compose: production-contour + R323/private/override.web.json.
+Rollback: tag rollback-r323-panel-web-20261113 (7091468ac8c7) и
+R323/private/override.rollback.json; settings/bindings snapshots сохранены отдельно.
+Этот image rollback сам не возвращает шаблоны/назначения пользователя.
+Evidence — Runtime R323 [карточки01-289](../../ai-context/tasks/task-details/01-289.md).
+Клиентская приёмка /start → выбор/вопросы ещё требуется.
+
+Ручная подмена settings.json из backup обходит save-boundary и сама не обновляет
+реестр binding hashes. После такого восстановления требуется штатное сохранение
+каталога через панель или явная перепривязка тем же API. Runtime GET не должен
+самостоятельно принимать устаревший hash или выбирать legacy fallback.
+
+## Исторические исходные данные source-сессии 13.11.2026
 
 Рабочий Docker находится на другом сервере. Пользователь подтвердил:
 

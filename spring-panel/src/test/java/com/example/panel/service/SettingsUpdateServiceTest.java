@@ -38,7 +38,8 @@ class SettingsUpdateServiceTest {
                 sharedConfigService,
                 settingsDialogConfigUpdateService,
                 settingsTopLevelUpdateService,
-                settingsLocationsUpdateService
+                settingsLocationsUpdateService,
+                mock(QuestionTemplateSettingsService.class)
         );
     }
 

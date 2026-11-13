@@ -19,21 +19,25 @@ public class SettingsUpdateService {
     private final SettingsDialogConfigUpdateService settingsDialogConfigUpdateService;
     private final SettingsTopLevelUpdateService settingsTopLevelUpdateService;
     private final SettingsLocationsUpdateService settingsLocationsUpdateService;
+    private final QuestionTemplateSettingsService questionTemplateSettingsService;
 
     public SettingsUpdateService(SharedConfigService sharedConfigService,
                                  SettingsDialogConfigUpdateService settingsDialogConfigUpdateService,
                                  SettingsTopLevelUpdateService settingsTopLevelUpdateService,
-                                 SettingsLocationsUpdateService settingsLocationsUpdateService) {
+                                 SettingsLocationsUpdateService settingsLocationsUpdateService,
+                                 QuestionTemplateSettingsService questionTemplateSettingsService) {
         this.sharedConfigService = sharedConfigService;
         this.settingsDialogConfigUpdateService = settingsDialogConfigUpdateService;
         this.settingsTopLevelUpdateService = settingsTopLevelUpdateService;
         this.settingsLocationsUpdateService = settingsLocationsUpdateService;
+        this.questionTemplateSettingsService = questionTemplateSettingsService;
     }
 
     public Map<String, Object> updateSettings(Map<String, Object> payload,
                                               Authentication authentication) {
         try {
-            Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
+            Map<String, Object> previous = sharedConfigService.loadSettings();
+            Map<String, Object> settings = new LinkedHashMap<>(previous);
             List<String> updateWarnings = new ArrayList<>();
 
             boolean modified = settingsTopLevelUpdateService.applyTopLevelUpdates(payload, settings);
@@ -45,7 +49,11 @@ public class SettingsUpdateService {
             );
 
             if (modified) {
-                sharedConfigService.saveSettings(settings);
+                if (payload.containsKey("bot_settings")) {
+                    questionTemplateSettingsService.saveSettings(previous, settings);
+                } else {
+                    sharedConfigService.saveSettings(settings);
+                }
             }
 
             settingsLocationsUpdateService.applyLocationsUpdate(payload);

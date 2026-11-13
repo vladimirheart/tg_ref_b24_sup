@@ -49,11 +49,17 @@ class SettingsUpdateSharedConfigIntegrationTest {
         settingsParameterService = mock(SettingsParameterService.class);
         doNothing().when(settingsParameterService).syncParametersFromLocationsPayload(any());
         settingsLocationsUpdateService = new SettingsLocationsUpdateService(sharedConfigService, settingsParameterService);
+        var questionTemplates = mock(QuestionTemplateSettingsService.class);
+        org.mockito.Mockito.doAnswer(invocation -> {
+            sharedConfigService.saveSettings(invocation.getArgument(1));
+            return null;
+        }).when(questionTemplates).saveSettings(anyMap(), anyMap());
         service = new SettingsUpdateService(
                 sharedConfigService,
                 settingsDialogConfigUpdateService,
                 settingsTopLevelUpdateService,
-                settingsLocationsUpdateService
+                settingsLocationsUpdateService,
+                questionTemplates
         );
     }
 
