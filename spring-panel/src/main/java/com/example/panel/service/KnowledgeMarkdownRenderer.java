@@ -19,6 +19,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 
 @Service
 public class KnowledgeMarkdownRenderer {
@@ -30,6 +32,9 @@ public class KnowledgeMarkdownRenderer {
     private static final Pattern HEADING_PATTERN = Pattern.compile("<h([1-6])>(.*?)</h\\1>", Pattern.DOTALL);
     private static final Pattern TOC_PARAGRAPH_PATTERN = Pattern.compile("<p>\\Q" + TABLE_OF_CONTENTS_TOKEN + "\\E</p>");
     private static final Pattern EMPTY_BLOCK_PARAGRAPH_PATTERN = Pattern.compile("<p>\\Q" + EMPTY_BLOCK_TOKEN + "\\E</p>");
+    private static final Pattern WIKI_LINK_PATTERN = Pattern.compile(
+        "<a\\b[^>]*\\bhref=\"/knowledge-base/(\\d+)\\?wiki=([^\"]+)\"[^>]*>(.*?)</a>"
+    );
     private static final Pattern CALLOUT_BLOCKQUOTE_PATTERN = Pattern.compile(
         "<blockquote>\\s*<p>\\Q" + CALLOUT_TOKEN_PREFIX + "\\E(.*?)::([^\\]]*)\\Q]]]\\E</p>(.*?)</blockquote>",
         Pattern.DOTALL
@@ -68,11 +73,25 @@ public class KnowledgeMarkdownRenderer {
     }
 
     private String postProcessHtml(String html) {
+        String htmlWithWikiLinks = replaceWikiLinks(html);
         List<HeadingEntry> headings = new ArrayList<>();
-        String htmlWithHeadingIds = injectHeadingIds(html, headings);
+        String htmlWithHeadingIds = injectHeadingIds(htmlWithWikiLinks, headings);
         String htmlWithCallouts = replaceCalloutBlockquotes(htmlWithHeadingIds);
         String htmlWithToc = replaceTokenParagraphs(htmlWithCallouts, TOC_PARAGRAPH_PATTERN, buildTableOfContents(headings));
         return replaceTokenParagraphs(htmlWithToc, EMPTY_BLOCK_PARAGRAPH_PATTERN, "<div class=\"knowledge-empty-block\" aria-hidden=\"true\"></div>");
+    }
+
+    private String replaceWikiLinks(String html) {
+        Matcher matcher = WIKI_LINK_PATTERN.matcher(html);
+        StringBuffer buffer = new StringBuffer();
+        while (matcher.find()) {
+            String reference = HtmlUtils.htmlEscape(URLDecoder.decode(matcher.group(2), StandardCharsets.UTF_8));
+            String replacement = "<a href=\"/knowledge-base/" + matcher.group(1)
+                + "\" data-knowledge-wiki-reference=\"" + reference + "\">" + matcher.group(3) + "</a>";
+            matcher.appendReplacement(buffer, Matcher.quoteReplacement(replacement));
+        }
+        matcher.appendTail(buffer);
+        return buffer.toString();
     }
 
     static String calloutToken(String color, String icon) {

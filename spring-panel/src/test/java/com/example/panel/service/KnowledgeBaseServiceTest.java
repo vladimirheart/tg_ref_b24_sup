@@ -2,6 +2,7 @@ package com.example.panel.service;
 
 import com.example.panel.entity.KnowledgeArticle;
 import com.example.panel.entity.KnowledgeArticleFile;
+import com.example.panel.model.knowledge.KnowledgeWikiLink;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -86,5 +87,22 @@ class KnowledgeBaseServiceTest {
 
         assertTrue(html.contains("/api/attachments/knowledge-base/notion_ab2c3c4e058446fda00bff55b90fcd84_legacyhash_image.png"));
         assertFalse(html.contains("prod-files-secure.s3.us-west-2.amazonaws.com"));
+    }
+
+    @Test
+    void rendersWikiLinksByStableTargetAndHidesInaccessibleTargetTitle() {
+        KnowledgeArticle article = new KnowledgeArticle();
+        article.setContent("См. [[Регламент]] и [[Закрытая инструкция]].");
+
+        String html = service.renderContent(article, List.of(), List.of(
+            new KnowledgeWikiLink(42L, "Новый регламент", "Регламент", null, true),
+            new KnowledgeWikiLink(43L, null, "Закрытая инструкция", null, false)
+        ));
+
+        assertTrue(html.contains("href=\"/knowledge-base/42\""), html);
+        assertTrue(html.contains("data-knowledge-wiki-reference=\"Регламент\""));
+        assertTrue(html.contains("Новый регламент"));
+        assertTrue(html.contains("Материал с ограниченным доступом"));
+        assertFalse(html.contains("Закрытая инструкция"));
     }
 }

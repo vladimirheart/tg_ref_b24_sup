@@ -14,4 +14,6 @@ public interface KnowledgeArticleRepository extends JpaRepository<KnowledgeArtic
     List<KnowledgeArticle> findAllByExternalSourceAndExternalIdIn(String externalSource, Collection<String> externalIds);
 
     List<KnowledgeArticle> findAllByExternalSource(String externalSource);
+
+    List<KnowledgeArticle> findByTitleIgnoreCase(String title);
 }

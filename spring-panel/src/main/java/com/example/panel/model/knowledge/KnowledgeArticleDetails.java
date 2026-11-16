@@ -5,6 +5,8 @@ import java.util.List;
 
 public record KnowledgeArticleDetails(Long id,
                                       String title,
+                                      Long sectionId,
+                                      String sectionTitle,
                                       String department,
                                       String articleType,
                                       String status,
@@ -20,5 +22,7 @@ public record KnowledgeArticleDetails(Long id,
                                       OffsetDateTime externalUpdatedAt,
                                       OffsetDateTime createdAt,
                                       OffsetDateTime updatedAt,
-                                      List<KnowledgeAttachmentDto> attachments) {
+                                      List<KnowledgeAttachmentDto> attachments,
+                                      List<KnowledgeWikiLink> outgoingLinks,
+                                      List<KnowledgeWikiLink> incomingLinks) {
 }

@@ -40,6 +40,8 @@ public class KnowledgeArticle {
 
     private String attachments;
 
+    private Long sectionId;
+
     private String externalSource;
 
     private String externalId;
@@ -138,6 +140,14 @@ public class KnowledgeArticle {
 
     public void setAttachments(String attachments) {
         this.attachments = attachments;
+    }
+
+    public Long getSectionId() {
+        return sectionId;
+    }
+
+    public void setSectionId(Long sectionId) {
+        this.sectionId = sectionId;
     }
 
     public String getExternalSource() {

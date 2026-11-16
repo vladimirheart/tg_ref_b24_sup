@@ -176,6 +176,11 @@
         return `\`\`\`${language}\n${raw}\n\`\`\`\n\n`;
       }
       case 'A': {
+        const wikiReference = node.getAttribute('data-knowledge-wiki-reference');
+        if (wikiReference) {
+          const label = serializeChildren(node).trim();
+          return label && label !== wikiReference ? `[[${wikiReference}|${label}]]` : `[[${wikiReference}]]`;
+        }
         const href = node.getAttribute('href') || '';
         const label = serializeChildren(node).trim() || escapeInlineText(href);
         return href ? `[${label}](${href})` : label;

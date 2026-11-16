@@ -12,10 +12,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.example.panel.model.knowledge.KnowledgeBaseNotionConfigForm;
 import com.example.panel.service.KnowledgeBaseNotionService;
 import com.example.panel.service.KnowledgeBaseService;
+import com.example.panel.service.KnowledgeAccessService;
+import com.example.panel.service.KnowledgeSectionService;
 import com.example.panel.service.NavigationService;
 import com.example.panel.service.NotificationRoutingService;
 import com.example.panel.service.NotificationService;
-import com.example.panel.service.PermissionService;
 import com.example.panel.storage.AttachmentService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -33,7 +34,10 @@ class KnowledgeBaseControllerWebMvcTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private PermissionService permissionService;
+    private KnowledgeAccessService knowledgeAccessService;
+
+    @MockBean
+    private KnowledgeSectionService knowledgeSectionService;
 
     @MockBean
     private KnowledgeBaseService knowledgeBaseService;
@@ -56,8 +60,8 @@ class KnowledgeBaseControllerWebMvcTest {
     @Test
     void knowledgeListIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
         doNothing().when(navigationService).enrich(any(), any());
-        when(knowledgeBaseService.listArticles()).thenReturn(List.of());
-        when(permissionService.hasAuthority(any(), org.mockito.ArgumentMatchers.eq("PAGE_KNOWLEDGE_BASE"))).thenReturn(true);
+        when(knowledgeBaseService.listArticles(any())).thenReturn(List.of());
+        when(knowledgeSectionService.listVisible(any())).thenReturn(List.of());
         when(knowledgeBaseNotionService.buildForm()).thenReturn(new KnowledgeBaseNotionConfigForm());
         when(knowledgeBaseNotionService.hasSavedToken()).thenReturn(false);
 
@@ -68,5 +72,20 @@ class KnowledgeBaseControllerWebMvcTest {
             .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/theme.js")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-config.js")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"knowledge\"")));
+    }
+
+    @Test
+    void knowledgeEditorAndSectionEditorRenderForAuthorizedUser() throws Exception {
+        doNothing().when(navigationService).enrich(any(), any());
+        when(knowledgeSectionService.listVisible(any())).thenReturn(List.of());
+        when(knowledgeAccessService.canCreateSection(any())).thenReturn(true);
+
+        mockMvc.perform(get("/knowledge-base/new").with(user("operator").authorities(() -> "PAGE_KNOWLEDGE_BASE")))
+            .andExpect(status().isOk())
+            .andExpect(view().name("knowledge/editor"));
+
+        mockMvc.perform(get("/knowledge-base/sections/new").with(user("operator").authorities(() -> "PAGE_KNOWLEDGE_BASE")))
+            .andExpect(status().isOk())
+            .andExpect(view().name("knowledge/section-editor"));
     }
 }

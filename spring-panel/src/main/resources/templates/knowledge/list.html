@@ -32,6 +32,11 @@
 			</div>
 
 			<div class="kb-page-header__actions ops-page-actions">
+				<a class="btn btn-outline-secondary"
+				   th:if="${canManageKnowledge}"
+				   th:href="@{/knowledge-base/sections/new}">
+					Новый раздел
+				</a>
 				<a class="btn btn-primary"
 				   th:if="${canCreate}"
 				   th:href="@{/knowledge-base/new}">
@@ -46,6 +51,24 @@
         <a class="nav-link active" aria-current="page" th:href="@{/knowledge-base}">Статьи</a>
         <a class="nav-link" th:href="@{/knowledge-base/notes}">Заметки</a>
     </nav>
+
+    <div class="card mb-4 ops-section-card">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                <div><h2 class="h5 mb-0">Разделы</h2><p class="small text-muted mb-0">Доступные вам разделы базы знаний.</p></div>
+            </div>
+            <p class="text-muted mb-0" th:if="${#lists.isEmpty(sections)}">Нет доступных разделов.</p>
+            <div class="d-flex flex-wrap gap-2" th:if="${!#lists.isEmpty(sections)}">
+                <th:block th:each="section : ${sections}">
+                    <a class="btn btn-sm btn-outline-secondary" th:if="${canManageKnowledge}"
+                       th:href="@{'/knowledge-base/sections/' + ${section.id}}"
+                       th:text="${#strings.repeat('— ', section.depth) + section.title}"></a>
+                    <span class="badge text-bg-light border p-2" th:unless="${canManageKnowledge}"
+                          th:text="${#strings.repeat('— ', section.depth) + section.title}"></span>
+                </th:block>
+            </div>
+        </div>
+    </div>
 
     <div class="card mb-4 kb-import-card ops-section-card" id="notion-import">
         <div class="card-body">
@@ -344,6 +367,7 @@
                     <thead>
                     <tr>
                         <th>Название</th>
+                        <th class="text-nowrap">Раздел</th>
                         <th class="text-nowrap">Подразделение</th>
                         <th>Автор</th>
                         <th class="text-nowrap">Статус</th>
@@ -352,13 +376,14 @@
                     </thead>
                     <tbody>
                     <tr th:if="${#lists.isEmpty(articles)}">
-                        <td colspan="5" class="text-center text-muted py-4">Статей пока нет</td>
+                        <td colspan="6" class="text-center text-muted py-4">Статей пока нет</td>
                     </tr>
                     <tr th:each="article : ${articles}" th:data-title="${article.title}" th:data-department="${article.department}">
                         <td>
                             <a class="fw-semibold text-decoration-none" th:href="@{'/knowledge-base/' + ${article.id}}" th:text="${article.title}"></a>
                             <div class="text-muted small" th:text="${article.summary}"></div>
                         </td>
+                        <td class="text-muted" th:text="${article.sectionTitle ?: '—'}"></td>
                         <td class="text-muted" th:text="${article.department ?: '—'}"></td>
                         <td class="text-muted" th:text="${article.author ?: '—'}"></td>
                         <td>

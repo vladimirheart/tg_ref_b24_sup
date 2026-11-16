@@ -1,6 +1,8 @@
 package com.example.panel.controller;
 
 import com.example.panel.storage.AttachmentService;
+import com.example.panel.service.KnowledgeAccessService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -24,9 +26,15 @@ import java.util.Set;
 public class AttachmentController {
 
     private final AttachmentService attachmentService;
+    private KnowledgeAccessService knowledgeAccessService;
 
     public AttachmentController(AttachmentService attachmentService) {
         this.attachmentService = attachmentService;
+    }
+
+    @Autowired(required = false)
+    void setKnowledgeAccessService(KnowledgeAccessService knowledgeAccessService) {
+        this.knowledgeAccessService = knowledgeAccessService;
     }
 
     @GetMapping("/tickets/{ticketId}/{filename:.+}")
@@ -66,6 +74,9 @@ public class AttachmentController {
 
     @GetMapping("/knowledge-base/{fileId:.+}")
     public ResponseEntity<?> downloadKnowledge(Authentication authentication, @PathVariable String fileId) throws IOException {
+        if (knowledgeAccessService != null && !knowledgeAccessService.canViewKnowledgeFile(authentication, fileId)) {
+            return ResponseEntity.notFound().build();
+        }
         return attachmentService.downloadKnowledgeBaseFile(authentication, fileId);
     }
 

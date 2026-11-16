@@ -12,6 +12,7 @@ import com.example.panel.model.knowledge.KnowledgeArticleDetails;
 import com.example.panel.model.knowledge.KnowledgeArticleSummary;
 import com.example.panel.model.notification.NotificationDto;
 import com.example.panel.model.notification.NotificationSummary;
+import com.example.panel.security.PanelUserPrincipal;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -116,6 +117,8 @@ class SupportPanelIntegrationTests extends PostgresqlIntegrationTestSupport {
         jdbcTemplate.update("DELETE FROM client_statuses");
         jdbcTemplate.update("DELETE FROM channels");
         jdbcTemplate.update("DELETE FROM knowledge_article_files");
+        jdbcTemplate.update("DELETE FROM knowledge_article_links");
+        jdbcTemplate.update("DELETE FROM knowledge_resource_acl");
         jdbcTemplate.update("DELETE FROM knowledge_articles");
         jdbcTemplate.update("DELETE FROM notifications");
         jdbcTemplate.update("DELETE FROM workspace_telemetry_audit");
@@ -338,11 +341,15 @@ class SupportPanelIntegrationTests extends PostgresqlIntegrationTestSupport {
     @Test
     void knowledgeBaseServiceSavesAndListsArticles() {
         KnowledgeArticleCommand command = new KnowledgeArticleCommand(null, "Инструкция", "Поддержка",
-                "guide", "draft", "Оператор", "IT", "Сеть", "Кратко", "Подробное описание");
-        KnowledgeArticleDetails saved = knowledgeBaseService.saveArticle(command);
+                "guide", "draft", "Оператор", "IT", "Сеть", "Кратко", "Подробное описание", null);
+        Long userId = jdbcTemplate.queryForObject("SELECT id FROM users WHERE username = ?", Long.class, "s4_postgresql_test_admin");
+        var principal = new PanelUserPrincipal(userId, "s4_postgresql_test_admin", "n/a", true,
+            List.of(new SimpleGrantedAuthority("ROLE_ADMIN"), new SimpleGrantedAuthority("PAGE_KNOWLEDGE_BASE")));
+        var authentication = new UsernamePasswordAuthenticationToken(principal, "n/a", principal.getAuthorities());
+        KnowledgeArticleDetails saved = knowledgeBaseService.saveArticle(command, authentication);
         assertThat(saved.id()).isNotNull();
 
-        List<KnowledgeArticleSummary> summaries = knowledgeBaseService.listArticles();
+        List<KnowledgeArticleSummary> summaries = knowledgeBaseService.listArticles(authentication);
         assertThat(summaries).hasSize(1);
         assertThat(summaries.get(0).title()).isEqualTo("Инструкция");
     }

@@ -57,7 +57,7 @@
                         </div>
 
                         <div class="kb-article-heading__actions">
-                            <form th:if="${article.id != null and article.externalSource == 'notion' and article.externalId != null and !article.externalId.isBlank()}"
+                            <form th:if="${canEditArticle and article.id != null and article.externalSource == 'notion' and article.externalId != null and !article.externalId.isBlank()}"
                                   th:action="@{'/knowledge-base/' + ${article.id} + '/sync-notion'}"
                                   method="post"
                                   class="d-inline-flex">
@@ -72,7 +72,7 @@
                             <button class="btn btn-outline-secondary kb-icon-action"
                                     type="button"
                                     id="knowledgeArticleEditToggle"
-                                    th:if="${article.id != null}"
+                                    th:if="${canEditArticle and article.id != null}"
                                     aria-expanded="false"
                                     aria-controls="knowledgeArticleEditor"
                                     aria-label="Редактировать статью"
@@ -109,10 +109,9 @@
 
                         <div class="kb-markdown-editor"
                              id="knowledgeArticleEditor"
-                             data-markdown-editor
-                             th:attr="data-editor-autostart=${article.id == null ? 'true' : 'false'}">
+                             th:attr="data-markdown-editor=${canEditArticle ? '' : null},data-editor-autostart=${article.id == null and canEditArticle ? 'true' : 'false'}">
 
-                            <div class="kb-markdown-editor-toolbar" data-markdown-toolbar hidden>
+                            <div class="kb-markdown-editor-toolbar" data-markdown-toolbar hidden th:if="${canEditArticle}">
                                 <div class="kb-markdown-editor-toolbar__group" role="group" aria-label="Тип блока">
                                     <select class="kb-editor-block-select" data-editor-block-select aria-label="Тип текущего блока" title="Тип текущего блока">
                                         <option value="p">Текст</option>
@@ -181,7 +180,7 @@
                                 </div>
                             </div>
 
-                            <div class="kb-editor-bubble" data-editor-bubble hidden role="toolbar" aria-label="Форматирование выделенного текста">
+                            <div class="kb-editor-bubble" data-editor-bubble hidden role="toolbar" aria-label="Форматирование выделенного текста" th:if="${canEditArticle}">
                                 <select class="kb-editor-block-select kb-editor-block-select--bubble" data-editor-block-select aria-label="Тип текущего блока" title="Тип текущего блока">
                                     <option value="p">Текст</option>
                                     <option value="h1">H1</option>
@@ -199,7 +198,7 @@
                                 <button type="button" class="kb-editor-tool" data-editor-command="createLink" aria-label="Добавить ссылку" title="Добавить ссылку" aria-pressed="false"><i class="bi bi-link-45deg" aria-hidden="true"></i></button>
                             </div>
 
-                            <div class="kb-editor-slash-menu" data-editor-slash-menu hidden role="listbox" aria-label="Вставить или преобразовать блок">
+                            <div class="kb-editor-slash-menu" data-editor-slash-menu hidden role="listbox" aria-label="Вставить или преобразовать блок" th:if="${canEditArticle}">
                                 <div class="kb-editor-slash-menu__title">Блоки</div>
                                 <button type="button" class="kb-editor-slash-option" data-editor-slash-type="p" data-editor-slash-keywords="text plain текст абзац" role="option"><span class="kb-editor-slash-option__icon">T</span><span><strong>Текст</strong><small>Обычный текстовый блок</small></span></button>
                                 <button type="button" class="kb-editor-slash-option" data-editor-slash-type="h1" data-editor-slash-keywords="h1 heading заголовок 1" role="option"><span class="kb-editor-slash-option__icon">H1</span><span><strong>Заголовок 1</strong><small>Крупный заголовок</small></span></button>
@@ -217,6 +216,18 @@
                                     <div class="col-12">
                                         <label class="form-label">Заголовок</label>
                                         <input class="form-control" type="text" name="title" th:value="${article.title}" required>
+                                    </div>
+                                    <div class="col-md-6 col-xl-4">
+                                        <label class="form-label">Раздел</label>
+                                        <select class="form-select" name="sectionId" required th:if="${canMoveArticle}">
+                                            <option th:each="section : ${sections}"
+                                                    th:value="${section.id}"
+                                                    th:selected="${article.sectionId == section.id}"
+                                                    th:text="${#strings.repeat('— ', section.depth) + section.title}"></option>
+                                        </select>
+                                        <input type="hidden" name="sectionId" th:value="${article.sectionId}"
+                                               th:unless="${canMoveArticle}">
+                                        <div class="form-text" th:unless="${canMoveArticle}">Раздел недоступен для переноса.</div>
                                     </div>
                                     <div class="col-md-6 col-xl-4">
                                         <label class="form-label">Подразделение</label>
@@ -271,6 +282,53 @@
         </div>
 
         <div class="col-12 col-xl-3">
+            <div class="card mb-4 kb-editor-side ops-section-card" th:if="${article.id != null}">
+                <div class="card-header kb-editor-side__header fw-semibold">Связанные статьи</div>
+                <div class="card-body">
+                    <p class="small text-muted mb-2" th:if="${#lists.isEmpty(article.outgoingLinks)}">Нет исходящих wiki-ссылок.</p>
+                    <ul class="list-unstyled mb-3" th:if="${!#lists.isEmpty(article.outgoingLinks)}">
+                        <li class="mb-1" th:each="link : ${article.outgoingLinks}">
+                            <a th:href="@{'/knowledge-base/' + ${link.articleId}}" th:text="${link.label ?: link.title}"></a>
+                        </li>
+                    </ul>
+                    <div class="small fw-semibold mb-1">Упоминается в</div>
+                    <p class="small text-muted mb-0" th:if="${#lists.isEmpty(article.incomingLinks)}">Обратных ссылок пока нет.</p>
+                    <ul class="list-unstyled mb-0" th:if="${!#lists.isEmpty(article.incomingLinks)}">
+                        <li class="mb-1" th:each="link : ${article.incomingLinks}">
+                            <a th:href="@{'/knowledge-base/' + ${link.articleId}}" th:text="${link.title}"></a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card mb-4 kb-editor-side ops-section-card" th:if="${canManageArticle}">
+                <div class="card-header kb-editor-side__header fw-semibold">Доступ к статье</div>
+                <div class="card-body">
+                    <p class="small text-muted">Первый выданный доступ делает статью закрытой и заменяет права раздела. Управляющий доступ остаётся у автора настройки.</p>
+                    <p class="small text-muted" th:if="${#lists.isEmpty(articleAccessGrants)}">Статья наследует доступ раздела.</p>
+                    <ul class="list-group list-group-flush mb-3" th:if="${!#lists.isEmpty(articleAccessGrants)}">
+                        <li class="list-group-item px-0 d-flex justify-content-between gap-2" th:each="grant : ${articleAccessGrants}">
+                            <span><span th:text="${grant.subjectLabel}"></span><small class="text-muted ms-1" th:text="${grant.accessLevel}"></small></span>
+                            <form th:action="@{'/knowledge-base/articles/' + ${article.id} + '/access/' + ${grant.id} + '/delete'}" method="post">
+                                <input type="hidden" name="_csrf" th:value="${_csrf.token}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Убрать</button>
+                            </form>
+                        </li>
+                    </ul>
+                    <form th:action="@{'/knowledge-base/articles/' + ${article.id} + '/access'}" method="post" class="vstack gap-2" data-access-form>
+                        <input type="hidden" name="_csrf" th:value="${_csrf.token}">
+                        <select class="form-select form-select-sm" name="subjectType" required data-access-type>
+                            <option value="ROLE">Роль</option><option value="USER">Пользователь</option>
+                        </select>
+                        <select class="form-select form-select-sm" name="subjectId" required data-access-subject>
+                            <option th:each="subject : ${accessSubjects}" th:value="${subject.id}" th:data-subject-type="${subject.type}" th:text="${subject.label}"></option>
+                        </select>
+                        <select class="form-select form-select-sm" name="accessLevel"><option value="VIEW">Чтение</option><option value="EDIT">Редактирование</option><option value="MANAGE">Управление</option></select>
+                        <button type="submit" class="btn btn-sm btn-outline-primary">Выдать доступ</button>
+                    </form>
+                </div>
+            </div>
+
             <div class="card mb-4 kb-editor-side kb-editor-side--sticky ops-section-card">
                 <div class="card-header kb-editor-side__header fw-semibold">Вложения</div>
                 <div class="card-body">
@@ -292,7 +350,7 @@
                             </div>
                         </li>
                     </ul>
-                    <form th:action="@{/knowledge-base/attachments}"
+                    <form th:if="${canEditArticle and article.id != null}" th:action="@{'/knowledge-base/articles/' + ${article.id} + '/attachments'}"
                           method="post"
                           enctype="multipart/form-data"
                           class="mt-3 kb-attachment-upload">
@@ -311,5 +369,6 @@
 </main>
 <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 <script th:src="@{/js/markdown-visual-editor.js(v='20260922-01-272-s6-r3')}"></script>
+<script th:src="@{/js/knowledge-access.js(v='20261116-01-290-r1')}"></script>
 </body>
 </html>

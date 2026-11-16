@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${section == null} ? 'Новый раздел — iguana' : 'Раздел базы знаний — iguana'">Раздел базы знаний — iguana</title>
+    <link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/style.css(v='20261022-neutral-ops-r7')}">
+    <link rel="stylesheet" th:href="@{/css/app.css(v='20261022-neutral-ops-r9')}">
+    <link rel="stylesheet" th:href="@{/css/sidebar.css(v='20261022-neutral-ops-r7')}">
+</head>
+<body class="with-sidebar sidebar-pinned" data-ui-page="knowledge">
+<div th:replace="~{fragments/navbar :: navbar('knowledge')}"></div>
+<main class="main-content container py-4 page-shell ops-page-shell">
+    <a class="btn btn-sm btn-outline-secondary mb-3" th:href="@{/knowledge-base}">← К базе знаний</a>
+    <div class="row g-3">
+        <div class="col-12 col-lg-7">
+            <div class="card ops-section-card">
+                <div class="card-body">
+                    <h1 class="h4 mb-3" th:text="${section == null} ? 'Новый раздел' : ${section.title}">Раздел</h1>
+                    <form th:action="@{/knowledge-base/sections}" method="post" class="vstack gap-3">
+                        <input type="hidden" name="_csrf" th:value="${_csrf.token}">
+                        <input type="hidden" name="id" th:value="${section != null ? section.id : ''}">
+                        <div>
+                            <label class="form-label" for="section-title">Название</label>
+                            <input id="section-title" class="form-control" name="title" required maxlength="500" th:value="${section != null ? section.title : ''}">
+                        </div>
+                        <div>
+                            <label class="form-label" for="section-parent">Родительский раздел</label>
+                            <select id="section-parent" class="form-select" name="parentId">
+                                <option value="">Верхний уровень</option>
+                                <option th:each="candidate : ${sections}"
+                                        th:if="${section == null or candidate.id != section.id}"
+                                        th:value="${candidate.id}"
+                                        th:selected="${section != null and section.parentId == candidate.id}"
+                                        th:text="${#strings.repeat('— ', candidate.depth) + candidate.title}"></option>
+                            </select>
+                        </div>
+                        <div class="alert alert-light border mb-0">
+                            Права раздела наследуются вложенными разделами и статьями. Собственный доступ статьи заменяет это наследование.
+                        </div>
+                        <div><button class="btn btn-primary" type="submit">Сохранить раздел</button></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-5" th:if="${section != null and canManageSection}">
+            <div class="card ops-section-card">
+                <div class="card-body">
+                    <h2 class="h5">Доступ к разделу</h2>
+                    <p class="small text-muted">Первый выданный доступ закрывает раздел и все дочерние материалы, если у них нет собственной ACL.</p>
+                    <p class="small text-muted" th:if="${#lists.isEmpty(sectionAccessGrants)}">Раздел пока общий для всех с доступом к БЗ.</p>
+                    <ul class="list-group list-group-flush mb-3" th:if="${!#lists.isEmpty(sectionAccessGrants)}">
+                        <li class="list-group-item px-0 d-flex justify-content-between gap-2" th:each="grant : ${sectionAccessGrants}">
+                            <span><span th:text="${grant.subjectLabel}"></span><small class="text-muted ms-1" th:text="${grant.accessLevel}"></small></span>
+                            <form th:action="@{'/knowledge-base/sections/' + ${section.id} + '/access/' + ${grant.id} + '/delete'}" method="post">
+                                <input type="hidden" name="_csrf" th:value="${_csrf.token}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Убрать</button>
+                            </form>
+                        </li>
+                    </ul>
+                    <form th:action="@{'/knowledge-base/sections/' + ${section.id} + '/access'}" method="post" class="vstack gap-2" data-access-form>
+                        <input type="hidden" name="_csrf" th:value="${_csrf.token}">
+                        <select class="form-select form-select-sm" name="subjectType" data-access-type><option value="ROLE">Роль</option><option value="USER">Пользователь</option></select>
+                        <select class="form-select form-select-sm" name="subjectId" data-access-subject required>
+                            <option th:each="subject : ${accessSubjects}" th:value="${subject.id}" th:data-subject-type="${subject.type}" th:text="${subject.label}"></option>
+                        </select>
+                        <select class="form-select form-select-sm" name="accessLevel"><option value="VIEW">Чтение</option><option value="EDIT">Редактирование</option><option value="MANAGE">Управление</option></select>
+                        <button type="submit" class="btn btn-sm btn-outline-primary">Выдать доступ</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+<script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script th:src="@{/js/knowledge-access.js(v='20261116-01-290-r1')}"></script>
+</body>
+</html>

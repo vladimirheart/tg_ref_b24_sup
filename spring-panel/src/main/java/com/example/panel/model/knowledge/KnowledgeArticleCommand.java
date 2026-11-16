@@ -9,5 +9,6 @@ public record KnowledgeArticleCommand(Long id,
                                       String direction,
                                       String directionSubtype,
                                       String summary,
-                                      String content) {
+                                      String content,
+                                      Long sectionId) {
 }

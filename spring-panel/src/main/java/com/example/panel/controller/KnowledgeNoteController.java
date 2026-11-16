@@ -120,7 +120,7 @@ public class KnowledgeNoteController {
     private void populateEditor(Authentication authentication, Model model, KnowledgeNoteService.NoteDetails note) {
         navigationService.enrich(model, authentication);
         model.addAttribute("note", note);
-        model.addAttribute("articles", knowledgeBaseService.listArticles());
+        model.addAttribute("articles", knowledgeBaseService.listArticles(authentication));
         boolean canLinkPassports = permissionService.hasAuthority(authentication, "PAGE_OBJECT_PASSPORTS");
         model.addAttribute("canLinkPassports", canLinkPassports);
         model.addAttribute("passports", canLinkPassports ? objectPassportService.listPassports() : List.of());

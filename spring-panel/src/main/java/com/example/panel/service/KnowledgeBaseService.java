@@ -6,9 +6,14 @@ import com.example.panel.model.knowledge.KnowledgeArticleCommand;
 import com.example.panel.model.knowledge.KnowledgeArticleDetails;
 import com.example.panel.model.knowledge.KnowledgeArticleSummary;
 import com.example.panel.model.knowledge.KnowledgeAttachmentDto;
+import com.example.panel.model.knowledge.KnowledgeWikiLink;
 import com.example.panel.repository.KnowledgeArticleFileRepository;
 import com.example.panel.repository.KnowledgeArticleRepository;
+import com.example.panel.storage.AttachmentService;
 import org.springframework.data.domain.Sort;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -20,8 +25,12 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -36,6 +45,7 @@ public class KnowledgeBaseService {
     private static final Pattern NOTION_CALLOUT_PATTERN = Pattern.compile("(?is)<callout([^>]*)>(.*?)</callout>");
     private static final Pattern XML_ATTRIBUTE_PATTERN = Pattern.compile("(\\w+)\\s*=\\s*\"([^\"]*)\"");
     private static final Pattern URL_PATTERN = Pattern.compile("https?://[^\\s)\\]>\"']+");
+    private static final Pattern WIKI_LINK_PATTERN = Pattern.compile("\\[\\[([^\\[\\]|]{1,500})(?:\\|([^\\[\\]]{1,500}))?\\]\\]");
     private static final List<String> LOCAL_MEDIA_EXTENSIONS = List.of(
         "png", "jpg", "jpeg", "gif", "webp", "bmp", "svg", "pdf", "zip", "7z", "rar", "doc", "docx", "xls", "xlsx", "ppt", "pptx"
     );
@@ -43,21 +53,37 @@ public class KnowledgeBaseService {
     private final KnowledgeArticleRepository articleRepository;
     private final KnowledgeArticleFileRepository fileRepository;
     private final KnowledgeMarkdownRenderer markdownRenderer;
+    private final KnowledgeAccessService accessService;
+    private final JdbcTemplate jdbc;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public KnowledgeBaseService(KnowledgeArticleRepository articleRepository,
                                 KnowledgeArticleFileRepository fileRepository,
-                                KnowledgeMarkdownRenderer markdownRenderer) {
+                                KnowledgeMarkdownRenderer markdownRenderer,
+                                KnowledgeAccessService accessService,
+                                JdbcTemplate jdbc) {
         this.articleRepository = articleRepository;
         this.fileRepository = fileRepository;
         this.markdownRenderer = markdownRenderer;
+        this.accessService = accessService;
+        this.jdbc = jdbc;
+    }
+
+    KnowledgeBaseService(KnowledgeArticleRepository articleRepository,
+                         KnowledgeArticleFileRepository fileRepository,
+                         KnowledgeMarkdownRenderer markdownRenderer) {
+        this(articleRepository, fileRepository, markdownRenderer, null, null);
     }
 
     @Transactional(readOnly = true)
-    public List<KnowledgeArticleSummary> listArticles() {
+    public List<KnowledgeArticleSummary> listArticles(Authentication authentication) {
         return articleRepository.findAll(Sort.by(Sort.Direction.DESC, "updatedAt")).stream()
+                .filter(article -> accessService != null && accessService.canViewArticle(authentication, article.getId()))
                 .map(article -> new KnowledgeArticleSummary(
                         article.getId(),
                         article.getTitle(),
+                        article.getSectionId(),
+                        sectionTitle(authentication, article.getSectionId()),
                         article.getDepartment(),
                         article.getStatus(),
                         article.getAuthor(),
@@ -68,17 +94,38 @@ public class KnowledgeBaseService {
     }
 
     @Transactional(readOnly = true)
-    public Optional<KnowledgeArticleDetails> findArticle(Long id) {
+    public Optional<KnowledgeArticleDetails> findArticle(Long id, Authentication authentication) {
         if (id == null) {
             return Optional.empty();
         }
-        return articleRepository.findById(id).map(article -> toDetails(article, fileRepository.findByArticleId(id)));
+        return articleRepository.findById(id)
+            .filter(article -> accessService != null && accessService.canViewArticle(authentication, id))
+            .map(article -> toDetails(article, fileRepository.findByArticleId(id), authentication));
     }
 
-    public KnowledgeArticleDetails saveArticle(KnowledgeArticleCommand command) {
+    public KnowledgeArticleDetails saveArticle(KnowledgeArticleCommand command, Authentication authentication) {
+        if (command == null) {
+            throw new IllegalArgumentException("Данные статьи не переданы");
+        }
         KnowledgeArticle article = command.id() != null
                 ? articleRepository.findById(command.id()).orElseGet(KnowledgeArticle::new)
                 : new KnowledgeArticle();
+        if (article.getId() == null) {
+            if (accessService == null || !accessService.canCreateArticle(authentication)) {
+                throw new AccessDeniedException("Недостаточно прав для создания статьи");
+            }
+        } else if (accessService == null || !accessService.canEditArticle(authentication, article.getId())) {
+            throw new AccessDeniedException("Недостаточно прав для изменения статьи");
+        }
+        Long sectionId = command.sectionId() != null ? command.sectionId() : article.getSectionId();
+        if (sectionId == null) {
+            sectionId = defaultSectionId();
+        }
+        boolean sectionChanged = article.getId() == null || !Objects.equals(article.getSectionId(), sectionId);
+        if (sectionId == null || accessService == null
+                || (sectionChanged && !accessService.canEditSection(authentication, sectionId))) {
+            throw new AccessDeniedException("Нет доступа к выбранному разделу");
+        }
         OffsetDateTime now = OffsetDateTime.now();
         if (article.getCreatedAt() == null) {
             article.setCreatedAt(now);
@@ -93,12 +140,33 @@ public class KnowledgeBaseService {
         article.setDirectionSubtype(trim(command.directionSubtype()));
         article.setSummary(trim(command.summary()));
         article.setContent(command.content());
+        article.setSectionId(sectionId);
         KnowledgeArticle saved = articleRepository.save(article);
+        syncWikiLinks(saved, authentication);
         List<KnowledgeArticleFile> attachments = fileRepository.findByArticleId(saved.getId());
-        return toDetails(saved, attachments);
+        return toDetails(saved, attachments, authentication);
     }
 
-    private KnowledgeArticleDetails toDetails(KnowledgeArticle article, List<KnowledgeArticleFile> files) {
+    public void attachFile(long articleId, AttachmentService.AttachmentUploadMetadata metadata, Authentication authentication) {
+        if (metadata == null || !StringUtils.hasText(metadata.storedName())
+            || accessService == null || !accessService.canEditArticle(authentication, articleId)) {
+            throw new AccessDeniedException("Недостаточно прав для добавления вложения");
+        }
+        KnowledgeArticle article = articleRepository.findById(articleId)
+            .orElseThrow(() -> new IllegalArgumentException("Статья не найдена"));
+        KnowledgeArticleFile file = new KnowledgeArticleFile();
+        file.setArticle(article);
+        file.setStoredPath(metadata.storedName());
+        file.setOriginalName(metadata.originalName());
+        file.setMimeType(metadata.mimeType());
+        file.setFileSize(metadata.size());
+        file.setUploadedAt(metadata.uploadedAt());
+        fileRepository.save(file);
+    }
+
+    private KnowledgeArticleDetails toDetails(KnowledgeArticle article, List<KnowledgeArticleFile> files, Authentication authentication) {
+        List<KnowledgeWikiLink> outgoing = loadOutgoingLinks(article.getId(), authentication);
+        List<KnowledgeWikiLink> incoming = loadIncomingLinks(article.getId(), authentication);
         List<KnowledgeAttachmentDto> attachments = files.stream()
                 .map(file -> new KnowledgeAttachmentDto(
                         file.getId(),
@@ -112,6 +180,8 @@ public class KnowledgeBaseService {
         return new KnowledgeArticleDetails(
                 article.getId(),
                 article.getTitle(),
+                article.getSectionId(),
+                sectionTitle(authentication, article.getSectionId()),
                 article.getDepartment(),
                 article.getArticleType(),
                 article.getStatus(),
@@ -119,23 +189,33 @@ public class KnowledgeBaseService {
                 article.getDirection(),
                 article.getDirectionSubtype(),
                 article.getSummary(),
-                article.getContent(),
-                renderContent(article, files),
+                sanitizeSourceForViewer(article.getContent(), outgoing),
+                renderContent(article, files, outgoing),
                 article.getExternalSource(),
                 article.getExternalId(),
                 article.getExternalUrl(),
                 article.getExternalUpdatedAt(),
                 article.getCreatedAt(),
                 article.getUpdatedAt(),
-                attachments
+                attachments,
+                outgoing.stream().filter(KnowledgeWikiLink::accessible).toList(),
+                incoming
         );
     }
 
     String renderContent(KnowledgeArticle article, List<KnowledgeArticleFile> files) {
-        return markdownRenderer.render(prepareContentForRender(article, files));
+        return renderContent(article, files, List.of());
+    }
+
+    String renderContent(KnowledgeArticle article, List<KnowledgeArticleFile> files, List<KnowledgeWikiLink> links) {
+        return markdownRenderer.render(prepareContentForRender(article, files, links));
     }
 
     String prepareContentForRender(KnowledgeArticle article, List<KnowledgeArticleFile> files) {
+        return prepareContentForRender(article, files, List.of());
+    }
+
+    String prepareContentForRender(KnowledgeArticle article, List<KnowledgeArticleFile> files, List<KnowledgeWikiLink> links) {
         if (article == null || !StringUtils.hasText(article.getContent())) {
             return "";
         }
@@ -147,6 +227,7 @@ public class KnowledgeBaseService {
         content = transformNotionCallouts(content);
         content = NOTION_BREAK_PATTERN.matcher(content).replaceAll("  \n");
         content = rewriteEmbeddedMediaUrls(content, article.getExternalId(), files);
+        content = renderWikiLinks(content, links);
         return content.trim();
     }
 
@@ -322,6 +403,160 @@ public class KnowledgeBaseService {
             return rawUrl;
         }
     }
+
+    private Long defaultSectionId() {
+        if (jdbc == null) {
+            return null;
+        }
+        List<Long> ids = jdbc.queryForList("SELECT id FROM knowledge_sections WHERE code = 'general'", Long.class);
+        return ids.size() == 1 ? ids.get(0) : null;
+    }
+
+    private String sectionTitle(Authentication authentication, Long sectionId) {
+        if (jdbc == null || sectionId == null || accessService == null
+                || !accessService.canViewSection(authentication, sectionId)) {
+            return null;
+        }
+        List<String> titles = jdbc.queryForList("SELECT title FROM knowledge_sections WHERE id = ?", String.class, sectionId);
+        return titles.size() == 1 ? titles.get(0) : null;
+    }
+
+    private void syncWikiLinks(KnowledgeArticle source, Authentication authentication) {
+        if (jdbc == null || source == null || source.getId() == null) {
+            return;
+        }
+        Map<String, StoredWikiLink> existing = new LinkedHashMap<>();
+        jdbc.query("""
+            SELECT source_reference, target_article_id, link_label
+              FROM knowledge_article_links WHERE source_article_id = ?
+            """, (rs, row) -> {
+                existing.put(rs.getString("source_reference"),
+                    new StoredWikiLink(rs.getLong("target_article_id"), rs.getString("link_label")));
+                return 0;
+            }, source.getId());
+
+        LinkedHashSet<String> retainedReferences = new LinkedHashSet<>();
+        Matcher matcher = WIKI_LINK_PATTERN.matcher(source.getContent() == null ? "" : source.getContent());
+        while (matcher.find()) {
+            String reference = matcher.group(1).trim();
+            String label = matcher.group(2) == null ? null : matcher.group(2).trim();
+            if (!StringUtils.hasText(reference) || !retainedReferences.add(reference)) {
+                continue;
+            }
+            StoredWikiLink current = existing.get(reference);
+            Long targetId = current != null && articleRepository.existsById(current.targetArticleId())
+                ? current.targetArticleId() : resolveAccessibleArticleId(reference, authentication);
+            if (targetId == null) {
+                continue;
+            }
+            jdbc.update("""
+                INSERT INTO knowledge_article_links(source_article_id, target_article_id, source_reference, link_label)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT (source_article_id, source_reference)
+                DO UPDATE SET target_article_id = EXCLUDED.target_article_id, link_label = EXCLUDED.link_label
+                """, source.getId(), targetId, reference, StringUtils.hasText(label) ? label : null);
+        }
+        existing.keySet().stream().filter(reference -> !retainedReferences.contains(reference)).forEach(reference ->
+            jdbc.update("DELETE FROM knowledge_article_links WHERE source_article_id = ? AND source_reference = ?", source.getId(), reference));
+    }
+
+    private Long resolveAccessibleArticleId(String reference, Authentication authentication) {
+        List<KnowledgeArticle> matches = articleRepository.findByTitleIgnoreCase(reference).stream()
+            .filter(article -> article.getId() != null && accessService.canViewArticle(authentication, article.getId()))
+            .toList();
+        return matches.size() == 1 ? matches.get(0).getId() : null;
+    }
+
+    private List<KnowledgeWikiLink> loadOutgoingLinks(Long sourceArticleId, Authentication authentication) {
+        if (jdbc == null || sourceArticleId == null) {
+            return List.of();
+        }
+        return jdbc.query("""
+            SELECT l.target_article_id, target.title, l.source_reference, l.link_label
+              FROM knowledge_article_links l
+              JOIN knowledge_articles target ON target.id = l.target_article_id
+             WHERE l.source_article_id = ?
+             ORDER BY l.id
+            """, (rs, row) -> {
+                long targetId = rs.getLong("target_article_id");
+                boolean visible = accessService.canViewArticle(authentication, targetId);
+                return new KnowledgeWikiLink(targetId, visible ? rs.getString("title") : null,
+                    rs.getString("source_reference"), rs.getString("link_label"), visible);
+            }, sourceArticleId);
+    }
+
+    private List<KnowledgeWikiLink> loadIncomingLinks(Long targetArticleId, Authentication authentication) {
+        if (jdbc == null || targetArticleId == null) {
+            return List.of();
+        }
+        return jdbc.query("""
+            SELECT l.source_article_id, source.title, l.source_reference, l.link_label
+              FROM knowledge_article_links l
+              JOIN knowledge_articles source ON source.id = l.source_article_id
+             WHERE l.target_article_id = ?
+             ORDER BY lower(source.title), source.id
+            """, (rs, row) -> {
+                long sourceId = rs.getLong("source_article_id");
+                boolean visible = accessService.canViewArticle(authentication, sourceId);
+                return new KnowledgeWikiLink(sourceId, visible ? rs.getString("title") : null,
+                    rs.getString("source_reference"), rs.getString("link_label"), visible);
+            }, targetArticleId).stream().filter(KnowledgeWikiLink::accessible).toList();
+    }
+
+    private String renderWikiLinks(String content, List<KnowledgeWikiLink> links) {
+        if (!StringUtils.hasText(content) || links == null || links.isEmpty()) {
+            return content;
+        }
+        Map<String, KnowledgeWikiLink> byReference = new LinkedHashMap<>();
+        links.forEach(link -> byReference.put(link.sourceReference(), link));
+        Matcher matcher = WIKI_LINK_PATTERN.matcher(content);
+        StringBuffer result = new StringBuffer();
+        while (matcher.find()) {
+            String reference = matcher.group(1).trim();
+            KnowledgeWikiLink link = byReference.get(reference);
+            if (link == null) {
+                matcher.appendReplacement(result, Matcher.quoteReplacement(matcher.group()));
+                continue;
+            }
+            String replacement;
+            if (!link.accessible()) {
+                replacement = "Материал с ограниченным доступом";
+            } else {
+                String label = StringUtils.hasText(link.label()) ? link.label() : link.title();
+                replacement = "[" + escapeMarkdown(label) + "](/knowledge-base/" + link.articleId()
+                    + "?wiki=" + URLEncoder.encode(link.sourceReference(), StandardCharsets.UTF_8) + ")";
+            }
+            matcher.appendReplacement(result, Matcher.quoteReplacement(replacement));
+        }
+        matcher.appendTail(result);
+        return result.toString();
+    }
+
+    private String sanitizeSourceForViewer(String content, List<KnowledgeWikiLink> links) {
+        if (!StringUtils.hasText(content) || links == null || links.isEmpty()) {
+            return content;
+        }
+        Map<String, KnowledgeWikiLink> byReference = new LinkedHashMap<>();
+        links.forEach(link -> byReference.put(link.sourceReference(), link));
+        Matcher matcher = WIKI_LINK_PATTERN.matcher(content);
+        StringBuffer result = new StringBuffer();
+        while (matcher.find()) {
+            KnowledgeWikiLink link = byReference.get(matcher.group(1).trim());
+            if (link != null && !link.accessible()) {
+                matcher.appendReplacement(result, Matcher.quoteReplacement("Материал с ограниченным доступом"));
+            } else {
+                matcher.appendReplacement(result, Matcher.quoteReplacement(matcher.group()));
+            }
+        }
+        matcher.appendTail(result);
+        return result.toString();
+    }
+
+    private String escapeMarkdown(String value) {
+        return (value == null ? "" : value).replace("\\", "\\\\").replace("[", "\\[").replace("]", "\\]");
+    }
+
+    private record StoredWikiLink(long targetArticleId, String label) { }
 
     private static String trim(String value) {
         return StringUtils.hasText(value) ? value.trim() : null;

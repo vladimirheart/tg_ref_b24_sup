@@ -30,7 +30,7 @@ class KnowledgeNotesSourceContractTest {
         assertThat(controller)
             .contains("@RequestMapping(\"/knowledge-base/notes\")")
             .contains("hasAuthority('PAGE_KNOWLEDGE_BASE')")
-            .contains("knowledgeBaseService.listArticles()")
+            .contains("knowledgeBaseService.listArticles(authentication)")
             .contains("objectPassportService.listPassports()")
             .contains("PAGE_OBJECT_PASSPORTS")
             .contains("List<Long> passportLinkIds = canLinkPassports")
