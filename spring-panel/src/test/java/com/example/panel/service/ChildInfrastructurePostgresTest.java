@@ -143,7 +143,7 @@ class ChildInfrastructurePostgresTest {
     @Test void migrationPinsFunctionToItsOwnSchema() throws Exception {
         String schema="infra288_"+UUID.randomUUID().toString().replace("-","");
         jdbc.execute("CREATE SCHEMA "+schema);
-        var scoped=new JdbcTemplate(new DriverManagerDataSource(url+"?currentSchema="+schema,"infra_test",password));
+        var scoped=new JdbcTemplate(new DriverManagerDataSource(url+(url.contains("?") ? "&" : "?")+"currentSchema="+schema,"infra_test",password));
         scoped.execute("CREATE TABLE channels(id bigint PRIMARY KEY,platform text,is_active boolean)");
         for(String migration:List.of("V24__integration_transport_outbox.sql","V85__outbound_delivery_receipts.sql","V86__child_transport_principals.sql","V94__automatic_child_infrastructure.sql"))scoped.execute(sql(migration));
         long id=ids.incrementAndGet();scoped.update("INSERT INTO channels VALUES(?,'max',true)",id);

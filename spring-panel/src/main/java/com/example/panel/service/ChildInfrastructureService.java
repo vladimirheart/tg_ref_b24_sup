@@ -51,6 +51,25 @@ public class ChildInfrastructureService {
     public void requireReady(Channel channel) {
         Result result = prepare(channel);
         if (!result.ready()) throw new IllegalStateException(result.message());
+        reconcileBrokerInfrastructure(channel);
+    }
+
+    /**
+     * The SQL journal is durable while RabbitMQ users, permissions and queues are not.
+     * Reconcile the broker at every child-process start so a broker recreation cannot
+     * leave a valid child SQL identity without its matching AMQP identity.
+     */
+    private void reconcileBrokerInfrastructure(Channel channel) {
+        if (!"rabbitmq".equalsIgnoreCase(environment.getProperty("app.integration.transport.mode", "direct"))) {
+            return;
+        }
+        Principal child = new Principal(channel.getId(), channel.getPlatform());
+        try {
+            repository.complete(child, hash -> broker.provision(child, hash));
+        } catch (RuntimeException ex) {
+            // Broker responses can expose credentials or topology details. Keep them out of UI/API errors.
+            throw new IllegalStateException("Не удалось синхронизировать RabbitMQ для бота.");
+        }
     }
 
     static String rabbitHash(String password) {

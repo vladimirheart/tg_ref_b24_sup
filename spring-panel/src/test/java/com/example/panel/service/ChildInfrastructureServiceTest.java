@@ -5,6 +5,8 @@ import static org.mockito.Mockito.*;
 import com.example.panel.config.BotProcessProperties;
 import com.example.panel.entity.Channel;
 import com.example.panel.repository.ChildInfrastructureRepository;
+import com.example.panel.security.ChildBotCredentials.Principal;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;
 
@@ -29,6 +31,22 @@ class ChildInfrastructureServiceTest {
         var result=service.prepare(channel());
         assertThat(result.state()).isEqualTo("failed");assertThat(result.message()).contains("PostgreSQL").doesNotContain("highly-private-secret","PASSWORD","SQL statement");
         verifyNoInteractions(broker);
+    }
+    @Test void requireReadyRepairsManagedBrokerResourcesWhenPreparationReturnsExisting() {
+        var repository=mock(ChildInfrastructureRepository.class);var broker=mock(ChildRabbitProvisioner.class);
+        when(repository.prepare(any(),anyString(),anyString())).thenReturn(new ChildInfrastructureRepository.State(false,null));
+        doAnswer(invocation -> {
+            Consumer<String> provision=invocation.getArgument(1);
+            provision.accept("stored-broker-hash");
+            return null;
+        }).when(repository).complete(any(),any());
+        var service=new ChildInfrastructureService(repository,broker,new MockEnvironment()
+            .withProperty("app.integration.transport.mode","rabbitmq")
+            .withProperty("app.bots.internal-api.token","test-only-master-012345678901234567890"));
+
+        service.requireReady(channel());
+
+        verify(broker).provision(new Principal(1L,"max"),"stored-broker-hash");
     }
     @Test void failedPreflightDoesNotStopExistingProcessOrLaunchAnother() {
         var infrastructure=mock(ChildInfrastructureService.class);
