@@ -94,4 +94,28 @@ class BlacklistServiceTest {
 
         verify(unblockRequestRepository, never()).save(org.mockito.ArgumentMatchers.any(ClientUnblockRequest.class));
     }
+
+    @Test
+    void requestUnblockDoesNotBlockAnActiveClientInLegacyMode() {
+        ClientBlacklistRepository blacklistRepository = mock(ClientBlacklistRepository.class);
+        ClientUnblockRequestRepository unblockRequestRepository = mock(ClientUnblockRequestRepository.class);
+        PanelBlacklistClient panelBlacklistClient = mock(PanelBlacklistClient.class);
+        ClientBlacklist activeClient = new ClientBlacklist();
+        activeClient.setUserId("77");
+        activeClient.setBlacklisted(false);
+        when(blacklistRepository.findById("77")).thenReturn(Optional.of(activeClient));
+        BlacklistService service = new BlacklistService(
+            blacklistRepository,
+            unblockRequestRepository,
+            new BotIntegrationTransportMode(new MockEnvironment().withProperty("app.integration.transport.mode", "jdbc")),
+            panelBlacklistClient
+        );
+
+        BlacklistService.UnblockRequestDecision result = service.requestUnblock(77L, "", 12L, Duration.ofMinutes(10));
+
+        assertThat(result.created()).isFalse();
+        assertThat(result.request()).isNull();
+        verify(blacklistRepository, never()).save(org.mockito.ArgumentMatchers.any(ClientBlacklist.class));
+        verify(unblockRequestRepository, never()).save(org.mockito.ArgumentMatchers.any(ClientUnblockRequest.class));
+    }
 }

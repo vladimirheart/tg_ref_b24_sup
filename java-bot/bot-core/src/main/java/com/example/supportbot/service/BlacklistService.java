@@ -150,6 +150,9 @@ public class BlacklistService {
         OffsetDateTime now = OffsetDateTime.now();
 
         Optional<ClientBlacklist> existingOpt = blacklistRepository.findById(key);
+        if (existingOpt.isEmpty() || !existingOpt.get().isBlacklisted()) {
+            return new UnblockRequestDecision(null, false, Duration.ZERO);
+        }
         OffsetDateTime lastRequestedAt = existingOpt.map(ClientBlacklist::getUnblockRequestedAt).orElse(null);
         if (cooldown != null && !cooldown.isZero() && !cooldown.isNegative() && lastRequestedAt != null) {
             OffsetDateTime nextAllowed = lastRequestedAt.plus(cooldown);

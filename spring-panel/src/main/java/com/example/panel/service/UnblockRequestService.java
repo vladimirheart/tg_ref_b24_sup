@@ -7,6 +7,7 @@ import java.util.Objects;
 import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -72,6 +73,7 @@ public class UnblockRequestService {
         ).stream().filter(Objects::nonNull).toList();
     }
 
+    @Transactional
     public DecisionOutcome decideRequest(long requestId, boolean approve, String comment, String actor) {
         if (requestId <= 0) {
             return DecisionOutcome.failure("Некорректный запрос");
@@ -121,6 +123,7 @@ public class UnblockRequestService {
                     SELECT id, user_id, status
                     FROM client_unblock_requests
                     WHERE id = ?
+                    FOR UPDATE
                     """,
                 rs -> rs.next()
                         ? new UnblockDecisionContext(

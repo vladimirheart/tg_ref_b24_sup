@@ -1504,6 +1504,9 @@
       }
       lastUnreadCount = newCount;
       hasInitialUnread = true;
+      window.dispatchEvent(new CustomEvent('iguana:notification-count', {
+        detail: { count: newCount, initialized: hasInitialUnread, previousCount },
+      }));
       if (notificationsOpen && newCount > previousCount) {
         await loadNotificationsSafe({ preserveLoaded: notificationItems.length > 0 });
       } else if (notificationsOpen) {
@@ -1532,6 +1535,9 @@
       }
       lastUnreadCount = newCount;
       hasInitialUnread = true;
+      window.dispatchEvent(new CustomEvent('iguana:notification-count', {
+        detail: { count: newCount, initialized: hasInitialUnread, previousCount },
+      }));
       if (notificationsOpen && newCount > previousCount) {
         await loadNotificationsSafe({ preserveLoaded: notificationItems.length > 0 });
       } else if (notificationsOpen) {
@@ -1621,6 +1627,9 @@
       unblockBadge.hidden = true;
       unblockBadge.textContent = '0';
     }
+    window.dispatchEvent(new CustomEvent('iguana:unblock-count', {
+      detail: { count },
+    }));
   }
 
   async function updateUnblockRequestCount() {

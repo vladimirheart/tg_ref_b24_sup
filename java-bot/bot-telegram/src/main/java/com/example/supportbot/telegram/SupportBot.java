@@ -392,8 +392,7 @@ public class SupportBot extends TelegramLongPollingBot {
     private void handleTextMessage(Message message, Channel channel) {
         String text = message.getText();
         if ("/unblock".equalsIgnoreCase(text)) {
-            log.info("Received /unblock from user {}", message.getFrom() != null ? message.getFrom().getId() : null);
-            requestUnblock(message);
+            sendDirectMessage(message.getChatId(), "Ваш аккаунт не заблокирован.");
         } else if (isMyTicketsCommand(text)) {
             handleMyTickets(message);
         } else if (text != null && text.trim().startsWith("/")) {

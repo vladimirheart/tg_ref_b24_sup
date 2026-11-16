@@ -84,7 +84,10 @@ public class BotRuntimeBlacklistService {
         }
         String key = userId.toString();
         OffsetDateTime now = OffsetDateTime.now();
-        BlacklistEntry current = findBlacklistEntry(key).orElse(null);
+        BlacklistEntry current = findBlacklistEntryForUpdate(key).orElse(null);
+        if (current == null || !current.blacklisted()) {
+            return new UnblockRequestDecisionLookup(null, false, Duration.ZERO);
+        }
         OffsetDateTime lastRequestedAt = current != null ? current.unblockRequestedAt() : null;
         if (cooldown != null && !cooldown.isZero() && !cooldown.isNegative() && lastRequestedAt != null) {
             OffsetDateTime nextAllowed = lastRequestedAt.plus(cooldown);
@@ -152,12 +155,20 @@ public class BotRuntimeBlacklistService {
     }
 
     private Optional<BlacklistEntry> findBlacklistEntry(String userId) {
+        return findBlacklistEntry(userId, false);
+    }
+
+    private Optional<BlacklistEntry> findBlacklistEntryForUpdate(String userId) {
+        return findBlacklistEntry(userId, true);
+    }
+
+    private Optional<BlacklistEntry> findBlacklistEntry(String userId, boolean lockForUpdate) {
         return Optional.ofNullable(jdbcTemplate.query(
-            """
+            ("""
                 SELECT user_id, is_blacklisted, unblock_requested, unblock_requested_at
                 FROM client_blacklist
                 WHERE user_id = ?
-                """,
+                """ + (lockForUpdate ? " FOR UPDATE" : "")),
             rs -> rs.next() ? mapBlacklistEntry(rs) : null,
             userId
         ));

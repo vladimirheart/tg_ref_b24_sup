@@ -409,8 +409,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             return;
         }
         if ("/unblock".equalsIgnoreCase(text)) {
-            log.info("Received /unblock from VK user {}", fromId);
-            handleUnblockRequest(actor, peerId, fromId, channel);
+            sendText(actor, peerId, "Ваш аккаунт не заблокирован.");
             return;
         }
 
