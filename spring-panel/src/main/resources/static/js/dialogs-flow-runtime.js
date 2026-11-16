@@ -85,6 +85,15 @@
 
     function openDialogEntry(ticketId, row) {
       if (!ticketId) return;
+      if (row?.dataset?.scopeKind === 'BUSINESS') {
+        const publicId = String(row.dataset.ticketPublicId || '').trim();
+        if (/^[a-f0-9]{32}$/.test(publicId)) {
+          window.location.assign(`/business-dialog-assignment/${encodeURIComponent(publicId)}`);
+        } else {
+          options.showNotification?.('У бизнес-обращения отсутствует публичный идентификатор.', 'error');
+        }
+        return;
+      }
       options.debugLog?.('openDialogEntry.called', {
         ticketId,
         rowFound: Boolean(row),

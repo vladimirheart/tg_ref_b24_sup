@@ -170,6 +170,12 @@
 
     function updateRowQuickActions(row) {
       if (!row) return;
+      if (row.dataset.scopeKind === 'BUSINESS') {
+        row.querySelectorAll('.dialog-take-btn, .dialog-snooze-btn, .dialog-close-btn').forEach((button) => {
+          button.classList.add('d-none');
+        });
+        return;
+      }
       const isClosed = options.isResolvedRow?.(row) === true;
       const closeBtn = row.querySelector('.dialog-close-btn');
       const snoozeBtn = row.querySelector('.dialog-snooze-btn');

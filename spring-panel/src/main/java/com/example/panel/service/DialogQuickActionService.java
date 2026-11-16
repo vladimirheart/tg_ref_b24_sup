@@ -329,6 +329,13 @@ public class DialogQuickActionService {
         return new DialogCategoryUpdateResult(true, normalizedCategories);
     }
 
+    /** A raw ticket ID must not silently select the legacy workflow for BUSINESS. */
+    public boolean requiresBusinessWorkflow(String ticketId, String operator) {
+        return dialogLookupReadService.findDialog(ticketId, operator)
+                .map(DialogListItem::isBusinessScope)
+                .orElse(false);
+    }
+
     public DialogSpamResult markClientAsSpam(String ticketId,
                                              String operator,
                                              String reason) {

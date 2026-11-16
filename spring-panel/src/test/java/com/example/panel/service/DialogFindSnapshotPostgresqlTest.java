@@ -57,6 +57,7 @@ class DialogFindSnapshotPostgresqlTest {
                     user_id BIGINT NOT NULL, ticket_id VARCHAR(255) NOT NULL,
                     channel_id BIGINT, status TEXT DEFAULT 'pending',
                     resolved_by TEXT, resolved_at TIMESTAMPTZ,
+                    ticket_public_id TEXT, business_id BIGINT,
                     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     PRIMARY KEY(user_id, ticket_id), UNIQUE(ticket_id, channel_id))
                 """);
@@ -67,6 +68,7 @@ class DialogFindSnapshotPostgresqlTest {
                     business TEXT, channel_id BIGINT, city TEXT, location_name TEXT,
                     problem TEXT, created_at TIMESTAMPTZ, created_date TEXT, created_time TEXT)
                 """);
+        jdbc.execute("CREATE TABLE businesses(id BIGINT PRIMARY KEY, display_name TEXT NOT NULL)");
         jdbc.execute("CREATE TABLE channels(id BIGINT PRIMARY KEY, channel_name TEXT)");
         jdbc.execute("""
                 CREATE TABLE ticket_responsibles (
@@ -256,7 +258,9 @@ class DialogFindSnapshotPostgresqlTest {
         assertThat(item.channelName()).isEqualTo("Message channel");
         assertThat(item.username()).isEqualTo(" raw-user ");
         assertThat(item.clientName()).isEqualTo(" Клиент ");
-        assertThat(item.business()).isEqualTo(" raw-business ");
+        assertThat(item.business()).isNull();
+        assertThat(item.scopeKind()).isEqualTo("UNRESOLVED");
+        assertThat(item.businessLabel()).isEqualTo("Не выбран");
         assertThat(item.city()).isEqualTo(" Москва ");
         assertThat(item.locationName()).isEqualTo(" Точка ");
         assertThat(item.problem()).isEqualTo(" raw-problem ");

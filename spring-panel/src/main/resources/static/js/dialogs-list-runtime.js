@@ -458,7 +458,10 @@
       if (!elements.selectAllCheckbox) {
         return;
       }
-      const visible = visibleRows().filter((row) => row.querySelector('.dialog-row-select'));
+      const visible = visibleRows().filter((row) => {
+        const checkbox = row.querySelector('.dialog-row-select');
+        return checkbox && !checkbox.disabled && row.dataset.scopeKind !== 'BUSINESS';
+      });
       const selectedTicketIds = getSelectedTicketIds();
       if (!visible.length) {
         elements.selectAllCheckbox.checked = false;

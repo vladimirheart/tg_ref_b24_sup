@@ -33,10 +33,52 @@ public record DialogListItem(String ticketId,
                              Integer rating,
                              String categories,
                              String responsibleDisplayName,
-                             String responsibleAvatarUrl) {
+                             String responsibleAvatarUrl,
+                             Long businessId,
+                             String ticketPublicId,
+                             String scopeKind) {
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
+
+    /**
+     * Compatibility constructor for consumers that do not yet receive the
+     * canonical ticket scope. New list reads must use the full constructor.
+     */
+    public DialogListItem(String ticketId,
+                          String requestNumber,
+                          Long userId,
+                          String username,
+                          String clientName,
+                          String business,
+                          Long channelId,
+                          String channelName,
+                          String city,
+                          String locationName,
+                          String problem,
+                          String createdAt,
+                          String status,
+                          Boolean aiProcessing,
+                          String resolvedBy,
+                          String resolvedAt,
+                          String responsible,
+                          String createdDate,
+                          String createdTime,
+                          String clientStatus,
+                          String lastMessageSender,
+                          String lastMessageTimestamp,
+                          Integer unreadCount,
+                          Integer rating,
+                          String categories,
+                          String responsibleDisplayName,
+                          String responsibleAvatarUrl) {
+        this(ticketId, requestNumber, userId, username, clientName, business,
+                channelId, channelName, city, locationName, problem, createdAt,
+                status, aiProcessing, resolvedBy, resolvedAt, responsible,
+                createdDate, createdTime, clientStatus, lastMessageSender,
+                lastMessageTimestamp, unreadCount, rating, categories,
+                responsibleDisplayName, responsibleAvatarUrl, null, null, null);
+    }
 
     public DialogListItem(String ticketId,
                           String requestNumber,
@@ -250,7 +292,10 @@ public record DialogListItem(String ticketId,
                 rating,
                 categories,
                 responsibleDisplayName,
-                responsibleAvatarUrl
+                responsibleAvatarUrl,
+                businessId,
+                ticketPublicId,
+                scopeKind
         );
     }
 
@@ -347,10 +392,26 @@ public record DialogListItem(String ticketId,
     }
 
     public String businessLabel() {
+        if (isUnresolvedScope()) {
+            return "Не выбран";
+        }
         if (business != null && !business.isBlank()) {
             return business;
         }
+        if (isBusinessScope()) {
+            return "Бизнес не найден";
+        }
         return "Без бизнеса";
+    }
+
+    @JsonProperty("businessScope")
+    public boolean isBusinessScope() {
+        return "BUSINESS".equals(scopeKind);
+    }
+
+    @JsonProperty("unresolvedScope")
+    public boolean isUnresolvedScope() {
+        return "UNRESOLVED".equals(scopeKind);
     }
 
     public String clientStatusLabel() {
@@ -416,6 +477,9 @@ public record DialogListItem(String ticketId,
                 channelId != null ? channelId.toString() : "",
                 safe(channelName),
                 safe(business),
+                businessId != null ? businessId.toString() : "",
+                safe(ticketPublicId),
+                safe(scopeKind),
                 safe(problem),
                 safe(location()),
                 safe(categoriesSafe()),

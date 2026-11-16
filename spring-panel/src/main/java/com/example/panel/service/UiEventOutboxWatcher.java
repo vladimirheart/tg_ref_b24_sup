@@ -192,6 +192,7 @@ public class UiEventOutboxWatcher {
             case "business_assignment_changed" -> dialogRealtimeEventService.handleScopedAssignmentChanged(scope);
             case "business_participants_changed" -> dialogRealtimeEventService.handleScopedParticipantsChanged(scope);
             case "business_work_changed" -> dialogRealtimeEventService.handleScopedBusinessWorkChanged(scope);
+            case "business_scope_selected" -> dialogRealtimeEventService.handleScopedBusinessScopeSelected(scope);
             default -> {
                 // ignore unknown event types
             }

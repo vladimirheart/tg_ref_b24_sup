@@ -257,6 +257,10 @@ public class DialogQuickActionsController {
                 return permissionDenied;
             }
             String operator = authentication != null ? authentication.getName() : null;
+            ResponseEntity<Map<String, Object>> scopedWorkflowRequired = businessScopeRequired(ticketId, operator, "categories");
+            if (scopedWorkflowRequired != null) {
+                return scopedWorkflowRequired;
+            }
             DialogQuickActionService.DialogCategoryUpdateResult result = dialogQuickActionService.updateCategories(
                     ticketId,
                     operator,
@@ -565,6 +569,19 @@ public class DialogQuickActionsController {
                 log.debug("Quick action '{}' for ticket '{}' completed in {}ms", action, ticketId, elapsedMs);
             }
         }
+    }
+
+    private ResponseEntity<Map<String, Object>> businessScopeRequired(String ticketId, String operator, String action) {
+        if (!dialogQuickActionService.requiresBusinessWorkflow(ticketId, operator)) {
+            return null;
+        }
+        String message = "Для бизнес-обращения используйте карточку бизнес-обращения";
+        dialogAuthorizationService.logDialogAction(operator, ticketId, action, "business_scope_required", "business_workflow");
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                "success", false,
+                "code", "BUSINESS_SCOPE_REQUIRED",
+                "error", message
+        ));
     }
 
     private void logMediaReplyException(String ticketId, MultipartFile file, Exception ex) {

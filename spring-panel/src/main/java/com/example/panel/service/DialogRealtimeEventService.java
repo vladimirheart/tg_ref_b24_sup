@@ -318,6 +318,13 @@ public class DialogRealtimeEventService {
         }
     }
 
+    public void handleScopedBusinessScopeSelected(UiEventTicketScope scope) {
+        if (scope != null && "BUSINESS".equals(scope.scopeKind())
+                && resolveUniqueTicketId(scope.ticketId(),scope) != null && isCurrent(scope)) {
+            publishDialogsChanged("business_scope_selected",scope.ticketId(),scope);
+        }
+    }
+
     private void notifyUsers(String ticketId, UiEventTicketScope scope, Set<String> recipients, String text, String url) {
         if (scope == null) {
             notificationService.notifyDialogUsers(ticketId, recipients, text, url);

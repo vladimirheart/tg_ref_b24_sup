@@ -1242,6 +1242,9 @@
       item?.channelId || '',
       item?.channelName || '',
       item?.business || '',
+      item?.businessId || '',
+      item?.ticketPublicId || '',
+      item?.scopeKind || '',
       item?.problem || '',
       item?.location || item?.city || item?.locationName || '',
       item?.categoriesSafe || item?.categories || '',
@@ -2289,12 +2292,18 @@
     const ticketId = item?.ticketId || '—';
     const requestNumber = item?.requestNumber;
     const channelId = item?.channelId;
-    const openHref = buildWorkspaceDialogUrl(ticketId, channelId);
+    const scopeKind = String(item?.scopeKind || '').trim().toUpperCase();
+    const businessScope = scopeKind === 'BUSINESS';
+    const ticketPublicId = String(item?.ticketPublicId || '').trim();
+    const validBusinessPublicId = /^[a-f0-9]{32}$/.test(ticketPublicId);
+    const openHref = businessScope && validBusinessPublicId
+      ? `/business-dialog-assignment/${encodeURIComponent(ticketPublicId)}`
+      : businessScope ? '#' : buildWorkspaceDialogUrl(ticketId, channelId);
     const displayNumber = requestNumber || ticketId;
     const clientName = item?.clientName || item?.username || 'Неизвестный клиент';
     const clientStatus = item?.clientStatus || 'статус не указан';
     const channelLabel = item?.channelName || 'Без канала';
-    const businessLabel = item?.business || 'Без бизнеса';
+    const businessLabel = item?.business || (scopeKind === 'UNRESOLVED' ? 'Не выбран' : 'Без бизнеса');
     const rawProblemLabel = item?.problem || '';
     const problemLabel = sanitizeDialogProblemLabel(rawProblemLabel);
     const locationLabel = item?.location || [item?.city, item?.locationName].filter(Boolean).join(', ') || '—';
@@ -2318,6 +2327,9 @@
 
     return `
       <tr data-ticket-id="${escapeHtml(ticketId)}"
+          data-ticket-public-id="${escapeHtml(ticketPublicId)}"
+          data-business-id="${escapeHtml(item?.businessId || '')}"
+          data-scope-kind="${escapeHtml(scopeKind)}"
           data-request-number="${escapeHtml(requestNumber || '')}"
           data-client="${escapeHtml(clientName)}"
           data-client-status="${escapeHtml(clientStatus)}"
@@ -2342,8 +2354,8 @@
           data-last-message-timestamp="${escapeHtml(item?.lastMessageTimestamp || '')}">
         <td class="dialog-actions" data-column-key="actions">
           <div class="dialog-actions-inline">
-            <a href="${escapeHtml(openHref)}" class="dialog-open-btn dialog-open-icon" data-ticket-id="${escapeHtml(ticketId)}" aria-label="Открыть диалог" title="Открыть диалог"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
-            <div class="dialog-actions-dropdown" data-dialog-actions>
+            <a href="${escapeHtml(openHref)}" class="dialog-open-btn dialog-open-icon" data-ticket-id="${escapeHtml(ticketId)}" aria-label="${businessScope ? 'Открыть бизнес-обращение' : 'Открыть диалог'}" title="${businessScope ? 'Открыть бизнес-обращение' : 'Открыть диалог'}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
+            ${businessScope ? (validBusinessPublicId ? `<a href="${escapeHtml(openHref)}" class="btn btn-sm btn-outline-secondary">Карточка бизнеса</a>` : '') : `<div class="dialog-actions-dropdown" data-dialog-actions>
               <button type="button" class="btn btn-sm btn-outline-secondary dialog-actions-toggle" data-dialog-actions-toggle aria-expanded="false" aria-label="Действия" title="Действия">⋯</button>
               <div class="dialog-actions-menu" data-dialog-actions-menu>
               <button type="button" class="btn btn-sm btn-outline-success dialog-take-btn ${isResolvedStatusKey(statusKey) || !canTakeOwnership || !canRunAction('can_assign') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Взять себе</button>
@@ -2353,11 +2365,11 @@
                  data-ticket-id="${escapeHtml(ticketId)}"
                  data-client="${escapeHtml(clientName)}">Задача</a>
               </div>
-            </div>
+            </div>`}
           </div>
         </td>
         <td class="dialog-select-column d-none" data-column-key="select">
-          <input class="form-check-input dialog-row-select" type="checkbox" data-ticket-id="${escapeHtml(ticketId)}" aria-label="Выбрать диалог">
+          <input class="form-check-input dialog-row-select" type="checkbox" data-ticket-id="${escapeHtml(ticketId)}" ${businessScope ? 'disabled' : ''} aria-label="Выбрать диалог">
         </td>
         <td data-column-key="ticket">${escapeHtml(displayNumber)}</td>
         <td data-column-key="client">
@@ -3782,6 +3794,15 @@
   }
 
   async function openDialogDetails(ticketId, fallbackRow) {
+    if (fallbackRow?.dataset?.scopeKind === 'BUSINESS') {
+      const publicId = String(fallbackRow.dataset.ticketPublicId || '').trim();
+      if (/^[a-f0-9]{32}$/.test(publicId)) {
+        window.location.assign(`/business-dialog-assignment/${encodeURIComponent(publicId)}`);
+        return;
+      }
+      showNotification('У бизнес-обращения отсутствует публичный идентификатор.', 'error');
+      return;
+    }
     await dialogsDetailsRuntime?.openDialogDetails(ticketId, fallbackRow);
     syncDetailsMetricsSlaState();
   }
@@ -3792,6 +3813,10 @@
 
     const rowSelect = target.closest('.dialog-row-select');
     if (rowSelect) {
+      if (rowSelect.closest('tr')?.dataset?.scopeKind === 'BUSINESS') {
+        rowSelect.checked = false;
+        return;
+      }
       const ticketId = String(rowSelect.dataset.ticketId || '');
       if (ticketId) {
         if (rowSelect.checked) {
@@ -3835,7 +3860,7 @@
     selectAllCheckbox.addEventListener('change', () => {
       visibleRows().forEach((row) => {
         const ticketId = String(row.dataset.ticketId || '');
-        if (!ticketId) return;
+        if (!ticketId || row.dataset.scopeKind === 'BUSINESS') return;
         if (selectAllCheckbox.checked) {
           selectedTicketIds.add(ticketId);
         } else {

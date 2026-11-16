@@ -182,7 +182,8 @@ public class DialogLookupReadService {
                     .formatted(feedbackOrderBy)
                     : "NULL AS rating,";
             String sql = """
-                    SELECT %s %s AS last_activity, t.ticket_id, m.group_msg_id AS request_number,
+                    SELECT %s %s AS last_activity, t.ticket_id, t.ticket_public_id, t.business_id,
+                           m.group_msg_id AS request_number,
                            COALESCE(
                                m.user_id,
                                t.user_id,
@@ -195,7 +196,7 @@ public class DialogLookupReadService {
                                     LIMIT 1
                                )
                            ) AS user_id,
-                           m.username, m.client_name, m.business,
+                           m.username, m.client_name, business.display_name AS business,
                            COALESCE(m.channel_id, t.channel_id) AS channel_id,
                            c.channel_name AS channel_name,
                            m.city, m.location_name,
@@ -246,6 +247,7 @@ public class DialogLookupReadService {
                            LIMIT 1
                       )
                       LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+                      LEFT JOIN businesses business ON business.id = t.business_id
                       LEFT JOIN ticket_responsibles tr ON tr.ticket_id = t.ticket_id
                       LEFT JOIN ticket_ai_agent_state tas ON tas.ticket_id = t.ticket_id
                       LEFT JOIN client_statuses cs ON cs.user_id = COALESCE(
@@ -280,7 +282,7 @@ public class DialogLookupReadService {
                             WHERE legacy_ticket.ticket_id = t.ticket_id) = 1
                       %s
                     """.formatted(
-                    captured==null?"":"t.user_id AS scoped_user_id,t.ticket_public_id,t.business_id AS scoped_business_id,t.channel_id AS scoped_channel_id,t.responsibility_revision,",
+                    captured==null?"":"t.user_id AS scoped_user_id,t.business_id AS scoped_business_id,t.channel_id AS scoped_channel_id,t.responsibility_revision,",
                     lastActivityExpression,
                     latestMessageOrder,
                     ratingSelect,
@@ -338,7 +340,10 @@ public class DialogLookupReadService {
                     rs.getObject("rating") != null ? rs.getInt("rating") : null,
                     rs.getString("categories"),
                     null,
-                    null
+                    null,
+                    rs.getObject("business_id", Long.class),
+                    rs.getString("ticket_public_id"),
+                    rs.getObject("business_id", Long.class) == null ? "UNRESOLVED" : "BUSINESS"
                 );
                 if(captured!=null) {
                     Long business=rs.getObject("scoped_business_id",Long.class);
@@ -433,7 +438,8 @@ public class DialogLookupReadService {
                     .formatted(feedbackOrderBy)
                     : "NULL AS rating,";
             String sql = """
-                    SELECT t.ticket_id, m.group_msg_id AS request_number,
+                    SELECT t.ticket_id, t.ticket_public_id, t.business_id,
+                           m.group_msg_id AS request_number,
                            COALESCE(
                                m.user_id,
                                t.user_id,
@@ -446,7 +452,7 @@ public class DialogLookupReadService {
                                     LIMIT 1
                                )
                            ) AS user_id,
-                           m.username, m.client_name, m.business,
+                           m.username, m.client_name, business.display_name AS business,
                            COALESCE(m.channel_id, t.channel_id) AS channel_id,
                            c.channel_name AS channel_name,
                            m.city, m.location_name,
@@ -497,6 +503,7 @@ public class DialogLookupReadService {
                            LIMIT 1
                       )
                       LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+                      LEFT JOIN businesses business ON business.id = t.business_id
                       LEFT JOIN ticket_responsibles tr ON tr.ticket_id = t.ticket_id
                       LEFT JOIN ticket_ai_agent_state tas ON tas.ticket_id = t.ticket_id
                       LEFT JOIN client_statuses cs ON cs.user_id = COALESCE(
@@ -567,7 +574,10 @@ public class DialogLookupReadService {
                     rs.getObject("rating") != null ? rs.getInt("rating") : null,
                     rs.getString("categories"),
                     null,
-                    null
+                    null,
+                    rs.getObject("business_id", Long.class),
+                    rs.getString("ticket_public_id"),
+                    rs.getObject("business_id", Long.class) == null ? "UNRESOLVED" : "BUSINESS"
             ), operator, ticketId);
             List<DialogListItem> enriched = enrichResponsibleProfiles(items);
             return enriched.isEmpty() ? Optional.empty() : Optional.of(assignDailyRequestNumber(enriched.get(0)));
@@ -620,7 +630,10 @@ public class DialogLookupReadService {
                     item.rating(),
                     item.categories(),
                     profile.displayName(),
-                    profile.avatarUrl()
+                    profile.avatarUrl(),
+                    item.businessId(),
+                    item.ticketPublicId(),
+                    item.scopeKind()
             ));
         }
         return enriched;

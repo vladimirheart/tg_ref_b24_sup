@@ -63,6 +63,10 @@ public class DialogLocationBusinessApiController {
         String locationType = clean(request.locationType());
         String city = clean(request.city());
         String locationName = clean(request.locationName());
+        if (business != null) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(error(
+                    "Бизнес выбирается вопросником или через карточку нераспределённого обращения"));
+        }
         String hierarchyError = validateHierarchy(business, locationType, city, locationName);
         if (hierarchyError != null) {
             return ResponseEntity.badRequest().body(error(hierarchyError));
@@ -81,15 +85,13 @@ public class DialogLocationBusinessApiController {
         int updated = jdbcTemplate.update(
                 """
                 UPDATE messages
-                   SET business = ?,
-                       location_type = ?,
+                   SET location_type = ?,
                        city = ?,
                        location_name = ?,
                        updated_at = CURRENT_TIMESTAMP,
                        updated_by = ?
                  WHERE ticket_id = ?
                 """,
-                business,
                 locationType,
                 city,
                 locationName,
