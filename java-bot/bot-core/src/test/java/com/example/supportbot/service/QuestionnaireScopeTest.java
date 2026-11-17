@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Map;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class QuestionnaireScopeTest {
@@ -54,5 +55,18 @@ class QuestionnaireScopeTest {
         assertThatThrownBy(() -> QuestionnaireScope.from(new PanelRuntimeConfigClient.RuntimeConfigSnapshot(
             8L, Map.of(), Map.of(), Map.of(), null, "GENERAL_CHANNEL", "q-general", "hash")))
             .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void resolvesBusinessFromTheCanonicalQuestionnaireOptionId() {
+        var runtime = new PanelRuntimeConfigClient.RuntimeConfigSnapshot(8L, Map.of(), Map.of(), Map.of(),
+            "QUESTIONNAIRE", "QUESTIONNAIRE_FIELD", "q-unified", "a".repeat(64));
+        var attribute = new TicketService.TicketAttributeInput("business-question", "business", "Business",
+            "select", "7", "Sushi", "Sushi", true);
+
+        assertThat(QuestionnaireScope.from(runtime).resolveQuestionnaireBusiness(List.of(attribute)))
+            .isEqualTo(new QuestionnaireScope("BUSINESS", "QUESTIONNAIRE_FIELD", "q-unified", "a".repeat(64), 7L, null));
+        assertThat(QuestionnaireScope.from(runtime).resolveQuestionnaireBusiness(List.of()).scopeKind())
+            .isEqualTo("UNRESOLVED");
     }
 }

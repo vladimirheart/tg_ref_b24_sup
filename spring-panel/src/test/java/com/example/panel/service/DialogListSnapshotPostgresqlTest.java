@@ -309,7 +309,7 @@ class DialogListSnapshotPostgresqlTest {
         assertThat(item.clientName()).isEqualTo(" Клиент ");
         assertThat(item.business()).isNull();
         assertThat(item.scopeKind()).isEqualTo("UNRESOLVED");
-        assertThat(item.businessLabel()).isEqualTo("Не выбран");
+        assertThat(item.businessLabel()).isEqualTo("Без бизнеса");
         assertThat(item.city()).isEqualTo(" Москва ");
         assertThat(item.locationName()).isEqualTo(" Точка ");
         assertThat(item.problem()).isEqualTo(" raw-problem ");

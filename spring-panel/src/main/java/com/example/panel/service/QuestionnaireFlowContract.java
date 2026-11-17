@@ -20,9 +20,10 @@ public final class QuestionnaireFlowContract {
         for (Object item : raw) {
             if (!(item instanceof Map<?, ?> q) || !canonical(q.get("id")) || !ids.add((String) q.get("id"))) throw invalid();
             String type = type(q);
-            if (!Set.of("custom", "text", "select", "preset").contains(type)
+            if (!Set.of("custom", "text", "select", "preset", "business").contains(type)
                     || (q.get("binding_key") != null && !canonical(q.get("binding_key")))
-                    || !keys.add(key(q)) || ("problem".equals(key(q)) && Set.of("select", "preset").contains(type))) throw invalid();
+                    || !keys.add(key(q)) || ("problem".equals(key(q)) && Set.of("select", "preset", "business").contains(type))
+                    || ("business".equals(type) && !"business".equals(key(q)))) throw invalid();
             if ((q.get("required") != null && !(q.get("required") instanceof Boolean))
                     || (q.get("include_in_dashboard") != null && !(q.get("include_in_dashboard") instanceof Boolean))
                     || (q.get("text") != null && !(q.get("text") instanceof String))) throw invalid();

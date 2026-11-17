@@ -300,6 +300,12 @@ public class PanelRuntimeConfigClient {
                 && questionTemplateId != null && !questionTemplateId.isBlank()
                 && templateSha256 != null && !templateSha256.isBlank();
         }
+
+        public boolean isUnifiedFieldQuestionnaire() {
+            return "QUESTIONNAIRE".equals(scopeKind) && "QUESTIONNAIRE_FIELD".equals(scopeSelectionSource)
+                && questionTemplateId != null && !questionTemplateId.isBlank()
+                && templateSha256 != null && templateSha256.matches("[a-f0-9]{64}");
+        }
     }
 
     public enum Failure {

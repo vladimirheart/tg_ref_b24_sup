@@ -27,6 +27,7 @@ import com.example.panel.repository.TicketSpanRepository;
 import com.example.panel.service.ChatAttachmentMetadataService;
 import com.example.panel.service.GeneralChannelQuestionTemplateService;
 import com.example.panel.service.BusinessQuestionTemplateRegistryService;
+import com.example.panel.service.UnifiedChannelQuestionnaireService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.time.OffsetDateTime;
@@ -65,7 +66,8 @@ class ConversationTicketCreationIngestionServiceTest {
             disabledFlags(),
             mock(BusinessTicketWriteScopeResolver.class),
             mock(GeneralChannelQuestionTemplateService.class),
-            mock(BusinessQuestionTemplateRegistryService.class), mock(com.example.panel.service.SharedGeneralQuestionnaireService.class), mock(SelectedQuestionnaireMediaValidator.class)
+            mock(BusinessQuestionTemplateRegistryService.class), mock(com.example.panel.service.SharedGeneralQuestionnaireService.class),
+            mock(com.example.panel.service.UnifiedChannelQuestionnaireService.class), mock(SelectedQuestionnaireMediaValidator.class)
         );
 
         OffsetDateTime occurredAt = OffsetDateTime.parse("2026-08-14T11:00:00Z");
@@ -203,6 +205,45 @@ class ConversationTicketCreationIngestionServiceTest {
     }
 
     @Test
+    void unifiedQuestionnairePersistsOnlyTheBusinessVerifiedFromItsField() {
+        IntegrationInboundEventInboxService inbox = mock(IntegrationInboundEventInboxService.class);
+        ChannelRepository channels = mock(ChannelRepository.class);
+        MessageRepository messages = mock(MessageRepository.class);
+        TicketRepository tickets = mock(TicketRepository.class);
+        UnifiedChannelQuestionnaireService unified = mock(UnifiedChannelQuestionnaireService.class);
+        ConversationTicketCreationIngestionService service = new ConversationTicketCreationIngestionService(
+            inbox, mock(LegacyTicketIdConcurrencyGuard.class), channels, messages, tickets,
+            mock(TicketSpanRepository.class), mock(TicketActiveRepository.class),
+            mock(ChatHistoryRepository.class), mock(ChatAttachmentMetadataService.class), mock(JdbcTemplate.class),
+            strictFlags(), mock(BusinessTicketWriteScopeResolver.class), mock(GeneralChannelQuestionTemplateService.class),
+            mock(BusinessQuestionTemplateRegistryService.class), mock(com.example.panel.service.SharedGeneralQuestionnaireService.class),
+            unified, mock(SelectedQuestionnaireMediaValidator.class));
+        ConversationTicketCreatedEvent source = minimalEvent("evt-unified", 901L, "T-UNIFIED");
+        ConversationTicketCreatedEvent event = new ConversationTicketCreatedEvent(
+            source.eventId(), source.eventKind(), source.platform(), source.channelId(), source.ticketId(),
+            source.userId(), source.userIdentity(), source.username(), source.clientName(), "Sushi",
+            source.locationType(), source.city(), source.locationName(), source.problem(), source.occurredAt(),
+            List.of(new ConversationTicketCreatedEvent.TicketAttributePayload("business-question", "business", "Business",
+                "select", "7", "Sushi", "Sushi", true)), source.historyEntries(), 7L,
+            "BUSINESS", "QUESTIONNAIRE_FIELD", "q-unified", "a".repeat(64), null);
+        Channel channel = new Channel();
+        channel.setId(25L);
+        channel.setActive(true);
+        channel.setPlatform("telegram");
+        when(inbox.beginProcessing(eq(event.eventId()), eq(event.eventKind()), eq(event.platform()),
+            eq(event.channelId()), eq(event.ticketId()), eq("routing"), eq(event), eq(event.occurredAt()))).thenReturn(true);
+        when(channels.findById(25L)).thenReturn(Optional.of(channel));
+
+        service.ingest(event, "routing");
+
+        verify(unified).requireMatching(event);
+        ArgumentCaptor<Ticket> ticket = ArgumentCaptor.forClass(Ticket.class);
+        verify(tickets).save(ticket.capture());
+        assertThat(ticket.getValue().getBusinessId()).isEqualTo(7L);
+        assertThat(ticket.getValue().getBusinessSelectionSource()).isEqualTo("QUESTIONNAIRE_FIELD");
+    }
+
+    @Test
     void ingestMarksExistingCompositeTicketAsIdempotentWithoutWritingRoot() {
         IntegrationInboundEventInboxService inboxService = mock(IntegrationInboundEventInboxService.class);
         ChannelRepository channelRepository = mock(ChannelRepository.class);
@@ -214,7 +255,8 @@ class ConversationTicketCreationIngestionServiceTest {
             mock(ChatHistoryRepository.class), mock(ChatAttachmentMetadataService.class),
             mock(JdbcTemplate.class), disabledFlags(), mock(BusinessTicketWriteScopeResolver.class),
             mock(GeneralChannelQuestionTemplateService.class),
-            mock(BusinessQuestionTemplateRegistryService.class), mock(com.example.panel.service.SharedGeneralQuestionnaireService.class), mock(SelectedQuestionnaireMediaValidator.class)
+            mock(BusinessQuestionTemplateRegistryService.class), mock(com.example.panel.service.SharedGeneralQuestionnaireService.class),
+            mock(com.example.panel.service.UnifiedChannelQuestionnaireService.class), mock(SelectedQuestionnaireMediaValidator.class)
         );
         ConversationTicketCreatedEvent event = minimalEvent("evt-same-owner", 901L, "T-RABBIT-SAME");
         Channel channel = new Channel();
@@ -252,7 +294,8 @@ class ConversationTicketCreationIngestionServiceTest {
             mock(ChatHistoryRepository.class), mock(ChatAttachmentMetadataService.class),
             mock(JdbcTemplate.class), disabledFlags(), mock(BusinessTicketWriteScopeResolver.class),
             mock(GeneralChannelQuestionTemplateService.class),
-            mock(BusinessQuestionTemplateRegistryService.class), mock(com.example.panel.service.SharedGeneralQuestionnaireService.class), mock(SelectedQuestionnaireMediaValidator.class)
+            mock(BusinessQuestionTemplateRegistryService.class), mock(com.example.panel.service.SharedGeneralQuestionnaireService.class),
+            mock(com.example.panel.service.UnifiedChannelQuestionnaireService.class), mock(SelectedQuestionnaireMediaValidator.class)
         );
         ConversationTicketCreatedEvent event = minimalEvent("evt-other-owner", 902L, "T-RABBIT-COLLISION");
         Channel channel = new Channel();
@@ -297,7 +340,8 @@ class ConversationTicketCreationIngestionServiceTest {
             disabledFlags(),
             mock(BusinessTicketWriteScopeResolver.class),
             mock(GeneralChannelQuestionTemplateService.class),
-            mock(BusinessQuestionTemplateRegistryService.class), mock(com.example.panel.service.SharedGeneralQuestionnaireService.class), mock(SelectedQuestionnaireMediaValidator.class)
+            mock(BusinessQuestionTemplateRegistryService.class), mock(com.example.panel.service.SharedGeneralQuestionnaireService.class),
+            mock(com.example.panel.service.UnifiedChannelQuestionnaireService.class), mock(SelectedQuestionnaireMediaValidator.class)
         );
         ConversationTicketCreatedEvent event = new ConversationTicketCreatedEvent(
             "evt-ticket-dup",
@@ -859,7 +903,8 @@ class ConversationTicketCreationIngestionServiceTest {
         return new ConversationTicketCreationIngestionService(inbox, mock(LegacyTicketIdConcurrencyGuard.class),
             channels, messages, tickets, mock(TicketSpanRepository.class), mock(TicketActiveRepository.class),
             mock(ChatHistoryRepository.class), mock(ChatAttachmentMetadataService.class),
-            mock(JdbcTemplate.class), flags, resolver, generalTemplates, mock(BusinessQuestionTemplateRegistryService.class), mock(com.example.panel.service.SharedGeneralQuestionnaireService.class), mock(SelectedQuestionnaireMediaValidator.class));
+            mock(JdbcTemplate.class), flags, resolver, generalTemplates, mock(BusinessQuestionTemplateRegistryService.class),
+            mock(com.example.panel.service.SharedGeneralQuestionnaireService.class), mock(com.example.panel.service.UnifiedChannelQuestionnaireService.class), mock(SelectedQuestionnaireMediaValidator.class));
     }
 
     private ConversationTicketCreatedEvent eventWithBusinessId(Long businessId) {

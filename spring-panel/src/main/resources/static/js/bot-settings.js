@@ -55,6 +55,7 @@
   const templateNameInput = templateModalEl ? templateModalEl.querySelector('[data-bot-template-name]') : null;
   const templateDescriptionInput = templateModalEl ? templateModalEl.querySelector('[data-bot-template-description]') : null;
   const templateStartMessageInput = templateModalEl ? templateModalEl.querySelector('[data-bot-template-start-message]') : null;
+  const templateUnifiedFieldsInput = templateModalEl ? templateModalEl.querySelector('[data-bot-template-unified-fields]') : null;
   const templateFirstResponseTimeoutInput = templateModalEl ? templateModalEl.querySelector('[data-bot-template-first-response-timeout]') : null;
   const templateFirstResponseTimeoutMessageInput = templateModalEl ? templateModalEl.querySelector('[data-bot-template-first-response-message]') : null;
   const questionsContainer = templateModalEl ? templateModalEl.querySelector('[data-bot-questions-container]') : null;
@@ -988,11 +989,18 @@
 
   function validateQuestionFlow(questionFlow, templateName, checkResources = true) {
     const usedBindingKeys = new Map();
+    let businessQuestionCount = 0;
     for (let i = 0; i < questionFlow.length; i += 1) {
       const question = questionFlow[i] || {};
       const questionNumber = i + 1;
       const bindingKey = resolveQuestionBindingKey(question);
       const includeInDashboard = Boolean(question.includeInDashboard || question.include_in_dashboard);
+      if (question.type === 'business') {
+        businessQuestionCount += 1;
+        if (businessQuestionCount > 1 || bindingKey !== 'business') {
+          return `В шаблоне${templateName ? ` "${templateName}"` : ''} может быть только один вопрос «Бизнес канала» с ключом business.`;
+        }
+      }
       const meta = question.type === 'preset' && question.preset
         ? getPresetMeta(question.preset.group, question.preset.field)
         : null;
@@ -1090,7 +1098,7 @@
     const routes = cloneQuestionRoutes(question && question.routes);
     return {
       id,
-      type: question && (question.type === 'preset' || question.type === 'select') ? question.type : 'custom',
+      type: question && (question.type === 'preset' || question.type === 'select' || question.type === 'business') ? question.type : 'custom',
       text: question && typeof question.text === 'string' ? question.text : '',
       order: Number.isFinite(question && question.order) ? Number(question.order) : 0,
       preset,
@@ -1103,7 +1111,7 @@
         : (question && typeof question.binding_key === 'string' ? question.binding_key : ''),
       includeInDashboard: Boolean(question && (question.includeInDashboard || question.include_in_dashboard)),
       routes,
-      required: question && question.type === 'preset'
+      required: question && (question.type === 'preset' || question.type === 'business')
         ? true
         : normalizeQuestionRequired(question && question.required, true),
     };
@@ -1127,6 +1135,7 @@
       firstResponseTimeoutMessage: normalizeFirstResponseTimeoutMessageValue(
         template && (template.firstResponseTimeoutMessage ?? template.first_response_timeout_message)
       ),
+      unifiedFields: Boolean(template && (template.unifiedFields || template.scope_mode === 'UNIFIED_FIELDS')),
       questionFlow,
     };
   }
@@ -1234,7 +1243,7 @@
 
     const source = raw && typeof raw === 'object' ? raw : {};
     const id = ensureQuestionId(source.id);
-    let type = source.type === 'preset' ? 'preset' : (source.type === 'select' ? 'select' : 'custom');
+    let type = source.type === 'preset' ? 'preset' : (source.type === 'select' ? 'select' : (source.type === 'business' ? 'business' : 'custom'));
     let text = typeof source.text === 'string' ? source.text.trim() : '';
     let preset = null;
     let presetUnavailable = false;
@@ -1280,7 +1289,7 @@
         : (typeof source.bindingKey === 'string' ? source.bindingKey.trim() : ''),
       includeInDashboard: Boolean(source.include_in_dashboard || source.includeInDashboard),
       routes: cloneQuestionRoutes(source.routes),
-      required: type === 'preset' ? true : normalizeQuestionRequired(source.required, true),
+      required: type === 'preset' || type === 'business' ? true : normalizeQuestionRequired(source.required, true),
     };
   }
 
@@ -1310,6 +1319,7 @@
       startMessage,
       firstResponseTimeoutMinutes,
       firstResponseTimeoutMessage,
+      unifiedFields: raw.scope_mode === 'UNIFIED_FIELDS',
       questionFlow,
     };
   }
@@ -1461,6 +1471,7 @@
     startMessage: '',
     firstResponseTimeoutMinutes: DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES,
     firstResponseTimeoutMessage: DEFAULT_FIRST_RESPONSE_TIMEOUT_MESSAGE,
+    unifiedFields: false,
     questionFlow: [],
   };
 
@@ -2251,6 +2262,7 @@
       const presetValue = preset ? encodePresetValue(preset.group, preset.field) : '';
       const isPreset = question.type === 'preset';
       const isSelect = question.type === 'select';
+      const isBusiness = question.type === 'business';
       const presetsAvailable = hasPresetDefinitions();
       const presetOptions = (() => {
         const groups = Object.entries(PRESET_GROUPS);
@@ -2343,13 +2355,19 @@
         : {};
       card.dataset.filterBusiness = filterState.business || '';
       card.dataset.filterLocationType = filterState.location_type || '';
-      const isRequired = question.required !== false;
+      const isRequired = isBusiness || question.required !== false;
       const selectOptionsText = isSelect ? resolveQuestionOptionLabels(question, null).join('\n') : '';
       const bindingKey = normalizeBindingKey(question.bindingKey || question.binding_key || '');
       const analyticsHint = isPreset
         ? 'Оставьте поле пустым, чтобы использовать системный ключ готового поля. Для вывода в дашборд можно задать свой ключ.'
         : 'Стабильный ключ для интеграций и аналитики, например company, direction или bot_product. Если включён дашборд, ключ обязателен.';
-      const answerBodyHtml = isSelect
+      const answerBodyHtml = isBusiness
+        ? `
+            <div class="small text-uppercase text-muted fw-semibold mb-2">Канонический бизнес</div>
+            <div class="small mb-1">Бот покажет активные бизнесы, привязанные к тому каналу, где выбран этот шаблон.</div>
+            <div class="form-text mb-0">Значение записывается в обращение и аналитику как <code>business</code>. Список вручную не задаётся.</div>
+          `
+        : isSelect
         ? `
             <label class="form-label">Варианты ответа</label>
             <textarea class="form-control font-monospace" rows="6" data-bot-question-select-options placeholder="По одному варианту на строку">${html(selectOptionsText)}</textarea>
@@ -2380,7 +2398,9 @@
             <div class="col-lg-3">
               <label class="form-label">Тип вопроса</label>
               <select class="form-select" data-bot-question-type>
-                <option value="custom"${isPreset ? '' : ' selected'}>Свободный текст</option>
+                <option value="custom"${isPreset || isBusiness || isSelect ? '' : ' selected'}>Свободный текст</option>
+                <option value="select"${isSelect ? ' selected' : ''}>Выбор из списка</option>
+                <option value="business"${isBusiness ? ' selected' : ''}>Бизнес канала</option>
                 <option value="preset"${isPreset ? ' selected' : ''}${!presetsAvailable && !isPreset ? ' disabled' : ''}>Готовое поле</option>
               </select>
             </div>
@@ -2405,7 +2425,7 @@
               <div class="border rounded-3 p-3 h-100 bot-question-surface bot-question-switch-surface">
                 <div class="small text-uppercase text-muted fw-semibold mb-2">Обязательность ответа</div>
                 <div class="form-check form-switch mb-0 bot-question-switch-control">
-                  <input class="form-check-input" type="checkbox" data-bot-question-required${isRequired ? ' checked' : ''}>
+                  <input class="form-check-input" type="checkbox" data-bot-question-required${isRequired ? ' checked' : ''}${isBusiness ? ' disabled' : ''}>
                   <label class="form-check-label">Ответ обязателен</label>
                 </div>
                 <div class="form-text mb-0">Оставьте включённым, если клиент должен ответить перед переходом к следующему шагу.</div>
@@ -2443,8 +2463,9 @@
       const typeSelect = card.querySelector('[data-bot-question-type]');
       if (typeSelect) {
         typeSelect.innerHTML = `
-          <option value="custom"${!isPreset && !isSelect ? ' selected' : ''}>Свободный текст</option>
+          <option value="custom"${!isPreset && !isSelect && !isBusiness ? ' selected' : ''}>Свободный текст</option>
           <option value="select"${isSelect ? ' selected' : ''}>Выбор из списка</option>
+          <option value="business"${isBusiness ? ' selected' : ''}>Бизнес канала</option>
           <option value="preset"${isPreset ? ' selected' : ''}${!presetsAvailable && !isPreset ? ' disabled' : ''}>Готовое поле</option>
         `;
       }
@@ -2479,6 +2500,18 @@
         const bindingSurface = analyticsRow.querySelector('.col-lg-7 .bot-question-info-surface');
         if (bindingSurface instanceof HTMLElement) {
           bindingSurface.innerHTML = buildBindingEditorHtml(question, bindingKey, analyticsHint);
+          if (isBusiness) {
+            const bindingInput = bindingSurface.querySelector('[data-bot-question-binding]');
+            if (bindingInput instanceof HTMLInputElement || bindingInput instanceof HTMLSelectElement) {
+              bindingInput.value = 'business';
+              bindingInput.disabled = true;
+            }
+            const dashboardInput = analyticsRow.querySelector('[data-bot-question-dashboard]');
+            if (dashboardInput instanceof HTMLInputElement) {
+              dashboardInput.checked = true;
+              dashboardInput.disabled = true;
+            }
+          }
         }
       }
       sanitizeQuestionRoutes(question, index, meta).forEach((route) => {
@@ -2572,6 +2605,7 @@
       editorState.name = template.name;
       editorState.description = template.description;
       editorState.startMessage = template.startMessage || '';
+      editorState.unifiedFields = Boolean(template.unifiedFields || template.scope_mode === 'UNIFIED_FIELDS');
       editorState.questionFlow = template.questionFlow.map((question) => cloneQuestion(question));
     } else {
       editorState.index = -1;
@@ -2579,6 +2613,7 @@
       editorState.name = 'Новый шаблон вопросов';
       editorState.description = '';
       editorState.startMessage = '';
+      editorState.unifiedFields = false;
       editorState.questionFlow = [];
     }
     if (templateNameInput) {
@@ -2589,6 +2624,9 @@
     }
     if (templateStartMessageInput) {
       templateStartMessageInput.value = editorState.startMessage || '';
+    }
+    if (templateUnifiedFieldsInput) {
+      templateUnifiedFieldsInput.checked = Boolean(editorState.unifiedFields);
     }
     setTemplateStatus('', false);
     renderQuestions();
@@ -2750,16 +2788,16 @@
     }
     const question = {
       id: generateQuestionId(),
-      type: type === 'preset' ? 'preset' : (type === 'select' ? 'select' : 'custom'),
-      text: '',
+      type: type === 'preset' ? 'preset' : (type === 'select' ? 'select' : (type === 'business' ? 'business' : 'custom')),
+      text: type === 'business' ? 'Выберите бизнес' : '',
       order: editorState.questionFlow.length + 1,
       preset: null,
       options: type === 'select' ? [{ id: generateOptionId(), label: '' }] : [],
       presetUnavailable: false,
       excludedOptions: [],
       filterState: {},
-      bindingKey: '',
-      includeInDashboard: false,
+      bindingKey: type === 'business' ? 'business' : '',
+      includeInDashboard: type === 'business',
       routes: [],
       required: true,
     };
@@ -2775,6 +2813,9 @@
       } else {
         question.presetUnavailable = true;
       }
+    }
+    if (question.type === 'business') {
+      editorState.unifiedFields = true;
     }
     editorState.questionFlow.push(question);
     renderQuestions();
@@ -2813,6 +2854,7 @@
     if (!question) {
       return;
     }
+    const wasBusiness = question.type === 'business';
     if (type === 'preset') {
       if (!hasPresetDefinitions()) {
         question.type = 'preset';
@@ -2857,13 +2899,35 @@
       question.options = Array.isArray(question.options) && question.options.length
         ? question.options
         : [{ id: generateOptionId(), label: '' }];
+      if (wasBusiness) {
+        question.bindingKey = '';
+        question.includeInDashboard = false;
+      }
       question.routes = sanitizeQuestionRoutes(question, index, null);
+    } else if (type === 'business') {
+      question.type = 'business';
+      question.preset = null;
+      question.presetUnavailable = false;
+      question.excludedOptions = [];
+      question.options = [];
+      question.bindingKey = 'business';
+      question.includeInDashboard = true;
+      question.required = true;
+      question.routes = [];
+      if (!question.text) {
+        question.text = 'Выберите бизнес';
+      }
+      editorState.unifiedFields = true;
     } else {
       question.type = 'custom';
       question.preset = null;
       question.presetUnavailable = false;
       question.excludedOptions = [];
       question.required = normalizeQuestionRequired(question.required, true);
+      if (wasBusiness) {
+        question.bindingKey = '';
+        question.includeInDashboard = false;
+      }
       question.routes = [];
     }
     question.filterState = {};
@@ -2942,10 +3006,10 @@
     const routes = cloneQuestionRoutes(question.routes);
     const entry = {
       id: question.id || generateQuestionId(),
-      type: question.type === 'preset' ? 'preset' : (question.type === 'select' ? 'select' : 'custom'),
+      type: question.type === 'preset' ? 'preset' : (question.type === 'select' ? 'select' : (question.type === 'business' ? 'business' : 'custom')),
       text: String(question.text || '').trim(),
       order: index + 1,
-      required: question.type === 'preset' ? true : question.required !== false,
+      required: question.type === 'preset' || question.type === 'business' ? true : question.required !== false,
     };
     if (entry.type === 'preset' && question.preset && question.preset.group && question.preset.field) {
       entry.preset = { group: question.preset.group, field: question.preset.field };
@@ -2959,7 +3023,10 @@
     if (entry.type === 'select') {
       entry.options = normalizeEditableQuestionOptions(question.options);
     }
-    if (bindingKey) {
+    if (entry.type === 'business') {
+      entry.binding_key = 'business';
+      entry.include_in_dashboard = true;
+    } else if (bindingKey) {
       entry.binding_key = bindingKey;
     }
     if (includeInDashboard) {
@@ -3232,7 +3299,7 @@
   addQuestionButtons.forEach((button) => {
     button.addEventListener('click', () => {
       const type = button.dataset.type || button.getAttribute('data-type');
-      addQuestion(type === 'preset' ? 'preset' : (type === 'select' ? 'select' : 'custom'));
+      addQuestion(type === 'preset' ? 'preset' : (type === 'select' ? 'select' : (type === 'business' ? 'business' : 'custom')));
     });
   });
 
@@ -3500,6 +3567,7 @@
       editorState.firstResponseTimeoutMessage = normalizeFirstResponseTimeoutMessageValue(
         template.firstResponseTimeoutMessage ?? template.first_response_timeout_message
       );
+      editorState.unifiedFields = Boolean(template.unifiedFields || template.scope_mode === 'UNIFIED_FIELDS');
       editorState.questionFlow = template.questionFlow.map((question) => cloneQuestion(question));
     } else {
       editorState.index = -1;
@@ -3509,6 +3577,7 @@
       editorState.startMessage = '';
       editorState.firstResponseTimeoutMinutes = DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES;
       editorState.firstResponseTimeoutMessage = DEFAULT_FIRST_RESPONSE_TIMEOUT_MESSAGE;
+      editorState.unifiedFields = false;
       editorState.questionFlow = [];
     }
     if (templateNameInput) {
@@ -3525,6 +3594,9 @@
     }
     if (templateFirstResponseTimeoutMessageInput) {
       templateFirstResponseTimeoutMessageInput.value = editorState.firstResponseTimeoutMessage || '';
+    }
+    if (templateUnifiedFieldsInput) {
+      templateUnifiedFieldsInput.checked = Boolean(editorState.unifiedFields);
     }
     setTemplateStatus('', false);
     renderQuestions();
@@ -3545,6 +3617,8 @@
     const firstResponseTimeoutMessage = normalizeFirstResponseTimeoutMessageValue(
       templateFirstResponseTimeoutMessageInput ? templateFirstResponseTimeoutMessageInput.value : editorState.firstResponseTimeoutMessage
     );
+    const unifiedFields = Boolean(templateUnifiedFieldsInput && templateUnifiedFieldsInput.checked)
+      || editorState.questionFlow.some((question) => question && question.type === 'business');
     if (!name) {
       setTemplateStatus('Укажите название шаблона.', true);
       if (templateNameInput) {
@@ -3590,6 +3664,7 @@
       startMessage,
       firstResponseTimeoutMinutes,
       firstResponseTimeoutMessage,
+      unifiedFields,
       questionFlow: normalizedQuestions.map((question) => ({
         id: question.id,
         type: question.type,
@@ -3620,6 +3695,7 @@
       startMessage: templatePayload.startMessage,
       firstResponseTimeoutMinutes: templatePayload.firstResponseTimeoutMinutes,
       firstResponseTimeoutMessage: templatePayload.firstResponseTimeoutMessage,
+      unifiedFields: templatePayload.unifiedFields,
       questionFlow: templatePayload.questionFlow.map((question) => ({
         id: question.id,
         type: question.type,
@@ -3691,6 +3767,7 @@
       first_response_timeout_message: normalizeFirstResponseTimeoutMessageValue(
         template.firstResponseTimeoutMessage ?? template.first_response_timeout_message
       ),
+      scope_mode: template.unifiedFields ? 'UNIFIED_FIELDS' : undefined,
       question_flow: template.questionFlow.map(serializeQuestion),
     }));
     let activeTemplateId = state.activeTemplateId;

@@ -17,6 +17,7 @@ import com.example.panel.repository.TicketSpanRepository;
 import com.example.panel.service.ChatAttachmentMetadataService;
 import com.example.panel.service.GeneralChannelQuestionTemplateService;
 import com.example.panel.service.BusinessQuestionTemplateRegistryService;
+import com.example.panel.service.UnifiedChannelQuestionnaireService;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
@@ -50,6 +51,7 @@ public class ConversationTicketCreationIngestionService {
     private final GeneralChannelQuestionTemplateService generalChannelQuestionTemplateService;
     private final BusinessQuestionTemplateRegistryService businessTemplates;
     private final com.example.panel.service.SharedGeneralQuestionnaireService sharedQuestionnaires;
+    private final UnifiedChannelQuestionnaireService unifiedQuestionnaires;
 
     public ConversationTicketCreationIngestionService(IntegrationInboundEventInboxService inboxService,
                                                       LegacyTicketIdConcurrencyGuard legacyTicketIdConcurrencyGuard,
@@ -65,7 +67,9 @@ public class ConversationTicketCreationIngestionService {
                                                       BusinessTicketWriteScopeResolver businessTicketWriteScopeResolver,
                                                       GeneralChannelQuestionTemplateService generalChannelQuestionTemplateService,
                                                       BusinessQuestionTemplateRegistryService businessTemplates,
-                                                      com.example.panel.service.SharedGeneralQuestionnaireService sharedQuestionnaires, SelectedQuestionnaireMediaValidator mediaValidator) {
+                                                      com.example.panel.service.SharedGeneralQuestionnaireService sharedQuestionnaires,
+                                                      UnifiedChannelQuestionnaireService unifiedQuestionnaires,
+                                                      SelectedQuestionnaireMediaValidator mediaValidator) {
         this.inboxService = inboxService;
         this.legacyTicketIdConcurrencyGuard = legacyTicketIdConcurrencyGuard;
         this.channelRepository = channelRepository;
@@ -81,6 +85,7 @@ public class ConversationTicketCreationIngestionService {
         this.generalChannelQuestionTemplateService = generalChannelQuestionTemplateService;
         this.businessTemplates = businessTemplates;
         this.sharedQuestionnaires = sharedQuestionnaires;
+        this.unifiedQuestionnaires = unifiedQuestionnaires;
         this.mediaValidator = mediaValidator;
     }
 
@@ -134,6 +139,8 @@ public class ConversationTicketCreationIngestionService {
             && "GENERAL_CHANNEL".equals(event.scopeSelectionSource());
         boolean selectedBusiness = "BUSINESS".equals(event.scopeKind())
             && "USER_SELECTION".equals(event.scopeSelectionSource());
+        boolean fieldQuestionnaire = "QUESTIONNAIRE_FIELD".equals(event.scopeSelectionSource())
+            && ("BUSINESS".equals(event.scopeKind()) || "UNRESOLVED".equals(event.scopeKind()));
         boolean sharedChannel = businessTicketWriteScopeResolver.requiresExplicitSelection(event.channelId());
         boolean selectedGeneral = isGeneralScope(event) && "USER_SELECTION".equals(event.scopeSelectionSource())
             && (event.catalogSha256() != null || sharedChannel);
@@ -143,12 +150,18 @@ public class ConversationTicketCreationIngestionService {
                 throw new IllegalStateException("Business questionnaire selection requires strict shared-channel writes");
             }
         }
+        if (fieldQuestionnaire) {
+            unifiedQuestionnaires.requireMatching(event);
+            if (!strictBusinessWrite || !multibusinessFeatureFlags.isFoundationEnabled()) {
+                throw new IllegalStateException("Unified questionnaire requires canonical business ticket writes");
+            }
+        }
         if (selectedGeneral && !multibusinessFeatureFlags.isGeneralChannelResolution())
             throw new IllegalStateException("Shared GENERAL selection requires GENERAL resolution");
-        if (!selectedBusiness && !selectedGeneral && event.catalogSha256() != null) {
+        if (!selectedBusiness && !selectedGeneral && !fieldQuestionnaire && event.catalogSha256() != null) {
             throw new IllegalStateException("Unexpected questionnaire catalog fingerprint");
         }
-        if (!generalChannel && !selectedBusiness && !selectedGeneral
+        if (!generalChannel && !selectedBusiness && !selectedGeneral && !fieldQuestionnaire
                 && (event.questionTemplateId() != null || event.templateSha256() != null)) {
             throw new IllegalStateException("Questionnaire provenance requires a general channel scope");
         }
@@ -161,13 +174,16 @@ public class ConversationTicketCreationIngestionService {
                 Long existingChannelId = existing.getChannel() != null ? existing.getChannel().getId() : null;
                 boolean generalReplay = isGeneralScope(event);
                 boolean businessReplay = (event.scopeKind() == null || "BUSINESS".equals(event.scopeKind()))
-                    && (event.scopeSelectionSource() == null || selectedBusiness)
+                    && (event.scopeSelectionSource() == null || selectedBusiness || fieldQuestionnaire)
                     && event.businessId() != null && event.businessId() > 0;
-                if ((!generalReplay && !businessReplay)
+                boolean unresolvedReplay = fieldQuestionnaire && "UNRESOLVED".equals(event.scopeKind())
+                    && event.businessId() == null;
+                if ((!generalReplay && !businessReplay && !unresolvedReplay)
                     || existing.isGeneral() != generalReplay
                     || !Objects.equals(existing.getBusinessId(), event.businessId())
                     || !Objects.equals(existing.getBusinessSelectionSource(),
-                        selectedBusiness ? event.scopeSelectionSource() : null)
+                        (selectedBusiness || fieldQuestionnaire && "BUSINESS".equals(event.scopeKind()))
+                            ? event.scopeSelectionSource() : null)
                     || (generalReplay && !Objects.equals(existing.getGeneralSelectionSource(),
                         event.scopeSelectionSource()))
                     || !Objects.equals(existingChannelId, event.channelId())) {
@@ -187,7 +203,7 @@ public class ConversationTicketCreationIngestionService {
             throw new IllegalStateException("Legacy ticket ID collision across users");
         }
 
-        if (!selectedBusiness && !selectedGeneral && sharedChannel) {
+        if (!selectedBusiness && !selectedGeneral && !fieldQuestionnaire && sharedChannel) {
             throw new IllegalStateException("Shared channel requires an explicit verified business questionnaire");
         }
 
@@ -213,10 +229,13 @@ public class ConversationTicketCreationIngestionService {
                 }
                 general = true;
             } else {
-                if (event.scopeKind() != null && !"BUSINESS".equals(event.scopeKind())) {
-                    throw new IllegalStateException("Unsupported ticket scope kind");
-                }
-                if (selectedBusiness) {
+                if (fieldQuestionnaire) {
+                    businessId = "BUSINESS".equals(event.scopeKind()) ? event.businessId() : null;
+                } else {
+                    if (event.scopeKind() != null && !"BUSINESS".equals(event.scopeKind())) {
+                        throw new IllegalStateException("Unsupported ticket scope kind");
+                    }
+                    if (selectedBusiness) {
                     if (event.platform() == null || !List.of("telegram", "vk", "max").contains(event.platform())
                             || !Objects.equals(channel.getPlatform(), event.platform())) {
                         throw new IllegalStateException("Business questionnaire channel platform mismatch");
@@ -232,12 +251,13 @@ public class ConversationTicketCreationIngestionService {
                             throw new IllegalStateException("Business questionnaire version mismatch; restart questionnaire");
                         selectedVersion=1;
                     } else selectedVersion=requireSharedSelection(event);
-                    businessId = event.businessId();
-                } else if (event.scopeSelectionSource() != null) {
-                    throw new IllegalStateException("Unexpected business scope selection source");
-                } else {
-                    businessId = businessTicketWriteScopeResolver.requireSingleBusinessBinding(
-                        event.channelId(), event.businessId());
+                        businessId = event.businessId();
+                    } else if (event.scopeSelectionSource() != null) {
+                        throw new IllegalStateException("Unexpected business scope selection source");
+                    } else {
+                        businessId = businessTicketWriteScopeResolver.requireSingleBusinessBinding(
+                            event.channelId(), event.businessId());
+                    }
                 }
             }
         }
@@ -312,7 +332,9 @@ public class ConversationTicketCreationIngestionService {
         ticket.setQuestionTemplateId(event.questionTemplateId());
         ticket.setQuestionTemplateSha256(event.templateSha256());
         ticket.setBusinessSelectionSource("BUSINESS".equals(event.scopeKind())
-            && "USER_SELECTION".equals(event.scopeSelectionSource()) ? "USER_SELECTION" : null);
+            && ("USER_SELECTION".equals(event.scopeSelectionSource())
+                || UnifiedChannelQuestionnaireService.SCOPE_SOURCE.equals(event.scopeSelectionSource()))
+                    ? event.scopeSelectionSource() : null);
         ticket.setQuestionnaireCatalogSha256(event.catalogSha256());
         ticket.setReopenCount(0);
         ticket.setClosedCount(0);

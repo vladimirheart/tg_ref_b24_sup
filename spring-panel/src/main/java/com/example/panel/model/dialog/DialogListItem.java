@@ -393,7 +393,7 @@ public record DialogListItem(String ticketId,
 
     public String businessLabel() {
         if (isUnresolvedScope()) {
-            return "Не выбран";
+            return "Без бизнеса";
         }
         if (business != null && !business.isBlank()) {
             return business;
@@ -536,7 +536,7 @@ public record DialogListItem(String ticketId,
         if (problem != null && !problem.isBlank()) {
             return problem;
         }
-        return "Проблема не указана";
+        return "Без проблемы";
     }
 
     @JsonProperty("unreadCount")

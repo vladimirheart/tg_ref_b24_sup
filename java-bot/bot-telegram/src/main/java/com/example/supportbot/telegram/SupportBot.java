@@ -1772,6 +1772,10 @@ public class SupportBot extends TelegramLongPollingBot {
         conversations.remove(session.userId());
         Channel channel = getChannel();
         String username = Optional.ofNullable(session.user()).map(User::getUserName).orElse(null);
+        List<TicketService.TicketAttributeInput> attributes = session.ticketAttributes();
+        QuestionnaireScope scope = session.scope() != null
+                ? session.scope().resolveQuestionnaireBusiness(attributes)
+                : null;
         TicketService.TicketCreationResult ticket = ticketService.createConversationTicket(
                 new ConversationTicketCreationCommand(
                         session.userId(),
@@ -1779,7 +1783,7 @@ public class SupportBot extends TelegramLongPollingBot {
                         username,
                         null,
                         session.answers(),
-                        session.ticketAttributes(),
+                        attributes,
                         session.historyEvents().stream()
                                 .map(event -> new ConversationHistoryEntry(
                                         event.userId(),
@@ -1794,12 +1798,12 @@ public class SupportBot extends TelegramLongPollingBot {
                         channel,
                         session.startedAt(),
                         session.providerEventKey(),
-                        session.scope() != null ? session.scope().businessId() : null,
-                        session.scope() != null ? session.scope().scopeKind() : null,
-                        session.scope() != null ? session.scope().scopeSelectionSource() : null,
-                        session.scope() != null ? session.scope().questionTemplateId() : null,
-                        session.scope() != null ? session.scope().templateSha256() : null,
-                        session.scope() != null ? session.scope().catalogSha256() : null
+                        scope != null ? scope.businessId() : null,
+                        scope != null ? scope.scopeKind() : null,
+                        scope != null ? scope.scopeSelectionSource() : null,
+                        scope != null ? scope.questionTemplateId() : null,
+                        scope != null ? scope.templateSha256() : null,
+                        scope != null ? scope.catalogSha256() : null
                 )
         );
         if ("duplicate".equals(ticket.status())) {

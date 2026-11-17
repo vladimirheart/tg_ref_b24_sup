@@ -1051,6 +1051,10 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         } else {
             deleteSession(session);
         }
+        List<TicketService.TicketAttributeInput> attributes = session.ticketAttributes();
+        QuestionnaireScope scope = session.scope() != null
+                ? session.scope().resolveQuestionnaireBusiness(attributes)
+                : null;
         TicketService.TicketCreationResult result = ticketService.createConversationTicket(
                 new ConversationTicketCreationCommand(
                         session.userId(),
@@ -1058,7 +1062,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                         session.username(),
                         session.clientName(),
                         session.answers(),
-                        session.ticketAttributes(),
+                        attributes,
                         session.history().stream()
                                 .map(event -> new ConversationHistoryEntry(
                                         event.userId(),
@@ -1073,12 +1077,12 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                         channel,
                         session.startedAt(),
                         providerEventKey,
-                        session.scope() != null ? session.scope().businessId() : null,
-                        session.scope() != null ? session.scope().scopeKind() : null,
-                        session.scope() != null ? session.scope().scopeSelectionSource() : null,
-                        session.scope() != null ? session.scope().questionTemplateId() : null,
-                        session.scope() != null ? session.scope().templateSha256() : null,
-                        session.scope() != null ? session.scope().catalogSha256() : null
+                        scope != null ? scope.businessId() : null,
+                        scope != null ? scope.scopeKind() : null,
+                        scope != null ? scope.scopeSelectionSource() : null,
+                        scope != null ? scope.questionTemplateId() : null,
+                        scope != null ? scope.templateSha256() : null,
+                        scope != null ? scope.catalogSha256() : null
                 )
         );
         if (session.selectedBusiness()) {

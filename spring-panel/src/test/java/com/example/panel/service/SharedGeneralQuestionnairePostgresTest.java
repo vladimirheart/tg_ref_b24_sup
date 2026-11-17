@@ -204,7 +204,8 @@ class SharedGeneralQuestionnairePostgresTest {
         var channels=mock(BotRuntimeChannelService.class); var channel=new Channel(); channel.setId(10L);
         when(channels.findChannel(10L)).thenReturn(Optional.of(channel));
         var runtime=new BotRuntimeConfigService(channels,settings,new BotSettingsPayloadNormalizer(),mapper,generalOnly,
-            new MultibusinessFeatureFlags(),businesses);
+            new MultibusinessFeatureFlags(),businesses,
+            new UnifiedChannelQuestionnaireService(jdbc,settings,new BotSettingsPayloadNormalizer(),mapper));
         assertThatThrownBy(()->runtime.findRuntimeConfig(10L)).isInstanceOf(BotRuntimeConfigService.ScopedRuntimeConfigUnavailableException.class);
         assertThatThrownBy(()->generalOnly.bind(10,"q-other")).isInstanceOf(IllegalStateException.class);
         assertThat(shared.deactivate(10)).isTrue();

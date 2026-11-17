@@ -175,7 +175,8 @@ class SharedQuestionnaireRegistryPostgresTest {
         var channels=mock(BotRuntimeChannelService.class);Channel channel=new Channel();channel.setId(10L);
         when(channels.findChannel(10L)).thenReturn(Optional.of(channel));
         var runtime=new BotRuntimeConfigService(channels,settings,new BotSettingsPayloadNormalizer(),mapper,
-            new GeneralChannelQuestionTemplateService(jdbc,settings,new BotSettingsPayloadNormalizer(),mapper),flags,registry);
+            new GeneralChannelQuestionTemplateService(jdbc,settings,new BotSettingsPayloadNormalizer(),mapper),flags,registry,
+            new UnifiedChannelQuestionnaireService(jdbc,settings,new BotSettingsPayloadNormalizer(),mapper));
         var mvc=MockMvcBuilders.standaloneSetup(new SharedQuestionnaireRuntimeController(registry,guard,flags),
             new BotRuntimeReadApiController(mock(BotRuntimeTicketReadService.class),channels,runtime,mock(BotRuntimeBlacklistService.class),guard)).build();
         String root="/internal/api/bot/channels/10/questionnaire";

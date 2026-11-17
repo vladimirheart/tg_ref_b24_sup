@@ -23,6 +23,7 @@ public class BotRuntimeConfigService {
     private final GeneralChannelQuestionTemplateService generalTemplates;
     private final MultibusinessFeatureFlags featureFlags;
     private final BusinessQuestionTemplateRegistryService businessTemplates;
+    private final UnifiedChannelQuestionnaireService unifiedQuestionnaires;
 
     public BotRuntimeConfigService(BotRuntimeChannelService channelService,
                                    SharedConfigService sharedConfigService,
@@ -30,7 +31,8 @@ public class BotRuntimeConfigService {
                                    ObjectMapper objectMapper,
                                    GeneralChannelQuestionTemplateService generalTemplates,
                                    MultibusinessFeatureFlags featureFlags,
-                                   BusinessQuestionTemplateRegistryService businessTemplates) {
+                                   BusinessQuestionTemplateRegistryService businessTemplates,
+                                   UnifiedChannelQuestionnaireService unifiedQuestionnaires) {
         this.channelService = channelService;
         this.sharedConfigService = sharedConfigService;
         this.botSettingsPayloadNormalizer = botSettingsPayloadNormalizer;
@@ -38,6 +40,7 @@ public class BotRuntimeConfigService {
         this.generalTemplates = generalTemplates;
         this.featureFlags = featureFlags;
         this.businessTemplates = businessTemplates;
+        this.unifiedQuestionnaires = unifiedQuestionnaires;
     }
 
     public Optional<RuntimeConfigLookup> findRuntimeConfig(Long channelId) {
@@ -52,6 +55,13 @@ public class BotRuntimeConfigService {
                     return new RuntimeConfigLookup(scoped.channelId(), scoped.botSettings(), scoped.locationTree(),
                         scoped.presetDefinitions(), scoped.scopeKind(), scoped.scopeSelectionSource(),
                         scoped.questionTemplateId(), scoped.templateSha256());
+                }
+                Optional<UnifiedChannelQuestionnaireService.RuntimeConfig> unified = unifiedQuestionnaires.resolve(channel.getId());
+                if (unified.isPresent()) {
+                    UnifiedChannelQuestionnaireService.RuntimeConfig runtime = unified.get();
+                    return new RuntimeConfigLookup(runtime.channelId(), runtime.botSettings(), resolveLocationTree(),
+                        sharedConfigService.presetDefinitions(), UnifiedChannelQuestionnaireService.SCOPE_KIND,
+                        UnifiedChannelQuestionnaireService.SCOPE_SOURCE, runtime.questionTemplateId(), runtime.templateSha256());
                 }
                 if (businessTemplates.hasActiveChannelBindings(channel.getId())) {
                     throw new ScopedRuntimeConfigUnavailableException("Explicit business selection is required before questions");

@@ -40,7 +40,8 @@ class SelectedQuestionnaireMediaIngestionTest {
         when(inbox.beginProcessing(anyString(),anyString(),any(),eq(55L),anyString(),anyString(),any(),any())).thenReturn(true);
         when(history.save(any())).thenAnswer(call->{ChatHistory row=call.getArgument(0);row.setId(101L);return row;});
         service=new ConversationTicketCreationIngestionService(inbox,concurrency,channels,messages,tickets,spans,active,history,metadata,jdbc,
-            flags,resolver,mock(GeneralChannelQuestionTemplateService.class),mock(BusinessQuestionTemplateRegistryService.class),shared,validator);
+            flags,resolver,mock(GeneralChannelQuestionTemplateService.class),mock(BusinessQuestionTemplateRegistryService.class),shared,
+            mock(com.example.panel.service.UnifiedChannelQuestionnaireService.class),validator);
     }
     private void selected(ConversationTicketCreatedEvent event,int version) {
         var template=Map.of("id","questionnaire","question_flow",List.of(Map.of("id","free","type","text","text","Question")));

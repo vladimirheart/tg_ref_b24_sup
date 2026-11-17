@@ -204,6 +204,11 @@
               <textarea class="form-control" id="botTemplateStartMessageInput" rows="3" data-bot-template-start-message></textarea>
               <div class="form-text">Отправляется клиенту один раз при старте нового обращения для выбранного шаблона.</div>
             </div>
+            <div class="form-check form-switch mb-3">
+              <input class="form-check-input" type="checkbox" id="botTemplateUnifiedFields" data-bot-template-unified-fields>
+              <label class="form-check-label" for="botTemplateUnifiedFields">Единый вопросник канала</label>
+              <div class="form-text">Ответы с ключами <code>business</code> и <code>problem</code> записываются в обращение. Вопрос «Бизнес канала» подставляет только активные привязки выбранного канала; без него обращение создаётся «Без бизнеса».</div>
+            </div>
             <details class="bot-template-disclosure mb-4">
               <summary>Описание и автозакрытие</summary>
               <div class="mb-3">
@@ -232,6 +237,7 @@
                 <div class="btn-group btn-group-sm">
                   <button class="btn btn-outline-primary" type="button" data-bot-question-add data-type="custom">+ Свободный вопрос</button>
                   <button class="btn btn-outline-secondary" type="button" data-bot-question-add data-type="select">+ Выбор из списка</button>
+                  <button class="btn btn-outline-secondary" type="button" data-bot-question-add data-type="business">+ Бизнес канала</button>
                   <button class="btn btn-outline-secondary" type="button" data-bot-question-add data-type="preset">+ Готовое поле</button>
                 </div>
               </div>

@@ -2257,12 +2257,12 @@
 
   function sanitizeDialogProblemLabel(value) {
     const raw = String(value || '').trim();
-    if (!raw) return '—';
+    if (!raw) return 'Без проблемы';
     const cleaned = raw
       .replace(/Уточнение после ответов на вопрос(?:ы)?\s*:?\s*/gi, ' ')
       .replace(/\s+/g, ' ')
       .trim();
-    return cleaned || '—';
+    return cleaned || 'Без проблемы';
   }
 
   function applyDialogCompactCellTitles(row) {
@@ -2303,7 +2303,7 @@
     const clientName = item?.clientName || item?.username || 'Неизвестный клиент';
     const clientStatus = item?.clientStatus || 'статус не указан';
     const channelLabel = item?.channelName || 'Без канала';
-    const businessLabel = item?.business || (scopeKind === 'UNRESOLVED' ? 'Не выбран' : 'Без бизнеса');
+    const businessLabel = item?.business || 'Без бизнеса';
     const rawProblemLabel = item?.problem || '';
     const problemLabel = sanitizeDialogProblemLabel(rawProblemLabel);
     const locationLabel = item?.location || [item?.city, item?.locationName].filter(Boolean).join(', ') || '—';
