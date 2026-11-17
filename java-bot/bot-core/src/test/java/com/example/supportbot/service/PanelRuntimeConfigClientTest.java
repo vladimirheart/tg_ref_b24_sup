@@ -67,6 +67,20 @@ class PanelRuntimeConfigClientTest {
     }
 
     @Test
+    void acceptsUnifiedFieldQuestionnaireFromPrimaryRuntimeEndpoint() {
+        overrideBody = """
+            {"channelId":8,"scopeKind":"QUESTIONNAIRE","scopeSelectionSource":"QUESTIONNAIRE_FIELD",
+             "questionTemplateId":"q-unified","templateSha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+             "botSettings":{"active_template_id":"q-unified"},"locationTree":{},"presetDefinitions":{}}
+            """;
+
+        var snapshot = client.findByChannelId(8L).orElseThrow();
+
+        assertThat(snapshot.isUnifiedFieldQuestionnaire()).isTrue();
+        assertThat(snapshot.questionTemplateId()).isEqualTo("q-unified");
+    }
+
+    @Test
     void conflictDoesNotFallBackToLocalRuntimeConfig() {
         responseStatus = 409;
 

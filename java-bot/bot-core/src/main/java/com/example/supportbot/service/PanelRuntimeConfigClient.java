@@ -58,7 +58,7 @@ public class PanelRuntimeConfigClient {
         var snapshot=payload.toSnapshot();
         boolean legacy=snapshot.scopeKind()==null && snapshot.scopeSelectionSource()==null
             && snapshot.questionTemplateId()==null && snapshot.templateSha256()==null;
-        if (!legacy && !snapshot.isGeneralChannel()) throw unavailable();
+        if (!legacy && !snapshot.isGeneralChannel() && !snapshot.isUnifiedFieldQuestionnaire()) throw unavailable();
         return Optional.of(snapshot);
     }
 
