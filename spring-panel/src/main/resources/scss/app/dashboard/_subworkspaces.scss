@@ -1006,12 +1006,14 @@
     }
 
     .reports-overview-unified .filter-block--restaurants {
-        align-self: start;
+        align-self: stretch;
         margin-top: 0;
     }
 
     .reports-overview-unified .filter-buttons {
-        align-self: end;
+        align-self: stretch;
+        justify-content: flex-start;
+        margin-top: 0.15rem;
     }
 
     .reports-overview-unified .metric-value {
@@ -1053,7 +1055,9 @@
     }
 
     .reports-overview-unified .filter-grid {
-        grid-template-columns: minmax(210px, 300px) minmax(250px, 1fr) auto;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
         gap: 0.5rem;
     }
 
