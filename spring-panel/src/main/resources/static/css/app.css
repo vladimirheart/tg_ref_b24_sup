@@ -14040,11 +14040,13 @@ body[data-ui-page=dashboard] .reports-overview-unified .filter-block--period {
   max-width: 320px;
 }
 body[data-ui-page=dashboard] .reports-overview-unified .filter-block--restaurants {
-  align-self: start;
+  align-self: stretch;
   margin-top: 0;
 }
 body[data-ui-page=dashboard] .reports-overview-unified .filter-buttons {
-  align-self: end;
+  align-self: stretch;
+  justify-content: flex-start;
+  margin-top: 0.15rem;
 }
 body[data-ui-page=dashboard] .reports-overview-unified .metric-value {
   font-weight: 520;
@@ -14078,7 +14080,9 @@ body[data-ui-page=dashboard] .reports-overview-unified > .metrics-panel {
   padding: 0.7rem 0.78rem;
 }
 body[data-ui-page=dashboard] .reports-overview-unified .filter-grid {
-  grid-template-columns: minmax(210px, 300px) minmax(250px, 1fr) auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   gap: 0.5rem;
 }
 body[data-ui-page=dashboard] .reports-overview-unified .filter-block--period {
