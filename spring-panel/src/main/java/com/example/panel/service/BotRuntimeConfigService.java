@@ -59,7 +59,9 @@ public class BotRuntimeConfigService {
                 Optional<UnifiedChannelQuestionnaireService.RuntimeConfig> unified = unifiedQuestionnaires.resolve(channel.getId());
                 if (unified.isPresent()) {
                     UnifiedChannelQuestionnaireService.RuntimeConfig runtime = unified.get();
-                    return new RuntimeConfigLookup(runtime.channelId(), runtime.botSettings(), resolveLocationTree(),
+                    Map<String, Object> locationTree = UnifiedChannelQuestionnaireService.locationTreeForBusinesses(
+                        resolveLocationTree(), runtime.businesses());
+                    return new RuntimeConfigLookup(runtime.channelId(), runtime.botSettings(), locationTree,
                         sharedConfigService.presetDefinitions(), UnifiedChannelQuestionnaireService.SCOPE_KIND,
                         UnifiedChannelQuestionnaireService.SCOPE_SOURCE, runtime.questionTemplateId(), runtime.templateSha256());
                 }

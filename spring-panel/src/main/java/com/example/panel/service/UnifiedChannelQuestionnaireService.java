@@ -6,11 +6,13 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -183,6 +185,65 @@ public class UnifiedChannelQuestionnaireService {
                    AND business.status = 'active'
                  ORDER BY business.display_name, business.id
                 """, (rs, row) -> new BusinessOption(rs.getLong("id"), rs.getString("display_name")), channelId);
+    }
+
+    /**
+     * Keeps the location hierarchy aligned with the canonical answers emitted by the business question.
+     *
+     * <p>The location integration historically used its own display spelling for a business. A difference
+     * in letter case must not make the next location question empty after a client has selected the
+     * canonical business from the questionnaire. The returned tree contains only businesses bound to the
+     * channel and uses their canonical display names as top-level keys.</p>
+     */
+    static Map<String, Object> locationTreeForBusinesses(Map<String, Object> source,
+                                                          List<BusinessOption> businesses) {
+        Map<String, String> canonicalNames = new LinkedHashMap<>();
+        if (businesses != null) {
+            for (BusinessOption business : businesses) {
+                if (business == null || blank(business.displayName())) {
+                    continue;
+                }
+                canonicalNames.putIfAbsent(normalizedBusinessName(business.displayName()), business.displayName().trim());
+            }
+        }
+        if (source == null || source.isEmpty() || canonicalNames.isEmpty()) {
+            return new LinkedHashMap<>();
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : source.entrySet()) {
+            String canonicalName = canonicalNames.get(normalizedBusinessName(entry.getKey()));
+            if (canonicalName == null) {
+                continue;
+            }
+            result.merge(canonicalName, entry.getValue(), UnifiedChannelQuestionnaireService::mergeLocationNode);
+        }
+        return result;
+    }
+
+    private static String normalizedBusinessName(String value) {
+        if (blank(value)) {
+            return "";
+        }
+        return Normalizer.normalize(value, Normalizer.Form.NFKC).trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static Object mergeLocationNode(Object current, Object additional) {
+        if (!(current instanceof Map<?, ?> currentMap) || !(additional instanceof Map<?, ?> additionalMap)) {
+            return current;
+        }
+        Map<String, Object> merged = new LinkedHashMap<>();
+        currentMap.forEach((key, value) -> {
+            if (key != null) {
+                merged.put(key.toString(), value);
+            }
+        });
+        additionalMap.forEach((key, value) -> {
+            if (key != null) {
+                merged.merge(key.toString(), value, UnifiedChannelQuestionnaireService::mergeLocationNode);
+            }
+        });
+        return merged;
     }
 
     @SuppressWarnings("unchecked")

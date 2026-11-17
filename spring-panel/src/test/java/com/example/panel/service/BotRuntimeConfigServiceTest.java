@@ -118,6 +118,36 @@ class BotRuntimeConfigServiceTest {
         assertThat(lookup.presetDefinitions()).containsKey("locations");
     }
 
+    @Test
+    void unifiedQuestionnaireUsesCanonicalBusinessNamesForLocationTree() {
+        BotRuntimeChannelService channels = mock(BotRuntimeChannelService.class);
+        SharedConfigService config = mock(SharedConfigService.class);
+        UnifiedChannelQuestionnaireService unified = mock(UnifiedChannelQuestionnaireService.class);
+        Channel channel = new Channel();
+        channel.setId(44L);
+        when(channels.findChannel(44L)).thenReturn(Optional.of(channel));
+        when(unified.resolve(44L)).thenReturn(Optional.of(new UnifiedChannelQuestionnaireService.RuntimeConfig(
+            44L, "q-unified", "a".repeat(64), Map.of("active_template_id", "q-unified"), Map.of(),
+            java.util.List.of(new UnifiedChannelQuestionnaireService.BusinessOption(7L, "Блинбери")))));
+        ObjectMapper mapper = new ObjectMapper();
+        when(config.loadLocations()).thenReturn(mapper.valueToTree(Map.of("tree", Map.of(
+            "БлинБери", Map.of("Корпоративная сеть", Map.of("Москва", java.util.List.of("Тверская"))),
+            "Другой бизнес", Map.of("Сеть", Map.of("Казань", java.util.List.of("Кремлёвская")))
+        ))));
+        when(config.presetDefinitions()).thenReturn(Map.of());
+
+        BotRuntimeConfigService service = new BotRuntimeConfigService(
+            channels, config, new BotSettingsPayloadNormalizer(), mapper,
+            mock(GeneralChannelQuestionTemplateService.class), mock(MultibusinessFeatureFlags.class),
+            mock(BusinessQuestionTemplateRegistryService.class), unified);
+
+        BotRuntimeConfigService.RuntimeConfigLookup lookup = service.findRuntimeConfig(44L).orElseThrow();
+
+        assertThat(lookup.locationTree())
+            .containsOnlyKeys("Блинбери")
+            .containsEntry("Блинбери", Map.of("Корпоративная сеть", Map.of("Москва", java.util.List.of("Тверская"))));
+    }
+
     @Test void businessBoundChannelNeverFallsBackToLegacySettingsEvenWithFlagsOff() {
         BotRuntimeChannelService channels=mock(BotRuntimeChannelService.class);
         var businesses=mock(BusinessQuestionTemplateRegistryService.class);

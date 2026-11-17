@@ -195,21 +195,21 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
-            <div class="mb-3">
+            <div class="mb-3 bot-template-editor__section bot-template-editor__section--identity">
               <label class="form-label" for="botTemplateNameInput">Название шаблона</label>
               <input type="text" class="form-control" id="botTemplateNameInput" data-bot-template-name>
             </div>
-            <div class="mb-3">
+            <div class="mb-3 bot-template-editor__section bot-template-editor__section--start-message">
               <label class="form-label" for="botTemplateStartMessageInput">Стартовое авто-сообщение</label>
               <textarea class="form-control" id="botTemplateStartMessageInput" rows="3" data-bot-template-start-message></textarea>
               <div class="form-text">Отправляется клиенту один раз при старте нового обращения для выбранного шаблона.</div>
             </div>
-            <div class="form-check form-switch mb-3">
+            <div class="form-check form-switch mb-3 bot-template-editor__section bot-template-editor__section--scope">
               <input class="form-check-input" type="checkbox" id="botTemplateUnifiedFields" data-bot-template-unified-fields>
               <label class="form-check-label" for="botTemplateUnifiedFields">Единый вопросник канала</label>
               <div class="form-text">Ответы с ключами <code>business</code> и <code>problem</code> записываются в обращение. Вопрос «Бизнес канала» подставляет только активные привязки выбранного канала; без него обращение создаётся «Без бизнеса».</div>
             </div>
-            <details class="bot-template-disclosure mb-4">
+            <details class="bot-template-disclosure bot-template-editor__section mb-4">
               <summary>Описание и автозакрытие</summary>
               <div class="mb-3">
                 <label class="form-label" for="botTemplateDescriptionInput">Описание (необязательно)</label>
@@ -228,7 +228,7 @@
               </div>
               </div>
             </details>
-            <div class="mb-3">
+            <div class="mb-3 bot-template-editor__section bot-template-editor__section--questions">
               <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
                 <div>
                   <h6 class="mb-1">Вопросы по порядку</h6>
