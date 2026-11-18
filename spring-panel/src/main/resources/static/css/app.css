@@ -17262,6 +17262,16 @@ body[data-ui-page=dialogs] #dialogDetailsModal #dialogDetailsHistory .chat-messa
   font-size: 0.75em;
   text-align: start;
 }
+body[data-ui-page=dialogs] #dialogDetailsModal .workspace-message-item.is-system-message {
+  opacity: 0.76;
+}
+body[data-ui-page=dialogs] #dialogDetailsModal .workspace-message-item.is-system-message .workspace-message-avatar {
+  display: none;
+}
+body[data-ui-page=dialogs] #dialogDetailsModal .workspace-message-item.is-system-message .workspace-message-content {
+  border-left: 2px solid var(--color-border);
+  padding-left: 0.6rem;
+}
 body[data-ui-page=dialogs] #dialogDetailsModal .dialog-history-load-previous {
   min-height: 28px;
   padding: 4px 10px;

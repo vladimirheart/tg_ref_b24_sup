@@ -189,6 +189,26 @@ class DialogLookupReadServiceTest {
     }
 
     @Test
+    void businessCategoriesComeFromCanonicalTicketWorkInsteadOfRetiredCategoryRows() {
+        jdbcTemplate.update("INSERT INTO businesses(id, display_name) VALUES (?, ?)", 32L, "Canonical categories");
+        jdbcTemplate.update("""
+                INSERT INTO tickets(ticket_id, ticket_public_id, business_id, status, user_id, created_at, business_categories)
+                VALUES (?, ?, ?, ?, ?, ?, CAST(? AS JSONB))
+                """, "T-CATEGORIES", "d".repeat(32), 32L, "open", 62L, "2026-04-23T10:00:00Z",
+                "[\"Billing\",\"Delivery\"]");
+        jdbcTemplate.update("INSERT INTO ticket_categories(ticket_id, category) VALUES (?, ?)", "T-CATEGORIES", "retired-value");
+
+        DialogListItem fromList = service.loadDialogs("operator").stream()
+                .filter(item -> "T-CATEGORIES".equals(item.ticketId()))
+                .findFirst()
+                .orElseThrow();
+        DialogListItem fromWorkspaceRead = service.findDialog("T-CATEGORIES", "operator").orElseThrow();
+
+        assertThat(fromList.categories()).isEqualTo("Billing, Delivery");
+        assertThat(fromWorkspaceRead.categories()).isEqualTo("Billing, Delivery");
+    }
+
+    @Test
     void loadDialogsBuildsDailyRequestNumbersByCreationOrder() {
         jdbcTemplate.update("INSERT INTO tickets(ticket_id, status, user_id, created_at) VALUES (?, ?, ?, ?)",
                 "T-201", "pending", 77L, "2026-04-22T09:00:00Z");
@@ -356,6 +376,7 @@ class DialogLookupReadServiceTest {
                     channel_id INTEGER,
                     ticket_public_id TEXT,
                     business_id BIGINT,
+                    business_categories JSONB NOT NULL DEFAULT '[]'::jsonb,
                     created_at TIMESTAMPTZ
                 )
                 """);

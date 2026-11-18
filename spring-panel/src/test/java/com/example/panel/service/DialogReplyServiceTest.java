@@ -1,6 +1,7 @@
 package com.example.panel.service;
 
 import com.example.panel.entity.Channel;
+import com.example.panel.model.dialog.DialogListItem;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
 
@@ -61,6 +62,44 @@ class DialogReplyServiceTest {
             eq(45L),
             any(DialogReplyTransportService.DialogReplyTransportResult.class)
         );
+    }
+
+    @Test
+    void successfulBusinessReplyUsesScopedAssignmentInsteadOfLegacyWriter() {
+        DialogReplyTargetService targetService = mock(DialogReplyTargetService.class);
+        DialogReplyTransportService transportService = mock(DialogReplyTransportService.class);
+        DialogResponsibilityService responsibilityService = mock(DialogResponsibilityService.class);
+        ProviderDeliveryLedgerService providerDeliveryLedgerService = mock(ProviderDeliveryLedgerService.class);
+        DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
+        DialogReplyService dialogReplyService = new DialogReplyService(
+                targetService, transportService, responsibilityService, providerDeliveryLedgerService, dialogLookupReadService);
+        Channel channel = new Channel();
+        channel.setId(11L);
+        channel.setPlatform("telegram");
+        channel.setToken("token");
+        DialogListItem businessDialog = new DialogListItem(
+                "T-BUSINESS", "20261118-001", 124L, "client", "Client", "Business", 11L, "Telegram",
+                null, null, null, "2026-11-18T10:00:00Z", "open", false, null, null, null,
+                null, null, null, null, null, 0, null, null, null, null, 7L, "a".repeat(32), "BUSINESS");
+
+        when(targetService.loadReplyTarget("T-BUSINESS")).thenReturn(Optional.of(new DialogReplyTarget(124L, 11L)));
+        when(targetService.hasReplyTargetOwner("T-BUSINESS", new DialogReplyTarget(124L, 11L))).thenReturn(true);
+        when(transportService.loadChannel(11L)).thenReturn(Optional.of(channel));
+        when(targetService.hasWebFormSession("T-BUSINESS")).thenReturn(false);
+        when(transportService.sendText(channel, 124L, "Принято", null))
+                .thenReturn(new DialogReplyTransportService.DialogReplyTransportResult(null, 78L));
+        when(targetService.logOutgoingMessage(any(), eq("T-BUSINESS"), eq("Принято"), eq("operator_message"), eq(78L), isNull(), eq("operator")))
+                .thenReturn("2026-11-18T10:01:00Z");
+        when(dialogLookupReadService.findDialog("T-BUSINESS", "operator")).thenReturn(Optional.of(businessDialog));
+        when(responsibilityService.assignScopedResponsibleIfMissing(any(UiEventTicketScope.class), eq("operator"), eq("operator")))
+                .thenReturn("operator");
+
+        DialogReplyService.DialogReplyResult result = dialogReplyService.sendReply("T-BUSINESS", "Принято", null, "operator");
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.responsible()).isEqualTo("operator");
+        verify(responsibilityService).assignScopedResponsibleIfMissing(any(UiEventTicketScope.class), eq("operator"), eq("operator"));
+        verify(responsibilityService, never()).assignResponsibleIfMissing("T-BUSINESS", "operator");
     }
 
     @Test

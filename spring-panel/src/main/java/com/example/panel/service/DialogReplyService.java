@@ -1,6 +1,7 @@
 package com.example.panel.service;
 
 import com.example.panel.entity.Channel;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -15,15 +16,32 @@ public class DialogReplyService {
     private final DialogReplyTransportService dialogReplyTransportService;
     private final DialogResponsibilityService dialogResponsibilityService;
     private final ProviderDeliveryLedgerService providerDeliveryLedgerService;
+    private final DialogLookupReadService dialogLookupReadService;
 
     public DialogReplyService(DialogReplyTargetService dialogReplyTargetService,
                               DialogReplyTransportService dialogReplyTransportService,
                               DialogResponsibilityService dialogResponsibilityService,
                               ProviderDeliveryLedgerService providerDeliveryLedgerService) {
+        this(
+                dialogReplyTargetService,
+                dialogReplyTransportService,
+                dialogResponsibilityService,
+                providerDeliveryLedgerService,
+                null
+        );
+    }
+
+    @Autowired
+    public DialogReplyService(DialogReplyTargetService dialogReplyTargetService,
+                              DialogReplyTransportService dialogReplyTransportService,
+                              DialogResponsibilityService dialogResponsibilityService,
+                              ProviderDeliveryLedgerService providerDeliveryLedgerService,
+                              DialogLookupReadService dialogLookupReadService) {
         this.dialogReplyTargetService = dialogReplyTargetService;
         this.dialogReplyTransportService = dialogReplyTransportService;
         this.dialogResponsibilityService = dialogResponsibilityService;
         this.providerDeliveryLedgerService = providerDeliveryLedgerService;
+        this.dialogLookupReadService = dialogLookupReadService;
     }
 
     public DialogReplyResult sendReply(String ticketId, String message, Long replyToTelegramId, String operator) {
@@ -62,7 +80,7 @@ public class DialogReplyService {
                 sender
             );
             dialogReplyTargetService.touchTicketActivity(ticketId, operator);
-            String responsible = dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
+            String responsible = assignResponsibleIfMissing(ticketId, operator);
             return DialogReplyResult.success(timestamp, localTelegramMessageId, responsible);
         }
         if (!StringUtils.hasText(channel.getToken())) {
@@ -113,7 +131,7 @@ public class DialogReplyService {
             sender
         );
         dialogReplyTargetService.touchTicketActivity(ticketId, operator);
-        String responsible = dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
+        String responsible = assignResponsibleIfMissing(ticketId, operator);
         return DialogReplyResult.success(timestamp, transportResult.telegramMessageId(), responsible);
     }
 
@@ -138,7 +156,7 @@ public class DialogReplyService {
             if (updated == 0) {
                 return DialogReplyResult.error("Сообщение оператора не найдено.");
             }
-            String responsible = dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
+            String responsible = assignResponsibleIfMissing(ticketId, operator);
             return DialogReplyResult.success(OffsetDateTime.now().toString(), telegramMessageId, responsible);
         }
         if (!StringUtils.hasText(channel.getToken())) {
@@ -181,7 +199,7 @@ public class DialogReplyService {
         if (updated == 0) {
             return DialogReplyResult.error("Сообщение оператора не найдено.");
         }
-        String responsible = dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
+        String responsible = assignResponsibleIfMissing(ticketId, operator);
         return DialogReplyResult.success(OffsetDateTime.now().toString(), telegramMessageId, responsible);
     }
 
@@ -206,7 +224,7 @@ public class DialogReplyService {
             if (updated == 0) {
                 return DialogReplyResult.error("Сообщение оператора не найдено.");
             }
-            String responsible = dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
+            String responsible = assignResponsibleIfMissing(ticketId, operator);
             return DialogReplyResult.success(OffsetDateTime.now().toString(), telegramMessageId, responsible);
         }
         if (!StringUtils.hasText(channel.getToken())) {
@@ -249,7 +267,7 @@ public class DialogReplyService {
         if (updated == 0) {
             return DialogReplyResult.error("Сообщение оператора не найдено.");
         }
-        String responsible = dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
+        String responsible = assignResponsibleIfMissing(ticketId, operator);
         return DialogReplyResult.success(OffsetDateTime.now().toString(), telegramMessageId, responsible);
     }
 
@@ -337,8 +355,30 @@ public class DialogReplyService {
             replyToTelegramId
         );
         dialogReplyTargetService.touchTicketActivity(ticketId, operator);
-        String responsible = dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
+        String responsible = assignResponsibleIfMissing(ticketId, operator);
         return DialogMediaReplyResult.success(timestamp, transportResult.telegramMessageId(), storedName, messageType, caption, responsible);
+    }
+
+    /**
+     * Production replies claim an unassigned scoped ticket, but never steal an
+     * existing assignee. BUSINESS never enters the retired bare-ticket writer.
+     */
+    private String assignResponsibleIfMissing(String ticketId, String operator) {
+        if (dialogLookupReadService == null) {
+            // Focused unit tests still construct the lightweight four-argument service.
+            return dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
+        }
+        return dialogLookupReadService.findDialog(ticketId, operator)
+                .map(dialog -> new UiEventTicketScope(
+                        dialog.userId(),
+                        dialog.ticketId(),
+                        dialog.ticketPublicId(),
+                        dialog.scopeKind(),
+                        dialog.businessId()
+                ))
+                .filter(UiEventTicketScope::isValid)
+                .map(scope -> dialogResponsibilityService.assignScopedResponsibleIfMissing(scope, operator, operator))
+                .orElse(null);
     }
 
     public record DialogReplyResult(boolean success,

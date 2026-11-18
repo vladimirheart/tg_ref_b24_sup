@@ -23,6 +23,7 @@
       lastSlaPolicyGapSignature: '',
       lastParityGapSignature: '',
       contextDisclosureSignatures: new Set(),
+      pendingReplySequence: 0,
     };
 
     function exactLegacyTicketId(value) {
@@ -638,6 +639,19 @@
         elements.workspaceMessagesState.classList.add('d-none');
         elements.workspaceMessagesState.textContent = '';
       }
+      return elements.workspaceMessagesList.lastElementChild;
+    }
+
+    function updateWorkspaceMessageDeliveryState(localMessageId, deliveryState) {
+      if (!elements.workspaceMessagesList || !Number.isFinite(localMessageId)) return;
+      const messageNode = elements.workspaceMessagesList.querySelector(`[data-local-message-id="${localMessageId}"]`);
+      if (!(messageNode instanceof HTMLElement)) return;
+      messageNode.dataset.deliveryState = deliveryState;
+      const statusNode = messageNode.querySelector('[data-workspace-delivery-state]');
+      if (!(statusNode instanceof HTMLElement)) return;
+      statusNode.textContent = deliveryState === 'sent'
+        ? ' · Отправлено'
+        : (deliveryState === 'failed' ? ' · Не отправлено' : ' · Отправка…');
     }
 
     function scrollWorkspaceMessagesToBottom() {
@@ -695,11 +709,23 @@
         });
         return;
       }
-      elements.workspaceComposerSend.disabled = true;
-      if (elements.workspaceComposerSaveDraft) {
-        elements.workspaceComposerSaveDraft.disabled = true;
-      }
-      try {
+      const localMessageId = ++state.pendingReplySequence;
+      const sentAt = new Date().toISOString();
+      elements.workspaceComposerText.value = '';
+      saveWorkspaceDraft(activeState.composerTicketId, '');
+      resetWorkspaceReplyTarget({ reason: 'message_queued' });
+      appendWorkspaceMessage({
+        senderName: activeState.payload?.conversation?.responsible || activeState.row?.dataset?.responsible || 'Оператор',
+        senderRole: 'support',
+        messageText: message,
+        sentAt,
+        replyPreview,
+        localMessageId,
+        deliveryState: 'sending',
+      });
+
+      void (async () => {
+        try {
         const resp = await fetch(`/api/dialog-ticket/reply?ticketId=${encodeURIComponent(activeState.composerTicketId)}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -709,29 +735,22 @@
         if (!resp.ok || !data?.success) {
           throw new Error(data?.error || `Ошибка ${resp.status}`);
         }
-        elements.workspaceComposerText.value = '';
-        saveWorkspaceDraft(activeState.composerTicketId, '');
-        resetWorkspaceReplyTarget({ reason: 'message_sent' });
-        appendWorkspaceMessage({
-          senderName: data.responsible || 'Оператор',
-          messageText: message,
-          sentAt: data.timestamp || new Date().toISOString(),
-          telegramMessageId: data.telegramMessageId || null,
-          replyPreview,
-        });
+        updateWorkspaceMessageDeliveryState(localMessageId, 'sent');
         if (activeState.row) {
           options.updateRowStatus?.(activeState.row, activeState.row.dataset.statusRaw || '', 'ожидает ответа клиента', 'waiting_client', 0);
           options.updateRowResponsible?.(activeState.row, data.responsible || activeState.row.dataset.responsible || '');
           options.applyFilters?.();
         }
       } catch (error) {
-        notify(error.message || 'Не удалось отправить сообщение', 'error');
-      } finally {
-        elements.workspaceComposerSend.disabled = false;
-        if (elements.workspaceComposerSaveDraft) {
-          elements.workspaceComposerSaveDraft.disabled = false;
-        }
+        updateWorkspaceMessageDeliveryState(localMessageId, 'failed');
+        appendWorkspaceMessage({
+          senderName: 'Система',
+          senderRole: 'system',
+          messageText: `Не удалось отправить сообщение: ${error?.message || 'неизвестная ошибка'}`,
+          sentAt: new Date().toISOString(),
+        });
       }
+      })();
     }
 
     function mergeWorkspacePayload(basePayload, partialPayload, include) {

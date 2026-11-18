@@ -135,6 +135,8 @@
       const replyPreviewText = String(message?.replyPreview || message?.reply_preview || '').trim();
       const telegramMessageId = Number.parseInt(message?.telegramMessageId ?? message?.telegram_message_id, 10);
       const senderType = String(message?.senderRole || message?.sender || '').trim().toLowerCase();
+      const localMessageId = Number.parseInt(message?.localMessageId, 10);
+      const deliveryState = String(message?.deliveryState || '').trim().toLowerCase();
       const normalizedMessage = {
         messageType: message?.messageType || message?.type || '',
         message: text,
@@ -152,9 +154,11 @@
       const replyPreviewMarkup = replyPreviewText
         ? `<div class="small text-muted border-start ps-2 mb-1 workspace-message-reply-source">↪ ${escapeHtml(replyPreviewText)}</div>`
         : '';
-      const deliveryStatus = senderType === 'support' && Number.isFinite(telegramMessageId)
-        ? ' · Отправлено'
-        : '';
+      const deliveryStatus = deliveryState === 'sending'
+        ? ' · Отправка…'
+        : (deliveryState === 'failed'
+          ? ' · Не отправлено'
+          : (senderType === 'support' && Number.isFinite(telegramMessageId) ? ' · Отправлено' : ''));
       const activeWorkspacePayload = options.getActiveWorkspacePayload?.() || null;
       const replyTargetSupported = activeWorkspacePayload?.composer?.reply_target_supported !== false;
       const canReply = replyTargetSupported && Number.isFinite(telegramMessageId) && senderType !== 'system';
@@ -166,7 +170,7 @@
         options.resolveWorkspaceMessageAvatarSpec?.(message),
         'workspace-message-avatar'
       ) || '';
-      return `<article class="workspace-message-item" data-telegram-message-id="${Number.isFinite(telegramMessageId) ? telegramMessageId : ''}">${avatarMarkup}<div class="workspace-message-content"><div class="workspace-message-meta">${escapeHtml(author)} · ${escapeHtml(timestamp)}</div>${replyPreviewMarkup}${textMarkup}${mediaMarkup}${fallbackMarkup}${actionMarkup}</div></article>`;
+      return `<article class="workspace-message-item${senderType === 'system' ? ' is-system-message' : ''}" data-telegram-message-id="${Number.isFinite(telegramMessageId) ? telegramMessageId : ''}" data-local-message-id="${Number.isFinite(localMessageId) ? localMessageId : ''}">${avatarMarkup}<div class="workspace-message-content"><div class="workspace-message-meta">${escapeHtml(author)} · ${escapeHtml(timestamp)}<span data-workspace-delivery-state>${escapeHtml(deliveryStatus)}</span></div>${replyPreviewMarkup}${textMarkup}${mediaMarkup}${fallbackMarkup}${actionMarkup}</div></article>`;
     }
 
     return {

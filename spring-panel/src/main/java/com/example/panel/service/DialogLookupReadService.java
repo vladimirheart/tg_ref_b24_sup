@@ -71,6 +71,20 @@ public class DialogLookupReadService {
         return timestampSqlSupport.stringAggregationExpression(alias + ".category", "', '", alias + ".category");
     }
 
+    /** BUSINESS categories are owned by the canonical ticket work record. */
+    private String categoriesProjectionSql(String ticketAlias) {
+        return """
+                CASE WHEN %1$s.business_id IS NOT NULL THEN (
+                    SELECT string_agg(category.value, ', ' ORDER BY category.value)
+                      FROM jsonb_array_elements_text(%1$s.business_categories) AS category(value)
+                ) ELSE (
+                    SELECT %2$s
+                      FROM ticket_categories tc
+                     WHERE tc.ticket_id = %1$s.ticket_id
+                ) END
+                """.formatted(ticketAlias, categoryAggregationSql("tc"));
+    }
+
     private String unreadBoundarySql(String ticketAlias) {
         String lastOperatorReply = """
                 (
@@ -156,7 +170,7 @@ public class DialogLookupReadService {
             String latestMessageSnapshotOrder = latestMessageOrderSql("m2");
             String latestHistoryOrder = latestChatHistoryOrderSql("ch");
             String unreadBoundary = unreadBoundarySql("t");
-            String categoriesAggregation = categoryAggregationSql("tc");
+            String categoriesAggregation = categoriesProjectionSql("t");
             String lastActivityExpression = """
                     COALESCE(
                         (
@@ -223,11 +237,7 @@ public class DialogLookupReadService {
                                 ORDER BY %s
                                 LIMIT 1
                            ) AS last_sender_time,
-                           (
-                               SELECT %s
-                                 FROM ticket_categories tc
-                                WHERE tc.ticket_id = t.ticket_id
-                           ) AS categories,
+                           %s AS categories,
                            CASE
                                WHEN tr.responsible IS NULL OR trim(tr.responsible) = '' OR lower(COALESCE(tr.responsible, '')) = lower(?) THEN (
                                    SELECT COUNT(*)
@@ -424,7 +434,7 @@ public class DialogLookupReadService {
             String latestMessageSnapshotOrder = latestMessageOrderSql("m2");
             String latestHistoryOrder = latestChatHistoryOrderSql("ch");
             String unreadBoundary = unreadBoundarySql("t");
-            String categoriesAggregation = categoryAggregationSql("tc");
+            String categoriesAggregation = categoriesProjectionSql("t");
             String ratingSelect = feedbackHasTicketId
                     ? """
                        (
@@ -479,11 +489,7 @@ public class DialogLookupReadService {
                                 ORDER BY %s
                                 LIMIT 1
                            ) AS last_sender_time,
-                           (
-                               SELECT %s
-                                 FROM ticket_categories tc
-                                WHERE tc.ticket_id = t.ticket_id
-                           ) AS categories,
+                           %s AS categories,
                            CASE
                                WHEN tr.responsible IS NULL OR trim(tr.responsible) = '' OR lower(COALESCE(tr.responsible, '')) = lower(?) THEN (
                                    SELECT COUNT(*)

@@ -180,9 +180,9 @@ async function replyAndCategoryRequests() {
   const workspaceElements = { workspaceComposerText: new Node(), workspaceComposerSend: new Node() };
   workspaceElements.workspaceComposerText.value = ' workspace ';
   await loadFunction('dialogs-workspace-runtime.js', 'sendWorkspaceReply', {
-    fetch: captured.fetch, elements: workspaceElements, state: { activeReplyToTelegramId: 456 }, options: {},
+    fetch: captured.fetch, elements: workspaceElements, state: { activeReplyToTelegramId: 456, pendingReplySequence: 0 }, options: {},
     getActiveWorkspaceState: () => ({ composerTicketId: exactId }), saveWorkspaceDraft() {},
-    resetWorkspaceReplyTarget() {}, appendWorkspaceMessage() {}, notify() {},
+    resetWorkspaceReplyTarget() {}, appendWorkspaceMessage() {}, updateWorkspaceMessageDeliveryState() {}, notify() {},
   })();
   assertRequest(captured.requests[1], 'reply');
   assert.deepEqual(JSON.parse(captured.requests[1].body), { message: 'workspace', replyToTelegramId: 456 });
@@ -195,15 +195,55 @@ async function replyAndCategoryRequests() {
   assert.deepEqual(JSON.parse(captured.requests[2].body), { categories: [' billing '] });
 }
 
+async function workspaceReplyIsOptimisticAndReportsDeliveryFailureInHistory() {
+  let resolveResponse;
+  const appended = [];
+  const deliveryStates = [];
+  const elements = { workspaceComposerText: new Node(), workspaceComposerSend: new Node() };
+  elements.workspaceComposerText.value = ' отправить сразу ';
+  const sendReply = loadFunction('dialogs-workspace-runtime.js', 'sendWorkspaceReply', {
+    fetch: () => new Promise(resolve => { resolveResponse = resolve; }),
+    elements,
+    state: { activeReplyToTelegramId: null, pendingReplySequence: 0 },
+    options: {},
+    getActiveWorkspaceState: () => ({ composerTicketId: exactId }),
+    saveWorkspaceDraft() {},
+    resetWorkspaceReplyTarget() {},
+    appendWorkspaceMessage(message) { appended.push(message); },
+    updateWorkspaceMessageDeliveryState(id, state) { deliveryStates.push([id, state]); },
+    notify() {},
+  });
+
+  await sendReply();
+  assert.equal(elements.workspaceComposerText.value, '');
+  assert.equal(elements.workspaceComposerSend.disabled, false);
+  assert.equal(appended[0].senderName, 'Оператор');
+  assert.equal(appended[0].senderRole, 'support');
+  assert.equal(appended[0].messageText, 'отправить сразу');
+  assert.match(appended[0].sentAt, /^\d{4}-\d{2}-\d{2}T/);
+  assert.equal(appended[0].replyPreview, '');
+  assert.equal(appended[0].localMessageId, 1);
+  assert.equal(appended[0].deliveryState, 'sending');
+
+  resolveResponse({ ok: false, status: 503, json: async () => ({ error: 'transport unavailable' }) });
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.deepEqual(deliveryStates, [[1, 'failed']]);
+  assert.equal(appended[1].senderRole, 'system');
+  assert.match(appended[1].messageText, /transport unavailable/);
+}
+
 (async () => {
   everyUrlContract();
   await actionsRequests();
   await historyRequests();
   await participantRequests();
   await replyAndCategoryRequests();
+  await workspaceReplyIsOptimisticAndReportsDeliveryFailureInHistory();
   const template = fs.readFileSync(path.resolve(__dirname, '../../main/resources/templates/dialogs/index.html'), 'utf8');
   for (const file of ['actions', 'details-history', 'workspace', 'participants', 'templates']) {
-    const version = file === 'details-history' ? '20261012-01-278-r56' : '20261012-01-278-r55';
+    const version = file === 'details-history'
+      ? '20261012-01-278-r56'
+      : (file === 'workspace' ? '20261118-dialog-reply-delivery' : '20261012-01-278-r55');
     assert.ok(template.includes('dialogs-' + file + "-runtime.js(v='" + version + "')"));
   }
   console.log('DIALOG_QUICK_ACTIONS_QUERY_R55_RESULT=GREEN;URL_CALL_SITES=16;EXECUTED_FETCHES=11');
