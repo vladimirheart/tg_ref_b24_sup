@@ -4,6 +4,7 @@ import com.example.panel.service.integration.ConversationTicketCreatedEvent;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.Normalizer;
@@ -106,7 +107,7 @@ public class UnifiedChannelQuestionnaireService {
         Map<String, Object> effectiveSettings = copy(botSettings);
         effectiveSettings.put("question_templates", List.of(expanded));
         effectiveSettings.put("active_template_id", channels.get(0).templateId());
-        return Optional.of(new RuntimeConfig(channelId, channels.get(0).templateId(), fingerprint(expanded),
+        return Optional.of(new RuntimeConfig(channelId, channels.get(0).templateId(), fingerprint(mapper, expanded),
                 effectiveSettings, expanded, businesses));
     }
 
@@ -261,9 +262,15 @@ public class UnifiedChannelQuestionnaireService {
         return matches.size() == 1 ? Optional.of(matches.get(0)) : Optional.empty();
     }
 
-    private String fingerprint(Map<String, Object> template) {
+    static String fingerprint(ObjectMapper mapper, Map<String, Object> template) {
         try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(mapper.writeValueAsBytes(template)));
+            // A template is shared between separately started JVMs (bot runner and ops worker).
+            // Its version must be structural: iteration order of Map.of()/HashMap must never
+            // change the version of the same questionnaire.
+            byte[] canonical = mapper.writer()
+                .with(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+                .writeValueAsBytes(template);
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(canonical));
         } catch (NoSuchAlgorithmException | JsonProcessingException ex) {
             throw new IllegalStateException("Cannot fingerprint unified questionnaire", ex);
         }

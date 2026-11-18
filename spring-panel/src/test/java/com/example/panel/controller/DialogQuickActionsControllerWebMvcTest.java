@@ -243,6 +243,27 @@ class DialogQuickActionsControllerWebMvcTest {
     }
 
     @Test
+    void categoriesUpdateBusinessDialogWithoutTechnicalCardRedirect() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_close"), eq("categories"), eq("T-BUSINESS")))
+            .thenReturn(null);
+        when(dialogQuickActionService.requiresBusinessWorkflow("T-BUSINESS", "operator")).thenReturn(true);
+        when(dialogQuickActionService.updateBusinessCategories(eq("T-BUSINESS"), org.mockito.ArgumentMatchers.any(), eq(List.of("billing"))))
+            .thenReturn(new DialogQuickActionService.BusinessCategoryUpdateResult(true, true, true, true, List.of("billing")));
+
+        mockMvc.perform(post("/api/dialogs/T-BUSINESS/categories")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"categories\":[\"billing\"]}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.categories[0]").value("billing"));
+
+        verify(dialogQuickActionService).updateBusinessCategories(eq("T-BUSINESS"), org.mockito.ArgumentMatchers.any(), eq(List.of("billing")));
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-BUSINESS", "categories", "success", "categories_updated");
+    }
+
+    @Test
     void spamReturnsBadRequestWhenClientCannotBeResolved() throws Exception {
         when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_close"), eq("mark_spam"), eq("T-604A")))
             .thenReturn(null);

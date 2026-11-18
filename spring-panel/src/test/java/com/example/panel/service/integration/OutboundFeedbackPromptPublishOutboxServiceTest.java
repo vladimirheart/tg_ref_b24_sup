@@ -88,6 +88,27 @@ class OutboundFeedbackPromptPublishOutboxServiceTest {
         )).isEqualTo("published");
     }
 
+    @Test
+    void dispatchDoesNotClaimInboundTicketCreationEvents() {
+        String eventId = UUID.randomUUID().toString();
+        jdbcTemplate.update("""
+                INSERT INTO integration_transport_outbox (
+                    event_id, transport_source, event_kind, exchange_name, routing_key, payload_json,
+                    channel_id, user_id, ticket_id, status, attempt_count, available_at, created_at, updated_at
+                ) VALUES (?, 'bot.inbound.ticket-created', 'ticket.created.initial_contact', 'inbound', 'ticket.created',
+                    '{}', 42, 200, 'T-1', 'queued', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """, eventId);
+        clearInvocations(rabbitTemplate);
+
+        service.dispatchScheduled();
+
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT status || ':' || attempt_count FROM integration_transport_outbox WHERE event_id = ?",
+            String.class, eventId
+        )).isEqualTo("queued:0");
+        verifyNoInteractions(rabbitTemplate);
+    }
+
     @ParameterizedTest
     @NullSource
     @EmptySource

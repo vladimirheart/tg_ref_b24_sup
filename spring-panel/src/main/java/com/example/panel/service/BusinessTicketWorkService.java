@@ -51,6 +51,40 @@ public class BusinessTicketWorkService {
             return rows.size()==1?Optional.of(rows.get(0)):Optional.empty();
         }catch(DataAccessException|IllegalArgumentException ex){return Optional.empty();}
     }
+    /**
+     * Updates category metadata from the common Inbox by resolving the complete BUSINESS owner first.
+     * A raw ticket id is accepted only when it identifies one root unambiguously; it never falls back
+     * to legacy category tables.
+     */
+    public CategoryUpdate updateCategoriesByTicketId(String ticketId, Authentication authentication, List<String> submitted) {
+        final List<String> requested;
+        try {
+            requested=normalizeCategories(submitted);
+        } catch (IllegalArgumentException ex) {
+            return new CategoryUpdate(false,false,false,false,List.of());
+        }
+        Optional<View> current=findByTicketId(ticketId,authentication);
+        if(current.isEmpty())return new CategoryUpdate(false,true,false,false,List.of());
+        View view=current.get();
+        if(view.categories().equals(requested))return new CategoryUpdate(true,true,false,true,requested);
+        boolean changed=change(view.scope(),authentication,view.revision(),view.status(),"categories",requested);
+        return new CategoryUpdate(true,true,changed,changed,requested);
+    }
+    private Optional<View> findByTicketId(String ticketId,Authentication authentication) {
+        var account=boundActor(authentication);
+        String identity=account==null?null:account.getUsername();
+        if(account==null||!enabled(identity)||ticketId==null||ticketId.isBlank())return Optional.empty();
+        try {
+            var rows=jdbc.query("SELECT owner.*, ("+OPERATOR+") AS can_operate FROM tickets owner"+ACTOR
+                    +" WHERE owner.ticket_id=:raw AND "+UNIQUE_ROOT+READ,
+                new MapSqlParameterSource("raw",ticketId).addValue("identity",identity.toLowerCase(Locale.ROOT))
+                    .addValue("readerId",account.getUserId()).addValue("readerName",identity),
+                (rs,row)->new View(new UiEventTicketScope(rs.getLong("user_id"),rs.getString("ticket_id"),rs.getString("ticket_public_id"),
+                    "BUSINESS",rs.getLong("business_id")),rs.getString("status"),rs.getLong("business_work_revision"),
+                    categories(rs.getString("business_categories")),rs.getBoolean("can_operate")));
+            return rows.size()==1?Optional.of(rows.get(0)):Optional.empty();
+        }catch(DataAccessException|IllegalArgumentException ex){return Optional.empty();}
+    }
     public List<Event> recent(UiEventTicketScope scope,Authentication authentication) {
         var account=boundActor(authentication);
         String identity=account==null?null:account.getUsername();
@@ -142,7 +176,8 @@ public class BusinessTicketWorkService {
         return account;
     }
     private boolean allowed(String status,String action) {
-        return ("pending".equals(status)||"open".equals(status))&&("close".equals(action)||"categories".equals(action))
+        return "categories".equals(action)&&("pending".equals(status)||"open".equals(status)||"closed".equals(status)||"resolved".equals(status))
+            ||("pending".equals(status)||"open".equals(status))&&"close".equals(action)
             ||("closed".equals(status)||"resolved".equals(status))&&"reopen".equals(action);
     }
     private List<String> normalizeCategories(List<String> values) {
@@ -174,6 +209,7 @@ public class BusinessTicketWorkService {
             .addValue("business",scope.businessId()).addValue("identity",identity.toLowerCase(Locale.ROOT));
     }
     public record View(UiEventTicketScope scope,String status,long revision,List<String> categories,boolean canOperate){}
+    public record CategoryUpdate(boolean found,boolean valid,boolean changed,boolean committed,List<String> categories){}
     public record Event(long revision,String action,String fromStatus,String toStatus,List<String> previousCategories,List<String> categories,String actor,OffsetDateTime createdAt){}
     private record Root(Long channel,String categories,long actorId,String actor){}
 }

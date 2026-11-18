@@ -39,6 +39,12 @@ public class DialogQuickActionService {
     private final UiEventStreamService uiEventStreamService;
     private final AttachmentService attachmentService;
     private final ClientBlacklistService clientBlacklistService;
+    private BusinessTicketWorkService businessTicketWorkService;
+
+    @Autowired
+    void setBusinessTicketWorkService(BusinessTicketWorkService businessTicketWorkService) {
+        this.businessTicketWorkService = businessTicketWorkService;
+    }
 
     @Autowired
     public DialogQuickActionService(DialogTicketLifecycleService dialogTicketLifecycleService,
@@ -327,6 +333,21 @@ public class DialogQuickActionService {
         );
         publishDialogsChanged(ticketId, "dialog_categories_updated");
         return new DialogCategoryUpdateResult(true, normalizedCategories);
+    }
+
+    /** The Inbox uses the canonical BUSINESS work record instead of the retired raw category path. */
+    public BusinessCategoryUpdateResult updateBusinessCategories(String ticketId,
+                                                                 Authentication authentication,
+                                                                 List<String> categories) {
+        if (businessTicketWorkService == null) {
+            return new BusinessCategoryUpdateResult(false, false, false, false, List.of());
+        }
+        BusinessTicketWorkService.CategoryUpdate update = businessTicketWorkService
+                .updateCategoriesByTicketId(ticketId, authentication, categories);
+        if (update.changed()) {
+            publishDialogsChanged(ticketId, "business_categories_updated");
+        }
+        return new BusinessCategoryUpdateResult(update.found(), update.valid(), update.changed(), update.committed(), update.categories());
     }
 
     /** A raw ticket ID must not silently select the legacy workflow for BUSINESS. */
@@ -714,5 +735,12 @@ public class DialogQuickActionService {
 
     public record DialogCategoryUpdateResult(boolean exists,
                                              List<String> categories) {
+    }
+
+    public record BusinessCategoryUpdateResult(boolean exists,
+                                               boolean valid,
+                                               boolean changed,
+                                               boolean committed,
+                                               List<String> categories) {
     }
 }

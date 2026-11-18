@@ -41,6 +41,7 @@ class BusinessTicketWorkPostgresTest {
             INSERT INTO business_memberships(user_id,business_id,role_code) VALUES(1,11,'OPERATOR'),(2,11,'VIEWER'),(3,22,'ADMIN');
             """);
         jdbc.execute(Files.readString(Path.of("src/main/resources/db/migration/postgresql/V81__business_ticket_manual_work.sql")));
+        jdbc.execute(Files.readString(Path.of("src/main/resources/db/migration/postgresql/V97__business_ticket_categories_after_closure.sql")));
         jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,business_id,channel_id,status) VALUES(42,?,?,11,9,'pending'),(88,?,?,22,19,'pending')",
             RAW,PUBLIC,RAW.trim(),"b".repeat(32));
         for(String table:List.of("ticket_categories","ticket_active","ticket_spans","ticket_responsibles","ticket_participants","pending_feedback_requests","dialog_action_audit","notifications"))
@@ -93,6 +94,17 @@ class BusinessTicketWorkPostgresTest {
         assertThat(jdbc.queryForMap("SELECT * FROM tickets WHERE ticket_id=?",RAW.trim())).isEqualTo(before.get("tickets").stream().filter(row->RAW.trim().equals(row.get("ticket_id"))).findFirst().orElseThrow());
         assertThatThrownBy(()->jdbc.update("UPDATE business_ticket_work_events SET actor='changed'")).isInstanceOf(RuntimeException.class);
         assertThatThrownBy(()->jdbc.update("DELETE FROM business_ticket_work_events")).isInstanceOf(RuntimeException.class);
+    }
+    @Test void inboxCategoryUpdateUsesTheBusinessRecordEvenAfterTheDialogIsClosed() {
+        assertThat(command("close")).isTrue();
+        assertThat(service.find(PUBLIC,boundActor("Operator")).orElseThrow().canOperate()).isTrue();
+        assertThat(revision()).isEqualTo(1L);
+        var update=service.updateCategoriesByTicketId(RAW,boundActor("Operator"),List.of(" Reporting ","Reporting"));
+        assertThat(update).isEqualTo(new BusinessTicketWorkService.CategoryUpdate(true,true,true,true,List.of("Reporting")));
+        assertThat(jdbc.queryForMap("SELECT status,business_categories::text,business_work_revision FROM tickets WHERE ticket_id=?",RAW))
+            .containsEntry("status","resolved").containsEntry("business_categories","[\"Reporting\"]").containsEntry("business_work_revision",2L);
+        assertThat(service.recent(scope,boundActor("Operator"))).extracting(BusinessTicketWorkService.Event::action)
+            .containsExactly("categories","close");
     }
     private void mutate(String kind) {
         switch(kind) {

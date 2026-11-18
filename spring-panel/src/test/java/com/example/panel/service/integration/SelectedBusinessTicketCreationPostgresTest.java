@@ -8,6 +8,7 @@ import com.example.panel.service.BotProcessService;
 import com.example.panel.service.BusinessQuestionTemplateRegistryService;
 import com.example.panel.service.SharedConfigService;
 import com.example.panel.service.SharedGeneralQuestionnaireService;
+import com.example.panel.service.UnifiedChannelQuestionnaireService;
 import com.example.panel.support.PostgresqlJdbcTestSupport;
 import java.nio.file.Files;
 import java.time.OffsetDateTime;
@@ -59,6 +60,7 @@ class SelectedBusinessTicketCreationPostgresTest {
     @Autowired MultibusinessFeatureFlags flags;
     @Autowired BusinessQuestionTemplateRegistryService registry;
     @Autowired SharedGeneralQuestionnaireService sharedQuestionnaires;
+    @Autowired UnifiedChannelQuestionnaireService unifiedQuestionnaires;
     @Autowired ConversationTicketCreationIngestionService ingestion;
     @Autowired InboundClientMessageIngestionService followupIngestion;
     @Autowired SelectedTicketFollowupMediaService followupMedia;
@@ -98,6 +100,39 @@ class SelectedBusinessTicketCreationPostgresTest {
     }
     private Map<String,Object> template(String id,String text) {
         return Map.of("id",id,"name",id,"question_flow",List.of(Map.of("id","free","type","text","order",1,"text",text)));
+    }
+    @Test void unifiedBusinessQuestionnairePersistsFieldProvenanceWithoutCatalogHash() {
+        String templateId = "r-unified-" + channel;
+        Map<String, Object> template = Map.of(
+            "id", templateId,
+            "name", "Unified",
+            "scope_mode", "UNIFIED_FIELDS",
+            "question_flow", List.of(
+                Map.of("id", "business", "type", "business", "binding_key", "business", "text", "Business", "order", 1),
+                Map.of("id", "problem", "type", "text", "binding_key", "problem", "text", "Problem", "order", 2)
+            )
+        );
+        settings.saveSettings(Map.of("bot_settings", Map.of("active_template_id", templateId,
+            "question_templates", List.of(template))));
+        jdbc.update("UPDATE channels SET question_template_id=? WHERE id=?", templateId, channel);
+        var runtime = unifiedQuestionnaires.resolve(channel).orElseThrow();
+        String businessName = runtime.businesses().stream()
+            .filter(option -> option.id() == a).findFirst().orElseThrow().displayName();
+        var unified = new ConversationTicketCreatedEvent(UUID.randomUUID().toString(), "ticket.created.initial_contact", "telegram",
+            channel, "r-unified-" + UUID.randomUUID(), 902L, "tg-902", "client", "Client", businessName,
+            null, null, null, "Help", OffsetDateTime.parse("2026-10-20T10:00:00Z"),
+            List.of(new ConversationTicketCreatedEvent.TicketAttributePayload("business", "business", "Business",
+                "select", Long.toString(a), businessName, businessName, true)), List.of(), a,
+            "BUSINESS", "QUESTIONNAIRE_FIELD", runtime.questionTemplateId(), runtime.templateSha256(), null);
+
+        ingest(unified);
+
+        var row = jdbc.queryForMap("SELECT * FROM tickets WHERE ticket_id=?", unified.ticketId());
+        assertThat(row.get("business_id")).isEqualTo(a);
+        assertThat(row.get("business_selection_source")).isEqualTo("QUESTIONNAIRE_FIELD");
+        assertThat(row.get("questionnaire_catalog_sha256")).isNull();
+        assertThat(row.get("question_template_sha256")).isEqualTo(runtime.templateSha256());
+        assertThat(inboxStatus(unified.eventId())).isEqualTo("processed");
     }
     @ParameterizedTest @ValueSource(strings={"telegram","vk","max"})
     void createsChosenOwnerWithFrozenQuestionnaireAndCompositeChildren(String platform) {

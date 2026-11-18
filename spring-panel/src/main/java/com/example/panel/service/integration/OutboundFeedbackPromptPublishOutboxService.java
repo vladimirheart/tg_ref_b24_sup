@@ -134,7 +134,8 @@ public class OutboundFeedbackPromptPublishOutboxService {
         List<String> eventIds = jdbcTemplate.query("""
                 SELECT event_id
                   FROM integration_transport_outbox
-                 WHERE status IN ('queued', 'failed')
+                 WHERE transport_source = 'panel.outbound.feedback'
+                   AND status IN ('queued', 'failed')
                    AND (available_at IS NULL OR available_at <= CURRENT_TIMESTAMP)
                  ORDER BY created_at ASC, event_id ASC
                  LIMIT ?
@@ -173,6 +174,7 @@ public class OutboundFeedbackPromptPublishOutboxService {
                        available_at = CURRENT_TIMESTAMP,
                        updated_at = CURRENT_TIMESTAMP
                  WHERE status = 'processing'
+                   AND transport_source = 'panel.outbound.feedback'
                    AND processing_started_at IS NOT NULL
                    AND processing_started_at < ?
                 """,
@@ -189,6 +191,7 @@ public class OutboundFeedbackPromptPublishOutboxService {
                        processing_started_at = ?,
                        updated_at = ?
                  WHERE event_id = ?
+                   AND transport_source = 'panel.outbound.feedback'
                    AND status IN ('queued', 'failed')
                    AND (available_at IS NULL OR available_at <= ?)
                 """,
@@ -213,6 +216,7 @@ public class OutboundFeedbackPromptPublishOutboxService {
                        attempt_count
                   FROM integration_transport_outbox
                  WHERE event_id = ?
+                   AND transport_source = 'panel.outbound.feedback'
                 """,
             (rs, rowNum) -> new OutboxEntry(
                 rs.getString("event_id"),
@@ -308,6 +312,7 @@ public class OutboundFeedbackPromptPublishOutboxService {
                        published_at = ?,
                        updated_at = ?
                  WHERE event_id = ?
+                   AND transport_source = 'panel.outbound.feedback'
                 """,
             timestamp(now),
             timestamp(now),
@@ -327,6 +332,7 @@ public class OutboundFeedbackPromptPublishOutboxService {
                        available_at = ?,
                        updated_at = ?
                  WHERE event_id = ?
+                   AND transport_source = 'panel.outbound.feedback'
                 """,
             truncateError(exception),
             timestamp(retryAt),

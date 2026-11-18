@@ -257,14 +257,33 @@ public class DialogQuickActionsController {
                 return permissionDenied;
             }
             String operator = authentication != null ? authentication.getName() : null;
-            ResponseEntity<Map<String, Object>> scopedWorkflowRequired = businessScopeRequired(ticketId, operator, "categories");
-            if (scopedWorkflowRequired != null) {
-                return scopedWorkflowRequired;
+            List<String> requestedCategories = request != null ? request.categories() : List.of();
+            if (dialogQuickActionService.requiresBusinessWorkflow(ticketId, operator)) {
+                DialogQuickActionService.BusinessCategoryUpdateResult result = dialogQuickActionService
+                        .updateBusinessCategories(ticketId, authentication, requestedCategories);
+                if (!result.exists()) {
+                    dialogAuthorizationService.logDialogAction(operator, ticketId, "categories", "not_found", "Диалог не найден");
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                            .body(Map.of("success", false, "error", "Диалог не найден"));
+                }
+                if (!result.valid()) {
+                    dialogAuthorizationService.logDialogAction(operator, ticketId, "categories", "error", "Некорректные категории");
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("success", false, "error", "Некорректные категории"));
+                }
+                if (!result.committed()) {
+                    dialogAuthorizationService.logDialogAction(operator, ticketId, "categories", "conflict", "business_work_changed");
+                    return ResponseEntity.status(HttpStatus.CONFLICT)
+                            .body(Map.of("success", false, "error", "Обращение изменилось. Обновите карточку и повторите действие."));
+                }
+                String detail = result.categories().isEmpty() ? "categories_cleared" : "categories_updated";
+                dialogAuthorizationService.logDialogAction(operator, ticketId, "categories", "success", detail);
+                return ResponseEntity.ok(Map.of("success", true, "categories", result.categories()));
             }
             DialogQuickActionService.DialogCategoryUpdateResult result = dialogQuickActionService.updateCategories(
                     ticketId,
                     operator,
-                    request != null ? request.categories() : List.of()
+                    requestedCategories
             );
             if (!result.exists()) {
                 dialogAuthorizationService.logDialogAction(operator, ticketId, "categories", "not_found", "Диалог не найден");
@@ -569,19 +588,6 @@ public class DialogQuickActionsController {
                 log.debug("Quick action '{}' for ticket '{}' completed in {}ms", action, ticketId, elapsedMs);
             }
         }
-    }
-
-    private ResponseEntity<Map<String, Object>> businessScopeRequired(String ticketId, String operator, String action) {
-        if (!dialogQuickActionService.requiresBusinessWorkflow(ticketId, operator)) {
-            return null;
-        }
-        String message = "Для бизнес-обращения используйте карточку бизнес-обращения";
-        dialogAuthorizationService.logDialogAction(operator, ticketId, action, "business_scope_required", "business_workflow");
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
-                "success", false,
-                "code", "BUSINESS_SCOPE_REQUIRED",
-                "error", message
-        ));
     }
 
     private void logMediaReplyException(String ticketId, MultipartFile file, Exception ex) {
