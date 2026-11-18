@@ -21,7 +21,8 @@ public class DialogDetailsReadService {
         return dialogLookupReadService.findDialog(ticketId, operator).map(item -> new DialogDetails(
                 item,
                 dialogConversationReadService.loadHistory(ticketId, channelId),
-                dialogConversationReadService.loadTicketCategories(ticketId)
+                item.isBusinessScope() ? dialogConversationReadService.loadTicketCategories(item)
+                        : dialogConversationReadService.loadTicketCategories(ticketId)
         ));
     }
 }

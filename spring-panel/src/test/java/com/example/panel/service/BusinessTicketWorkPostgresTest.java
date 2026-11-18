@@ -261,6 +261,90 @@ class BusinessTicketWorkPostgresTest {
         assertThat(org.flywaydb.core.Flyway.configure().dataSource(old.getDataSource()).locations("filesystem:src/main/resources/db/migration/postgresql").load().migrate().migrationsExecuted).isZero();
         assertThat(old.queryForList("SELECT * FROM tickets ORDER BY user_id")).isEqualTo(current);
     }
+    private com.example.panel.model.dialog.DialogListItem dialogSummary(Map<String,Object> overrides) {
+        var values=new HashMap<String,Object>(Map.of("userId",42L,"ticketId",RAW,"ticketPublicId",PUBLIC,
+            "businessId",11L,"scopeKind","BUSINESS","categories","Stale header label"));
+        values.putAll(overrides);
+        return new ObjectMapper().convertValue(values,com.example.panel.model.dialog.DialogListItem.class);
+    }
+    private DialogConversationReadService conversation() {
+        return new DialogConversationReadService(jdbc,mock(com.example.panel.storage.AttachmentService.class),
+            new com.example.panel.support.PanelTimestampSqlSupport(),new LegacyTicketIdJdbcGuard(jdbc));
+    }
+    private com.example.panel.model.dialog.DialogDetails loadCommonDialog() {
+        var lookup=mock(DialogLookupReadService.class);
+        when(lookup.findDialog(RAW,"Operator")).thenReturn(Optional.of(dialogSummary(Map.of())));
+        var conversation=spy(conversation());
+        doReturn(List.of()).when(conversation).loadHistory(RAW,9L);
+        return new DialogDetailsReadService(lookup,conversation).loadDialogDetails(RAW,9L,"Operator").orElseThrow();
+    }
+    @Test void commonDialogRestoresSavedCategoriesAndClosesTheBusinessOwner() {
+        var categories=List.of("Консультация","Настройка, оборудование","Ошибка отдела обращений");
+        var legacy=snapshot();
+        assertThat(service.updateCategoriesByTicketId(RAW,boundActor("Operator"),categories).committed()).isTrue();
+        var details=loadCommonDialog();
+        assertThat(details.categories()).containsExactlyElementsOf(categories);
+        var lifecycle=mock(DialogTicketLifecycleService.class);
+        var quick=new DialogQuickActionService(lifecycle,mock(DialogLookupReadService.class),mock(DialogResponsibilityService.class),
+            mock(DialogParticipantService.class),mock(DialogReplyService.class),mock(DialogNotificationService.class),
+            mock(DialogAiAssistantService.class),mock(NotificationService.class),mock(UiEventStreamService.class),
+            mock(com.example.panel.storage.AttachmentService.class));
+        quick.setBusinessTicketWorkService(service);
+        assertThat(quick.resolveBusinessTicket(RAW,boundActor("Operator"),details.categories()).updated()).isTrue();
+        assertThat(jdbc.queryForObject("SELECT status FROM tickets WHERE user_id=42",String.class)).isEqualTo("resolved");
+        assertThat(service.find(PUBLIC,boundActor("Operator")).orElseThrow().categories()).isEqualTo(categories);
+        assertThat(service.recent(scope,boundActor("Operator"))).extracting(Event -> Event.action()).containsExactly("close","categories");
+        verifyNoInteractions(lifecycle);
+        for(String table:List.of("ticket_categories","ticket_active","ticket_spans","ticket_responsibles","pending_feedback_requests"))
+            assertThat(jdbc.queryForList("SELECT * FROM "+table+" ORDER BY ticket_id")).isEqualTo(legacy.get(table));
+    }
+    @Test void clearedCategoriesStayEmptyInTheCardAndStillPreventClosing() {
+        service.updateCategoriesByTicketId(RAW,boundActor("Operator"),List.of("Before"));
+        service.updateCategoriesByTicketId(RAW,boundActor("Operator"),List.of());
+        assertThat(loadCommonDialog().categories()).isEmpty();
+        var before=snapshot();
+        var result=service.closeByTicketId(RAW,boundActor("Operator"),loadCommonDialog().categories());
+        assertThat(result.updated()).isFalse();assertThat(result.error()).contains("категорию");
+        assertThat(snapshot()).isEqualTo(before);
+    }
+    @ParameterizedTest @ValueSource(strings={"user","raw","public","business","general","duplicate","missing"})
+    void categoryReadDoesNotBorrowAnotherOwnerOrLegacyValues(String mismatch) {
+        service.updateCategoriesByTicketId(RAW,boundActor("Operator"),List.of("Own"));
+        var overrides=new HashMap<String,Object>();
+        switch(mismatch) {
+            case "user"->overrides.put("userId",88L);
+            case "raw"->overrides.put("ticketId",RAW.trim());
+            case "public"->overrides.put("ticketPublicId","b".repeat(32));
+            case "business"->overrides.put("businessId",22L);
+            case "general"->jdbc.update("UPDATE tickets SET is_general=TRUE WHERE user_id=42");
+            case "missing"->jdbc.update("DELETE FROM tickets WHERE user_id=42");
+            case "duplicate"->jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,business_id,status) VALUES(99,?,? ,22,'open')",RAW,"c".repeat(32));
+        }
+        assertThat(conversation().loadTicketCategories(dialogSummary(overrides))).isEmpty();
+    }
+    @ParameterizedTest @ValueSource(strings={"viewer","foreign","revoked","disabled","flags"})
+    void commonCloseRequiresCurrentBusinessOperatePermission(String denial) {
+        String actor=denial.equals("viewer") || denial.equals("foreign")?denial:"Operator";
+        if(denial.equals("revoked"))jdbc.update("UPDATE business_memberships SET is_active=FALSE WHERE user_id=1");
+        if(denial.equals("disabled"))jdbc.update("UPDATE users SET enabled=FALSE WHERE id=1");
+        if(denial.equals("flags"))flags.getFoundation().setEnabled(false);
+        var before=snapshot();
+        assertThat(service.closeByTicketId(RAW,boundActor(actor),List.of("Own")).exists()).isFalse();
+        assertThat(snapshot()).isEqualTo(before);
+    }
+    @Test void commonCloseRejectsARevisionChangedAfterReadingTheCurrentWorkState() {
+        var intercepted=spy(service);
+        doAnswer(call->{
+            assertThat(service.change(scope,boundActor("Operator"),0,"pending","categories",List.of("Concurrent"))).isTrue();
+            return call.callRealMethod();
+        }).when(intercepted).change(any(),any(),eq(0L),eq("pending"),eq("close"),anyList());
+        var result=intercepted.closeByTicketId(RAW,boundActor("Operator"),List.of("Own"));
+        assertThat(result.error()).isEqualTo("business_work_changed");assertThat(result.updated()).isFalse();
+        var current=service.find(PUBLIC,boundActor("Operator")).orElseThrow();
+        assertThat(current.status()).isEqualTo("pending");assertThat(current.categories()).containsExactly("Concurrent");
+        assertThat(service.recent(scope,boundActor("Operator"))).hasSize(1);
+    }
+
     @Test void concurrentCommandsHaveOneWinnerAndOneAuditOutbox() throws Exception {
         var start=new CountDownLatch(1);
         java.util.function.Supplier<Boolean> run=()->{try{start.await();return command("close");}catch(InterruptedException ex){throw new IllegalStateException(ex);}};

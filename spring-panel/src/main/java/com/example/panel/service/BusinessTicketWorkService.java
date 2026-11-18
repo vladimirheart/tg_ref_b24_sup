@@ -70,6 +70,20 @@ public class BusinessTicketWorkService {
         boolean changed=change(view.scope(),authentication,view.revision(),view.status(),"categories",requested);
         return new CategoryUpdate(true,true,changed,changed,requested);
     }
+    /** Common Inbox close command; the authenticated owner/revision is rechecked by change(). */
+    public DialogResolveResult closeByTicketId(String ticketId,Authentication authentication,List<String> submitted) {
+        var current=findByTicketId(ticketId,authentication);
+        if(current.isEmpty() || !current.get().canOperate())return new DialogResolveResult(false,false,null);
+        List<String> requested;
+        try { requested=normalizeCategories(submitted); }
+        catch(IllegalArgumentException ex) { return new DialogResolveResult(false,true,"Некорректные категории"); }
+        if(requested.isEmpty())return new DialogResolveResult(false,true,"Укажите хотя бы одну категорию обращения перед закрытием.");
+        View view=current.get();
+        if("closed".equals(view.status()) || "resolved".equals(view.status()))return new DialogResolveResult(false,true,"already_closed");
+        boolean changed=change(view.scope(),authentication,view.revision(),view.status(),"close",requested);
+        return new DialogResolveResult(changed,true,changed?null:"business_work_changed");
+    }
+
     private Optional<View> findByTicketId(String ticketId,Authentication authentication) {
         var account=boundActor(authentication);
         String identity=account==null?null:account.getUsername();

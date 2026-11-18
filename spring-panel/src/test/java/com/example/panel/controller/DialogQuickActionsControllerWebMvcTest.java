@@ -182,6 +182,39 @@ class DialogQuickActionsControllerWebMvcTest {
     }
 
     @Test
+    void queryResolveRoutesBusinessCloseWithTheOriginalAuthenticationAndCategories() throws Exception {
+        String id=" R/Ю?#+ ";
+        when(dialogQuickActionService.requiresBusinessWorkflow(id,"operator")).thenReturn(true);
+        when(dialogQuickActionService.resolveBusinessTicket(eq(id),org.mockito.ArgumentMatchers.any(),eq(List.of("A, B","C"))))
+            .thenReturn(new DialogResolveResult(true,true,null));
+        mockMvc.perform(post("/api/dialog-ticket/resolve").param("ticketId",id).with(user("operator")).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content("{\"categories\":[\"A, B\",\"C\"]}"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.updated").value(true));
+        verify(dialogQuickActionService,org.mockito.Mockito.never()).resolveTicket(org.mockito.ArgumentMatchers.anyString(),org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any());
+        verify(dialogQuickActionService).resolveBusinessTicket(eq(id),org.mockito.ArgumentMatchers.argThat(auth->auth!=null && auth.getName().equals("operator")),eq(List.of("A, B","C")));
+    }
+    @Test
+    void businessCloseConflictDoesNotFallBackToLegacy() throws Exception {
+        when(dialogQuickActionService.requiresBusinessWorkflow("T-B","operator")).thenReturn(true);
+        when(dialogQuickActionService.resolveBusinessTicket(eq("T-B"),org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any()))
+            .thenReturn(new DialogResolveResult(false,true,"business_work_changed"));
+        mockMvc.perform(post("/api/dialog-ticket/resolve").param("ticketId","T-B").with(user("operator")).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content("{\"categories\":[\"A\"]}"))
+            .andExpect(status().isConflict()).andExpect(jsonPath("$.success").value(false));
+        verify(dialogQuickActionService,org.mockito.Mockito.never()).resolveTicket(org.mockito.ArgumentMatchers.anyString(),org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any());
+    }
+    @Test
+    void businessCloseNotFoundDoesNotFallBackToLegacy() throws Exception {
+        when(dialogQuickActionService.requiresBusinessWorkflow("T-B","operator")).thenReturn(true);
+        when(dialogQuickActionService.resolveBusinessTicket(eq("T-B"),org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any()))
+            .thenReturn(new DialogResolveResult(false,false,null));
+        mockMvc.perform(post("/api/dialog-ticket/resolve").param("ticketId","T-B").with(user("operator")).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content("{\"categories\":[\"A\"]}"))
+            .andExpect(status().isNotFound());
+        verify(dialogQuickActionService,org.mockito.Mockito.never()).resolveTicket(org.mockito.ArgumentMatchers.anyString(),org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     void resolveReturnsBadRequestWhenServiceReturnsDomainError() throws Exception {
         when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_close"), eq("quick_close"), eq("T-603")))
             .thenReturn(null);

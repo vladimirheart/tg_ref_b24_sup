@@ -1,6 +1,7 @@
 package com.example.panel.service;
 
 import com.example.panel.model.dialog.ChatMessageDto;
+import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.model.dialog.DialogPreviousHistoryBatch;
 import com.example.panel.model.dialog.DialogPreviousHistoryPage;
 import com.example.panel.storage.AttachmentService;
@@ -247,6 +248,27 @@ public class DialogConversationReadService {
         } catch (DataAccessException ex) {
             log.warn("Unable to load previous chat history for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
             return Optional.empty();
+        }
+    }
+
+    /** Read BUSINESS categories from the same canonical owner shown in the dialog summary. */
+    public List<String> loadTicketCategories(DialogListItem dialog) {
+        if (!dialog.isBusinessScope()) return loadTicketCategories(dialog.ticketId());
+        try {
+            return jdbcTemplate.query("""
+                    SELECT category.value AS category
+                      FROM tickets owner
+                      CROSS JOIN LATERAL jsonb_array_elements_text(owner.business_categories) WITH ORDINALITY AS category(value, position)
+                     WHERE owner.user_id = ? AND owner.ticket_id = ?
+                       AND owner.ticket_public_id = ? AND owner.business_id = ?
+                       AND owner.is_general = FALSE
+                       AND 1 = (SELECT COUNT(*) FROM tickets candidate WHERE candidate.ticket_id = owner.ticket_id)
+                     ORDER BY category.position
+                    """, (rs, rowNum) -> rs.getString("category"),
+                    dialog.userId(), dialog.ticketId(), dialog.ticketPublicId(), dialog.businessId());
+        } catch (DataAccessException ex) {
+            log.warn("Unable to load business dialog categories: {}", DialogDataAccessSupport.summarizeDataAccessException(ex));
+            return List.of();
         }
     }
 

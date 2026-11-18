@@ -291,6 +291,13 @@ public class DialogQuickActionService {
         return result;
     }
 
+    public DialogResolveResult resolveBusinessTicket(String ticketId, Authentication authentication, List<String> categories) {
+        if (businessTicketWorkService == null) return new DialogResolveResult(false, false, null);
+        DialogResolveResult result = businessTicketWorkService.closeByTicketId(ticketId, authentication, categories);
+        if (result.updated()) publishDialogsChanged(ticketId, "business_resolved");
+        return result;
+    }
+
     public DialogResolveResult reopenTicket(String ticketId, String operator) {
         DialogResolveResult result = dialogTicketLifecycleService.reopenTicket(ticketId, operator);
         if (result.exists() && !dialogTicketLifecycleService.canMutateLegacyTicket(ticketId)) {

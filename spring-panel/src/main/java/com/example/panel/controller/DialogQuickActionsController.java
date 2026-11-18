@@ -168,7 +168,10 @@ public class DialogQuickActionsController {
             }
             String operator = authentication != null ? authentication.getName() : null;
             List<String> categories = request != null ? request.categories() : List.of();
-            DialogResolveResult result = dialogQuickActionService.resolveTicket(ticketId, operator, categories);
+            boolean businessWorkflow = dialogQuickActionService.requiresBusinessWorkflow(ticketId, operator);
+            DialogResolveResult result = businessWorkflow
+                    ? dialogQuickActionService.resolveBusinessTicket(ticketId, authentication, categories)
+                    : dialogQuickActionService.resolveTicket(ticketId, operator, categories);
             if (!result.exists()) {
                 dialogAuthorizationService.logDialogAction(operator, ticketId, "quick_close", "not_found", "Диалог не найден");
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -176,6 +179,10 @@ public class DialogQuickActionsController {
             }
             if (result.error() != null) {
                 dialogAuthorizationService.logDialogAction(operator, ticketId, "quick_close", "error", result.error());
+                if (businessWorkflow && "business_work_changed".equals(result.error())) {
+                    return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("success", false,
+                            "error", "Обращение изменилось. Обновите карточку и повторите действие."));
+                }
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(Map.of("success", false, "error", result.error()));
             }
