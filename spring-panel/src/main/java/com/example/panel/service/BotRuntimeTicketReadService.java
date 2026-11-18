@@ -231,16 +231,15 @@ public class BotRuntimeTicketReadService {
         if (message == null) {
             return null;
         }
-        LocalDate createdDate = message.getCreatedDate();
         OffsetDateTime createdAt = message.getCreatedAt();
         Long messageId = message.getId();
-        if (createdDate == null && createdAt != null) {
-            createdDate = createdAt.toLocalDate();
-        }
-        if (createdDate == null || createdAt == null || messageId == null) {
+        if (createdAt == null || messageId == null) {
             return message.getTicketId();
         }
-        long sequence = messageRepository.countClientSequenceForDay(createdDate, createdAt, messageId);
+        LocalDate createdDate = createdAt.toLocalDate();
+        OffsetDateTime dayStart = createdDate.atStartOfDay().atOffset(createdAt.getOffset());
+        OffsetDateTime nextDayStart = dayStart.plusDays(1);
+        long sequence = messageRepository.countClientSequenceForDay(dayStart, nextDayStart, createdAt, messageId);
         if (sequence <= 0) {
             return message.getTicketId();
         }

@@ -22,6 +22,7 @@ import com.example.panel.repository.TicketActiveRepository;
 import com.example.panel.repository.TicketRepository;
 import java.util.Optional;
 import java.util.List;
+import java.time.OffsetDateTime;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EmptySource;
@@ -93,6 +94,33 @@ class BotRuntimeTicketReadServiceTest {
         assertThat(service.resolveRequestNumber(" T-901 "))
             .contains(new BotRuntimeTicketReadService.RequestNumberLookup(" T-901 ", " T-901 "));
         verify(messageRepository).findByTicketId(" T-901 ");
+    }
+
+    @Test
+    void requestNumberUsesCreatedAtWindowInsteadOfLegacyTextDate() {
+        MessageRepository messageRepository = mock(MessageRepository.class);
+        TicketRepository ticketRepository = mock(TicketRepository.class);
+        Ticket ticket = ticket("T-901", 901L, 19L);
+        Message message = new Message();
+        message.setId(41L);
+        message.setUserId(901L);
+        message.setTicketId("T-901");
+        OffsetDateTime createdAt = OffsetDateTime.parse("2026-11-18T11:02:36Z");
+        message.setCreatedAt(createdAt);
+        when(ticketRepository.findUniqueByLegacyTicketId("T-901")).thenReturn(Optional.of(ticket));
+        when(messageRepository.findByTicketId("T-901")).thenReturn(Optional.of(message));
+        when(messageRepository.countClientSequenceForDay(
+                OffsetDateTime.parse("2026-11-18T00:00:00Z"),
+                OffsetDateTime.parse("2026-11-19T00:00:00Z"), createdAt, 41L)).thenReturn(7L);
+        BotRuntimeTicketReadService service = new BotRuntimeTicketReadService(
+                messageRepository, ticketRepository, mock(TicketActiveRepository.class),
+                mock(FeedbackRepository.class), mock(PendingFeedbackRequestRepository.class));
+
+        assertThat(service.resolveRequestNumber("T-901"))
+                .contains(new BotRuntimeTicketReadService.RequestNumberLookup("T-901", "20261118-007"));
+        verify(messageRepository).countClientSequenceForDay(
+                OffsetDateTime.parse("2026-11-18T00:00:00Z"),
+                OffsetDateTime.parse("2026-11-19T00:00:00Z"), createdAt, 41L);
     }
 
     @Test

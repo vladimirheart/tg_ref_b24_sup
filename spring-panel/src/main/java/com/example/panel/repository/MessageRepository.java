@@ -2,7 +2,6 @@ package com.example.panel.repository;
 
 import com.example.panel.entity.Message;
 import com.example.panel.service.db.projection.ClientAnalyticsProjection;
-import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -32,13 +31,15 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     @Query("""
             SELECT COUNT(m)
               FROM Message m
-             WHERE m.createdDate = :createdDate
+             WHERE m.createdAt >= :dayStart
+               AND m.createdAt < :nextDayStart
                AND (
                     m.createdAt < :createdAt
                     OR (m.createdAt = :createdAt AND m.id <= :messageId)
                )
             """)
-    long countClientSequenceForDay(@Param("createdDate") LocalDate createdDate,
+    long countClientSequenceForDay(@Param("dayStart") OffsetDateTime dayStart,
+                                   @Param("nextDayStart") OffsetDateTime nextDayStart,
                                    @Param("createdAt") OffsetDateTime createdAt,
                                    @Param("messageId") Long messageId);
 

@@ -1322,15 +1322,15 @@ public class SupportBot extends TelegramLongPollingBot {
                 session.userId(),
                 session.chatId(),
                 flow.size());
-        if (scope == null) {
-            ticketService.findLastMessage(message.getFrom().getId())
-                    .ifPresent(last -> session.enableReusePrompt(Map.of(
-                            "business", Optional.ofNullable(last.getBusiness()).orElse(""),
-                            "location_type", Optional.ofNullable(last.getLocationType()).orElse(""),
-                            "city", Optional.ofNullable(last.getCity()).orElse(""),
-                            "location_name", Optional.ofNullable(last.getLocationName()).orElse("")
-                    )));
-        }
+        ticketService.findLastMessage(message.getFrom().getId())
+                .map(last -> TelegramConversationReuseSupport.answers(
+                        last.getBusiness(),
+                        last.getLocationType(),
+                        last.getCity(),
+                        last.getLocationName()
+                ))
+                .filter(defaults -> !defaults.isEmpty())
+                .ifPresent(session::enableReusePrompt);
         conversations.put(message.getFrom().getId(), session);
         log.info("Conversation initialized for user {} - sending first prompt", session.userId());
         String startAutoReply = botSettingsService.startAutoReply(

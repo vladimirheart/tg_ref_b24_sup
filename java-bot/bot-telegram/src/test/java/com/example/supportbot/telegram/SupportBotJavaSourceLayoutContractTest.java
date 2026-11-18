@@ -61,6 +61,17 @@ class SupportBotJavaSourceLayoutContractTest {
     }
 
     @Test
+    void priorRequestReuseIsAvailableForFieldBoundQuestionnaires() throws IOException {
+        String bot = read("src/main/java/com/example/supportbot/telegram/SupportBot.java");
+
+        assertThat(bot)
+                .contains("ticketService.findLastMessage(message.getFrom().getId())")
+                .contains("TelegramConversationReuseSupport.answers(")
+                .contains(".ifPresent(session::enableReusePrompt)")
+                .doesNotContain("if (scope == null) {\n            ticketService.findLastMessage");
+    }
+
+    @Test
     void apiEndpointPolicyUsesDedicatedSupportOwner() throws IOException {
         String bot = read("src/main/java/com/example/supportbot/telegram/SupportBot.java");
         String support = read("src/main/java/com/example/supportbot/telegram/TelegramApiEndpointSupport.java");
