@@ -316,6 +316,23 @@ public class DialogReplyTransportService {
                 .build();
             if (sendGuard==null || !sendGuard.getAsBoolean()) return scopeDenied();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            if (shouldRetryTelegramTextDirectly(channel, response)) {
+                log.warn(
+                    "Telegram Bot API mirror returned HTTP {} for channel {} sendMessage; retrying through the direct Telegram API",
+                    response.statusCode(),
+                    channel != null ? channel.getId() : null
+                );
+                HttpRequest directRequest = HttpRequest.newBuilder()
+                    .uri(URI.create(DEFAULT_TELEGRAM_API_ROOT_URL + "/bot" + channel.getToken() + "/sendMessage"))
+                    .timeout(TELEGRAM_REQUEST_TIMEOUT)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
+                    .build();
+                if (sendGuard==null || !sendGuard.getAsBoolean()) return scopeDenied();
+                response = integrationNetworkService
+                    .createDirectHttpClient(TELEGRAM_REQUEST_TIMEOUT)
+                    .send(directRequest, HttpResponse.BodyHandlers.ofString());
+            }
             return resolveTelegramTransportResult(
                 response,
                 "Ошибка отправки сообщения в Telegram.",
@@ -350,6 +367,17 @@ public class DialogReplyTransportService {
                 elapsedMillis(startedAtNs)
             );
         }
+    }
+
+    private boolean shouldRetryTelegramTextDirectly(Channel channel, HttpResponse<String> response) {
+        if (response == null || !isGatewayFailure(response.statusCode())) {
+            return false;
+        }
+        return StringUtils.hasText(integrationNetworkService.resolveTelegramLegacyBotApiBaseUrl(channel));
+    }
+
+    private boolean isGatewayFailure(int statusCode) {
+        return statusCode == 502 || statusCode == 503 || statusCode == 504;
     }
 
     private DialogReplyTransportResult sendVkText(Channel channel, Long userId, String text,BooleanSupplier sendGuard) {

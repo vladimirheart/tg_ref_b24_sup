@@ -109,8 +109,7 @@ public class IntegrationNetworkService {
 
     public HttpClient createChannelHttpClient(Channel channel, Duration timeout) {
         RouteSettings route = resolveBotRoute(channel);
-        HttpClient.Builder builder = HttpClient.newBuilder()
-            .connectTimeout(timeout != null ? timeout : Duration.ofSeconds(10));
+        HttpClient.Builder builder = createHttpClientBuilder(timeout);
 
         String legacyTelegramMirrorBaseUrl = resolveTelegramLegacyBotApiBaseUrl(channel);
         if (hasText(legacyTelegramMirrorBaseUrl)) {
@@ -142,6 +141,20 @@ public class IntegrationNetworkService {
         }
 
         return builder.build();
+    }
+
+    /**
+     * Creates a client which deliberately bypasses a channel route. This is only
+     * for a bounded provider fallback after a gateway error from a Bot API
+     * mirror; normal traffic must continue to use {@link #createChannelHttpClient}.
+     */
+    public HttpClient createDirectHttpClient(Duration timeout) {
+        return createHttpClientBuilder(timeout).build();
+    }
+
+    private HttpClient.Builder createHttpClientBuilder(Duration timeout) {
+        return HttpClient.newBuilder()
+            .connectTimeout(timeout != null ? timeout : Duration.ofSeconds(10));
     }
 
     public String resolveTelegramLegacyBotApiBaseUrl(Channel channel) {

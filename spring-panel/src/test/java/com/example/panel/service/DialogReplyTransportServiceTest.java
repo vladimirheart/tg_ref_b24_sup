@@ -66,6 +66,39 @@ class DialogReplyTransportServiceTest {
         if ("max".equals(platform)) assertThat(request.headers().firstValue("Authorization")).contains("frozen-test-token");
     }
 
+    @Test
+    void retriesTelegramTextDirectlyWhenLegacyMirrorReturnsGatewayError() throws Exception {
+        HttpClient mirrorClient = mock(HttpClient.class);
+        HttpClient directClient = mock(HttpClient.class);
+        IntegrationNetworkService network = mock(IntegrationNetworkService.class);
+        Channel channel = new Channel();
+        channel.setId(7L);
+        channel.setPlatform("telegram");
+        channel.setToken("test-token");
+        when(network.createChannelHttpClient(any(), any(Duration.class))).thenReturn(mirrorClient);
+        when(network.resolveTelegramLegacyBotApiBaseUrl(channel)).thenReturn("https://telegram.ftl-dev.ru");
+        when(network.createDirectHttpClient(Duration.ofSeconds(15))).thenReturn(directClient);
+        when(mirrorClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+            .thenAnswer(call -> responseFor(call.getArgument(0), new ArrayList<>(), "<html>502 Bad Gateway</html>", 502));
+        List<HttpRequest> directRequests = new ArrayList<>();
+        when(directClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+            .thenAnswer(call -> {
+                HttpRequest request = call.getArgument(0);
+                directRequests.add(request);
+                return responseFor(request, new ArrayList<>(), "{\"ok\":true,\"result\":{\"message_id\":93}}", 200);
+            });
+
+        DialogReplyTransportService service = new DialogReplyTransportService(
+            mock(com.example.panel.repository.ChannelRepository.class), network, new ObjectMapper());
+
+        DialogReplyTransportService.DialogReplyTransportResult result = service.sendText(channel, 42L, "Ответ", null);
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.telegramMessageId()).isEqualTo(93L);
+        assertThat(directRequests).singleElement().satisfies(request ->
+            assertThat(request.uri().toString()).isEqualTo("https://api.telegram.org/bottest-token/sendMessage"));
+    }
+
     @ParameterizedTest @ValueSource(strings={"telegram","vk","max"})
     void absentSendGuardNeverCallsProvider(String platform) throws Exception {
         HttpClient http=mock(HttpClient.class);IntegrationNetworkService network=mock(IntegrationNetworkService.class);
