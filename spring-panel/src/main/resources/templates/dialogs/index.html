@@ -492,26 +492,11 @@
                         th:data-last-message-timestamp="${dialog.lastMessageTimestamp()}">
                         <td class="dialog-actions" data-column-key="actions">
                             <div class="dialog-actions-inline">
-                                <a th:if="${dialog.businessScope and dialog.ticketPublicId() != null}"
-                                   th:href="@{/business-dialog-assignment/{publicId}(publicId=${dialog.ticketPublicId()})}"
-                                   class="dialog-open-btn dialog-open-icon"
-                                   th:data-ticket-id="${dialog.ticketId}"
-                                   aria-label="Открыть бизнес-обращение"
-                                   title="Открыть бизнес-обращение"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
-                                <span th:if="${dialog.businessScope and dialog.ticketPublicId() == null}"
-                                      class="dialog-open-icon text-muted"
-                                      title="У бизнес-обращения нет публичного идентификатора"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></span>
-                                <a th:unless="${dialog.businessScope}"
-                                   th:href="@{/dialogs(ticketId=${dialog.ticketId},channelId=${dialog.channelId()})}"
+                                <a th:href="@{/dialogs(ticketId=${dialog.ticketId},channelId=${dialog.channelId()})}"
                                    class="dialog-open-btn dialog-open-icon"
                                    th:data-ticket-id="${dialog.ticketId}"
                                    aria-label="Открыть диалог"
                                    title="Открыть диалог"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
-                                <div th:if="${dialog.businessScope}" class="dialog-actions-dropdown" data-dialog-actions>
-                                    <a th:if="${dialog.ticketPublicId() != null}"
-                                       th:href="@{/business-dialog-assignment/{publicId}(publicId=${dialog.ticketPublicId()})}"
-                                       class="btn btn-sm btn-outline-secondary">Карточка бизнеса</a>
-                                </div>
                                 <div th:unless="${dialog.businessScope}" class="dialog-actions-dropdown" data-dialog-actions>
                                     <button type="button"
                                             class="btn btn-sm btn-outline-secondary dialog-actions-toggle"
@@ -1326,7 +1311,7 @@
     in_work: Array.isArray(RAW_MY_IN_WORK_DIALOGS) ? RAW_MY_IN_WORK_DIALOGS : [],
   };
 </script>
-<th:block th:with="dialogsAssetVersion='20261112-first-paint'">
+<th:block th:with="dialogsAssetVersion='20261117-dialog-entry'">
 <script th:src="@{/js/dialogs-list-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-shell-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-avatar-runtime.js(v=${dialogsAssetVersion})}"></script>
@@ -1439,7 +1424,7 @@
                             <label class="form-label" for="dialogLocationBusinessLocation">Локация</label>
                             <select class="form-select" id="dialogLocationBusinessLocation"></select>
                         </div>
-                        <div class="form-text mt-2">Выбор доступен только если бизнес не был определён вопросником. После сохранения обращение перейдёт в бизнес-контур.</div>
+                        <div class="form-text mt-2">Выбор доступен только если бизнес не был определён вопросником. После сохранения бизнес появится в карточке обращения.</div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
@@ -1449,7 +1434,7 @@
             </div>
         </div>
     </div>
-    <script th:src="@{/js/dialogs-business-selection-runtime.js(v='20261116-01-293-r1')}"></script>
+    <script th:src="@{/js/dialogs-business-selection-runtime.js(v='20261117-dialog-entry')}"></script>
 
 </body>
 </html>

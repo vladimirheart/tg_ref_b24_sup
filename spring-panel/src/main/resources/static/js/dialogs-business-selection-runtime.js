@@ -22,6 +22,8 @@
   function currentContext() {
     const row = document.querySelector('tr.dialog-row-active');
     return {
+      ticketId: clean(row?.dataset?.ticketId),
+      channelId: clean(row?.dataset?.channelId),
       scopeKind: clean(row?.dataset?.scopeKind),
       ticketPublicId: clean(row?.dataset?.ticketPublicId),
     };
@@ -64,11 +66,7 @@
     activeContext = currentContext();
     showError('');
     if (activeContext.scopeKind === 'BUSINESS') {
-      if (validPublicId(activeContext.ticketPublicId)) {
-        window.location.assign(`/business-dialog-assignment/${encodeURIComponent(activeContext.ticketPublicId)}`);
-        return;
-      }
-      showError('У бизнес-обращения отсутствует публичный идентификатор.');
+      showError('Бизнес уже выбран для этого обращения. Изменить его можно в карточке диалога.');
       modal.show();
       return;
     }
@@ -118,11 +116,14 @@
       if (!response.ok || payload?.success !== true) {
         throw new Error(payload?.error || `HTTP ${response.status}`);
       }
-      const managementUrl = clean(payload.managementUrl);
-      if (!managementUrl.startsWith('/business-dialog-assignment/')) {
-        throw new Error('Сервер не вернул адрес бизнес-карточки.');
+      if (!activeContext.ticketId) {
+        throw new Error('Не удалось определить обращение для обновления.');
       }
-      window.location.assign(managementUrl);
+      const query = new URLSearchParams({ ticketId: activeContext.ticketId });
+      if (activeContext.channelId) {
+        query.set('channelId', activeContext.channelId);
+      }
+      window.location.assign(`/dialogs?${query.toString()}`);
     } catch (error) {
       showError(error instanceof Error ? error.message : String(error));
     } finally {

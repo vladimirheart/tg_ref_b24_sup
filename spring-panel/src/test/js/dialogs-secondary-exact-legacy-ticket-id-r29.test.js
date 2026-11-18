@@ -103,7 +103,19 @@ function evalFn(text,name,ctx={}){
   current='T-EXACT';assert.equal(f(),'T-EXACT');
   current='   ';assert.equal(f(),'');
  });
- if(passed!==10)throw Error('TEST_COUNT_RED:'+passed);
+ await test('business_scope_uses_standard_dialog_entry',()=>{
+  const template=fs.readFileSync(path.resolve(__dirname,'../../main/resources/templates/dialogs/index.html'),'utf8');
+  const dialogs=fs.readFileSync(path.join(base,'dialogs.js'),'utf8');
+  const flow=source.get('dialogs-flow-runtime.js');
+  const businessSelection=fs.readFileSync(path.join(base,'dialogs-business-selection-runtime.js'),'utf8');
+  assert.doesNotMatch(template,/business-dialog-assignment/);
+  assert.doesNotMatch(dialogs,/business-dialog-assignment/);
+  assert.doesNotMatch(flow,/business-dialog-assignment/);
+  assert.doesNotMatch(businessSelection,/business-dialog-assignment/);
+  assert.match(template,/Открыть диалог/);
+  assert.match(businessSelection,/new URLSearchParams\(\{ ticketId: activeContext\.ticketId \}\)/);
+ });
+ if(passed!==11)throw Error('TEST_COUNT_RED:'+passed);
  console.log('UI_EXACT_ID_TESTS_GREEN='+passed);
  console.log('UI_EXACT_ID_TEST_RESULT=GREEN');
 })().catch(err=>{console.error('UI_EXACT_ID_TEST_FATAL='+String(err&&err.message||err));process.exitCode=1;});

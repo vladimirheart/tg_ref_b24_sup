@@ -35,7 +35,7 @@ class DialogListTimeZoneRenderingSourceContractTest {
             .contains("th:data-created-at=\"${dialog.createdAt()}\"")
             .contains("data-dialog-created-date th:text=\"${dialog.createdDateSafe()}\"")
             .contains("data-dialog-created-time th:text=\"${dialog.createdTimeSafe()}\"")
-            .contains("dialogsAssetVersion='20261112-first-paint'")
+            .contains("dialogsAssetVersion='20261117-dialog-entry'")
             .contains("dialogs.js(v=${dialogsAssetVersion})");
     }
 
