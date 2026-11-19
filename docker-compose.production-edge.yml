@@ -7,7 +7,7 @@ x-iguana-logging: &iguana-logging
 services:
   nginx:
     logging: *iguana-logging
-    image: nginx:1.27-alpine
+    image: nginx:1.30.7-alpine
     restart: unless-stopped
     depends_on:
       panel-web:
