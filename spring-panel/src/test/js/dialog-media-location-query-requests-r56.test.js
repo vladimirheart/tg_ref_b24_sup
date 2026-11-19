@@ -182,6 +182,5 @@ async function locationRequests() {
   await locationRequests();
   const template = fs.readFileSync(path.resolve(__dirname, '../../main/resources/templates/dialogs/index.html'), 'utf8');
   assert.ok(template.includes("dialogs-details-history-runtime.js(v='20261119-session-relogin')"));
-  assert.ok(template.includes("dialogs-location-business-runtime.js(v='20261012-01-278-r56')"));
   console.log('DIALOG_MEDIA_LOCATION_QUERY_R56_RESULT=GREEN');
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -20,12 +20,13 @@ class Element {
   setAttribute() {}
 }
 
-function fixture(initialCategories = []) {
+function fixture(initialCategories = [], summaryOverrides = {}) {
   const ticketId = ' R/Ю?#+ ';
   let selected = new Set(), serverCategories = initialCategories, timer;
+  let serverStatus = 'open', serverHistory = [], renderedHistory = [];
   let panelOpens = 0;
   const requests = [], notices = [], errors = [];
-  const elements = { detailsModalEl: new Element(), detailsResolve: new Element(), workspaceCategoriesList: new Element() };
+  const elements = { detailsModalEl: new Element(), detailsResolve: new Element(), workspaceCategoriesList: new Element(), detailsMetrics: new Element() };
   const row = { tagName: 'TR', dataset: { status: 'open', scopeKind: 'BUSINESS' } };
   const state = { ticketId, row };
   const context = vm.createContext({ window: {
@@ -41,12 +42,15 @@ function fixture(initialCategories = []) {
       }
       if (url.pathname === '/api/dialog-ticket/resolve') {
         assert.deepEqual(JSON.parse(init.body).categories, serverCategories);
+        serverStatus = 'resolved';
+        serverHistory = [{ sender: 'system', messageType: 'system_notification', message: 'Диалог закрыт. Спасибо за обращение!' }];
         return { ok: true, json: async () => ({ success: true, updated: true }) };
       }
       assert.equal(url.pathname, '/api/dialog-ticket');
       return { ok: true, json: async () => ({ summary: {
-        ticketId, scopeKind: 'BUSINESS', status: 'open', categories: 'Stale header label',
-      }, categories: serverCategories, history: [] }) };
+        ticketId, scopeKind: 'BUSINESS', status: serverStatus, categories: 'Stale header label',
+        ...summaryOverrides,
+      }, categories: serverCategories, history: serverHistory }) };
     },
   });
   for (const file of ['dialogs-templates-runtime.js', 'dialogs-details-runtime.js', 'dialogs-actions-runtime.js']) {
@@ -61,6 +65,7 @@ function fixture(initialCategories = []) {
   });
   const details = context.window.DialogsDetailsRuntime.createRuntime({ ...common,
     syncCategorySelections: templates.syncCategorySelections,
+    renderHistory: history => { renderedHistory = history; },
     debugLog: (name, value) => { if (name === 'openDialogDetails.catch') errors.push(value); },
   });
   const actions = context.window.DialogsActionsRuntime.createRuntime({ ...common,
@@ -76,6 +81,8 @@ function fixture(initialCategories = []) {
     save: () => timer(), reopen: () => details.openDialogDetails(ticketId, row),
     close: () => elements.detailsResolve.listeners.click(), requests, notices, errors,
     selected: () => [...selected], panelOpens: () => panelOpens,
+    metrics: () => elements.detailsMetrics.innerHTML,
+    history: () => renderedHistory,
   };
 }
 
@@ -89,6 +96,38 @@ test('saved BUSINESS categories survive reopening and are sent unchanged by the 
   assert.equal(ui.panelOpens(), 0);
   assert.deepEqual(ui.errors, []);
   assert.equal(ui.notices.some(notice => notice.type === 'error'), false);
+  assert.equal(ui.history().length, 1);
+  assert.equal(ui.history()[0].message, 'Диалог закрыт. Спасибо за обращение!');
+});
+
+for (const [name, dates, expected] of [
+  ['PostgreSQL UTC microseconds', { createdAt: '2026-11-18 11:02:00.123456+00', resolvedAt: '2026-11-18 15:33:00.123456+00' }, '4 ч 31 мин'],
+  ['PostgreSQL short positive offset', { createdAt: '2026-11-18 11:02:00+03', resolvedAt: '2026-11-18 15:33:00+03' }, '4 ч 31 мин'],
+  ['different zones', { createdAt: '2026-11-18 11:02:00+03', resolvedAt: '2026-11-18T12:33:00Z' }, '4 ч 31 мин'],
+  ['compact offsets', { createdAt: '2026-11-18T11:02:00+0300', resolvedAt: '2026-11-18T15:33:00+0300' }, '4 ч 31 мин'],
+  ['timestamps without zone', { createdAt: '2026-11-18 11:02:00', resolvedAt: '2026-11-18T15:33:00Z' }, '4 ч 31 мин'],
+  ['separate date and time', { createdDate: '2026-11-18', createdTime: '11:02', resolvedAt: '2026-11-18T15:33:00Z' }, '4 ч 31 мин'],
+  ['localized separate date and time', { createdDate: '18.11.2026', createdTime: '11:02', resolvedAt: '2026-11-18T15:33:00Z' }, '4 ч 31 мин'],
+  ['date without time', { createdDate: '2026-11-18', resolvedAt: '2026-11-18T01:30:00Z' }, '1 ч 30 мин'],
+  ['snake case fields', { created_at: '2026-11-18 11:02:00+03', resolved_at: '2026-11-18 15:33:00+03' }, '4 ч 31 мин'],
+  ['epoch seconds', { createdAt: '1794999720', resolvedAt: '1795015980' }, '4 ч 31 мин'],
+  ['epoch zero', { createdAt: '1970-01-01T00:00:00Z', resolvedAt: '1970-01-01T00:02:00Z' }, '2 мин'],
+  ['missing creation time', { resolvedAt: '2026-11-18T15:33:00Z' }, '—'],
+  ['closed without resolution time', { createdAt: '2026-11-18T11:02:00Z' }, '—'],
+]) {
+  test(`closed dialog metrics: ${name}`, async () => {
+    const ui = fixture(['Консультация'], { status: 'resolved', ...dates });
+    await ui.reopen();
+    assert.deepEqual(ui.errors, []);
+    assert.match(ui.metrics(), new RegExp(`Время обращения</span>\\s*<span[^>]*>${expected}</span>`));
+  });
+}
+
+test('open dialog duration uses the current time even when a previous resolution time exists', async () => {
+  const ui = fixture(['Консультация'], { status: 'open', createdAt: new Date(Date.now() - 90 * 60000).toISOString(), resolvedAt: '2026-01-01T00:00:00Z' });
+  await ui.reopen();
+  assert.deepEqual(ui.errors, []);
+  assert.match(ui.metrics(), /Время обращения<\/span>\s*<span[^>]*>1 ч 30 мин<\/span>/);
 });
 
 test('an explicitly empty category array still prevents closing despite a stale header label', async () => {

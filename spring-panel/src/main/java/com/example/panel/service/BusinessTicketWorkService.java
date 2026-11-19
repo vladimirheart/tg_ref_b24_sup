@@ -12,6 +12,7 @@ import java.sql.Types;
 import java.time.OffsetDateTime;
 import java.util.*;
 import org.springframework.dao.DataAccessException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.*;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
@@ -19,7 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
-/** Local human BUSINESS lifecycle. No raw category, activity, feedback, AI or provider workflow. */
+/** Human BUSINESS lifecycle with scoped closure history and post-commit client notification. */
 @Service
 public class BusinessTicketWorkService {
     private static final String AUTHENTICATED_ACTOR=" CROSS JOIN (SELECT CAST(:identity AS TEXT) AS user_identity) n "
@@ -30,9 +31,16 @@ public class BusinessTicketWorkService {
     private final ObjectMapper json;
     private final LegacyTicketIdConcurrencyGuard guard;
     private final TransactionTemplate transaction;
+    private final BusinessTicketClosureNotificationService closureNotifications;
 
     public BusinessTicketWorkService(JdbcTemplate jdbc,MultibusinessFeatureFlags flags,UiEventOutboxAppendService ids,ObjectMapper json) {
+        this(jdbc,flags,ids,json,null);
+    }
+    @Autowired
+    public BusinessTicketWorkService(JdbcTemplate jdbc,MultibusinessFeatureFlags flags,UiEventOutboxAppendService ids,ObjectMapper json,
+                                     BusinessTicketClosureNotificationService closureNotifications) {
         this.jdbc=new NamedParameterJdbcTemplate(jdbc);this.flags=flags;this.ids=ids;this.json=json;
+        this.closureNotifications=closureNotifications;
         guard=new LegacyTicketIdConcurrencyGuard(jdbc);
         transaction=new TransactionTemplate(new DataSourceTransactionManager(jdbc.getDataSource()));
         transaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
@@ -125,7 +133,8 @@ public class BusinessTicketWorkService {
             .addValue("authenticatedActorId",account.getUserId()).addValue("authenticatedActorName",identity);
         String from=" FROM tickets owner"+AUTHENTICATED_ACTOR+" JOIN businesses business ON business.id=owner.business_id"
             +" WHERE "+OWNER+READ+" AND "+OPERATOR;
-        try{return Boolean.TRUE.equals(transaction.execute(tx->{
+        var notice=new BusinessTicketClosureNotificationService.Closure[1];
+        try{boolean committed=Boolean.TRUE.equals(transaction.execute(tx->{
             guard.acquire(scope.ticketId());
             var roots=jdbc.query("SELECT owner.channel_id,owner.business_categories,actor.id AS actor_id,actor.username"+from
                 +" AND owner.business_work_revision=:revision AND owner.status=:expectedStatus FOR UPDATE OF owner FOR SHARE OF actor,business",params,
@@ -179,8 +188,13 @@ public class BusinessTicketWorkService {
             if(audit!=1||outbox!=1||confirmation.size()!=1||!valid(scope,identity)) {
                 tx.setRollbackOnly();return false;
             }
+            if(action.equals("close") && closureNotifications!=null)
+                notice[0]=closureNotifications.recordClosure(scope,root.channel(),changed.get(0));
             return true;
-        }));}catch(DataAccessException|IllegalStateException|IllegalArgumentException ex){return false;}
+        }));
+            if(committed && notice[0]!=null)closureNotifications.notifyClosed(notice[0]);
+            return committed;
+        }catch(DataAccessException|IllegalStateException|IllegalArgumentException ex){return false;}
     }
     private PanelUserPrincipal boundActor(Authentication authentication){
         if(authentication==null||!authentication.isAuthenticated()||authentication instanceof AnonymousAuthenticationToken
