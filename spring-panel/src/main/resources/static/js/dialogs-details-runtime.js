@@ -171,31 +171,39 @@
     }
 
     function parseTimestampValue(raw) {
-      if (!raw) return null;
+      if (raw === null || raw === undefined || raw === '') return null;
       const text = String(raw).trim();
       if (!text) return null;
       if (/^\d{10,13}$/.test(text)) {
         const value = text.length === 10 ? Number(text) * 1000 : Number(text);
         return Number.isFinite(value) ? value : null;
       }
-      const parsed = Date.parse(text.replace(' ', 'T'));
+      // PostgreSQL JDBC returns microseconds and offsets such as +00 or +03.
+      // Normalize to browser ISO format; timestamps without a zone are stored as UTC.
+      let normalized = text.replace(' ', 'T').replace(/(\.\d{3})\d+/, '$1');
+      if (normalized.includes('T')) normalized = normalized
+        .replace(/([+-]\d{2})$/, '$1:00')
+        .replace(/([+-]\d{2})(\d{2})$/, '$1:$2');
+      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/.test(normalized)) normalized += 'Z';
+      const parsed = Date.parse(normalized);
       return Number.isFinite(parsed) ? parsed : null;
     }
 
     function parseDialogTimestamp(summary, fallbackRow) {
+      const date = String(summary?.createdDate || summary?.created_date || '').trim()
+        .replace(/^(\d{2})\.(\d{2})\.(\d{4})$/, '$3-$2-$1');
+      const time = String(summary?.createdTime || summary?.created_time || '').trim();
       const candidates = [
         summary?.createdAt,
         summary?.created_at,
-        summary?.createdDate,
-        summary?.created_date,
-        summary?.createdTime,
-        summary?.created_time,
+        date && time ? `${date}T${time}` : null,
         fallbackRow?.dataset?.createdAt,
         fallbackRow?.dataset?.created_at,
+        date,
       ];
       for (const raw of candidates) {
         const parsed = parseTimestampValue(raw);
-        if (parsed) return parsed;
+        if (Number.isFinite(parsed)) return parsed;
       }
       return null;
     }
@@ -544,9 +552,8 @@
           const timeMetricsConfig = normalizeDialogTimeMetrics(window.DIALOG_CONFIG?.time_metrics);
           const createdAtTimestamp = parseDialogTimestamp(summary, fallbackRow);
           const resolvedAtTimestamp = parseTimestampValue(resolvedAt);
-          const shouldUseResolvedTime = isResolvedStatus(statusRaw, statusKey, statusLabel) && Number.isFinite(resolvedAtTimestamp);
-          const endTimestamp = shouldUseResolvedTime ? resolvedAtTimestamp : Date.now();
-          const totalMinutes = Number.isFinite(createdAtTimestamp)
+          const endTimestamp = isResolvedStatus(statusRaw, statusKey, statusLabel) ? resolvedAtTimestamp : Date.now();
+          const totalMinutes = Number.isFinite(createdAtTimestamp) && Number.isFinite(endTimestamp)
             ? Math.max(0, Math.floor((endTimestamp - createdAtTimestamp) / 60000))
             : null;
           const timeLabel = totalMinutes === null ? '—' : formatDuration(totalMinutes);
