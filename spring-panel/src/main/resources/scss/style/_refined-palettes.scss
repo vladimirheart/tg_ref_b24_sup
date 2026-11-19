@@ -1,0 +1,113 @@
+/* 01-297: approved palettes. neo remains the stored key of the graphite palette. */
+@mixin palette($page, $sidebar, $text, $muted, $line, $soft, $selected, $primary, $on-primary) {
+  --background: #{$page};
+  --card: #{$page};
+  --popover: #{$page};
+  --sidebar: #{$sidebar};
+  --foreground: #{$text};
+  --card-foreground: #{$text};
+  --popover-foreground: #{$text};
+  --sidebar-foreground: #{$text};
+  --muted-foreground: #{$muted};
+  --border: #{$line};
+  --sidebar-border: #{$line};
+  --input: #{$line};
+  --muted: #{$soft};
+  --secondary: #{$primary};
+  --accent: #{$primary};
+  --accent-foreground: #{$on-primary};
+  --sidebar-accent: #{$primary};
+  --sidebar-accent-foreground: #{$on-primary};
+  --primary: #{$primary};
+  --primary-foreground: #{$on-primary};
+  --secondary-foreground: #{$on-primary};
+  --sidebar-primary: #{$primary};
+  --sidebar-primary-foreground: #{$on-primary};
+  --ring: #{$primary};
+  --sidebar-ring: #{$primary};
+  --color-bg-muted: #{$soft};
+  --color-surface-soft: #{$soft};
+  --surface-interactive: #{$soft};
+  --surface-selected: #{$selected};
+  --color-accent-strong: color-mix(in srgb, #{$primary} 88%, #{$text});
+  --chart-1: #{$primary};
+  --chart-2: color-mix(in srgb, #{$primary} 72%, #{$text});
+  --chart-3: color-mix(in srgb, #{$primary} 55%, #{$muted});
+  --chart-4: #{$muted};
+  --chart-5: color-mix(in srgb, #{$primary} 40%, #{$text});
+}
+
+:root:not([data-theme-palette]), :root[data-theme-palette='neo'], body[data-theme-palette='neo'] {
+  @include palette(#fff, #f8f8f9, #25262b, #686973, #e5e5e9, #f2f2f5, #ececf2, #6268c6, #fff);
+}
+:root[data-theme='dark']:not([data-theme-palette]), :root[data-theme='dark'][data-theme-palette='neo'], body[data-theme='dark'][data-theme-palette='neo'] {
+  @include palette(#1c1d21, #202125, #ebebee, #a0a1aa, #303138, #27282e, #303139, #9b9deb, #181923);
+}
+:root[data-theme-palette='forest'], body[data-theme-palette='forest'] {
+  @include palette(#fbfcfa, #f0f4ef, #24382d, #586a5c, #dfe7de, #edf2eb, #e3ece1, #347452, #fff);
+}
+:root[data-theme='dark'][data-theme-palette='forest'], body[data-theme='dark'][data-theme-palette='forest'] {
+  @include palette(#171e1b, #1b2520, #e7eee8, #a1b2a4, #2e3c32, #233027, #2d3c30, #91bb9d, #18241c);
+}
+:root[data-theme-palette='sand'], body[data-theme-palette='sand'] {
+  @include palette(#fdfbf7, #f3eee5, #37302a, #6a6056, #e8dfd2, #f1ebe1, #eae0d1, #a05839, #fff);
+}
+:root[data-theme='dark'][data-theme-palette='sand'], body[data-theme='dark'][data-theme-palette='sand'] {
+  @include palette(#231e1a, #2b241e, #f0e9df, #bbad9b, #40362b, #332b23, #44362a, #dcaa7f, #2a2118);
+}
+:root[data-theme-palette='north'], body[data-theme-palette='north'] {
+  @include palette(#fbfcfe, #eff3f8, #253449, #58677c, #e0e7f0, #edf2f7, #e0e8f3, #3567ad, #fff);
+}
+:root[data-theme='dark'][data-theme-palette='north'], body[data-theme='dark'][data-theme-palette='north'] {
+  @include palette(#171e29, #1d2633, #e7edf6, #9fadc2, #303d50, #232f40, #2b3a50, #99b8ec, #172336);
+}
+:root[data-theme-palette='plum'], body[data-theme-palette='plum'] {
+  @include palette(#fdfbfe, #f4eff6, #3c2d43, #6c5b74, #e8dfec, #f3edf5, #ebe0f0, #82559a, #fff);
+}
+:root[data-theme='dark'][data-theme-palette='plum'], body[data-theme='dark'][data-theme-palette='plum'] {
+  @include palette(#211b26, #291f2f, #f0e7f5, #b7a4c2, #423249, #33273b, #413049, #c4a0d6, #2a1d31);
+}
+
+/* New palette keys inherit the same complete token contract as legacy palettes. */
+:root[data-theme-palette], body[data-theme-palette] {
+  color-scheme: light;
+  --font-sans: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --color-bg: var(--background);
+  --color-surface: var(--card);
+  --color-text: var(--foreground);
+  --color-text-muted: var(--muted-foreground);
+  --color-border: var(--border);
+  --surface-page: var(--background);
+  --surface-card: var(--card);
+  --surface-soft: var(--color-surface-soft);
+  --surface-raised: var(--card);
+  --color-accent: var(--primary);
+  --ui-panel-bg: var(--card);
+  --ui-panel-border: var(--border);
+  --ui-panel-shadow: none;
+}
+:root[data-theme='dark'][data-theme-palette], body[data-theme='dark'][data-theme-palette] { color-scheme: dark; }
+
+/* Severity/status identity is independent of the decorative palette. */
+:root[data-theme-palette]:not([data-theme='dark']), body[data-theme-palette]:not([data-theme='dark']) {
+  --state-danger: #b53e47;
+  --state-warning: #946019;
+  --state-success: #347452;
+  --state-system: #3567ad;
+  --state-ai: #82559a;
+  --color-danger-bg: #fceff0;
+  --color-warning-bg: #faf3e5;
+  --color-success-bg: #edf5ef;
+  --color-info-bg: #edf2fa;
+}
+:root[data-theme='dark'][data-theme-palette] {
+  --state-danger: #f2a3a9;
+  --state-warning: #e8bf7c;
+  --state-success: #91bb9d;
+  --state-system: #99b8ec;
+  --state-ai: #c4a0d6;
+  --color-danger-bg: #44262c;
+  --color-warning-bg: #3b3224;
+  --color-success-bg: #25382b;
+  --color-info-bg: #26364b;
+}

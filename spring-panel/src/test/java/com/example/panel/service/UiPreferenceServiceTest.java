@@ -4,6 +4,8 @@ import com.example.panel.support.PostgresqlJdbcTestSupport;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
@@ -142,6 +144,34 @@ class UiPreferenceServiceTest {
                 service.loadForUser(actor("wide-client")).get("dialogsColumnWidths"));
         assertEquals(Map.of("client", 180, "status", 360),
                 service.loadForUser(actor("wide-status")).get("dialogsColumnWidths"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"neo", "forest", "sand", "north", "plum", "catppuccin", "amber-minimal"})
+    void paletteRoundTripPreservesTheUsersDashboardAndDoesNotAffectOtherUsers(String palette) {
+        var owner = actor("palette-owner");
+        var other = actor("palette-other");
+        var layout = List.of(Map.of("itemId", "activity-trend", "order", 2, "pinned", true, "hidden", true));
+        service.saveForUser(owner, Map.of("dashboardPanelLayout", layout, "theme", "auto"));
+        service.saveForUser(other, Map.of("themePalette", "amber-minimal"));
+
+        service.saveForUser(owner, Map.of("themePalette", palette));
+
+        var loaded = service.loadForUser(owner);
+        assertEquals(palette, loaded.get("themePalette"));
+        assertEquals("auto", loaded.get("theme"));
+        assertEquals(layout, loaded.get("dashboardPanelLayout"));
+        assertEquals("amber-minimal", service.loadForUser(other).get("themePalette"));
+    }
+
+    @Test
+    void invalidPaletteDoesNotOverwriteTheStoredDashboardLayout() {
+        var owner = actor("invalid-palette");
+        var layout = List.of(Map.of("itemId", "staff-time", "order", 0, "pinned", false, "hidden", true));
+        service.saveForUser(owner, Map.of("dashboardPanelLayout", layout, "themePalette", "forest"));
+        var saved = service.saveForUser(owner, Map.of("themePalette", "unrecognized"));
+        assertEquals(layout, saved.get("dashboardPanelLayout"));
+        assertTrue(!saved.containsKey("themePalette"));
     }
 
     private org.springframework.security.core.Authentication actor(String name) {

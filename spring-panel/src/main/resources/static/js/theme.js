@@ -16,7 +16,7 @@
   }
 
   function normalizePalette(palette) {
-    if (palette === 'neo' || palette === 'catppuccin' || palette === 'amber-minimal') {
+    if (['neo', 'forest', 'sand', 'north', 'plum', 'catppuccin', 'amber-minimal'].includes(palette)) {
       return palette;
     }
     return 'neo';

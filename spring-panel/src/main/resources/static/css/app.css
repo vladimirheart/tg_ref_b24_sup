@@ -17891,6 +17891,259 @@ body[data-ui-page=dialogs] .dialog-table .dialog-actions-toggle {
     flex-basis: 44px;
   }
 }
+/* 01-297: quieter chrome, stronger content hierarchy; preserve all page mechanics. */
+body[data-ui-page] {
+  --ui-panel-radius: 0.625rem;
+  --ui-panel-padding: 1rem;
+  --ui-panel-padding-lg: 1.25rem;
+  --control-radius: 0.42rem;
+  --surface-interactive: var(--color-surface-soft);
+  --surface-selected: color-mix(in srgb, var(--foreground) 7%, var(--card));
+  background: var(--surface-page);
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+}
+body[data-ui-page] :is(h1, h2, h3, .page-title, .dialogs-title) {
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+body[data-ui-page] :is(h4, h5, h6, .card-title, .modal-title) {
+  font-weight: 500;
+}
+body[data-ui-page] :is(.page-title, .dialogs-title) {
+  font-size: 1.65rem;
+}
+body[data-ui-page] :is(.page-kicker, .section-kicker) {
+  font-size: 0.86rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+body[data-ui-page] :is(.page-header-card, .reports-page-header, .dialogs-hero) {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+body[data-ui-page] .btn {
+  font-weight: 500;
+  letter-spacing: 0;
+}
+body[data-ui-page] .btn-primary {
+  color: var(--primary-foreground);
+}
+body[data-ui-page] .btn-primary:hover, body[data-ui-page] .btn-primary:focus-visible {
+  color: var(--primary-foreground);
+}
+body[data-ui-page] :is(.btn-outline-secondary, .btn-light) {
+  background: var(--surface-card);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+body[data-ui-page] :is(.form-control, .form-select) {
+  border-color: var(--input);
+  background-color: var(--surface-card);
+  color: var(--color-text);
+}
+body[data-ui-page] :is(.form-control, .form-select):focus {
+  border-color: var(--ring);
+}
+body[data-ui-page] :is(.form-control, .form-select).is-invalid,
+body[data-ui-page] .was-validated :is(.form-control, .form-select):invalid {
+  border-color: var(--state-danger);
+}
+body[data-ui-page] :is(.form-control, .form-select).is-valid,
+body[data-ui-page] .was-validated :is(.form-control, .form-select):valid {
+  border-color: var(--state-success);
+}
+body[data-ui-page] .table {
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--color-text);
+  --bs-table-border-color: var(--color-border);
+}
+body[data-ui-page] .table thead th {
+  color: var(--color-text-muted);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+body[data-ui-page] :is(.nav-tabs, .ops-tab-nav, .reports-tab-nav) .nav-link {
+  font-weight: 500;
+}
+body[data-ui-page] :is(.modal-content, .dropdown-menu) {
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border-color: var(--color-border);
+}
+body[data-ui-page] .text-muted {
+  color: var(--color-text-muted) !important;
+}
+
+body[data-ui-page=dialogs][data-ui-visual=neutral-ops] .dialogs-toolbar-card {
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+}
+body[data-ui-page=dialogs][data-ui-visual=neutral-ops] .dialogs-toolbar-card .card-body {
+  padding: 0.6rem 0 0.9rem;
+}
+body[data-ui-page=dialogs][data-ui-visual=neutral-ops] .dialog-table thead th {
+  font-size: 0.88rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  background: var(--surface-card);
+}
+body[data-ui-page=dialogs][data-ui-visual=neutral-ops] .dialog-table tbody tr:hover > * {
+  background: var(--surface-interactive);
+}
+body[data-ui-page=dialogs][data-ui-visual=neutral-ops] .dialog-table tbody tr.table-active > * {
+  background: var(--surface-selected);
+}
+body[data-ui-page=dialogs][data-ui-visual=neutral-ops] .dialog-status-group .btn {
+  border-color: transparent;
+  background: transparent;
+}
+body[data-ui-page=dialogs][data-ui-visual=neutral-ops] .dialog-status-group .btn.active {
+  border-color: transparent;
+  background: var(--surface-selected);
+  color: var(--color-text);
+}
+body[data-ui-page=dialogs][data-ui-visual=neutral-ops] .workspace-panel-block {
+  background: var(--surface-card);
+}
+body[data-ui-page=dialogs][data-ui-visual=neutral-ops] #workspaceMessagesBlock {
+  background: var(--surface-card);
+}
+body[data-ui-page=dialogs][data-ui-visual=neutral-ops] .dialog-details-disclosure > summary {
+  background: transparent;
+  font-weight: 500;
+}
+body[data-ui-page=dialogs][data-ui-visual=neutral-ops] #dialogDetailsHistory .chat-message-row {
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+body[data-ui-page=dialogs][data-ui-visual=neutral-ops] #dialogDetailsHistory .chat-message-meta-line {
+  font-size: 0.86rem;
+  gap: 0.4rem 0.6rem;
+}
+body[data-ui-page=dialogs][data-ui-visual=neutral-ops] #dialogDetailsHistory .chat-message-meta-sender {
+  font-weight: 500;
+}
+body[data-ui-page=dialogs][data-ui-visual=neutral-ops] #dialogDetailsHistory .chat-message.user,
+body[data-ui-page=dialogs][data-ui-visual=neutral-ops] #dialogDetailsHistory .chat-message.support {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0.2rem 0.15rem;
+}
+body[data-ui-page=dialogs][data-ui-visual=neutral-ops] #dialogDetailsHistory .chat-message.system {
+  border-color: transparent;
+  background: var(--surface-soft);
+}
+body[data-ui-page=dialogs][data-ui-visual=neutral-ops] #dialogDetailsHistory .chat-message-avatar {
+  border-color: transparent;
+  font-weight: 500;
+}
+
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .dashboard-overview-grid.reports-overview-unified {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  gap: 1rem;
+  align-items: start;
+  overflow: visible;
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .reports-overview-unified > .metrics-panel,
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .reports-overview-unified > .filter-panel {
+  border: 1px solid var(--color-border);
+  border-radius: var(--ui-panel-radius);
+  background: var(--surface-card);
+  align-self: start;
+  min-height: 0;
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .chart-panel, body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .metrics-panel, body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .filter-panel {
+  padding: 1.2rem;
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] :is(.chart-panel-title, .panel-head h3) {
+  font-size: 1rem;
+  font-weight: 500;
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .metrics-panel .metric-card {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .metrics-panel .metric-card + .metric-card {
+  border-left: 1px solid var(--color-border);
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .metrics-panel .metric-value {
+  font-weight: 500;
+  letter-spacing: -0.04em;
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .metrics-panel :is(.metric-label, .metric-mini-label), body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .filter-block > label {
+  font-size: 0.88rem;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .dashboard-grid {
+  gap: 1rem;
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .data-panel .panel-actions {
+  display: none;
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops][data-dashboard-editing=true] .data-panel .panel-actions {
+  display: flex;
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .dashboard-layout-toolbar {
+  gap: 0.8rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .dashboard-layout-tools {
+  display: flex;
+  gap: 0.7rem;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .dashboard-layout-tools[hidden] {
+  display: none !important;
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .dashboard-layout-toggle {
+  margin-left: auto;
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .data-panel.is-pinned {
+  border-color: var(--color-border);
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .data-panel.is-pinned .chart-panel-title::after {
+  content: " · закреплено";
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .dashboard-layout-toggle[aria-expanded=true] {
+  background: var(--surface-selected);
+}
+
+@media (max-width: 767.98px) {
+  body[data-ui-page=dashboard][data-ui-visual=neutral-ops] .metrics-panel .metric-card + .metric-card {
+    border-left: 0;
+  }
+}
+:root[data-theme=dark] body[data-ui-page] .btn-close {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-ui-page] :is(.btn, .nav-link) {
+    transition: none;
+  }
+}
 /* Canonical project disclosure language.
  * Visual reference: compact iikoServer source cards in Settings.
  * Do not edit generated static/css/app.css directly.

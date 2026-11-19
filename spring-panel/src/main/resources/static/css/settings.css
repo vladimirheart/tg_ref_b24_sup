@@ -4354,6 +4354,112 @@ body[data-ui-page=settings] .settings-primary-modal .accordion-button:focus-visi
   outline-offset: -2px;
 }
 
+body[data-ui-page=settings] .settings-surface .settings-tile {
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+body[data-ui-page=settings] .settings-surface .settings-tile:hover {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--color-border));
+  background: var(--surface-interactive);
+}
+body[data-ui-page=settings] .settings-surface .settings-tile .tile-icon {
+  background: transparent;
+  color: var(--color-text-muted);
+}
+body[data-ui-page=settings] .settings-surface .settings-tile .card-title {
+  font-weight: 500;
+}
+body[data-ui-page=settings] .settings-design-section__title {
+  font-weight: 500;
+}
+body[data-ui-page=settings] .appearance-options {
+  border: 0;
+  padding: 0;
+  margin: 0 0 1.5rem;
+  min-width: 0;
+}
+body[data-ui-page=settings] .appearance-options legend {
+  font-size: 1rem;
+  font-weight: 500;
+  margin-bottom: 0.75rem;
+}
+body[data-ui-page=settings] .appearance-options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  gap: 0.65rem;
+}
+body[data-ui-page=settings] .appearance-choice {
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+  position: relative;
+  border: 1px solid var(--color-border);
+  border-radius: var(--control-radius);
+  padding: 0.8rem;
+  background: var(--surface-card);
+}
+body[data-ui-page=settings] .appearance-choice:has(input:checked) {
+  border-color: var(--primary);
+  background: var(--surface-selected);
+}
+body[data-ui-page=settings] .appearance-choice input {
+  margin: 0;
+  flex: 0 0 auto;
+  accent-color: var(--primary);
+}
+body[data-ui-page=settings] .appearance-choice__text {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+body[data-ui-page=settings] .appearance-choice__text small {
+  color: var(--color-text-muted);
+  font-size: 0.86rem;
+}
+body[data-ui-page=settings] .appearance-swatch {
+  display: flex;
+  gap: 3px;
+  margin-bottom: 0.35rem;
+}
+body[data-ui-page=settings] .appearance-swatch i {
+  width: 17px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--swatch);
+}
+body[data-ui-page=settings] .appearance-swatch i:nth-child(2) {
+  opacity: 0.55;
+}
+body[data-ui-page=settings] .appearance-swatch i:nth-child(3) {
+  opacity: 0.2;
+}
+body[data-ui-page=settings] .appearance-swatch--graphite {
+  --swatch: #6268c6;
+}
+body[data-ui-page=settings] .appearance-swatch--forest {
+  --swatch: #347452;
+}
+body[data-ui-page=settings] .appearance-swatch--sand {
+  --swatch: #a05839;
+}
+body[data-ui-page=settings] .appearance-swatch--north {
+  --swatch: #3567ad;
+}
+body[data-ui-page=settings] .appearance-swatch--plum {
+  --swatch: #82559a;
+}
+body[data-ui-page=settings] .appearance-legacy {
+  margin-bottom: 1.25rem;
+}
+body[data-ui-page=settings] .appearance-legacy summary {
+  color: var(--color-text-muted);
+  margin-bottom: 0.6rem;
+}
+@media (pointer: coarse) {
+  body[data-ui-page=settings] .appearance-choice {
+    min-height: 44px;
+  }
+}
+
 /* Settings last-cascade compatibility for the canonical disclosure language.
  * Do not edit generated static/css/settings.css directly.
  */

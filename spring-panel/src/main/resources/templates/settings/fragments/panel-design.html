@@ -32,37 +32,29 @@
                   </div>
                 </div>
             <form data-theme-form>
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Выберите тему</label>
-                <div class="form-check">
-                  <input class="form-check-input" type="radio" name="themeOption" id="themeOptionLight" value="light">
-                  <label class="form-check-label" for="themeOptionLight">Светлая тема</label>
+              <fieldset class="appearance-options">
+                <legend>Режим</legend>
+                <div class="appearance-options-grid">
+                  <label class="appearance-choice" for="themeOptionLight"><input type="radio" name="themeOption" id="themeOptionLight" value="light"><span>Светлая</span></label>
+                  <label class="appearance-choice" for="themeOptionDark"><input type="radio" name="themeOption" id="themeOptionDark" value="dark"><span>Тёмная</span></label>
+                  <label class="appearance-choice" for="themeOptionAuto"><input type="radio" name="themeOption" id="themeOptionAuto" value="auto"><span>Как в системе</span></label>
                 </div>
-                <div class="form-check">
-                  <input class="form-check-input" type="radio" name="themeOption" id="themeOptionDark" value="dark">
-                  <label class="form-check-label" for="themeOptionDark">Тёмная тема</label>
+              </fieldset>
+              <fieldset class="appearance-options">
+                <legend>Палитра</legend>
+                <div class="appearance-options-grid">
+                  <label class="appearance-choice" for="themePaletteNeo"><input type="radio" name="themePaletteOption" id="themePaletteNeo" value="neo"><span class="appearance-choice__text"><span class="appearance-swatch appearance-swatch--graphite" aria-hidden="true"><i></i><i></i><i></i></span><span>Графитовая</span><small>Нейтральная и сдержанная</small></span></label>
+                  <label class="appearance-choice" for="themePaletteForest"><input type="radio" name="themePaletteOption" id="themePaletteForest" value="forest"><span class="appearance-choice__text"><span class="appearance-swatch appearance-swatch--forest" aria-hidden="true"><i></i><i></i><i></i></span><span>Хвойная</span><small>Мягкие зелёные оттенки</small></span></label>
+                  <label class="appearance-choice" for="themePaletteSand"><input type="radio" name="themePaletteOption" id="themePaletteSand" value="sand"><span class="appearance-choice__text"><span class="appearance-swatch appearance-swatch--sand" aria-hidden="true"><i></i><i></i><i></i></span><span>Песочная</span><small>Тёплая кремовая гамма</small></span></label>
+                  <label class="appearance-choice" for="themePaletteNorth"><input type="radio" name="themePaletteOption" id="themePaletteNorth" value="north"><span class="appearance-choice__text"><span class="appearance-swatch appearance-swatch--north" aria-hidden="true"><i></i><i></i><i></i></span><span>Северная</span><small>Холодные синие оттенки</small></span></label>
+                  <label class="appearance-choice" for="themePalettePlum"><input type="radio" name="themePaletteOption" id="themePalettePlum" value="plum"><span class="appearance-choice__text"><span class="appearance-swatch appearance-swatch--plum" aria-hidden="true"><i></i><i></i><i></i></span><span>Сливовая</span><small>Приглушённый фиолетовый</small></span></label>
                 </div>
-                <div class="form-check">
-                  <input class="form-check-input" type="radio" name="themeOption" id="themeOptionAuto" value="auto">
-                  <label class="form-check-label" for="themeOptionAuto">Автоматически (как в системе)</label>
-                </div>
-              </div>
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Стиль интерфейса</label>
-                <div class="form-check">
-                  <input class="form-check-input" type="radio" name="themePaletteOption" id="themePaletteNeo" value="neo">
-                  <label class="form-check-label" for="themePaletteNeo">Штатная тема Iguana</label>
-                </div>
-                <div class="form-check">
-                  <input class="form-check-input" type="radio" name="themePaletteOption" id="themePaletteCatppuccin" value="catppuccin">
-                  <label class="form-check-label" for="themePaletteCatppuccin">Catppuccin</label>
-                </div>
-                <div class="form-check">
-                  <input class="form-check-input" type="radio" name="themePaletteOption" id="themePaletteAmberMinimal" value="amber-minimal">
-                  <label class="form-check-label" for="themePaletteAmberMinimal">Amber Minimal</label>
-                </div>
-              </div>
-              <p class="text-muted small mb-0">Настройка сохраняется в вашем браузере и применяется ко всем страницам панели.</p>
+              </fieldset>
+              <details class="ui-disclosure-native appearance-legacy"><summary>Предыдущие палитры</summary><div class="appearance-options-grid">
+                <label class="appearance-choice" for="themePaletteCatppuccin"><input type="radio" name="themePaletteOption" id="themePaletteCatppuccin" value="catppuccin"><span>Catppuccin</span></label>
+                <label class="appearance-choice" for="themePaletteAmberMinimal"><input type="radio" name="themePaletteOption" id="themePaletteAmberMinimal" value="amber-minimal"><span>Amber Minimal</span></label>
+              </div></details>
+              <p class="text-muted small mb-0">Палитра и режим применяются ко всем страницам и сохраняются в вашем профиле. Раскладка дашборда настраивается отдельно.</p>
             </form>
 
               </section>

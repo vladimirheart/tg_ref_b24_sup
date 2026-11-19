@@ -17,12 +17,12 @@ const inventory = files(templates).filter(f => f.endsWith('.html')).map(file => 
   const html = fs.readFileSync(file, 'utf8');
   const body = html.match(/<body\b[^>]*>/);
   const view = path.relative(templates, file).replaceAll('\\', '/').replace(/\.html$/, '');
-  return { view, standalone: !!body, page: body?.[0].match(/data-ui-page="([^"]+)"/)?.[1],
+  return { view, standalone: !!body && /<head\b/.test(html), page: body?.[0].match(/data-ui-page="([^"]+)"/)?.[1],
     theme: html.includes('/css/style.css'), app: html.includes('/css/app.css'),
     rendered: fs.existsSync(path.join(captures, view + '.html')) };
 });
 const pages = inventory.filter(s => s.standalone);
-assert.equal(pages.length, 47, 'Изменился инвентарь самостоятельных страниц');
+assert.equal(pages.length, 50, 'Изменился инвентарь самостоятельных страниц');
 assert(pages.every(s => s.page && s.theme && s.app), 'У каждой страницы должны быть theme tokens и общий CSS');
 fs.mkdirSync(output, { recursive: true });
 fs.writeFileSync(path.join(output, 'inventory.json'), JSON.stringify(inventory, null, 2));
@@ -50,7 +50,7 @@ async function main() {
   const modalReport = [];
   const statesOnly = process.argv.includes('--states');
   const scenarios = statesOnly
-    ? ['neo', 'catppuccin', 'amber-minimal'].flatMap(palette => ['light', 'dark', 'auto'].map(theme => ({ palette, theme })))
+    ? ['neo', 'forest', 'sand', 'north', 'plum', 'catppuccin', 'amber-minimal'].flatMap(palette => ['light', 'dark', 'auto'].map(theme => ({ palette, theme })))
     : ['light', 'dark'].map(theme => ({ palette: 'neo', theme }));
   try {
     for (const { theme, palette } of scenarios) {

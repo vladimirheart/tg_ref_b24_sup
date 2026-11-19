@@ -359,7 +359,7 @@ public class UiPreferenceService {
 
     private String normalizePalette(Object value) {
         String raw = asTrimmed(value).toLowerCase(Locale.ROOT);
-        return "neo".equals(raw) || "catppuccin".equals(raw) || "amber-minimal".equals(raw) ? raw : null;
+        return List.of("neo", "forest", "sand", "north", "plum", "catppuccin", "amber-minimal").contains(raw) ? raw : null;
     }
 
     private String normalizeDensity(Object value) {

@@ -33,7 +33,7 @@
   }
 
   function normalizePalette(value) {
-    return value === 'neo' || value === 'catppuccin' || value === 'amber-minimal' ? value : 'neo';
+    return ['neo', 'forest', 'sand', 'north', 'plum', 'catppuccin', 'amber-minimal'].includes(value) ? value : 'neo';
   }
 
   function normalizeDensity(value) {

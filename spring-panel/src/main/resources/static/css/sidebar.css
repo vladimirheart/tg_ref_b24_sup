@@ -1324,3 +1324,98 @@ body.with-sidebar[data-ui-page] .sidebar-nav .nav-link:focus-visible {
     height: 44px;
   }
 }
+
+/* 01-297: a quiet navigation rail; resizing, collapse, mobile and indicators remain intact. */
+body.with-sidebar[data-ui-page] .sidebar {
+  background: var(--sidebar);
+  gap: 0.6rem;
+}
+body.with-sidebar[data-ui-page] .sidebar-header {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.5rem 0.65rem 0.7rem;
+}
+body.with-sidebar[data-ui-page] .sidebar .brand-icon {
+  width: 30px;
+  height: 30px;
+  flex-basis: 30px;
+}
+body.with-sidebar[data-ui-page] .sidebar .brand-name {
+  font-size: 1.12rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+body.with-sidebar[data-ui-page] .sidebar .brand-caption {
+  font-size: 0.8rem;
+  text-transform: none;
+  letter-spacing: 0;
+}
+body.with-sidebar[data-ui-page] .sidebar-runtime-strip {
+  border: 0;
+  background: transparent;
+  padding: 0.5rem 0 0;
+}
+body.with-sidebar[data-ui-page] .sidebar-runtime-label {
+  font-weight: 400;
+  font-size: 0.8rem;
+  text-transform: none;
+  letter-spacing: 0;
+}
+body.with-sidebar[data-ui-page] .sidebar-runtime-meta, body.with-sidebar[data-ui-page] .nav-label-sub {
+  display: none;
+}
+body.with-sidebar[data-ui-page] .sidebar-section-label {
+  font-size: 0.8rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  padding-block: 1rem 0.35rem;
+}
+body.with-sidebar[data-ui-page] .sidebar-nav .nav-link {
+  padding: 0.55rem 0.7rem;
+  gap: 0.65rem;
+  color: var(--color-text-muted);
+  border: 1px solid transparent;
+}
+body.with-sidebar[data-ui-page] .sidebar-nav .nav-link:hover, body.with-sidebar[data-ui-page] .sidebar-nav .nav-link:focus-visible {
+  border-color: transparent;
+  background: var(--surface-interactive);
+  color: var(--color-text);
+}
+body.with-sidebar[data-ui-page] .sidebar-nav .nav-link.active {
+  border-color: transparent;
+  background: var(--surface-selected);
+  color: var(--color-text);
+  box-shadow: none;
+}
+body.with-sidebar[data-ui-page] .sidebar-nav .nav-label-main {
+  font-size: 0.96rem;
+  font-weight: 400;
+}
+body.with-sidebar[data-ui-page] .sidebar-nav .nav-link.active .nav-label-main {
+  font-weight: 500;
+}
+body.with-sidebar[data-ui-page] .sidebar .nav-link .icon, body.with-sidebar[data-ui-page] .sidebar-nav .nav-link.active .icon {
+  width: 1.3rem;
+  height: 1.3rem;
+  min-width: 1.3rem;
+  flex: 0 0 1.3rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 1.1rem;
+  border-radius: 0;
+}
+body.with-sidebar[data-ui-page] .sidebar-user-card, body.with-sidebar[data-ui-page] .sidebar-overview {
+  border-color: transparent;
+  background: transparent;
+}
+body.with-sidebar[data-ui-page] .sidebar-action-menu-list {
+  background: var(--popover);
+}
+@media (pointer: coarse) {
+  body.with-sidebar[data-ui-page] .sidebar-nav .nav-link {
+    min-height: 44px;
+  }
+}

@@ -45,8 +45,8 @@ class DialogsColumnWidthsUiSourceContractTest {
             .contains(".dialog-table th[data-column-key] > .resize-handle")
             .contains("cursor: col-resize");
         assertThat(template)
-            .contains("app.css(v='20261023-incidents-r12')")
-            .contains("dialogsAssetVersion='20261117-dialog-entry'")
+            .contains("app.css(v='20261119-refined-r1')")
+            .contains("dialogsAssetVersion='20261118-dialog-reply-delivery'")
             .contains("dialogs.js(v=${dialogsAssetVersion})");
         assertThat(settings)
             .contains("row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3 settings-tiles")

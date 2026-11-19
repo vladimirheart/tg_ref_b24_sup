@@ -6,7 +6,7 @@
         aria-label="Открыть меню"
         aria-controls="app-sidebar"
         aria-expanded="false">
-        <span class="icon" aria-hidden="true">&#9776;</span>
+        <span class="icon" aria-hidden="true"><i class="bi bi-list"></i></span>
     </button>
     <div id="sidebarMobileOverlay" class="sidebar-mobile-overlay" hidden></div>
 
@@ -36,7 +36,7 @@
 						aria-label="Оповещения"
 						aria-controls="notify-dropdown"
 						aria-expanded="false">
-                        <span class="icon" aria-hidden="true">🔔</span>
+                        <span class="icon" aria-hidden="true"><i class="bi bi-bell"></i></span>
                         <span id="notify-count" class="notify-count" hidden>0</span>
                     </button>
                     <div id="notify-dropdown"
@@ -77,14 +77,14 @@
                 <div class="sidebar-section-label">Рабочий контур</div>
                 <a class="nav-link" data-page-key="home" data-nav-group="workspace"
                    th:classappend="${active}=='home' ? ' active'" th:href="@{/}">
-                    <span class="icon" aria-hidden="true">⌂</span>
+                    <span class="icon" aria-hidden="true"><i class="bi bi-house"></i></span>
                     <span class="label"><span class="nav-label-main">Главная</span>
                         <span class="nav-label-sub">Быстрый пульс панели</span></span>
                 </a>
                 <a class="nav-link" data-page-key="dialogs" data-nav-group="workspace" th:if="${canViewDialogs}"
                    th:classappend="${active}=='dialogs' ? ' active'"
                    th:href="@{/dialogs}">
-                    <span class="icon" aria-hidden="true">💬</span>
+                    <span class="icon" aria-hidden="true"><i class="bi bi-chat-left-text"></i></span>
                     <span class="label">
                         <span class="nav-label-main">Диалоги</span>
                         <span class="nav-label-sub">Текущие обращения и ответы</span>
@@ -93,7 +93,7 @@
                 <a class="nav-link" data-page-key="ai-ops" data-nav-group="workspace" th:if="${canViewAiOps}"
                    th:classappend="${active}=='ai-ops' ? ' active'"
                    th:href="@{/ai-ops}">
-                    <span class="icon" aria-hidden="true">🤖</span>
+                    <span class="icon" aria-hidden="true"><i class="bi bi-stars"></i></span>
                     <span class="label">
                         <span class="nav-label-main">AI Ops</span>
                         <span class="nav-label-sub">Автоматизация и AI-операции</span>
@@ -102,7 +102,7 @@
                 <a class="nav-link" data-page-key="tasks" data-nav-group="workspace" th:if="${canManageTasks}"
                    th:classappend="${active}=='tasks' ? ' active'"
                    th:href="@{/tasks}">
-                    <span class="icon" aria-hidden="true">✅</span>
+                    <span class="icon" aria-hidden="true"><i class="bi bi-check2-square"></i></span>
                     <span class="label">
                         <span class="nav-label-main">Задачи</span>
                         <span class="nav-label-sub">Операционный backlog команды</span>
@@ -111,7 +111,7 @@
                 <a class="nav-link" data-page-key="projects" data-nav-group="workspace" th:if="${canManageTasks}"
                    th:classappend="${active}=='projects' ? ' active'"
                    th:href="@{/projects}">
-                    <span class="icon" aria-hidden="true">📋</span>
+                    <span class="icon" aria-hidden="true"><i class="bi bi-kanban"></i></span>
                     <span class="label">
                         <span class="nav-label-main">Проекты</span>
                         <span class="nav-label-sub">Проектные задачи и рабочие контуры</span>
@@ -120,7 +120,7 @@
                 <a class="nav-link" data-page-key="incidents" data-nav-group="workspace" th:if="${canViewIncidents}"
                    th:classappend="${active}=='incidents' ? ' active'"
                    th:href="@{/incidents}">
-                    <span class="icon" aria-hidden="true">🚨</span>
+                    <span class="icon" aria-hidden="true"><i class="bi bi-exclamation-triangle"></i></span>
                     <span class="label">
                         <span class="nav-label-main">Инциденты</span>
                         <span class="nav-label-sub">Runbook, маршруты и сигналы</span>
@@ -129,7 +129,7 @@
                 <a class="nav-link" data-page-key="clients" data-nav-group="workspace" th:if="${canViewClients}"
                    th:classappend="${active}=='clients' ? ' active'"
                    th:href="@{/clients}">
-                    <span class="icon" aria-hidden="true">👥</span>
+                    <span class="icon" aria-hidden="true"><i class="bi bi-people"></i></span>
                     <span class="label">
                         <span class="nav-label-main">Клиенты</span>
                         <span class="nav-label-sub">Профили, каналы и история</span>
@@ -138,7 +138,7 @@
                 <a class="nav-link" data-page-key="passports" data-nav-group="workspace" th:if="${canViewPassports}"
                    th:classappend="${active}=='passports' ? ' active'"
                    th:href="@{/object-passports}">
-                    <span class="icon" aria-hidden="true">🗃️</span>
+                    <span class="icon" aria-hidden="true"><i class="bi bi-boxes"></i></span>
                     <span class="label">
                         <span class="nav-label-main">Паспорт объектов</span>
                         <span class="nav-label-sub">Инфраструктура и инвентарь</span>
@@ -147,7 +147,7 @@
                 <a class="nav-link" data-page-key="knowledge" data-nav-group="workspace" th:if="${canEditKnowledgeBase}"
                    th:classappend="${active}=='knowledge' ? ' active'"
                    th:href="@{/knowledge-base}">
-                    <span class="icon" aria-hidden="true">📚</span>
+                    <span class="icon" aria-hidden="true"><i class="bi bi-journal-text"></i></span>
                     <span class="label">
                         <span class="nav-label-main">База знаний</span>
                         <span class="nav-label-sub">Статьи, инструкции и импорт</span>
@@ -155,7 +155,7 @@
                 </a>
                 <a class="nav-link" data-page-key="ai-sources" data-nav-group="workspace" th:if="${canViewScopedAiSources == true}"
                    th:classappend="${active}=='ai-sources' ? ' active'" th:href="@{/business-ai-sources}">
-                    <span class="icon" aria-hidden="true">📖</span>
+                    <span class="icon" aria-hidden="true"><i class="bi bi-files"></i></span>
                     <span class="label"><span class="nav-label-main">AI-источники</span>
                         <span class="nav-label-sub">Знания и решения по бизнесам</span></span>
                 </a>
@@ -166,7 +166,7 @@
                    th:if="${canViewDashboard}"
                    th:classappend="${active}=='dashboard' ? ' active'"
                    th:href="@{/dashboard}">
-                    <span class="icon" aria-hidden="true">📊</span>
+                    <span class="icon" aria-hidden="true"><i class="bi bi-bar-chart"></i></span>
                     <span class="label">
                         <span class="nav-label-main">Отчёты</span>
                         <span class="nav-label-sub">KPI, сводки и аналитические срезы</span>
@@ -175,7 +175,7 @@
                 <a class="nav-link" data-page-key="analytics" data-nav-group="admin" th:if="${canViewAnalytics}"
                    th:classappend="${active}=='analytics' ? ' active'"
                    th:href="@{/analytics}">
-                    <span class="icon" aria-hidden="true">📈</span>
+                    <span class="icon" aria-hidden="true"><i class="bi bi-graph-up"></i></span>
                     <span class="label">
                         <span class="nav-label-main">Аналитика</span>
                         <span class="nav-label-sub">Пульсы, cert-monitoring и KPI</span>
@@ -184,7 +184,7 @@
                 <a class="nav-link" data-page-key="channels" data-nav-group="admin" th:if="${canManageChannels == true and canManageChannelsInSettings != true}"
                    th:classappend="${active}=='channels' ? ' active'"
                    th:href="@{/channels}">
-                    <span class="icon" aria-hidden="true">📡</span>
+                    <span class="icon" aria-hidden="true"><i class="bi bi-broadcast"></i></span>
                     <span class="label">
                         <span class="nav-label-main">Каналы</span>
                         <span class="nav-label-sub">Telegram, VK, MAX и маршруты</span>
@@ -193,7 +193,7 @@
                 <a class="nav-link" data-page-key="settings" data-nav-group="admin" th:if="${canViewSettings}"
                    th:classappend="${active}=='settings' ? ' active'"
                    th:href="@{/settings}">
-                    <span class="icon" aria-hidden="true">⚙️</span>
+                    <span class="icon" aria-hidden="true"><i class="bi bi-sliders"></i></span>
                     <span class="label">
                         <span class="nav-label-main">Настройки</span>
                         <span class="nav-label-sub">Конфигурация системы и UI</span>
@@ -202,7 +202,7 @@
                 <a class="nav-link" data-page-key="users" data-nav-group="admin" th:if="${canManageUsers == true and canViewSettings != true}"
                    th:classappend="${active}=='users' ? ' active'"
                    th:href="@{/users}">
-                    <span class="icon" aria-hidden="true">👥</span>
+                    <span class="icon" aria-hidden="true"><i class="bi bi-people"></i></span>
                     <span class="label">
                         <span class="nav-label-main">Пользователи</span>
                         <span class="nav-label-sub">Роли, доступы и профили</span>
@@ -228,8 +228,8 @@
                     </button>
                     <div class="sidebar-action-menu-list" id="sidebarActionMenu" hidden>
                         <a th:if="${canViewSettings}" class="sidebar-action-item sidebar-action-item--accent" th:href="@{/settings(open='users',editSelf='1')}" aria-label="Редактировать профиль" title="Редактировать профиль"><i class="bi bi-person-gear icon" aria-hidden="true"></i><span class="label">Профиль</span></a>
-                        <button type="button" class="sidebar-action-item" data-sidebar-change-password aria-label="Сменить пароль" title="Сменить пароль"><span class="icon" aria-hidden="true">🔐</span><span class="label">Пароль</span></button>
-                        <a class="sidebar-action-item sidebar-action-item--danger" th:href="@{/logout}" aria-label="Выйти" title="Выйти"><span class="icon" aria-hidden="true">🚪</span><span class="label">Выход</span></a>
+                        <button type="button" class="sidebar-action-item" data-sidebar-change-password aria-label="Сменить пароль" title="Сменить пароль"><span class="icon" aria-hidden="true"><i class="bi bi-key"></i></span><span class="label">Пароль</span></button>
+                        <a class="sidebar-action-item sidebar-action-item--danger" th:href="@{/logout}" aria-label="Выйти" title="Выйти"><span class="icon" aria-hidden="true"><i class="bi bi-box-arrow-right"></i></span><span class="label">Выход</span></a>
                     </div>
                 </div>
             </div>

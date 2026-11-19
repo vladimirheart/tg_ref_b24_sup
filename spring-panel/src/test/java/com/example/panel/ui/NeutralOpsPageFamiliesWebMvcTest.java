@@ -37,9 +37,7 @@ class NeutralOpsPageFamiliesWebMvcTest {
         for (String view : VIEWS) {
             mvc.perform(get("/__visual-family").param("view", view).with(csrf()))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("/css/app.css?v=" +
-                    (view.equals("incidents/index") ? "20261026-incidents-r20" : List.of("businesses/dialog-assignment", "general/work").contains(view) ? "20261023-incidents-r12"
-                        : List.of("knowledge/note-editor", "home/index").contains(view) ? "20261023-neutral-ops-r10" : "20261022-neutral-ops-r9"))))
+                .andExpect(content().string(containsString("/css/app.css?v=20261119-refined-r1")))
                 .andExpect(content().string(containsString("data-ui-page=")));
         }
     }
@@ -55,6 +53,11 @@ class NeutralOpsPageFamiliesWebMvcTest {
             model.addAttribute("sidebarUserDisplayName", "Оператор поддержки");
             model.addAttribute("sidebarUserUsername", "operator");
             model.addAttribute("activePage", "dialogs");
+            model.addAttribute("canEditArticle", true);
+            model.addAttribute("canMoveArticle", false);
+            model.addAttribute("canManageArticle", false);
+            model.addAttribute("articleAccessGrants", List.of());
+            model.addAttribute("accessSubjects", List.of());
             switch (view) {
                 case "clients/profile" -> {
                     Map<String,Object> profile = map("header", map("userId", 1001L, "sourceKey", "telegram", "sourceLabel", "Telegram", "platform", "telegram", "clientName", "Александр Константинопольский", "username", "alexander"),
@@ -81,7 +84,7 @@ class NeutralOpsPageFamiliesWebMvcTest {
                     model.addAllAttributes(map("status", "open", "canOperate", false, "publicId", "GENERAL-TEST-1", "revision", 1));
                     for (String key : List.of("participants", "participantCandidates", "participantEvents", "workIntervals", "replies", "replyChangeTargets", "replyChanges", "documentReplies")) model.addAttribute(key, List.of());
                 }
-                case "knowledge/editor" -> model.addAttribute("article", map("id", null, "title", "Инструкция оператора", "author", "Служба поддержки", "status", "draft", "department", "Поддержка", "externalSource", null, "externalId", null, "externalUrl", null, "externalUpdatedAt", null, "updatedAt", null, "articleType", "Инструкция", "direction", "", "directionSubtype", "", "summary", "Порядок обработки обращения", "contentHtml", "<p>Уточните проблему и проверьте доступность сервиса.</p>", "content", "Уточните проблему и проверьте доступность сервиса.", "attachments", List.of()));
+                case "knowledge/editor" -> model.addAttribute("article", map("id", null, "title", "Инструкция оператора", "author", "Служба поддержки", "status", "draft", "department", "Поддержка", "externalSource", null, "externalId", null, "externalUrl", null, "externalUpdatedAt", null, "updatedAt", null, "articleType", "Инструкция", "direction", "", "directionSubtype", "", "summary", "Порядок обработки обращения", "contentHtml", "<p>Уточните проблему и проверьте доступность сервиса.</p>", "content", "Уточните проблему и проверьте доступность сервиса.", "attachments", List.of(), "sectionId", null, "incomingLinks", List.of(), "outgoingLinks", List.of()));
                 case "knowledge/note-editor" -> {
                     model.addAttribute("note", map("id", null, "title", "Рабочая заметка", "body", "Контекст обращения", "customFields", Map.of(), "knowledgeArticleIds", List.of(), "objectPassportIds", List.of(), "createdBy", null, "createdAt", null, "updatedAt", null));
                     model.addAttribute("canLinkPassports", false);
