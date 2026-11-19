@@ -41,6 +41,28 @@ public class BusinessTicketClosureNotificationService {
             """+OWNER+" AND owner.status='resolved' AND owner.business_work_revision=:revision"
                 +" AND owner.channel_id IS NOT DISTINCT FROM CAST(:channel AS BIGINT)",args(closure).addValue("message",MESSAGE));
         if(inserted!=1)throw new IllegalStateException("Closure owner changed before history append");
+        // The WORKER scheduler reads pending_feedback_requests; a direct text send would not
+        // establish an authenticated rating callback. Queue the prompt with the winning close.
+        // V84 captures the immutable owner-generation tuple for downstream delivery guards.
+        jdbc.update("""
+            INSERT INTO pending_feedback_requests(user_id,channel_id,ticket_id,source,created_at,expires_at)
+            SELECT owner.user_id,owner.channel_id,owner.ticket_id,'operator_close',
+                   owner.resolved_at,owner.resolved_at + INTERVAL '1 day'
+              FROM tickets owner JOIN channels destination ON destination.id=owner.channel_id
+             WHERE
+            """+OWNER+"""
+               AND owner.status='resolved' AND owner.business_work_revision=:revision
+               AND owner.channel_id=:channel AND owner.resolved_at IS NOT NULL
+               AND LOWER(destination.platform) IN ('telegram','vk','max')
+               AND NOT EXISTS (
+                   SELECT 1 FROM pending_feedback_requests existing
+                    WHERE existing.user_id=owner.user_id AND existing.channel_id=owner.channel_id
+                      AND existing.ticket_id=owner.ticket_id
+                      AND existing.ticket_context_epoch IS NOT DISTINCT FROM owner.feedback_context_epoch
+                      AND existing.expires_at > owner.resolved_at
+               )
+            ON CONFLICT (user_id,channel_id,ticket_id,source) DO NOTHING
+            """,args(closure));
         return closure;
     }
 

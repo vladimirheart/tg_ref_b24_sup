@@ -83,7 +83,7 @@ class MaxConversationSessionTest {
         assertThat(session.awaitingReuseDecision()).isFalse();
         assertThat(session.answers()).containsEntry("business", "Alpha");
         assertThat(session.currentQuestion().getId()).isEqualTo("problem");
-        assertThat(session.reusePrompt()).contains("Бизнес: Alpha");
+        assertThat(session.reusePrompt()).startsWith("Использовать прошлые значения?\nБизнес: Alpha\n");
     }
 
     @Test
