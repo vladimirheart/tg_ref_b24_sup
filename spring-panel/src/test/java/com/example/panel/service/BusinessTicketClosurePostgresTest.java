@@ -118,6 +118,17 @@ class BusinessTicketClosurePostgresTest {
         assertThat(count("pending_feedback_requests")).isEqualTo(1);
         verify(transport,times(2)).sendTextGuarded(any(),any(),any(),any(),any());
     }
+    @Test void existingActiveFeedbackRequestKeepsItsIdentityAndIsNotDuplicated() {
+        jdbc.update("""
+            INSERT INTO pending_feedback_requests(user_id,channel_id,ticket_id,source,created_at,expires_at,sent_at)
+            VALUES(42,9,?,'user_prompt',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP+INTERVAL '1 day',CURRENT_TIMESTAMP)
+            """,RAW);
+        var before=jdbc.queryForMap("SELECT * FROM pending_feedback_requests");
+        assertThat(close().updated()).isTrue();assertHistory(1);
+        assertThat(count("pending_feedback_requests")).isEqualTo(1);
+        assertThat(jdbc.queryForMap("SELECT * FROM pending_feedback_requests")).isEqualTo(before);
+    }
+
     @ParameterizedTest @ValueSource(strings={"history","outbox","feedback"})
     void appendFailureRollsBackTheWholeCloseAndCannotSend(String table) {
         jdbc.execute("CREATE FUNCTION reject_append() RETURNS TRIGGER LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'test failure'; END; $$");
