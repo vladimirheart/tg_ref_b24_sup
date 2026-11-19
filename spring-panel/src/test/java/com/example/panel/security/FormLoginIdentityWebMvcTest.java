@@ -245,4 +245,20 @@ class FormLoginIdentityWebMvcTest {
         MvcResult denied=mvc.perform(get("/api/auth/whoami")).andExpect(status().is3xxRedirection()).andExpect(unauthenticated()).andReturn();
         successful(login("reader").session(session(denied)),"reader");
     }
+
+    @Test void jsonApiGets401InsteadOfHtmlLoginAfterSessionLoss() throws Exception {
+        mvc.perform(get("/api/auth/whoami").accept("application/json"))
+            .andExpect(status().isUnauthorized())
+            .andExpect(content().contentTypeCompatibleWith("application/json"))
+            .andExpect(header().string("Cache-Control", "no-store"))
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+        mvc.perform(get("/api/dialog-ticket/history").param("ticketId", "example")
+                .accept("application/json"))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+        mvc.perform(get("/dialogs").accept("text/html"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrlPattern("**/login"));
+    }
 }

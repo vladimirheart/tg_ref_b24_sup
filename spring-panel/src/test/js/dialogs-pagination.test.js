@@ -221,3 +221,24 @@ test('server errors stay errors and do not turn into a successful empty queue', 
   await pending; assert.equal(h.markers.length, 0); assert.equal(h.errors.length, 1);
   assert.equal(h.loading(), false); h.runtime.dispose();
 });
+
+test('expired API session redirects to login without parsing JSON or showing a list error', async () => {
+  const h = harness();
+  const redirects = [];
+  h.context.window.location = { href: 'http://127.0.0.1:8080/dialogs', origin: 'http://127.0.0.1:8080',
+    assign: url => redirects.push(url) };
+  h.context.URL = URL;
+  const authSource = fs.readFileSync(path.join(__dirname, '../../main/resources/static/js/dialogs-auth-response-runtime.js'), 'utf8');
+  vm.runInNewContext(authSource, h.context);
+  const pending = h.runtime.refreshDialogsList();
+  let parsed = false;
+  h.requests[0].resolve({ status: 401, ok: false, redirected: false, json: async () => {
+    parsed = true; throw new Error('Must not parse login body');
+  } });
+  await pending;
+  assert.equal(parsed, false);
+  assert.deepEqual(redirects, ['/login']);
+  assert.equal(h.errors.length, 0);
+  assert.equal(h.loading(), false);
+  h.runtime.dispose();
+});

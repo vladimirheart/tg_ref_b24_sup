@@ -254,12 +254,15 @@
         try {
           response = await fetch(endpoint, {
             credentials: 'same-origin',
+            headers: { Accept: 'application/json' },
             cache: 'no-store',
             signal: controller.signal,
           });
+          window.DialogsAuthResponseRuntime?.ensureApiSession(response);
           payload = await response.json();
         } catch (fetchError) {
           window.clearTimeout(timeoutId);
+          if (fetchError?.code === 'session_expired') throw fetchError;
           if (fetchError?.name === 'AbortError') {
             const timeoutError = new Error('workspace_request_timeout');
             timeoutError.code = 'timeout';
@@ -1274,6 +1277,10 @@
         }
       } catch (error) {
         setWorkspaceReadonlyMode(false);
+        if (error?.code === 'session_expired') {
+          finishWorkspaceOpenTimer(ticketId);
+          return;
+        }
         const durationMs = finishWorkspaceOpenTimer(ticketId);
         const reason = resolveWorkspaceFallbackReason(error);
         await emitWorkspaceTelemetry('workspace_render_error', {

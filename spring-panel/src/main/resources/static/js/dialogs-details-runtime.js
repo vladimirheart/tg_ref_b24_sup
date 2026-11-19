@@ -77,10 +77,12 @@
       try {
         const response = await fetch(`/api/dialog-ticket/notes?ticketId=${encodeURIComponent(ticketId)}`, {
           credentials: 'same-origin',
+          headers: { Accept: 'application/json' },
           cache: 'no-store',
         });
         const activeTicketId = String(getActiveDialogState()?.ticketId || '');
         if (requestSerial !== notesRequestSerial || activeTicketId !== String(ticketId)) return;
+        window.DialogsAuthResponseRuntime?.ensureApiSession(response);
         if (response.status === 401 || response.status === 403) return;
         section.classList.remove('d-none');
         if (!response.ok) {
@@ -377,12 +379,14 @@
         options.debugLog?.('openDialogDetails.fetch.start', { url });
         const response = await fetch(url, {
           credentials: 'same-origin',
+          headers: { Accept: 'application/json' },
           cache: 'no-store',
         });
         options.debugLog?.('openDialogDetails.fetch.response', {
           status: response.status,
           ok: response.ok,
         });
+        window.DialogsAuthResponseRuntime?.ensureApiSession(response);
         const data = await response.json();
         if (!response.ok) {
           throw new Error(data?.error || `Ошибка ${response.status}`);
@@ -588,6 +592,7 @@
           historyCount: Array.isArray(data?.history) ? data.history.length : null,
         });
       } catch (error) {
+        if (error?.code === 'session_expired') return;
         options.debugLog?.('openDialogDetails.catch', {
           ticketId,
           message: error?.message || String(error || ''),

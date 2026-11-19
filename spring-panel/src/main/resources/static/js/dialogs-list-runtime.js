@@ -615,6 +615,7 @@
           signal: request.controller.signal,
           body: JSON.stringify({ query, includeOverview: runtimeOptions.includeOverview !== false }),
         });
+        window.DialogsAuthResponseRuntime?.ensureApiSession(resp);
         const data = await resp.json();
         if (disposed || request.generation !== listGeneration || activeRequest !== request) return;
         if (!resp.ok || !data?.success) {
@@ -648,6 +649,7 @@
           options.requestSidebarNotificationRefresh('dialogs-list-change');
         }
       } catch (error) {
+        if (error?.code === 'session_expired') return;
         if (activeRequest !== request || request.generation !== listGeneration || disposed || (error?.name === 'AbortError' && !timedOut)) return;
         if (elements.pageState) elements.pageState.textContent = 'Не удалось обновить список. Повторите поиск или смену страницы.';
         if (emptyCell && !rowsList().length) emptyCell.textContent = 'Не удалось загрузить диалоги. Повторите поиск или смену страницы.';

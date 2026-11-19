@@ -60,7 +60,7 @@ class DialogKnowledgeNotesSourceContractTest {
         assertThat(dialogTemplate)
             .contains("id=\"dialogDetailsNotesSection\"")
             .contains("id=\"dialogDetailsNotesList\"")
-            .contains("dialogs-details-runtime.js(v='20261023-neutral-ops-r10')")
+            .contains("dialogs-details-runtime.js(v='20261119-session-relogin')")
             .contains("id=\"dialogDetailsNotesSearch\"")
             .contains("knowledge-note-content.js(v='20261023-neutral-ops-r10')");
 
