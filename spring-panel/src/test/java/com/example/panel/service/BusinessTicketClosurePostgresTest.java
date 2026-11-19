@@ -41,6 +41,10 @@ class BusinessTicketClosurePostgresTest {
             CREATE TABLE tickets(user_id BIGINT,ticket_id TEXT,ticket_public_id TEXT,business_id BIGINT,is_general BOOLEAN DEFAULT FALSE,
                 channel_id BIGINT,status TEXT,resolved_at TIMESTAMPTZ,resolved_by TEXT,closed_count INT DEFAULT 0,
                 reopen_count INT DEFAULT 0,last_reopen_at TIMESTAMPTZ,PRIMARY KEY(user_id,ticket_id));
+            CREATE TABLE pending_feedback_requests(id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                user_id BIGINT NOT NULL,channel_id BIGINT NOT NULL,ticket_id TEXT,source VARCHAR(100),
+                created_at TIMESTAMPTZ NOT NULL,expires_at TIMESTAMPTZ NOT NULL,sent_at TIMESTAMPTZ,
+                UNIQUE(user_id,channel_id,ticket_id,source));
             CREATE TABLE ui_event_outbox(id BIGINT PRIMARY KEY,event_type TEXT,ticket_id TEXT,channel_id BIGINT,created_at TIMESTAMPTZ,
                 ticket_user_id BIGINT,ticket_public_id TEXT,ticket_scope_kind TEXT,ticket_business_id BIGINT);
             CREATE TABLE chat_history(id BIGSERIAL PRIMARY KEY,user_id BIGINT,sender TEXT,message TEXT,timestamp TIMESTAMPTZ,
@@ -53,6 +57,7 @@ class BusinessTicketClosurePostgresTest {
             INSERT INTO channels(id,token,platform) VALUES(9,'test-only-token','telegram');
             """);
         jdbc.execute(Files.readString(Path.of("src/main/resources/db/migration/postgresql/V81__business_ticket_manual_work.sql")));
+        jdbc.execute(Files.readString(Path.of("src/main/resources/db/migration/postgresql/V84__pending_feedback_context.sql")));
         jdbc.execute(Files.readString(Path.of("src/main/resources/db/migration/postgresql/V97__business_ticket_categories_after_closure.sql")));
         jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,business_id,channel_id,status) VALUES(42,?,?,11,9,'pending')",RAW,PUBLIC);
         flags=new MultibusinessFeatureFlags();flags.getFoundation().setEnabled(true);flags.setUiSelector(true);flags.setStrictReadScope(true);
@@ -64,6 +69,7 @@ class BusinessTicketClosurePostgresTest {
             // A different connection sees committed status, history, audit and fanout before provider I/O.
             assertThat(new JdbcTemplate(jdbc.getDataSource()).queryForObject("SELECT status FROM tickets WHERE ticket_id=?",String.class,RAW)).isEqualTo("resolved");
             assertThat(count("chat_history")).isPositive();assertThat(count("business_ticket_work_events")).isPositive();
+            assertThat(count("pending_feedback_requests")).isEqualTo(1);
             assertThat(((java.util.function.BooleanSupplier)call.getArgument(4)).getAsBoolean()).isTrue();
             return DialogReplyTransportService.DialogReplyTransportResult.success(123L,1L);
         });
@@ -88,8 +94,16 @@ class BusinessTicketClosurePostgresTest {
         assertThat(close().updated()).isTrue();assertHistory(1);
         assertThat(close().updated()).isFalse();assertHistory(1);
         assertThat(jdbc.queryForObject("SELECT timestamp=(SELECT resolved_at FROM tickets WHERE ticket_id=?) FROM chat_history",Boolean.class,RAW)).isTrue();
-        if(platform.equals("webform"))verify(transport,never()).sendTextGuarded(any(),any(),any(),any(),any());
-        else {
+        if(platform.equals("webform")) {
+            assertThat(count("pending_feedback_requests")).isZero();
+            verify(transport,never()).sendTextGuarded(any(),any(),any(),any(),any());
+        } else {
+            assertThat(count("pending_feedback_requests")).isEqualTo(1);
+            assertThat(jdbc.queryForList("SELECT * FROM pending_feedback_requests")).singleElement().satisfies(row->assertThat(row)
+                .containsEntry("user_id",42L).containsEntry("channel_id",9L).containsEntry("ticket_id",RAW)
+                .containsEntry("source","operator_close").containsEntry("sent_at",null));
+            assertThat(jdbc.queryForObject("SELECT expires_at=created_at+interval '1 day' FROM pending_feedback_requests",Boolean.class)).isTrue();
+            assertThat(jdbc.queryForObject("SELECT ticket_context_epoch IS NOT NULL FROM pending_feedback_requests",Boolean.class)).isTrue();
             verify(transport,times(1)).sendTextGuarded(eq(channel),eq(42L),eq(BusinessTicketClosureNotificationService.MESSAGE),isNull(),any());
             verify(ledger,times(1)).recordAttempt(eq(channel),eq(RAW),eq(42L),eq("system"),eq("text"),isNull(),any());
         }
@@ -98,17 +112,21 @@ class BusinessTicketClosurePostgresTest {
         assertThat(work.change(scope,actor("Operator"),0,"pending","close",List.of("Категория"))).isTrue();
         assertThat(work.change(scope,actor("Operator"),1,"resolved","categories",List.of("Другая"))).isTrue();
         assertHistory(1);verify(transport,times(1)).sendTextGuarded(any(),any(),any(),any(),any());
+        assertThat(count("pending_feedback_requests")).isEqualTo(1);
         assertThat(work.change(scope,actor("Operator"),2,"resolved","reopen",List.of())).isTrue();
         assertThat(close().updated()).isTrue();assertHistory(2);
+        assertThat(count("pending_feedback_requests")).isEqualTo(1);
         verify(transport,times(2)).sendTextGuarded(any(),any(),any(),any(),any());
     }
-    @ParameterizedTest @ValueSource(strings={"history","outbox"})
+    @ParameterizedTest @ValueSource(strings={"history","outbox","feedback"})
     void appendFailureRollsBackTheWholeCloseAndCannotSend(String table) {
         jdbc.execute("CREATE FUNCTION reject_append() RETURNS TRIGGER LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'test failure'; END; $$");
-        jdbc.execute("CREATE TRIGGER reject_append BEFORE INSERT ON "+(table.equals("history")?"chat_history":"ui_event_outbox")+" FOR EACH ROW EXECUTE FUNCTION reject_append()");
+        String target=table.equals("history")?"chat_history":table.equals("feedback")?"pending_feedback_requests":"ui_event_outbox";
+        jdbc.execute("CREATE TRIGGER reject_append BEFORE INSERT ON "+target+" FOR EACH ROW EXECUTE FUNCTION reject_append()");
         assertThat(close().updated()).isFalse();assertHistory(0);
         assertThat(jdbc.queryForObject("SELECT status FROM tickets WHERE ticket_id=?",String.class,RAW)).isEqualTo("pending");
         assertThat(count("business_ticket_work_events")).isZero();assertThat(count("ui_event_outbox")).isZero();
+        assertThat(count("pending_feedback_requests")).isZero();
         verifyNoInteractions(transport,ledger);
     }
     @ParameterizedTest @ValueSource(strings={"timeout","rejected","audit"})
@@ -154,7 +172,8 @@ class BusinessTicketClosurePostgresTest {
     @Test void invalidOrReadOnlyCloseHasNoSideEffects() {
         assertThat(work.closeByTicketId(RAW,actor("viewer"),List.of("Категория")).updated()).isFalse();
         assertThat(work.closeByTicketId(RAW,actor("Operator"),List.of()).updated()).isFalse();
-        assertHistory(0);assertThat(count("business_ticket_work_events")).isZero();verifyNoInteractions(transport,ledger);
+        assertHistory(0);assertThat(count("business_ticket_work_events")).isZero();
+        assertThat(count("pending_feedback_requests")).isZero();verifyNoInteractions(transport,ledger);
     }
     @Test void closedNoticeIsReadableFromTheFullyMigratedProductionSchema() {
         var migrated=PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType("business_closure_migrated");
@@ -181,5 +200,11 @@ class BusinessTicketClosurePostgresTest {
             assertThat(message.messageType()).isEqualTo("system_notification");assertThat(message.timestamp()).isNotBlank();
         });
         verify(transport,times(1)).sendTextGuarded(any(),eq(42L),eq(BusinessTicketClosureNotificationService.MESSAGE),isNull(),any());
+        assertThat(migrated.queryForObject("SELECT count(*) FROM pending_feedback_requests",Long.class)).isEqualTo(1);
+        assertThat(migrated.queryForMap("SELECT * FROM pending_feedback_requests"))
+            .containsEntry("user_id",42L).containsEntry("channel_id",9L).containsEntry("ticket_id",RAW)
+            .containsEntry("ticket_public_id",PUBLIC).containsEntry("ticket_business_id",11L)
+            .containsEntry("ticket_is_general",false).containsEntry("source","operator_close");
+        assertThat(migrated.queryForObject("SELECT ticket_context_epoch IS NOT NULL FROM pending_feedback_requests",Boolean.class)).isTrue();
     }
 }

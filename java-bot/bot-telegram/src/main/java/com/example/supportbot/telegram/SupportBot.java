@@ -2125,12 +2125,7 @@ public class SupportBot extends TelegramLongPollingBot {
         }
 
         String reusePrompt() {
-            return "Использовать прошлые значения? " +
-                    String.format("Бизнес: %s, Тип: %s, Город: %s, Локация: %s. Ответьте 'да' или 'нет'.",
-                            cachedAnswers.getOrDefault("business", "—"),
-                            cachedAnswers.getOrDefault("location_type", "—"),
-                            cachedAnswers.getOrDefault("city", "—"),
-                            cachedAnswers.getOrDefault("location_name", "—"));
+            return com.example.supportbot.service.QuestionnaireReusePromptFormatter.format(cachedAnswers);
         }
 
         String buildSummary(String ticketId) {
