@@ -1119,8 +1119,10 @@
         const previousScrollTop = elements.detailsHistory ? elements.detailsHistory.scrollTop : 0;
         const resp = await fetch(buildPreviousDialogHistoryApiUrl(activeDialogState.ticketId, state.previousNextOffset), {
           credentials: 'same-origin',
+          headers: { Accept: 'application/json' },
           cache: 'no-store',
         });
+        window.DialogsAuthResponseRuntime?.ensureApiSession(resp);
         const data = await resp.json();
         if (!resp.ok || data?.success === false) {
           throw new Error(data?.error || `Ошибка ${resp.status}`);
@@ -1142,6 +1144,7 @@
           renderDialogHistory({ scrollToBottom: false });
         }
       } catch (error) {
+        if (error?.code === 'session_expired') return;
         state.previousHasMore = state.previousHasMore || state.previousBatches.length === 0;
         renderDialogHistory({ scrollToBottom: false });
         notify(error.message || 'Не удалось загрузить предыдущие сообщения', 'warning');
@@ -1159,8 +1162,10 @@
         const url = buildDialogHistoryApiUrl(activeDialogState.ticketId, activeDialogState.channelId, withChannelParam);
         const resp = await fetch(url, {
           credentials: 'same-origin',
+          headers: { Accept: 'application/json' },
           cache: 'no-store',
         });
+        window.DialogsAuthResponseRuntime?.ensureApiSession(resp);
         const data = await resp.json();
         if (!resp.ok || !data?.success) {
           throw new Error(data?.error || `Ошибка ${resp.status}`);

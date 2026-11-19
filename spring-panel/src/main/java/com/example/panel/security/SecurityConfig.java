@@ -1,6 +1,7 @@
 package com.example.panel.security;
 
 import jakarta.servlet.DispatcherType;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -17,6 +18,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.context.DelegatingSecurityContextRepository;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
@@ -90,7 +92,24 @@ public class SecurityConfig {
                         .maximumSessions(5)
                         .maxSessionsPreventsLogin(false)
                 )
-                .exceptionHandling(ex -> ex.accessDeniedHandler((request, response, accessDeniedException) -> {
+                .exceptionHandling(ex -> ex
+                        // JSON clients must never receive the HTML login page after session loss.
+                        .authenticationEntryPoint((request, response, authenticationException) -> {
+                            String accept = request.getHeader("Accept");
+                            boolean jsonApi = request.getRequestURI().startsWith("/api/")
+                                    && accept != null
+                                    && accept.toLowerCase(java.util.Locale.ROOT).contains("application/json");
+                            if (jsonApi) {
+                                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                                response.setContentType("application/json;charset=UTF-8");
+                                response.setHeader("Cache-Control", "no-store");
+                                response.getWriter().write("{\"success\":false,\"error\":\"Authentication required\",\"code\":\"AUTHENTICATION_REQUIRED\"}");
+                                return;
+                            }
+                            new LoginUrlAuthenticationEntryPoint("/login")
+                                    .commence(request, response, authenticationException);
+                        })
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
                     String uri = request.getRequestURI();
 
                     if (uri.startsWith("/api/")) {
