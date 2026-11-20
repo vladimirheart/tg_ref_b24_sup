@@ -135,6 +135,20 @@
         };
     }
 
+    function normalizeTimeMetricColor(value, fallback) {
+      const color = String(value || '').trim();
+      return /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(color) ? color : fallback;
+    }
+
+    function timeMetricTextColor(background) {
+      const hex = background.slice(1);
+      const expanded = hex.length === 3 ? [...hex].map(char => char + char).join('') : hex;
+      const channels = [0, 2, 4].map(offset => Number.parseInt(expanded.slice(offset, offset + 2), 16) / 255)
+        .map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+      const luminance = channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+      return (luminance + 0.05) / 0.05 >= 1.05 / (luminance + 0.05) ? '#000000' : '#ffffff';
+    }
+
     function normalizeDialogTimeMetrics(raw) {
       const base = {
         good_limit: 30,
@@ -156,9 +170,9 @@
           base.warning_limit = warning;
         }
         if (raw.colors && typeof raw.colors === 'object') {
-          base.colors.good = String(raw.colors.good || base.colors.good);
-          base.colors.warning = String(raw.colors.warning || base.colors.warning);
-          base.colors.danger = String(raw.colors.danger || base.colors.danger);
+          base.colors.good = normalizeTimeMetricColor(raw.colors.good, base.colors.good);
+          base.colors.warning = normalizeTimeMetricColor(raw.colors.warning, base.colors.warning);
+          base.colors.danger = normalizeTimeMetricColor(raw.colors.danger, base.colors.danger);
         }
       }
 
@@ -575,7 +589,7 @@
               <span>${item.label}</span>
               ${
                 item.color
-                  ? `<span class="dialog-time-metric-badge" style="background-color: ${item.color};">${item.value || '—'}</span>`
+                  ? `<span class="dialog-time-metric-badge" style="background-color: ${item.color}; color: ${timeMetricTextColor(item.color)};">${item.value || '—'}</span>`
                   : `<span>${item.value || '—'}</span>`
               }
             </div>
