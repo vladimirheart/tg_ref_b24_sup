@@ -74,6 +74,7 @@
     const passportDetailEquipmentRuntime = window.PassportDetailEquipmentRuntime?.mount({
         getPassport: () => passport,
         coreRuntime: passportDetailCoreRuntime,
+        openPhotoGallery: (...args) => passportDetailMediaRuntime.openPhotoGallery(...args),
     });
     if (!passportDetailEquipmentRuntime) {
         throw new Error('PassportDetailEquipmentRuntime is unavailable');
@@ -132,6 +133,13 @@
             const tile = event.target.closest('[data-passport-photo-index]');
             if (tile) openPhotoViewer(tile.dataset.passportPhotoIndex);
         });
+        document.getElementById('passportPhotoGrid')?.addEventListener('keydown', (event) => {
+            const tile = event.target.closest('[data-passport-photo-index]');
+            if (tile && (event.key === 'Enter' || event.key === ' ')) {
+                event.preventDefault();
+                openPhotoViewer(tile.dataset.passportPhotoIndex);
+            }
+        });
         document.getElementById('passportWorkspaceCover')?.addEventListener('click', () => {
             const cover = document.getElementById('passportWorkspaceCover');
             if (cover && cover.dataset.passportPhotoIndex != null) openPhotoViewer(cover.dataset.passportPhotoIndex);
@@ -142,9 +150,16 @@
         document.addEventListener('keydown', (event) => {
             const viewer = document.getElementById('passportPhotoViewer');
             if (viewer && !viewer.hidden) {
+                if (['Escape', 'ArrowLeft', 'ArrowRight'].includes(event.key)) event.preventDefault();
                 if (event.key === 'Escape') closePhotoViewer();
                 if (event.key === 'ArrowLeft') movePhotoViewer(-1);
                 if (event.key === 'ArrowRight') movePhotoViewer(1);
+                if (event.key === 'Tab') {
+                    const controls = [...viewer.querySelectorAll('button')].filter((button) => !button.hidden && !button.classList.contains('passport-photo-viewer__backdrop'));
+                    const current = controls.indexOf(document.activeElement);
+                    event.preventDefault();
+                    controls[(current + (event.shiftKey ? -1 : 1) + controls.length) % controls.length]?.focus();
+                }
                 return;
             }
             const layer = document.getElementById('passportEditLayer');

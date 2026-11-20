@@ -16,7 +16,7 @@ const rows = templates.map(file => {
   const decorativeInline = inline.filter(value => /(?<![-\w])(?:background(?:-color|-image)?|color|box-shadow|font-family)\s*:/.test(value) && !value.startsWith('th:style='));
   if (standalone) {
     assert(source.includes('data-ui-page='), relative + ': missing page scope');
-    const version = ['templates/passports/detail.html', 'templates/dialogs/index.html', 'templates/general/work.html'].includes(relative)
+    const version = relative === 'templates/passports/detail.html' ? '20261120-equipment-preview-r1' : ['templates/dialogs/index.html', 'templates/general/work.html'].includes(relative)
       ? '20261120-passport-overlay-r2' : '20261119-refined-r1';
     assert(source.includes(`app.css(v='${version}')`), relative + ': stale stylesheet version');
     assert(source.includes('/css/style.css'), relative + ': missing theme');

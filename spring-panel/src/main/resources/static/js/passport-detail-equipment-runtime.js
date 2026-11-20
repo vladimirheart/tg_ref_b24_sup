@@ -10,6 +10,53 @@
       throw new Error('PassportDetailEquipmentRuntime requires coreRuntime');
     }
     const { text, escapeHtml, normalizeKey, first, statusTone, parseCatalogMedia, equipmentCover, isEquipmentArchived, findCatalogItem } = coreRuntime;
+    const openPhotoGallery = options.openPhotoGallery;
+    let activeDetails = null;
+
+    function closeDetails(restoreFocus = false) {
+        if (!activeDetails) return;
+        const { panel, button, home } = activeDetails;
+        activeDetails = null;
+        panel.hidden = true;
+        home.appendChild(panel);
+        button.setAttribute('aria-expanded', 'false');
+        if (restoreFocus && button.isConnected) button.focus({ preventScroll: true });
+    }
+
+    function positionDetails() {
+        if (!activeDetails) return;
+        const { panel, button } = activeDetails;
+        const rect = button.getBoundingClientRect();
+        if (!button.isConnected || !button.getClientRects().length || rect.bottom < 0 || rect.top > innerHeight) {
+            closeDetails();
+            return;
+        }
+        const belowSpace = innerHeight - rect.bottom - 20;
+        const aboveSpace = rect.top - 20;
+        const showBelow = belowSpace >= 240 || belowSpace >= aboveSpace;
+        panel.style.maxHeight = `${Math.max(80, Math.min(420, showBelow ? belowSpace : aboveSpace))}px`;
+        const width = panel.offsetWidth, height = panel.offsetHeight;
+        const left = Math.max(12, Math.min(rect.right - width, innerWidth - width - 12));
+        const top = Math.max(12, showBelow ? rect.bottom + 8 : rect.top - height - 8);
+        panel.style.left = `${left}px`;
+        panel.style.top = `${top}px`;
+    }
+
+    document.addEventListener('pointerdown', (event) => {
+        if (activeDetails && !activeDetails.panel.contains(event.target) && !activeDetails.button.contains(event.target)) closeDetails();
+    });
+    document.addEventListener('focusin', (event) => {
+        if (activeDetails && !activeDetails.panel.contains(event.target) && event.target !== activeDetails.button) closeDetails();
+    });
+    document.addEventListener('keydown', (event) => {
+        if (activeDetails && event.key === 'Escape') {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            closeDetails(true);
+        }
+    }, true);
+    window.addEventListener('resize', positionDetails);
+    window.addEventListener('scroll', positionDetails, true);
 
     function resolvePassport() {
       const value = getPassport();
@@ -31,7 +78,8 @@
         const links = media.links;
         const cover = equipmentCover(catalogItem && catalogItem.photo_url);
         const catalogId = catalogItem && catalogItem.id ? Number(catalogItem.id) : null;
-        return { item, catalogItem, catalogId, type, vendor, model, name, status, ip, serial, accessories, links, cover, archived };
+        const photos = media.photos.filter((photo) => text(photo.url));
+        return { item, catalogItem, catalogId, type, vendor, model, name, status, ip, serial, accessories, links, cover, photos, archived };
     }
 
     const equipmentProfileNameCache = new Map();
@@ -85,9 +133,10 @@
             views.forEach((view, index) => {
                 const profileId = configurationProfileId(view);
                 if (!profileId) return;
-                const node = grid.querySelector(`[data-equipment-index="${index}"] [data-equipment-profile-name="${profileId}"]`);
+                const node = document.getElementById(`passportEquipmentDetails${index}`)?.querySelector(`[data-equipment-profile-name="${profileId}"]`);
                 if (node) node.textContent = equipmentProfileLabel(profileId);
             });
+            positionDetails();
         });
     }
 
@@ -97,14 +146,18 @@
                 const panelId = button.getAttribute('aria-controls');
                 const panel = panelId ? document.getElementById(panelId) : null;
                 if (!panel) return;
-                const expanded = button.getAttribute('aria-expanded') === 'true';
-                const nextExpanded = !expanded;
-                button.setAttribute('aria-expanded', String(nextExpanded));
-                button.setAttribute('aria-label', nextExpanded ? 'Скрыть сведения об оборудовании' : 'Показать сведения об оборудовании');
-                button.setAttribute('title', nextExpanded ? 'Скрыть сведения' : 'Показать сведения');
-                panel.hidden = !nextExpanded;
+                const wasOpen = activeDetails?.button === button;
+                closeDetails();
+                if (wasOpen) return;
+                activeDetails = { panel, button, home: panel.parentElement };
+                document.body.appendChild(panel);
+                panel.hidden = false;
+                button.setAttribute('aria-expanded', 'true');
+                positionDetails();
+                panel.querySelector('[data-equipment-details-close]')?.focus({ preventScroll: true });
             });
         });
+        grid.querySelectorAll('[data-equipment-details-close]').forEach((button) => button.addEventListener('click', () => closeDetails(true)));
     }
 
     function equipmentTypeGroupKey(type) {
@@ -134,11 +187,11 @@
         const hasDetails = Boolean(details.length || description || view.links.length || profileId);
         const detailsId = `passportEquipmentDetails${index}`;
         return `<article class="passport-asset-card ${view.archived ? 'is-archived' : ''}" data-equipment-index="${index}">
-            <div class="passport-asset-card__visual ${view.cover ? 'has-image' : ''}">
+            <${view.cover ? 'button type="button"' : 'div'} class="passport-asset-card__visual ${view.cover ? 'has-image' : ''}" ${view.cover ? `data-equipment-photo-index="${index}" aria-label="Открыть фото: ${escapeHtml(view.name)}" title="Открыть фото"` : ''}>
                 <span class="passport-asset-card__visual-placeholder" aria-hidden="true"><i class="bi bi-image"></i></span>
                 ${view.cover ? `<img src="${escapeHtml(view.cover)}" alt="${escapeHtml(view.name)}" loading="lazy" onerror="this.parentElement.classList.remove('has-image');this.remove();">` : ''}
                 <span class="passport-asset-card__type-center">${escapeHtml(view.type)}</span>
-            </div>
+            </${view.cover ? 'button' : 'div'}>
             <div class="passport-asset-card__body">
                 <div class="passport-asset-card__head">
                     <div>
@@ -150,9 +203,10 @@
                 </div>
                 ${(quickItems || hasDetails) ? `<div class="passport-asset-card__quick-line">
                     <div class="passport-asset-card__quick">${quickItems}</div>
-                    ${hasDetails ? `<button class="page-header-info__toggle passport-asset-details__toggle" type="button" data-equipment-details-toggle aria-expanded="false" aria-controls="${detailsId}" aria-label="Показать сведения об оборудовании" title="Показать сведения"><i class="bi bi-info-circle" aria-hidden="true"></i></button>` : ''}
+                    ${hasDetails ? `<button class="page-header-info__toggle passport-asset-details__toggle" type="button" data-equipment-details-toggle aria-haspopup="dialog" aria-expanded="false" aria-controls="${detailsId}" aria-label="Показать сведения об оборудовании" title="Показать сведения"><i class="bi bi-info-circle" aria-hidden="true"></i></button>` : ''}
                 </div>` : ''}
-                ${hasDetails ? `<div class="passport-asset-details" id="${detailsId}" data-equipment-details hidden>
+                ${hasDetails ? `<div class="passport-asset-details passport-equipment-popover" id="${detailsId}" data-equipment-details role="dialog" aria-label="Сведения: ${escapeHtml(view.name)}" hidden>
+                    <div class="passport-equipment-popover__header"><strong>${escapeHtml(view.name)}</strong><button type="button" class="btn btn-sm btn-outline-secondary" data-equipment-details-close aria-label="Закрыть сведения">&times;</button></div>
                     <div class="passport-asset-details__grid">
                         ${details.map((pair) => `<div><span>${escapeHtml(pair[0])}</span><strong>${escapeHtml(pair[1])}</strong></div>`).join('')}
                         ${profileId ? `<div><span>Профиль комплектации</span><strong data-equipment-profile-name="${profileId}">${escapeHtml(equipmentProfileLabel(profileId))}</strong></div>` : ''}
@@ -184,6 +238,7 @@
     }
 
     function renderEquipment() {
+        closeDetails();
         const passport = resolvePassport();
         const equipmentSearch = document.getElementById('passportEquipmentSearch');
         const grid = document.getElementById('passportEquipmentGrid');
@@ -228,6 +283,18 @@
         }).join('');
         bindEquipmentGroupToggles(grid);
         bindEquipmentDetailsToggles(grid);
+        grid.querySelectorAll('[data-equipment-photo-index]').forEach((button) => {
+            button.addEventListener('click', () => {
+                closeDetails();
+                const view = views[Number(button.dataset.equipmentPhotoIndex)];
+                if (!view || typeof openPhotoGallery !== 'function') return;
+                openPhotoGallery(view.photos.map((photo) => ({
+                    ...photo,
+                    caption: first(photo.caption, photo.original_name, view.name),
+                    categoryLabel: view.name,
+                })), Math.max(0, view.photos.findIndex((photo) => text(photo.url) === view.cover)), button);
+            });
+        });
         hydrateEquipmentProfileNames(grid, views, revision);
     }
 

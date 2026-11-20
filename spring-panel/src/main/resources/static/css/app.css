@@ -8409,10 +8409,60 @@ body[data-ui-page=clients] .client-profile-page-header {
   display: grid;
   place-items: center;
   min-height: 132px;
+  padding: 0;
   overflow: hidden;
+  border: 0;
   border-right: 1px solid var(--color-border);
   background: var(--surface-raised);
   color: var(--color-text-muted);
+}
+
+[data-ui-page=passports].passport-detail-page button.passport-asset-card__visual {
+  cursor: zoom-in;
+}
+
+[data-ui-page=passports].passport-detail-page button.passport-asset-card__visual:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -3px;
+}
+
+[data-ui-page=passports].passport-detail-page .passport-asset-details.passport-equipment-popover {
+  position: fixed;
+  z-index: 1100;
+  width: min(400px, 100vw - 24px);
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  margin: 0;
+  padding: 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+  color: var(--color-text);
+  box-shadow: var(--ui-panel-shadow);
+}
+
+[data-ui-page=passports].passport-detail-page .passport-equipment-popover[hidden] {
+  display: none;
+}
+
+[data-ui-page=passports].passport-detail-page .passport-equipment-popover__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.85rem;
+}
+
+[data-ui-page=passports].passport-detail-page .passport-equipment-popover__header strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+[data-ui-page=passports].passport-detail-page .passport-equipment-popover__header button {
+  flex: 0 0 auto;
 }
 
 /* 01-272 passport equipment shared visual S7 */

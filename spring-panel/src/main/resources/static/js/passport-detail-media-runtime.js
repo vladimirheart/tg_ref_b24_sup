@@ -11,6 +11,8 @@
     }
     const { text, escapeHtml, normalizeKey, first } = coreRuntime;
     let photoViewerPosition = 0;
+    let viewerPhotos = [];
+    let photoTrigger = null;
 
     function resolvePassport() {
       const value = getPassport();
@@ -42,31 +44,39 @@
 
     function renderPhotoViewer() {
         const viewer = document.getElementById('passportPhotoViewer');
-        const items = viewablePhotos();
+        const items = viewerPhotos;
         if (!viewer || !items.length) return;
         photoViewerPosition = ((photoViewerPosition % items.length) + items.length) % items.length;
         const entry = items[photoViewerPosition];
-        const photo = entry.photo || {};
+        const photo = entry || {};
         const caption = first(photo.caption, photo.original_name, 'Фото объекта');
         document.getElementById('passportPhotoViewerImage').src = text(photo.url);
         document.getElementById('passportPhotoViewerImage').alt = caption;
         document.getElementById('passportPhotoViewerCaption').textContent = caption;
-        document.getElementById('passportPhotoViewerCategory').textContent = normalizeKey(photo.category) === 'title' ? 'Титульное' : 'Архивное';
+        document.getElementById('passportPhotoViewerCategory').textContent = photo.categoryLabel || (normalizeKey(photo.category) === 'title' ? 'Титульное' : 'Архивное');
         document.getElementById('passportPhotoViewerCounter').textContent = `${photoViewerPosition + 1} / ${items.length}`;
         viewer.querySelectorAll('[data-passport-photo-prev], [data-passport-photo-next]').forEach((button) => button.hidden = items.length < 2);
     }
 
     function openPhotoViewer(originalIndex) {
-        const viewer = document.getElementById('passportPhotoViewer');
         const items = viewablePhotos();
         const position = items.findIndex((entry) => entry.originalIndex === Number(originalIndex));
-        if (!viewer || position < 0) return;
+        if (position < 0) return;
+        openPhotoGallery(items.map((entry) => entry.photo), position);
+    }
+
+    function openPhotoGallery(photos, position = 0, trigger = document.activeElement) {
+        const viewer = document.getElementById('passportPhotoViewer');
+        const items = Array.isArray(photos) ? photos.filter((photo) => text(photo && photo.url)) : [];
+        if (!viewer || !items.length) return;
+        viewerPhotos = items;
         photoViewerPosition = position;
+        photoTrigger = trigger;
         renderPhotoViewer();
         viewer.hidden = false;
         viewer.setAttribute('aria-hidden', 'false');
         document.body.classList.add('passport-photo-viewer-open');
-        viewer.querySelector('[data-passport-photo-close]')?.focus({ preventScroll: true });
+        viewer.querySelector('.passport-photo-viewer__close')?.focus({ preventScroll: true });
     }
 
     function closePhotoViewer() {
@@ -75,10 +85,13 @@
         viewer.hidden = true;
         viewer.setAttribute('aria-hidden', 'true');
         document.body.classList.remove('passport-photo-viewer-open');
+        if (photoTrigger?.isConnected) photoTrigger.focus({ preventScroll: true });
+        photoTrigger = null;
+        viewerPhotos = [];
     }
 
     function movePhotoViewer(delta) {
-        const items = viewablePhotos();
+        const items = viewerPhotos;
         if (items.length < 2) return;
         photoViewerPosition = (photoViewerPosition + delta + items.length) % items.length;
         renderPhotoViewer();
@@ -88,6 +101,7 @@
     return Object.freeze({
       renderPhotos,
       openPhotoViewer,
+      openPhotoGallery,
       closePhotoViewer,
       movePhotoViewer,
     });

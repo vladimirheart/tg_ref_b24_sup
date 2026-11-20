@@ -48,7 +48,7 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(equipmentMediaRuntime.contains("window.EquipmentMediaRuntime"));
         assertTrue(equipmentMediaRuntime.contains("function coverUrl(raw)"));
         assertTrue(pageRuntime.contains("PassportDetailCoreRuntime"));
-        assertTrue(html.contains("/js/passport-detail-equipment-runtime.js?v=20261005-01-280-r43"));
+        assertTrue(html.contains("/js/passport-detail-equipment-runtime.js?v=20261120-equipment-preview-r1"));
         assertTrue(html.contains("passport-ui-polish.css(v='20261005-01-280-r43')"));
         assertTrue(listHtml.contains("passport-ui-polish.css(v='20261005-01-280-r43')"));
         assertTrue(pageRuntime.contains("PassportDetailEquipmentRuntime"));
@@ -64,7 +64,7 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(!equipmentRuntime.contains("media.photos.find"));
         assertTrue(html.contains("/js/passport-detail-editor-runtime.js?v=20261006-modern-create-r12"));
         assertTrue(html.contains("/js/passport-detail-header-runtime.js?v=20261006-legacy-editor-removal-r1"));
-        assertTrue(html.contains("/js/passport-detail-page-runtime.js?v=20261120-passport-overlay-r2"));
+        assertTrue(html.contains("/js/passport-detail-page-runtime.js?v=20261120-equipment-preview-r1"));
         assertTrue(html.contains("data-passport-tab=\"documents\""));
         assertTrue(html.contains("/js/passport-documents-runtime.js?v=20261112-documents"));
         assertTrue(html.contains("PassportDetailPageRuntime"));
