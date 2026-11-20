@@ -423,6 +423,7 @@
         options.syncReassignSelectOptions?.();
         options.updateDetailsTakeButton?.('');
         options.stopHistoryPolling?.();
+        if (options.onDialogModalClosed?.() === true) return;
         if (options.workspaceEnabled === true && options.isWorkspaceDialogPath?.(window.location.pathname)) {
           const nextPath = window.location.pathname === '/' ? '/' : '/dialogs';
           window.history.replaceState(null, '', nextPath);

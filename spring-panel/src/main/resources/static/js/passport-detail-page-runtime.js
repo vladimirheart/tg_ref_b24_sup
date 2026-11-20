@@ -261,6 +261,14 @@
     function boot() {
         bindTabs();
         bindR4Events();
+        window.PassportDialogPreviewRuntime?.mount({ onClose: async () => {
+            const response = await loadJson(`/api/object_passports/${passportId}/cases`, null);
+            if (Array.isArray(response?.items)) {
+                cases = response.items;
+                renderActivity();
+                updateCounts();
+            }
+        } });
         if (initialCreateMode) {
             initializeCreateMode();
             return;

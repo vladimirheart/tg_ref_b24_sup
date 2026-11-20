@@ -319,7 +319,7 @@
       return raw === 'resolved' || raw === 'closed' || key === 'closed' || key === 'auto_closed';
     }
 
-    async function openDialogDetails(ticketId, fallbackRow) {
+    async function openDialogDetails(ticketId, fallbackRow, runtimeOptions = {}) {
       if (!ticketId || !elements.detailsModalEl) {
         options.debugLog?.('openDialogDetails.skipped', {
           ticketId,
@@ -335,7 +335,7 @@
       options.setActiveDialogTicketId?.(ticketId);
       options.initMacroVariableCatalog?.(ticketId, true);
       options.setActiveDialogRow?.(fallbackRow || null, { ensureVisible: true });
-      options.setActiveDialogChannelId?.(fallbackRow?.dataset?.channelId || null);
+      options.setActiveDialogChannelId?.(fallbackRow?.dataset?.channelId || runtimeOptions.channelId || null);
       options.setActiveDialogResponsibleState?.(
         String(fallbackRow?.dataset?.responsibleRaw || fallbackRow?.dataset?.responsible || '').trim(),
         String(fallbackRow?.dataset?.responsibleAvatarUrl || '').trim()

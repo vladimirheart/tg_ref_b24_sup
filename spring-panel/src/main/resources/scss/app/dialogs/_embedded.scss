@@ -1,0 +1,38 @@
+html[data-passport-dialog] body {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+html[data-passport-dialog] body > :not(.modal):not(.modal-backdrop):not(.toast-container):not(.chat-message-menu-portal):not(.sidebar-layout):not(main) {
+    display: none !important;
+}
+
+html[data-passport-dialog='legacy'] {
+    body > main, .sidebar-layout { display: none !important; }
+    #dialogDetailsModal { padding: 0 !important; }
+    #dialogDetailsModal .modal-dialog {
+        width: 100% !important;
+        max-width: none !important;
+        height: 100dvh !important;
+        margin: 0 !important;
+    }
+    #dialogDetailsModal .modal-content {
+        height: 100%;
+        max-height: none;
+        border: 0;
+        border-radius: 0;
+    }
+}
+
+html[data-passport-dialog='general'] .sidebar-layout {
+    display: block !important;
+    > :not(main) { display: none !important; }
+}
+
+html[data-passport-dialog='general'] main {
+    width: 100%;
+    max-width: none;
+    margin: 0 !important;
+
+    > a[href='/general-dialogs'] { display: none; }
+}

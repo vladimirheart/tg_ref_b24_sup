@@ -1547,6 +1547,7 @@
       lastManualSortMode = value || 'default';
     },
     getCategoryPanelState: () => detailsCategoryModalState,
+    onDialogModalClosed: () => window.DialogEmbeddedRuntime?.onDialogClosed() === true,
     confirmWorkspaceTicketSwitch,
     setWorkspaceReadonlyMode,
     buildDialogDetailsUrl: buildWorkspaceDialogUrl,
@@ -3791,7 +3792,8 @@
   }
 
   async function openDialogDetails(ticketId, fallbackRow) {
-    await dialogsDetailsRuntime?.openDialogDetails(ticketId, fallbackRow);
+    const routeChannelId = exactLegacyTicketId(ticketId) === getRouteTicketId() ? getRouteChannelId() : null;
+    await dialogsDetailsRuntime?.openDialogDetails(ticketId, fallbackRow, { channelId: routeChannelId });
     syncDetailsMetricsSlaState();
   }
 

@@ -34,7 +34,7 @@ class ObjectPassportEquipmentEditorUiSourceContractTest {
                 .contains("passport-edit-equipment-card__visual")
                 .contains("passport-edit-equipment-card__visual-placeholder");
         assertThat(html)
-                .contains("app.css(v='20261120-passport-cases-r1')")
+                .contains("app.css(v='20261120-passport-overlay-r2')")
                 .contains("/js/passport-detail-editor-runtime.js?v=20261006-modern-create-r12");
         assertThat(scss)
                 .contains("01-272 S7 corrective: compact equipment editor")

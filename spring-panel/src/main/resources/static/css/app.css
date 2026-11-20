@@ -4362,6 +4362,50 @@ html.resizing * {
     justify-content: flex-start;
   }
 }
+html[data-passport-dialog] body {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+html[data-passport-dialog] body > :not(.modal):not(.modal-backdrop):not(.toast-container):not(.chat-message-menu-portal):not(.sidebar-layout):not(main) {
+  display: none !important;
+}
+
+html[data-passport-dialog=legacy] body > main, html[data-passport-dialog=legacy] .sidebar-layout {
+  display: none !important;
+}
+html[data-passport-dialog=legacy] #dialogDetailsModal {
+  padding: 0 !important;
+}
+html[data-passport-dialog=legacy] #dialogDetailsModal .modal-dialog {
+  width: 100% !important;
+  max-width: none !important;
+  height: 100dvh !important;
+  margin: 0 !important;
+}
+html[data-passport-dialog=legacy] #dialogDetailsModal .modal-content {
+  height: 100%;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+}
+
+html[data-passport-dialog=general] .sidebar-layout {
+  display: block !important;
+}
+html[data-passport-dialog=general] .sidebar-layout > :not(main) {
+  display: none !important;
+}
+
+html[data-passport-dialog=general] main {
+  width: 100%;
+  max-width: none;
+  margin: 0 !important;
+}
+html[data-passport-dialog=general] main > a[href="/general-dialogs"] {
+  display: none;
+}
+
 /* App-specific unified visual system */
 /* Density mode (global) */
 body.density-comfortable {
@@ -8539,7 +8583,8 @@ body[data-ui-page=clients] .client-profile-page-header {
 }
 
 [data-ui-page=passports].passport-detail-page .passport-record-card {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(5.5rem, 9rem) 1rem;
   align-items: center;
   justify-content: space-between;
   gap: 0.65rem;
@@ -8548,6 +8593,19 @@ body[data-ui-page=clients] .client-profile-page-header {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--surface-card);
+}
+
+[data-ui-page=passports].passport-detail-page .passport-record-status {
+  grid-column: 2;
+  justify-self: start;
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+[data-ui-page=passports].passport-detail-page .passport-record-open {
+  grid-column: 3;
 }
 
 [data-ui-page=passports].passport-detail-page .passport-record-card > div {
@@ -8577,8 +8635,50 @@ body[data-ui-page=clients] .client-profile-page-header {
 }
 
 [data-ui-page=passports].passport-detail-page .passport-record-card div span {
+  overflow-wrap: anywhere;
   color: var(--color-text-muted);
   font-size: 0.68rem;
+}
+
+.passport-dialog-preview {
+  width: min(1440px, 100vw - 1.5rem);
+  height: min(1000px, 100dvh - 1.5rem);
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+  color: var(--color-text);
+}
+.passport-dialog-preview[open] {
+  display: flex;
+  flex-direction: column;
+}
+.passport-dialog-preview::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
+.passport-dialog-preview__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.55rem 0.8rem;
+  border-bottom: 1px solid var(--color-border);
+}
+.passport-dialog-preview__header h2 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+.passport-dialog-preview__loading {
+  padding: 1rem;
+  color: var(--color-text-muted);
+}
+.passport-dialog-preview__frame {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 0;
 }
 
 [data-ui-page=passports].passport-detail-page .passport-photo-grid {
