@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Set;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.util.StringUtils;
+import org.springframework.web.util.UriComponentsBuilder;
 
 final class ObjectPassportAppealQuery {
 
@@ -111,21 +112,73 @@ final class ObjectPassportAppealQuery {
 
     private List<Map<String, Object>> queryCases(String businessKey, String cityKey, String departmentKey) {
         StringBuilder sql = new StringBuilder("""
-                SELECT ticket_id, business, city, problem, created_at
-                FROM messages
-                WHERE trim(COALESCE(ticket_id, '')) <> ''
+                WITH roots AS (
+                    SELECT t.user_id, t.ticket_id, t.channel_id,
+                           COALESCE(first_message.created_at, t.created_at) AS created_at,
+                           first_message.created_date, first_message.group_msg_id,
+                           count(*) OVER (PARTITION BY t.ticket_id) AS identity_count,
+                           t.is_general
+                      FROM tickets t
+                      LEFT JOIN LATERAL (
+                          SELECT m0.created_at, m0.created_date, m0.group_msg_id
+                            FROM messages m0 WHERE m0.ticket_id = t.ticket_id
+                           ORDER BY m0.created_at ASC NULLS LAST, m0.group_msg_id ASC LIMIT 1
+                      ) first_message ON TRUE
+                ), dated AS (
+                    SELECT r.*,
+                           CASE WHEN r.created_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN replace(r.created_date, '-', '')
+                                WHEN r.created_date ~ '^[0-9]{2}[.][0-9]{2}[.][0-9]{4}$' THEN
+                                    substring(r.created_date, 7, 4) || substring(r.created_date, 4, 2) || substring(r.created_date, 1, 2)
+                                WHEN r.created_date ~ '^[0-9]{8}$' THEN r.created_date
+                                ELSE to_char(r.created_at AT TIME ZONE 'UTC', 'YYYYMMDD') END AS number_day
+                      FROM roots r WHERE r.identity_count = 1 AND r.is_general = FALSE
+                ), numbered AS (
+                    SELECT d.*,
+                           row_number() OVER (PARTITION BY number_day
+                               ORDER BY date_trunc('second', created_at AT TIME ZONE 'UTC'), ticket_id COLLATE "C") AS day_sequence
+                      FROM dated d
+                )
+                SELECT m.ticket_id, m.user_id, m.channel_id, m.business, m.city, m.problem, m.created_at,
+                       t.ticket_public_id, t.is_general, t.status, roots.identity_count,
+                       CASE WHEN numbered.created_at IS NULL THEN numbered.group_msg_id::text ELSE
+                           numbered.number_day || '-' || lpad(numbered.day_sequence::text,
+                               greatest(3, length(numbered.day_sequence::text)), '0') END AS request_number
+                  FROM messages m
+                  LEFT JOIN tickets t ON t.ticket_id = m.ticket_id AND t.user_id = m.user_id
+                       AND t.channel_id IS NOT DISTINCT FROM m.channel_id
+                  LEFT JOIN roots ON roots.user_id = t.user_id AND roots.ticket_id = t.ticket_id
+                  LEFT JOIN numbered ON numbered.user_id = t.user_id AND numbered.ticket_id = t.ticket_id
+                 WHERE trim(COALESCE(m.ticket_id, '')) <> ''
                 """);
         List<Object> params = new ArrayList<>();
-        appendNormalizedMatch(sql, params, "business", businessKey);
-        appendNormalizedMatch(sql, params, "city", cityKey);
-        appendNormalizedMatch(sql, params, "location_name", departmentKey);
-        sql.append(" ORDER BY created_at DESC NULLS LAST, ticket_id DESC");
+        appendNormalizedMatch(sql, params, "m.business", businessKey);
+        appendNormalizedMatch(sql, params, "m.city", cityKey);
+        appendNormalizedMatch(sql, params, "m.location_name", departmentKey);
+        sql.append(" ORDER BY m.created_at DESC NULLS LAST, m.ticket_id DESC, m.group_msg_id DESC");
 
         List<Map<String, Object>> rows = jdbcTemplate.query(
                 sql.toString(),
                 (rs, rowNum) -> {
                     LinkedHashMap<String, Object> item = new LinkedHashMap<>();
                     item.put("ticket_id", rs.getString("ticket_id"));
+                    item.put("user_id", rs.getObject("user_id", Long.class));
+                    item.put("channel_id", rs.getObject("channel_id", Long.class));
+                    item.put("request_number", rs.getString("request_number"));
+                    item.put("status", rs.getString("status"));
+                    String publicId = rs.getString("ticket_public_id");
+                    String dialogUrl = null;
+                    if (Boolean.TRUE.equals(rs.getObject("is_general", Boolean.class))) {
+                        if (publicId != null && publicId.matches("[0-9a-f]{32}")) {
+                            dialogUrl = "/general-dialog-work/" + publicId;
+                        }
+                    } else if (rs.getLong("identity_count") == 1) {
+                        UriComponentsBuilder builder = UriComponentsBuilder.fromPath("/dialogs")
+                                .queryParam("ticketId", rs.getString("ticket_id"));
+                        Long channelId = rs.getObject("channel_id", Long.class);
+                        if (channelId != null) builder.queryParam("channelId", channelId);
+                        dialogUrl = builder.build().encode().toUriString();
+                    }
+                    item.put("dialog_url", dialogUrl);
                     item.put("business", rs.getString("business"));
                     item.put("city", rs.getString("city"));
                     item.put("problem", rs.getString("problem"));
@@ -134,15 +187,18 @@ final class ObjectPassportAppealQuery {
                 },
                 params.toArray()
         );
-        LinkedHashMap<String, Map<String, Object>> byTicket = new LinkedHashMap<>();
+        // A legacy ID alone can belong to different users/channels.
+        LinkedHashMap<CaseIdentity, Map<String, Object>> byTicket = new LinkedHashMap<>();
         for (Map<String, Object> row : rows) {
             String ticketId = stringValue(row.get("ticket_id"));
             if (StringUtils.hasText(ticketId)) {
-                byTicket.putIfAbsent(ticketId, row);
+                byTicket.putIfAbsent(new CaseIdentity(row.get("user_id"), row.get("channel_id"), ticketId), row);
             }
         }
         return new ArrayList<>(byTicket.values());
     }
+
+    private record CaseIdentity(Object userId, Object channelId, String ticketId) {}
 
     private void appendNormalizedMatch(StringBuilder sql, List<Object> params, String column, String value) {
         if (!StringUtils.hasText(value)) {

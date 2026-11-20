@@ -205,7 +205,9 @@ class ObjectPassportJavaSourceLayoutContractTest {
                 .contains("long resolveAppealCount(")
                 .contains("List<Map<String, Object>> loadCases(")
                 .contains("SELECT DISTINCT ticket_id")
-                .contains("SELECT ticket_id, business, city, problem, created_at");
+                .contains("SELECT m.ticket_id, m.user_id, m.channel_id, m.business, m.city, m.problem, m.created_at")
+                .contains("t.ticket_id = m.ticket_id AND t.user_id = m.user_id")
+                .contains("t.channel_id IS NOT DISTINCT FROM m.channel_id");
         assertThat(casesQuery)
                 .contains("final class ObjectPassportCasesQuery")
                 .contains("private final ObjectPassportPersistence persistence;")

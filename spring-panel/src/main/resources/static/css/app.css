@@ -8422,9 +8422,24 @@ body[data-ui-page=clients] .client-profile-page-header {
 
 [data-ui-page=passports].passport-detail-page .passport-asset-card__head {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.5rem;
+}
+
+[data-ui-page=passports].passport-detail-page .passport-asset-card__head > div {
+  flex: 1 1 10rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+[data-ui-page=passports].passport-detail-page .passport-asset-status {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 [data-ui-page=passports].passport-detail-page .passport-asset-card__head h3 {
@@ -8539,6 +8554,19 @@ body[data-ui-page=clients] .client-profile-page-header {
   display: grid;
   min-width: 0;
   gap: 0.12rem;
+}
+
+[data-ui-page=passports].passport-detail-page .passport-record-card--link {
+  color: inherit;
+  text-decoration: none;
+}
+[data-ui-page=passports].passport-detail-page .passport-record-card--link:hover {
+  border-color: var(--primary);
+  background: var(--surface-raised);
+}
+[data-ui-page=passports].passport-detail-page .passport-record-card--link:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 [data-ui-page=passports].passport-detail-page .passport-record-card strong {

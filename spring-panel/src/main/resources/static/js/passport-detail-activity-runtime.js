@@ -20,14 +20,20 @@
 
     function recordCard(item, kind) {
         const id = first(item && item.id, item && item.ticket_id, item && item.task_id, item && item.number, item && item.key, '');
-        const title = first(item && item.title, item && item.subject, item && item.name, item && item.category, kind === 'task' ? 'Задача' : 'Обращение');
+        const title = first(item && item.title, item && item.subject, item && item.name, kind === 'case' ? item && item.problem : '', item && item.category, kind === 'task' ? 'Задача' : 'Обращение');
         const status = first(item && item.status, item && item.state, '');
         const date = first(item && item.created_at, item && item.createdAt, item && item.updated_at, item && item.date, '');
-        const meta = [id ? `#${id}` : '', date].filter(Boolean).join(' · ');
-        return `<div class="passport-record-card">
-            <div><strong data-ui-ellipsis-reveal tabindex="0">${escapeHtml(title)}</strong>${meta ? `<span>${escapeHtml(meta)}</span>` : ''}</div>
+        const number = first(item && item.request_number, item && item.requestNumber, item && item.number, '');
+        const label = kind === 'case' ? (number ? `№ ${number}` : 'Номер не присвоен') : (id ? `#${id}` : '');
+        const meta = [label, date].filter(Boolean).join(' · ');
+        const url = kind === 'case' ? first(item && item.dialog_url, '') : '';
+        const navigable = /^\/dialogs\?ticketId=/.test(url) || /^\/general-dialog-work\/[0-9a-f]{32}$/.test(url);
+        const tag = navigable ? 'a' : 'div';
+        return `<${tag} class="passport-record-card${navigable ? ' passport-record-card--link' : ''}"${navigable ? ` href="${escapeHtml(url)}"` : ''}>
+            <div><strong data-ui-ellipsis-reveal${navigable ? '' : ' tabindex="0"'}>${escapeHtml(title)}</strong>${meta ? `<span>${escapeHtml(meta)}</span>` : ''}</div>
             ${status ? `<span class="passport-record-status" data-tone="${statusTone(status)}">${escapeHtml(status)}</span>` : ''}
-        </div>`;
+            ${navigable ? '<i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>' : ''}
+        </${tag}>`;
     }
 
     function renderActivity() {
