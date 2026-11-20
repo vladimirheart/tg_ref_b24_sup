@@ -22,10 +22,12 @@ async function main(){
  const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright'),browser=await chromium.launch({headless:true});
  const report=[],errors=[];
  try{
-  for(const width of [1440,1024,390,320])for(const theme of ['light','dark']){
-   const context=await browser.newContext({viewport:{width,height:900},reducedMotion:'reduce'});
+  const savedCases=[{width:1280,height:663,theme:'dark',savedSmall:true},{width:1280,height:663,theme:'light',savedSmall:true},{width:1280,height:480,theme:'dark',savedSmall:true},{width:390,height:663,theme:'dark',savedSmall:true}];
+  const scenarios=process.argv.includes('--saved-size-only')?savedCases:[...[1440,1024,390,320].flatMap(width=>['light','dark'].map(theme=>({width,height:900,theme,savedSmall:false}))),...savedCases];
+  for(const {width,height,theme,savedSmall} of scenarios){
+   const context=await browser.newContext({viewport:{width,height},reducedMotion:'reduce'});
    let nodes=structuredClone(baseNodes),canEdit=true,saves=0,profilePayload=null;
-   await context.addInitScript(({theme})=>{localStorage.setItem('sidebarPinned','1');localStorage.setItem('theme',theme);localStorage.setItem('colorTheme','neo');},{theme});
+   await context.addInitScript(({theme,savedSmall})=>{localStorage.setItem('sidebarPinned','1');localStorage.setItem('theme',theme);localStorage.setItem('colorTheme','neo');if(savedSmall){localStorage.setItem('iguana:modal-size:v1:%2Fsettings:orgMembersModal',JSON.stringify({width:896,height:220}));localStorage.setItem('iguana:modal-size:v1:%2Fsettings:authUserPasswordModal',JSON.stringify({width:480,height:250}));}},{theme,savedSmall});
    await context.route('**/*',async route=>{
     const request=route.request(),url=new URL(request.url());if(url.origin!==origin)return route.abort();
     if(url.pathname==='/api/auth/state')return route.fulfill({json:state(nodes)});
@@ -53,22 +55,28 @@ async function main(){
    const positions=await Promise.all(['root','it','support'].map(id=>branch(id).boundingBox()));
    assert(positions[1].x>positions[0].x&&positions[2].x>positions[1].x,'Tree indentation absent');
    const toggle=branch('it').locator('[data-org-action="toggle"]');await toggle.click();assert.equal(await branch('support').isVisible(),false);await toggle.click();
-   await page.screenshot({path:path.join(out,`tree-${width}-${theme}.png`)});
+   await page.screenshot({path:path.join(out,`tree-${width}-${height}-${theme}-${savedSmall?"saved":"fresh"}.png`)});
    await branch('support').locator('[data-org-action="members"]').click();
    const modal=page.locator('#orgMembersModal');await modal.waitFor({state:'visible'});
    assert.equal(await modal.locator('.modal-content').evaluate(el=>getComputedStyle(el).backgroundColor),theme==='dark'?'rgb(28, 29, 33)':'rgb(255, 255, 255)');
+   const initialSize=await modal.locator('.modal-dialog').boundingBox();
+   const minimumHeight=Math.min(640,height-24);
+   if(savedSmall&&width>=768)assert(initialSize.height>=minimumHeight-1,`Saved size collapsed the dialog: ${JSON.stringify({width,height,initialSize})}`);
    if(width>=768){
     const handle=modal.locator('.modal-resize-handle');await handle.focus();await handle.press('ArrowUp');
     const resized=await modal.evaluate(el=>({dialog:el.querySelector('.modal-dialog').getBoundingClientRect().height,content:el.querySelector('.modal-content').getBoundingClientRect().height}));
-    assert(resized.dialog<740&&Math.abs(resized.dialog-resized.content)<2,'Saved resize must resize the content');
-    await handle.dblclick();
+    assert(resized.dialog<=initialSize.height&&resized.dialog>=minimumHeight-1&&Math.abs(resized.dialog-resized.content)<2,'Resize must respect usable height and resize the content');
+    if(savedSmall){for(let attempt=0;attempt<12;attempt++)await handle.press('Shift+ArrowUp');assert((await modal.locator('.modal-dialog').boundingBox()).height>=minimumHeight-1,'Keyboard resize bypassed the minimum');}
+    if(!savedSmall)await handle.dblclick();
    }
    assert(await modal.locator('[data-org-members-roster]').getByText('Иван Сотрудник',{exact:true}).count());
    assert(await modal.locator('[data-org-members-roster]').getByText('Отдел в карточке',{exact:true}).count());
    await modal.locator('.employee-picker__trigger').click();
    const geometry=await modal.evaluate(el=>{const dialog=el.querySelector('.modal-dialog').getBoundingClientRect(),list=el.querySelector('.employee-picker__list'),button=el.querySelector('[type=submit]').getBoundingClientRect();return {width:dialog.width,right:dialog.right,left:dialog.left,listHeight:list.clientHeight,scroll:list.scrollHeight,buttonBottom:button.bottom,viewport:innerHeight};});
    assert(geometry.listHeight>100&&geometry.scroll>geometry.listHeight,'List must own scroll');assert(geometry.buttonBottom<=geometry.viewport&&geometry.right<=width&&geometry.left>=0,'Modal clipped');
-   if(width===1440)assert(geometry.width>=900,'Membership dialog too narrow');
+   if(width===1440)assert(geometry.width>=1100,'Membership dialog too narrow');
+   const visibleList=await modal.locator('.employee-picker__list').evaluate(list=>{const body=list.closest('.modal-body').getBoundingClientRect(),rect=list.getBoundingClientRect();return Math.max(0,Math.min(rect.bottom,body.bottom)-Math.max(rect.top,body.top));});
+   assert(visibleList>=Math.min(150,height*0.25),`Employee list clipped: ${visibleList}px visible`);
    assert.equal(await modal.locator('[data-employee-value="2"]').getAttribute('aria-pressed'),'true');
    const search=modal.locator('.employee-picker__menu input[type=search]');
    await search.fill('Сотрудник 00');await modal.locator('[data-employee-value="10"]').click();
@@ -76,7 +84,7 @@ async function main(){
    assert.equal(await modal.locator('[data-org-members-roster]').getByText('Мария Участник',{exact:true}).count(),0);
    assert(await modal.locator('[data-org-members-roster]').getByText('Сотрудник 00',{exact:true}).count());
    await search.fill('совсемнет');assert.equal(await modal.locator('[data-employee-value]:visible').count(),0);
-   await search.fill('');await page.screenshot({path:path.join(out,`members-${width}-${theme}.png`)});
+   await search.fill('');await page.screenshot({path:path.join(out,`members-${width}-${height}-${theme}-${savedSmall?"saved":"fresh"}.png`)});
    await modal.locator('[type=submit]').click();await modal.waitFor({state:'hidden'});await page.locator('[data-org-save]').click();
    await page.waitForFunction(()=>!document.querySelector('[data-auth-management]').__authManager.orgStructureDirty);
    assert.equal(saves,1);assert.deepEqual(nodes.find(n=>n.id==='support').members,[10,999]);assert.equal(nodes.find(n=>n.id==='support').parent_id,'it');
@@ -86,10 +94,15 @@ async function main(){
    const card=page.locator('#authUserDetailsModal');await card.waitFor({state:'visible'});
    assert.equal(await card.locator('#authUserModalFullName').inputValue(),'Иван Сотрудник');assert.equal(await card.locator('#authUserModalEmail').inputValue(),'ivan@example.test');
    assert.equal(await card.locator('[data-user-security-disclosure]').getAttribute('open'),null);
-   await page.screenshot({path:path.join(out,`employee-${width}-${theme}.png`)});
+   await page.screenshot({path:path.join(out,`employee-${width}-${height}-${theme}-${savedSmall?"saved":"fresh"}.png`)});
    const sizes=await card.evaluate(el=>[...el.querySelectorAll('.auth-user-overview,.auth-user-main,.auth-user-photo')].map(n=>({name:n.className,scroll:n.scrollWidth,width:n.clientWidth,display:getComputedStyle(n).display,grid:getComputedStyle(n).gridTemplateColumns})));
    assert(!sizes.some(n=>n.scroll>n.width+2),'Employee card horizontal overflow: '+JSON.stringify(sizes));
    await card.locator('[data-user-security-disclosure] > summary').click();assert(await card.locator('[data-auth-user-password-change]').isVisible());
+   if(savedSmall&&width>=768){
+    await card.locator('[data-auth-user-password-change]').click();const passwordModal=page.locator('#authUserPasswordModal');await passwordModal.waitFor({state:'visible'});
+    assert(Math.abs((await passwordModal.locator('.modal-dialog').boundingBox()).height-250)<2,'Organization minimum leaked into another modal');
+    await passwordModal.locator('.modal-header [data-bs-dismiss]').click();await passwordModal.waitFor({state:'hidden'});
+   }
    await card.locator('#authUserModalFullName').fill('Иван Проверенный');await card.locator('[data-auth-user-submit]').click();
    await page.waitForFunction(()=>document.querySelector('[data-auth-user-save-status]')?.textContent.includes('Сохранено'));
    assert.deepEqual(profilePayload,{full_name:'Иван Проверенный'});
@@ -105,7 +118,7 @@ async function main(){
    // Corrupt cycles remain visible without recursion or source mutation.
    const cycle=await page.evaluate(()=>{const m=document.querySelector('[data-auth-management]').__authManager,original=m.state.orgStructure;m.state.orgStructure=m.normalizeOrgStructure({nodes:[{id:'a',name:'A',parent_id:'b',members:[]},{id:'b',name:'B',parent_id:'a',members:[]},{id:'orphan',name:'<img onerror=alert(1)>',parent_id:'missing',members:[]}]});m.renderOrgStructure();const result={count:document.querySelectorAll('[data-org-tree] li').length,unsafe:document.querySelectorAll('[data-org-tree] img').length,parent:m.state.orgStructure.nodes[0].parent_id};m.state.orgStructure=original;m.renderOrgStructure();return result;});
    assert.deepEqual(cycle,{count:3,unsafe:0,parent:'b'});
-   report.push({width,theme,geometry,checks:['nested-tree','department-and-manual-members','ambiguous-department-excluded','filter-preserves-selection','save-reload','missing-user-retained','employee-layout-and-profile-save','readonly','cycle-xss']});
+   report.push({width,height,theme,savedSmall,initialSize,visibleList,geometry,checks:['nested-tree','department-and-manual-members','ambiguous-department-excluded','filter-preserves-selection','save-reload','missing-user-retained','employee-layout-and-profile-save','readonly','cycle-xss']});
    await context.close();
   }
   assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,'report.json'),JSON.stringify({report,errors},null,2));console.log(`GREEN: ${report.length} viewport/theme scenarios; tree, membership save/reload, employee card and read-only permissions.`);

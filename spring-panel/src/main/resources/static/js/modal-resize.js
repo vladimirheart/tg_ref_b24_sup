@@ -72,12 +72,16 @@
     }
   }
 
-  function clampSize(width, height) {
+  function clampSize(width, height, modal) {
+    const configuredMinWidth = Number(modal?.dataset.modalMinWidth);
+    const configuredMinHeight = Number(modal?.dataset.modalMinHeight);
+    const minWidth = Number.isFinite(configuredMinWidth) ? Math.max(MIN_WIDTH, configuredMinWidth) : MIN_WIDTH;
+    const minHeight = Number.isFinite(configuredMinHeight) ? Math.max(MIN_HEIGHT, configuredMinHeight) : MIN_HEIGHT;
     const maxWidth = Math.max(MIN_WIDTH, window.innerWidth - VIEWPORT_GAP);
     const maxHeight = Math.max(MIN_HEIGHT, window.innerHeight - VIEWPORT_GAP);
     return {
-      width: Math.min(maxWidth, Math.max(MIN_WIDTH, Math.round(width))),
-      height: Math.min(maxHeight, Math.max(MIN_HEIGHT, Math.round(height))),
+      width: Math.min(maxWidth, Math.max(minWidth, Math.round(width))),
+      height: Math.min(maxHeight, Math.max(minHeight, Math.round(height))),
     };
   }
 
@@ -85,7 +89,7 @@
     if (!dialog || !size || !isDesktop()) {
       return;
     }
-    const clamped = clampSize(size.width, size.height);
+    const clamped = clampSize(size.width, size.height, dialog.closest('.modal'));
     dialog.style.setProperty('--iguana-modal-user-width', `${clamped.width}px`);
     dialog.style.setProperty('--iguana-modal-user-height', `${clamped.height}px`);
     dialog.classList.add('modal-user-sized');
@@ -154,7 +158,7 @@
     if (event.key === 'ArrowUp') height -= step;
     if (event.key === 'ArrowDown') height += step;
 
-    const next = clampSize(width, height);
+    const next = clampSize(width, height, modal);
     applySize(dialog, next);
     writeStoredSize(modal, next);
   }
@@ -203,7 +207,7 @@
       const startY = event.clientY;
       const startWidth = rect.width;
       const startHeight = rect.height;
-      let latest = clampSize(startWidth, startHeight);
+      let latest = clampSize(startWidth, startHeight, modal);
 
       applySize(dialog, latest);
       document.body.classList.add('modal-resize-active');
@@ -217,7 +221,7 @@
         const deltaY = moveEvent.clientY - startY;
 
         // Bootstrap dialogs stay horizontally centered, so width grows on both sides.
-        latest = clampSize(startWidth + (deltaX * 2), startHeight + deltaY);
+        latest = clampSize(startWidth + (deltaX * 2), startHeight + deltaY, modal);
         applySize(dialog, latest);
       };
 

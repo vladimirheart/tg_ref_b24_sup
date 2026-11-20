@@ -4759,9 +4759,11 @@ body[data-ui-page=settings] .org-node__toggle:focus-visible {
   outline-offset: 2px;
 }
 body[data-ui-page=settings] #orgMembersModal .modal-dialog {
-  width: min(960px, 100vw - 1.7rem);
-  max-width: min(960px, 100vw - 1.7rem);
-  height: min(740px, 100dvh - 1.7rem);
+  width: min(1120px, 100vw - 24px);
+  max-width: min(1120px, 100vw - 24px);
+  height: calc(100dvh - 24px);
+  max-height: calc(100dvh - 24px);
+  margin: 12px auto;
 }
 body[data-ui-page=settings] #orgMembersModal .modal-content {
   height: 100%;
@@ -4769,8 +4771,13 @@ body[data-ui-page=settings] #orgMembersModal .modal-content {
   min-height: 0;
 }
 body[data-ui-page=settings] #orgMembersModal .modal-body {
+  display: flex;
+  flex-direction: column;
   overflow: auto;
   min-height: 0;
+}
+body[data-ui-page=settings] #orgMembersModal .modal-body > :not(.org-members-list) {
+  flex-shrink: 0;
 }
 body[data-ui-page=settings] .org-members-roster {
   max-height: 12rem;
@@ -4778,14 +4785,59 @@ body[data-ui-page=settings] .org-members-roster {
   overscroll-behavior: contain;
   margin-bottom: 1rem;
 }
+body[data-ui-page=settings] #orgMembersModal .org-members-list {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+body[data-ui-page=settings] #orgMembersModal .employee-picker {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+body[data-ui-page=settings] #orgMembersModal .employee-picker__trigger {
+  flex-shrink: 0;
+}
 body[data-ui-page=settings] #orgMembersModal .employee-picker__menu {
   position: static;
   width: 100%;
   margin-top: 0.5rem;
   box-shadow: none;
 }
+body[data-ui-page=settings] #orgMembersModal .employee-picker__menu:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+body[data-ui-page=settings] #orgMembersModal .employee-picker__menu > :not(.employee-picker__list) {
+  flex-shrink: 0;
+}
 body[data-ui-page=settings] #orgMembersModal .employee-picker__list {
-  max-height: min(310px, 35dvh);
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+body[data-ui-page=settings] #orgMembersModal .modal-body:has(.employee-picker__menu:not([hidden])) {
+  overflow: hidden;
+}
+body[data-ui-page=settings] #orgMembersModal .modal-body:has(.employee-picker__menu:not([hidden])) > .mb-3 {
+  display: none;
+}
+body[data-ui-page=settings] #orgMembersModal .modal-body:has(.employee-picker__menu:not([hidden])) .org-members-roster {
+  max-height: 4rem;
+}
+@media (max-height: 540px) {
+  body[data-ui-page=settings] #orgMembersModal .modal-body {
+    padding: 0.75rem 1rem;
+  }
+  body[data-ui-page=settings] #orgMembersModal .employee-picker__menu {
+    padding: 0.5rem;
+  }
+  body[data-ui-page=settings] #orgMembersModal .modal-body:has(.employee-picker__menu:not([hidden])) .org-members-roster {
+    display: none;
+  }
 }
 body[data-ui-page=settings] .org-member {
   display: grid;
