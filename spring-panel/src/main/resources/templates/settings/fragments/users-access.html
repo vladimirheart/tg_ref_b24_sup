@@ -193,8 +193,8 @@
             <div class="modal-body">
               <div class="alert alert-danger d-none" role="alert" data-auth-user-modal-error></div>
               <div class="d-flex flex-column gap-4">
-                <div class="auth-user-overview d-flex flex-column flex-xl-row align-items-stretch">
-                  <div class="auth-user-main pe-xl-4">
+                <div class="auth-user-overview">
+                  <div class="auth-user-main">
                     <div class="auth-user-fullname-field mb-3">
                       <label class="form-label small mb-1" for="authUserModalFullName">ФИО</label>
                       <input type="text" class="form-control form-control-sm" id="authUserModalFullName" name="full_name" autocomplete="off" placeholder="Введите ФИО целиком">
@@ -204,7 +204,7 @@
                         <label class="form-label small mb-1" for="authUserModalLogin">Логин</label>
                         <input type="text" class="form-control form-control-sm" id="authUserModalLogin" name="username" autocomplete="off" required title="Латинские буквы A–Z, цифры и . _ - @. Без пробелов внутри. Обычные пробелы по краям удаляются." aria-describedby="authUserModalLoginHelp authUserModalLoginError">
                             <div class="invalid-feedback" id="authUserModalLoginError" aria-live="polite"></div>
-                            <div class="form-text" id="authUserModalLoginHelp">Латинские буквы A–Z, цифры и . _ - @. Без пробелов внутри. Обычные пробелы по краям удаляются.</div>
+                            <div class="form-text auth-user-field-help" id="authUserModalLoginHelp">Латинские буквы A–Z, цифры и . _ - @. Без пробелов внутри. Обычные пробелы по краям удаляются.</div>
                             <div class="form-text" id="authUserModalLoginStatus" role="status" aria-live="polite"></div>
                       </div>
                       <div class="col-md-6">
@@ -235,7 +235,7 @@
                       </div>
                     </div>
                   </div>
-                  <div class="auth-user-photo ms-xl-auto">
+                  <div class="auth-user-photo">
                     <div class="auth-user-photo-wrapper auth-user-photo-uploader" data-auth-user-photo-uploader>
                       <label class="form-label small mb-1" for="authUserModalPhoto">Фото</label>
                       <input type="hidden" id="authUserModalPhoto" name="photo" data-auth-user-photo-value>
@@ -245,7 +245,7 @@
                           <div class="auth-user-photo-icon mb-2">
                             <i class="bi bi-image"></i>
                           </div>
-                          <p class="mb-2">Перетащите фото сюда или нажмите, чтобы загрузить</p>
+                          <p class="mb-2">Фото сотрудника</p>
                           <button type="button" class="btn btn-outline-primary btn-sm" data-auth-user-photo-trigger>Выбрать файл</button>
                           <div class="text-muted small mt-2">PNG, JPG, WebP до 5 МБ</div>
                         </div>
@@ -277,7 +277,7 @@
                 </div>
                 <div class="row g-3">
                   <div class="col-12">
-                    <div class="border rounded-3 p-3 bg-light-subtle">
+                    <div class="auth-user-section auth-user-contacts">
                       <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
                         <h6 class="mb-0">Контактные данные</h6>
                       </div>
@@ -477,8 +477,9 @@
                     </details>
                   </div>
                   <div class="col-12">
-                    <div class="border rounded-3 p-3">
-                      <div class="d-flex flex-column gap-3">
+                    <details class="auth-user-section auth-user-security" data-user-security-disclosure>
+                      <summary>Доступ и безопасность</summary>
+                      <div class="d-flex flex-column gap-3 mt-3">
                         <div class="d-flex flex-column gap-2 d-none" data-auth-user-block-wrapper>
                           <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
                             <div>
@@ -531,9 +532,9 @@
                           </div>
                         </div>
                       </div>
-                    </div>
+                    </details>
                   </div>
-                  <div class="col-12">
+                  <div class="col-12 auth-user-registration">
                     <label class="form-label small mb-1" for="authUserModalRegistration">Дата регистрации</label>
                     <div class="row g-2 align-items-center flex-wrap">
                       <div class="col-auto">
@@ -604,10 +605,9 @@
       </div>
     </div>
 
-    <div class="modal fade settings-child-modal settings-task-modal settings-task-modal--medium" id="orgMembersModal" tabindex="-1" aria-hidden="true" data-org-members-modal>
+    <div class="modal fade settings-child-modal settings-task-modal settings-task-modal--members" id="orgMembersModal" tabindex="-1" aria-hidden="true" data-org-members-modal>
       <div class="modal-dialog modal-dialog-scrollable">
-        <div class="modal-content">
-          <form data-org-members-form>
+        <form class="modal-content" data-org-members-form>
             <div class="modal-header">
               <h5 class="modal-title" data-org-members-title>Состав ветки</h5>
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
@@ -616,13 +616,16 @@
               <div class="mb-3">
                 <div class="text-muted small" data-org-members-description></div>
               </div>
+              <div class="small text-muted mb-2" role="status" aria-live="polite" data-org-members-count></div>
+              <div class="org-members-roster" data-org-members-roster></div>
+              <div class="small text-muted d-none mb-3" data-org-members-empty>Участники пока не назначены.</div>
+              <label class="form-label small" for="orgMembersSelect">Назначить участников вручную</label>
               <div class="org-members-list" data-org-members-list></div>
-              <div class="alert alert-info small d-none mt-3" data-org-members-empty>Нет доступных пользователей.</div>
             </div>
             <div class="modal-footer justify-content-end">
-              <button type="submit" class="btn btn-primary btn-sm">Сохранить</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Отмена</button>
+              <button type="submit" class="btn btn-primary btn-sm">Применить состав</button>
             </div>
-          </form>
-        </div>
+        </form>
       </div>
     </div></th:block>

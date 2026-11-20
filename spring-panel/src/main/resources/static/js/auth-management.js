@@ -136,6 +136,8 @@
         orgMembersTitle: resolveFrom(orgMembersModal, '[data-org-members-title]'),
         orgMembersDescription: resolveFrom(orgMembersModal, '[data-org-members-description]'),
         orgMembersEmpty: resolveFrom(orgMembersModal, '[data-org-members-empty]'),
+        orgMembersRoster: resolveFrom(orgMembersModal, '[data-org-members-roster]'),
+        orgMembersCount: resolveFrom(orgMembersModal, '[data-org-members-count]'),
       };
       this.orgSaveButtonDefaultText = this.elements.orgSaveButton
         ? this.elements.orgSaveButton.textContent.trim()
@@ -145,6 +147,7 @@
       this.orgCollapseState = {};
       this.orgMembersModalState = { nodeId: null };
       this.orgMembersModalInstance = null;
+      this.collapsedOrgNodes = new Set();
       this.photoViewerModalInstance = null;
       this.departmentOptions = [];
       this.customDepartmentOptions = new Set();
@@ -1076,6 +1079,7 @@
         permissions,
         isBlocked: Boolean(user?.is_blocked),
       };
+      this.elements.userModal?.querySelectorAll('[data-user-security-disclosure]').forEach(item => { item.open = mode === 'create'; });
       this.usernameEdited = false;
       this.resetCredentialFeedback();
       this.elements.userForm.dataset.mode = mode;
@@ -1575,7 +1579,7 @@
         const el = document.createElement('option');
         el.value = option.value;
         const indent = option.depth > 0 ? `${'\u00A0'.repeat(option.depth * 2)}↳ ` : '';
-        el.textContent = `${indent}${option.label}`;
+        el.textContent = `${indent}${option.pathParts?.join(' / ') || option.label}`;
         el.title = option.pathParts ? option.pathParts.join(' / ') : option.label;
         select.appendChild(el);
       });
@@ -3192,7 +3196,14 @@
 
       const roots = [];
       map.forEach((node) => {
-        const parentId = node.parent_id && map.has(node.parent_id) ? node.parent_id : null;
+        let parentId = node.parent_id && map.has(node.parent_id) ? node.parent_id : null;
+        const ancestors = new Set([node.id]);
+        let ancestor = parentId;
+        while (ancestor) {
+          if (ancestors.has(ancestor)) { parentId = null; break; }
+          ancestors.add(ancestor);
+          ancestor = map.get(ancestor)?.parent_id;
+        }
         if (parentId) {
           map.get(parentId).children.push(node);
         } else {
@@ -3226,6 +3237,7 @@
       tree.forEach((node) => {
         container.appendChild(this.createOrgNodeElement(node));
       });
+      this.updateDepartmentOptionsFromOrgStructure();
     }
 
     createOrgNodeElement(node) {
@@ -3240,7 +3252,7 @@
       header.className = 'org-node__header';
 
       const info = document.createElement('div');
-      info.className = 'flex-grow-1 d-flex flex-column gap-1';
+      info.className = 'org-node__info';
       const title = document.createElement('div');
       title.className = 'org-node__title';
       title.textContent = node.name || 'Новая ветка';
@@ -3260,7 +3272,8 @@
         members.forEach((user) => {
           const badge = document.createElement('span');
           badge.className = 'org-node__badge';
-          badge.textContent = user.username || `ID ${user.id}`;
+          badge.textContent = user.full_name || user.username || `ID ${user.id}`;
+          badge.title = this.isOrgDepartmentMember(node, user) ? 'Отдел указан в карточке сотрудника' : 'Назначен в состав ветки';
           membersContainer.appendChild(badge);
         });
         info.appendChild(membersContainer);
@@ -3275,6 +3288,7 @@
       membersBtn.type = 'button';
       membersBtn.className = 'btn btn-outline-secondary btn-sm';
       membersBtn.dataset.orgAction = 'members';
+      membersBtn.dataset.settingsRead = '';
       membersBtn.dataset.nodeId = node.id;
       membersBtn.textContent = 'Состав';
       actions.appendChild(membersBtn);
@@ -3308,8 +3322,19 @@
       item.appendChild(card);
 
       if (Array.isArray(node.children) && node.children.length) {
+        const toggle = document.createElement('button');
+        toggle.type = 'button'; toggle.className = 'org-node__toggle';
+        toggle.dataset.orgAction = 'toggle'; toggle.dataset.nodeId = node.id;
+        toggle.dataset.settingsRead = '';
+        toggle.setAttribute('aria-label', `Подветки: ${node.name}`);
+        toggle.setAttribute('aria-expanded', String(!this.collapsedOrgNodes.has(node.id)));
+        const icon = document.createElement('i'); icon.className = 'bi bi-chevron-down'; icon.setAttribute('aria-hidden', 'true');
+        toggle.append(icon); header.prepend(toggle);
         const childrenList = document.createElement('ul');
         childrenList.className = 'org-tree__children list-unstyled';
+        childrenList.id = `org-children-${node.id}`;
+        toggle.setAttribute('aria-controls', childrenList.id);
+        childrenList.hidden = this.collapsedOrgNodes.has(node.id);
         node.children.forEach((child) => {
           childrenList.appendChild(this.createOrgNodeElement(child));
         });
@@ -3319,34 +3344,35 @@
       return item;
     }
 
+    getOrgDepartmentPaths() {
+      const paths = new Map();
+      const visit = (nodes, prefix = []) => nodes.forEach(node => {
+        const parts = [...prefix, node.name];
+        paths.set(node.id, parts.join(' / '));
+        visit(node.children, parts);
+      });
+      visit(this.buildOrgTree());
+      return paths;
+    }
+
+    isOrgDepartmentMember(node, user, paths = this.getOrgDepartmentPaths()) {
+      const normalize = value => String(value || '').split('/').map(part => part.trim().toLocaleLowerCase('ru')).join(' / ');
+      const department = normalize(user?.department);
+      if (!department) return false;
+      const exact = [...paths].filter(([, path]) => normalize(path) === department);
+      if (exact.length) return exact.length === 1 && exact[0][0] === node.id;
+      // Legacy cards sometimes contain only the leaf name. Resolve only unique names.
+      const names = (this.state.orgStructure?.nodes || []).filter(item => normalize(item.name) === department);
+      return names.length === 1 && names[0].id === node.id;
+    }
+
     getOrgNodeMembers(node) {
-      const members = Array.isArray(node?.members) ? node.members : [];
-      if (!members.length) {
-        return [];
-      }
-      const lookup = new Map();
-      (this.state.users || []).forEach((user) => {
-        if (user && user.id != null) {
-          const id = Number(user.id);
-          if (Number.isInteger(id)) {
-            lookup.set(id, user);
-          }
-        }
-      });
-      const resolved = [];
-      members.forEach((id) => {
-        const numericId = Number(id);
-        if (!Number.isInteger(numericId)) {
-          return;
-        }
-        const user = lookup.get(numericId);
-        if (user) {
-          resolved.push(user);
-        }
-      });
-      const collator = new Intl.Collator('ru', { sensitivity: 'base' });
-      resolved.sort((a, b) => collator.compare(a.username || '', b.username || ''));
-      return resolved;
+      const ids = new Set((node?.members || []).map(Number));
+      const paths = this.getOrgDepartmentPaths();
+      const users = (this.state.users || []).filter(user => ids.has(Number(user.id)) || this.isOrgDepartmentMember(node, user, paths));
+      const known = new Set(users.map(user => Number(user.id)));
+      ids.forEach(id => { if (!known.has(id)) users.push({ id, username: `ID ${id} (недоступен)` }); });
+      return users.sort((a, b) => new Intl.Collator('ru', { sensitivity: 'base' }).compare(a.full_name || a.username || '', b.full_name || b.username || ''));
     }
 
     markOrgStructureDirty() {
@@ -3379,6 +3405,15 @@
       }
       const action = actionEl.dataset.orgAction;
       const nodeId = actionEl.dataset.nodeId || null;
+      if (action === 'toggle') {
+        event.preventDefault();
+        if (this.collapsedOrgNodes.has(nodeId)) this.collapsedOrgNodes.delete(nodeId);
+        else this.collapsedOrgNodes.add(nodeId);
+        const list = document.getElementById(`org-children-${nodeId}`);
+        if (list) list.hidden = this.collapsedOrgNodes.has(nodeId);
+        actionEl.setAttribute('aria-expanded', String(!this.collapsedOrgNodes.has(nodeId)));
+        return;
+      }
       switch (action) {
         case 'add-root':
           event.preventDefault();
@@ -3527,7 +3562,7 @@
       }
       if (this.elements.orgMembersDescription) {
         this.elements.orgMembersDescription.textContent =
-          'Отметьте пользователей, которые входят в выбранную ветку.';
+          'Сотрудники с этим отделом в карточке включены автоматически. Остальных можно назначить вручную. Чтобы изменить отдел сотрудника, откройте его карточку.';
       }
       this.populateOrgMembersModal(node);
       if (this.orgMembersModalInstance) {
@@ -3552,19 +3587,48 @@
       const list = this.elements.orgMembersList;
       if (!list) return;
       list.replaceChildren();
-      const membersSet = new Set(Array.isArray(node.members) ? node.members : []);
-      const users = (this.state.users || []).slice().sort((a, b) => new Intl.Collator('ru', { sensitivity: 'base' }).compare(a.username || '', b.username || ''));
-      this.elements.orgMembersEmpty?.classList.toggle('d-none', users.length > 0);
-      if (!users.length) return;
+      const membersSet = new Set((node.members || []).map(Number));
+      const paths = this.getOrgDepartmentPaths();
+      const users = [...(this.state.users || [])];
+      const known = new Set(users.map(user => Number(user.id)));
+      membersSet.forEach(id => { if (!known.has(id)) users.push({ id, username: `ID ${id} (недоступен)` }); });
+      const collator = new Intl.Collator('ru', { sensitivity: 'base' });
+      users.sort((a, b) => collator.compare(a.full_name || a.username || '', b.full_name || b.username || ''));
+      const roster = this.elements.orgMembersRoster;
+      const renderRoster = (memberIds) => {
+        roster?.replaceChildren();
+        const current = this.getOrgNodeMembers({ ...node, members: memberIds });
+        current.forEach(user => {
+          const row = document.createElement('div'); row.className = 'org-member';
+          const icon = document.createElement('i'); icon.className = 'bi bi-person'; icon.setAttribute('aria-hidden', 'true');
+          const info = document.createElement('span'); info.className = 'org-member__info';
+          const name = document.createElement('span'); name.className = 'org-member__name'; name.textContent = user.full_name || user.username;
+          const meta = document.createElement('span'); meta.className = 'org-member__meta'; meta.textContent = [user.full_name ? user.username : '', user.department].filter(Boolean).join(' · ');
+          info.append(name, meta);
+          const source = document.createElement('span'); source.className = 'org-member__source';
+          source.textContent = this.isOrgDepartmentMember(node, user, paths) ? 'Отдел в карточке' : 'Вручную';
+          row.append(icon, info, source); roster?.append(row);
+        });
+        this.elements.orgMembersEmpty?.classList.toggle('d-none', current.length > 0);
+        if (this.elements.orgMembersCount) this.elements.orgMembersCount.textContent = `В составе: ${current.length}`;
+      };
+      renderRoster(node.members || []);
       const select = document.createElement('select');
-      select.multiple = true; select.name = 'memberIds'; select.className = 'form-select';
-      select.dataset.employeePicker = 'true'; select.setAttribute('aria-label', 'Сотрудники ветки');
+      select.id = 'orgMembersSelect'; select.multiple = true; select.name = 'memberIds'; select.className = 'form-select';
+      select.dataset.employeePicker = 'true'; select.setAttribute('aria-label', 'Назначить участников вручную');
       users.forEach(user => {
-        const numericId = Number(user?.id);
-        if (user?.id == null || !Number.isInteger(numericId)) return;
-        const label = [user.full_name || user.username || 'ID ' + numericId, user.full_name ? user.username : null, user.department, user.role].filter(Boolean).join(' · ');
-        const option = new Option(label, String(numericId)); option.selected = membersSet.has(numericId); select.add(option);
+        const id = Number(user?.id);
+        if (!Number.isInteger(id) || id <= 0) return;
+        if (this.isOrgDepartmentMember(node, user, paths)) {
+          if (membersSet.has(id)) {
+            const retained = document.createElement('input'); retained.type = 'hidden'; retained.name = 'memberIds'; retained.value = String(id); list.append(retained);
+          }
+          return;
+        }
+        const label = [user.full_name || user.username || `ID ${id}`, user.full_name ? user.username : '', user.department, user.role].filter(Boolean).join(' · ');
+        const option = new Option(label, String(id)); option.selected = membersSet.has(id); select.add(option);
       });
+      select.addEventListener('change', () => renderRoster([...select.selectedOptions].map(option => Number(option.value))));
       list.append(select);
       window.EmployeePicker?.refresh();
     }
@@ -3588,7 +3652,7 @@
       this.markOrgStructureDirty();
       this.renderOrgStructure();
       this.closeOrgMembersModal();
-      this.setMessage('Состав ветки обновлён.', 'success');
+      this.setMessage('Состав ветки обновлён. Нажмите «Сохранить оргструктуру», чтобы сохранить изменения.', 'info');
     }
 
     handleOrgSaveClick(event) {
