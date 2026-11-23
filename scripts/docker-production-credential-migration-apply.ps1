@@ -232,11 +232,19 @@ function Invoke-DockerCli {
         [switch]$IgnoreExitCode
     )
 
-    $output = & $DockerCommand @Arguments 2>&1
-    $exitCode = $LASTEXITCODE
+    # Native stderr and arguments can contain credentials. Capture them without
+    # allowing PowerShell 5.1 or PSNativeCommandUseErrorActionPreference to throw.
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        $output = & $DockerCommand @Arguments 2>&1
+        $exitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
     $text = (@($output) | ForEach-Object { "$_" }) -join [Environment]::NewLine
     if ($exitCode -ne 0 -and -not $IgnoreExitCode) {
-        throw "docker $($Arguments -join ' ') failed with exit code $exitCode.$([Environment]::NewLine)$text"
+        throw "Docker command failed with exit code $exitCode. Arguments and output suppressed because they may contain credentials."
     }
 
     return [pscustomobject]@{
@@ -920,6 +928,7 @@ function Invoke-ComposeRecreate {
     $arguments.Add("up")
     $arguments.Add("-d")
     $arguments.Add("--force-recreate")
+    $arguments.Add("--no-deps")
     foreach ($service in $Services) {
         $arguments.Add($service)
     }

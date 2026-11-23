@@ -1,5 +1,7 @@
 # .gitignore
 .env
+# Credential rotation snapshots contain an unredacted copy of .env.
+**/credential-rotation-*/
 __pycache__/
 panel/node_modules/
 node_modules/

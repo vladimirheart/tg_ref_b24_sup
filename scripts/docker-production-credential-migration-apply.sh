@@ -463,27 +463,27 @@ update_postgres_password() {
   local safe_password="${new_password//\'/\'\'}"
   docker exec -e "PGPASSWORD=${current_password}" "${container_id}" \
     psql -h 127.0.0.1 -U "${user_name}" -d "${database_name}" -v ON_ERROR_STOP=1 \
-    -c "ALTER USER \"${safe_user}\" WITH PASSWORD '${safe_password}';" >/dev/null
+    -c "ALTER USER \"${safe_user}\" WITH PASSWORD '${safe_password}';" >/dev/null 2>&1
 }
 
 update_rabbitmq_password() {
   local container_id="$1"
   local user_name="$2"
   local new_password="$3"
-  docker exec "${container_id}" rabbitmqctl change_password "${user_name}" "${new_password}" >/dev/null
+  docker exec "${container_id}" rabbitmqctl change_password "${user_name}" "${new_password}" >/dev/null 2>&1
 }
 
 update_redis_password() {
   local container_id="$1"
   local current_password="$2"
   local new_password="$3"
-  docker exec "${container_id}" redis-cli --no-auth-warning -a "${current_password}" CONFIG SET requirepass "${new_password}" >/dev/null
+  docker exec "${container_id}" redis-cli --no-auth-warning -a "${current_password}" CONFIG SET requirepass "${new_password}" >/dev/null 2>&1
 }
 
 update_grafana_password() {
   local container_id="$1"
   local new_password="$2"
-  docker exec "${container_id}" grafana cli --homepath /usr/share/grafana --config /etc/grafana/grafana.ini admin reset-admin-password "${new_password}" >/dev/null
+  docker exec "${container_id}" grafana cli --homepath /usr/share/grafana --config /etc/grafana/grafana.ini admin reset-admin-password "${new_password}" >/dev/null 2>&1
 }
 
 get_compose_service_name_from_container() {
@@ -562,7 +562,7 @@ invoke_compose_recreate() {
   for compose_file in "${COMPOSE_FILES[@]}"; do
     args+=(-f "${compose_file}")
   done
-  args+=(-p "${PROJECT}" up -d --force-recreate)
+  args+=(-p "${PROJECT}" up -d --force-recreate --no-deps)
   local service_name
   for service_name in "${RESTART_SERVICES[@]}"; do
     args+=("${service_name}")
@@ -661,7 +661,9 @@ run_orchestration() {
     [[ -n "${TARGET_ACCESS_KEY}" ]] && child_args+=(--target-access-key "${TARGET_ACCESS_KEY}")
     [[ -n "${TARGET_SECRET_KEY}" ]] && child_args+=(--target-secret-key "${TARGET_SECRET_KEY}")
     (( APPLY == 1 )) && child_args+=(--apply)
-    bash "${SCRIPT_PATH}" "${child_args[@]}"
+    if ! bash "${SCRIPT_PATH}" "${child_args[@]}"; then
+      die "Credential rotation step ${index}/${total} failed: ${component}. Remaining components were not started."
+    fi
     echo "[INFO] Completed step ${index}/${total}: ${component}"
   done
 
