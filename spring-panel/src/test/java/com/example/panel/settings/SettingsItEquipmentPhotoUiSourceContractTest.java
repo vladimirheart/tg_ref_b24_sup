@@ -44,9 +44,9 @@ class SettingsItEquipmentPhotoUiSourceContractTest {
                 .contains("class=\"visually-hidden\" id=\"itEquipmentPhotoEditFile\"");
 
         assertThat(template)
-                .contains("settings.css(v='20261112-question-editor')")
+                .contains("settings.css(v='20261123-equipment-catalog-hierarchy-r1')")
                 .contains("equipment-media-runtime.js?v=20260922-01-272-s7")
-                .contains("settings-it-equipment-runtime.js?v=20260922-01-272-s7")
+                .contains("settings-it-equipment-runtime.js?v=20261123-equipment-catalog-hierarchy-r1")
                 .contains("settings-page-shell.js?v=20260909-01-259-r4-6")
                 .doesNotContain("<div class=\"small text-muted\">Фото сохраняются сразу. Нажмите на превью для просмотра.</div>");
 
@@ -71,6 +71,9 @@ class SettingsItEquipmentPhotoUiSourceContractTest {
                 .contains("selectedPhotoFile('edit')")
                 .contains("payload.photo_url = formatEquipmentLinksPayload(links)")
                 .contains("JSON.stringify(links) !== JSON.stringify(existingLinks)")
+                .contains("data-it-equipment-action=\"preview-photo\"")
+                .contains("function openCatalogPhotoViewer(item)")
+                .contains("photoViewerItem")
                 .doesNotContain("target=\"_blank\" rel=\"noopener\" aria-label=\"Открыть фото\"")
                 .doesNotContain("confirmAction('Удалить это фото оборудования?')")
                 .doesNotContain("? 'Фото сохраняются сразу. Для каждого фото обязательны тип и описание.'")

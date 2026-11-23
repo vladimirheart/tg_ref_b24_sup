@@ -77,6 +77,24 @@
   object-fit: cover;
 }
 
+#itEquipmentSection .it-equipment-catalog-card__photo-button {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: zoom-in;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__photo-button:focus-visible {
+  z-index: 4;
+  outline: 2px solid var(--primary);
+  outline-offset: -3px;
+}
+
 #itEquipmentSection .it-equipment-catalog-card__visual.has-image > span {
   opacity: 0;
 }

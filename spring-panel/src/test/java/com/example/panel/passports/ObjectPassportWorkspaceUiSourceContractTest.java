@@ -136,6 +136,7 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(equipment.contains("itEquipmentSearchInput"));
         assertTrue(equipment.contains("itEquipmentTypeFilter"));
         assertTrue(equipment.contains("itEquipmentVendorFilter"));
+        assertTrue(equipment.contains("itEquipmentModelFilter"));
         assertTrue(equipment.contains("itEquipmentCountBadge"));
         assertTrue(equipment.contains("it-equipment-catalog-grid"));
         assertTrue(runtime.contains("it-equipment-catalog-card"));
@@ -154,9 +155,11 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(runtime.contains("/api/settings/it-equipment/${id}/photos"));
         assertTrue(runtime.contains("data-it-equipment-photo-delete"));
         assertTrue(runtime.contains("firstPhoto(item)"));
-        assertTrue(settings.contains("/css/settings.css(v='20261112-question-editor')"));
+        assertTrue(runtime.contains("data-it-equipment-action=\"preview-photo\""));
+        assertTrue(runtime.contains("buildEquipmentHierarchy"));
+        assertTrue(settings.contains("/css/settings.css(v='20261123-equipment-catalog-hierarchy-r1')"));
         assertTrue(settings.contains("/js/equipment-media-runtime.js?v=20260922-01-272-s7"));
-        assertTrue(settings.contains("/js/settings-it-equipment-runtime.js?v=20260922-01-272-s7"));
+        assertTrue(settings.contains("/js/settings-it-equipment-runtime.js?v=20261123-equipment-catalog-hierarchy-r1"));
         assertTrue(settingsCatalogueScss.contains("Equipment catalogue media and lifecycle — 01-259 r4.4"));
     }
 

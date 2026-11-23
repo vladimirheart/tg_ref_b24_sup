@@ -3,6 +3,66 @@
     return;
   }
 
+  const NO_VENDOR_VALUE = '__it_equipment_without_vendor__';
+
+  function cleanEquipmentValue(value) {
+    return String(value ?? '').trim();
+  }
+
+  function normalizeEquipmentValue(value) {
+    return cleanEquipmentValue(value).toLocaleLowerCase('ru-RU').replace(/\s+/g, ' ');
+  }
+
+  function compareEquipmentOptions(left, right) {
+    return left.label.localeCompare(right.label, 'ru-RU', { sensitivity: 'base' });
+  }
+
+  function uniqueEquipmentOptions(values) {
+    const optionsByValue = new Map();
+    (Array.isArray(values) ? values : []).forEach((raw) => {
+      const option = raw && typeof raw === 'object'
+        ? { value: cleanEquipmentValue(raw.value), label: cleanEquipmentValue(raw.label || raw.value) }
+        : { value: cleanEquipmentValue(raw), label: cleanEquipmentValue(raw) };
+      if (!option.value || !option.label) return;
+      const key = option.value === NO_VENDOR_VALUE ? option.value : normalizeEquipmentValue(option.value);
+      if (!optionsByValue.has(key)) optionsByValue.set(key, option);
+    });
+    return Array.from(optionsByValue.values()).sort(compareEquipmentOptions);
+  }
+
+  function matchesEquipmentVendor(value, selectedVendor) {
+    const selected = cleanEquipmentValue(selectedVendor);
+    if (!selected) return true;
+    if (selected === NO_VENDOR_VALUE) return !cleanEquipmentValue(value);
+    return normalizeEquipmentValue(value) === normalizeEquipmentValue(selected);
+  }
+
+  function buildEquipmentHierarchy(items, selection = {}) {
+    const tuples = (Array.isArray(items) ? items : [])
+      .map((item) => ({
+        type: cleanEquipmentValue(item && item.equipment_type),
+        vendor: cleanEquipmentValue(item && item.equipment_vendor),
+        model: cleanEquipmentValue(item && item.equipment_model),
+      }))
+      .filter((item) => item.type && item.model);
+    const selectedType = cleanEquipmentValue(selection.type ?? selection.equipment_type);
+    const selectedVendor = cleanEquipmentValue(selection.vendor ?? selection.equipment_vendor);
+    const typeRows = selectedType
+      ? tuples.filter((item) => normalizeEquipmentValue(item.type) === normalizeEquipmentValue(selectedType))
+      : tuples;
+    const vendorRows = selectedVendor
+      ? typeRows.filter((item) => matchesEquipmentVendor(item.vendor, selectedVendor))
+      : typeRows;
+
+    return {
+      types: uniqueEquipmentOptions(tuples.map((item) => item.type)),
+      vendors: uniqueEquipmentOptions(typeRows.map((item) => item.vendor
+        ? { value: item.vendor, label: item.vendor }
+        : { value: NO_VENDOR_VALUE, label: 'Без производителя' })),
+      models: uniqueEquipmentOptions(vendorRows.map((item) => item.model)),
+    };
+  }
+
   function createRuntime(options = {}) {
     const equipmentMediaRuntime = options.equipmentMediaRuntime || window.EquipmentMediaRuntime;
     if (!equipmentMediaRuntime || typeof equipmentMediaRuntime.parse !== 'function' || typeof equipmentMediaRuntime.coverUrl !== 'function') {
@@ -14,7 +74,9 @@
       query: '',
       typeFilter: '',
       vendorFilter: '',
+      modelFilter: '',
       editingId: null,
+      photoViewerItem: null,
       photoViewerIndex: 0,
       photoEditId: null,
       photoConfirmResolver: null,
@@ -29,6 +91,7 @@
       searchInput: document.getElementById('itEquipmentSearchInput'),
       typeFilter: document.getElementById('itEquipmentTypeFilter'),
       vendorFilter: document.getElementById('itEquipmentVendorFilter'),
+      modelFilter: document.getElementById('itEquipmentModelFilter'),
       countBadge: document.getElementById('itEquipmentCountBadge'),
       emptyState: document.getElementById('itEquipmentEmptyState'),
     };
@@ -113,11 +176,6 @@
       infoButton: document.querySelector('[data-it-equipment-photo-info]'),
       infoPopover: document.querySelector('[data-it-equipment-photo-info-popover]'),
     };
-
-    function getParameterData() {
-      const data = typeof options.getParameterData === 'function' ? options.getParameterData() : null;
-      return data && typeof data === 'object' ? data : {};
-    }
 
     function escapeHtml(value) {
       if (typeof options.escapeHtml === 'function') {
@@ -241,60 +299,23 @@
         .filter(Boolean);
     }
 
-    function collectEquipmentOptionSets() {
-      const result = {
-        types: new Set(),
-        vendors: new Set(),
-        models: new Set(),
-      };
-      const items = Array.isArray(getParameterData().it_connection) ? getParameterData().it_connection : [];
-      items.forEach((item) => {
-        if (!item) return;
-        const category = typeof options.normalizeItConnectionCategory === 'function'
-          ? options.normalizeItConnectionCategory(
-              (item && item.category) || (item && item.extra && item.extra.category)
-            )
-          : ((item && item.category) || (item && item.extra && item.extra.category) || '');
-        const values = {
-          equipment_type: typeof item.equipment_type === 'string' ? item.equipment_type.trim() : '',
-          equipment_vendor: typeof item.equipment_vendor === 'string' ? item.equipment_vendor.trim() : '',
-          equipment_model: typeof item.equipment_model === 'string' ? item.equipment_model.trim() : '',
-          value: typeof item.value === 'string' ? item.value.trim() : '',
-        };
-        if (category === 'equipment_type') {
-          if (values.equipment_type) result.types.add(values.equipment_type);
-          if (values.value) result.types.add(values.value);
-        } else if (category === 'equipment_vendor') {
-          if (values.equipment_vendor) result.vendors.add(values.equipment_vendor);
-          if (values.value) result.vendors.add(values.value);
-        } else if (category === 'equipment_model') {
-          if (values.equipment_model) result.models.add(values.equipment_model);
-          if (values.value) result.models.add(values.value);
-        }
-      });
-      getItems().forEach((item) => {
-        if (item && item.equipment_type) result.types.add(String(item.equipment_type).trim());
-        if (item && item.equipment_vendor) result.vendors.add(String(item.equipment_vendor).trim());
-        if (item && item.equipment_model) result.models.add(String(item.equipment_model).trim());
-      });
-      const sorter = (a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' });
-      return {
-        types: Array.from(result.types).filter(Boolean).sort(sorter),
-        vendors: Array.from(result.vendors).filter(Boolean).sort(sorter),
-        models: Array.from(result.models).filter(Boolean).sort(sorter),
-      };
+    function collectEquipmentOptionSets(selection = {}) {
+      return buildEquipmentHierarchy(getItems(), selection);
     }
 
-    function buildEquipmentSelectOptions(values, selectedValue) {
+    function buildEquipmentSelectOptions(values, selectedValue, emptyLabel = '—') {
       const list = Array.isArray(values) ? values : [];
-      const normalizedSelected = typeof selectedValue === 'string' ? selectedValue.trim() : '';
-      const optionsHtml = ['<option value="">—</option>'];
+      const normalizedSelected = cleanEquipmentValue(selectedValue);
+      const optionsHtml = [`<option value="">${escapeHtml(emptyLabel)}</option>`];
       const seen = new Set();
       list.forEach((raw) => {
-        const value = typeof raw === 'string' ? raw.trim() : '';
-        if (!value || seen.has(value)) return;
+        const option = raw && typeof raw === 'object'
+          ? { value: cleanEquipmentValue(raw.value), label: cleanEquipmentValue(raw.label || raw.value) }
+          : { value: cleanEquipmentValue(raw), label: cleanEquipmentValue(raw) };
+        if (!option.value || !option.label || seen.has(option.value)) return;
+        const value = option.value;
         const selectedAttr = value === normalizedSelected ? ' selected' : '';
-        optionsHtml.push(`<option value="${escapeHtml(value)}"${selectedAttr}>${escapeHtml(value)}</option>`);
+        optionsHtml.push(`<option value="${escapeHtml(value)}"${selectedAttr}>${escapeHtml(option.label)}</option>`);
         seen.add(value);
       });
       if (normalizedSelected && !seen.has(normalizedSelected)) {
@@ -307,26 +328,21 @@
       return equipmentMediaRuntime.coverUrl(item && item.photo_url);
     }
 
-    function collectCatalogFilterValues(field) {
-      const values = new Set();
-      getItems().forEach((item) => {
-        const value = item && item[field] != null ? String(item[field]).trim() : '';
-        if (value) values.add(value);
-      });
-      return Array.from(values).sort((a, b) => a.localeCompare(b, 'ru-RU', { sensitivity: 'base' }));
-    }
-
     function populateCatalogFilter(select, values, selectedValue, allLabel) {
       if (!select) return '';
-      const selected = String(selectedValue || '').trim();
-      const normalizedValues = Array.isArray(values) ? values : [];
-      const available = normalizedValues.some((value) => normalize(value) === normalize(selected));
+      const selected = cleanEquipmentValue(selectedValue);
+      const normalizedValues = (Array.isArray(values) ? values : []).map((raw) => (
+        raw && typeof raw === 'object'
+          ? { value: cleanEquipmentValue(raw.value), label: cleanEquipmentValue(raw.label || raw.value) }
+          : { value: cleanEquipmentValue(raw), label: cleanEquipmentValue(raw) }
+      )).filter((option) => option.value && option.label);
+      const available = normalizedValues.some((option) => normalize(option.value) === normalize(selected));
       const effectiveSelected = selected && available ? selected : '';
       select.innerHTML = [
         `<option value="">${escapeHtml(allLabel)}</option>`,
-        ...normalizedValues.map((value) => {
-          const selectedAttr = normalize(value) === normalize(effectiveSelected) ? ' selected' : '';
-          return `<option value="${escapeHtml(value)}"${selectedAttr}>${escapeHtml(value)}</option>`;
+        ...normalizedValues.map((option) => {
+          const selectedAttr = normalize(option.value) === normalize(effectiveSelected) ? ' selected' : '';
+          return `<option value="${escapeHtml(option.value)}"${selectedAttr}>${escapeHtml(option.label)}</option>`;
         }),
       ].join('');
       select.value = effectiveSelected;
@@ -334,23 +350,36 @@
     }
 
     function populateCatalogFilters() {
+      const initialHierarchy = collectEquipmentOptionSets();
       state.typeFilter = populateCatalogFilter(
         elements.typeFilter,
-        collectCatalogFilterValues('equipment_type'),
+        initialHierarchy.types,
         state.typeFilter,
         'Все типы'
       );
+      const typeHierarchy = collectEquipmentOptionSets({ type: state.typeFilter });
       state.vendorFilter = populateCatalogFilter(
         elements.vendorFilter,
-        collectCatalogFilterValues('equipment_vendor'),
+        typeHierarchy.vendors,
         state.vendorFilter,
         'Все производители'
+      );
+      const vendorHierarchy = collectEquipmentOptionSets({
+        type: state.typeFilter,
+        vendor: state.vendorFilter,
+      });
+      state.modelFilter = populateCatalogFilter(
+        elements.modelFilter,
+        vendorHierarchy.models,
+        state.modelFilter,
+        'Все модели'
       );
     }
 
     function cardMatches(item) {
       if (state.typeFilter && normalize(item && item.equipment_type) !== normalize(state.typeFilter)) return false;
-      if (state.vendorFilter && normalize(item && item.equipment_vendor) !== normalize(state.vendorFilter)) return false;
+      if (state.vendorFilter && !matchesEquipmentVendor(item && item.equipment_vendor, state.vendorFilter)) return false;
+      if (state.modelFilter && normalize(item && item.equipment_model) !== normalize(state.modelFilter)) return false;
       const query = normalize(state.query);
       if (!query) return true;
       return normalize([
@@ -380,7 +409,7 @@
         <article class="it-equipment-catalog-card ${discovered ? 'is-discovered' : ''}" data-id="${Number.isFinite(id) ? id : ''}" data-item-index="${itemIndex}">
           <div class="it-equipment-catalog-card__visual ${cover ? 'has-image' : ''}">
             <span class="it-equipment-catalog-card__visual-placeholder" aria-hidden="true"><i class="bi bi-image"></i></span>
-            ${cover ? `<img src="${escapeHtml(cover)}" alt="${escapeHtml(title)}" loading="lazy" onerror="this.parentElement.classList.remove('has-image');this.remove();">` : ''}
+            ${cover ? `<button class="it-equipment-catalog-card__photo-button" type="button" data-it-equipment-action="preview-photo" aria-label="Открыть фото модели: ${escapeHtml(title)}" title="Открыть фото"><img src="${escapeHtml(cover)}" alt="${escapeHtml(title)}" loading="lazy" onerror="this.closest('.it-equipment-catalog-card__visual').classList.remove('has-image');this.parentElement.remove();"></button>` : ''}
           </div>
           <span class="it-equipment-catalog-card__type-center">${escapeHtml(type)}</span>
           <div class="it-equipment-catalog-card__body">
@@ -409,7 +438,7 @@
       if (!elements.itEquipmentBody) return;
       const list = getItems().filter(cardMatches);
       elements.itEquipmentBody.innerHTML = list.map(renderCard).join('');
-      const hasActiveFilter = Boolean(normalize(state.query) || state.typeFilter || state.vendorFilter);
+      const hasActiveFilter = Boolean(normalize(state.query) || state.typeFilter || state.vendorFilter || state.modelFilter);
       if (elements.countBadge) {
         elements.countBadge.textContent = hasActiveFilter
           ? `${list.length} из ${getItems().length}`
@@ -450,6 +479,10 @@
     function equipmentPhotos() {
       const item = currentEditingItem();
       return item ? parseEquipmentPhotos(item.photo_url) : [];
+    }
+
+    function photoViewerPhotos() {
+      return state.photoViewerItem ? parseEquipmentPhotos(state.photoViewerItem.photo_url) : equipmentPhotos();
     }
 
     function photoCategoryLabel(photo) {
@@ -750,7 +783,7 @@
     }
 
     function renderPhotoViewer() {
-      const photos = equipmentPhotos();
+      const photos = photoViewerPhotos();
       if (!photos.length) return;
       state.photoViewerIndex = ((state.photoViewerIndex % photos.length) + photos.length) % photos.length;
       const photo = photos[state.photoViewerIndex] || {};
@@ -767,17 +800,32 @@
       });
     }
 
-    function openPhotoViewer(photoId) {
-      const photos = equipmentPhotos();
-      const index = photos.findIndex((photo) => String(photo && photo.id || '').trim() === String(photoId || '').trim());
+    function openPhotoViewerForItem(item, photoId, initialIndex = 0) {
+      const photos = item ? parseEquipmentPhotos(item.photo_url) : [];
+      const requestedId = String(photoId || '').trim();
+      const index = requestedId
+        ? photos.findIndex((photo) => String(photo && photo.id || '').trim() === requestedId)
+        : initialIndex;
       if (index < 0 || !photoUi.viewerModalEl || !window.bootstrap || !window.bootstrap.Modal) return;
+      state.photoViewerItem = item;
       state.photoViewerIndex = index;
       renderPhotoViewer();
       window.bootstrap.Modal.getOrCreateInstance(photoUi.viewerModalEl).show();
     }
 
+    function openPhotoViewer(photoId) {
+      openPhotoViewerForItem(currentEditingItem(), photoId);
+    }
+
+    function openCatalogPhotoViewer(item) {
+      if (!item || !firstPhoto(item)) return;
+      const photos = parseEquipmentPhotos(item.photo_url);
+      const cover = photos.find((photo) => normalize(photo && photo.category) === 'title') || photos[0];
+      openPhotoViewerForItem(item, cover && cover.id, Math.max(0, photos.indexOf(cover)));
+    }
+
     function movePhotoViewer(delta) {
-      const photos = equipmentPhotos();
+      const photos = photoViewerPhotos();
       if (photos.length < 2) return;
       state.photoViewerIndex = (state.photoViewerIndex + delta + photos.length) % photos.length;
       renderPhotoViewer();
@@ -894,11 +942,10 @@
     }
 
     function populateItEquipmentAddOptions(selectedValues = {}) {
-      const optionSets = collectEquipmentOptionSets();
       const ensureOptions = (select, values, emptyLabel, key) => {
         if (!select) return false;
         const list = Array.isArray(values) ? values : [];
-        const selectedValue = selectedValues[key] || '';
+        const selectedValue = cleanEquipmentValue(selectedValues[key]);
         if (!list.length) {
           select.innerHTML = `<option value="" disabled selected>${escapeHtml(emptyLabel)}</option>`;
           select.disabled = true;
@@ -907,15 +954,52 @@
           return false;
         }
         select.disabled = false;
-        select.innerHTML = buildEquipmentSelectOptions(list, selectedValue);
+        select.innerHTML = buildEquipmentSelectOptions(list, selectedValue, '— Выберите —');
         select.value = selectedValue || '';
         select.classList.remove('is-invalid');
         return true;
       };
-      const hasType = ensureOptions(addModal.typeSelect, optionSets.types, 'Добавьте тип в разделе «Оборудование»', 'equipment_type');
-      ensureOptions(addModal.vendorSelect, optionSets.vendors, 'Производитель не обязателен', 'equipment_vendor');
-      const hasModel = ensureOptions(addModal.modelSelect, optionSets.models, 'Добавьте модель в разделе «Оборудование»', 'equipment_model');
-      return hasType && hasModel;
+      const typeHierarchy = collectEquipmentOptionSets();
+      const hasType = ensureOptions(addModal.typeSelect, typeHierarchy.types, 'Нет моделей, импортированных из NetBox', 'equipment_type');
+      const selectedType = addModal.typeSelect && !addModal.typeSelect.disabled
+        ? cleanEquipmentValue(addModal.typeSelect.value)
+        : '';
+      const vendorHierarchy = selectedType ? collectEquipmentOptionSets({ type: selectedType }) : { vendors: [] };
+      const hasVendor = ensureOptions(
+        addModal.vendorSelect,
+        vendorHierarchy.vendors,
+        selectedType ? 'Нет производителей для выбранного типа' : 'Сначала выберите тип',
+        'equipment_vendor'
+      );
+      const selectedVendor = addModal.vendorSelect && !addModal.vendorSelect.disabled
+        ? cleanEquipmentValue(addModal.vendorSelect.value)
+        : '';
+      const modelHierarchy = selectedType && selectedVendor
+        ? collectEquipmentOptionSets({ type: selectedType, vendor: selectedVendor })
+        : { models: [] };
+      const hasModel = ensureOptions(
+        addModal.modelSelect,
+        modelHierarchy.models,
+        selectedVendor ? 'Нет моделей для выбранного производителя' : 'Сначала выберите производителя',
+        'equipment_model'
+      );
+      return hasType && hasVendor && hasModel;
+    }
+
+    function refreshModalHierarchy(changedField) {
+      const selected = {
+        equipment_type: cleanEquipmentValue(addModal.typeSelect && addModal.typeSelect.value),
+        equipment_vendor: cleanEquipmentValue(addModal.vendorSelect && addModal.vendorSelect.value),
+        equipment_model: cleanEquipmentValue(addModal.modelSelect && addModal.modelSelect.value),
+      };
+      if (changedField === 'equipment_type') {
+        selected.equipment_vendor = '';
+        selected.equipment_model = '';
+      } else if (changedField === 'equipment_vendor') {
+        selected.equipment_model = '';
+      }
+      const hasOptions = populateItEquipmentAddOptions(selected);
+      if (addModal.submitButton) addModal.submitButton.disabled = !hasOptions;
     }
 
     function setModalMode(item) {
@@ -923,7 +1007,7 @@
       state.editingId = editing ? Number.parseInt(item.id, 10) : null;
       const selected = editing ? {
         equipment_type: item.equipment_type || '',
-        equipment_vendor: item.equipment_vendor || '',
+        equipment_vendor: item.equipment_vendor || NO_VENDOR_VALUE,
         equipment_model: item.equipment_model || '',
       } : {};
       const hasOptions = populateItEquipmentAddOptions(selected);
@@ -961,7 +1045,9 @@
     function collectModalPayload() {
       const payload = {
         equipment_type: addModal.typeSelect && !addModal.typeSelect.disabled ? addModal.typeSelect.value.trim() : '',
-        equipment_vendor: addModal.vendorSelect && !addModal.vendorSelect.disabled ? addModal.vendorSelect.value.trim() : '',
+        equipment_vendor: addModal.vendorSelect && !addModal.vendorSelect.disabled && addModal.vendorSelect.value !== NO_VENDOR_VALUE
+          ? addModal.vendorSelect.value.trim()
+          : '',
         equipment_model: addModal.modelSelect && !addModal.modelSelect.disabled ? addModal.modelSelect.value.trim() : '',
         serial_number: addModal.serialNumberInput ? addModal.serialNumberInput.value.trim() : '',
         accessories: addModal.accessoriesInput ? addModal.accessoriesInput.value.trim() : '',
@@ -1034,6 +1120,8 @@
         deleteItem(item);
       } else if (button.dataset.itEquipmentAction === 'promote') {
         promoteDiscoveredItem(item);
+      } else if (button.dataset.itEquipmentAction === 'preview-photo') {
+        openCatalogPhotoViewer(item);
       }
     }
 
@@ -1139,20 +1227,36 @@
       if (elements.typeFilter) {
         elements.typeFilter.addEventListener('change', () => {
           state.typeFilter = elements.typeFilter.value || '';
+          state.vendorFilter = '';
+          state.modelFilter = '';
+          populateCatalogFilters();
           renderItEquipmentTable();
         });
       }
       if (elements.vendorFilter) {
         elements.vendorFilter.addEventListener('change', () => {
           state.vendorFilter = elements.vendorFilter.value || '';
+          state.modelFilter = '';
+          populateCatalogFilters();
+          renderItEquipmentTable();
+        });
+      }
+      if (elements.modelFilter) {
+        elements.modelFilter.addEventListener('change', () => {
+          state.modelFilter = elements.modelFilter.value || '';
           renderItEquipmentTable();
         });
       }
       if (elements.itEquipmentAddModalEl) elements.itEquipmentAddModalEl.addEventListener('click', handleAddModalClick);
-      [addModal.typeSelect, addModal.vendorSelect, addModal.modelSelect].forEach((select) => {
-        if (!select) return;
-        select.addEventListener('change', () => select.classList.remove('is-invalid'));
+      addModal.typeSelect?.addEventListener('change', () => {
+        addModal.typeSelect.classList.remove('is-invalid');
+        refreshModalHierarchy('equipment_type');
       });
+      addModal.vendorSelect?.addEventListener('change', () => {
+        addModal.vendorSelect.classList.remove('is-invalid');
+        refreshModalHierarchy('equipment_vendor');
+      });
+      addModal.modelSelect?.addEventListener('change', () => addModal.modelSelect.classList.remove('is-invalid'));
       if (addModal.form) addModal.form.addEventListener('submit', handleAddFormSubmit);
       if (photoUi.addSave) photoUi.addSave.addEventListener('click', () => uploadEquipmentPhoto().catch((error) => popup('❌ ' + error)));
       if (photoUi.addFileOpen) photoUi.addFileOpen.addEventListener('click', () => photoUi.addFile?.click());
@@ -1168,6 +1272,9 @@
         photoUi.viewerModalEl.addEventListener('keydown', (event) => {
           if (event.key === 'ArrowLeft') movePhotoViewer(-1);
           if (event.key === 'ArrowRight') movePhotoViewer(1);
+        });
+        photoUi.viewerModalEl.addEventListener('hidden.bs.modal', () => {
+          state.photoViewerItem = null;
         });
       }
       if (photoUi.editSave) photoUi.editSave.addEventListener('click', () => saveEquipmentPhotoEdit().catch((error) => popup('❌ ' + error)));
@@ -1215,10 +1322,12 @@
       renderItEquipmentTable,
       loadItEquipment,
       prepareItEquipmentAddSettingsModal,
+      buildEquipmentHierarchy,
     };
   }
 
   const api = {
+    buildEquipmentHierarchy,
     mount(options = {}) {
       if (window.__settingsItEquipmentRuntime) {
         return window.__settingsItEquipmentRuntime;
