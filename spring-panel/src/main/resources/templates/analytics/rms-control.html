@@ -239,8 +239,9 @@
                 </div>
             </div>
             <div class="modal-footer">
+                <div class="small text-primary me-auto" id="rmsCreateStatus" role="status" aria-live="polite" hidden></div>
                 <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Отмена</button>
-                <button class="btn btn-primary" type="submit">Добавить</button>
+                <button class="btn btn-primary" id="rmsCreateSubmitBtn" type="submit">Добавить</button>
             </div>
         </form>
     </div>
@@ -373,6 +374,6 @@
 
 <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
 <script th:src="@{/js/common.js}"></script>
-<script th:src="@{/js/rms-monitoring.js?v=20261007-rms-location-coverage-r46}"></script>
+<script th:src="@{/js/rms-monitoring.js?v=20261123-rms-create-progress-r47}"></script>
 </body>
 </html>

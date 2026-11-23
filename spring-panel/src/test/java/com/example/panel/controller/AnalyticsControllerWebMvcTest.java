@@ -115,7 +115,7 @@ class AnalyticsControllerWebMvcTest {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"rmsCoverageSettingsModal\"")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"rmsCoverageExcludedNames\"")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("/css/app.css?v=20261119-refined-r1")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/rms-monitoring.js?v=20261007-rms-location-coverage-r46")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/rms-monitoring.js?v=20261123-rms-create-progress-r47")));
     }
 
     @Test

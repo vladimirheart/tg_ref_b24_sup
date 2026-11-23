@@ -25,6 +25,8 @@
   const openCreateModalBtn = document.getElementById('openRmsCreateModalBtn');
   const openExportModalBtn = document.getElementById('openRmsExportModalBtn');
   const createForm = document.getElementById('rmsCreateForm');
+  const createSubmitBtn = document.getElementById('rmsCreateSubmitBtn');
+  const createStatusEl = document.getElementById('rmsCreateStatus');
   const refreshLicensesBtn = document.getElementById('refreshRmsLicensesBtn');
   const refreshNetworkBtn = document.getElementById('refreshRmsNetworkBtn');
   const scheduleButton = document.getElementById('openRmsScheduleSettingsBtn');
@@ -83,6 +85,7 @@
   let scheduleSettings = null;
   let pollTimer = null;
   let availabilityFilter = 'all';
+  let isCreatingSite = false;
   const sortState = {
     key: 'address',
     direction: 'asc',
@@ -1018,8 +1021,30 @@
     if (rmsNetworkMonitoringInput) rmsNetworkMonitoringInput.checked = true;
   }
 
+  function setCreateFormBusy(isBusy) {
+    createForm?.setAttribute('aria-busy', String(isBusy));
+    if (createSubmitBtn) {
+      if (isBusy && !createSubmitBtn.dataset.rmsCreateIdleHtml) {
+        createSubmitBtn.dataset.rmsCreateIdleHtml = createSubmitBtn.innerHTML;
+        createSubmitBtn.dataset.rmsCreateIdleDisabled = String(createSubmitBtn.disabled);
+        createSubmitBtn.disabled = true;
+        createSubmitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Добавляем RMS…';
+      } else if (!isBusy && createSubmitBtn.dataset.rmsCreateIdleHtml) {
+        createSubmitBtn.innerHTML = createSubmitBtn.dataset.rmsCreateIdleHtml;
+        createSubmitBtn.disabled = createSubmitBtn.dataset.rmsCreateIdleDisabled === 'true';
+        delete createSubmitBtn.dataset.rmsCreateIdleHtml;
+        delete createSubmitBtn.dataset.rmsCreateIdleDisabled;
+      }
+    }
+    if (createStatusEl) {
+      createStatusEl.hidden = !isBusy;
+      createStatusEl.textContent = isBusy ? 'Добавляем RMS…' : '';
+    }
+  }
+
   async function createSite(event) {
     event.preventDefault();
+    if (isCreatingSite) return;
     const payload = {
       rmsAddress: rmsAddressInput?.value || '',
       authLogin: rmsLoginInput?.value || '',
@@ -1028,6 +1053,8 @@
       licenseMonitoringEnabled: rmsLicenseMonitoringInput?.checked ?? true,
       networkMonitoringEnabled: rmsNetworkMonitoringInput?.checked ?? true,
     };
+    isCreatingSite = true;
+    setCreateFormBusy(true);
     try {
       await requestJson('/api/monitoring/rms/sites', {
         method: 'POST',
@@ -1040,6 +1067,9 @@
       showMessage('RMS добавлен.', 'success');
     } catch (error) {
       showMessage(`Не удалось добавить RMS: ${error.message}`, 'error');
+    } finally {
+      isCreatingSite = false;
+      setCreateFormBusy(false);
     }
   }
 
@@ -1253,7 +1283,9 @@
   }
 
   openCreateModalBtn?.addEventListener('click', () => {
-    resetCreateForm();
+    if (!isCreatingSite) {
+      resetCreateForm();
+    }
     createModal?.show();
   });
   openExportModalBtn?.addEventListener('click', () => {
