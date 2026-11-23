@@ -903,6 +903,9 @@ run_redis() {
 
   local new_password="${TARGET_PASSWORD}"
   [[ -n "${new_password}" ]] || new_password="$(new_random_hex_token 32)"
+  if LC_ALL=C printf '%s' "${new_password}" | LC_ALL=C grep -q '[^ -~]'; then
+    die "Redis target password must contain printable ASCII characters only; the deployed Redis client cannot authenticate with non-ASCII password characters."
+  fi
   [[ "${new_password}" != "${current_password}" ]] || die "Target Redis password must differ from the current live password."
 
   RESTART_SERVICES=()

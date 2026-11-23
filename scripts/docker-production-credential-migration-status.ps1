@@ -68,6 +68,44 @@ function Invoke-DockerCli {
     }
 }
 
+function Invoke-DockerCliWithUtf8Input {
+    param(
+        [string]$DockerCommand,
+        [string[]]$Arguments,
+        [string[]]$InputLines,
+        [switch]$IgnoreExitCode
+    )
+
+    # redis-cli receives credentials from stdin so Windows native-command
+    # encoding cannot alter Unicode password characters in docker exec args.
+    $previousErrorActionPreference = $ErrorActionPreference
+    $previousOutputEncoding = $global:OutputEncoding
+    try {
+        $ErrorActionPreference = "Continue"
+        # Native-process encoding is read from the global PowerShell setting;
+        # a function-local $OutputEncoding does not affect docker.exe.
+        $global:OutputEncoding = New-Object System.Text.UTF8Encoding($false)
+        # Redis can emit benign diagnostics to stderr even when PING succeeds.
+        # Do not merge these into the protocol result: native stderr may also
+        # include the supplied password on a failure.
+        $output = @($InputLines | & $DockerCommand @Arguments 2>$null)
+        $exitCode = $LASTEXITCODE
+    } finally {
+        $global:OutputEncoding = $previousOutputEncoding
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+    $text = (@($output) | ForEach-Object { "$_" }) -join [Environment]::NewLine
+    if ($exitCode -ne 0 -and -not $IgnoreExitCode) {
+        throw "Docker command failed with exit code $exitCode. Arguments and output suppressed because they may contain credentials."
+    }
+
+    return [pscustomobject]@{
+        ExitCode = $exitCode
+        Text = $text
+        Lines = @($output)
+    }
+}
+
 function Read-DotEnvFile {
     param([string]$Path)
 
@@ -342,14 +380,15 @@ function Test-RedisCredential {
         [string]$Password
     )
 
-    $result = Invoke-DockerCli -DockerCommand $DockerCommand -Arguments @(
+    $result = Invoke-DockerCliWithUtf8Input -DockerCommand $DockerCommand -InputLines @($Password) -Arguments @(
         "exec",
+        "-i",
         $ContainerId,
-        "redis-cli",
-        "-a", $Password,
-        "ping"
+        "sh",
+        "-ec",
+        'IFS= read -r password; password=$(printf %s "$password" | sed "s/.$//"); redis-cli --no-auth-warning -a "$password" ping'
     ) -IgnoreExitCode
-    return $result.ExitCode -eq 0 -and $result.Text -match "PONG"
+    return $result.ExitCode -eq 0 -and $result.Text.Trim() -eq "PONG"
 }
 
 function Test-GrafanaCredential {

@@ -254,6 +254,44 @@ function Invoke-DockerCli {
     }
 }
 
+function Invoke-DockerCliWithUtf8Input {
+    param(
+        [string]$DockerCommand,
+        [string[]]$Arguments,
+        [string[]]$InputLines,
+        [switch]$IgnoreExitCode
+    )
+
+    # redis-cli receives credentials from stdin so Windows native-command
+    # encoding cannot alter Unicode password characters in docker exec args.
+    $previousErrorActionPreference = $ErrorActionPreference
+    $previousOutputEncoding = $global:OutputEncoding
+    try {
+        $ErrorActionPreference = "Continue"
+        # Native-process encoding is read from the global PowerShell setting;
+        # a function-local $OutputEncoding does not affect docker.exe.
+        $global:OutputEncoding = New-Object System.Text.UTF8Encoding($false)
+        # Redis can emit benign diagnostics to stderr even when PING succeeds.
+        # Do not merge these into the protocol result: native stderr may also
+        # include the supplied password on a failure.
+        $output = @($InputLines | & $DockerCommand @Arguments 2>$null)
+        $exitCode = $LASTEXITCODE
+    } finally {
+        $global:OutputEncoding = $previousOutputEncoding
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+    $text = (@($output) | ForEach-Object { "$_" }) -join [Environment]::NewLine
+    if ($exitCode -ne 0 -and -not $IgnoreExitCode) {
+        throw "Docker command failed with exit code $exitCode. Arguments and output suppressed because they may contain credentials."
+    }
+
+    return [pscustomobject]@{
+        ExitCode = $exitCode
+        Text = $text
+        Lines = @($output)
+    }
+}
+
 function New-RandomHexToken {
     param(
         [int]$BytesLength = 32
@@ -538,15 +576,25 @@ function Test-RedisCredential {
         [string]$Password
     )
 
-    $result = Invoke-DockerCli -DockerCommand $DockerCommand -Arguments @(
+    $result = Invoke-DockerCliWithUtf8Input -DockerCommand $DockerCommand -InputLines @($Password) -Arguments @(
         "exec",
+        "-i",
         $ContainerId,
-        "redis-cli",
-        "--no-auth-warning",
-        "-a", $Password,
-        "ping"
+        "sh",
+        "-ec",
+        'IFS= read -r password; password=$(printf %s "$password" | sed "s/.$//"); redis-cli --no-auth-warning -a "$password" ping'
     ) -IgnoreExitCode
-    return $result.ExitCode -eq 0 -and $result.Text -match "PONG"
+    return $result.ExitCode -eq 0 -and $result.Text.Trim() -eq "PONG"
+}
+
+function Assert-RedisPasswordSupported {
+    param([string]$Password)
+
+    # The deployed Lettuce version serializes non-ASCII AUTH payloads
+    # incompatibly with Redis. Reject them before changing a live password.
+    if ($Password -match '[^\x20-\x7E]') {
+        throw "Redis target password must contain printable ASCII characters only; the deployed Redis client cannot authenticate with non-ASCII password characters."
+    }
 }
 
 function Test-GrafanaCredential {
@@ -565,6 +613,26 @@ function Test-GrafanaCredential {
     } catch {
         return $false
     }
+}
+
+function Wait-ForGrafanaCredential {
+    param(
+        [string]$BindHost,
+        [string]$Port,
+        [string]$UserName,
+        [string]$Password,
+        [int]$TimeoutSeconds
+    )
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $deadline) {
+        if (Test-GrafanaCredential -BindHost $BindHost -Port $Port -UserName $UserName -Password $Password) {
+            return
+        }
+        Start-Sleep -Seconds 3
+    }
+
+    throw "Grafana did not accept the expected administrator credential within $TimeoutSeconds seconds."
 }
 
 function Resolve-CurrentPostgresPassword {
@@ -756,16 +824,13 @@ function Update-RedisPassword {
         [string]$NewPassword
     )
 
-    Invoke-DockerCli -DockerCommand $DockerCommand -Arguments @(
+    Invoke-DockerCliWithUtf8Input -DockerCommand $DockerCommand -InputLines @($CurrentPassword, $NewPassword) -Arguments @(
         "exec",
+        "-i",
         $ContainerId,
-        "redis-cli",
-        "--no-auth-warning",
-        "-a", $CurrentPassword,
-        "CONFIG",
-        "SET",
-        "requirepass",
-        $NewPassword
+        "sh",
+        "-ec",
+        'IFS= read -r currentPassword; IFS= read -r newPassword; currentPassword=$(printf %s "$currentPassword" | sed "s/.$//"); newPassword=$(printf %s "$newPassword" | sed "s/.$//"); redis-cli --no-auth-warning -a "$currentPassword" CONFIG SET requirepass "$newPassword"'
     ) | Out-Null
 }
 
@@ -1240,6 +1305,7 @@ switch ($Component) {
         if ([string]::IsNullOrWhiteSpace($newPassword)) {
             $newPassword = New-RandomHexToken
         }
+        Assert-RedisPasswordSupported -Password $newPassword
         if ($newPassword -eq $currentPassword) {
             throw "Target Redis password must differ from the current live password."
         }
@@ -1504,9 +1570,7 @@ switch ($Component) {
             if (-not $grafanaAfterRestart -or -not $grafanaAfterRestart.Running) {
                 throw "Grafana container is not running after service recreation."
             }
-            if (-not (Test-GrafanaCredential -BindHost $bindHost -Port $port -UserName $userName -Password $newPassword)) {
-                throw "Grafana auth verification failed after service recreation."
-            }
+            Wait-ForGrafanaCredential -BindHost $bindHost -Port $port -UserName $userName -Password $newPassword -TimeoutSeconds $HealthTimeoutSeconds
 
             Write-Host "[INFO] Grafana credential rotation applied successfully."
             Write-Host "[INFO] Updated repository .env and recreated services: $(@($restartServices) -join ', ')"
@@ -1516,6 +1580,7 @@ switch ($Component) {
                 try {
                     $currentContainer = Get-ComposeContainerRecord -DockerCommand $dockerCommand -ProjectName $project -ServiceName $serviceName
                     if ($currentContainer -and $currentContainer.Running) {
+                        Wait-ForGrafanaCredential -BindHost $bindHost -Port $port -UserName $userName -Password $newPassword -TimeoutSeconds $HealthTimeoutSeconds
                         Update-GrafanaPassword -DockerCommand $dockerCommand -ContainerId $currentContainer.Id -NewPassword $currentPassword
                     }
                 } catch {

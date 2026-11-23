@@ -295,6 +295,9 @@ Bash:
 - всегда `IGUANA_REDIS_PASSWORD`;
 - дополнительно `SPRING_DATA_REDIS_PASSWORD`, если локальный host в `.env`
   указывает на `localhost` / `127.0.0.1` или ключ ещё пустой.
+- Целевой пароль должен состоять только из printable ASCII (`0x20`–`0x7E`).
+  Применяемая версия Lettuce некорректно формирует Redis `AUTH` для не-ASCII
+  символов; PowerShell и Bash helper прекращают apply до изменения live Redis.
 
 ### MinIO
 
