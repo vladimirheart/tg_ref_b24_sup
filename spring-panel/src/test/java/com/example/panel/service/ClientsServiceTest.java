@@ -101,7 +101,7 @@ class ClientsServiceTest {
     void loadClientProfileReadsResolvedTicketDataInPostgresMode() {
         jdbcTemplate.update("INSERT INTO channels(id, channel_name, platform) VALUES (?, ?, ?)", 7L, "Telegram", "telegram");
         jdbcTemplate.update(
-                "INSERT INTO tickets(ticket_id, status, resolved_at) VALUES (?, ?, ?)",
+                "INSERT INTO tickets(ticket_id, status, resolved_at, user_id, channel_id) VALUES (?, ?, ?, 55, 7)",
                 "T-200",
                 "resolved",
                 "2026-04-22T11:30:00Z"
@@ -134,6 +134,7 @@ class ClientsServiceTest {
         assertThat(profile.orElseThrow().tickets()).hasSize(1);
         assertThat(profile.orElseThrow().tickets().get(0).ticketId()).isEqualTo("T-200");
         assertThat(profile.orElseThrow().tickets().get(0).resolvedAt()).isEqualTo("2026-04-22T11:30:00Z");
+        assertThat(profile.orElseThrow().tickets().get(0).dialogUrl()).isEqualTo("/dialogs?ticketId=T-200&channelId=7");
     }
 
     @Test
@@ -217,6 +218,10 @@ class ClientsServiceTest {
         jdbcTemplate.execute("""
                 CREATE TABLE tickets (
                     ticket_id VARCHAR(120) PRIMARY KEY,
+                    user_id BIGINT,
+                    channel_id BIGINT,
+                    is_general BOOLEAN DEFAULT FALSE,
+                    ticket_public_id TEXT,
                     status VARCHAR(32),
                     resolved_at VARCHAR(64)
                 )

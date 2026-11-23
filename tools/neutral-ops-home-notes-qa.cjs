@@ -27,7 +27,7 @@ async function main() {
       if (id === 'slow-A') return setTimeout(() => json({ notes: [{ id: 3, title: 'Устаревшая заметка', body: 'Старый ответ' }] }), 300);
       return json({ notes });
     }
-    if (url.pathname === '/api/attachments/knowledge-base' && req.method === 'POST') {
+    if (url.pathname === '/api/attachments/knowledge-base/note-photos' && req.method === 'POST') {
       if (denyUpload) return json({ error: 'Forbidden' }, 403);
       assert(req.headers['x-csrf-token'] || req.headers['x-xsrf-token'], 'Upload must send CSRF header');
       const chunks = []; for await (const chunk of req) chunks.push(chunk);

@@ -27,6 +27,7 @@ public class AttachmentController {
 
     private final AttachmentService attachmentService;
     private KnowledgeAccessService knowledgeAccessService;
+    private com.example.panel.service.KnowledgeNotePhotoService notePhotos;
 
     public AttachmentController(AttachmentService attachmentService) {
         this.attachmentService = attachmentService;
@@ -35,6 +36,11 @@ public class AttachmentController {
     @Autowired(required = false)
     void setKnowledgeAccessService(KnowledgeAccessService knowledgeAccessService) {
         this.knowledgeAccessService = knowledgeAccessService;
+    }
+
+    @Autowired(required = false)
+    void setKnowledgeNotePhotoService(com.example.panel.service.KnowledgeNotePhotoService notePhotos) {
+        this.notePhotos = notePhotos;
     }
 
     @GetMapping("/tickets/{ticketId}/{filename:.+}")
@@ -94,6 +100,14 @@ public class AttachmentController {
                 "size", metadata.size(),
                 "uploadedAt", metadata.uploadedAt().toString()
         );
+    }
+
+    @PostMapping(value = "/knowledge-base/note-photos", consumes = "multipart/form-data")
+    public Map<String, Object> uploadNotePhoto(Authentication authentication, @RequestParam("file") MultipartFile file) throws IOException {
+        if (notePhotos == null) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE);
+        var metadata = notePhotos.upload(authentication, file);
+        return Map.of("originalName", metadata.originalName(), "storedName", metadata.storedName(),
+            "size", metadata.size(), "uploadedAt", metadata.uploadedAt().toString());
     }
 
     @DeleteMapping("/knowledge-base/{storedName:.+}")

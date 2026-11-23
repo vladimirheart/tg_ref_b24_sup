@@ -3,7 +3,7 @@
   try {
     embedded = window.parent !== window && window.frameElement?.hasAttribute('data-passport-dialog-frame')
       && window.parent.location.origin === window.location.origin
-      && /^\/object-passports\/[1-9][0-9]*\/?$/.test(window.parent.location.pathname);
+      && /^(?:\/object-passports\/[1-9][0-9]*|\/client\/-?[0-9]+)\/?$/.test(window.parent.location.pathname);
   } catch (_error) { /* Cross-origin frames cannot opt in. */ }
   if (!embedded) return;
   const general = /^\/general-dialog-work\/[0-9a-f]{32}$/.test(window.location.pathname);

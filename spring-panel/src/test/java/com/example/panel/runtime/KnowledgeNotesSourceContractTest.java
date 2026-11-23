@@ -55,7 +55,7 @@ class KnowledgeNotesSourceContractTest {
         assertThat(notes)
             .contains("Новая заметка")
             .contains("data-note-time")
-            .contains("knowledge-notes.js(v='20261002-01-278-notes-r13')");
+            .contains("knowledge-notes.js(v='20261123-note-photo-access')");
 
         assertThat(editor)
             .contains("name=\"customFieldKey\"")

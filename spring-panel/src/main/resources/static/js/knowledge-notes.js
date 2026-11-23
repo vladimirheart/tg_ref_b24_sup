@@ -71,7 +71,7 @@
           const data = new FormData(); data.append('file', file);
           const token = document.querySelector('meta[name="_csrf"]')?.content || form.querySelector('[name="_csrf"]')?.value;
           const header = document.querySelector('meta[name="_csrf_header"]')?.content || 'X-CSRF-TOKEN';
-          const response = await fetch('/api/attachments/knowledge-base', {
+          const response = await fetch('/api/attachments/knowledge-base/note-photos', {
             method: 'POST', credentials: 'same-origin', headers: token ? { [header]: token } : {}, body: data
           });
           if (!response.ok || response.redirected) throw new Error('Не удалось загрузить фото. Проверьте доступ и повторите попытку.');

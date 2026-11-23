@@ -38,7 +38,7 @@ class NeutralOpsPageFamiliesWebMvcTest {
             mvc.perform(get("/__visual-family").param("view", view).with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("/css/app.css?v="
-                    + (view.equals("general/work") ? "20261120-passport-overlay-r2" : "20261119-refined-r1"))))
+                    + (List.of("general/work", "clients/profile").contains(view) ? "20261120-passport-overlay-r2" : "20261119-refined-r1"))))
                 .andExpect(content().string(containsString("data-ui-page=")));
         }
     }

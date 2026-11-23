@@ -62,6 +62,70 @@ public class ClientsService {
         this.blacklistHistoryService = blacklistHistoryService;
     }
 
+    List<ClientProfileTicket> loadProfileTickets(long userId) {
+        return jdbcTemplate.query(
+            """
+                SELECT
+                    m.ticket_id,
+                    m.group_msg_id AS request_number,
+                    m.business,
+                    m.city,
+                    m.location_type,
+                    m.location_name,
+                    m.problem,
+                    m.created_at,
+                    t.status,
+                    t.resolved_at AS resolved_at,
+                    m.category,
+                    m.client_status,
+                    m.channel_id,
+                    c.channel_name,
+                    c.bot_name, t.is_general, t.ticket_public_id,
+                    (SELECT count(*) FROM tickets collision WHERE collision.ticket_id = m.ticket_id) AS identity_count
+                FROM messages m
+                LEFT JOIN tickets t ON m.ticket_id = t.ticket_id AND t.user_id = m.user_id
+                    AND t.channel_id IS NOT DISTINCT FROM m.channel_id
+                LEFT JOIN channels c ON m.channel_id = c.id
+                WHERE m.user_id = ?
+                ORDER BY m.created_at DESC NULLS LAST
+                """,
+            (rs, rowNum) -> new ClientProfileTicket(
+                rs.getString("ticket_id"),
+                rs.getString("request_number"),
+                rs.getString("business"),
+                rs.getString("city"),
+                rs.getString("location_type"),
+                rs.getString("location_name"),
+                rs.getString("problem"),
+                rs.getString("created_at"),
+                rs.getString("status"),
+                rs.getString("resolved_at"),
+                rs.getString("category"),
+                rs.getString("client_status"),
+                resolveChannelName(rs.getString("channel_name"), rs.getString("bot_name")),
+                rs.getObject("channel_id") != null ? rs.getLong("channel_id") : null,
+                profileDialogUrl(rs)
+            ),
+            userId
+        );
+
+    }
+
+    private String profileDialogUrl(java.sql.ResultSet row) throws java.sql.SQLException {
+        String ticketId = row.getString("ticket_id");
+        if (!StringUtils.hasText(ticketId)) return null;
+        if (Boolean.TRUE.equals(row.getObject("is_general", Boolean.class))) {
+            String publicId = row.getString("ticket_public_id");
+            return publicId != null && publicId.matches("[0-9a-f]{32}") ? "/general-dialog-work/" + publicId : null;
+        }
+        if (row.getLong("identity_count") != 1 || row.getObject("is_general") == null) return null;
+        var uri = org.springframework.web.util.UriComponentsBuilder.fromPath("/dialogs").queryParam("ticketId", ticketId);
+        Long channelId = row.getObject("channel_id", Long.class);
+        if (channelId != null) uri.queryParam("channelId", channelId);
+        // URLSearchParams uses form decoding: a literal plus must remain a plus.
+        return uri.build().encode().toUriString().replace("+", "%2B");
+    }
+
     public List<ClientListItem> loadClients(String blacklistFilter, String statusFilter) {
         List<ClientRow> baseRows = jdbcTemplate.query(
             """
@@ -215,48 +279,7 @@ public class ClientsService {
             return Optional.empty();
         }
 
-        List<ClientProfileTicket> tickets = jdbcTemplate.query(
-            """
-                SELECT
-                    m.ticket_id,
-                    m.group_msg_id AS request_number,
-                    m.business,
-                    m.city,
-                    m.location_type,
-                    m.location_name,
-                    m.problem,
-                    m.created_at,
-                    t.status,
-                    t.resolved_at AS resolved_at,
-                    m.category,
-                    m.client_status,
-                    m.channel_id,
-                    c.channel_name,
-                    c.bot_name
-                FROM messages m
-                LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
-                LEFT JOIN channels c ON m.channel_id = c.id
-                WHERE m.user_id = ?
-                ORDER BY m.created_at DESC NULLS LAST
-                """,
-            (rs, rowNum) -> new ClientProfileTicket(
-                rs.getString("ticket_id"),
-                rs.getString("request_number"),
-                rs.getString("business"),
-                rs.getString("city"),
-                rs.getString("location_type"),
-                rs.getString("location_name"),
-                rs.getString("problem"),
-                rs.getString("created_at"),
-                rs.getString("status"),
-                rs.getString("resolved_at"),
-                rs.getString("category"),
-                rs.getString("client_status"),
-                resolveChannelName(rs.getString("channel_name"), rs.getString("bot_name")),
-                rs.getObject("channel_id") != null ? rs.getLong("channel_id") : null
-            ),
-            userId
-        );
+        List<ClientProfileTicket> tickets = loadProfileTickets(userId);
 
         int totalMinutes = loadTotalMinutes(userId);
         ClientProfileStats stats = jdbcTemplate.query(

@@ -78,7 +78,18 @@ public class KnowledgeAccessService {
              WHERE stored_path = ? AND article_id IS NOT NULL
              ORDER BY id DESC LIMIT 2
             """, Long.class, storedPath);
-        return articleIds.size() == 1 && canViewArticle(authentication, articleIds.get(0));
+        // An article ACL always wins, even when its file URL has been pasted into a public note.
+        if (!articleIds.isEmpty()) return articleIds.size() == 1 && canViewArticle(authentication, articleIds.get(0));
+        if (!KnowledgeNotePhotoService.isPhotoName(storedPath) || actor(authentication).isEmpty()
+                || authentication.getAuthorities().stream().noneMatch(a -> "PAGE_KNOWLEDGE_BASE".equals(a.getAuthority()))) return false;
+        if (Boolean.TRUE.equals(jdbc.queryForObject("""
+            SELECT EXISTS(SELECT 1 FROM knowledge_article_files
+                WHERE stored_path = ? AND article_id IS NULL AND draft_token = ?)
+            """, Boolean.class, storedPath, KnowledgeNotePhotoService.PURPOSE))) return true;
+        // Compatibility for photos uploaded before purpose registration; no write/backfill on GET.
+        return jdbc.queryForList("""
+            SELECT body FROM knowledge_notes WHERE position('/api/attachments/knowledge-base/' in body) > 0
+            """, String.class).stream().anyMatch(body -> KnowledgeNotePhotoService.references(body, storedPath));
     }
 
     @Transactional(readOnly = true)
