@@ -46,6 +46,7 @@
   const MOBILE_BREAKPOINT = 991.98;
   let actionMenuOpen = false;
   let panelEventsSource = null;
+  let panelSessionProbeAttempted = false;
   let panelEventsReconnectTimer = null;
   let panelEventsConnected = false;
   let notificationsPollTimer = null;
@@ -1788,10 +1789,15 @@
     try {
       const source = new window.EventSource(PANEL_SSE_URL);
       panelEventsSource = source;
+      source.addEventListener('session_revoked', () => {
+        source.close();
+        window.location.assign('/login?sessionExpired');
+      });
       source.addEventListener('open', () => {
         setPanelEventsConnected(true);
       });
       source.addEventListener('connected', (event) => {
+        panelSessionProbeAttempted = false;
         setPanelEventsConnected(true);
         dispatchPanelSseEvent('connected', parseSsePayload(event));
       });
@@ -1826,6 +1832,12 @@
       });
       source.onerror = () => {
         setPanelEventsConnected(false);
+        if (!panelSessionProbeAttempted) {
+          panelSessionProbeAttempted = true;
+          fetch('/api/auth/ping', { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+            .then(response => { if (response.status === 401) { source.close(); window.location.assign('/login?sessionExpired'); } })
+            .catch(() => { /* A network failure is not proof of session loss. */ });
+        }
         if (source.readyState === window.EventSource.CLOSED) {
           panelEventsSource = null;
           try {

@@ -162,6 +162,15 @@ class FormLoginIdentityWebMvcTest {
         successful(login("reader"),"reader");
     }
 
+    @Test void storedBcryptHashCannotAuthenticateOrIssueRememberMeCookie() throws Exception {
+        account("reader",7L,true,false,"PAGE_DIALOGS");
+        var result=mvc.perform(withCsrf(post("/login")).param("username","reader")
+                .param("password",HASH).param("remember-me","true"))
+            .andExpect(redirectedUrl("/login?error")).andExpect(unauthenticated()).andReturn();
+        var cookie=result.getResponse().getCookie("remember-me");
+        assertThat(cookie==null || cookie.getMaxAge()<=0).isTrue();
+    }
+
     @ParameterizedTest @ValueSource(strings = {"missing-username","missing-password","empty-username","empty-password","blank-username"})
     void missingOrBlankCredentialsFailThroughTheUsualLoginError(String mode) throws Exception {
         account("reader",7L,true,false,"PAGE_DIALOGS");

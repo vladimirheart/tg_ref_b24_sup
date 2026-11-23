@@ -73,12 +73,15 @@ class SessionAuthorityWebMvcTest {
 
     @Configuration(proxyBeanMethods=false)
     @EnableAutoConfiguration(exclude={DataSourceAutoConfiguration.class,FlywayAutoConfiguration.class})
-    @Import({SecurityConfig.class,SecurityHeadersFilter.class,AuthApiController.class,ChannelApiController.class,MvcConfig.class,FullAuthenticationProbe.class})
+    @Import({SecurityConfig.class,SecurityHeadersFilter.class,AuthApiController.class,ChannelApiController.class,com.example.panel.controller.AuthManagementApiController.class,MvcConfig.class,FullAuthenticationProbe.class})
     static class Application {
         @Bean(name="usersJdbcTemplate") JdbcTemplate fixtureJdbc() {
             var jdbc=mock(JdbcTemplate.class);when(jdbc.getDataSource()).thenReturn(mock(DataSource.class));return jdbc;
         }
         @Bean ChannelTransportService fixtureTransport() { return mock(ChannelTransportService.class); }
+        @Bean com.example.panel.service.SharedConfigService config() { return mock(com.example.panel.service.SharedConfigService.class); }
+        @Bean com.example.panel.service.PermissionService permissions() { return new com.example.panel.service.PermissionService(); }
+        @Bean com.example.panel.service.PanelUserPhotoService photos() { return mock(com.example.panel.service.PanelUserPhotoService.class); }
     }
     @RestController static class FullAuthenticationProbe {
         @GetMapping("/api/session-test/full-only") @PreAuthorize("isFullyAuthenticated()")
@@ -99,7 +102,14 @@ class SessionAuthorityWebMvcTest {
         when(jdbc.queryForList(eq(ROLE_SQL),anyLong())).thenAnswer(call -> {failIf("role");return roles.getOrDefault(call.getArgument(1),List.of());});
         when(transport.getChannels()).thenReturn(ResponseEntity.ok(Map.of("success",true)));
         when(transport.createChannel(any())).thenReturn(ResponseEntity.ok(Map.of("success",true)));
+        when(jdbc.update(eq("UPDATE users SET session_version = session_version + 1 WHERE id = ?"),anyLong())).thenAnswer(call -> {
+            failIf("write");var row=users.get(call.<Long>getArgument(1));if(row==null)return 0;increment(row);return 1;
+        });
+        when(jdbc.update(eq("UPDATE users SET session_version = session_version + 1"),any(Object[].class))).thenAnswer(call -> {
+            failIf("write");users.values().forEach(this::increment);return users.size();
+        });
     }
+    private void increment(Map<String,Object> row) { row.put("session_version",((Number)row.getOrDefault("session_version",0L)).longValue()+1); }
     private void failIf(String source) { if(failing.equals(source)) throw new DataAccessResourceFailureException("fixture unavailable"); }
     private void account(long id,String username,String... authorities) {
         users.put(id,new LinkedHashMap<>(Map.of("id",id,"username",username,"password",HASH,"enabled",true,"is_blocked",false)));
@@ -120,6 +130,93 @@ class SessionAuthorityWebMvcTest {
     }
     private MockHttpSession session(MvcResult result) { return (MockHttpSession)result.getRequest().getSession(false); }
     private Authentication auth(MockHttpSession session) { return ((SecurityContext)session.getAttribute(CONTEXT)).getAuthentication(); }
+
+    @Test void singleRevocationEndsEveryTargetSessionAndRememberCookieButPreservesOtherUsers() throws Exception {
+        admin();account(99L,"target","PAGE_USERS");
+        var operator=session(login(" reader ",false));var firstLogin=login("target",true);
+        var first=session(firstLogin);var second=session(login("target",false));
+        mvc.perform(csrf(post("/api/users/99/sessions/revoke")).session(operator)).andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true)).andExpect(jsonPath("$.affected_users").value(1))
+            .andExpect(jsonPath("$.current_user_revoked").value(false));
+        for(var old:List.of(first,second)) mvc.perform(get("/api/auth/whoami").session(old).accept("application/json"))
+            .andExpect(status().isUnauthorized()).andExpect(unauthenticated());
+        mvc.perform(get("/api/auth/whoami").cookie(firstLogin.getResponse().getCookie("remember-me")).accept("application/json"))
+            .andExpect(status().isUnauthorized()).andExpect(cookie().maxAge("remember-me",0));
+        mvc.perform(get("/api/auth/whoami").session(operator)).andExpect(status().isOk());
+        var fresh=login("target",true);
+        mvc.perform(get("/api/auth/whoami").cookie(fresh.getResponse().getCookie("remember-me"))).andExpect(status().isOk());
+        assertThat(((PanelUserPrincipal)auth(session(fresh)).getPrincipal()).getSessionVersion()).isEqualTo(1);
+    }
+
+    @Test void globalRevocationIncludesAdministratorAndAccountsWithoutOpenSessions() throws Exception {
+        admin();account(99L,"target","PAGE_USERS");account(101L,"offline","PAGE_USERS");
+        var operator=session(login(" reader ",false));var target=session(login("target",false));
+        mvc.perform(csrf(post("/api/users/sessions/revoke-all")).session(operator)).andExpect(status().isOk())
+            .andExpect(jsonPath("$.affected_users").value(3)).andExpect(jsonPath("$.current_user_revoked").value(true));
+        for(var old:List.of(operator,target))mvc.perform(get("/api/auth/whoami").session(old).accept("application/json"))
+            .andExpect(status().isUnauthorized());
+        assertThat(users.values()).allSatisfy(row -> assertThat(row.get("session_version")).isEqualTo(1L));
+        login(" reader ",false); // Correct-password login remains available.
+    }
+
+    @Test void selfRevocationIsExplicitlyReportedAndInvalidatesNextRequest() throws Exception {
+        admin();var session=session(login(" reader ",false));
+        mvc.perform(csrf(post("/api/users/7/sessions/revoke")).session(session)).andExpect(status().isOk())
+            .andExpect(jsonPath("$.current_user_revoked").value(true));
+        mvc.perform(get("/api/auth/whoami").session(session).accept("application/json")).andExpect(status().isUnauthorized());
+    }
+
+    @ParameterizedTest @ValueSource(strings={"/api/users/99/sessions/revoke","/api/users/sessions/revoke-all"})
+    void pagePermissionAndAdminUsernameDoNotGrantRevocation(String path) throws Exception {
+        account(7L,"admin","PAGE_USERS");account(99L,"target","PAGE_USERS");var session=session(login("admin",false));
+        mvc.perform(csrf(post(path)).session(session)).andExpect(status().isForbidden());
+        assertThat(users.get(99L)).doesNotContainKey("session_version");
+    }
+
+    @Test void portalAdminCanRevokeAndCsrfRemainsRequired() throws Exception {
+        account(7L,"portal","ROLE_PORTAL_ADMIN","PAGE_USERS");account(99L,"target","PAGE_USERS");var session=session(login("portal",false));
+        mvc.perform(post("/api/users/99/sessions/revoke").session(session)).andExpect(status().isForbidden());
+        mvc.perform(csrf(post("/api/users/99/sessions/revoke")).session(session)).andExpect(status().isOk());
+    }
+
+    @Test void missingAccountAndInvalidIdCannotReportSuccess() throws Exception {
+        admin();var session=session(login(" reader ",false));
+        mvc.perform(csrf(post("/api/users/99/sessions/revoke")).session(session)).andExpect(status().isNotFound());
+        mvc.perform(csrf(post("/api/users/0/sessions/revoke")).session(session)).andExpect(status().isBadRequest());
+    }
+
+    @ParameterizedTest @ValueSource(strings={"/api/users/99/sessions/revoke","/api/users/sessions/revoke-all"})
+    void revocationStoreFailureReturns503AndCanBeRetried(String path) throws Exception {
+        admin();account(99L,"target","PAGE_USERS");var session=session(login(" reader ",false));failing="write";
+        mvc.perform(csrf(post(path)).session(session)).andExpect(status().isServiceUnavailable());
+        assertThat(users.get(99L)).doesNotContainKey("session_version");
+        failing="";mvc.perform(csrf(post(path)).session(session)).andExpect(status().isOk());
+    }
+
+    @Test void restoredRememberedSessionAndSerializedContextCannotSurviveRevocation() throws Exception {
+        admin();var cookie=login(" reader ",true).getResponse().getCookie("remember-me");
+        var remembered=mvc.perform(get("/api/auth/whoami").cookie(cookie)).andExpect(status().isOk()).andReturn();
+        var serialized=SerializationUtils.serialize(session(remembered).getAttribute(CONTEXT));
+        assertThat(new String(serialized,StandardCharsets.ISO_8859_1)).doesNotContain(HASH);
+        increment(users.get(7L));var restored=new MockHttpSession();restored.setAttribute(CONTEXT,SerializationUtils.deserialize(serialized));
+        mvc.perform(get("/api/auth/whoami").session(restored).accept("application/json")).andExpect(status().isUnauthorized());
+    }
+
+    @Test void nonzeroVersionSurvivesSerializationAndSecondRevocation() throws Exception {
+        admin();increment(users.get(7L));var loggedIn=login(" reader ",true);var cookie=loggedIn.getResponse().getCookie("remember-me");
+        var serialized=SerializationUtils.serialize(session(loggedIn).getAttribute(CONTEXT));
+        var restored=new MockHttpSession();restored.setAttribute(CONTEXT,SerializationUtils.deserialize(serialized));
+        mvc.perform(get("/api/auth/whoami").session(restored)).andExpect(status().isOk());
+        increment(users.get(7L));
+        mvc.perform(get("/api/auth/whoami").session(restored).accept("application/json")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/auth/whoami").cookie(cookie).accept("application/json")).andExpect(status().isUnauthorized());
+    }
+
+    @Test void publicLoginDoesNotAdvertiseDefaultCredentials() throws Exception {
+        var html=mvc.perform(get("/login")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(html).doesNotContain("admin / admin","placeholder=\"admin\"","Логин/пароль по умолчанию");
+        mvc.perform(get("/login?sessionExpired")).andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("Сеанс завершён")));
+    }
 
     @ParameterizedTest @ValueSource(strings={"direct-admin","direct-page","role-admin","role-page"})
     void revokedRoleOrPageBlocksActualChannelWriteBeforeService(String mode) throws Exception {

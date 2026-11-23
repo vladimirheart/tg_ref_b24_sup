@@ -41,12 +41,20 @@ public class GeneralTicketRealtimeService implements MessageListener {
     private final UiEventFanoutProperties fanout;
     private final StringRedisTemplate redis;
     private final ObjectMapper mapper;
+    private final com.example.panel.security.PanelSessionVersionService sessions;
     private final ConcurrentHashMap<GeneralTicketActor, CopyOnWriteArraySet<SseEmitter>> emittersByUser = new ConcurrentHashMap<>();
 
     public GeneralTicketRealtimeService(JdbcTemplate jdbc, MultibusinessFeatureFlags flags, UiEventFanoutProperties fanout,
                                        StringRedisTemplate redis, ObjectMapper mapper) {
+        this(jdbc, flags, fanout, redis, mapper, null);
+    }
+    @org.springframework.beans.factory.annotation.Autowired
+    public GeneralTicketRealtimeService(JdbcTemplate jdbc, MultibusinessFeatureFlags flags, UiEventFanoutProperties fanout,
+                                       StringRedisTemplate redis, ObjectMapper mapper,
+                                       com.example.panel.security.PanelSessionVersionService sessions) {
         this.jdbc = new NamedParameterJdbcTemplate(jdbc); this.flags = flags; this.fanout = fanout;
         this.redis = redis; this.mapper = mapper;
+        this.sessions = sessions;
     }
     public SseEmitter connect(Authentication authentication) {
         return connect(GeneralTicketActor.from(authentication));
@@ -94,6 +102,12 @@ public class GeneralTicketRealtimeService implements MessageListener {
         });
     }
     private void send(GeneralTicketActor actor, SseEmitter emitter, String name, Map<String, Object> payload, GeneralTicketEventScope scope) {
+        if (!sessionCurrent(actor)) {
+            try { emitter.send(SseEmitter.event().name("session_revoked").data(Map.of("login", true))); }
+            catch (IOException | IllegalStateException ignored) { }
+            close(actor, emitter);
+            return;
+        }
         // One current snapshot per emitter, including additional connections of the same account.
         if (!canRead(actor, scope)) {
             if (scope == null) {
@@ -116,7 +130,7 @@ public class GeneralTicketRealtimeService implements MessageListener {
         return canRead(GeneralTicketActor.from(authentication),scope);
     }
     private boolean canRead(GeneralTicketActor identity, GeneralTicketEventScope scope) {
-        if (!enabled() || identity == null || !identity.valid() || (scope != null && !scope.isValid())) return false;
+        if (!enabled() || identity == null || !identity.valid() || !sessionCurrent(identity) || (scope != null && !scope.isValid())) return false;
         var args = scope == null ? new MapSqlParameterSource() : args(scope);
         String owner = scope == null ? "" : " AND EXISTS(SELECT 1 FROM tickets ticket WHERE " + OWNER + ")";
         try { return Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM users account WHERE account.id=:authenticatedActorId AND account.username=:identity AND "
@@ -124,6 +138,9 @@ public class GeneralTicketRealtimeService implements MessageListener {
         catch (DataAccessException ex) { return false; }
     }
     private boolean enabled() { return flags.isFoundationEnabled() && flags.isGeneralTicketQueue(); }
+    private boolean sessionCurrent(GeneralTicketActor actor) {
+        return actor != null && (sessions == null || sessions.isCurrent(actor.userId(), actor.username(), actor.sessionVersion()));
+    }
     // Account identity is kept exact by GeneralTicketActor.
     private MapSqlParameterSource args(GeneralTicketEventScope scope) {
         return new MapSqlParameterSource("ownerId", scope.ticketUserId()).addValue("ticketId", scope.ticketId()).addValue("publicId", scope.ticketPublicId());

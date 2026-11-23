@@ -38,6 +38,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 @RequestMapping("/api")
 public class AuthManagementApiController {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AuthManagementApiController.class);
 
     private static final List<Map<String, String>> EDITABLE_FIELD_PERMISSIONS = List.of(
         Map.of("key", "user.create", "label", "Создание пользователя"),
@@ -104,7 +105,8 @@ public class AuthManagementApiController {
             "fields", Map.of(
                 "edit", buildCapabilityMap(authentication, editableFields, "edit"),
                 "view", buildCapabilityMap(authentication, VIEWABLE_FIELD_PERMISSIONS, "view")
-            )
+            ),
+            "sessions", Map.of("revoke_user", canRevokeSessions(authentication), "revoke_all", canRevokeSessions(authentication))
         );
 
         Long currentUserId = resolveCurrentUserId(authentication);
@@ -130,6 +132,45 @@ public class AuthManagementApiController {
     @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
     public List<Map<String, Object>> listUsers(Authentication authentication) {
         return fetchUsers(authentication);
+    }
+
+    @PostMapping("/users/{userId}/sessions/revoke")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_PORTAL_ADMIN')")
+    public Map<String, Object> revokeUserSessions(Authentication authentication, @PathVariable long userId) {
+        requireSessionAdministrator(authentication);
+        if (userId <= 0) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST);
+        int changed = incrementSessionVersions("UPDATE users SET session_version = session_version + 1 WHERE id = ?", userId);
+        if (changed == 0) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND);
+        log.info("User sessions revoked: actorId={}, targetId={}", resolveCurrentUserId(authentication), userId);
+        return Map.of("success", true, "affected_users", changed,
+            "current_user_revoked", Long.valueOf(userId).equals(resolveCurrentUserId(authentication)));
+    }
+
+    @PostMapping("/users/sessions/revoke-all")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_PORTAL_ADMIN')")
+    public Map<String, Object> revokeAllSessions(Authentication authentication) {
+        requireSessionAdministrator(authentication);
+        int changed = incrementSessionVersions("UPDATE users SET session_version = session_version + 1");
+        log.info("All user sessions revoked: actorId={}, affectedUsers={}", resolveCurrentUserId(authentication), changed);
+        return Map.of("success", true, "affected_users", changed, "current_user_revoked", true);
+    }
+
+    private int incrementSessionVersions(String sql, Object... parameters) {
+        try {
+            return usersJdbcTemplate.update(sql, parameters);
+        } catch (org.springframework.dao.DataAccessException unavailable) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE,
+                "Не удалось завершить сеансы. Проверьте доступность БД и миграцию V100.");
+        }
+    }
+
+    private boolean canRevokeSessions(Authentication authentication) {
+        return resolveCurrentUserId(authentication) != null && authentication.getAuthorities().stream()
+            .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()) || "ROLE_PORTAL_ADMIN".equals(a.getAuthority()));
+    }
+
+    private void requireSessionAdministrator(Authentication authentication) {
+        if (!canRevokeSessions(authentication)) throw new org.springframework.security.access.AccessDeniedException("Administrator is required");
     }
 
     @PostMapping({"/users", "/users/"})
@@ -535,6 +576,7 @@ public class AuthManagementApiController {
             user.put("can_edit_role", canEditRole);
             user.put("can_delete", canDeleteUser && !isSelf);
             user.put("can_block", canBlockUser && !isSelf);
+            user.put("can_revoke_sessions", canRevokeSessions(authentication));
             users.add(user);
         }
         return users;

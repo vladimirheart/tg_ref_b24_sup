@@ -7,13 +7,14 @@ import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 
 /** Immutable account snapshot. Rights and account status are checked by each owning SQL statement. */
-record GeneralTicketActor(long userId,String username) {
+record GeneralTicketActor(long userId,String username,long sessionVersion) {
+    GeneralTicketActor(long userId,String username) { this(userId,username,0L); }
     static GeneralTicketActor from(Authentication authentication) {
         if(authentication==null||!authentication.isAuthenticated()||authentication instanceof AnonymousAuthenticationToken
                 ||!(authentication.getPrincipal() instanceof PanelUserPrincipal account)
                 ||account.getUserId()<=0||account.getUsername()==null||account.getUsername().isBlank()
                 ||!account.isEnabled()||!account.isAccountNonLocked()||!account.isAccountNonExpired()||!account.isCredentialsNonExpired())return null;
-        return new GeneralTicketActor(account.getUserId(),account.getUsername());
+        return new GeneralTicketActor(account.getUserId(),account.getUsername(),account.getSessionVersion());
     }
     /** Internal persisted command identity only; never resolves or authenticates a user by name. */
     static GeneralTicketActor stored(long userId,String username) {return new GeneralTicketActor(userId,username);}

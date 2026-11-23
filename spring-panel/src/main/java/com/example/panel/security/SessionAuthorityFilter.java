@@ -70,6 +70,7 @@ final class SessionAuthorityFilter extends OncePerRequestFilter {
             return;
         }
         if (fresh.getUserId() != principal.getUserId() || !fresh.getUsername().equals(principal.getUsername())
+                || fresh.getSessionVersion() != principal.getSessionVersion()
                 || !fresh.isEnabled() || !fresh.isAccountNonLocked() || !fresh.isAccountNonExpired()
                 || !fresh.isCredentialsNonExpired()) {
             revoke(request, response, current);

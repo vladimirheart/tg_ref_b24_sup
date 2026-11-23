@@ -25,15 +25,23 @@ public class UiEventStreamService {
     private final UiEventFanoutPublisher fanoutPublisher;
     private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
     private final UiEventTicketAccessService ticketAccess;
+    private final com.example.panel.security.PanelSessionVersionService sessions;
     private final ConcurrentHashMap<UiEventRecipient, CopyOnWriteArraySet<SseEmitter>> emittersByUser =
         new ConcurrentHashMap<>();
 
     public UiEventStreamService(UiEventFanoutPublisher fanoutPublisher,
                                 LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard,
                                 UiEventTicketAccessService ticketAccess) {
+        this(fanoutPublisher, legacyTicketIdJdbcGuard, ticketAccess, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public UiEventStreamService(UiEventFanoutPublisher fanoutPublisher, LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard,
+                                UiEventTicketAccessService ticketAccess, com.example.panel.security.PanelSessionVersionService sessions) {
         this.fanoutPublisher = fanoutPublisher;
         this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
         this.ticketAccess = ticketAccess;
+        this.sessions = sessions;
     }
 
     public SseEmitter connect(Authentication authentication) {
@@ -187,6 +195,13 @@ public class UiEventStreamService {
                                String eventName,
                                Map<String, Object> payload,
                                UiEventTicketScope scope) {
+        if (sessions != null && !sessions.isCurrent(recipient.userId(), recipient.username(), recipient.sessionVersion())) {
+            try { emitter.send(SseEmitter.event().name("session_revoked").data(Map.of("login", true))); }
+            catch (IOException | IllegalStateException ignored) { }
+            unregister(recipient, emitter);
+            try { emitter.complete(); } catch (RuntimeException ignored) { }
+            return;
+        }
         if (payload!=null && (payload.containsKey("sharedWorkKind")||payload.containsKey("sharedWorkId")||payload.containsKey("sharedRecipientId"))) {
             if(sharedWorkAccess==null||!"notifications_changed".equals(eventName)||scope!=null)return;
             try {

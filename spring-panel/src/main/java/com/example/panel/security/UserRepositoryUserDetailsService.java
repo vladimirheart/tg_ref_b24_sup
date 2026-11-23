@@ -76,7 +76,16 @@ class UserRepositoryUserDetailsService implements UserDetailsService {
             throw new UsernameNotFoundException("User credentials are not configured");
         }
         return new PanelUserPrincipal(id.longValue(), username, storedCredential, resolveEnabled(userRow),
-            loadAuthorities(id.longValue(), strict));
+            loadAuthorities(id.longValue(), strict), sessionVersion(userRow));
+    }
+
+    private long sessionVersion(Map<String, Object> row) {
+        // Version zero also describes principals serialized before V100.
+        if (!row.containsKey("session_version")) return 0L;
+        if (!(row.get("session_version") instanceof Number version) || version.longValue() < 0) {
+            throw new UsernameNotFoundException("Invalid account session version");
+        }
+        return version.longValue();
     }
 
     private List<GrantedAuthority> loadAuthorities(Long userId, boolean strict) {

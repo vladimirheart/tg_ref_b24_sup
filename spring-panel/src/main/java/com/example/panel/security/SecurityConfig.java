@@ -71,10 +71,8 @@ public class SecurityConfig {
                         .permitAll()
                 )
                 .rememberMe(rememberMe -> rememberMe
-                        .rememberMeParameter("remember-me")
-                        .tokenValiditySeconds(14 * 24 * 60 * 60)
                         .key(securityProperties.getRememberMeKey())
-                        .userDetailsService(userDetailsService)
+                        .rememberMeServices(new VersionedRememberMeServices(securityProperties.getRememberMeKey(), users))
                 )
                 .logout(logout -> logout
                         .logoutUrl("/logout")

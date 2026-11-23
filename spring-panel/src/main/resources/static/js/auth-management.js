@@ -63,6 +63,7 @@
         usersBody: resolveFrom(root, '[data-auth-users-body]'),
         usersEmpty: resolveFrom(root, '[data-auth-users-empty]'),
         createUserButton: resolveFrom(root, '[data-auth-user-create-trigger]'),
+        revokeAllSessionsButton: resolveFrom(root, '[data-auth-sessions-revoke-all]'),
         rolesSection: resolveFrom(root, '[data-auth-roles-section]'),
         rolesContainer: resolveFrom(root, '[data-auth-roles-container]'),
         rolesEmpty: resolveFrom(root, '[data-auth-roles-empty]'),
@@ -233,6 +234,7 @@
     }
 
     bindEvents() {
+      this.elements.revokeAllSessionsButton?.addEventListener('click', () => this.handleRevokeSessions(null, this.elements.revokeAllSessionsButton));
       if (this.elements.usersSection) {
         this.elements.usersSection.addEventListener('click', this.handleUsersClick);
       }
@@ -434,6 +436,11 @@
     }
 
     updateCreateControls() {
+      if (this.elements.revokeAllSessionsButton) {
+        const allowed = Boolean(this.state.capabilities?.sessions?.revoke_all);
+        this.elements.revokeAllSessionsButton.classList.toggle('d-none', !allowed);
+        this.elements.revokeAllSessionsButton.disabled = !allowed;
+      }
       if (this.elements.createUserButton) {
         const canCreateUser = this.capabilitiesEdit('user.create');
         this.elements.createUserButton.disabled = !canCreateUser;
@@ -550,7 +557,7 @@
       const actionsCell = document.createElement('td');
       actionsCell.className = 'text-end';
       const actionsWrapper = document.createElement('div');
-      actionsWrapper.className = 'd-flex justify-content-end gap-2';
+      actionsWrapper.className = 'd-flex flex-wrap justify-content-end gap-2';
 
       const openBtn = document.createElement('button');
       openBtn.type = 'button';
@@ -562,6 +569,16 @@
       permissionsBtn.type = 'button'; permissionsBtn.className = 'btn btn-outline-secondary btn-sm';
       permissionsBtn.dataset.userPermissions = user.permissions_user_id || String(user.id); permissionsBtn.textContent = 'Права';
       actionsWrapper.appendChild(permissionsBtn);
+
+      if (user.can_revoke_sessions) {
+        const revokeBtn = document.createElement('button');
+        revokeBtn.type = 'button';
+        revokeBtn.className = 'btn btn-outline-warning btn-sm';
+        revokeBtn.dataset.action = 'revoke-sessions';
+        revokeBtn.textContent = 'Завершить сеансы';
+        revokeBtn.title = 'Завершить сеансы этого пользователя на всех устройствах';
+        actionsWrapper.appendChild(revokeBtn);
+      }
 
       const deleteBtn = document.createElement('button');
       deleteBtn.type = 'button';
@@ -1036,6 +1053,9 @@
       }
       const userId = row.dataset.userId;
       switch (button.dataset.action) {
+        case 'revoke-sessions':
+          this.handleRevokeSessions(userId, button);
+          break;
         case 'open-user':
           this.openUserModal(userId);
           break;
@@ -1045,6 +1065,40 @@
         default:
           break;
       }
+    }
+
+    async handleRevokeSessions(userId, button) {
+      const all = userId == null;
+      const user = all ? null : this.state.users.find(item => String(item.id) === String(userId));
+      if (button.disabled || this.revokingSessions || (all ? !this.state.capabilities?.sessions?.revoke_all : !user?.can_revoke_sessions)) return;
+      const confirmed = await showConfirmActionModal({
+        title: all ? 'Завершить все сеансы' : 'Завершить сеансы пользователя',
+        message: all
+          ? 'Завершить сеансы ВСЕХ пользователей на всех устройствах, включая ваш? Для продолжения потребуется снова войти в систему.'
+          : `Завершить все сеансы пользователя «${user.username}»? Повторный вход по паролю останется доступен.`,
+        confirmText: 'Завершить сеансы', confirmVariant: 'danger',
+      });
+      if (!confirmed || this.revokingSessions) return;
+      this.revokingSessions = true;
+      button.disabled = true;
+      try {
+        const url = all ? `${this.usersEndpoint}/sessions/revoke-all` : `${this.usersEndpoint}/${encodeURIComponent(userId)}/sessions/revoke`;
+        const response = await fetch(url, { method: 'POST', credentials: 'same-origin', headers: { Accept: 'application/json' } });
+        if (response.status === 401) { this.redirectToLogin(); return; }
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.error || 'Не удалось завершить сеансы. Проверьте права и доступность сервера.');
+        if (data.current_user_revoked) { this.redirectToLogin(); return; }
+        this.setMessage('Сеансы пользователя завершены. Для продолжения ему потребуется повторный вход.', 'success');
+      } catch (error) {
+        this.setMessage(error.message || String(error), 'danger');
+      } finally {
+        this.revokingSessions = false;
+        button.disabled = false;
+      }
+    }
+
+    redirectToLogin() {
+      window.location.assign('/login?sessionExpired');
     }
 
     handleCreateUserTrigger(event) {

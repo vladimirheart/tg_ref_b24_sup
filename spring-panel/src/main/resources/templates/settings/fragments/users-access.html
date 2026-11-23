@@ -42,7 +42,10 @@
                 <div class="tab-pane fade show active" id="settingsAuthUsers" role="tabpanel" data-auth-users-section>
                   <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-3">
                     <div class="text-muted small">Управляйте карточками пользователей, контактами и доступом.</div>
-                    <button type="button" class="btn btn-primary btn-sm" data-auth-user-create-trigger>+ Создать пользователя</button>
+                    <div class="d-flex flex-wrap gap-2">
+                      <button type="button" class="btn btn-outline-danger btn-sm d-none" data-auth-sessions-revoke-all disabled>Завершить все сеансы</button>
+                      <button type="button" class="btn btn-primary btn-sm" data-auth-user-create-trigger>+ Создать пользователя</button>
+                    </div>
                   </div>
 
                   <div class="table-responsive">

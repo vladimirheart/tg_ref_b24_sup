@@ -227,6 +227,10 @@
       live.textContent = 'Автообновление отключено: доступ отозван.';
       fail(new QueueError('Нет доступа к обращениям без бизнеса.'));
     });
+    source.addEventListener('session_revoked', () => {
+      stopped = true; cancelRefresh(); source.close(); generation += 1;
+      globalThis.location.assign('/login?sessionExpired');
+    });
     source.addEventListener('error', () => {
       if (stopped) return;
       cancelRefresh(); generation += 1;

@@ -25,13 +25,11 @@ public class LegacyCompatiblePasswordEncoder implements PasswordEncoder {
         String raw = rawPassword == null ? "" : rawPassword.toString();
         String stored = storedPassword.trim();
 
-        if (stored.equals(raw)) {
-            return true;
-        }
         if (looksLikeBcrypt(stored)) {
             return bcrypt.matches(rawPassword, stored);
         }
-        return false;
+        // A stored hash must never become a usable password via the legacy path.
+        return stored.equals(raw);
     }
 
     @Override

@@ -47,12 +47,15 @@
                     <div class="alert alert-success" role="alert" th:if="${param.logout}">
                         Вы успешно вышли из системы.
                     </div>
+                    <div class="alert alert-info" role="alert" th:if="${param.sessionExpired}">
+                        Сеанс завершён. Войдите в систему ещё раз.
+                    </div>
 
                     <form method="post" th:action="@{/login}" class="needs-validation" novalidate>
                         <input type="hidden" name="_csrf" th:value="${_csrf.token}">
                         <div class="mb-3">
                             <label class="form-label" for="loginUsername">Логин</label>
-                            <input id="loginUsername" type="text" name="username" class="form-control" placeholder="admin" autocomplete="username" required>
+                            <input id="loginUsername" type="text" name="username" class="form-control" placeholder="Ваш логин" autocomplete="username" required>
                         </div>
                         <div class="mb-3">
                             <label class="form-label" for="loginPassword">Пароль</label>
@@ -72,7 +75,6 @@
                     </form>
                 </div>
             </div>
-            <p class="text-center text-muted small mt-3 mb-0">Логин/пароль по умолчанию: <strong>admin / admin</strong></p>
         </div>
     </div>
 

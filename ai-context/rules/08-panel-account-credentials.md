@@ -120,6 +120,32 @@ JDBC sessions; старый image не прочитает новый payload. Ro
 password-change revocation и token policy остаются отдельным scope. Schema,
 миграции, backfill и рабочая среда не меняются.
 
+## Явный отзыв сеансов — 01-236 (2026-11-23)
+
+По запросу пользователя добавлены отдельные административные команды
+`POST /api/users/{id}/sessions/revoke` и `POST /api/users/sessions/revoke-all`.
+Требуются bound numeric principal, актуальная ROLE_ADMIN/ROLE_PORTAL_ADMIN и CSRF.
+Логин admin и PAGE_USERS сами по себе не дают это право. Общий отзыв включает
+оператора. affected_users считает аккаунты, не число открытых сеансов.
+
+V100 добавляет users.session_version BIGINT NOT NULL DEFAULT 0; атомарный
+increment отзывает прежние principal snapshots и remember-me подписи, сохраняя
+возможность нового входа по правильному паролю. Версия сериализуется, password/hash
+не остаются в serialized principal. Старая версия 0 совместима до первого отзыва.
+Восстановленные legacy remember-me cookies также теряют силу после increment.
+Все web replicas должны получить новый image до использования гарантии отзыва.
+
+SessionAuthorityFilter проверяет версию перед защищёнными действиями. UI/GENERAL
+SSE проверяют её до отправки и на heartbeat, закрываются с session_revoked;
+уже выполняющийся запрос не отменяется. DB failure fail closed: HTTP 503 / закрытие
+SSE / отсутствие success у revoke API. Это дополняет исторический R189 scope выше.
+Автоматического increment при смене пароля здесь нет: для инцидента выполнить
+отдельный отзыв, а для запрета нового входа заблокировать аккаунт.
+
+Источник rollout/operator-инструкций: разделы 11–12
+docs/runbooks/persisted-credential-rotation-apply.md. Рабочие миграция, passwords,
+sessions и deployment этой source-правкой не меняются.
+
 ## Смена собственного пароля по ID — R191
 
 POST /profile/password требует authenticated PanelUserPrincipal с положительным
