@@ -1,6 +1,7 @@
 package com.example.panel.controller;
 
 import com.example.panel.service.SettingsItEquipmentService;
+import com.example.panel.service.SettingsItEquipmentHierarchyService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -21,11 +22,14 @@ import java.util.Map;
 public class SettingsItEquipmentController {
 
     private final SettingsItEquipmentService settingsItEquipmentService;
+    private final SettingsItEquipmentHierarchyService hierarchyService;
     private final ObjectMapper objectMapper;
 
     public SettingsItEquipmentController(SettingsItEquipmentService settingsItEquipmentService,
+                                         SettingsItEquipmentHierarchyService hierarchyService,
                                          ObjectMapper objectMapper) {
         this.settingsItEquipmentService = settingsItEquipmentService;
+        this.hierarchyService = hierarchyService;
         this.objectMapper = objectMapper;
     }
 
@@ -33,6 +37,30 @@ public class SettingsItEquipmentController {
     @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public Map<String, Object> listItEquipment() {
         return settingsItEquipmentService.listItEquipment();
+    }
+
+    @GetMapping("/api/settings/it-equipment/hierarchy")
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
+    public Map<String, Object> listHierarchy() {
+        return hierarchyService.listHierarchy();
+    }
+
+    @PostMapping("/api/settings/it-equipment/hierarchy/branches")
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
+    public Map<String, Object> createHierarchyBranch(@RequestBody Map<String, Object> payload) {
+        return hierarchyService.createBranch(payload);
+    }
+
+    @RequestMapping(value = "/api/settings/it-equipment/hierarchy/branches/{branchId}", method = RequestMethod.PATCH)
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
+    public Map<String, Object> renameHierarchyBranch(@PathVariable long branchId, @RequestBody Map<String, Object> payload) {
+        return hierarchyService.renameBranch(branchId, payload);
+    }
+
+    @DeleteMapping("/api/settings/it-equipment/hierarchy/branches/{branchId}")
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
+    public Map<String, Object> deleteHierarchyBranch(@PathVariable long branchId) {
+        return hierarchyService.deleteBranch(branchId);
     }
 
     @PostMapping({"/api/settings/it-equipment", "/api/settings/it-equipment/"})

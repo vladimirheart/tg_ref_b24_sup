@@ -864,6 +864,23 @@ public class NetBoxObjectPassportSyncService {
         if (desiredItems.isEmpty()) {
             return;
         }
+        Map<String, DesiredItEquipmentCatalogItem> aliases = new LinkedHashMap<>();
+        for (Map<String, Object> row : jdbcTemplate.queryForList(
+                "SELECT source_type, source_vendor, source_model, target_type, target_vendor, target_model FROM it_equipment_catalog_aliases"
+        )) {
+            String sourceKey = buildEquipmentCatalogKey(
+                    stringValue(row.get("source_type")),
+                    stringValue(row.get("source_vendor")),
+                    stringValue(row.get("source_model"))
+            );
+            if (StringUtils.hasText(sourceKey)) {
+                aliases.put(sourceKey, new DesiredItEquipmentCatalogItem(
+                        stringValue(row.get("target_type")),
+                        stringValue(row.get("target_vendor")),
+                        stringValue(row.get("target_model"))
+                ));
+            }
+        }
         List<Map<String, Object>> existingRows = jdbcTemplate.queryForList(
                 "SELECT equipment_type, equipment_vendor, equipment_model FROM it_equipment_catalog"
         );
@@ -880,10 +897,14 @@ public class NetBoxObjectPassportSyncService {
         }
 
         for (DesiredItEquipmentCatalogItem desired : desiredItems) {
+            String sourceKey = buildEquipmentCatalogKey(
+                    desired.equipmentType(), desired.equipmentVendor(), desired.equipmentModel()
+            );
+            DesiredItEquipmentCatalogItem effective = aliases.getOrDefault(sourceKey, desired);
             String key = buildEquipmentCatalogKey(
-                    desired.equipmentType(),
-                    desired.equipmentVendor(),
-                    desired.equipmentModel()
+                    effective.equipmentType(),
+                    effective.equipmentVendor(),
+                    effective.equipmentModel()
             );
             if (!StringUtils.hasText(key) || existingKeys.contains(key)) {
                 continue;
@@ -892,9 +913,9 @@ public class NetBoxObjectPassportSyncService {
                     "INSERT INTO it_equipment_catalog(" +
                             "equipment_type, equipment_vendor, equipment_model, photo_url, serial_number, accessories, created_at, updated_at" +
                             ") VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
-                    desired.equipmentType(),
-                    desired.equipmentVendor(),
-                    desired.equipmentModel(),
+                    effective.equipmentType(),
+                    effective.equipmentVendor(),
+                    effective.equipmentModel(),
                     "",
                     "",
                     ""

@@ -37,7 +37,7 @@
     return normalizeEquipmentValue(value) === normalizeEquipmentValue(selected);
   }
 
-  function buildEquipmentHierarchy(items, selection = {}) {
+  function buildEquipmentHierarchy(items, selection = {}, branches = []) {
     const tuples = (Array.isArray(items) ? items : [])
       .map((item) => ({
         type: cleanEquipmentValue(item && item.equipment_type),
@@ -45,6 +45,13 @@
         model: cleanEquipmentValue(item && item.equipment_model),
       }))
       .filter((item) => item.type && item.model);
+    const localBranches = (Array.isArray(branches) ? branches : [])
+      .map((branch) => ({
+        kind: cleanEquipmentValue(branch && branch.node_kind).toLocaleLowerCase('ru-RU'),
+        type: cleanEquipmentValue(branch && branch.equipment_type),
+        vendor: cleanEquipmentValue(branch && branch.equipment_vendor),
+      }))
+      .filter((branch) => branch.type && (branch.kind === 'type' || (branch.kind === 'vendor' && branch.vendor)));
     const selectedType = cleanEquipmentValue(selection.type ?? selection.equipment_type);
     const selectedVendor = cleanEquipmentValue(selection.vendor ?? selection.equipment_vendor);
     const typeRows = selectedType
@@ -55,10 +62,15 @@
       : typeRows;
 
     return {
-      types: uniqueEquipmentOptions(tuples.map((item) => item.type)),
-      vendors: uniqueEquipmentOptions(typeRows.map((item) => item.vendor
+      types: uniqueEquipmentOptions([...tuples.map((item) => item.type), ...localBranches.map((branch) => branch.type)]),
+      vendors: uniqueEquipmentOptions([
+        ...typeRows.map((item) => item.vendor
         ? { value: item.vendor, label: item.vendor }
-        : { value: NO_VENDOR_VALUE, label: 'Без производителя' })),
+        : { value: NO_VENDOR_VALUE, label: 'Без производителя' }),
+        ...localBranches
+          .filter((branch) => branch.kind === 'vendor' && (!selectedType || normalizeEquipmentValue(branch.type) === normalizeEquipmentValue(selectedType)))
+          .map((branch) => ({ value: branch.vendor, label: branch.vendor })),
+      ]),
       models: uniqueEquipmentOptions(vendorRows.map((item) => item.model)),
     };
   }
@@ -71,6 +83,7 @@
 
     const state = {
       items: [],
+      branches: [],
       query: '',
       typeFilter: '',
       vendorFilter: '',
@@ -94,6 +107,10 @@
       modelFilter: document.getElementById('itEquipmentModelFilter'),
       countBadge: document.getElementById('itEquipmentCountBadge'),
       emptyState: document.getElementById('itEquipmentEmptyState'),
+      hierarchyOpenButton: document.querySelector('[data-it-equipment-hierarchy-open]'),
+      hierarchyModalEl: document.getElementById('itEquipmentHierarchyModal'),
+      hierarchyList: document.querySelector('[data-it-equipment-hierarchy-list]'),
+      hierarchyNewType: document.querySelector('[data-it-equipment-hierarchy-new-type]'),
     };
 
     const addModal = {
@@ -222,6 +239,10 @@
       return Array.isArray(state.items) ? state.items : [];
     }
 
+    function getBranches() {
+      return Array.isArray(state.branches) ? state.branches : [];
+    }
+
     function setItems(nextItems) {
       state.items = Array.isArray(nextItems) ? nextItems : [];
       populateCatalogFilters();
@@ -300,7 +321,7 @@
     }
 
     function collectEquipmentOptionSets(selection = {}) {
-      return buildEquipmentHierarchy(getItems(), selection);
+      return buildEquipmentHierarchy(getItems(), selection, getBranches());
     }
 
     function buildEquipmentSelectOptions(values, selectedValue, emptyLabel = '—') {
@@ -452,6 +473,124 @@
       }
     }
 
+    function findBranch(kind, type, vendor = '') {
+      return getBranches().find((branch) => (
+        normalize(branch && branch.node_kind) === kind
+        && normalize(branch && branch.equipment_type) === normalize(type)
+        && normalize(branch && branch.equipment_vendor) === normalize(vendor)
+      )) || null;
+    }
+
+    function promptHierarchy(message, defaultValue = '') {
+      if (typeof options.promptDialog === 'function') return options.promptDialog(message, defaultValue);
+      return typeof window.prompt === 'function' ? window.prompt(message, defaultValue) : null;
+    }
+
+    async function requestHierarchy(path, options = {}) {
+      const response = await fetch(`/api/settings/it-equipment/hierarchy${path}`, options);
+      const data = await response.json();
+      if (!response.ok || data.success === false) throw new Error((data && data.error) || 'Ошибка изменения иерархии');
+      if (Array.isArray(data.branches)) state.branches = data.branches;
+      populateCatalogFilters();
+      renderItEquipmentTable();
+      renderHierarchyEditor();
+      return data;
+    }
+
+    async function ensureBranch(kind, type, vendor = '') {
+      const existing = findBranch(kind, type, vendor);
+      if (existing) return existing;
+      await requestHierarchy('/branches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ node_kind: kind, equipment_type: type, equipment_vendor: vendor }),
+      });
+      return findBranch(kind, type, vendor);
+    }
+
+    function renderHierarchyEditor() {
+      if (!elements.hierarchyList) return;
+      const hierarchy = buildEquipmentHierarchy(getItems(), {}, getBranches());
+      if (!hierarchy.types.length) {
+        elements.hierarchyList.innerHTML = '<div class="text-muted small">Добавьте первый тип оборудования.</div>';
+        return;
+      }
+      elements.hierarchyList.innerHTML = hierarchy.types.map((typeOption) => {
+        const type = typeOption.value;
+        const typeBranch = findBranch('type', type);
+        const vendors = buildEquipmentHierarchy(getItems(), { type }, getBranches()).vendors;
+        const typeActions = typeBranch
+          ? `<button class="btn btn-sm btn-outline-secondary" type="button" data-it-equipment-hierarchy-action="rename" data-branch-id="${typeBranch.id}">Переименовать</button><button class="btn btn-sm btn-outline-danger" type="button" data-it-equipment-hierarchy-action="delete" data-branch-id="${typeBranch.id}">Удалить</button>`
+          : '<button class="btn btn-sm btn-outline-secondary" type="button" data-it-equipment-hierarchy-action="manage-type">Сделать локальным</button>';
+        const vendorRows = vendors.filter((vendor) => vendor.value !== NO_VENDOR_VALUE).map((vendorOption) => {
+          const vendor = vendorOption.value;
+          const vendorBranch = findBranch('vendor', type, vendor);
+          const vendorActions = vendorBranch
+            ? `<button class="btn btn-sm btn-outline-secondary" type="button" data-it-equipment-hierarchy-action="rename" data-branch-id="${vendorBranch.id}">Переименовать</button><button class="btn btn-sm btn-outline-danger" type="button" data-it-equipment-hierarchy-action="delete" data-branch-id="${vendorBranch.id}">Удалить</button>`
+            : '<button class="btn btn-sm btn-outline-secondary" type="button" data-it-equipment-hierarchy-action="manage-vendor">Сделать локальным</button>';
+          return `<div class="d-flex flex-wrap align-items-center gap-2 ms-3 mt-2"><strong class="small">${escapeHtml(vendor)}</strong>${vendorActions}<button class="btn btn-sm btn-outline-primary" type="button" data-it-equipment-hierarchy-action="add-model" data-equipment-type="${escapeHtml(type)}" data-equipment-vendor="${escapeHtml(vendor)}">+ Модель</button></div>`;
+        }).join('');
+        return `<section class="border rounded p-2"><div class="d-flex flex-wrap align-items-center gap-2"><strong>${escapeHtml(type)}</strong>${typeActions}<button class="btn btn-sm btn-outline-primary" type="button" data-it-equipment-hierarchy-action="add-vendor" data-equipment-type="${escapeHtml(type)}">+ Производитель</button><button class="btn btn-sm btn-outline-primary" type="button" data-it-equipment-hierarchy-action="add-model" data-equipment-type="${escapeHtml(type)}">+ Модель без производителя</button></div>${vendorRows}</section>`;
+      }).join('');
+    }
+
+    async function handleHierarchyAction(event) {
+      const button = event.target.closest('[data-it-equipment-hierarchy-action]');
+      if (!button) return;
+      const action = button.dataset.itEquipmentHierarchyAction;
+      const type = button.dataset.equipmentType || '';
+      const vendor = button.dataset.equipmentVendor || '';
+      try {
+        if (action === 'create-type') {
+          const value = cleanEquipmentValue(elements.hierarchyNewType && elements.hierarchyNewType.value);
+          if (!value) { elements.hierarchyNewType?.focus(); return; }
+          await ensureBranch('type', value);
+          if (elements.hierarchyNewType) elements.hierarchyNewType.value = '';
+        } else if (action === 'manage-type') {
+          await ensureBranch('type', type);
+        } else if (action === 'manage-vendor') {
+          await ensureBranch('vendor', type, vendor);
+        } else if (action === 'add-vendor') {
+          const value = cleanEquipmentValue(promptHierarchy('Название производителя', ''));
+          if (value) await ensureBranch('vendor', type, value);
+        } else if (action === 'rename') {
+          const branch = getBranches().find((item) => String(item && item.id) === String(button.dataset.branchId));
+          if (!branch) return;
+          const previous = normalize(branch.node_kind) === 'vendor' ? branch.equipment_vendor : branch.equipment_type;
+          const value = cleanEquipmentValue(promptHierarchy('Новое название', previous));
+          if (value && normalize(value) !== normalize(previous)) {
+            await requestHierarchy(`/branches/${encodeURIComponent(button.dataset.branchId)}`, {
+              method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: value }),
+            });
+          }
+        } else if (action === 'delete') {
+          if (!confirmAction('Удалить пустую ветку иерархии?')) return;
+          await requestHierarchy(`/branches/${encodeURIComponent(button.dataset.branchId)}`, { method: 'DELETE' });
+        } else if (action === 'add-model') {
+          const model = cleanEquipmentValue(promptHierarchy('Название модели', ''));
+          if (!model) return;
+          const response = await fetch('/api/settings/it-equipment', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ equipment_type: type, equipment_vendor: vendor, equipment_model: model }),
+          });
+          const data = await response.json();
+          if (!response.ok || data.success === false) throw new Error((data && data.error) || 'Ошибка создания модели');
+          setItems(Array.isArray(data.items) ? data.items : []);
+          renderItEquipmentTable();
+          renderHierarchyEditor();
+        }
+      } catch (error) {
+        popup('❌ ' + (error && error.message ? error.message : error));
+      }
+    }
+
+    function openHierarchyEditor() {
+      renderHierarchyEditor();
+      if (elements.hierarchyModalEl && window.bootstrap && window.bootstrap.Modal) {
+        window.bootstrap.Modal.getOrCreateInstance(elements.hierarchyModalEl).show();
+      }
+    }
+
     async function loadItEquipment() {
       if (!elements.itEquipmentBody) return;
       try {
@@ -459,6 +598,13 @@
         if (!response.ok) throw new Error('Ошибка загрузки оборудования');
         const data = await response.json();
         if (data && data.success === false) throw new Error(data.error || 'Ошибка загрузки оборудования');
+        try {
+          const hierarchyResponse = await fetch('/api/settings/it-equipment/hierarchy');
+          const hierarchyData = await hierarchyResponse.json();
+          state.branches = hierarchyResponse.ok && Array.isArray(hierarchyData && hierarchyData.branches) ? hierarchyData.branches : [];
+        } catch (error) {
+          state.branches = [];
+        }
         setItems(Array.isArray(data && data.items) ? data.items : []);
         renderItEquipmentTable();
       } catch (error) {
@@ -1218,6 +1364,8 @@
 
     function bindEvents() {
       if (elements.itEquipmentBody) elements.itEquipmentBody.addEventListener('click', handleCardClick);
+      if (elements.hierarchyOpenButton) elements.hierarchyOpenButton.addEventListener('click', openHierarchyEditor);
+      if (elements.hierarchyModalEl) elements.hierarchyModalEl.addEventListener('click', handleHierarchyAction);
       if (elements.searchInput) {
         elements.searchInput.addEventListener('input', () => {
           state.query = elements.searchInput.value || '';
@@ -1321,6 +1469,7 @@
     return {
       renderItEquipmentTable,
       loadItEquipment,
+      renderHierarchyEditor,
       prepareItEquipmentAddSettingsModal,
       buildEquipmentHierarchy,
     };

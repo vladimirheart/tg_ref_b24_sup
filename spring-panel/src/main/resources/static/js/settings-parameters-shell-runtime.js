@@ -386,6 +386,7 @@
         showPopup: (message) => popup(message),
         requestSettingsModalClose: (source) => requestClose(source),
         confirmDialog: (message) => confirmAction(message),
+        promptDialog: (message, defaultValue) => promptAction(message, defaultValue),
       });
 
       settingsPartnerContactsRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsPartnerContactsRuntime', {

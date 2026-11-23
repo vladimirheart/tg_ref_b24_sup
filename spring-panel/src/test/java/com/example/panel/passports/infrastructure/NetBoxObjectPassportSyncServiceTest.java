@@ -350,7 +350,7 @@ class NetBoxObjectPassportSyncServiceTest {
     }
 
     @Test
-    void syncNowImportsEquipmentCatalogEntriesForSettingsPage() {
+    void syncNowImportsEquipmentCatalogEntriesUsingLocalHierarchyAlias() {
         SharedConfigService sharedConfigService = mock(SharedConfigService.class);
         NetBoxSyncSettingsService settingsService = mock(NetBoxSyncSettingsService.class);
         NetBoxApiService netBoxApiService = mock(NetBoxApiService.class);
@@ -414,6 +414,16 @@ class NetBoxObjectPassportSyncServiceTest {
         when(jdbcTemplate.queryForList(
                 "SELECT equipment_type, equipment_vendor, equipment_model FROM it_equipment_catalog"
         )).thenReturn(List.of());
+        when(jdbcTemplate.queryForList(
+                "SELECT source_type, source_vendor, source_model, target_type, target_vendor, target_model FROM it_equipment_catalog_aliases"
+        )).thenReturn(List.of(Map.of(
+                "source_type", "Маршрутизатор",
+                "source_vendor", "Cisco",
+                "source_model", "ISR1000",
+                "target_type", "Роутер",
+                "target_vendor", "Cisco local",
+                "target_model", "ISR1000"
+        )));
 
         NetBoxObjectPassportSyncService.SyncStatusSnapshot result = service.syncNow("manual");
 
@@ -422,8 +432,8 @@ class NetBoxObjectPassportSyncServiceTest {
                 "INSERT INTO it_equipment_catalog(" +
                         "equipment_type, equipment_vendor, equipment_model, photo_url, serial_number, accessories, created_at, updated_at" +
                         ") VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
-                "Маршрутизатор",
-                "Cisco",
+                "Роутер",
+                "Cisco local",
                 "ISR1000",
                 "",
                 "",

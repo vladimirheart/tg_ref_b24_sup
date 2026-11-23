@@ -159,7 +159,7 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(runtime.contains("buildEquipmentHierarchy"));
         assertTrue(settings.contains("/css/settings.css(v='20261123-equipment-catalog-hierarchy-r1')"));
         assertTrue(settings.contains("/js/equipment-media-runtime.js?v=20260922-01-272-s7"));
-        assertTrue(settings.contains("/js/settings-it-equipment-runtime.js?v=20261123-equipment-catalog-hierarchy-r1"));
+        assertTrue(settings.contains("/js/settings-it-equipment-runtime.js?v=20261123-equipment-catalog-hierarchy-r2"));
         assertTrue(settingsCatalogueScss.contains("Equipment catalogue media and lifecycle — 01-259 r4.4"));
     }
 

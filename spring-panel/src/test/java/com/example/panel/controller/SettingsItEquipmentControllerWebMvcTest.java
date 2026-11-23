@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.example.panel.service.SettingsItEquipmentService;
+import com.example.panel.service.SettingsItEquipmentHierarchyService;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -33,6 +34,9 @@ class SettingsItEquipmentControllerWebMvcTest {
     @MockBean
     private SettingsItEquipmentService settingsItEquipmentService;
 
+    @MockBean
+    private SettingsItEquipmentHierarchyService hierarchyService;
+
     @Test
     void listEquipmentReturnsItems() throws Exception {
         when(settingsItEquipmentService.listItEquipment())
@@ -42,6 +46,26 @@ class SettingsItEquipmentControllerWebMvcTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.items[0].equipment_model").value("ThinkPad"));
+    }
+
+    @Test
+    void hierarchyEndpointsDelegateToDedicatedService() throws Exception {
+        when(hierarchyService.listHierarchy()).thenReturn(Map.of("success", true, "branches", List.of()));
+        when(hierarchyService.createBranch(anyMap())).thenReturn(Map.of("success", true, "branches", List.of()));
+
+        mockMvc.perform(get("/api/settings/it-equipment/hierarchy").with(user("admin").authorities(() -> "PAGE_SETTINGS")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(post("/api/settings/it-equipment/hierarchy/branches")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("{ \"node_kind\": \"type\", \"equipment_type\": \"Роутер\" }"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        verify(hierarchyService).createBranch(anyMap());
     }
 
     @Test

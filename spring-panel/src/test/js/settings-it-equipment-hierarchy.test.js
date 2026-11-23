@@ -61,8 +61,20 @@ test('equipment hierarchy represents models without a manufacturer as a separate
   );
 });
 
+test('manual branch is available before its first model is created', () => {
+  const hierarchy = plain(buildEquipmentHierarchy(rows, { type: 'Межсетевой экран' }, [
+    { node_kind: 'type', equipment_type: 'Межсетевой экран', equipment_vendor: '' },
+    { node_kind: 'vendor', equipment_type: 'Межсетевой экран', equipment_vendor: 'Fortinet' },
+  ]));
+
+  assert.deepEqual(hierarchy.vendors, [{ value: 'Fortinet', label: 'Fortinet' }]);
+  assert.deepEqual(hierarchy.models, []);
+});
+
 test('catalogue card has a direct photo-preview action', () => {
   assert.match(source, /data-it-equipment-action="preview-photo"/);
   assert.match(source, /function openCatalogPhotoViewer\(item\)/);
   assert.match(source, /photoViewerItem/);
+  assert.match(source, /it-equipment\/hierarchy/);
+  assert.match(source, /data-it-equipment-hierarchy-action/);
 });
