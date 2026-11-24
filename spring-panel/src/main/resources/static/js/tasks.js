@@ -54,6 +54,12 @@
   let commentDirty = false;
   let forcedClose = false;
   let saving = false, openGeneration = 0;
+  let sendingComment = false, currentComments = [];
+  const attachments = window.TaskAttachments?.create({
+    modal: taskModalEl, body: taskBody, comment: commentEditor,
+    onChange: scope => { if (scope === 'body') markDirty(); else commentDirty = !!commentEditor?.textContent?.trim() || !!attachments?.files('comment').length; },
+    onError: error => showError('Не удалось прикрепить файл', error),
+  });
   const employeeProfiles = window.EmployeeProfiles;
   document.querySelectorAll('#usersList option').forEach(option => employeeProfiles?.remember({
     username: option.value, fullName: option.dataset.employeeName || option.label,
@@ -66,6 +72,15 @@
     const message = document.getElementById('taskSaveState');
     if (message) message.textContent = 'Есть изменения';
   }
+
+  function selectTaskPane(pane) {
+    if (!taskModalEl) return;
+    taskModalEl.dataset.activePane = pane;
+    taskModalEl.querySelectorAll('[data-task-pane-tab]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.taskPaneTab === pane)));
+    if (pane === 'chat') requestAnimationFrame(() => { if (comments) comments.scrollTop = comments.scrollHeight; });
+  }
+
+  taskModalEl?.querySelectorAll('[data-task-pane-tab]').forEach(button => button.addEventListener('click', () => selectTaskPane(button.dataset.taskPaneTab)));
 
   function renderPeople() {
     const container = document.getElementById('taskPeople');
@@ -421,13 +436,18 @@
   function renderComments(items) {
     if (!comments) return;
     const list = Array.isArray(items) ? items : [];
+    currentComments = list;
+    const count = document.getElementById('taskCommentsCount');
+    if (count) count.textContent = list.length || '';
     comments.innerHTML = list.length ? list.map(item => `
       <article class="tasks-comment">
         <div class="tasks-comment-meta">${employeeLink(item.author)} <time>${escapeHtml(fmtDateTime(item.created_at))}</time></div>
-        <div class="tasks-comment-body">${item.html || ''}</div>
+        <div class="tasks-comment-body">${window.TaskAttachments?.compactComment(item.html) ?? item.html ?? ''}</div>
       </article>
-    `).join('') : '<div class="text-muted small">Комментариев пока нет.</div>';
+    `).join('') : `<div class="text-muted small">${taskId?.value ? 'Комментариев пока нет.' : 'Чат будет доступен после создания задачи.'}</div>`;
     employeeProfiles?.refresh(comments);
+    attachments?.update(taskBody?.innerHTML, currentComments);
+    requestAnimationFrame(() => { if (comments) comments.scrollTop = comments.scrollHeight; });
   }
 
   function eventText(event) {
@@ -486,8 +506,10 @@
     if (taskId) taskId.value = '';
     if (taskBody) taskBody.innerHTML = '';
     if (taskNumber) taskNumber.textContent = 'Новая задача';
-    if (commentsBlock) commentsBlock.hidden = true;
-    if (comments) comments.innerHTML = '';
+    if (commentsBlock) commentsBlock.hidden = false;
+    attachments?.reset();
+    renderComments([]);
+    selectTaskPane('description');
     if (taskEvents) taskEvents.innerHTML = '<div class="text-muted small">События появятся после сохранения.</div>';
     if (taskHistory) taskHistory.innerHTML = '<div class="text-muted small">История появится после сохранения.</div>';
     if (deleteTaskBtn) deleteTaskBtn.hidden = true;
@@ -536,6 +558,8 @@
       if (taskForm?.elements.namedItem('tags')) taskForm.elements.namedItem('tags').value = (task.tags || []).map(tag => tag.name).join(', ');
       if (taskForm?.elements.namedItem('due_at')) taskForm.elements.namedItem('due_at').value = toLocalDateTime(task.due_at);
       if (taskBody) taskBody.innerHTML = task.body_html || '';
+      attachments?.reset();
+      selectTaskPane('description');
       setSelectedProjects(task.projects || []);
       syncStatus(task.status || 'Новая');
       renderComments(task.comments || []);
@@ -565,9 +589,12 @@
     if (saving || saveTaskBtn?.disabled) return;
     const participants = taskModalEl?.querySelector('.tasks-participant-editor');
     if (!taskForm?.elements.namedItem('assignee')?.value && participants) participants.open = true;
+    const invalidField = taskForm?.querySelector(':invalid');
+    if (invalidField) selectTaskPane(invalidField.closest('[data-task-pane]')?.dataset.taskPane || 'description');
     if (!taskForm || !taskForm.reportValidity()) return;
     if (!taskDescriptionText()) {
       showError('Не удалось сохранить задачу', new Error('Описание задачи обязательно'));
+      selectTaskPane('description');
       taskBody?.focus();
       return;
     }
@@ -587,6 +614,7 @@
     data.append('due_at', String(taskForm.elements.namedItem('due_at')?.value || '').trim());
     const currentStatus = String(taskForm.elements.namedItem('status')?.value || taskForm.dataset.status || 'Новая').trim() || 'Новая';
     data.append('status', currentStatus);
+    attachments?.files('body').forEach(file => data.append('files', file));
 
     saving = true;
     const saveLabel = saveTaskBtn?.textContent;
@@ -595,6 +623,10 @@
       const response = await httpJson('/api/tasks', { method: 'POST', body: data });
       const payload = await response.json();
       if (payload?.ok === false) throw new Error(payload.error || 'Ошибка сохранения');
+      attachments?.clear('body');
+      if (payload.body_html != null && taskBody) taskBody.innerHTML = payload.body_html;
+      if (payload.id && taskId) taskId.value = String(payload.id);
+      attachments?.update(taskBody?.innerHTML, currentComments);
       dirty = false;
       if (commentDirty) {
         setEditorMode(false);
@@ -611,19 +643,36 @@
   }
 
   async function addComment() {
+    if (sendingComment || sendCommentBtn?.disabled) return;
     if (dirty) { showError('Сохраните изменения', new Error('Сохраните изменения задачи перед отправкой комментария.')); return; }
     const id = String(taskId?.value || '').trim();
     const html = String(commentEditor?.innerHTML || '').trim();
-    if (!id || !html) return;
+    const files = attachments?.files('comment') || [];
+    if (!id || (!commentEditor?.textContent?.trim() && !commentEditor?.querySelector('img') && !files.length)) return;
     const data = new FormData();
     data.append('html', html);
+    files.forEach(file => data.append('files', file));
+    sendingComment = true;
+    if (sendCommentBtn) { sendCommentBtn.disabled = true; sendCommentBtn.textContent = 'Отправка…'; }
     try {
-      await httpJson(`/api/tasks/${encodeURIComponent(id)}/comments`, { method: 'POST', body: data });
+      const response = await httpJson(`/api/tasks/${encodeURIComponent(id)}/comments`, { method: 'POST', body: data });
+      const payload = await response.json();
+      if (payload?.ok === false) throw new Error(payload.error || 'Не удалось отправить комментарий');
+      if (String(taskId?.value || '') !== id) return;
       if (commentEditor) commentEditor.innerHTML = '';
+      attachments?.clear('comment');
       commentDirty = false;
-      await openTask(id);
+      if (payload.item) renderComments([...currentComments, payload.item]);
+      try {
+        const fresh = await (await httpJson(`/api/tasks/${encodeURIComponent(id)}`)).json();
+        if (String(taskId?.value || '') === id) { renderComments(fresh.comments || []); renderEvents(fresh.events || []); renderLegacyHistory(fresh.history || []); }
+      } catch (_) { /* The comment was saved; a failed refresh must not prompt a duplicate send. */ }
+      commentEditor?.focus();
     } catch (error) {
       showError('Не удалось добавить комментарий', error);
+    } finally {
+      sendingComment = false;
+      if (sendCommentBtn) { sendCommentBtn.disabled = taskForm?.dataset.canWrite === 'false' || !taskId?.value; sendCommentBtn.textContent = 'Отправить'; }
     }
   }
 
@@ -782,13 +831,15 @@
   deleteTaskBtn?.addEventListener('click', deleteTask);
 
   taskForm?.addEventListener('input', event => {
-    if (event.target.closest('#commentEditor')) { commentDirty = !!commentEditor?.textContent?.trim(); return; }
+    if (['taskFileInput', 'commentFileInput'].includes(event.target.id)) return;
+    if (event.target.closest('#commentEditor')) { commentDirty = !!commentEditor?.textContent?.trim() || !!attachments?.files('comment').length; return; }
     if (event.target.closest('[data-work-object], .employee-picker__menu')) return;
     markDirty();
     updateExtraSummary();
   });
   taskForm?.addEventListener('submit', event => event.preventDefault());
   taskForm?.addEventListener('change', event => {
+    if (['taskFileInput', 'commentFileInput'].includes(event.target.id)) return;
     if (event.target.closest('[data-work-object]')) return;
     markDirty();
     if (['creator', 'assignee', 'co', 'watchers'].includes(event.target.name)) renderPeople();
@@ -807,7 +858,9 @@
       if (!field.closest('[data-work-object]')) field.disabled = !allowed;
     });
     taskBody?.setAttribute('contenteditable', String(allowed && taskForm.classList.contains('is-editing')));
-    commentEditor?.setAttribute('contenteditable', String(allowed));
+    commentEditor?.setAttribute('contenteditable', String(allowed && !!taskId?.value));
+    if (sendCommentBtn) sendCommentBtn.disabled = !allowed || !taskId?.value || sendingComment;
+    attachments?.setContext(allowed, !!taskId?.value);
     window.EmployeePicker?.refresh();
   });
 
@@ -848,6 +901,7 @@
   });
 
   updateScopeUi();
+  selectTaskPane('description');
   Promise.resolve()
     .then(loadProjects)
     .then(loadTasks)

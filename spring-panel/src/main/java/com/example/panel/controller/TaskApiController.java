@@ -67,6 +67,7 @@ public class TaskApiController {
     private final TaskQueryService taskQueryService;
     private final DialogTaskDisplayService dialogTaskDisplayService;
     private final com.example.panel.service.SharedWorkAccessService sharedAccess;
+    private final com.example.panel.service.TaskAttachmentService taskAttachments;
 
     public TaskApiController(TaskRepository taskRepository,
                              TaskSequenceRepository taskSequenceRepository,
@@ -77,7 +78,8 @@ public class TaskApiController {
                              IncidentService incidentService,
                              TaskDomainFoundationService taskDomainFoundationService,
                              TaskQueryService taskQueryService,
-                             DialogTaskDisplayService dialogTaskDisplayService, com.example.panel.service.SharedWorkAccessService sharedAccess) {
+                             DialogTaskDisplayService dialogTaskDisplayService, com.example.panel.service.SharedWorkAccessService sharedAccess,
+                             com.example.panel.service.TaskAttachmentService taskAttachments) {
         this.taskRepository = taskRepository;
         this.taskSequenceRepository = taskSequenceRepository;
         this.commentRepository = commentRepository;
@@ -89,6 +91,7 @@ public class TaskApiController {
         this.taskQueryService = taskQueryService;
         this.dialogTaskDisplayService = dialogTaskDisplayService;
         this.sharedAccess = sharedAccess;
+        this.taskAttachments = taskAttachments;
     }
 
     @GetMapping
@@ -150,6 +153,7 @@ public class TaskApiController {
                                     @RequestParam(name = "project_ids", required = false) String projectIds,
                                     @RequestParam(name = "due_at", required = false) String dueAt,
                                     @RequestParam(required = false) String status,
+                                    @RequestParam(name = "files", required = false) List<org.springframework.web.multipart.MultipartFile> files,
                                     Authentication authentication) {
         validateTaskRequiredFields(title, bodyHtml, assignee);
         boolean isNew = id == null;
@@ -176,6 +180,10 @@ public class TaskApiController {
 
         Task saved = taskRepository.saveAndFlush(task);
         if(isNew)sharedAccess.registerCreated(com.example.panel.service.SharedWorkAccessService.Kind.TASK,saved.getId(),authentication);
+        if (files != null && !files.isEmpty()) {
+            saved.setBodyHtml(taskAttachments.appendFiles(saved.getId(), saved.getBodyHtml(), files));
+            taskRepository.saveAndFlush(saved);
+        }
         syncTaskPeople(saved, co, watchers);
         String actor = resolveActor(authentication, saved.getCreator());
         String normalizedTagsInput = tags != null ? tags : tag;
@@ -189,7 +197,7 @@ public class TaskApiController {
         notificationRoutingService.notifyTask("task_saved", saved.getId(), recipients, text, "/tasks#task=" + saved.getId(), actor);
         log.info("Task {} saved (id={}, creator={}, assignee={}, status={})",
                 saved.getSeq(), saved.getId(), saved.getCreator(), saved.getAssignee(), saved.getStatus());
-        return Map.of("ok", true, "id", saved.getId());
+        return Map.of("ok", true, "id", saved.getId(), "body_html", saved.getBodyHtml());
     }
 
     private void validateTaskRequiredFields(String title, String bodyHtml, String assignee) {
@@ -242,6 +250,7 @@ public class TaskApiController {
     public Map<String, Object> addComment(@PathVariable Long id,
                                           @RequestParam String html,
                                           @RequestParam(name = "author", required = false) String author,
+                                          @RequestParam(name = "files", required = false) List<org.springframework.web.multipart.MultipartFile> files,
                                           Authentication authentication) {
         sharedAccess.require(com.example.panel.service.SharedWorkAccessService.Kind.TASK,id,com.example.panel.service.SharedWorkAccessService.Access.WRITE,com.example.panel.service.SharedWorkAccessService.current());
         Task task = taskRepository.findById(id)
@@ -249,7 +258,7 @@ public class TaskApiController {
         TaskComment comment = new TaskComment();
         comment.setTask(task);
         comment.setAuthor(authentication.getName());
-        comment.setHtml(html);
+        comment.setHtml(files == null || files.isEmpty() ? html : taskAttachments.appendFiles(id, html, files));
         comment.setCreatedAt(OffsetDateTime.now());
         TaskComment saved = commentRepository.save(comment);
         Map<String, Object> dto = Map.of(

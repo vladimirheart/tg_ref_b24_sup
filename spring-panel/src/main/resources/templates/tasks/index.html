@@ -13,7 +13,7 @@
   <link href="/vendor/bootstrap/5.3.3/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
   <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
   <link th:href="@{/css/style.css(v='20261119-refined-r1')}" rel="stylesheet">
-  <link th:href="@{/css/app.css(v='20261124-task-card-r1')}" rel="stylesheet">
+  <link th:href="@{/css/app.css(v='20261124-task-card-r2')}" rel="stylesheet">
   <link th:href="@{/css/sidebar.css(v='20261119-refined-r1')}" rel="stylesheet">
 </head>
 <body class="with-sidebar sidebar-pinned" data-ui-page="tasks">
@@ -193,33 +193,50 @@
               <button type="button" class="btn-close" data-task-close aria-label="Закрыть"></button>
             </div>
           </div>
+          <nav class="tasks-pane-nav" aria-label="Разделы задачи">
+            <button type="button" data-task-pane-tab="description" aria-pressed="true">Задача</button>
+            <button type="button" data-task-pane-tab="chat" aria-pressed="false">Чат</button>
+            <button type="button" data-task-pane-tab="properties" aria-pressed="false">Параметры</button>
+          </nav>
           <div class="modal-body">
             <div class="alert alert-warning d-none" id="taskAlert"></div>
             <form id="taskForm" class="tasks-task-sheet-grid">
               <input type="hidden" id="taskId">
               <input type="hidden" name="creator">
-              <section class="tasks-task-primary">
+              <section class="tasks-task-primary" data-task-pane="description" aria-label="Описание и вложения задачи">
                 <label class="form-label tasks-title-label" for="taskTitle">Название <span class="text-danger" aria-hidden="true">*</span></label>
                 <textarea id="taskTitle" name="title" class="form-control tasks-title-input" placeholder="Название задачи" rows="2" required></textarea>
 
                 <label class="form-label mt-3" for="bodyEditor">Описание <span class="text-danger" aria-hidden="true">*</span></label>
                 <div id="bodyEditor" class="tasks-editor-panel" contenteditable="true" role="textbox" aria-multiline="true" aria-required="true" data-placeholder="Опишите задачу, контекст и ожидаемый результат"></div>
 
-                <section id="commentsBlock" class="tasks-conversation mt-4" hidden>
-                  <div class="tasks-section-head"><h6>Комментарии</h6></div>
-                  <div id="comments" class="tasks-comments-list"></div>
-                  <div id="commentEditor" class="tasks-comment-editor" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="Добавить комментарий"></div>
-                  <div class="text-end mt-2"><button id="sendCommentBtn" data-work-write disabled class="btn btn-sm btn-outline-primary" type="button">Отправить</button></div>
+                <div class="tasks-body-file-actions">
+                  <button type="button" id="attachTaskFileBtn" data-work-write disabled class="btn btn-sm btn-outline-secondary"><i class="bi bi-paperclip" aria-hidden="true"></i> Прикрепить файл</button>
+                  <input type="file" id="taskFileInput" multiple hidden aria-label="Файлы к задаче">
+                  <span>Можно перетащить файл сюда</span>
+                </div>
+                <section class="tasks-attachments-section" aria-label="Вложения задачи">
+                  <div class="tasks-section-head"><h6>Вложения <span id="taskAttachmentsCount"></span></h6></div>
+                  <div id="taskAttachments" class="tasks-attachments-list"></div>
                 </section>
-
-                <details class="tasks-history-panel mt-4 ui-disclosure-native" data-task-disclosure>
-                  <summary>История изменений</summary>
-                  <div id="taskEvents" class="task-history-content"></div>
-                  <div id="history" class="task-history-content task-history-legacy"></div>
-                </details>
               </section>
 
-              <aside class="tasks-task-aside">
+              <section id="commentsBlock" class="tasks-conversation" data-task-pane="chat" aria-label="Чат задачи">
+                <div class="tasks-chat-heading"><h6>Чат задачи <span id="taskCommentsCount"></span></h6></div>
+                <div id="comments" class="tasks-comments-list" role="log" aria-label="Комментарии задачи"></div>
+                <div class="tasks-chat-composer">
+                  <div id="commentEditor" class="tasks-comment-editor" contenteditable="true" role="textbox" aria-label="Комментарий" aria-multiline="true" data-placeholder="Написать комментарий…"></div>
+                  <div id="taskCommentFiles" class="tasks-comment-files" aria-live="polite"></div>
+                  <div class="tasks-chat-composer-actions">
+                    <button type="button" id="attachCommentFileBtn" data-work-write disabled class="btn btn-sm btn-outline-secondary" title="Прикрепить файл" aria-label="Прикрепить файл к комментарию"><i class="bi bi-paperclip" aria-hidden="true"></i></button>
+                    <input type="file" id="commentFileInput" multiple hidden aria-label="Файлы к комментарию">
+                    <span class="tasks-chat-file-hint">Файл или Ctrl+V</span>
+                    <button id="sendCommentBtn" data-work-write disabled class="btn btn-sm btn-primary" type="button">Отправить</button>
+                  </div>
+                </div>
+              </section>
+
+              <aside class="tasks-task-aside" data-task-pane="properties" aria-label="Параметры и история задачи">
                 <div class="tasks-property-group">
                   <label class="form-label" for="taskStatus">Статус</label>
                   <select id="taskStatus" name="status" class="form-select tasks-status-select"><option>Новая</option><option>В работе</option><option>Ожидание</option><option>Завершена</option><option>Отменена</option></select>
@@ -258,6 +275,11 @@
                   <summary>Права доступа</summary>
                   <section th:replace="~{fragments/shared-work-access :: objectAccess('TASK')}"></section>
                 </details>
+                <details class="tasks-history-panel ui-disclosure-native" data-task-disclosure>
+                  <summary>История изменений</summary>
+                  <div id="taskEvents" class="task-history-content"></div>
+                  <div id="history" class="task-history-content task-history-legacy"></div>
+                </details>
                 <div class="tasks-created-meta">Создано <span id="createdAt">—</span></div>
               </aside>
             </form>
@@ -276,7 +298,8 @@
   <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
   <script th:src="@{/js/modal-helpers.js}"></script>
   <script th:src="@{/js/shared-work-access.js?v=20261124-task-card-r1}"></script>
-  <script th:src="@{/js/tasks.js?v=20261124-task-card-r1}"></script>
+  <script th:src="@{/js/task-attachments.js?v=20261124-task-card-r2}"></script>
+  <script th:src="@{/js/tasks.js?v=20261124-task-card-r2}"></script>
   <script th:src="@{/js/tasks-board.js?v=20260925-01-274-analytics-r45}"></script>
   <script th:src="@{/js/tasks-analytics.js?v=20260925-01-274-analytics-r50}"></script>
   <script th:src="@{/js/modal-transitions.js}"></script>

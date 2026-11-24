@@ -66,11 +66,13 @@ async function main() {
         return route.fulfill({ json: {} });
       });
       const page = await context.newPage(); page.on('pageerror', error => errors.push(error.message));
+      const pane = async name => { if (width < 1100) await page.locator(`[data-task-pane-tab="${name}"]`).click(); };
       page.on('response', response => { if (response.status() === 404 && /\.(js|css)(\?|$)/.test(response.url())) missing.push(response.url()); });
       await page.goto(origin + '/tasks#task=41', { waitUntil: 'networkidle' });
       const modal = page.locator('#taskModal'); await modal.waitFor({ state: 'visible' });
       await page.locator('#saveTaskBtn:enabled').waitFor();
       assert.equal(await page.locator('[data-task-disclosure][open]').count(), 0, 'Existing task opens without secondary panels');
+      await pane('properties');
       assert.match(await page.locator('#taskPeople').innerText(), /Анна Смирнова/);
       assert.equal(await page.locator('#taskPeople img').count(), 1, 'One entry per employee; broken avatar falls back to initials');
       await page.locator('#taskPeople [data-employee-identity="anna"]').first().click();
@@ -84,7 +86,9 @@ async function main() {
       await page.keyboard.press('Enter'); assert.equal(writes.length, 0, 'Employee search Enter does not submit task'); await page.keyboard.press('Escape');
       assert.equal(await page.locator('#taskCo').inputValue(), 'victor, anna');
       await page.locator('.tasks-participant-editor > summary').click();
+      await pane('description');
       await page.locator('#editToggleBtn').click(); await page.locator('#taskTitle').fill('Согласовать план запуска с командой');
+      await pane('properties');
       await page.locator('#taskPeople [data-employee-identity="anna"]').first().click();
       await page.locator('#employeeProfileTitle').filter({ hasText: 'Анна Смирнова' }).waitFor().catch(async error => {
         await page.screenshot({ path: path.join(out, 'failure.png') });
@@ -94,6 +98,7 @@ async function main() {
       await page.locator('#employeeProfileDialog .btn-close').click();
       assert.equal(await page.locator('#taskTitle').inputValue(), 'Согласовать план запуска с командой', 'Profile preserves unsaved edits');
       await page.locator('#editToggleBtn').click();
+      await pane('chat');
       await page.locator('#taskModal .modal-body').evaluate(el => { el.scrollTop = 0; });
       await page.screenshot({ path: path.join(out, `task-${theme}-${width}.png`) });
       const overflow = await modal.evaluate(el => el.scrollWidth > el.clientWidth + 2 || el.querySelector('.modal-body').scrollWidth > el.querySelector('.modal-body').clientWidth + 2);
@@ -101,22 +106,28 @@ async function main() {
       failSave = true; await page.locator('#saveTaskBtn').click(); await page.locator('#saveTaskBtn:enabled').waitFor();
       assert(await modal.isVisible()); assert.equal(await page.locator('#taskStatus').inputValue(), 'Ожидание');
       // The app error modal can coexist with the task; dismiss it before retrying.
-      await page.evaluate(() => document.querySelectorAll('.modal.show:not(#taskModal)').forEach(el => bootstrap.Modal.getInstance(el)?.hide()));
+      await page.waitForFunction(() => { const node = document.getElementById('appMessageModal'); return node?.classList.contains('show') && !bootstrap.Modal.getInstance(node)?._isTransitioning; });
+      await page.locator('#appMessageModal [data-bs-dismiss="modal"]').click(); await page.locator('#appMessageModal').waitFor({ state: 'hidden' });
       failSave = false; await page.locator('#saveTaskBtn').click(); await modal.waitFor({ state: 'hidden' });
       assert.equal(writes.at(-1).status, 'Ожидание'); assert.equal(writes.at(-1).co, 'victor, anna'); assert.equal(writes.at(-1).project_ids, '2');
       await page.locator('[data-open-task="41"]').first().click(); await modal.waitFor({ state: 'visible' }); await page.locator('#saveTaskBtn:enabled').waitFor();
       assert.equal(await page.locator('#taskStatus').inputValue(), 'Ожидание');
+      await pane('chat');
       await page.locator('#commentEditor').fill('Черновик комментария');
+      await pane('properties');
       await page.locator('#taskStatus').selectOption('В работе'); await page.locator('#saveTaskBtn').click();
       await page.getByText('Задача сохранена', { exact: true }).waitFor();
       assert(await modal.isVisible()); assert.equal(await page.locator('#commentEditor').innerText(), 'Черновик комментария', 'Saving task preserves the comment draft');
+      await pane('chat');
       await page.locator('#commentEditor').fill('');
+      await pane('properties');
       readonly = true; await page.evaluate(() => SharedWorkAccess.openObject('TASK', '41')); await page.locator('#taskStatus:disabled').waitFor();
       assert(await page.locator('#editToggleBtn').isDisabled()); assert(await page.locator('#saveTaskBtn').isDisabled());
       await page.locator('#taskPeople [data-employee-identity="anna"]').first().click(); await page.locator('#employeeProfileTitle').filter({ hasText: 'Анна Смирнова' }).waitFor(); await page.keyboard.press('Escape');
       failProfile = true; await page.locator('#taskPeople [data-employee-identity="anna"]').first().click(); await page.locator('#employeeProfileDialog [role="alert"]').waitFor();
       failProfile = false; await page.locator('#employeeProfileDialog').getByText('Повторить', { exact: true }).click(); await page.locator('#employeeProfileTitle').filter({ hasText: 'Анна Смирнова' }).waitFor(); await page.keyboard.press('Escape');
       // Use the production dialog participant renderer inside the existing modal to verify links and scope.
+      await pane('description');
       await page.addScriptTag({ url: origin + '/js/dialogs-participants-runtime.js' });
       await page.evaluate(() => {
         const list = document.createElement('div'); list.id = 'dialogPeopleFixture'; document.querySelector('.tasks-task-primary').append(list);
