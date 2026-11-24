@@ -265,7 +265,8 @@ public class TaskApiController {
                 "id", saved.getId(),
                 "author", saved.getAuthor(),
                 "html", saved.getHtml(),
-                "created_at", formatDate(saved.getCreatedAt())
+                "created_at", formatDate(saved.getCreatedAt()),
+                "can_edit", true
         );
         String actor = resolveActor(authentication, saved.getAuthor());
         taskDomainFoundationService.recordCommentAdded(task, actor, saved.getId());
@@ -311,6 +312,8 @@ public class TaskApiController {
                     commentDto.put("author", c.getAuthor());
                     commentDto.put("html", c.getHtml());
                     commentDto.put("created_at", formatDate(c.getCreatedAt()));
+                    var actor = com.example.panel.service.SharedWorkAccessService.current();
+                    commentDto.put("can_edit", actor != null && java.util.Objects.equals(actor.getName(), c.getAuthor()));
                     return commentDto;
                 })
                 .toList();

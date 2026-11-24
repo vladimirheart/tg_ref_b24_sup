@@ -13,7 +13,7 @@
   <link href="/vendor/bootstrap/5.3.3/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
   <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
   <link th:href="@{/css/style.css(v='20261119-refined-r1')}" rel="stylesheet">
-  <link th:href="@{/css/app.css(v='20261124-task-card-r2')}" rel="stylesheet">
+  <link th:href="@{/css/app.css(v='20261124-task-card-r3')}" rel="stylesheet">
   <link th:href="@{/css/sidebar.css(v='20261119-refined-r1')}" rel="stylesheet">
 </head>
 <body class="with-sidebar sidebar-pinned" data-ui-page="tasks">
@@ -208,7 +208,9 @@
                 <textarea id="taskTitle" name="title" class="form-control tasks-title-input" placeholder="Название задачи" rows="2" required></textarea>
 
                 <label class="form-label mt-3" for="bodyEditor">Описание <span class="text-danger" aria-hidden="true">*</span></label>
-                <div id="bodyEditor" class="tasks-editor-panel" contenteditable="true" role="textbox" aria-multiline="true" aria-required="true" data-placeholder="Опишите задачу, контекст и ожидаемый результат"></div>
+                <div data-html-editor="full" class="tasks-body-rich-editor">
+                <div data-html-surface id="bodyEditor" class="tasks-editor-panel" contenteditable="true" role="textbox" aria-multiline="true" aria-required="true" data-placeholder="Опишите задачу, контекст и ожидаемый результат"></div>
+                </div>
 
                 <div class="tasks-body-file-actions">
                   <button type="button" id="attachTaskFileBtn" data-work-write disabled class="btn btn-sm btn-outline-secondary"><i class="bi bi-paperclip" aria-hidden="true"></i> Прикрепить файл</button>
@@ -225,13 +227,16 @@
                 <div class="tasks-chat-heading"><h6>Чат задачи <span id="taskCommentsCount"></span></h6></div>
                 <div id="comments" class="tasks-comments-list" role="log" aria-label="Комментарии задачи"></div>
                 <div class="tasks-chat-composer">
-                  <div id="commentEditor" class="tasks-comment-editor" contenteditable="true" role="textbox" aria-label="Комментарий" aria-multiline="true" data-placeholder="Написать комментарий…"></div>
+                  <div class="tasks-comment-input" data-html-editor="compact">
+                  <div id="taskCommentEditState" class="tasks-comment-edit-state" hidden><span>Редактирование комментария · вложения сохранятся</span><button type="button" id="cancelTaskCommentEdit" aria-label="Отменить редактирование комментария" title="Отменить">×</button></div>
+                  <div data-html-surface id="commentEditor" class="tasks-comment-editor" contenteditable="true" role="textbox" aria-label="Комментарий" aria-multiline="true" data-placeholder="Написать комментарий…"></div>
                   <div id="taskCommentFiles" class="tasks-comment-files" aria-live="polite"></div>
                   <div class="tasks-chat-composer-actions">
                     <button type="button" id="attachCommentFileBtn" data-work-write disabled class="btn btn-sm btn-outline-secondary" title="Прикрепить файл" aria-label="Прикрепить файл к комментарию"><i class="bi bi-paperclip" aria-hidden="true"></i></button>
                     <input type="file" id="commentFileInput" multiple hidden aria-label="Файлы к комментарию">
-                    <span class="tasks-chat-file-hint">Файл или Ctrl+V</span>
-                    <button id="sendCommentBtn" data-work-write disabled class="btn btn-sm btn-primary" type="button">Отправить</button>
+                    <button type="button" class="tasks-format-toggle" data-html-tools-toggle aria-label="Форматирование текста" title="Форматирование" aria-expanded="false">Aa</button>
+                    <button id="sendCommentBtn" data-work-write disabled class="btn btn-sm btn-primary" type="button" title="Отправить комментарий">Отправить</button>
+                  </div>
                   </div>
                 </div>
               </section>
@@ -298,8 +303,10 @@
   <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
   <script th:src="@{/js/modal-helpers.js}"></script>
   <script th:src="@{/js/shared-work-access.js?v=20261124-task-card-r1}"></script>
-  <script th:src="@{/js/task-attachments.js?v=20261124-task-card-r2}"></script>
-  <script th:src="@{/js/tasks.js?v=20261124-task-card-r2}"></script>
+  <script th:src="@{/js/knowledge-note-content.js?v=20261124-task-card-r3}"></script>
+  <script th:src="@{/js/markdown-visual-editor.js?v=20261124-task-card-r3}"></script>
+  <script th:src="@{/js/task-attachments.js?v=20261124-task-card-r3}"></script>
+  <script th:src="@{/js/tasks.js?v=20261124-task-card-r3}"></script>
   <script th:src="@{/js/tasks-board.js?v=20260925-01-274-analytics-r45}"></script>
   <script th:src="@{/js/tasks-analytics.js?v=20260925-01-274-analytics-r50}"></script>
   <script th:src="@{/js/modal-transitions.js}"></script>

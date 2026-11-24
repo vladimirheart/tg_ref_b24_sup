@@ -9,6 +9,10 @@ import java.util.List;
 
 public interface TaskRepository extends JpaRepository<Task, Long>, JpaSpecificationExecutor<Task> {
 
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select t from Task t where t.id = :id")
+    java.util.Optional<Task> findByIdForContentUpdate(@org.springframework.data.repository.query.Param("id") Long id);
+
     List<Task> findTop50ByOrderByCreatedAtDesc();
 
     List<Task> findByAssigneeIgnoreCaseOrderByIdAsc(String assignee);

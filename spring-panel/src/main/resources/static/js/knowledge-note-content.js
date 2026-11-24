@@ -99,8 +99,8 @@
       dialog.querySelector('[data-note-photo-counter]').textContent = `${position + 1} / ${items.length}`;
       prev.hidden = next.hidden = items.length < 2;
       dialog.classList.toggle('has-single-photo', items.length < 2);
-      download.href = photo.photo;
-      download.download = decodeURIComponent(photo.photo.slice(prefix.length));
+      download.href = photo.download || photo.photo;
+      download.download = photo.name || decodeURIComponent(photo.photo.slice(prefix.length));
       image.src = photo.photo;
     }
     function move(delta) { if (items.length > 1) { position = (position + delta + items.length) % items.length; show(); } }
@@ -184,7 +184,8 @@
     }).observe(stage);
     // A queued close event must not clear a gallery opened again in the meantime.
     dialog.addEventListener('close', () => { if (!dialog.open) cleanup(); });
-    const api = { open(photos, index, opener) {
+    const api = { open(photos, index, opener, title = 'Фотографии заметки') {
+      dialog.querySelector('#notePhotoViewerTitle').textContent = title;
       items = photos; position = index; trigger = opener;
       const host = opener.closest('.modal.show, dialog[open]') || doc.body;
       if (dialog.parentNode !== host) host.append(dialog);
@@ -234,7 +235,11 @@
       container.append(more);
     }
   }
-  const api = { attachmentPath, photoPath, parts, matches, render };
+  function openPhotos(photos, index, opener, title) {
+    if (!photos?.length || !opener?.ownerDocument) return;
+    photoViewer(opener.ownerDocument).open(photos, index, opener, title);
+  }
+  const api = { attachmentPath, photoPath, parts, matches, render, openPhotos };
   if (root) root.IguanaNoteContent = api;
   if (typeof module === 'object' && module.exports) module.exports = api;
 })(typeof window === 'object' ? window : null);

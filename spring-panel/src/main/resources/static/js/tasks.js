@@ -54,11 +54,12 @@
   let commentDirty = false;
   let forcedClose = false;
   let saving = false, openGeneration = 0;
-  let sendingComment = false, currentComments = [];
+  let sendingComment = false, currentComments = [], editingComment = null, deletingAttachment = false;
   const attachments = window.TaskAttachments?.create({
     modal: taskModalEl, body: taskBody, comment: commentEditor,
-    onChange: scope => { if (scope === 'body') markDirty(); else commentDirty = !!commentEditor?.textContent?.trim() || !!attachments?.files('comment').length; },
-    onError: error => showError('Не удалось прикрепить файл', error),
+    onChange: scope => { if (scope === 'body') markDirty(); else commentDirty = !!editingComment || !!commentEditor?.textContent?.trim() || !!attachments?.files('comment').length; },
+    onError: error => showError('Ошибка вложения', error),
+    onRemove: removeAttachment,
   });
   const employeeProfiles = window.EmployeeProfiles;
   document.querySelectorAll('#usersList option').forEach(option => employeeProfiles?.remember({
@@ -113,10 +114,13 @@
 
   function resetDisclosures(creating = false) {
     taskModalEl?.querySelectorAll('[data-task-disclosure]').forEach(panel => { panel.open = creating && panel.classList.contains('tasks-participant-editor'); });
+    resetTaskPaneScroll();
     const message = document.getElementById('taskSaveState');
     if (message) message.textContent = '';
     if (commentEditor) commentEditor.innerHTML = '';
     commentDirty = false;
+    editingComment = null;
+    syncCommentMode();
   }
 
   const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content') || '';
@@ -440,14 +444,37 @@
     const count = document.getElementById('taskCommentsCount');
     if (count) count.textContent = list.length || '';
     comments.innerHTML = list.length ? list.map(item => `
-      <article class="tasks-comment">
-        <div class="tasks-comment-meta">${employeeLink(item.author)} <time>${escapeHtml(fmtDateTime(item.created_at))}</time></div>
+      <article class="tasks-comment" data-comment-id="${escapeHtml(item.id)}">
+        <div class="tasks-comment-meta">${employeeLink(item.author)} <time>${escapeHtml(fmtDateTime(item.created_at))}</time>${item.can_edit ? `<button type="button" class="tasks-comment-edit" data-edit-task-comment="${escapeHtml(item.id)}" aria-label="Редактировать комментарий" title="Редактировать комментарий"><i class="bi bi-pencil" aria-hidden="true"></i></button>` : ''}</div>
         <div class="tasks-comment-body">${window.TaskAttachments?.compactComment(item.html) ?? item.html ?? ''}</div>
       </article>
     `).join('') : `<div class="text-muted small">${taskId?.value ? 'Комментариев пока нет.' : 'Чат будет доступен после создания задачи.'}</div>`;
     employeeProfiles?.refresh(comments);
     attachments?.update(taskBody?.innerHTML, currentComments);
     requestAnimationFrame(() => { if (comments) comments.scrollTop = comments.scrollHeight; });
+  }
+
+  async function removeAttachment(item) {
+    if (saving || sendingComment || editingComment || deletingAttachment) throw new Error('Дождитесь окончания отправки и завершите редактирование комментария.');
+    const id = String(taskId?.value || '');
+    deletingAttachment = true;
+    if (saveTaskBtn) saveTaskBtn.disabled = true;
+    syncCommentMode();
+    try {
+      const response = await httpJson(`/api/tasks/${encodeURIComponent(id)}/attachments`, {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scope: item.scope, commentId: item.commentId, reference: item.reference }),
+      });
+      const payload = await response.json();
+      if (String(taskId?.value || '') !== id) return;
+      if (item.scope === 'body') taskBody.innerHTML = dirty ? window.TaskAttachments.removeSavedReference(taskBody.innerHTML, item.reference) : payload.html;
+      else currentComments = currentComments.map(comment => String(comment.id) === String(item.commentId) ? { ...comment, html: payload.html } : comment);
+      renderComments(currentComments);
+    } finally {
+      deletingAttachment = false;
+      if (saveTaskBtn) saveTaskBtn.disabled = taskForm?.dataset.canWrite === 'false';
+      syncCommentMode();
+    }
   }
 
   function eventText(event) {
@@ -523,9 +550,13 @@
     dirty = false;
   }
 
-  function showTaskModal() {
-    if (taskModal) taskModal.show();
+  function resetTaskPaneScroll() {
+    taskModalEl?.querySelectorAll('[data-task-pane]').forEach(panel => { panel.scrollTop = 0; });
   }
+  function showTaskModal() {
+    if (taskModal) { taskModal.show(); requestAnimationFrame(resetTaskPaneScroll); }
+  }
+  taskModalEl?.addEventListener('shown.bs.modal', resetTaskPaneScroll);
 
   function hideTaskModal(force = false) {
     if (!taskModal) return;
@@ -586,7 +617,7 @@
   }
 
   async function saveTask() {
-    if (saving || saveTaskBtn?.disabled) return;
+    if (saving || deletingAttachment || saveTaskBtn?.disabled) return;
     const participants = taskModalEl?.querySelector('.tasks-participant-editor');
     if (!taskForm?.elements.namedItem('assignee')?.value && participants) participants.open = true;
     const invalidField = taskForm?.querySelector(':invalid');
@@ -648,21 +679,27 @@
     const id = String(taskId?.value || '').trim();
     const html = String(commentEditor?.innerHTML || '').trim();
     const files = attachments?.files('comment') || [];
-    if (!id || (!commentEditor?.textContent?.trim() && !commentEditor?.querySelector('img') && !files.length)) return;
+    const editing = editingComment;
+    if (!id || (!editing && !commentEditor?.textContent?.trim() && !commentEditor?.querySelector('img') && !files.length)) return;
     const data = new FormData();
     data.append('html', html);
     files.forEach(file => data.append('files', file));
     sendingComment = true;
-    if (sendCommentBtn) { sendCommentBtn.disabled = true; sendCommentBtn.textContent = 'Отправка…'; }
+    syncCommentMode();
     try {
-      const response = await httpJson(`/api/tasks/${encodeURIComponent(id)}/comments`, { method: 'POST', body: data });
+      const response = editing
+        ? await httpJson(`/api/tasks/${encodeURIComponent(id)}/comments/${encodeURIComponent(editing.id)}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ html, expectedHtml: editing.originalHtml }),
+          })
+        : await httpJson(`/api/tasks/${encodeURIComponent(id)}/comments`, { method: 'POST', body: data });
       const payload = await response.json();
       if (payload?.ok === false) throw new Error(payload.error || 'Не удалось отправить комментарий');
       if (String(taskId?.value || '') !== id) return;
       if (commentEditor) commentEditor.innerHTML = '';
       attachments?.clear('comment');
       commentDirty = false;
-      if (payload.item) renderComments([...currentComments, payload.item]);
+      editingComment = null;
+      if (payload.item) renderComments(editing ? currentComments.map(item => String(item.id) === String(editing.id) ? payload.item : item) : [...currentComments, payload.item]);
       try {
         const fresh = await (await httpJson(`/api/tasks/${encodeURIComponent(id)}`)).json();
         if (String(taskId?.value || '') === id) { renderComments(fresh.comments || []); renderEvents(fresh.events || []); renderLegacyHistory(fresh.history || []); }
@@ -672,9 +709,43 @@
       showError('Не удалось добавить комментарий', error);
     } finally {
       sendingComment = false;
-      if (sendCommentBtn) { sendCommentBtn.disabled = taskForm?.dataset.canWrite === 'false' || !taskId?.value; sendCommentBtn.textContent = 'Отправить'; }
+      syncCommentMode();
     }
   }
+
+  function syncCommentMode() {
+    const allowed = taskForm?.dataset.canWrite !== 'false' && !!taskId?.value && !sendingComment && !deletingAttachment;
+    const state = document.getElementById('taskCommentEditState');
+    if (state) state.hidden = !editingComment;
+    if (sendCommentBtn) { sendCommentBtn.disabled = !allowed; sendCommentBtn.textContent = sendingComment ? 'Отправка…' : editingComment ? 'Сохранить' : 'Отправить'; }
+    commentEditor?.setAttribute('contenteditable', String(allowed));
+    attachments?.setCommentEnabled(allowed && !editingComment);
+    for (const id of ['attachCommentFileBtn', 'commentFileInput']) {
+      const node = document.getElementById(id); if (node) node.disabled = !allowed || !!editingComment;
+    }
+    comments?.classList.toggle('is-readonly', taskForm?.dataset.canWrite === 'false');
+  }
+
+  comments?.addEventListener('click', event => {
+    const button = event.target.closest('[data-edit-task-comment]'); if (!button || sendingComment || taskForm?.dataset.canWrite === 'false') return;
+    const item = currentComments.find(item => String(item.id) === button.dataset.editTaskComment);
+    if (!item?.can_edit) return;
+    if (commentDirty) { showError('Есть черновик комментария', new Error('Сначала отправьте текущий комментарий или отмените его редактирование.')); return; }
+    editingComment = { id: item.id, originalHtml: item.html };
+    commentEditor.innerHTML = window.TaskAttachments?.editableText(item.html) ?? item.html;
+    commentDirty = true;
+    syncCommentMode(); commentEditor.focus();
+  });
+  document.getElementById('cancelTaskCommentEdit')?.addEventListener('click', () => {
+    if (sendingComment) return;
+    editingComment = null; commentDirty = false; commentEditor.innerHTML = ''; syncCommentMode(); commentEditor.focus();
+  });
+  commentEditor?.addEventListener('keydown', event => {
+    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.isComposing
+        && !commentEditor.closest('[data-html-editor]')?.querySelector('.tasks-rich-menu:not([hidden])')) {
+      event.preventDefault(); addComment();
+    }
+  });
 
   async function deleteTask() {
     const id = String(taskId?.value || '').trim();
@@ -832,7 +903,8 @@
 
   taskForm?.addEventListener('input', event => {
     if (['taskFileInput', 'commentFileInput'].includes(event.target.id)) return;
-    if (event.target.closest('#commentEditor')) { commentDirty = !!commentEditor?.textContent?.trim() || !!attachments?.files('comment').length; return; }
+    if (event.target.closest('#commentEditor')) { commentDirty = !!editingComment || !!commentEditor?.textContent?.trim() || !!attachments?.files('comment').length; return; }
+    if (event.target.closest('[data-html-editor="compact"]')) return;
     if (event.target.closest('[data-work-object], .employee-picker__menu')) return;
     markDirty();
     updateExtraSummary();
@@ -840,6 +912,7 @@
   taskForm?.addEventListener('submit', event => event.preventDefault());
   taskForm?.addEventListener('change', event => {
     if (['taskFileInput', 'commentFileInput'].includes(event.target.id)) return;
+    if (event.target.closest('[data-html-editor="compact"]')) return;
     if (event.target.closest('[data-work-object]')) return;
     markDirty();
     if (['creator', 'assignee', 'co', 'watchers'].includes(event.target.name)) renderPeople();
@@ -858,9 +931,8 @@
       if (!field.closest('[data-work-object]')) field.disabled = !allowed;
     });
     taskBody?.setAttribute('contenteditable', String(allowed && taskForm.classList.contains('is-editing')));
-    commentEditor?.setAttribute('contenteditable', String(allowed && !!taskId?.value));
-    if (sendCommentBtn) sendCommentBtn.disabled = !allowed || !taskId?.value || sendingComment;
     attachments?.setContext(allowed, !!taskId?.value);
+    syncCommentMode();
     window.EmployeePicker?.refresh();
   });
 

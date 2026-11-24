@@ -36,6 +36,8 @@ class TaskAttachmentsWebMvcTest {
     @MockBean TaskDomainFoundationService domain; @MockBean TaskQueryService query;
     @MockBean DialogTaskDisplayService display; @MockBean SharedWorkAccessService access;
     @MockBean TaskAttachmentService attachments;
+    @MockBean TaskAttachmentRemovalService removal;
+    @MockBean TaskCommentEditService commentEdits;
     private Task task;
     private final String storedName = "12345678-1234-1234-1234-123456789abc_plan.txt";
     @BeforeEach void prepare() {
@@ -87,5 +89,47 @@ class TaskAttachmentsWebMvcTest {
         mvc.perform(get("/api/tasks/41/attachments/" + storedName).param("preview", "true").with(user("anna").authorities(() -> "PAGE_TASKS")))
             .andExpect(status().isOk()).andExpect(content().contentTypeCompatibleWith("application/octet-stream"))
             .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("attachment")));
+    }
+    @Test void rasterAndVideoPreviewAreInlineWhileDownloadRemainsExplicit() throws Exception {
+        for (String type : java.util.List.of("image/png", "video/mp4", "audio/wav")) {
+            when(attachments.open(41L, storedName)).thenAnswer(call -> new AttachmentObjectStorageService.StoredBinary("41/" + storedName, type, 1, new ByteArrayInputStream(new byte[]{1})));
+            mvc.perform(get("/api/tasks/41/attachments/" + storedName).param("preview","true").with(user("anna").authorities(() -> "PAGE_TASKS")))
+                .andExpect(status().isOk()).andExpect(content().contentTypeCompatibleWith(type)).andExpect(header().string("Content-Disposition",org.hamcrest.Matchers.startsWith("inline")));
+        }
+    }
+    @Test void mediaSupportsByteRangesAndRejectsOutOfBoundsWithoutLeakingStreams() throws Exception {
+        when(attachments.open(41L, storedName)).thenAnswer(call -> new AttachmentObjectStorageService.StoredBinary("41/" + storedName,"video/mp4",5,new ByteArrayInputStream(new byte[]{1,2,3,4,5})));
+        mvc.perform(get("/api/tasks/41/attachments/"+storedName).param("preview","true").header("Range","bytes=1-3").with(user("anna").authorities(()->"PAGE_TASKS")))
+            .andExpect(status().isPartialContent()).andExpect(header().string("Content-Range","bytes 1-3/5")).andExpect(header().string("Accept-Ranges","bytes")).andExpect(content().bytes(new byte[]{2,3,4}));
+        mvc.perform(get("/api/tasks/41/attachments/"+storedName).param("preview","true").header("Range","bytes=99-").with(user("anna").authorities(()->"PAGE_TASKS")))
+            .andExpect(status().isRequestedRangeNotSatisfiable());
+    }
+    @Test void deletionRequiresCsrfAndTaskWriteBeforeMutation() throws Exception {
+        String json = "{\"scope\":\"comment\",\"commentId\":9,\"reference\":\"/api/tasks/41/attachments/file\"}";
+        mvc.perform(delete("/api/tasks/41/attachments").contentType("application/json").content(json).with(user("anna").authorities(() -> "PAGE_TASKS")))
+            .andExpect(status().isForbidden());
+        doThrow(new AccessDeniedException("read only")).when(access).require(eq(SharedWorkAccessService.Kind.TASK),eq(41L),eq(SharedWorkAccessService.Access.WRITE),any());
+        mvc.perform(delete("/api/tasks/41/attachments").contentType("application/json").content(json).with(user("anna").authorities(() -> "PAGE_TASKS")).with(csrf()))
+            .andExpect(status().isForbidden());
+        verifyNoInteractions(removal);
+    }
+    @Test void deletionUsesExplicitSourceAndReturnsUpdatedHtml() throws Exception {
+        when(removal.remove(41,"comment",9L,"reference")).thenReturn("<p>Текст</p>");
+        mvc.perform(delete("/api/tasks/41/attachments").contentType("application/json").content("{\"scope\":\"comment\",\"commentId\":9,\"reference\":\"reference\"}")
+            .with(user("anna").authorities(() -> "PAGE_TASKS")).with(csrf())).andExpect(status().isOk()).andExpect(jsonPath("$.html").value("<p>Текст</p>"));
+        verify(removal).remove(41,"comment",9L,"reference");
+    }
+    @Test void editingChecksWriteAndUsesAuthenticatedAuthor() throws Exception {
+        var comment = new TaskComment(); comment.setId(9L); comment.setAuthor("anna"); comment.setHtml("<p>Исправлено</p>"); comment.setCreatedAt(java.time.OffsetDateTime.now());
+        when(commentEdits.edit(41,9,"anna","<p>Исправлено</p>","old")).thenReturn(comment);
+        String json = "{\"html\":\"<p>Исправлено</p>\",\"expectedHtml\":\"old\"}";
+        mvc.perform(patch("/api/tasks/41/comments/9").contentType("application/json").content(json).with(user("anna").authorities(() -> "PAGE_TASKS")))
+            .andExpect(status().isForbidden());
+        mvc.perform(patch("/api/tasks/41/comments/9").contentType("application/json").content(json).with(user("anna").authorities(() -> "PAGE_TASKS")).with(csrf()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.item.html").value("<p>Исправлено</p>")).andExpect(jsonPath("$.item.can_edit").value(true));
+        doThrow(new AccessDeniedException("read only")).when(access).require(eq(SharedWorkAccessService.Kind.TASK),eq(41L),eq(SharedWorkAccessService.Access.WRITE),any());
+        mvc.perform(patch("/api/tasks/41/comments/9").contentType("application/json").content(json).with(user("anna").authorities(() -> "PAGE_TASKS")).with(csrf()))
+            .andExpect(status().isForbidden());
+        verify(commentEdits,times(1)).edit(41,9,"anna","<p>Исправлено</p>","old");
     }
 }

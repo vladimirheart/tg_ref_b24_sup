@@ -19132,6 +19132,40 @@ body[data-ui-page=incidents] button.incident-object-option:focus-visible, body[d
   font-size: 0.67rem;
   color: var(--color-text-muted);
 }
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-comment-edit {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  border-radius: 4px;
+  min-width: 26px;
+  min-height: 24px;
+  opacity: 0.55;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-comment:hover .tasks-comment-edit, [data-ui-page=tasks] #taskModal.task-side-sheet .tasks-comment-edit:focus-visible {
+  opacity: 1;
+  color: var(--primary);
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-comments-list.is-readonly .tasks-comment-edit {
+  display: none;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-comment-edit-state {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.65rem;
+  background: var(--surface-selected);
+  color: var(--primary);
+  font-size: 0.75rem;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-comment-edit-state button {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 1.2rem;
+}
 [data-ui-page=tasks] #taskModal.task-side-sheet .tasks-comment-body {
   margin: 0.12rem 0 0 1.8rem;
   font-size: 0.86rem;
@@ -19153,19 +19187,42 @@ body[data-ui-page=incidents] button.incident-object-option:focus-visible, body[d
   border-top: 1px solid var(--color-border);
   background: var(--surface-card);
 }
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-comment-input {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-comment-input:focus-within {
+  border-color: var(--primary);
+}
 [data-ui-page=tasks] #taskModal.task-side-sheet .tasks-comment-editor {
-  min-height: 54px;
+  min-height: 50px;
   max-height: min(180px, 24dvh);
   overflow-y: auto;
   padding: 0.65rem 0.75rem;
-  background: var(--surface-card);
-  font-size: 0.86rem;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  font-size: 0.9rem;
 }
 [data-ui-page=tasks] #taskModal.task-side-sheet .tasks-chat-composer-actions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.55rem;
+  gap: 0.35rem;
+  padding: 0.2rem 0.45rem 0.4rem;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-chat-composer-actions #attachCommentFileBtn, [data-ui-page=tasks] #taskModal.task-side-sheet .tasks-format-toggle {
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  min-height: 30px;
+  padding: 0.25rem 0.5rem;
+  border-radius: 5px;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-format-toggle[aria-expanded=true] {
+  color: var(--primary);
+  background: var(--surface-selected);
 }
 [data-ui-page=tasks] #taskModal.task-side-sheet .tasks-chat-composer-actions #sendCommentBtn {
   margin-left: auto;
@@ -19201,21 +19258,30 @@ body[data-ui-page=incidents] button.incident-object-option:focus-visible, body[d
   border-radius: var(--radius-lg);
 }
 [data-ui-page=tasks] #taskModal.task-side-sheet .tasks-attachment__preview {
+  position: relative;
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
-  flex: 0 0 44px;
+  width: 52px;
+  height: 52px;
+  flex: 0 0 52px;
   background: var(--surface-raised);
   border-radius: 6px;
   overflow: hidden;
   color: var(--color-text-muted);
   text-decoration: none;
 }
-[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-attachment__preview img {
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-attachment__preview img, [data-ui-page=tasks] #taskModal.task-side-sheet .tasks-attachment__preview video {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-attachment__preview video + i {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.2);
+  color: white;
 }
 [data-ui-page=tasks] #taskModal.task-side-sheet .tasks-attachment__copy {
   display: grid;
@@ -19239,8 +19305,26 @@ body[data-ui-page=incidents] button.incident-object-option:focus-visible, body[d
   font-size: 0.7rem;
   color: var(--color-text-muted);
 }
-[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-attachment__remove {
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-attachment__remove, [data-ui-page=tasks] #taskModal.task-side-sheet .tasks-attachment__download {
   flex-shrink: 0;
+  display: inline-grid;
+  place-items: center;
+  padding: 0.25rem;
+  min-width: 26px;
+  min-height: 30px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-attachment__remove:hover {
+  color: var(--state-danger-text, #b42318);
+  background: var(--surface-selected);
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-attachment__download:hover {
+  color: var(--primary);
+  background: var(--surface-selected);
 }
 [data-ui-page=tasks] #taskModal.task-side-sheet .tasks-comment-files {
   display: flex;
@@ -19248,6 +19332,7 @@ body[data-ui-page=incidents] button.incident-object-option:focus-visible, body[d
   gap: 0.3rem;
   max-height: 96px;
   overflow: auto;
+  padding: 0 0.65rem;
 }
 [data-ui-page=tasks] #taskModal.task-side-sheet .tasks-comment-files:empty {
   display: none;
@@ -19279,6 +19364,146 @@ body[data-ui-page=incidents] button.incident-object-option:focus-visible, body[d
 [data-ui-page=tasks] #taskModal.task-side-sheet .tasks-editor-panel img {
   max-width: 100%;
   height: auto;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-editor-panel figure {
+  margin: 0.75rem 0;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-editor-panel figure img, [data-ui-page=tasks] #taskModal.task-side-sheet .tasks-editor-panel video {
+  max-height: 180px;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  border-radius: 6px;
+  cursor: zoom-in;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-editor-panel figcaption {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-top: 0.3rem;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-comment-media {
+  display: inline-flex;
+  flex-direction: column;
+  position: relative;
+  max-width: 150px;
+  vertical-align: top;
+  margin: 0.3rem 0.4rem 0.2rem 0;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text);
+  text-decoration: none;
+  overflow: hidden;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-comment-media img, [data-ui-page=tasks] #taskModal.task-side-sheet .tasks-comment-media video {
+  width: 140px;
+  height: 84px;
+  object-fit: cover;
+  background: var(--surface-card);
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-comment-media span {
+  display: block;
+  font-size: 0.75rem;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0.2rem 0.4rem;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-comment-media > i {
+  padding: 0.25rem 0.4rem;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-comment-media:not(:has(img, video)) {
+  flex-direction: row;
+  align-items: center;
+  max-width: 100%;
+  gap: 0.1rem;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-comment-body p:has(> .tasks-comment-media:only-child) {
+  display: inline;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-comment-media video + i {
+  position: absolute;
+  top: 30px;
+  left: 55px;
+  color: white;
+  background: rgba(0, 0, 0, 0.5333333333);
+  border-radius: 50%;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-rich-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.35rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  margin-bottom: 0.4rem;
+  background: var(--surface-card);
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-comment-input .tasks-rich-tools {
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  margin: 0;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet [data-html-editor] [hidden] {
+  display: none !important;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet [data-html-editor] .kb-editor-tool {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text-muted);
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet [data-html-editor] .kb-editor-tool:hover, [data-ui-page=tasks] #taskModal.task-side-sheet [data-html-editor] .kb-editor-tool.is-active {
+  background: var(--surface-selected);
+  color: var(--primary);
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet [data-html-editor] .kb-editor-tool:disabled {
+  opacity: 0.4;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet [data-html-editor] .kb-editor-block-select {
+  padding: 0.2rem;
+  max-width: 155px;
+  background: var(--surface-card);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-rich-bubble, [data-ui-page=tasks] #taskModal.task-side-sheet .tasks-rich-menu {
+  position: fixed;
+  z-index: 1080;
+  max-width: calc(100vw - 16px);
+  padding: 0.35rem;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  background: var(--surface-card);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.1333333333);
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-rich-bubble {
+  display: flex;
+  gap: 0.15rem;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-rich-menu {
+  display: grid;
+  max-height: 230px;
+  overflow-y: auto;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-rich-menu button {
+  padding: 0.45rem 0.6rem;
+  border: 0;
+  border-radius: 4px;
+  text-align: left;
+  color: var(--color-text);
+  background: transparent;
+  font-size: 0.85rem;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-rich-menu button:hover, [data-ui-page=tasks] #taskModal.task-side-sheet .tasks-rich-menu button.is-active {
+  color: var(--primary);
+  background: var(--surface-selected);
 }
 [data-ui-page=tasks] #taskModal.task-side-sheet [data-task-pane].is-file-drop-target, [data-ui-page=tasks] #taskModal.task-side-sheet .tasks-chat-composer.is-file-drop-target {
   outline: 2px dashed var(--primary);
@@ -19361,7 +19586,7 @@ body[data-ui-page=incidents] button.incident-object-option:focus-visible, body[d
   }
 }
 
-.tasks-image-viewer {
+.tasks-media-viewer {
   width: min(1000px, 100vw - 2rem);
   max-height: calc(100dvh - 2rem);
   padding: 3rem 0.75rem 0.75rem;
@@ -19369,19 +19594,24 @@ body[data-ui-page=incidents] button.incident-object-option:focus-visible, body[d
   border-radius: 12px;
   background: var(--surface-card);
   color: var(--color-text);
+  padding: 1rem;
 }
-.tasks-image-viewer::backdrop {
+.tasks-media-viewer::backdrop {
   background: rgba(0, 0, 0, 0.6);
 }
-.tasks-image-viewer > button {
-  position: absolute;
-  right: 1rem;
-  top: 1rem;
+.tasks-media-viewer > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
 }
-.tasks-image-viewer > img {
+.tasks-media-viewer > header strong {
+  overflow-wrap: anywhere;
+}
+.tasks-media-viewer > video, .tasks-media-viewer > audio {
   display: block;
-  max-width: 100%;
-  max-height: calc(100dvh - 6rem);
-  object-fit: contain;
-  margin: auto;
+  width: 100%;
+  max-height: calc(100dvh - 10rem);
+  margin: 1rem auto;
 }

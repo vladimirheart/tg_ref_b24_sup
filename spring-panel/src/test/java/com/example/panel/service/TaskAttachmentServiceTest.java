@@ -70,4 +70,26 @@ class TaskAttachmentServiceTest {
         assertThatThrownBy(() -> service.appendFiles(41, "", List.of(new MockMultipartFile("files", "a.txt", "", new byte[]{1}), new MockMultipartFile("files", "b.txt", "", new byte[]{2})))).isInstanceOf(ResponseStatusException.class);
         verify(storage, times(2)).deleteTaskAttachment(startsWith("41/"));
     }
+    @Test void binaryDeletionWaitsForCommitAndNeverDeletesOtherTaskOrLegacyStorage() throws Exception {
+        var storage = mock(AttachmentObjectStorageService.class); var service = new TaskAttachmentService(storage);
+        String name = "12345678-1234-1234-1234-123456789abc_photo.png";
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            service.deleteAfterCommit(41,"/api/tasks/42/attachments/"+name);
+            service.deleteAfterCommit(41,"data:image/png;base64,AA==");
+            service.deleteAfterCommit(41,"/api/tasks/41/attachments/"+name);
+            verifyNoInteractions(storage);
+            for(var synchronization:TransactionSynchronizationManager.getSynchronizations()) synchronization.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK);
+            verifyNoInteractions(storage);
+            for(var synchronization:TransactionSynchronizationManager.getSynchronizations()) synchronization.afterCommit();
+            verify(storage).deleteTaskAttachment("41/"+name);
+        } finally { TransactionSynchronizationManager.clearSynchronization(); }
+    }
+    @Test void audioAndVideoTypesComeFromBytesAndProduceMediaMarkup() throws Exception {
+        var service = new TaskAttachmentService(localStorage());
+        byte[] wav = "RIFF0000WAVEfmt ".getBytes(StandardCharsets.US_ASCII);
+        byte[] mp4 = {0,0,0,24,102,116,121,112,105,115,111,109};
+        assertThat(service.appendFiles(41,"",List.of(new MockMultipartFile("files","audio.bin","text/html",wav)))).contains("<audio", "audio/wav", "?preview=true");
+        assertThat(service.appendFiles(41,"",List.of(new MockMultipartFile("files","video.bin","text/html",mp4)))).contains("<video", "video/mp4", "?preview=true");
+    }
 }

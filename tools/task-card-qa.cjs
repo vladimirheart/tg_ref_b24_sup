@@ -74,6 +74,7 @@ async function main() {
       assert.equal(await page.locator('[data-task-disclosure][open]').count(), 0, 'Existing task opens without secondary panels');
       await pane('properties');
       assert.match(await page.locator('#taskPeople').innerText(), /Анна Смирнова/);
+      await page.waitForFunction(() => document.querySelectorAll('#taskPeople img').length === 1);
       assert.equal(await page.locator('#taskPeople img').count(), 1, 'One entry per employee; broken avatar falls back to initials');
       await page.locator('#taskPeople [data-employee-identity="anna"]').first().click();
       await page.locator('#employeeProfileTitle').filter({ hasText: 'Анна Смирнова' }).waitFor();

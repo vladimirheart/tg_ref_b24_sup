@@ -464,13 +464,13 @@
     return { node: root, offset: root.childNodes.length };
   }
 
-  function slashContext(surface) {
+  function slashContext(surface, allowRoot = false) {
     const selection = window.getSelection();
     if (!selection || !selection.isCollapsed || !isSelectionInside(surface, selection)) {
       return null;
     }
     const block = currentBlock(surface, selection);
-    if (!block || block === surface || block.classList.contains('knowledge-callout') || block.classList.contains('knowledge-toc')) {
+    if (!block || block === surface && !allowRoot || block.classList.contains('knowledge-callout') || block.classList.contains('knowledge-toc')) {
       return null;
     }
     const offset = textOffsetWithin(block, selection.anchorNode, selection.anchorOffset);
@@ -856,8 +856,85 @@
     }
   }
 
+  // HTML consumers share commands, selection restoration and block menus with the knowledge editor.
+  // Their persisted HTML (including file references) is never converted to Markdown.
+  function initializeHtmlEditor(root) {
+    const surface = root.querySelector('[data-html-surface]'); if (!surface || root.dataset.htmlEditorReady) return;
+    root.dataset.htmlEditorReady = 'true';
+    const compact = root.dataset.htmlEditor === 'compact';
+    const commands = [['undo','arrow-counterclockwise','Отменить'],['redo','arrow-clockwise','Повторить'],['bold','type-bold','Жирный'],['italic','type-italic','Курсив'],['strikeThrough','type-strikethrough','Зачёркнутый'],['insertUnorderedList','list-ul','Маркированный список'],['insertOrderedList','list-ol','Нумерованный список'],['createLink','link-45deg','Добавить ссылку'],['unlink','link','Удалить ссылку'],['removeFormat','eraser','Очистить форматирование']];
+    const types = [['p','Текст'],['h1','Заголовок 1'],['h2','Заголовок 2'],['h3','Заголовок 3'],['ul','Маркированный список'],['ol','Нумерованный список'],['blockquote','Цитата'],['pre','Код']];
+    const buttons = list => list.map(([command,icon,label]) => `<button type="button" class="kb-editor-tool" data-editor-command="${command}" title="${label}" aria-label="${label}"><i class="bi bi-${icon}" aria-hidden="true"></i></button>`).join('');
+    const toolbar = document.createElement('div'); toolbar.className = 'tasks-rich-tools'; toolbar.setAttribute('role','toolbar'); toolbar.setAttribute('aria-label','Форматирование текста');
+    toolbar.innerHTML = '<select class="kb-editor-block-select" data-editor-block-select aria-label="Тип текущего блока">' + types.map(([value,label]) => '<option value="' + value + '">' + label + '</option>').join('') + '</select>' + buttons(commands);
+    surface.before(toolbar);
+    const bubble = document.createElement('div'); bubble.className = 'kb-editor-bubble tasks-rich-bubble'; bubble.setAttribute('role','toolbar'); bubble.setAttribute('aria-label','Форматирование выделенного текста'); bubble.hidden = true;
+    bubble.innerHTML = buttons(commands.filter(([command]) => ['bold','italic','strikeThrough','createLink'].includes(command))); root.append(bubble);
+    const menu = document.createElement('div'); menu.className = 'kb-editor-slash-menu tasks-rich-menu'; menu.hidden = true; menu.setAttribute('role','listbox');
+    menu.innerHTML = types.map(([value,label]) => '<button type="button" data-editor-slash-type="' + value + '" role="option">' + label + '</button>').join(''); root.append(menu);
+    let range = null, expanded = false, slash = null, active = 0;
+    const editable = () => surface.getAttribute('contenteditable') === 'true';
+    const hide = () => { bubble.hidden = true; menu.hidden = true; slash = null; };
+    const change = () => surface.dispatchEvent(new Event('input',{bubbles:true}));
+    const toggle = root.querySelector('[data-html-tools-toggle]');
+    function sync() {
+      toolbar.hidden = !editable() || compact && !expanded;
+      if(toggle) { toggle.disabled = !editable(); toggle.setAttribute('aria-expanded',String(!toolbar.hidden)); }
+      root.querySelectorAll('[data-editor-command], [data-editor-block-select]').forEach(node => { node.disabled = !editable(); });
+      if(!editable()) hide();
+    }
+    toggle?.addEventListener('click', () => { expanded = !expanded; sync(); if(range) { surface.focus(); restoreRange(surface,range); } });
+    function update() {
+      const selection = window.getSelection();
+      if(!editable() || !isSelectionInside(surface,selection)) { hide(); return; }
+      if(selection.rangeCount) range = selection.getRangeAt(0).cloneRange();
+      syncFormattingState(root,surface);
+      if(!selection.isCollapsed) { menu.hidden = true; slash = null; positionFloating(bubble,caretRect(range,surface),true); return; }
+      bubble.hidden = true;
+      slash = slashContext(surface, true);
+      if(!slash) { menu.hidden = true; return; }
+      let found = 0; menu.querySelectorAll('button').forEach(node => { node.hidden = !!slash.query && !node.textContent.toLowerCase().includes(slash.query); if(!node.hidden) found++; });
+      if(!found) { menu.hidden = true; return; }
+      active = 0; positionFloating(menu,caretRect(slash.range,slash.block),false);
+      menu.querySelectorAll('button').forEach(node => node.classList.remove('is-active')); menu.querySelector('button:not([hidden])')?.classList.add('is-active');
+    }
+    function applySlash(button) {
+      if(!slash || !editable()) return;
+      restoreRange(surface,slash.range); deleteSlashQuery(slash); applyBlockType(surface,button.dataset.editorSlashType); hide(); change();
+    }
+    root.querySelectorAll('[data-editor-command]').forEach(button => {
+      button.addEventListener('mousedown',event=>event.preventDefault());
+      button.addEventListener('click',()=>{ if(editable() && runCommand(surface,button,range)) change(); update(); });
+    });
+    toolbar.querySelector('select').addEventListener('change',event=>{ if(!editable())return; surface.focus(); restoreRange(surface,range); applyBlockType(surface,event.target.value); change(); update(); });
+    menu.querySelectorAll('button').forEach(button=>{button.addEventListener('mousedown',event=>event.preventDefault());button.addEventListener('click',()=>applySlash(button));});
+    document.addEventListener('selectionchange',update);
+    document.addEventListener('focusin',event=>{ if(!root.contains(event.target)) hide(); });
+    surface.addEventListener('input',()=>{
+      // An empty contenteditable starts with a bare text node; block commands need a paragraph.
+      const selection = window.getSelection();
+      if(editable() && !surface.children.length && surface.textContent && isSelectionInside(surface,selection)) {
+        const offset = textOffsetWithin(surface,selection.anchorNode,selection.anchorOffset);
+        const paragraph = document.createElement('p'); paragraph.append(...surface.childNodes); surface.append(paragraph);
+        const point = pointAtTextOffset(paragraph,offset || 0), caret = document.createRange(); caret.setStart(point.node,point.offset); caret.collapse(true); selection.removeAllRanges(); selection.addRange(caret);
+      }
+      requestAnimationFrame(update);
+    });
+    surface.addEventListener('keydown',event=>{
+      if(menu.hidden || !['ArrowUp','ArrowDown','Enter','Escape'].includes(event.key))return;
+      event.preventDefault(); event.stopPropagation();
+      const choices=Array.from(menu.querySelectorAll('button:not([hidden])'));
+      if(event.key==='Escape'){hide();return;} if(event.key==='Enter'){applySlash(choices[active]);return;}
+      active=(active+(event.key==='ArrowDown'?1:-1)+choices.length)%choices.length;choices.forEach((node,index)=>node.classList.toggle('is-active',index===active));
+    });
+    root.addEventListener('keydown',event=>{if(event.key==='Escape'&&(!bubble.hidden||!menu.hidden)){event.preventDefault();event.stopPropagation();hide();}});
+    window.addEventListener('scroll',event=>{ if(event.target !== menu && !menu.contains(event.target)) hide(); },true); window.addEventListener('resize',hide);
+    new MutationObserver(sync).observe(surface,{attributes:true,attributeFilter:['contenteditable']}); sync();
+  }
+
   function initMarkdownVisualEditors() {
     document.querySelectorAll('[data-markdown-editor]').forEach(initializeEditor);
+    document.querySelectorAll('[data-html-editor]').forEach(initializeHtmlEditor);
   }
 
   if (document.readyState === 'loading') {

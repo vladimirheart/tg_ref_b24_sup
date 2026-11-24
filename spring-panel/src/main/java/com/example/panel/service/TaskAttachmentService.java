@@ -20,6 +20,7 @@ import org.springframework.web.util.UriUtils;
 /** Binary payloads use S3; their durable references live in the task/comment HTML in PostgreSQL. */
 @Service
 public class TaskAttachmentService {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(TaskAttachmentService.class);
     public static final long MAX_FILE_SIZE = 20L * 1024 * 1024;
     private final AttachmentObjectStorageService storage;
 
@@ -51,12 +52,17 @@ public class TaskAttachmentService {
                 String url = "/api/tasks/" + taskId + "/attachments/" + UriUtils.encodePathSegment(storedName, StandardCharsets.UTF_8);
                 String label = HtmlUtils.htmlEscape(name);
                 String attributes = " data-task-attachment=\"true\" data-attachment-name=\"" + label
-                    + "\" data-attachment-size=\"" + file.getSize() + "\"";
-                if (!"application/octet-stream".equals(mime)) {
+                    + "\" data-attachment-size=\"" + file.getSize() + "\" data-attachment-type=\"" + mime + "\"";
+                if (mime.startsWith("image/")) {
                     result.append("<figure").append(attributes).append("><a href=\"").append(url)
                         .append("\" download=\"").append(label).append("\"><img src=\"").append(url)
                         .append("?preview=true\" alt=\"").append(label).append("\"></a><figcaption>")
                         .append(label).append("</figcaption></figure>");
+                } else if (mime.startsWith("video/") || mime.startsWith("audio/")) {
+                    String tag = mime.startsWith("video/") ? "video" : "audio";
+                    result.append("<figure").append(attributes).append("><").append(tag).append(" src=\"").append(url)
+                        .append("?preview=true\" controls preload=\"metadata\"></").append(tag).append("><figcaption><a href=\"")
+                        .append(url).append("\" download=\"").append(label).append("\">").append(label).append("</a></figcaption></figure>");
                 } else {
                     result.append("<p><a").append(attributes).append(" href=\"").append(url).append("\" download=\"")
                         .append(label).append("\">").append(label).append("</a></p>");
@@ -103,6 +109,25 @@ public class TaskAttachmentService {
         catch (IOException | RuntimeException ignored) { /* Keep the original failure; storage availability is monitored separately. */ }
     }
 
+    public void deleteAfterCommit(long taskId, String reference) {
+        String prefix = "/api/tasks/" + taskId + "/attachments/";
+        String url = TaskAttachmentRemovalService.canonical(reference);
+        // Legacy external/data images belong to their original storage owner.
+        if (!url.startsWith(prefix)) return;
+        String name = UriUtils.decode(url.substring(prefix.length()), StandardCharsets.UTF_8);
+        if (name.length() < 38 || name.charAt(36) != '_' || !safeName(name.substring(37))) return;
+        try { UUID.fromString(name.substring(0, 36)); } catch (IllegalArgumentException invalid) { return; }
+        Runnable deletion = () -> {
+            try { storage.deleteTaskAttachment(taskId + "/" + name); }
+            catch (IOException | RuntimeException failure) { log.warn("Task attachment storage cleanup failed for task {}", taskId, failure); }
+        };
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override public void afterCommit() { deletion.run(); }
+            });
+        } else deletion.run();
+    }
+
     private static boolean safeName(String name) {
         return name != null && !name.isBlank() && name.length() <= 180 && !name.contains("..")
             && name.chars().noneMatch(c -> c < 32 || c == 127 || c == '/' || c == '\\');
@@ -132,6 +157,13 @@ public class TaskAttachmentService {
                 || new String(bytes, 0, 6, StandardCharsets.US_ASCII).equals("GIF89a"))) return "image/gif";
         if (bytes.length >= 12 && new String(bytes, 0, 4, StandardCharsets.US_ASCII).equals("RIFF")
                 && new String(bytes, 8, 4, StandardCharsets.US_ASCII).equals("WEBP")) return "image/webp";
+        if (bytes.length >= 12 && new String(bytes, 0, 4, StandardCharsets.US_ASCII).equals("RIFF")
+                && new String(bytes, 8, 4, StandardCharsets.US_ASCII).equals("WAVE")) return "audio/wav";
+        if (bytes.length >= 8 && new String(bytes, 4, 4, StandardCharsets.US_ASCII).equals("ftyp")) return "video/mp4";
+        if (bytes.length >= 4 && new String(bytes, 0, 4, StandardCharsets.US_ASCII).equals("OggS")) return "audio/ogg";
+        if (bytes.length >= 3 && new String(bytes, 0, 3, StandardCharsets.US_ASCII).equals("ID3")) return "audio/mpeg";
+        if (bytes.length >= 2 && bytes[0] == (byte)255 && (bytes[1] & 0xE0) == 0xE0) return "audio/mpeg";
+        if (bytes.length >= 4 && bytes[0] == 0x1A && bytes[1] == 0x45 && bytes[2] == (byte)0xDF && bytes[3] == (byte)0xA3) return "video/webm";
         return "application/octet-stream";
     }
 }
