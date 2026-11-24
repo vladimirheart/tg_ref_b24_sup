@@ -1,0 +1,117 @@
+.employee-avatar {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--surface-selected);
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 650;
+}
+.employee-avatar img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.employee-identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  max-width: 100%;
+  color: var(--color-text);
+  text-decoration: none;
+  vertical-align: middle;
+}
+.employee-identity:hover {
+  color: var(--primary);
+}
+.employee-identity__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.employee-picker__trigger {
+  white-space: normal;
+}
+.employee-picker__selection {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: 100%;
+  margin: 0.1rem 0.45rem 0.1rem 0;
+  vertical-align: middle;
+}
+.employee-picker__selection > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.employee-picker__option {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+.employee-picker__check {
+  margin-left: auto;
+}
+
+.employee-profile {
+  width: min(400px, 100vw - 2rem);
+  max-height: calc(100dvh - 2rem);
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--surface-card);
+  color: var(--color-text);
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.2666666667);
+}
+.employee-profile::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+.employee-profile__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+.employee-profile__body {
+  padding: 1.75rem;
+  overflow-wrap: anywhere;
+}
+.employee-profile .employee-avatar {
+  width: 64px;
+  height: 64px;
+  font-size: 20px;
+  margin-bottom: 1rem;
+}
+.employee-profile h2 {
+  font-size: 1.35rem;
+  margin: 0 0 0.45rem;
+}
+.employee-profile__department, .employee-profile dt {
+  color: var(--color-text-muted);
+}
+.employee-profile dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1rem;
+  margin: 1.5rem 0 0;
+  font-size: 0.875rem;
+}
+.employee-profile dt {
+  font-weight: 400;
+}
+.employee-profile dd {
+  margin: 0;
+}

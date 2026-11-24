@@ -1,0 +1,32 @@
+.employee-avatar {
+  position: relative; display: inline-grid; place-items: center; width: 30px; height: 30px;
+  flex: 0 0 30px; overflow: hidden; border-radius: 50%; background: var(--surface-selected);
+  color: var(--primary); font-size: 11px; font-weight: 650;
+  img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+}
+.employee-identity {
+  display: inline-flex; align-items: center; gap: .55rem; min-width: 0; max-width: 100%;
+  color: var(--color-text); text-decoration: none; vertical-align: middle;
+  &:hover { color: var(--primary); }
+  &__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+.employee-picker {
+  &__trigger { white-space: normal; }
+  &__selection { display: inline-flex; align-items: center; gap: .4rem; max-width: 100%; margin: .1rem .45rem .1rem 0; vertical-align: middle; }
+  &__selection > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  &__option { display: flex; align-items: center; gap: .55rem; }
+  &__check { margin-left: auto; }
+}
+.employee-profile {
+  width: min(400px, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); padding: 0;
+  border: 1px solid var(--color-border); border-radius: 16px; background: var(--surface-card);
+  color: var(--color-text); box-shadow: 0 20px 70px #0004;
+  &::backdrop { background: #0006; }
+  &__header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid var(--color-border); color: var(--color-text-muted); }
+  &__body { padding: 1.75rem; overflow-wrap: anywhere; }
+  .employee-avatar { width: 64px; height: 64px; font-size: 20px; margin-bottom: 1rem; }
+  h2 { font-size: 1.35rem; margin: 0 0 .45rem; }
+  &__department, dt { color: var(--color-text-muted); }
+  dl { display: grid; grid-template-columns: auto 1fr; gap: 1rem; margin: 1.5rem 0 0; font-size: .875rem; }
+  dt { font-weight: 400; } dd { margin: 0; }
+}

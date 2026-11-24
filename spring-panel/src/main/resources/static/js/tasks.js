@@ -51,7 +51,58 @@
   };
 
   let dirty = false;
+  let commentDirty = false;
   let forcedClose = false;
+  let saving = false, openGeneration = 0;
+  const employeeProfiles = window.EmployeeProfiles;
+  document.querySelectorAll('#usersList option').forEach(option => employeeProfiles?.remember({
+    username: option.value, fullName: option.dataset.employeeName || option.label,
+    photo: option.dataset.employeePhoto, department: option.dataset.employeeDepartment,
+  }));
+  const employeeLink = username => employeeProfiles?.link(username) || escapeHtml(username || '—');
+
+  function markDirty() {
+    dirty = true;
+    const message = document.getElementById('taskSaveState');
+    if (message) message.textContent = 'Есть изменения';
+  }
+
+  function renderPeople() {
+    const container = document.getElementById('taskPeople');
+    if (!container || !taskForm) return;
+    const groups = [
+      ['creator', 'Постановщик'], ['assignee', 'Ответственный'],
+      ['co', 'Соисполнитель'], ['watchers', 'Наблюдатель'],
+    ];
+    const people = new Map();
+    groups.forEach(([name, label]) => {
+      const raw = String(taskForm.elements.namedItem(name)?.value || '');
+      const values = ['co', 'watchers'].includes(name) ? raw.split(/[,;\n]+/).map(value => value.trim()).filter(Boolean) : (raw ? [raw] : []);
+      values.forEach(username => {
+        const identity = username.toLowerCase();
+        if (!people.has(identity)) people.set(identity, { username, roles: new Set() });
+        people.get(identity).roles.add(label);
+      });
+    });
+    container.innerHTML = Array.from(people.values()).map(person => `<div class="tasks-person-group">${employeeLink(person.username)}<span class="tasks-person-role">${Array.from(person.roles).join(' · ')}</span></div>`).join('');
+    if (!taskForm.elements.namedItem('assignee')?.value) container.insertAdjacentHTML('afterbegin', '<div class="small text-muted">Ответственный не выбран</div>');
+    employeeProfiles?.refresh(container);
+  }
+
+  function updateExtraSummary() {
+    const summary = document.getElementById('taskExtraSummary');
+    const projects = Array.from(taskProjects?.selectedOptions || []).map(option => option.textContent);
+    const tags = String(taskForm?.elements.namedItem('tags')?.value || '').split(',').map(value => value.trim()).filter(Boolean);
+    if (summary) summary.textContent = [...projects, ...tags].join(' · ') || 'Не указаны';
+  }
+
+  function resetDisclosures(creating = false) {
+    taskModalEl?.querySelectorAll('[data-task-disclosure]').forEach(panel => { panel.open = creating && panel.classList.contains('tasks-participant-editor'); });
+    const message = document.getElementById('taskSaveState');
+    if (message) message.textContent = '';
+    if (commentEditor) commentEditor.innerHTML = '';
+    commentDirty = false;
+  }
 
   const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content') || '';
   const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content') || 'X-XSRF-TOKEN';
@@ -206,7 +257,7 @@
           </button>
         </td>
         <td><div class="tasks-chip-stack">${renderProjectChips(task.projects)}</div></td>
-        <td>${escapeHtml(task.assignee || '—')}</td>
+        <td>${employeeLink(task.assignee)}</td>
         <td>
           <div>${deadline.text}</div>
           <div class="small ${deadline.rowClass === 'overdue' ? 'text-danger fw-semibold' : 'text-muted'}">${escapeHtml(deadline.meta)}</div>
@@ -218,6 +269,7 @@
       `;
       tbody.appendChild(row);
     }
+    employeeProfiles?.refresh(tbody);
   }
 
   function renderPagination() {
@@ -306,10 +358,12 @@
       projectScope.value = previous;
     }
     if (taskProjects) {
+      const selected = new Set(Array.from(taskProjects.selectedOptions).map(option => option.value));
       taskProjects.innerHTML = '';
       for (const project of state.projects) {
         const option = document.createElement('option');
         option.value = String(project.id);
+        option.selected = selected.has(option.value);
         option.textContent = `${project.project_key || ''} · ${project.name || ''}`.replace(/^ · /, '');
         taskProjects.appendChild(option);
       }
@@ -358,7 +412,9 @@
     if (taskBody) taskBody.setAttribute('contenteditable', editing ? 'true' : 'false');
     taskForm.classList.toggle('is-editing', editing);
     if (editTaskBtn) {
-      editTaskBtn.hidden = editing || !taskId?.value;
+      editTaskBtn.hidden = !taskId?.value;
+      editTaskBtn.innerHTML = editing ? '<i class="bi bi-check2" aria-hidden="true"></i> Готово' : '<i class="bi bi-pencil" aria-hidden="true"></i> Редактировать';
+      editTaskBtn.setAttribute('aria-pressed', String(editing));
     }
   }
 
@@ -367,14 +423,16 @@
     const list = Array.isArray(items) ? items : [];
     comments.innerHTML = list.length ? list.map(item => `
       <article class="tasks-comment">
-        <div class="tasks-comment-meta">${escapeHtml(item.author || '—')} · ${escapeHtml(fmtDateTime(item.created_at))}</div>
+        <div class="tasks-comment-meta">${employeeLink(item.author)} <time>${escapeHtml(fmtDateTime(item.created_at))}</time></div>
         <div class="tasks-comment-body">${item.html || ''}</div>
       </article>
     `).join('') : '<div class="text-muted small">Комментариев пока нет.</div>';
+    employeeProfiles?.refresh(comments);
   }
 
   function eventText(event) {
-    const field = event.field_name ? ` · ${event.field_name}` : '';
+    const fieldLabels = { title: 'название', body_html: 'описание', status: 'статус', assignee: 'ответственный', due_at: 'срок', co: 'соисполнители', watchers: 'наблюдатели' };
+    const field = event.field_name ? ` · ${fieldLabels[event.field_name] || event.field_name}` : '';
     if (event.event_type === 'FIELD_CHANGED') return `Изменено${field}`;
     if (event.event_type === 'TAG_ADDED') return `Добавлен тег ${event.new_value || ''}`.trim();
     if (event.event_type === 'TAG_REMOVED') return `Удалён тег ${event.old_value || ''}`.trim();
@@ -394,10 +452,11 @@
         <span class="tasks-event-dot" aria-hidden="true"></span>
         <span class="tasks-event-copy">
           <strong>${escapeHtml(eventText(event))}</strong>
-          <span>${escapeHtml(event.actor || 'system')} · ${escapeHtml(fmtDateTime(event.occurred_at))}</span>
+          <span>${event.actor && event.actor !== 'system' ? employeeLink(event.actor) : 'Система'} · ${escapeHtml(fmtDateTime(event.occurred_at))}</span>
         </span>
       </div>
     `).join('') : '<div class="text-muted small">Структурированных событий пока нет.</div>';
+    employeeProfiles?.refresh(taskEvents);
   }
 
   function renderLegacyHistory(items) {
@@ -405,11 +464,12 @@
     const list = Array.isArray(items) ? items : [];
     taskHistory.innerHTML = list.length ? list.map(item => `
       <div class="tasks-history-row"><span>${escapeHtml(fmtDateTime(item.at))}</span>${escapeHtml(item.text || '')}</div>
-    `).join('') : '<div class="text-muted small">Legacy history пуст.</div>';
+    `).join('') : '';
+    taskHistory.hidden = !list.length || !!taskEvents?.querySelector('.tasks-event-row');
   }
 
   function updateTaskTime(task) {
-    if (createdAt) createdAt.textContent = fmtDateTime(task?.created_at);
+    if (createdAt) { createdAt.textContent = fmtDateTime(task?.created_at); createdAt.dataset.value = task?.created_at || ''; }
     if (!timeLeft) return;
     if (!task?.due_at || isFinalStatus(task.status)) {
       timeLeft.textContent = '—';
@@ -419,8 +479,10 @@
   }
 
   function resetTaskForm() {
+    openGeneration++;
     window.SharedWorkAccess?.openObject('TASK', null);
     taskForm?.reset();
+    taskForm?.querySelectorAll('[data-historical-assignee]').forEach(option => option.remove());
     if (taskId) taskId.value = '';
     if (taskBody) taskBody.innerHTML = '';
     if (taskNumber) taskNumber.textContent = 'Новая задача';
@@ -433,6 +495,9 @@
     syncStatus('Новая');
     updateTaskTime(null);
     setEditorMode(true);
+    resetDisclosures(true);
+    renderPeople();
+    updateExtraSummary();
     dirty = false;
   }
 
@@ -448,14 +513,24 @@
 
   async function openTask(id) {
     if (!id) return;
+    const generation = ++openGeneration;
     try {
       const response = await httpJson(`/api/tasks/${encodeURIComponent(id)}`);
       const task = await response.json();
+      if (generation !== openGeneration) return;
       if (taskId) taskId.value = String(task.id || '');
       if (taskNumber) taskNumber.textContent = task.display_no || `DL_${task.id}`;
       if (taskForm?.elements.namedItem('title')) taskForm.elements.namedItem('title').value = task.title || '';
       if (taskForm?.elements.namedItem('creator')) taskForm.elements.namedItem('creator').value = task.creator || '';
-      if (taskForm?.elements.namedItem('assignee')) taskForm.elements.namedItem('assignee').value = task.assignee || '';
+      const assignee = taskForm?.elements.namedItem('assignee');
+      if (assignee) {
+        assignee.querySelectorAll('[data-historical-assignee]').forEach(option => option.remove());
+        if (task.assignee && !Array.from(assignee.options).some(option => option.value === task.assignee)) {
+          const option = new Option(employeeProfiles?.get(task.assignee).fullName || task.assignee, task.assignee);
+          option.dataset.historicalAssignee = 'true'; assignee.append(option);
+        }
+        assignee.value = task.assignee || '';
+      }
       if (taskForm?.elements.namedItem('co')) taskForm.elements.namedItem('co').value = (task.co || []).join(', ');
       if (taskForm?.elements.namedItem('watchers')) taskForm.elements.namedItem('watchers').value = (task.watchers || []).join(', ');
       if (taskForm?.elements.namedItem('tags')) taskForm.elements.namedItem('tags').value = (task.tags || []).map(tag => tag.name).join(', ');
@@ -470,6 +545,10 @@
       if (deleteTaskBtn) deleteTaskBtn.hidden = false;
       updateTaskTime(task);
       setEditorMode(false);
+      resetDisclosures();
+      renderPeople();
+      updateExtraSummary();
+      window.EmployeePicker?.refresh();
       dirty = false;
       showTaskModal();
       window.SharedWorkAccess?.openObject('TASK', String(task.id));
@@ -483,6 +562,9 @@
   }
 
   async function saveTask() {
+    if (saving || saveTaskBtn?.disabled) return;
+    const participants = taskModalEl?.querySelector('.tasks-participant-editor');
+    if (!taskForm?.elements.namedItem('assignee')?.value && participants) participants.open = true;
     if (!taskForm || !taskForm.reportValidity()) return;
     if (!taskDescriptionText()) {
       showError('Не удалось сохранить задачу', new Error('Описание задачи обязательно'));
@@ -506,19 +588,30 @@
     const currentStatus = String(taskForm.elements.namedItem('status')?.value || taskForm.dataset.status || 'Новая').trim() || 'Новая';
     data.append('status', currentStatus);
 
+    saving = true;
+    const saveLabel = saveTaskBtn?.textContent;
+    if (saveTaskBtn) { saveTaskBtn.disabled = true; saveTaskBtn.textContent = 'Сохранение…'; }
     try {
       const response = await httpJson('/api/tasks', { method: 'POST', body: data });
       const payload = await response.json();
       if (payload?.ok === false) throw new Error(payload.error || 'Ошибка сохранения');
       dirty = false;
-      hideTaskModal(true);
+      if (commentDirty) {
+        setEditorMode(false);
+        const message = document.getElementById('taskSaveState');
+        if (message) message.textContent = 'Задача сохранена';
+      } else hideTaskModal(true);
       await loadTasks();
     } catch (error) {
       showError('Не удалось сохранить задачу', error);
+    } finally {
+      saving = false;
+      if (saveTaskBtn) { saveTaskBtn.disabled = taskForm.dataset.canWrite === 'false'; saveTaskBtn.textContent = saveLabel; }
     }
   }
 
   async function addComment() {
+    if (dirty) { showError('Сохраните изменения', new Error('Сохраните изменения задачи перед отправкой комментария.')); return; }
     const id = String(taskId?.value || '').trim();
     const html = String(commentEditor?.innerHTML || '').trim();
     if (!id || !html) return;
@@ -527,6 +620,7 @@
     try {
       await httpJson(`/api/tasks/${encodeURIComponent(id)}/comments`, { method: 'POST', body: data });
       if (commentEditor) commentEditor.innerHTML = '';
+      commentDirty = false;
       await openTask(id);
     } catch (error) {
       showError('Не удалось добавить комментарий', error);
@@ -672,31 +766,62 @@
     resetTaskForm();
     showTaskModal();
   });
-  editTaskBtn?.addEventListener('click', () => setEditorMode(true));
+  editTaskBtn?.addEventListener('click', () => {
+    const editing = !taskForm?.classList.contains('is-editing');
+    setEditorMode(editing);
+    if (editing) taskForm?.elements.namedItem('title')?.focus();
+  });
   saveTaskBtn?.addEventListener('click', saveTask);
   clearTaskProjectsBtn?.addEventListener('click', () => {
     setSelectedProjects([]);
-    dirty = true;
+    markDirty();
+    updateExtraSummary();
     taskProjects?.focus();
   });
   sendCommentBtn?.addEventListener('click', addComment);
   deleteTaskBtn?.addEventListener('click', deleteTask);
 
-  taskForm?.addEventListener('input', () => { dirty = true; });
-  taskForm?.addEventListener('change', () => { dirty = true; });
-  taskBody?.addEventListener('input', () => { dirty = true; });
+  taskForm?.addEventListener('input', event => {
+    if (event.target.closest('#commentEditor')) { commentDirty = !!commentEditor?.textContent?.trim(); return; }
+    if (event.target.closest('[data-work-object], .employee-picker__menu')) return;
+    markDirty();
+    updateExtraSummary();
+  });
+  taskForm?.addEventListener('submit', event => event.preventDefault());
+  taskForm?.addEventListener('change', event => {
+    if (event.target.closest('[data-work-object]')) return;
+    markDirty();
+    if (['creator', 'assignee', 'co', 'watchers'].includes(event.target.name)) renderPeople();
+    updateExtraSummary();
+    if (event.target.name === 'status') syncStatus(event.target.value);
+    if (event.target.name === 'due_at' || event.target.name === 'status') updateTaskTime({
+      due_at: taskForm.elements.namedItem('due_at').value, status: taskForm.elements.namedItem('status').value,
+      created_at: createdAt?.dataset.value,
+    });
+  });
+  window.addEventListener('shared-work:writable', event => {
+    if (event.detail.kind !== 'TASK' || !taskForm) return;
+    const allowed = event.detail.allowed;
+    taskForm.dataset.canWrite = String(allowed);
+    taskForm.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(field => {
+      if (!field.closest('[data-work-object]')) field.disabled = !allowed;
+    });
+    taskBody?.setAttribute('contenteditable', String(allowed && taskForm.classList.contains('is-editing')));
+    commentEditor?.setAttribute('contenteditable', String(allowed));
+    window.EmployeePicker?.refresh();
+  });
 
   taskModalEl?.addEventListener('hide.bs.modal', event => {
     if (forcedClose) {
       forcedClose = false;
       return;
     }
-    if (!dirty) return;
+    if (!dirty && !commentDirty) return;
     event.preventDefault();
     const confirm = typeof showConfirmActionModal === 'function'
       ? showConfirmActionModal({
           title: 'Закрыть задачу',
-          message: 'Есть несохранённые изменения. Закрыть без сохранения?',
+          message: 'Есть несохранённые изменения или черновик комментария. Закрыть без сохранения?',
           confirmText: 'Закрыть',
           confirmVariant: 'warning',
         })
@@ -704,6 +829,7 @@
     Promise.resolve(confirm).then(accepted => {
       if (accepted) {
         dirty = false;
+        commentDirty = false;
         hideTaskModal(true);
       }
     });
@@ -712,7 +838,7 @@
   document.querySelectorAll('[data-task-close]').forEach(button => button.addEventListener('click', event => {
     event.preventDefault();
     if (!taskModal) return;
-    if (!dirty) hideTaskModal(true);
+    if (!dirty && !commentDirty) hideTaskModal(true);
     else taskModalEl?.dispatchEvent(new Event('hide.bs.modal', { cancelable: true }));
   }));
 

@@ -18883,3 +18883,257 @@ body[data-ui-page=incidents] button.incident-object-option:focus-visible, body[d
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+[data-ui-page=tasks] #taskModal.task-side-sheet .modal-dialog {
+  width: min(1080px, 100vw - 1.5rem);
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .modal-body {
+  padding: 1.75rem;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-sheet-header-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-task-sheet-grid {
+  grid-template-columns: minmax(0, 1fr) 290px;
+  gap: 2rem;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-task-aside {
+  min-width: 0;
+  padding-left: 1.5rem;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-title-label {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet #taskTitle {
+  font-size: 1.65rem;
+  line-height: 1.35;
+  font-weight: 650;
+  resize: vertical;
+  field-sizing: content;
+  min-height: 2.5rem;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet #taskForm:not(.is-editing) .tasks-title-label {
+  display: none;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet #taskForm:not(.is-editing) #taskTitle {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-text);
+  resize: none;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet #taskForm:not(.is-editing) label[for=bodyEditor] .text-danger {
+  display: none;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-editor-panel[contenteditable=false] {
+  min-height: 80px;
+  padding: 0.4rem 0;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-status-select {
+  font-weight: 600;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet #taskForm[data-status="В работе"] .tasks-status-select {
+  color: var(--primary);
+  background-color: var(--surface-selected);
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet #taskForm[data-status=Завершена] .tasks-status-select {
+  color: var(--state-success-text);
+  background-color: var(--state-success-bg);
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet #taskForm[data-status=Ожидание] .tasks-status-select {
+  color: var(--state-warning-text);
+  background-color: var(--state-warning-bg);
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-people-section {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--color-border);
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-people-section h6 {
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-people {
+  display: grid;
+  gap: 0.9rem;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-person-role {
+  display: block;
+  margin: 0.15rem 0 0 2.4rem;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-person-group > div {
+  display: grid;
+  gap: 0.45rem;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-person-group .employee-identity {
+  font-size: 0.86rem;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-participant-editor {
+  margin-top: 0.8rem;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-participant-editor > summary {
+  color: var(--primary);
+  font-size: 0.8rem;
+  padding: 0.4rem 0;
+  cursor: pointer;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-participant-editor[open] > summary {
+  margin-bottom: 0.65rem;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-participant-editor .employee-picker__menu {
+  position: static;
+  margin-top: 0.4rem;
+  width: 100%;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-extra-panel {
+  margin-top: 1.25rem;
+  border-top: 1px solid var(--color-border);
+  padding-top: 1rem;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-extra-panel > summary {
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-extra-panel[open] > summary {
+  margin-bottom: 1rem;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet #taskExtraSummary {
+  display: block;
+  overflow-wrap: anywhere;
+  margin-top: 0.35rem;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-access-panel [data-work-object] {
+  padding: 0 !important;
+  border: 0 !important;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-access-panel h3 {
+  display: none;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-access-panel .list-group-item {
+  flex-wrap: wrap;
+  padding: 0.65rem 0;
+  background: transparent;
+  border-width: 0 0 1px;
+  border-color: var(--color-border);
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-access-panel .list-group-item > span:first-child {
+  max-width: 100%;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-access-panel [data-work-manage] .d-flex > * {
+  width: 100%;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-created-meta {
+  margin-top: 1.5rem;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-created-meta span {
+  display: block;
+  margin-top: 0.25rem;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-history-panel {
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-history-panel > summary {
+  padding: 1rem 0;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-comment {
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+  padding: 0.75rem 0;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-comment-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-comment-meta .employee-avatar {
+  width: 24px;
+  height: 24px;
+  flex-basis: 24px;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-comment-body {
+  margin-top: 0.5rem;
+  overflow-wrap: anywhere;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-comment-editor {
+  min-height: 68px;
+  background: var(--surface-card);
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-save-state {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-right: auto;
+}
+[data-ui-page=tasks] #taskModal.task-side-sheet .tasks-event-copy .employee-avatar {
+  display: none;
+}
+@media (max-width: 767.98px) {
+  [data-ui-page=tasks] #taskModal.task-side-sheet .modal-body {
+    padding: 1rem;
+  }
+  [data-ui-page=tasks] #taskModal.task-side-sheet .tasks-task-sheet-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  [data-ui-page=tasks] #taskModal.task-side-sheet .tasks-task-primary {
+    display: contents;
+  }
+  [data-ui-page=tasks] #taskModal.task-side-sheet .tasks-task-aside {
+    order: 2;
+    padding: 1rem 0 0;
+    margin-top: 1.25rem;
+    border-left: 0;
+  }
+  [data-ui-page=tasks] #taskModal.task-side-sheet .tasks-conversation {
+    order: 3;
+  }
+  [data-ui-page=tasks] #taskModal.task-side-sheet .tasks-history-panel {
+    order: 4;
+  }
+  [data-ui-page=tasks] #taskModal.task-side-sheet #taskTitle {
+    font-size: 1.3rem;
+  }
+  [data-ui-page=tasks] #taskModal.task-side-sheet .tasks-sheet-header-actions {
+    gap: 0.6rem;
+  }
+  [data-ui-page=tasks] #taskModal.task-side-sheet .tasks-sheet-footer {
+    padding: 0.75rem;
+    gap: 0.5rem;
+  }
+  [data-ui-page=tasks] #taskModal.task-side-sheet #deleteTaskBtn span {
+    display: none;
+  }
+  [data-ui-page=tasks] #taskModal.task-side-sheet .tasks-save-state {
+    flex-basis: 100%;
+    order: -1;
+    margin: 0;
+  }
+  [data-ui-page=tasks] #taskModal.task-side-sheet .tasks-save-state:empty {
+    display: none;
+  }
+}
+@media (max-width: 575.98px) {
+  [data-ui-page=tasks] #taskModal.task-side-sheet .modal-dialog {
+    width: 100%;
+  }
+}

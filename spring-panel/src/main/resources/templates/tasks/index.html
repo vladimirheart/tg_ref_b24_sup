@@ -13,12 +13,12 @@
   <link href="/vendor/bootstrap/5.3.3/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
   <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
   <link th:href="@{/css/style.css(v='20261119-refined-r1')}" rel="stylesheet">
-  <link th:href="@{/css/app.css(v='20261119-refined-r1')}" rel="stylesheet">
+  <link th:href="@{/css/app.css(v='20261124-task-card-r1')}" rel="stylesheet">
   <link th:href="@{/css/sidebar.css(v='20261119-refined-r1')}" rel="stylesheet">
 </head>
 <body class="with-sidebar sidebar-pinned" data-ui-page="tasks">
   <div th:replace="~{fragments/navbar :: navbar('tasks')}"></div>
-  <datalist id="usersList"><option th:each="u : ${users}" th:value="${u.username}" th:label="${u.fullName != null and !#strings.isEmpty(u.fullName) ? u.fullName + ' · ' + u.username : u.username}"></option></datalist>
+  <datalist id="usersList"><option th:each="u : ${users}" th:value="${u.username}" th:label="${u.fullName != null and !#strings.isEmpty(u.fullName) ? u.fullName : u.username}" th:attr="data-employee-name=${u.fullName},data-employee-photo=${u.photo},data-employee-department=${u.department}"></option></datalist>
 
   <main class="main-content container-fluid py-4 page-shell tasks-page-shell ops-page-shell">
     <section th:replace="~{fragments/shared-work-access :: moduleAccess}"></section>
@@ -189,7 +189,7 @@
               <h5 class="modal-title" id="taskModalLabel">Карточка задачи</h5>
             </div>
             <div class="tasks-sheet-header-actions">
-              <button id="editToggleBtn" data-work-write disabled class="btn btn-sm btn-outline-secondary" type="button" title="Редактировать описание" aria-label="Редактировать описание"><i class="bi bi-pencil"></i></button>
+              <button id="editToggleBtn" data-work-write disabled class="btn btn-sm btn-outline-secondary" type="button"><i class="bi bi-pencil" aria-hidden="true"></i> Редактировать</button>
               <button type="button" class="btn-close" data-task-close aria-label="Закрыть"></button>
             </div>
           </div>
@@ -199,8 +199,8 @@
               <input type="hidden" id="taskId">
               <input type="hidden" name="creator">
               <section class="tasks-task-primary">
-                <label class="form-label" for="taskTitle">Название <span class="text-danger" aria-hidden="true">*</span></label>
-                <input id="taskTitle" type="text" name="title" class="form-control tasks-title-input" placeholder="Название задачи" required>
+                <label class="form-label tasks-title-label" for="taskTitle">Название <span class="text-danger" aria-hidden="true">*</span></label>
+                <textarea id="taskTitle" name="title" class="form-control tasks-title-input" placeholder="Название задачи" rows="2" required></textarea>
 
                 <label class="form-label mt-3" for="bodyEditor">Описание <span class="text-danger" aria-hidden="true">*</span></label>
                 <div id="bodyEditor" class="tasks-editor-panel" contenteditable="true" role="textbox" aria-multiline="true" aria-required="true" data-placeholder="Опишите задачу, контекст и ожидаемый результат"></div>
@@ -212,8 +212,8 @@
                   <div class="text-end mt-2"><button id="sendCommentBtn" data-work-write disabled class="btn btn-sm btn-outline-primary" type="button">Отправить</button></div>
                 </section>
 
-                <details class="tasks-history-panel mt-4 ui-disclosure-native" open>
-                  <summary>Активность</summary>
+                <details class="tasks-history-panel mt-4 ui-disclosure-native" data-task-disclosure>
+                  <summary>История изменений</summary>
                   <div id="taskEvents" class="task-history-content"></div>
                   <div id="history" class="task-history-content task-history-legacy"></div>
                 </details>
@@ -221,35 +221,50 @@
 
               <aside class="tasks-task-aside">
                 <div class="tasks-property-group">
-                  <label class="form-label">Статус</label>
-                  <select name="status" class="form-select"><option>Новая</option><option>В работе</option><option>Ожидание</option><option>Завершена</option><option>Отменена</option></select>
+                  <label class="form-label" for="taskStatus">Статус</label>
+                  <select id="taskStatus" name="status" class="form-select tasks-status-select"><option>Новая</option><option>В работе</option><option>Ожидание</option><option>Завершена</option><option>Отменена</option></select>
                 </div>
                 <div class="tasks-property-group">
-                  <label class="form-label">Ответственный <span class="text-danger" aria-hidden="true">*</span></label>
-                  <select name="assignee" class="form-select" required><option value="">Не выбрано</option><option th:each="u : ${users}" th:text="${u.username}" th:value="${u.username}"></option></select>
+                  <label class="form-label" for="taskDueAt">Крайний срок</label>
+                  <input id="taskDueAt" type="datetime-local" name="due_at" class="form-control">
+                  <div class="tasks-due-meta"><span id="taskDueState">Осталось <strong id="timeLeft">—</strong></span></div>
                 </div>
-                <div class="tasks-property-group">
-                  <div class="d-flex align-items-center justify-content-between gap-2">
-                    <label class="form-label mb-0" for="taskProjectsSelect">Проекты</label>
-                    <button id="clearTaskProjectsBtn" class="btn btn-sm btn-link px-0 text-decoration-none" type="button">Без проекта</button>
+                <section class="tasks-people-section">
+                  <h6>Участники</h6>
+                  <div id="taskPeople" class="tasks-people"></div>
+                  <details class="tasks-participant-editor" data-task-disclosure>
+                    <summary>Изменить состав</summary>
+                    <div class="tasks-property-group">
+                      <label class="form-label" for="taskAssignee">Ответственный <span class="text-danger" aria-hidden="true">*</span></label>
+                      <select id="taskAssignee" name="assignee" class="form-select" required><option value="">Не выбран</option><option th:each="u : ${users}" th:text="${u.fullName != null and !#strings.isEmpty(u.fullName) ? u.fullName : u.username}" th:value="${u.username}"></option></select>
+                    </div>
+                    <div class="tasks-property-group"><label class="form-label" for="taskCo">Соисполнители</label><input id="taskCo" type="text" name="co" class="form-control" list="usersList" data-employee-placeholder="Добавить соисполнителей"></div>
+                    <div class="tasks-property-group"><label class="form-label" for="taskWatchers">Наблюдатели</label><input id="taskWatchers" type="text" name="watchers" class="form-control" list="usersList" data-employee-placeholder="Добавить наблюдателей"></div>
+                  </details>
+                </section>
+                <details class="tasks-extra-panel" data-task-disclosure>
+                  <summary>Проекты и теги <span id="taskExtraSummary"></span></summary>
+                  <div class="tasks-property-group">
+                    <div class="d-flex align-items-center justify-content-between gap-2">
+                      <label class="form-label mb-0" for="taskProjectsSelect">Проекты</label>
+                      <button id="clearTaskProjectsBtn" class="btn btn-sm btn-link px-0 text-decoration-none" type="button">Без проекта</button>
+                    </div>
+                    <select id="taskProjectsSelect" name="project_ids_ui" class="form-select mt-1" multiple size="4" aria-describedby="taskProjectsHelp"></select>
+                    <div id="taskProjectsHelp" class="form-text">Можно выбрать несколько проектов.</div>
                   </div>
-                  <select id="taskProjectsSelect" name="project_ids_ui" class="form-select mt-1" multiple size="4" aria-describedby="taskProjectsHelp"></select>
-                  <div id="taskProjectsHelp" class="form-text">Можно выбрать несколько проектов. «Без проекта» снимает весь выбор.</div>
-                </div>
-                <div class="tasks-property-group"><label class="form-label">Теги</label><input type="text" name="tags" class="form-control" placeholder="backend, iiko, ui"><div class="form-text">Несколько тегов — через запятую.</div></div>
-                <div class="tasks-property-group"><label class="form-label">Соисполнители</label><input type="text" name="co" class="form-control" list="usersList" placeholder="через запятую"></div>
-                <div class="tasks-property-group"><label class="form-label">Наблюдатели</label><input type="text" name="watchers" class="form-control" list="usersList" placeholder="через запятую"></div>
-                <div class="tasks-property-group">
-                  <label class="form-label">Крайний срок</label>
-                  <input type="datetime-local" name="due_at" class="form-control">
-                  <div class="tasks-due-meta"><span>Осталось <strong id="timeLeft">—</strong></span><span>Создано <strong id="createdAt">—</strong></span></div>
-                </div>
+                  <div class="tasks-property-group"><label class="form-label">Теги</label><input type="text" name="tags" class="form-control" placeholder="backend, iiko, ui"><div class="form-text">Несколько тегов — через запятую.</div></div>
+                </details>
+                <details class="tasks-extra-panel tasks-access-panel" data-task-disclosure>
+                  <summary>Права доступа</summary>
+                  <section th:replace="~{fragments/shared-work-access :: objectAccess('TASK')}"></section>
+                </details>
+                <div class="tasks-created-meta">Создано <span id="createdAt">—</span></div>
               </aside>
             </form>
           </div>
-          <section th:replace="~{fragments/shared-work-access :: objectAccess('TASK')}"></section>
           <div class="modal-footer tasks-sheet-footer">
-            <button id="deleteTaskBtn" data-work-write disabled class="btn btn-outline-danger me-auto" type="button" hidden><i class="bi bi-trash"></i><span>Удалить</span></button>
+            <button id="deleteTaskBtn" data-work-write disabled class="btn btn-outline-danger" type="button" hidden><i class="bi bi-trash"></i><span>Удалить</span></button>
+            <span id="taskSaveState" class="tasks-save-state" role="status" aria-live="polite"></span>
             <button type="button" class="btn btn-outline-secondary" data-task-close>Закрыть</button>
             <button id="saveTaskBtn" data-work-write disabled class="btn btn-primary" type="button">Сохранить</button>
           </div>
@@ -260,8 +275,8 @@
 
   <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
   <script th:src="@{/js/modal-helpers.js}"></script>
-  <script th:src="@{/js/shared-work-access.js?v=20261109-r304}"></script>
-  <script th:src="@{/js/tasks.js?v=20261109-r304}"></script>
+  <script th:src="@{/js/shared-work-access.js?v=20261124-task-card-r1}"></script>
+  <script th:src="@{/js/tasks.js?v=20261124-task-card-r1}"></script>
   <script th:src="@{/js/tasks-board.js?v=20260925-01-274-analytics-r45}"></script>
   <script th:src="@{/js/tasks-analytics.js?v=20260925-01-274-analytics-r50}"></script>
   <script th:src="@{/js/modal-transitions.js}"></script>

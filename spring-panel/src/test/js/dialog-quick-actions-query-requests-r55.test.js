@@ -241,7 +241,7 @@ async function workspaceReplyIsOptimisticAndReportsDeliveryFailureInHistory() {
   await workspaceReplyIsOptimisticAndReportsDeliveryFailureInHistory();
   const template = fs.readFileSync(path.resolve(__dirname, '../../main/resources/templates/dialogs/index.html'), 'utf8');
   for (const file of ['actions', 'details-history', 'workspace', 'participants', 'templates']) {
-    const version = file === 'details-history'
+    const version = ['actions', 'participants'].includes(file) ? '20261124-task-card-r1' : file === 'details-history'
       ? '20261119-session-relogin'
       : (file === 'workspace' ? '20261119-session-relogin' : '20261012-01-278-r55');
     assert.ok(template.includes('dialogs-' + file + "-runtime.js(v='" + version + "')"));

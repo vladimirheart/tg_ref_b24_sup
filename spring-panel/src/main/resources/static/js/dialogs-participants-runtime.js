@@ -91,6 +91,12 @@
       return tail ? `${head} · ${tail}` : head;
     }
 
+    function rememberEmployee(person) {
+      window.EmployeeProfiles?.remember({ username: person?.username,
+        fullName: person?.displayName || person?.display_name,
+        photo: person?.avatarUrl || person?.avatar_url, department: person?.department });
+    }
+
     function buildParticipantAvatarMarkup(displayName, avatarUrl, alt) {
       const spec = options.buildResponsibleAvatarSpec?.(displayName, avatarUrl);
       if (spec?.avatarUrl) {
@@ -102,7 +108,7 @@
     function buildParticipantProfileHref(participant) {
       const username = String(participant?.username || '').trim();
       const displayName = String(participant?.displayName || participant?.display_name || '').trim();
-      const profileId = username || displayName;
+      const profileId = username;
       if (!profileId) {
         return '';
       }
@@ -110,13 +116,13 @@
     }
 
     function renderParticipantCard(participant, runtimeOptions = {}) {
+      rememberEmployee(participant);
       const username = String(participant?.username || '').trim();
       const displayName = String(participant?.displayName || participant?.display_name || '').trim() || username || '—';
       const avatarUrl = String(participant?.avatarUrl || participant?.avatar_url || '').trim();
       const department = String(participant?.department || '').trim();
       const role = String(participant?.role || '').trim();
-      const addedAt = formatTimestamp(participant?.addedAt || participant?.added_at || '', { includeTime: true, fallback: '' });
-      const metaParts = [username && username !== displayName ? `@${username}` : '', department, role, addedAt].filter(Boolean);
+      const metaParts = [department, role].filter(Boolean);
       const avatarMarkup = buildParticipantAvatarMarkup(displayName, avatarUrl, 'Аватар участника');
       const profileHref = buildParticipantProfileHref(participant);
       const removeButton = runtimeOptions.removable && username
@@ -126,7 +132,7 @@
         <div class="dialog-details-participant-card">
           <div class="dialog-details-participant-main">
             ${profileHref
-              ? `<a class="dialog-details-participant-link" href="${escapeHtml(profileHref)}" target="_blank" rel="noopener">${avatarMarkup}<div class="dialog-details-participant-copy"><div class="dialog-details-participant-name">${escapeHtml(displayName)}</div><div class="dialog-details-participant-meta">${metaParts.map((item) => `<span>${escapeHtml(item)}</span>`).join('')}</div></div></a>`
+              ? `<div class="dialog-details-participant-copy">${window.EmployeeProfiles?.link(username) || `<a class="dialog-details-participant-link" href="${escapeHtml(profileHref)}">${avatarMarkup}${escapeHtml(displayName)}</a>`}<div class="dialog-details-participant-meta">${metaParts.map((item) => `<span>${escapeHtml(item)}</span>`).join('')}</div></div>`
               : `${avatarMarkup}<div class="dialog-details-participant-copy"><div class="dialog-details-participant-name">${escapeHtml(displayName)}</div><div class="dialog-details-participant-meta">${metaParts.map((item) => `<span>${escapeHtml(item)}</span>`).join('')}</div></div>`}
           </div>
           ${removeButton}
@@ -135,6 +141,7 @@
     }
 
     function renderParticipantInlineChip(participant) {
+      rememberEmployee(participant);
       const username = String(participant?.username || '').trim();
       const displayName = String(participant?.displayName || participant?.display_name || '').trim() || username || '—';
       const avatarUrl = String(participant?.avatarUrl || participant?.avatar_url || '').trim();
@@ -145,6 +152,7 @@
       }
       const profileHref = buildParticipantProfileHref(participant);
       const safeTitle = escapeHtml(titleParts.join(' · '));
+      if (username && window.EmployeeProfiles) return window.EmployeeProfiles.link(username);
       return `
         ${profileHref
           ? `<a class="dialog-details-participant-pill" href="${escapeHtml(profileHref)}" target="_blank" rel="noopener" title="${safeTitle}">${avatarMarkup}<span class="dialog-details-participant-pill-name">${escapeHtml(displayName)}</span></a>`
@@ -186,6 +194,8 @@
         })).join('');
         elements.participantsCurrentList.classList.toggle('d-none', participants.length === 0);
       }
+      if (elements.detailsParticipantsList) window.EmployeeProfiles?.refresh(elements.detailsParticipantsList);
+      if (elements.participantsCurrentList) window.EmployeeProfiles?.refresh(elements.participantsCurrentList);
     }
 
     function renderDialogParticipantsLoadingState(message) {
@@ -220,9 +230,12 @@
       placeholder.textContent = availableOperators.length ? 'Выберите пользователя…' : 'Нет доступных пользователей';
       elements.participantsSelect.appendChild(placeholder);
       availableOperators.forEach((operator) => {
+        rememberEmployee(operator);
         const option = document.createElement('option');
         option.value = operator.username || '';
         option.textContent = buildOperatorOptionLabel(operator);
+        option.dataset.employeeName = operator.displayName || operator.display_name || operator.username || '';
+        option.dataset.employeePhoto = operator.avatarUrl || operator.avatar_url || '';
         elements.participantsSelect.appendChild(option);
       });
       const canAddParticipants = options.isWorkspaceActionEnabled?.(
@@ -263,9 +276,12 @@
       placeholder.textContent = availableOperators.length ? 'Выберите пользователя…' : 'Некому передать диалог';
       elements.reassignSelect.appendChild(placeholder);
       availableOperators.forEach((operator) => {
+        rememberEmployee(operator);
         const option = document.createElement('option');
         option.value = operator.username || '';
         option.textContent = buildOperatorOptionLabel(operator);
+        option.dataset.employeeName = operator.displayName || operator.display_name || operator.username || '';
+        option.dataset.employeePhoto = operator.avatarUrl || operator.avatar_url || '';
         elements.reassignSelect.appendChild(option);
       });
       const canReassign = options.isWorkspaceActionEnabled?.(

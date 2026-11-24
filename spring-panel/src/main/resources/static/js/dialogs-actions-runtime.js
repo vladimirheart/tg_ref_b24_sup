@@ -137,7 +137,7 @@
         : -1;
       const rowCells = row.children;
       if (responsibleIndex >= 0 && rowCells[responsibleIndex]) {
-        rowCells[responsibleIndex].innerHTML = options.renderResponsibleCell?.(value || '—', avatarUrl) || (value || '—');
+        rowCells[responsibleIndex].innerHTML = options.renderResponsibleCell?.(value || '—', avatarUrl, rawValue || value) || (value || '—');
       }
       const takeBtn = row.querySelector('.dialog-take-btn');
       if (takeBtn) {

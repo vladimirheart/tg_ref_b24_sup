@@ -272,9 +272,11 @@
         : null;
       const responsibleValue = responsibleRow?.lastElementChild || null;
       if (responsibleValue) {
+        window.EmployeeProfiles?.remember({ username: rawResponsible, fullName: safeResponsible, photo: avatarUrl });
         responsibleValue.innerHTML = safeResponsible !== '—'
-          ? `<a class="dialog-summary-value-link" href="/users/${encodeURIComponent(rawResponsible || safeResponsible)}" target="_blank" rel="noopener">${escapeHtml(safeResponsible)}</a>`
+          ? (rawResponsible && window.EmployeeProfiles ? window.EmployeeProfiles.link(rawResponsible) : `<a class="dialog-summary-value-link" href="/users/${encodeURIComponent(rawResponsible || safeResponsible)}">${escapeHtml(safeResponsible)}</a>`)
           : '—';
+        window.EmployeeProfiles?.refresh(responsibleValue);
       }
       updateDetailsTakeButton(rawResponsible || safeResponsible);
     }
@@ -550,14 +552,17 @@
               renderedValue = `<a class="dialog-summary-value-link" href="/client/${encodeURIComponent(clientUserId)}" target="_blank" rel="noopener">${escapeHtml(safeValue)}</a>`;
             }
             if (label === 'Ответственный' && safeValue !== '—') {
-              renderedValue = `<a class="dialog-summary-value-link" href="/users/${encodeURIComponent(safeValue)}" target="_blank" rel="noopener">${escapeHtml(safeValue)}</a>`;
+              const identity = responsibleRaw || safeValue;
+              window.EmployeeProfiles?.remember({ username: identity, fullName: safeValue, photo: responsibleAvatarUrl });
+              renderedValue = window.EmployeeProfiles?.link(identity)
+                || `<a class="dialog-summary-value-link" href="/users/${encodeURIComponent(identity)}">${escapeHtml(safeValue)}</a>`;
             }
             const fieldAttr = label === 'Категории'
               ? ' data-summary-field="categories"'
               : (label === 'Ответственный' ? ' data-summary-field="responsible"' : '');
             const valueMarkup = label === 'Категории'
               ? `<span data-summary-value>${options.renderCategoryBadges?.(safeValue) || escapeHtml(safeValue)}</span>`
-              : renderedValue;
+              : label === 'Ответственный' ? `<span data-summary-value>${renderedValue}</span>` : renderedValue;
             return `
           <div class="d-flex justify-content-between gap-2"${fieldAttr}>
             <span>${label}</span>

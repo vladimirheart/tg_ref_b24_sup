@@ -27,8 +27,15 @@
     let remote = null, busy = false, error = '';
     function usesTypedUsernames() { return multiple && source.dataset.employeeValueFormat === 'username-json'; }
     function options() {
-      if (source instanceof HTMLSelectElement) return Array.from(source.options).filter(option => option.value && !option.disabled).map(option => ({ value: option.value, label: option.textContent }));
-      if (source.list) return Array.from(source.list.options).map(option => ({ value: option.value, label: option.label || option.value }));
+      function fromOption(option) {
+        const label = option.label || option.textContent || option.value;
+        const person = window.EmployeeProfiles?.get(option.value);
+        const fullName = option.dataset.employeeName || (person?.fullName !== option.value ? person?.fullName : '') || label.replace(' · ' + option.value, '');
+        const photo = person?.resolved ? person.photo : option.dataset.employeePhoto || person?.photo;
+        return { value: option.value, label, fullName, photo };
+      }
+      if (source instanceof HTMLSelectElement) return Array.from(source.options).filter(option => option.value && !option.disabled).map(fromOption);
+      if (source.list) return Array.from(source.list.options).map(fromOption);
       const values = remote || [];
       return usesTypedUsernames()
         ? values.filter(option => typeof option.value === 'string' && option.value.trim())
@@ -47,7 +54,16 @@
     }
     function refresh() {
       const values = selected(), all = options();
-      trigger.textContent = values.map(value => all.find(option => option.value === value)?.label || value).join(', ') || source.dataset.employeePlaceholder || 'Выберите сотрудника';
+      trigger.replaceChildren();
+      for (const value of values) {
+        const option = all.find(option => option.value === value);
+        const person = window.EmployeeProfiles?.get(value);
+        const label = option?.fullName || person?.fullName || option?.label || value;
+        const chip = document.createElement('span'); chip.className = 'employee-picker__selection';
+        if (window.EmployeeProfiles) chip.innerHTML = window.EmployeeProfiles.avatar({ username: value, fullName: label, photo: option?.photo || person?.photo });
+        const text = document.createElement('span'); text.textContent = label; chip.append(text); trigger.append(chip);
+      }
+      if (!values.length) trigger.textContent = source.dataset.employeePlaceholder || 'Выберите сотрудника';
       trigger.disabled = source.disabled;
       if (source.validity.valid) trigger.removeAttribute('aria-invalid');
       trigger.title = trigger.textContent;
@@ -68,7 +84,10 @@
       }
       for (const option of items) {
         const button = document.createElement('button'); button.type = 'button'; button.className = 'employee-picker__option';
-        button.textContent = (current.includes(option.value) ? '✓ ' : '') + option.label;
+        if (window.EmployeeProfiles) button.innerHTML = window.EmployeeProfiles.avatar({ username: option.value, fullName: option.fullName || option.label, photo: option.photo });
+        const label = document.createElement('span'); label.textContent = option.fullName || option.label;
+        const check = document.createElement('span'); check.className = 'employee-picker__check'; check.textContent = current.includes(option.value) ? '✓' : '';
+        button.append(label, check); button.title = option.label;
         button.dataset.employeeValue = option.value;
         button.setAttribute('aria-pressed', String(current.includes(option.value)));
         button.addEventListener('click', () => { const values = selected(); setValue(multiple ? (values.includes(option.value) ? values.filter(value => value !== option.value) : [...values, option.value]) : [option.value]); if (!multiple) close(); else search.focus({ preventScroll: true }); }); list.append(button);

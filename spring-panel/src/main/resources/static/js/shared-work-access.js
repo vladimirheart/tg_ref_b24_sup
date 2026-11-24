@@ -37,6 +37,7 @@
   const json = body => ({ headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   function writable(root, allowed) {
     root?.closest('.modal')?.querySelectorAll('[data-work-write]').forEach(button => { button.disabled = !allowed; });
+    window.dispatchEvent(new CustomEvent('shared-work:writable', { detail: { kind: root?.dataset.workObject, allowed } }));
   }
   function clear(root) {
     $(root, '[data-work-members]')?.replaceChildren();
@@ -88,7 +89,8 @@
       if (!same(state) || searchGeneration !== state.searchGeneration) return;
       for (const person of rows) {
         if (!id(person.userId)) throw new Error('Некорректный ответ списка пользователей.');
-        const option = node('option', person.username); option.value = person.userId; selector.appendChild(option);
+        const option = node('option', window.EmployeeProfiles?.get(person.username).fullName || person.username); option.value = person.userId; selector.appendChild(option);
+        window.EmployeeProfiles?.load(person.username).then(profile => { if (same(state) && option.isConnected) option.textContent = profile.fullName || profile.username; }).catch(() => {});
       }
       selector.value = rows[0]?.userId || '';
       const enabled = rows.length > 0;
@@ -134,13 +136,17 @@
       for (const member of view.members) {
         if (!id(member.userId)) throw new Error('Некорректный ответ состава участников.');
         const row = node('li', undefined, 'list-group-item d-flex gap-2 align-items-center');
-        row.appendChild(node('span', member.username + ' — ' + (labels[member.role] || member.role)));
+        const identity = node('span');
+        if (window.EmployeeProfiles) identity.innerHTML = window.EmployeeProfiles.link(member.username);
+        else identity.textContent = member.username;
+        row.append(identity, node('span', labels[member.role] || member.role, 'small text-muted'));
         if (view.canManage && member.role !== 'OWNER') {
           const remove = node('button', 'Отозвать', 'btn btn-sm btn-outline-danger ms-auto');
           remove.type = 'button'; remove.addEventListener('click', () => mutate(state, '/members/' + member.userId, 'DELETE')); row.appendChild(remove);
         }
         $(root, '[data-work-members]').appendChild(row);
       }
+      window.EmployeeProfiles?.refresh(root);
       status(root, view.canWrite ? 'Доступ к редактированию подтверждён.' : 'Доступно только чтение.');
       if (view.canManage) { await people(state); if (same(state)) await history(root, base(state) + '/history', () => same(state)); }
     } catch (error) { deny(root, error, state); }

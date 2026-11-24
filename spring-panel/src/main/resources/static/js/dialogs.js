@@ -2090,8 +2090,8 @@
     return dialogsAvatarRuntime?.buildResponsibleAvatarSpec(responsible, avatarUrl) || null;
   }
 
-  function renderResponsibleCell(responsible, avatarUrl = '') {
-    return dialogsAvatarRuntime?.renderResponsibleCell(responsible, avatarUrl)
+  function renderResponsibleCell(responsible, avatarUrl = '', username = '') {
+    return dialogsAvatarRuntime?.renderResponsibleCell(responsible, avatarUrl, username)
       || '<span class="text-muted">—</span>';
   }
 
@@ -2402,7 +2402,7 @@
         </td>
         <td data-column-key="location">${escapeHtml(locationLabel)}</td>
         <td data-column-key="categories">${escapeHtml(categories)}</td>
-        <td data-column-key="responsible">${renderResponsibleCell(responsible, responsibleAvatarUrl)}</td>
+        <td data-column-key="responsible">${renderResponsibleCell(responsible, responsibleAvatarUrl, responsibleRaw)}</td>
         <td data-column-key="created">
           <div class="small text-muted" data-dialog-created-date>${escapeHtml(created.date)}</div>
           <div class="small" data-dialog-created-time>${escapeHtml(created.time)}</div>

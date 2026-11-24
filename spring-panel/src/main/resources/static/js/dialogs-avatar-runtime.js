@@ -25,10 +25,14 @@
       };
     }
 
-    function renderResponsibleCell(responsible, avatarUrl = '') {
+    function renderResponsibleCell(responsible, avatarUrl = '', username = '') {
       const spec = buildResponsibleAvatarSpec(responsible, avatarUrl);
       if (!spec) {
         return '<span class="text-muted">—</span>';
+      }
+      if (username && window.EmployeeProfiles) {
+        window.EmployeeProfiles.remember({ username, fullName: spec.label, photo: spec.avatarUrl });
+        return window.EmployeeProfiles.link(username);
       }
       const avatarMarkup = spec.avatarUrl
         ? `<span class="dialog-responsible-avatar has-image"><img src="${escapeHtml(spec.avatarUrl)}" alt="Аватар ответственного"></span>`

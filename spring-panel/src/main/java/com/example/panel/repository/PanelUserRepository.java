@@ -43,6 +43,19 @@ public class PanelUserRepository {
     public record EmployeeOptionRow(String username, String fullName, boolean enabled,
                                     boolean blocked, long identityCount) {}
 
+    /** Public work identity only. Ambiguous legacy usernames must never select an arbitrary account. */
+    public Optional<EmployeeProfile> findEmployeeProfile(String username) {
+        if (!StringUtils.hasText(username)) return Optional.empty();
+        List<EmployeeProfile> rows = usersJdbcTemplate.query("""
+                SELECT id, username, full_name, department, photo
+                  FROM users WHERE lower(username) = lower(?) LIMIT 2
+                """, (rs, rowNum) -> new EmployeeProfile(rs.getLong("id"), rs.getString("username"), rs.getString("full_name"),
+                    rs.getString("department"), rs.getString("photo")), username);
+        return rows.size() == 1 ? Optional.of(rows.get(0)) : Optional.empty();
+    }
+
+    public record EmployeeProfile(Long id, String username, String fullName, String department, String photo) {}
+
     public Optional<PanelUser> findByUsernameIgnoreCase(String username) {
         if (!StringUtils.hasText(username)) {
             return Optional.empty();
