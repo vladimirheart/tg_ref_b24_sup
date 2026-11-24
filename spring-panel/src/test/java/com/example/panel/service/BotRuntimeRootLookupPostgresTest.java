@@ -267,7 +267,7 @@ class BotRuntimeRootLookupPostgresTest {
                 }
                 case RELAY -> {
                     verify(targets).logOutgoingMessage(new DialogReplyTarget(OWNER, CHANNEL), raw, "edited",
-                            "operator_message", 123L, null, "operator");
+                            "operator_message", 123L, null, "operator", Long.toString(OWNER));
                     verify(ledger).recordObservedSuccess(CHANNEL, raw, OWNER, "operator_runtime", "text", 123L, null);
                 }
                 case CLIENT_EDIT -> {

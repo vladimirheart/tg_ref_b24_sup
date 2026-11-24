@@ -18,6 +18,7 @@ public class DialogReplyTargetService {
     private final JdbcTemplate jdbcTemplate;
     private final ChatAttachmentMetadataService chatAttachmentMetadataService;
     private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
+    private volatile Boolean senderIdentityColumnAvailable;
 
     public DialogReplyTargetService(JdbcTemplate jdbcTemplate,
                                     ChatAttachmentMetadataService chatAttachmentMetadataService,
@@ -76,9 +77,36 @@ public class DialogReplyTargetService {
                                      Long telegramMessageId,
                                      Long replyToTelegramId,
                                      String sender) {
+        return logOutgoingMessage(target, ticketId, message, messageType, telegramMessageId, replyToTelegramId, sender, null);
+    }
+
+    /** Stores the human author separately from the message role for historical rendering. */
+    public String logOutgoingMessage(DialogReplyTarget target,
+                                     String ticketId,
+                                     String message,
+                                     String messageType,
+                                     Long telegramMessageId,
+                                     Long replyToTelegramId,
+                                     String sender,
+                                     String senderIdentity) {
         requireUniqueTicket(ticketId, target);
         OffsetDateTime timestamp = OffsetDateTime.now();
-        int inserted = jdbcTemplate.update("""
+        boolean storeSenderIdentity = hasSenderIdentityColumn();
+        String sql = storeSenderIdentity ? """
+                INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, channel_id, tg_message_id, reply_to_tg_id, ticket_owner_user_id, sender_identity)
+                SELECT outgoing.*, t.user_id
+                  FROM (VALUES (
+                    ?::bigint, ?::text, ?::text, ?::timestamptz, ?::text,
+                    ?::text, ?::bigint, ?::bigint, ?::bigint, ?::text
+                  )) AS outgoing(user_id, sender, message, timestamp, ticket_id, message_type, channel_id, tg_message_id, reply_to_tg_id, sender_identity)
+                  JOIN tickets t ON t.ticket_id = outgoing.ticket_id
+                                AND t.user_id = outgoing.user_id
+                                AND t.channel_id = outgoing.channel_id
+                 WHERE 1 = (
+                       SELECT COUNT(*) FROM tickets unique_ticket
+                        WHERE unique_ticket.ticket_id = outgoing.ticket_id
+                   )
+                """ : """
                 INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, channel_id, tg_message_id, reply_to_tg_id, ticket_owner_user_id)
                 SELECT outgoing.*, t.user_id
                   FROM (VALUES (
@@ -92,17 +120,13 @@ public class DialogReplyTargetService {
                        SELECT COUNT(*) FROM tickets unique_ticket
                         WHERE unique_ticket.ticket_id = outgoing.ticket_id
                    )
-                """,
-                target.userId(),
-                normalizeSender(sender),
-                message,
-                timestamp,
-                ticketId,
-                messageType,
-                target.channelId(),
-                telegramMessageId,
-                replyToTelegramId
-        );
+                """;
+        Object[] args = storeSenderIdentity
+                ? new Object[]{target.userId(), normalizeSender(sender), message, timestamp, ticketId, messageType,
+                target.channelId(), telegramMessageId, replyToTelegramId, normalizeOperatorIdentity(senderIdentity)}
+                : new Object[]{target.userId(), normalizeSender(sender), message, timestamp, ticketId, messageType,
+                target.channelId(), telegramMessageId, replyToTelegramId};
+        int inserted = jdbcTemplate.update(sql, args);
         if (inserted != 1) {
             throw new IllegalArgumentException("Outgoing message requires a unique legacy ticket id.");
         }
@@ -135,10 +159,40 @@ public class DialogReplyTargetService {
                                           String messageType,
                                           Long telegramMessageId,
                                           Long replyToTelegramId) {
+        return logOutgoingMediaMessage(target, ticketId, caption, storedName, originalName, mimeType, size,
+                messageType, telegramMessageId, replyToTelegramId, null);
+    }
+
+    public String logOutgoingMediaMessage(DialogReplyTarget target,
+                                          String ticketId,
+                                          String caption,
+                                          String storedName,
+                                          String originalName,
+                                          String mimeType,
+                                          Long size,
+                                          String messageType,
+                                          Long telegramMessageId,
+                                          Long replyToTelegramId,
+                                          String senderIdentity) {
         requireUniqueTicket(ticketId, target);
         OffsetDateTime timestamp = OffsetDateTime.now();
+        boolean storeSenderIdentity = hasSenderIdentityColumn();
         Long chatHistoryId = jdbcTemplate.execute((Connection connection) -> {
-            try (PreparedStatement insert = connection.prepareStatement("""
+            String sql = storeSenderIdentity ? """
+                    INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, attachment, channel_id, tg_message_id, reply_to_tg_id, ticket_owner_user_id, sender_identity)
+                    SELECT outgoing.*, t.user_id
+                      FROM (VALUES (
+                        ?::bigint, ?::text, ?::text, ?::timestamptz, ?::text,
+                        ?::text, ?::text, ?::bigint, ?::bigint, ?::bigint, ?::text
+                      )) AS outgoing(user_id, sender, message, timestamp, ticket_id, message_type, attachment, channel_id, tg_message_id, reply_to_tg_id, sender_identity)
+                      JOIN tickets t ON t.ticket_id = outgoing.ticket_id
+                                    AND t.user_id = outgoing.user_id
+                                    AND t.channel_id = outgoing.channel_id
+                     WHERE 1 = (
+                           SELECT COUNT(*) FROM tickets unique_ticket
+                            WHERE unique_ticket.ticket_id = outgoing.ticket_id
+                       )
+                    """ : """
                     INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, attachment, channel_id, tg_message_id, reply_to_tg_id, ticket_owner_user_id)
                     SELECT outgoing.*, t.user_id
                       FROM (VALUES (
@@ -152,7 +206,8 @@ public class DialogReplyTargetService {
                            SELECT COUNT(*) FROM tickets unique_ticket
                             WHERE unique_ticket.ticket_id = outgoing.ticket_id
                        )
-                    """, Statement.RETURN_GENERATED_KEYS)) {
+                    """;
+            try (PreparedStatement insert = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
                 insert.setLong(1, target.userId());
                 insert.setString(2, "operator");
                 insert.setString(3, caption != null ? caption : "");
@@ -163,6 +218,9 @@ public class DialogReplyTargetService {
                 insert.setLong(8, target.channelId());
                 insert.setObject(9, telegramMessageId);
                 insert.setObject(10, replyToTelegramId);
+                if (storeSenderIdentity) {
+                    insert.setString(11, normalizeOperatorIdentity(senderIdentity));
+                }
                 if (insert.executeUpdate() != 1) {
                     throw new IllegalArgumentException("Outgoing message requires a unique legacy ticket id.");
                 }
@@ -236,6 +294,29 @@ public class DialogReplyTargetService {
         if (!hasReplyTargetOwner(ticketId, target)) {
             throw new IllegalArgumentException("Outgoing message requires a unique legacy ticket id.");
         }
+    }
+
+    private boolean hasSenderIdentityColumn() {
+        Boolean cached = senderIdentityColumnAvailable;
+        if (cached != null) {
+            return cached;
+        }
+        boolean available;
+        try {
+            Boolean found = jdbcTemplate.queryForObject("""
+                    SELECT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                         WHERE table_schema = current_schema()
+                           AND table_name = 'chat_history'
+                           AND column_name = 'sender_identity'
+                    )
+                    """, Boolean.class);
+            available = Boolean.TRUE.equals(found);
+        } catch (RuntimeException ex) {
+            available = false;
+        }
+        senderIdentityColumnAvailable = available;
+        return available;
     }
 
     public void touchTicketActivity(String ticketId, String operatorIdentity) {

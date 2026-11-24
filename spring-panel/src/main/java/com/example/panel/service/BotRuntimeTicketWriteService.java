@@ -141,7 +141,8 @@ public class BotRuntimeTicketWriteService {
                 "operator_message",
                 telegramMessageId,
                 replyToTelegramId,
-                "operator"
+                "operator",
+                operatorIdentity
         );
         providerDeliveryLedgerService.recordObservedSuccess(
             targetOpt.get().channelId(),

@@ -65,7 +65,7 @@
       }
       const senderType = normalizeMessageSenderByType(message?.messageType, message?.sender);
       if (senderType === 'support') {
-        return context?.operatorName || message?.sender || options.operatorDisplayName || 'Оператор';
+        return message?.senderName || message?.senderUsername || context?.operatorName || message?.sender || options.operatorDisplayName || 'Оператор';
       }
       if (senderType === 'system') {
         return message?.sender || 'Система';
@@ -129,7 +129,7 @@
     }
 
     function renderWorkspaceMessageItem(message) {
-      const author = message?.senderName || message?.senderRole || 'Участник';
+      const author = message?.senderName || message?.senderUsername || message?.senderRole || message?.sender || 'Участник';
       const timestamp = options.formatWorkspaceDateTime?.(message?.sentAt || message?.createdAt) || '';
       const text = String(message?.messageText || message?.message || '').trim();
       const replyPreviewText = String(message?.replyPreview || message?.reply_preview || '').trim();

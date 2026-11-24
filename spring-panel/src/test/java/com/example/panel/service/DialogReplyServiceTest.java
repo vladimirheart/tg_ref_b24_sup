@@ -41,7 +41,7 @@ class DialogReplyServiceTest {
         when(targetService.hasWebFormSession("T-900")).thenReturn(false);
         when(transportService.sendText(channel, 123L, "Принято", 45L))
             .thenReturn(new DialogReplyTransportService.DialogReplyTransportResult(null, 77L));
-        when(targetService.logOutgoingMessage(any(), eq("T-900"), eq("Принято"), eq("operator_message"), eq(77L), eq(45L), eq("operator")))
+        when(targetService.logOutgoingMessage(any(), eq("T-900"), eq("Принято"), eq("operator_message"), eq(77L), eq(45L), eq("operator"), eq("operator")))
             .thenReturn("2026-04-30T12:00:00Z");
         when(responsibilityService.assignResponsibleIfMissing("T-900", "operator")).thenReturn("operator");
 
@@ -88,7 +88,7 @@ class DialogReplyServiceTest {
         when(targetService.hasWebFormSession("T-BUSINESS")).thenReturn(false);
         when(transportService.sendText(channel, 124L, "Принято", null))
                 .thenReturn(new DialogReplyTransportService.DialogReplyTransportResult(null, 78L));
-        when(targetService.logOutgoingMessage(any(), eq("T-BUSINESS"), eq("Принято"), eq("operator_message"), eq(78L), isNull(), eq("operator")))
+        when(targetService.logOutgoingMessage(any(), eq("T-BUSINESS"), eq("Принято"), eq("operator_message"), eq(78L), isNull(), eq("operator"), eq("operator")))
                 .thenReturn("2026-11-18T10:01:00Z");
         when(dialogLookupReadService.findDialog("T-BUSINESS", "operator")).thenReturn(Optional.of(businessDialog));
         when(responsibilityService.assignScopedResponsibleIfMissing(any(UiEventTicketScope.class), eq("operator"), eq("operator")))
@@ -136,7 +136,8 @@ class DialogReplyServiceTest {
             eq(3L),
             eq("image"),
             eq(88L),
-            isNull()
+            isNull(),
+            eq("operator")
         ))
             .thenReturn("2026-04-30T12:05:00Z");
         when(responsibilityService.assignResponsibleIfMissing("T-901", "operator")).thenReturn("operator");
@@ -181,7 +182,7 @@ class DialogReplyServiceTest {
         when(transportService.loadChannel(20L)).thenReturn(Optional.of(channel));
         when(targetService.hasWebFormSession("T-902")).thenReturn(true);
         when(targetService.nextLocalTelegramMessageId("T-902")).thenReturn(9901L);
-        when(targetService.logOutgoingMessage(any(), eq("T-902"), eq("Текст"), eq("operator_message"), eq(9901L), eq(null), eq("operator")))
+        when(targetService.logOutgoingMessage(any(), eq("T-902"), eq("Текст"), eq("operator_message"), eq(9901L), eq(null), eq("operator"), eq("operator")))
             .thenReturn("2026-04-30T12:10:00Z");
         when(responsibilityService.assignResponsibleIfMissing("T-902", "operator")).thenReturn("operator");
 

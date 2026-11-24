@@ -62,10 +62,13 @@
     function resolveDialogMessageAvatarSpec(message, context) {
       const senderType = options.normalizeMessageSenderByType?.(message?.messageType, message?.sender);
       if (senderType === 'support') {
+        const senderLabel = String(message?.senderName || message?.senderUsername || context?.operatorName || options.operatorDisplayName || 'Оператор').trim();
+        const senderIdentity = String(message?.senderUsername || '').trim();
+        const currentOperatorOwned = senderIdentity && options.normalizeIdentity?.(senderIdentity) === options.normalizeIdentity?.(options.operatorIdentity);
         return {
-          src: String(options.operatorAvatarUrl || '').trim(),
-          initial: options.avatarInitial?.(options.operatorDisplayName) || '—',
-          label: options.operatorDisplayName || 'Оператор',
+          src: String(message?.senderAvatarUrl || (currentOperatorOwned ? options.operatorAvatarUrl : '') || '').trim(),
+          initial: options.avatarInitial?.(senderLabel) || '—',
+          label: senderLabel,
         };
       }
       if (senderType === 'system') {
@@ -85,10 +88,13 @@
     function resolveWorkspaceMessageAvatarSpec(message) {
       const senderRole = String(message?.senderRole || message?.sender || '').trim().toLowerCase();
       if (senderRole === 'operator' || senderRole === 'support' || senderRole === 'admin' || senderRole === 'ai_agent') {
+        const senderLabel = String(message?.senderName || message?.senderUsername || options.operatorDisplayName || 'Оператор').trim();
+        const senderIdentity = String(message?.senderUsername || '').trim();
+        const currentOperatorOwned = senderIdentity && options.normalizeIdentity?.(senderIdentity) === options.normalizeIdentity?.(options.operatorIdentity);
         return {
-          src: String(options.operatorAvatarUrl || '').trim(),
-          initial: options.avatarInitial?.(options.operatorDisplayName) || '—',
-          label: options.operatorDisplayName || 'Оператор',
+          src: String(message?.senderAvatarUrl || (currentOperatorOwned ? options.operatorAvatarUrl : '') || '').trim(),
+          initial: options.avatarInitial?.(senderLabel) || '—',
+          label: senderLabel,
         };
       }
       if (senderRole === 'system') {

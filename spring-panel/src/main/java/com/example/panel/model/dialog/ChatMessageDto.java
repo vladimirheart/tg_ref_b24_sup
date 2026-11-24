@@ -18,17 +18,27 @@ public record ChatMessageDto(String sender,
                              String deletedAt,
                              String forwardedFrom,
                              @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) com.example.panel.service.integration.MessageSourceLink sourceLink,
-                             boolean questionnaireAnswer) {
+                             boolean questionnaireAnswer,
+                             String senderUsername,
+                             String senderName,
+                             String senderAvatarUrl) {
+    public ChatMessageDto(String sender,String message,String originalMessage,String timestamp,String messageType,String attachment,String attachmentName,Long attachmentSize,
+            String attachmentStatus,String attachmentProvider,String attachmentNote,Long telegramMessageId,Long replyToTelegramMessageId,String replyPreview,String editedAt,String deletedAt,String forwardedFrom,
+            com.example.panel.service.integration.MessageSourceLink sourceLink,boolean questionnaireAnswer) {
+        this(sender,message,originalMessage,timestamp,messageType,attachment,attachmentName,attachmentSize,attachmentStatus,attachmentProvider,attachmentNote,
+            telegramMessageId,replyToTelegramMessageId,replyPreview,editedAt,deletedAt,forwardedFrom,sourceLink,questionnaireAnswer,null,null,null);
+    }
+
     public ChatMessageDto(String sender,String message,String originalMessage,String timestamp,String messageType,String attachment,String attachmentName,Long attachmentSize,
             String attachmentStatus,String attachmentProvider,String attachmentNote,Long telegramMessageId,Long replyToTelegramMessageId,String replyPreview,String editedAt,String deletedAt,String forwardedFrom,
             com.example.panel.service.integration.MessageSourceLink sourceLink) {
         this(sender,message,originalMessage,timestamp,messageType,attachment,attachmentName,attachmentSize,attachmentStatus,attachmentProvider,attachmentNote,
-            telegramMessageId,replyToTelegramMessageId,replyPreview,editedAt,deletedAt,forwardedFrom,sourceLink,false);
+            telegramMessageId,replyToTelegramMessageId,replyPreview,editedAt,deletedAt,forwardedFrom,sourceLink,false,null,null,null);
     }
 
     public ChatMessageDto(String sender,String message,String originalMessage,String timestamp,String messageType,String attachment,String attachmentName,Long attachmentSize,
             String attachmentStatus,String attachmentProvider,String attachmentNote,Long telegramMessageId,Long replyToTelegramMessageId,String replyPreview,String editedAt,String deletedAt,String forwardedFrom) {
         this(sender,message,originalMessage,timestamp,messageType,attachment,attachmentName,attachmentSize,attachmentStatus,attachmentProvider,attachmentNote,
-            telegramMessageId,replyToTelegramMessageId,replyPreview,editedAt,deletedAt,forwardedFrom,null,false);
+            telegramMessageId,replyToTelegramMessageId,replyPreview,editedAt,deletedAt,forwardedFrom,null,false,null,null,null);
     }
 }

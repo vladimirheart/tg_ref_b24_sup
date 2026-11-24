@@ -114,20 +114,56 @@ class DialogReplyTargetServiceTest {
         assertThat(jdbcTemplate.lastArgs[4]).isEqualTo(" T-EXACT ");
     }
 
-    private static final class CapturingJdbcTemplate extends JdbcTemplate {
-        private Object[] lastArgs;
+    @Test
+    void outgoingTextStoresHumanAuthorWhenSchemaSupportsIdentity() {
+        IdentityCapturingJdbcTemplate jdbcTemplate = new IdentityCapturingJdbcTemplate();
+        LegacyTicketIdJdbcGuard guard = mock(LegacyTicketIdJdbcGuard.class);
+        when(guard.hasUniqueTicket("T-AUTHOR")).thenReturn(true);
+        DialogReplyTargetService service = new DialogReplyTargetService(
+                jdbcTemplate, mock(ChatAttachmentMetadataService.class), guard);
+
+        service.logOutgoingMessage(new DialogReplyTarget(42L, 1L), "T-AUTHOR", "reply", "operator_message",
+                1002L, null, "operator", "other_operator");
+
+        assertThat(jdbcTemplate.lastSql).contains("sender_identity");
+        assertThat(jdbcTemplate.lastArgs).hasSize(10);
+        assertThat(jdbcTemplate.lastArgs[9]).isEqualTo("other_operator");
+    }
+
+    private static class CapturingJdbcTemplate extends JdbcTemplate {
+        protected Object[] lastArgs;
+        protected String lastSql;
 
         @Override
         public <T> T queryForObject(String sql, Class<T> requiredType, Object... args) {
-            boolean owned = args.length == 3 && ("T-REPLY".equals(args[0]) || " T-EXACT ".equals(args[0]))
+            boolean owned = args.length == 3 && ("T-REPLY".equals(args[0]) || " T-EXACT ".equals(args[0]) || "T-AUTHOR".equals(args[0]))
                     && Long.valueOf(42L).equals(args[1]) && Long.valueOf(1L).equals(args[2]);
             return requiredType.cast(owned ? Integer.valueOf(1) : Integer.valueOf(0));
         }
 
         @Override
         public int update(String sql, Object... args) {
+            this.lastSql = sql;
             this.lastArgs = args;
             return 1;
+        }
+    }
+
+    private static final class IdentityCapturingJdbcTemplate extends CapturingJdbcTemplate {
+        @Override
+        public <T> T queryForObject(String sql, Class<T> requiredType) {
+            if (requiredType == Boolean.class && sql.contains("sender_identity")) {
+                return requiredType.cast(Boolean.TRUE);
+            }
+            return super.queryForObject(sql, requiredType);
+        }
+
+        @Override
+        public <T> T queryForObject(String sql, Class<T> requiredType, Object... args) {
+            if (requiredType == Boolean.class && sql.contains("sender_identity")) {
+                return requiredType.cast(Boolean.TRUE);
+            }
+            return super.queryForObject(sql, requiredType, args);
         }
     }
 }

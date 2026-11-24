@@ -9,6 +9,7 @@ import com.example.panel.storage.AttachmentStorageKeyResolver;
 import com.example.panel.support.PanelTimestampSqlSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -35,6 +36,7 @@ public class DialogConversationReadService {
     private final AttachmentService attachmentService;
     private final PanelTimestampSqlSupport timestampSqlSupport;
     private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
+    private PanelUserPhotoService panelUserPhotoService;
 
     public DialogConversationReadService(JdbcTemplate jdbcTemplate,
                                          AttachmentService attachmentService,
@@ -44,6 +46,11 @@ public class DialogConversationReadService {
         this.attachmentService = attachmentService;
         this.timestampSqlSupport = timestampSqlSupport;
         this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
+    }
+
+    @Autowired
+    void setPanelUserPhotoService(PanelUserPhotoService panelUserPhotoService) {
+        this.panelUserPhotoService = panelUserPhotoService;
     }
 
     public List<ChatMessageDto> loadHistory(String ticketId, Long channelId) {
@@ -106,6 +113,10 @@ public class DialogConversationReadService {
                 String message = value(row.get("message"));
                 String originalMessage = value(row.get("original_message"));
                 String deletedAt = value(row.get("deleted_at"));
+                Long senderUserId = parseLong(row.get("sender_user_id"));
+                String senderAvatarUrl = senderUserId != null && panelUserPhotoService != null
+                        ? panelUserPhotoService.resolveUserAvatarUrl(senderUserId, value(row.get("sender_photo")), null)
+                        : value(row.get("sender_photo"));
                 history.add(new ChatMessageDto(
                         value(row.get("sender")),
                         deletedAt != null ? "" : message,
@@ -125,7 +136,10 @@ public class DialogConversationReadService {
                         deletedAt,
                         value(row.get("forwarded_from")),
                         deletedAt!=null?null:com.example.panel.service.integration.MessageSourceLinkJson.read(row.get("source_link_json") instanceof String json?json:null),
-                        Boolean.TRUE.equals(row.get("questionnaire_answer"))
+                        Boolean.TRUE.equals(row.get("questionnaire_answer")),
+                        value(row.get("sender_username")),
+                        value(row.get("sender_name")),
+                        senderAvatarUrl
                 ));
             }
             return history;
@@ -493,6 +507,9 @@ public class DialogConversationReadService {
         String fileNameColumn = columns.contains("file_name")
                 ? "file_name"
                 : "NULL AS file_name";
+        String senderIdentityExpression = columns.contains("sender_identity")
+                ? "ch.sender_identity"
+                : "NULL::text";
         String questionnaireAnswerColumn = columns.contains("ticket_public_id")
                 ? """
                         CASE WHEN lower(COALESCE(ch.sender, '')) = 'client'
@@ -536,12 +553,23 @@ public class DialogConversationReadService {
         String metadataJoin = attachmentMetadataAvailable
                 ? " LEFT JOIN chat_attachment_metadata cam ON cam.chat_history_id = ch.id "
                 : "";
+        String senderProfileSelect = """
+                        , %s AS sender_identity,
+                          sender_account.id AS sender_user_id,
+                          sender_account.username AS sender_username,
+                          COALESCE(NULLIF(btrim(sender_account.full_name), ''), sender_account.username) AS sender_name,
+                          sender_account.photo AS sender_photo
+                        """.formatted(senderIdentityExpression);
+        String senderProfileJoin = " LEFT JOIN users sender_account ON lower(sender_account.username) = lower("
+                + senderIdentityExpression + ") ";
         StringBuilder sql = new StringBuilder("""
                 SELECT ch.sender, ch.message, ch.timestamp, ch.message_type, ch.attachment,
                        ch.tg_message_id, ch.reply_to_tg_id, ch.channel_id,
                        %s, %s, %s, %s, %s, %s, %s
                        %s
+                       %s
                   FROM chat_history ch
+                  %s
                   %s
                  WHERE ch.ticket_id = ?
                 """.formatted(
@@ -553,7 +581,9 @@ public class DialogConversationReadService {
                 qualifyChatHistoryColumn(sourceLinkColumn),
                 questionnaireAnswerColumn,
                 metadataSelect,
-                metadataJoin
+                senderProfileSelect,
+                metadataJoin,
+                senderProfileJoin
         ));
         if (filterByChannelId) {
             sql.append(" AND ch.channel_id = ?");

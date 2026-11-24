@@ -77,7 +77,8 @@ public class DialogReplyService {
                 "operator_message",
                 localTelegramMessageId,
                 replyToTelegramId,
-                sender
+                sender,
+                operator
             );
             dialogReplyTargetService.touchTicketActivity(ticketId, operator);
             String responsible = assignResponsibleIfMissing(ticketId, operator);
@@ -128,7 +129,8 @@ public class DialogReplyService {
             "operator_message",
             transportResult.telegramMessageId(),
             replyToTelegramId,
-            sender
+            sender,
+            operator
         );
         dialogReplyTargetService.touchTicketActivity(ticketId, operator);
         String responsible = assignResponsibleIfMissing(ticketId, operator);
@@ -352,7 +354,8 @@ public class DialogReplyService {
             size,
             messageType,
             transportResult.telegramMessageId(),
-            replyToTelegramId
+            replyToTelegramId,
+            operator
         );
         dialogReplyTargetService.touchTicketActivity(ticketId, operator);
         String responsible = assignResponsibleIfMissing(ticketId, operator);
