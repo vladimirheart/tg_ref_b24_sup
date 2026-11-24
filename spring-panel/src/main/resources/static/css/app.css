@@ -18045,6 +18045,25 @@ body[data-ui-page] .note-photo-more {
   cursor: pointer;
 }
 
+body[data-ui-page] .note-file-link {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--control-radius);
+  color: var(--color-text);
+  background: var(--surface-soft);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+body[data-ui-page] .note-file-link span {
+  color: var(--primary);
+}
+
 body[data-ui-page=knowledge] .note-photo-tools {
   display: flex;
   align-items: center;
@@ -18102,32 +18121,39 @@ html.note-photo-viewer-open {
   padding: 8px;
 }
 .note-photo-viewer__stage {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  grid-column: 2;
+  grid-row: 1;
   min-width: 0;
   height: 100%;
   overflow: auto;
   overscroll-behavior: contain;
-  touch-action: pan-y;
+  touch-action: none;
+  scrollbar-gutter: stable;
 }
-.note-photo-viewer__stage img {
+.note-photo-viewer.has-single-photo .note-photo-viewer__stage {
+  grid-column: 1/-1;
+}
+.note-photo-viewer__canvas {
+  position: relative;
+}
+.note-photo-viewer .note-photo-viewer__stage img {
   display: block;
-  flex-shrink: 0;
-  max-width: 100%;
-  max-height: 100%;
-  width: auto;
-  height: auto;
-  object-fit: contain;
-}
-.note-photo-viewer.is-zoomed .note-photo-viewer__stage {
-  display: block;
-  touch-action: pan-x pan-y;
-}
-.note-photo-viewer.is-zoomed .note-photo-viewer__stage img {
+  position: absolute;
   max-width: none;
   max-height: none;
-  margin: auto;
+  margin: 0;
+  user-select: none;
+}
+.note-photo-viewer.is-zoomed .note-photo-viewer__stage {
+  cursor: grab;
+}
+.note-photo-viewer__nav:first-child {
+  grid-column: 1;
+  grid-row: 1;
+}
+.note-photo-viewer__nav:last-child {
+  grid-column: 3;
+  grid-row: 1;
 }
 .note-photo-viewer .note-photo-viewer__nav.btn {
   min-height: 52px;
@@ -18150,10 +18176,33 @@ html.note-photo-viewer-open {
 }
 .note-photo-viewer__toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   margin-top: 8px;
+}
+.note-photo-viewer__scale-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.note-photo-viewer__scale-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+}
+.note-photo-viewer .note-photo-viewer__scale-label input {
+  width: 5rem;
+  min-width: 0;
+  padding: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--control-radius);
+  color: var(--color-text);
+  background: var(--surface-card);
 }
 @media (max-width: 575.98px) {
   .note-photo-viewer {

@@ -110,6 +110,14 @@ public class AttachmentController {
             "size", metadata.size(), "uploadedAt", metadata.uploadedAt().toString());
     }
 
+    @PostMapping(value = "/knowledge-base/note-files", consumes = "multipart/form-data")
+    public Map<String, Object> uploadNoteFile(Authentication authentication, @RequestParam("file") MultipartFile file) throws IOException {
+        if (notePhotos == null) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE);
+        var metadata = notePhotos.uploadFile(authentication, file);
+        return Map.of("originalName", metadata.originalName(), "storedName", metadata.storedName(),
+            "size", metadata.size(), "uploadedAt", metadata.uploadedAt().toString());
+    }
+
     @DeleteMapping("/knowledge-base/{storedName:.+}")
     public void delete(Authentication authentication, @PathVariable String storedName) throws IOException {
         attachmentService.deleteKnowledgeBaseFile(authentication, storedName);

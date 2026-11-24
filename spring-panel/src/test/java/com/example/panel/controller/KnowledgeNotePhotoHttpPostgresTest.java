@@ -164,6 +164,47 @@ class KnowledgeNotePhotoHttpPostgresTest {
     }
 
     long save(String body) {return notes.save(null,"Заметка",body,List.of(),List.of(),List.of(),List.of(),"reader");}
+    @Test void documentsAndArchivesUploadSaveReloadAndDownloadExactBytes() throws Exception {
+        var body=new StringBuilder(); var storedNames=new java.util.ArrayList<String>();
+        byte[] payload="ZIP or document bytes\u0000\u0001".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        for(String name:List.of("archive.zip","report.pdf","report.docx")) {
+            String json=mvc.perform(multipart(PREFIX+"note-files").file(new MockMultipartFile("file",name,"application/octet-stream",payload)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+            String stored=new ObjectMapper().readTree(json).get("storedName").asText();storedNames.add(stored);
+            body.append("[Документ](").append(PREFIX).append(stored).append(")\n");
+            mvc.perform(get(PREFIX+stored)).andExpect(status().isOk()).andExpect(content().bytes(payload))
+                .andExpect(header().string("Content-Disposition",org.hamcrest.Matchers.startsWith("attachment;")));
+        }
+        long id=save(body.toString());recreateServices();
+        assertThat(notes.findNote(id).orElseThrow().body()).isEqualTo(body.toString());
+        for(String stored:storedNames) mvc.perform(get(PREFIX+stored)).andExpect(status().isOk()).andExpect(content().bytes(payload));
+        jdbc.update("UPDATE users SET is_blocked=true WHERE id=1");
+        for(String stored:storedNames) mvc.perform(get(PREFIX+stored)).andExpect(status().isNotFound());
+        mvc.perform(multipart(PREFIX+"note-files").file(new MockMultipartFile("file","x.zip","application/zip",payload))).andExpect(status().isForbidden());
+    }
+
+    @Test void legacyDownloadLinkWorksButCannotExposePrivateArticleDocument() throws Exception {
+        byte[] payload="%PDF-1.7\nDocument".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        attachments.storeImportedKnowledgeBaseFile("report.pdf","report.pdf","application/pdf",new ByteArrayInputStream(payload));
+        save("[Документ]("+PREFIX+"report.pdf)");
+        mvc.perform(get(PREFIX+"report.pdf")).andExpect(status().isOk()).andExpect(content().bytes(payload));
+        jdbc.update("INSERT INTO knowledge_articles VALUES(100,NULL)");
+        jdbc.update("INSERT INTO knowledge_article_files(article_id,stored_path) VALUES(100,'report.pdf')");
+        jdbc.update("INSERT INTO knowledge_resource_acl(resource_type,resource_id,subject_type,subject_id,access_level) VALUES('ARTICLE',100,'USER',2,'VIEW')");
+        mvc.perform(get(PREFIX+"report.pdf")).andExpect(status().isNotFound());
+    }
+
+    @Test void fileUploadRejectsTraversalOversizeAndMissingKnowledgePermission() throws Exception {
+        var file=new MockMultipartFile("file","../archive.zip","application/zip",PHOTO);
+        mvc.perform(multipart(PREFIX+"note-files").file(file)).andExpect(status().isBadRequest());
+        var oversized=mock(MockMultipartFile.class);
+        when(oversized.getName()).thenReturn("file");when(oversized.getOriginalFilename()).thenReturn("big.zip");when(oversized.getSize()).thenReturn(51L*1024*1024);
+        mvc.perform(multipart(PREFIX+"note-files").file(oversized)).andExpect(status().isBadRequest());
+        verify(oversized,never()).getInputStream();
+        auth=authentication(1,"reader","PAGE_DIALOGS");
+        mvc.perform(multipart(PREFIX+"note-files").file(new MockMultipartFile("file","archive.zip","application/zip",PHOTO))).andExpect(status().isForbidden());
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM knowledge_article_files",Integer.class)).isZero();
+    }
     void store(String name) throws Exception {attachments.storeImportedKnowledgeBaseFile(name,name,"image/jpeg",new ByteArrayInputStream(PHOTO));}
     void readPhoto(String name) throws Exception {
         mvc.perform(get(PREFIX+name)).andExpect(status().isOk()).andExpect(content().contentType(MediaType.IMAGE_JPEG)).andExpect(content().bytes(PHOTO));

@@ -40,11 +40,11 @@ class KnowledgeNotePhotoWebMvcTest {
         when(notes.listNotes()).thenReturn(List.of());
         when(articles.listArticles(any())).thenReturn(List.of());
         mvc.perform(get("/knowledge-base/notes").with(user("reader").authorities(() -> "PAGE_KNOWLEDGE_BASE")))
-            .andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("knowledge-notes.js?v=20261123-note-photo-access")));
+            .andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("knowledge-notes.js?v=20261124-note-attachments")));
         String html=mvc.perform(get("/knowledge-base/notes/new").with(user("reader").authorities(() -> "PAGE_KNOWLEDGE_BASE")))
             .andExpect(status().isOk()).andExpect(view().name("knowledge/note-editor"))
             .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
-        assertThat(html).contains("data-note-photo-input","data-note-body-preview","knowledge-notes.js?v=20261123-note-photo-access");
+        assertThat(html).contains("data-note-photo-input","data-note-body-preview","knowledge-notes.js?v=20261124-note-attachments");
         Path capture=Path.of("target/298-rendered-note-editor.html");
         Files.createDirectories(capture.getParent()); Files.writeString(capture,html);
     }
@@ -59,5 +59,17 @@ class KnowledgeNotePhotoWebMvcTest {
             .with(user("reader").authorities(() -> "PAGE_KNOWLEDGE_BASE")))
             .andExpect(status().isOk()).andExpect(jsonPath("$.storedName").value("stored.jpg"));
         verify(photos).upload(any(),any()); verifyNoInteractions(attachments);
+    }
+
+    @Test void downloadableFileUploadAlsoRequiresCsrf() throws Exception {
+        var file=new MockMultipartFile("file","report.pdf","application/pdf",new byte[]{1,2,3});
+        mvc.perform(multipart("/api/attachments/knowledge-base/note-files").file(file)
+            .with(user("reader").authorities(() -> "PAGE_KNOWLEDGE_BASE"))).andExpect(status().isForbidden());
+        verifyNoInteractions(photos);
+        when(photos.uploadFile(any(),any())).thenReturn(new AttachmentService.AttachmentUploadMetadata("report.pdf","stored.pdf","application/pdf",3,OffsetDateTime.now()));
+        mvc.perform(multipart("/api/attachments/knowledge-base/note-files").file(file).with(csrf())
+            .with(user("reader").authorities(() -> "PAGE_KNOWLEDGE_BASE")))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.storedName").value("stored.pdf"));
+        verify(photos).uploadFile(any(),any());verifyNoInteractions(attachments);
     }
 }

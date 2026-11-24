@@ -62,7 +62,7 @@ class DialogKnowledgeNotesSourceContractTest {
             .contains("id=\"dialogDetailsNotesList\"")
             .contains("dialogs-details-runtime.js(v='20261119-session-relogin')")
             .contains("id=\"dialogDetailsNotesSearch\"")
-            .contains("knowledge-note-content.js(v='20261123-note-photo-gallery')");
+            .contains("knowledge-note-content.js(v='20261124-note-viewer')");
 
         assertThat(dialogRuntime)
             .contains("/notes")

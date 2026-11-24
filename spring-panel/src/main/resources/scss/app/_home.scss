@@ -51,6 +51,8 @@ body[data-ui-page] .note-body-text { white-space: pre-wrap; overflow-wrap: anywh
 body[data-ui-page] .note-photo { display: block; max-width: 100%; max-height: 240px; height: auto; object-fit: contain; margin: 8px 0; border: 1px solid var(--color-border); border-radius: var(--control-radius); background: var(--surface-soft); }
 body[data-ui-page] .note-photo-link { display: block; max-width: 100%; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: zoom-in; }
 body[data-ui-page] .note-photo-more { padding: 8px 12px; border: 1px solid var(--color-border); border-radius: var(--control-radius); color: var(--primary); cursor: pointer; }
+body[data-ui-page] .note-file-link { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin: 8px 0; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: var(--control-radius); color: var(--color-text); background: var(--surface-soft); text-decoration: none; overflow-wrap: anywhere; }
+body[data-ui-page] .note-file-link span { color: var(--primary); }
 body[data-ui-page='knowledge'] .note-photo-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 8px 0; }
 
 html.note-photo-viewer-open { overflow: hidden; }
@@ -67,15 +69,21 @@ html.note-photo-viewer-open { overflow: hidden; }
   &__header h2 { font-size: 1rem; margin: 0; }
   &__header button { flex-shrink: 0; }
   &__viewport { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; gap: 8px; align-items: center; min-height: 0; padding: 8px; }
-  &__stage { display: flex; align-items: center; justify-content: center; min-width: 0; height: 100%; overflow: auto; overscroll-behavior: contain; touch-action: pan-y; }
-  &__stage img { display: block; flex-shrink: 0; max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; }
-  &.is-zoomed &__stage { display: block; touch-action: pan-x pan-y; }
-  &.is-zoomed &__stage img { max-width: none; max-height: none; margin: auto; }
+  &__stage { grid-column: 2; grid-row: 1; min-width: 0; height: 100%; overflow: auto; overscroll-behavior: contain; touch-action: none; scrollbar-gutter: stable; }
+  &.has-single-photo &__stage { grid-column: 1 / -1; }
+  &__canvas { position: relative; }
+  & &__stage img { display: block; position: absolute; max-width: none; max-height: none; margin: 0; user-select: none; }
+  &.is-zoomed &__stage { cursor: grab; }
+  &__nav:first-child { grid-column: 1; grid-row: 1; }
+  &__nav:last-child { grid-column: 3; grid-row: 1; }
   & &__nav.btn { min-height: 52px; height: auto; padding: 0; font-size: 2rem; }
   &__footer { padding: 10px 12px; border-top: 1px solid var(--color-border); }
   &__caption { overflow-wrap: anywhere; max-height: 4rem; overflow: auto; }
   &__status { color: var(--color-text-muted); margin-top: 6px; }
-  &__toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+  &__toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+  &__scale-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; }
+  &__scale-label { display: inline-flex; align-items: center; gap: 4px; margin: 0; }
+  & &__scale-label input { width: 5rem; min-width: 0; padding: 4px; border: 1px solid var(--color-border); border-radius: var(--control-radius); color: var(--color-text); background: var(--surface-card); }
   @media (max-width: 575.98px) {
     width: calc(100vw - 0.5rem); height: calc(100dvh - 0.5rem);
     &__header, &__footer { padding: 8px; }

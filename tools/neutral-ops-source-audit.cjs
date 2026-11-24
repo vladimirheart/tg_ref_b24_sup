@@ -16,7 +16,7 @@ const rows = templates.map(file => {
   const decorativeInline = inline.filter(value => /(?<![-\w])(?:background(?:-color|-image)?|color|box-shadow|font-family)\s*:/.test(value) && !value.startsWith('th:style='));
   if (standalone) {
     assert(source.includes('data-ui-page='), relative + ': missing page scope');
-    const version = ['templates/knowledge/note-editor.html', 'templates/dialogs/index.html'].includes(relative) ? '20261123-note-photo-gallery'
+    const version = ['templates/knowledge/note-editor.html', 'templates/dialogs/index.html'].includes(relative) ? '20261124-note-viewer'
       : relative === 'templates/passports/detail.html' ? '20261120-equipment-preview-r1' : ['templates/general/work.html', 'templates/clients/profile.html'].includes(relative)
       ? '20261120-passport-overlay-r2' : '20261119-refined-r1';
     assert(source.includes(`app.css(v='${version}')`), relative + ': stale stylesheet version');

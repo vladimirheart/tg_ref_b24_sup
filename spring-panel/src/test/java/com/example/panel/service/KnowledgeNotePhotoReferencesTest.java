@@ -8,6 +8,7 @@ class KnowledgeNotePhotoReferencesTest {
     @ParameterizedTest
     @ValueSource(strings = {
         "![Фото](/api/attachments/knowledge-base/photo.jpg)",
+        "[Фото](/api/attachments/knowledge-base/photo.jpg)",
         "До\n![Фото](/api/attachments/knowledge-base/%70hoto.jpg)\nПосле"
     })
     void acceptsExactRasterPhotoReferences(String body) {
@@ -16,7 +17,6 @@ class KnowledgeNotePhotoReferencesTest {
 
     @ParameterizedTest
     @ValueSource(strings = {
-        "[Фото](/api/attachments/knowledge-base/photo.jpg)",
         "![Фото](https://example.org/api/attachments/knowledge-base/photo.jpg)",
         "![Фото](/api/attachments/knowledge-base/other-photo.jpg)",
         "![Фото](/api/attachments/knowledge-base/photo.jpg.bak)",
@@ -34,5 +34,15 @@ class KnowledgeNotePhotoReferencesTest {
     @ValueSource(strings = {"../photo.jpg", "a/../photo.jpg", "a\\photo.jpg", "photo.svg", "photo.html", "photo.jpg?x", "photo.jpg#x"})
     void rejectsPathsAndActiveContent(String name) {
         assertThat(KnowledgeNotePhotoService.isPhotoName(name)).isFalse();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"report.pdf", "archive.zip", "data.7z", "table.xlsx", "report.docx"})
+    void filesAreAccessibleOnlyByExactDownloadLinks(String name) {
+        String path="/api/attachments/knowledge-base/"+name;
+        assertThat(KnowledgeNotePhotoService.references("[Документ]("+path+")", name)).isTrue();
+        assertThat(KnowledgeNotePhotoService.references("![Документ]("+path+")", name)).isFalse();
+        assertThat(KnowledgeNotePhotoService.references("[Другой]("+path+".bak)", name)).isFalse();
+        assertThat(KnowledgeNotePhotoService.references("[Внешний](https://example.org"+path+")", name)).isFalse();
     }
 }

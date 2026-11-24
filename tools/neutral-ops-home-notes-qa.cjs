@@ -27,7 +27,7 @@ async function main() {
       if (id === 'slow-A') return setTimeout(() => json({ notes: [{ id: 3, title: 'Устаревшая заметка', body: 'Старый ответ' }] }), 300);
       return json({ notes });
     }
-    if (url.pathname === '/api/attachments/knowledge-base/note-photos' && req.method === 'POST') {
+    if (url.pathname === '/api/attachments/knowledge-base/note-files' && req.method === 'POST') {
       if (denyUpload) return json({ error: 'Forbidden' }, 403);
       assert(req.headers['x-csrf-token'] || req.headers['x-xsrf-token'], 'Upload must send CSRF header');
       const chunks = []; for await (const chunk of req) chunks.push(chunk);
@@ -97,7 +97,7 @@ async function main() {
       await page.locator('[name="title"]').fill('Заметка с фотографией');
       await page.locator('#noteBody').fill('Фото оборудования');
       await page.locator('[data-note-photo-input]').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: photo });
-      await page.waitForFunction(() => document.querySelector('[data-note-photo-state]').textContent.includes('Добавлено фото: 1'));
+      await page.waitForFunction(() => document.querySelector('[data-note-photo-state]').textContent.includes('Добавлено файлов: 1'));
       let body = await page.locator('#noteBody').inputValue(); assert(body.includes('![Фото](/api/attachments/knowledge-base/'));
       await page.waitForFunction(() => document.querySelector('[data-note-body-preview] img')?.naturalWidth > 0);
       await page.locator('#noteBody').evaluate((textarea, base64) => {
@@ -114,9 +114,9 @@ async function main() {
       await page.keyboard.press('Escape');
       await page.locator('.note-photo-viewer[open]').waitFor({ state: 'hidden' });
       body = await page.locator('#noteBody').inputValue();
-      await page.locator('[data-note-photo-input]').setInputFiles({ name: 'bad.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg/>') });
-      await page.waitForFunction(() => document.querySelector('[data-note-photo-state]').textContent.includes('SVG'));
-      assert.equal(await page.locator('#noteBody').inputValue(), body, 'Rejected format does not change note');
+      await page.locator('[data-note-photo-input]').setInputFiles({ name: 'empty.zip', mimeType: 'application/zip', buffer: Buffer.alloc(0) });
+      await page.waitForFunction(() => document.querySelector('[data-note-photo-state]').textContent.includes('50 МБ'));
+      assert.equal(await page.locator('#noteBody').inputValue(), body, 'Rejected empty file does not change note');
       denyUpload = true;
       await page.locator('[data-note-photo-input]').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: photo });
       await page.waitForFunction(() => document.querySelector('[data-note-photo-state]').textContent.includes('Не удалось'));

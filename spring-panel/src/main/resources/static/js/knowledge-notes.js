@@ -64,27 +64,28 @@
       let added = 0;
       try {
         for (const file of files) {
-          if (!['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(file.type)) throw new Error('Выберите PNG, JPEG, GIF или WebP. SVG не поддерживается.');
-          if (!file.size || file.size > 10 * 1024 * 1024) throw new Error('Размер каждого фото должен быть от 1 байта до 10 МБ.');
-          if (textarea.value.length > 99000) throw new Error('В заметке недостаточно места для ссылки на фото.');
-          state.textContent = `Загрузка фото ${added + 1} из ${files.length}…`;
+          const isPhoto = /\.(png|jpe?g|gif|webp)$/i.test(file.name);
+          if (!file.size || file.size > (isPhoto ? 10 : 50) * 1024 * 1024) throw new Error('Фотографии — до 10 МБ, остальные файлы — до 50 МБ.');
+          if (textarea.value.length > 99000) throw new Error('В заметке недостаточно места для ссылки на файл.');
+          state.textContent = `Загрузка файла ${added + 1} из ${files.length}…`;
           const data = new FormData(); data.append('file', file);
           const token = document.querySelector('meta[name="_csrf"]')?.content || form.querySelector('[name="_csrf"]')?.value;
           const header = document.querySelector('meta[name="_csrf_header"]')?.content || 'X-CSRF-TOKEN';
-          const response = await fetch('/api/attachments/knowledge-base/note-photos', {
+          const response = await fetch('/api/attachments/knowledge-base/note-files', {
             method: 'POST', credentials: 'same-origin', headers: token ? { [header]: token } : {}, body: data
           });
-          if (!response.ok || response.redirected) throw new Error('Не удалось загрузить фото. Проверьте доступ и повторите попытку.');
+          if (!response.ok || response.redirected) throw new Error('Не удалось загрузить файл. Проверьте доступ и повторите попытку.');
           const metadata = await response.json();
-          const path = content.photoPath('/api/attachments/knowledge-base/' + encodeURIComponent(metadata.storedName || ''));
-          if (!path) throw new Error('Хранилище вернуло неподдерживаемое имя фотографии.');
-          const reference = `\n![Фото](${path})\n`;
+          const path = content.attachmentPath('/api/attachments/knowledge-base/' + encodeURIComponent(metadata.storedName || ''));
+          if (!path) throw new Error('Хранилище вернуло неподдерживаемое имя файла.');
+          const label = String(metadata.originalName || file.name).replace(/[\[\]\r\n]/g, ' ');
+          const reference = isPhoto && content.photoPath(path) ? `\n![Фото](${path})\n` : `\n[${label}](${path})\n`;
           if (textarea.value.length + reference.length > 100000) throw new Error('Превышена максимальная длина заметки.');
           textarea.setRangeText(reference, textarea.selectionStart, textarea.selectionEnd, 'end');
           textarea.dispatchEvent(new Event('input', { bubbles: true }));
           added++;
         }
-        state.textContent = `Добавлено фото: ${added}. Сохраните заметку, чтобы закрепить ссылки.`;
+        state.textContent = `Добавлено файлов: ${added}. Сохраните заметку.`;
       } catch (error) {
         state.classList.add('text-danger');
         state.textContent = `${added ? `Добавлено: ${added}. ` : ''}${error.message}`;
@@ -97,12 +98,12 @@
     button.addEventListener('click', () => input.click());
     input.addEventListener('change', () => upload(Array.from(input.files || [])));
     textarea.addEventListener('paste', event => {
-      const photos = Array.from(event.clipboardData?.files || []).filter(file => file.type.startsWith('image/'));
-      if (photos.length) { event.preventDefault(); upload(photos); }
+      const files = Array.from(event.clipboardData?.files || []);
+      if (files.length) { event.preventDefault(); upload(files); }
     });
     textarea.addEventListener('input', refreshPreview);
     form.addEventListener('submit', event => {
-      if (uploading) { event.preventDefault(); state.textContent = 'Дождитесь окончания загрузки фотографий.'; }
+      if (uploading) { event.preventDefault(); state.textContent = 'Дождитесь окончания загрузки файлов.'; }
     });
     refreshPreview();
   }

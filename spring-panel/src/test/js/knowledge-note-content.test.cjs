@@ -24,3 +24,12 @@ test('Нагрузка содержит ровно 24 реальных часа,
   assert.equal(hourlySeries([2, 3])[1], 3);
   assert.equal(hourlySeries([-1])[0], 0);
 });
+
+test('Документы и архивы становятся отдельными ссылками; в фотогалерею они не попадают', () => {
+  const prefix='/api/attachments/knowledge-base/';
+  assert.deepEqual(content.parts(`[Отчёт](${prefix}report.pdf)\n![Фото](${prefix}photo.jpg)\n[Архив](${prefix}archive.zip)`),[
+    {file:prefix+'report.pdf',name:'Отчёт'},{text:'\n'},{photo:prefix+'photo.jpg',alt:'Фото'},{text:'\n'},{file:prefix+'archive.zip',name:'Архив'}]);
+  assert.equal(content.photoPath(prefix+'report.pdf'),null);
+  assert.equal(content.attachmentPath(prefix+'report.pdf'),prefix+'report.pdf');
+  for(const path of ['https://example.org/a.zip',prefix+'../a.zip',prefix+'%2e%2e%2fa.zip',prefix+'a.pdf?token=x',prefix+'%00a.zip']) assert.equal(content.attachmentPath(path),null);
+});

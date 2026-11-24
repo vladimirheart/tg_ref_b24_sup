@@ -80,12 +80,12 @@ public class KnowledgeAccessService {
             """, Long.class, storedPath);
         // An article ACL always wins, even when its file URL has been pasted into a public note.
         if (!articleIds.isEmpty()) return articleIds.size() == 1 && canViewArticle(authentication, articleIds.get(0));
-        if (!KnowledgeNotePhotoService.isPhotoName(storedPath) || actor(authentication).isEmpty()
+        if (!KnowledgeNotePhotoService.isAttachmentName(storedPath) || actor(authentication).isEmpty()
                 || authentication.getAuthorities().stream().noneMatch(a -> "PAGE_KNOWLEDGE_BASE".equals(a.getAuthority()))) return false;
         if (Boolean.TRUE.equals(jdbc.queryForObject("""
             SELECT EXISTS(SELECT 1 FROM knowledge_article_files
-                WHERE stored_path = ? AND article_id IS NULL AND draft_token = ?)
-            """, Boolean.class, storedPath, KnowledgeNotePhotoService.PURPOSE))) return true;
+                WHERE stored_path = ? AND article_id IS NULL AND draft_token IN (?, ?))
+            """, Boolean.class, storedPath, KnowledgeNotePhotoService.PURPOSE, KnowledgeNotePhotoService.FILE_PURPOSE))) return true;
         // Compatibility for photos uploaded before purpose registration; no write/backfill on GET.
         return jdbc.queryForList("""
             SELECT body FROM knowledge_notes WHERE position('/api/attachments/knowledge-base/' in body) > 0
