@@ -924,7 +924,7 @@
       let prefixLength = 0;
       while (prefixLength < baseMessages.length) {
         const senderType = options.normalizeMessageSenderByType?.(baseMessages[prefixLength]?.messageType, baseMessages[prefixLength]?.sender) || '';
-        if (senderType !== 'user') {
+        if (senderType !== 'user' || baseMessages[prefixLength]?.questionnaireAnswer !== true) {
           break;
         }
         prefixLength += 1;

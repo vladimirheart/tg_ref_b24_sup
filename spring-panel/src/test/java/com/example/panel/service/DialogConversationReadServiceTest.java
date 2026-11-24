@@ -141,6 +141,25 @@ class DialogConversationReadServiceTest {
                         )
         );
     }
+
+    @Test
+    void loadHistoryMarksOnlyProvenQuestionnaireAnswers() {
+        jdbcTemplate.update("""
+                INSERT INTO tickets(ticket_id, user_id, channel_id, ticket_public_id, status, created_at)
+                VALUES ('T-QUESTIONNAIRE', 77, 5, ?, 'open', '2026-11-24T12:00:00Z')
+                """, "a".repeat(32));
+        jdbcTemplate.update("""
+                INSERT INTO chat_history(ticket_id, ticket_owner_user_id, sender, message, timestamp, message_type, channel_id, ticket_public_id)
+                VALUES ('T-QUESTIONNAIRE', 77, 'client', 'Ответ опросника', '2026-11-24T12:00:01Z', 'text', 5, NULL),
+                       ('T-QUESTIONNAIRE', 77, 'client', 'Первое follow-up сообщение', '2026-11-24T12:00:02Z', 'text', 5, ?),
+                       ('T-QUESTIONNAIRE', 88, 'client', 'Строка с чужим owner', '2026-11-24T12:00:03Z', 'text', 5, NULL)
+                """, "a".repeat(32));
+
+        List<ChatMessageDto> history = service.loadHistory("T-QUESTIONNAIRE", 5L);
+
+        assertThat(history).extracting(ChatMessageDto::questionnaireAnswer).containsExactly(true, false, false);
+    }
+
     @Test
     void loadPreviousHistoryResolvesSourceLabelsAndNestedMessages() {
         jdbcTemplate.update("INSERT INTO tickets(ticket_id, status, created_at) VALUES (?, ?, ?)", "T-CUR", "pending", "2026-04-21T10:00:00Z");
@@ -427,6 +446,8 @@ class DialogConversationReadServiceTest {
                     timestamp TIMESTAMPTZ,
                     message_type TEXT,
                     attachment TEXT,
+                    ticket_owner_user_id BIGINT,
+                    ticket_public_id TEXT,
                     tg_message_id INTEGER,
                     reply_to_tg_id INTEGER,
                     channel_id INTEGER,
@@ -454,6 +475,8 @@ class DialogConversationReadServiceTest {
                     user_id BIGINT NOT NULL DEFAULT 77,
                     status TEXT,
                     created_at TIMESTAMPTZ,
+                    channel_id INTEGER,
+                    ticket_public_id TEXT,
                     PRIMARY KEY(user_id, ticket_id)
                 )
                 """);

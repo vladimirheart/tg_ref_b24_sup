@@ -124,7 +124,8 @@ public class DialogConversationReadService {
                         value(row.get("edited_at")),
                         deletedAt,
                         value(row.get("forwarded_from")),
-                        deletedAt!=null?null:com.example.panel.service.integration.MessageSourceLinkJson.read(row.get("source_link_json") instanceof String json?json:null)
+                        deletedAt!=null?null:com.example.panel.service.integration.MessageSourceLinkJson.read(row.get("source_link_json") instanceof String json?json:null),
+                        Boolean.TRUE.equals(row.get("questionnaire_answer"))
                 ));
             }
             return history;
@@ -492,6 +493,21 @@ public class DialogConversationReadService {
         String fileNameColumn = columns.contains("file_name")
                 ? "file_name"
                 : "NULL AS file_name";
+        String questionnaireAnswerColumn = columns.contains("ticket_public_id")
+                ? """
+                        CASE WHEN lower(COALESCE(ch.sender, '')) = 'client'
+                                  AND ch.ticket_public_id IS NULL
+                                  AND EXISTS (
+                                      SELECT 1
+                                        FROM tickets ticket
+                                       WHERE ticket.ticket_id = ch.ticket_id
+                                         AND ticket.user_id = ch.ticket_owner_user_id
+                                         AND ticket.channel_id = ch.channel_id
+                                         AND ticket.ticket_public_id IS NOT NULL
+                                  )
+                             THEN TRUE ELSE FALSE END AS questionnaire_answer
+                        """
+                : "FALSE AS questionnaire_answer";
         String metadataSelect = attachmentMetadataAvailable
                 ? """
                         , cam.chat_history_id AS attachment_metadata_history_id,
@@ -523,7 +539,7 @@ public class DialogConversationReadService {
         StringBuilder sql = new StringBuilder("""
                 SELECT ch.sender, ch.message, ch.timestamp, ch.message_type, ch.attachment,
                        ch.tg_message_id, ch.reply_to_tg_id, ch.channel_id,
-                       %s, %s, %s, %s, %s, %s
+                       %s, %s, %s, %s, %s, %s, %s
                        %s
                   FROM chat_history ch
                   %s
@@ -535,6 +551,7 @@ public class DialogConversationReadService {
                 qualifyChatHistoryColumn(forwardedFromColumn),
                 qualifyChatHistoryColumn(fileNameColumn),
                 qualifyChatHistoryColumn(sourceLinkColumn),
+                questionnaireAnswerColumn,
                 metadataSelect,
                 metadataJoin
         ));
