@@ -106,6 +106,13 @@ async function main() {
         textarea.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
       }, photo.toString('base64'));
       await page.waitForFunction(() => document.querySelectorAll('[data-note-body-preview] img').length === 2);
+      await page.locator('[data-note-body-preview] [data-note-photo-open]').first().click();
+      await page.locator('.note-photo-viewer[open]').waitFor();
+      assert.equal(await page.locator('[data-note-photo-counter]').textContent(), '1 / 2');
+      await page.keyboard.press('ArrowRight');
+      assert.equal(await page.locator('[data-note-photo-counter]').textContent(), '2 / 2');
+      await page.keyboard.press('Escape');
+      await page.locator('.note-photo-viewer[open]').waitFor({ state: 'hidden' });
       body = await page.locator('#noteBody').inputValue();
       await page.locator('[data-note-photo-input]').setInputFiles({ name: 'bad.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg/>') });
       await page.waitForFunction(() => document.querySelector('[data-note-photo-state]').textContent.includes('SVG'));
