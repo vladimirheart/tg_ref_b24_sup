@@ -95,7 +95,8 @@ class MaxCanonicalFollowupTest {
     static Stream<Arguments> legacy(){return Stream.<Integer>of(null,1,2,3).flatMap(version->Stream.of("text","caption","empty","forwarded").map(kind->Arguments.of(version,kind)));}
     @ParameterizedTest @MethodSource("legacy") void positivelyVerifiedLegacyContractIsPreserved(Integer version,String kind)throws Exception{
         when(tickets.findByTicketId(ticketId)).thenReturn(Optional.of(root(1001L,ticketId,"open",55L,version,1)));
-        assertThat(send(kind).getStatusCode().value()).isEqualTo(200);verify(tickets).recordActiveClientMessage(any());verify(messages).sendToSupportChat(eq(channel),contains(ticketId));
+        when(tickets.resolveClientTicketNumber(ticketId)).thenReturn("20261125-003");
+        assertThat(send(kind).getStatusCode().value()).isEqualTo(200);verify(tickets).recordActiveClientMessage(any());verify(messages).sendToSupportChat(eq(channel),argThat(text -> text.contains("Обращение №20261125-003") && !text.contains(ticketId)));
         if(!kind.equals("text")){verify(api).downloadAttachment("https://example.invalid/private.pdf");verify(attachments).store(anyString(),anyString(),any());}
         verifyNoInteractions(runtime,settings,feedback);
     }

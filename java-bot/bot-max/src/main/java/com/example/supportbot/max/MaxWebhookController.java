@@ -864,7 +864,7 @@ public class MaxWebhookController {
                         .orElse("Заявка принята и передана оператору. Номер появится после регистрации.")
         );
         if(!session.selectedBusiness())
-            messagingService.sendToSupportChat(channel, session.buildSummary(created.ticketId()));
+            messagingService.sendToSupportChat(channel, session.buildSummary(requestNumber.orElse(null)));
         return created;
     }
 
@@ -954,7 +954,7 @@ public class MaxWebhookController {
         messagingService.sendToSupportChat(
                 channel,
                 MaxActiveMessageSupport.buildOperatorMessage(
-                        ticketId,
+                        ticketService.resolveClientTicketNumber(ticketId),
                         clientProfile.displayLabel(),
                         text,
                         messageType,

@@ -886,7 +886,8 @@ public class SupportBot extends TelegramLongPollingBot {
                 : (userId != null ? String.valueOf(userId) : "клиент");
         StringBuilder builder = new StringBuilder();
         builder.append("Новый ответ клиента ").append(senderLabel).append("\n");
-        builder.append("ID заявки: #").append(ticketId).append("\n");
+        builder.append("Обращение ").append(com.example.supportbot.service.SupportNotificationText.reference(
+                ticketService.resolveClientTicketNumber(ticketId))).append("\n");
         if (text != null && !text.isBlank()) {
             builder.append(text);
         } else {
@@ -1143,7 +1144,8 @@ public class SupportBot extends TelegramLongPollingBot {
         if (text == null || text.isBlank()) return;
         try {
             var target = supportChatDelivery.prepare(getChannel(), "telegram", this::getBotToken);
-            if (target != null) target.send(recipient -> execute(SendMessage.builder().chatId(recipient).text(text).build()));
+            if (target != null) target.send(recipient -> execute(SendMessage.builder().chatId(recipient)
+                    .text(com.example.supportbot.service.SupportNotificationText.fromChannel(getChannel(), "telegram", text)).build()));
         } catch (Exception failure) {
             log.error("Failed to notify authorized operator chat", failure);
         }
@@ -1816,10 +1818,10 @@ public class SupportBot extends TelegramLongPollingBot {
                 ticket.ticketId(),
                 session.userId(),
                 session.attachments().size());
-        String summary = session.buildSummary(ticket.ticketId());
+        String requestNumber = ticketService.awaitClientTicketNumber(ticket).orElse(null);
+        String summary = session.buildSummary(requestNumber);
         sendTicketSummaryToOperatorChannel(summary);
 
-        String requestNumber = ticketService.awaitClientTicketNumber(ticket).orElse(null);
         sendConversationConfirmation(session, requestNumber);
 
     }
@@ -2128,9 +2130,9 @@ public class SupportBot extends TelegramLongPollingBot {
             return com.example.supportbot.service.QuestionnaireReusePromptFormatter.format(cachedAnswers);
         }
 
-        String buildSummary(String ticketId) {
+        String buildSummary(String requestNumber) {
             StringBuilder builder = new StringBuilder();
-            builder.append("Новая заявка #").append(ticketId).append("\n");
+            builder.append(com.example.supportbot.service.SupportNotificationText.newAppealTitle(requestNumber)).append("\n");
             String requester = buildRequesterLabel();
             if (!requester.isBlank()) {
                 builder.append("Клиент: ").append(requester).append("\n");

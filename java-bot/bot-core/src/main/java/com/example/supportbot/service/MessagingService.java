@@ -84,7 +84,7 @@ public class MessagingService {
         return identity!=null && senderAuthorization.authorizeSupportChat(identity,supportChatId)
                 && identity.matches(channel,messenger.platform()) && identity.equals(messenger.senderIdentity())
                 && java.util.Objects.equals(supportChatId, channel.getSupportChatId())
-                && messenger.sendToSupportChat(supportChatId, text);
+                && messenger.sendToSupportChat(supportChatId, SupportNotificationText.fromChannel(channel, messenger.platform(), text));
     }
 
     private boolean authorizeSender(Channel channel, OutboundMessenger messenger) {

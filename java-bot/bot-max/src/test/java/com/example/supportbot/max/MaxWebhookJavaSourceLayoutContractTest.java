@@ -310,7 +310,7 @@ class MaxWebhookJavaSourceLayoutContractTest {
                 .contains("final class MaxActiveMessageSupport")
                 .contains("static String buildOperatorMessage(")
                 .contains("builder.append(\"Новый ответ клиента \")")
-                .contains("builder.append(\"ID заявки: #\")")
+                .contains("SupportNotificationText.reference(requestNumber)")
                 .contains("builder.append(\"\\nВложение: \")")
                 .contains("builder.append(\"\\nВложений: \")")
                 .doesNotContain("@RestController")

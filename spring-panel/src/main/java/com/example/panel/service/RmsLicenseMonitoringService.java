@@ -1429,7 +1429,7 @@ public class RmsLicenseMonitoringService {
             : String.format("Лицензия RMS \"%s\" (%s) истекает через %d дн. Дата окончания: %s.", serverName, monitor.getRmsAddress(), daysLeft, expiresAt);
         notificationService.notifyAllOperators(message, MONITORING_PAGE_URL, null);
         if (dialogNotificationService != null) {
-            dialogNotificationService.notifyAllSupportChats(message);
+            dialogNotificationService.notifyAllSupportChats("Лицензии RMS", message);
         }
     }
 

@@ -29,7 +29,10 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
                   OR (:allowLegacy = TRUE AND n.ticket_scope_kind = 'UNRESOLVED' AND owner.business_id IS NULL)))))
         """;
 
-    String VISIBLE_SCOPE = "(n.shared_work_kind IS NULL AND COALESCE(n.url,'') !~ '^/(tasks|projects)([/?#]|$)' AND ("+TICKET_VISIBLE_SCOPE+"))";
+    // Hide historical feedback alerts consistently in pages, unread counts and read mutations.
+    String NOT_FEEDBACK = "(COALESCE(n.text,'') NOT LIKE 'Новая оценка по обращению %' "
+        + "AND COALESCE(n.text,'') NOT LIKE 'РќРѕРІР°СЏ РѕС†РµРЅРєР° РїРѕ РѕР±СЂР°С‰РµРЅРёСЋ %')";
+    String VISIBLE_SCOPE = "("+NOT_FEEDBACK+" AND n.shared_work_kind IS NULL AND COALESCE(n.url,'') !~ '^/(tasks|projects)([/?#]|$)' AND ("+TICKET_VISIBLE_SCOPE+"))";
     String SHARED_VISIBLE_SCOPE = "("+VISIBLE_SCOPE+"""
         OR (n.shared_recipient_user_id=:sharedUserId AND
              ((n.shared_work_kind='TASK' AND n.shared_work_id IN (:taskIds))

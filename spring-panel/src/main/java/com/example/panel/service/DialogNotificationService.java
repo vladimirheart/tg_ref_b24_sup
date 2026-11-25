@@ -117,6 +117,10 @@ public class DialogNotificationService {
     }
 
     public boolean notifySupportChat(Channel channel, String message) {
+        return notifySupportChat(channel, message, "Диалоги");
+    }
+
+    private boolean notifySupportChat(Channel channel, String message, String source) {
         if (channel == null || !StringUtils.hasText(message) || !StringUtils.hasText(channel.getSupportChatId())) {
             return false;
         }
@@ -127,7 +131,7 @@ public class DialogNotificationService {
                 channel.getSupportChatId());
             return false;
         }
-        return sendPlatformMessage(channel, chatId, message);
+        return sendPlatformMessage(channel, chatId, formatSupportChatText(source, channel, message));
     }
 
     public boolean notifyScopedSupportChat(UiEventTicketScope scope, Long channelId, String message) {
@@ -144,7 +148,8 @@ public class DialogNotificationService {
             return false;
         }
         try {
-            return sendPlatformMessage(target.toChannel(), chatId, message, new ScopedSupportDelivery(scope, target));
+            Channel channel = target.toChannel();
+            return sendPlatformMessage(channel, chatId, formatSupportChatText("Диалоги", channel, message), new ScopedSupportDelivery(scope, target));
         } catch (RuntimeException ex) {
             // Invalid URI/configuration errors may contain the bot token. Never forward them to watcher logs.
             log.warn("Scoped support-chat delivery failed for channel {}", channelId);
@@ -153,6 +158,10 @@ public class DialogNotificationService {
     }
 
     public int notifyAllSupportChats(String message) {
+        return notifyAllSupportChats("Мониторинг", message);
+    }
+
+    public int notifyAllSupportChats(String source, String message) {
         if (!StringUtils.hasText(message)) {
             return 0;
         }
@@ -169,11 +178,24 @@ public class DialogNotificationService {
             if (!destinations.add(destinationKey)) {
                 continue;
             }
-            if (notifySupportChat(channel, message)) {
+            if (notifySupportChat(channel, message, source)) {
                 delivered++;
             }
         }
         return delivered;
+    }
+
+    static String formatSupportChatText(String source, Channel channel, String message) {
+        String platform = channel.getPlatform() == null ? "" : channel.getPlatform().toLowerCase(java.util.Locale.ROOT);
+        String provider = switch (platform) {
+            case "telegram" -> "Telegram";
+            case "vk" -> "ВКонтакте";
+            case "max" -> "MAX";
+            default -> "Бот";
+        };
+        String name = channel.getChannelName() == null ? "" : channel.getChannelName().replaceAll("\\s+", " ").trim();
+        return source + " · " + provider + (name.isEmpty() ? "" : "\nКанал: " + name)
+                + "\n──────────\n" + message;
     }
 
     List<String> buildResolvedMessages(Channel channel) {

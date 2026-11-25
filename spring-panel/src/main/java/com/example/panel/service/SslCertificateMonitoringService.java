@@ -293,7 +293,7 @@ public class SslCertificateMonitoringService {
         }
         notificationService.notifyAllOperators(message, MONITORING_PAGE_URL, null);
         if (dialogNotificationService != null) {
-            dialogNotificationService.notifyAllSupportChats(message);
+            dialogNotificationService.notifyAllSupportChats("SSL-сертификаты", message);
         }
     }
 

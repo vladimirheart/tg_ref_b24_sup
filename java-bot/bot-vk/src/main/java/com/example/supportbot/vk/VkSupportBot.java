@@ -1015,7 +1015,8 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                 : (userId != null ? String.valueOf(userId) : "client");
         StringBuilder builder = new StringBuilder();
         builder.append("Новый ответ клиента ").append(senderLabel).append("\n");
-        builder.append("ID заявки: #").append(ticketId).append("\n");
+        builder.append("Обращение ").append(com.example.supportbot.service.SupportNotificationText.reference(
+                ticketService.resolveClientTicketNumber(ticketId))).append("\n");
         builder.append(text);
         if (hasAttachments) {
             builder.append("\nВ сообщении есть вложения.");
@@ -1096,7 +1097,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         if (session.selectedBusiness()) sendQuestionnaireText(actor, session.peerId(), confirmation, null);
         else sendText(actor, session.peerId(), confirmation);
         if (!session.selectedBusiness()) {
-            sendOperatorMessage(session.buildSummary(result.ticketId()));
+            sendOperatorMessage(session.buildSummary(requestNumber.orElse(null)));
         }
         if (!session.selectedBusiness()) requestNumber.ifPresent(number -> {
             int scale = botSettingsService.ratingScale(session.settings(), 5);
@@ -1445,7 +1446,8 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             if (target != null) target.send(recipient -> {
                 GroupActor actor = createActor();
                 vkClient.messages().sendDeprecated(actor).peerId(Long.parseLong(recipient))
-                    .randomId(ThreadLocalRandom.current().nextInt()).message(text).execute();
+                    .randomId(ThreadLocalRandom.current().nextInt()).message(
+                            com.example.supportbot.service.SupportNotificationText.fromChannel(getChannel(), "vk", text)).execute();
             });
         } catch (Exception failure) {
             log.error("Failed to notify authorized VK operator chat", failure);
@@ -2048,9 +2050,9 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             return com.example.supportbot.service.QuestionnaireReusePromptFormatter.format(cachedAnswers);
         }
 
-        String buildSummary(String ticketId) {
+        String buildSummary(String requestNumber) {
             StringBuilder builder = new StringBuilder();
-            builder.append("Новая заявка #").append(ticketId)
+            builder.append(com.example.supportbot.service.SupportNotificationText.newAppealTitle(requestNumber))
                     .append(" от пользователя ").append(userId).append("\n");
             builder.append("Создана: ").append(startedAt).append("\n\n");
             for (QuestionFlowItemDto item : flow) {

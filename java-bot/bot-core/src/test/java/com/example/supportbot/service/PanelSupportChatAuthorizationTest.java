@@ -29,7 +29,7 @@ class PanelSupportChatAuthorizationTest {
         channel=new Channel();channel.setId(22L);channel.setPlatform(platform);channel.setSupportChatId("-100");
         provider=mock(OutboundMessenger.class);when(provider.platform()).thenReturn(platform);
         when(provider.senderIdentity()).thenReturn(new OutboundSenderIdentity(22L,platform,"a".repeat(64)));
-        when(provider.sendToSupportChat("-100","private payload")).thenReturn(true);
+        when(provider.sendToSupportChat("-100",SupportNotificationText.fromChannel(channel,platform,"private payload"))).thenReturn(true);
         server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
         server.createContext("/internal/api/bot/outbound/",exchange->{
             requests.incrementAndGet();int status=200;String response;
@@ -65,7 +65,7 @@ class PanelSupportChatAuthorizationTest {
         if(Set.of("wrong-chat","missing-chat","old-backend").contains(change))
             assertThatThrownBy(()->service.sendToSupportChat(channel,"private payload")).isInstanceOf(IllegalStateException.class);
         else assertThat(service.sendToSupportChat(channel,"private payload")).isEqualTo(change.equals("allow"));
-        if(change.equals("allow"))verify(provider).sendToSupportChat("-100","private payload");
+        if(change.equals("allow"))verify(provider).sendToSupportChat("-100",SupportNotificationText.fromChannel(channel,platform,"private payload"));
         else verify(provider,never()).sendToSupportChat(anyString(),anyString());
         assertThat(requests.get()).isEqualTo(2);
     }

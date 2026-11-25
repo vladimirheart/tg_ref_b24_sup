@@ -6,7 +6,7 @@ final class MaxActiveMessageSupport {
     }
 
     static String buildOperatorMessage(
-            String ticketId,
+            String requestNumber,
             String clientDisplayLabel,
             String text,
             String messageType,
@@ -15,7 +15,7 @@ final class MaxActiveMessageSupport {
     ) {
         StringBuilder builder = new StringBuilder();
         builder.append("Новый ответ клиента ").append(clientDisplayLabel).append("\n");
-        builder.append("ID заявки: #").append(ticketId).append("\n");
+        builder.append("Обращение ").append(com.example.supportbot.service.SupportNotificationText.reference(requestNumber)).append("\n");
         if (text != null && !text.isBlank()) {
             builder.append(text);
         } else {

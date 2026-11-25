@@ -60,7 +60,10 @@ class NotificationScopePostgresIntegrationTest extends PostgresqlIntegrationTest
     }
 
     @AfterEach
-    void restoreFlags() { flags.setStrictReadScope(false); }
+    void restoreFlags() {
+        flags.setStrictReadScope(false);
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
+    }
 
     @Test
     void writerFreezesCanonicalTuplePublicIdAndBusinessInNotification() {
@@ -112,7 +115,10 @@ class NotificationScopePostgresIntegrationTest extends PostgresqlIntegrationTest
         long visible = typed(business, "BUSINESS", sushi, OffsetDateTime.now());
         long hidden = typed(general, "GENERAL", null, OffsetDateTime.now());
         flags.setStrictReadScope(true);
-        var principal = new TestingAuthenticationToken(READER, "n/a");
+        long readerId = jdbc.queryForObject("SELECT id FROM users WHERE username=?", Long.class, READER);
+        var account = new com.example.panel.security.PanelUserPrincipal(readerId, READER, "unused", true, List.of());
+        var principal = org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated(account, null, account.getAuthorities());
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(principal);
 
         mvc.perform(get("/api/notifications").principal(principal))
             .andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(1))
@@ -217,6 +223,34 @@ class NotificationScopePostgresIntegrationTest extends PostgresqlIntegrationTest
         jdbc.update("UPDATE tickets SET business_id = ? WHERE user_id = ? AND ticket_id = ?", sushi, owner.userId(), owner.ticketId());
         service.markAsRead(READER, id);
         assertThat(jdbc.queryForObject("SELECT is_read FROM notifications WHERE id = ?", Boolean.class, id)).isTrue();
+    }
+
+    @Test
+    void historicalRatingsDoNotConsumePagesOrUnreadCountAndRemainInStorage() {
+        Owner owner = owner(sushi, false);
+        var created = OffsetDateTime.now();
+        long first = typed(owner, "BUSINESS", sushi, created.minusMinutes(2));
+        long second = typed(owner, "BUSINESS", sushi, created.minusMinutes(1));
+        long feedback = 0;
+        for (int i = 0; i < 25; i++) {
+            feedback = typed(owner, "BUSINESS", sushi, created.plusSeconds(i));
+            jdbc.update("UPDATE notifications SET text=? WHERE id=?",
+                    "Новая оценка по обращению " + owner.ticketId() + ": 5/5", feedback);
+        }
+        long legacyFeedback = typed(owner, "BUSINESS", sushi, created.plusMinutes(1));
+        jdbc.update("UPDATE notifications SET text=? WHERE id=?",
+                "РќРѕРІР°СЏ РѕС†РµРЅРєР° РїРѕ РѕР±СЂР°С‰РµРЅРёСЋ " + owner.ticketId() + ": 4/5", legacyFeedback);
+        assertThat(service.summary(READER).unreadCount()).isEqualTo(2);
+        var page = service.findPageForUser(READER, null, 1);
+        assertThat(page.items()).extracting(n -> n.id()).containsExactly(second);
+        assertThat(page.hasMore()).isTrue();
+        assertThat(service.findPageForUser(READER, page.nextCursor(), 1).items()).extracting(n -> n.id()).containsExactly(first);
+        assertThat(service.findForUser(READER)).hasSize(2);
+        service.markAsRead(READER, feedback);
+        assertThat(service.markAllAsRead(READER)).isEqualTo(2);
+        assertThat(service.summary(READER).unreadCount()).isZero();
+        assertThat(jdbc.queryForObject("SELECT is_read FROM notifications WHERE id=?", Boolean.class, feedback)).isFalse();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM notifications", Long.class)).isEqualTo(28);
     }
 
     private Owner owner(Long business, boolean general) {

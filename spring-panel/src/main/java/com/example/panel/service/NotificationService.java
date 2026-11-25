@@ -291,10 +291,15 @@ public class NotificationService {
         }
         try {
             String requestNumber = dialogLookupReadService.resolveRequestNumber(ticketId);
-            return StringUtils.hasText(requestNumber) ? requestNumber.trim() : null;
+            return requestNumber != null && requestNumber.trim().matches("\\d{8}-\\d{3,}") ? requestNumber.trim() : null;
         } catch (RuntimeException ex) {
             return null;
         }
+    }
+
+    public String formatTicketReference(String ticketId) {
+        String number = resolveDialogRequestNumber(ticketId);
+        return number != null ? "№" + number : "без присвоенного номера";
     }
 
     private String normalizeNotificationText(String text, String url) {
@@ -302,14 +307,14 @@ public class NotificationService {
         if (dialogTaskDisplayService != null) {
             current = dialogTaskDisplayService.normalizeNotificationText(current);
         }
-        if (StringUtils.hasText(current) && current.contains("№")) {
-            return current;
-        }
         String ticketId = extractNotificationDialogTicketId(url);
         if (!StringUtils.hasText(current) || !StringUtils.hasText(ticketId)) {
             return current;
         }
         String normalized = current.toLowerCase(Locale.ROOT);
+        if (current.contains("№") && !current.contains(ticketId)) {
+            return current;
+        }
         if (normalized.startsWith("новое обращение")) {
             return formatNewAppealText(ticketId);
         }
@@ -321,7 +326,20 @@ public class NotificationService {
                 && normalized.contains("активнос")) {
             return formatAutoCloseText(ticketId);
         }
-        return current;
+        // Repair legacy dialog references on read as well as on write, preserving the exact route ID.
+        Pattern reference = Pattern.compile("((?iu:обращени[еюяи]|диалог[ауе]?|заявк[аеиу]))\\s+[№#]?\\s*"
+                + Pattern.quote(ticketId) + "(?=$|[\\s.,;:!?)])");
+        Matcher matcher = reference.matcher(current);
+        if (!matcher.find()) {
+            return current;
+        }
+        String number = formatTicketReference(ticketId);
+        StringBuffer result = new StringBuffer();
+        do {
+            matcher.appendReplacement(result, Matcher.quoteReplacement(matcher.group(1) + " " + number));
+        } while (matcher.find());
+        matcher.appendTail(result);
+        return result.toString();
     }
 
     private String extractNotificationDialogTicketId(String url) {

@@ -488,7 +488,7 @@ public class OperatorNotificationWatcher {
         String overdueLabel = overdueMinutes > 0
                 ? " Просрочка: " + overdueMinutes + " мин."
                 : "";
-        return "Первая реакция просрочена (" + channelLabel + ") в обращении " + ticketId + "." + overdueLabel;
+        return "Первая реакция просрочена (" + channelLabel + ") в обращении " + notificationService.formatTicketReference(ticketId) + "." + overdueLabel;
     }
 
     private void publishDialogsChanged(String reason, String ticketId) {

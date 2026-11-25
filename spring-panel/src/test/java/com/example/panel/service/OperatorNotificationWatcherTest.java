@@ -143,6 +143,7 @@ class OperatorNotificationWatcherTest {
     @Test
     void watchFallsBackToOperatorAudienceWhenFirstResponseOverdueQueueRoutingDeclines() {
         Channel channel = channel(12L, "Escalation Queue");
+        when(notificationService.formatTicketReference("T-OVERDUE-1")).thenReturn("№20261125-001");
         when(sharedConfigService.loadSettings()).thenReturn(Map.of(
                 "dialog_config", Map.of("sla_target_minutes", 1)
         ));
@@ -169,7 +170,7 @@ class OperatorNotificationWatcherTest {
         verify(notificationService).notifyDialogUsers(
                 eq("T-OVERDUE-1"),
                 eq(Set.of("alice", "bob")),
-                eq("Первая реакция просрочена (Escalation Queue) в обращении T-OVERDUE-1. Просрочка: 120 мин."),
+                eq("Первая реакция просрочена (Escalation Queue) в обращении №20261125-001. Просрочка: 120 мин."),
                 eq("/dialogs/T-OVERDUE-1")
         );
         verify(dialogAuditService).logDialogActionAudit(
@@ -226,6 +227,7 @@ class OperatorNotificationWatcherTest {
     @Test
     void firstResponseOverdueKeepsPaddedTicketIdentityThroughQueueAuditAndUrl() {
         String padded = " null ";
+        when(notificationService.formatTicketReference(padded)).thenReturn("№20261125-002");
         Channel channel = channel(18L, "Exact Queue");
         when(sharedConfigService.loadSettings()).thenReturn(Map.of(
                 "dialog_config", Map.of("sla_target_minutes", 1)));
@@ -250,7 +252,7 @@ class OperatorNotificationWatcherTest {
         verify(notificationService).notifyDialogUsers(
                 eq(padded),
                 eq(Set.of("alice")),
-                org.mockito.ArgumentMatchers.contains("в обращении  null ."),
+                org.mockito.ArgumentMatchers.contains("в обращении №20261125-002."),
                 eq("/dialogs/+null+")
         );
         verify(dialogAuditService).logDialogActionAudit(

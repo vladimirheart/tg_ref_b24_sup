@@ -43,7 +43,7 @@ class MessagingPlatformIsolationTest {
         var chosen=messenger(platform,true);var other=messenger("unrelated",true);
         var service=service(List.of(other,chosen));
         assertThat(send(service,channel(uppercase?platform.toUpperCase(Locale.ROOT):platform),support)).isTrue();
-        if(support)verify(chosen).sendToSupportChat("-100","payload");else verify(chosen).sendToUser(USER,"payload");
+        if(support)verify(chosen).sendToSupportChat("-100",SupportNotificationText.fromChannel(channel(platform),platform,"payload"));else verify(chosen).sendToUser(USER,"payload");
         assertNoSend(other);
     }
     @ParameterizedTest @MethodSource("platforms")

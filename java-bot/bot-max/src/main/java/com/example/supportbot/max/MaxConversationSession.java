@@ -426,9 +426,9 @@ final class MaxConversationSession {
         return com.example.supportbot.service.QuestionnaireReusePromptFormatter.format(cachedAnswers);
     }
 
-    String buildSummary(String ticketId) {
+    String buildSummary(String requestNumber) {
         StringBuilder builder = new StringBuilder();
-        builder.append("Новая заявка #").append(ticketId)
+        builder.append(com.example.supportbot.service.SupportNotificationText.newAppealTitle(requestNumber))
                 .append(" от пользователя ").append(userId).append("\n");
         builder.append("Создана: ").append(startedAt).append("\n");
         if (chatId != null) {

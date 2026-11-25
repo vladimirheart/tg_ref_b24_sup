@@ -180,13 +180,7 @@ public class DialogRealtimeEventService {
         if (normalizedTicketId == null || rating == null) {
             return;
         }
-        String text = "Новая оценка по обращению " + normalizedTicketId + ": " + rating + "/5";
-        String url = notificationService.buildDialogUrl(normalizedTicketId);
-        if (scope == null) {
-            notificationService.notifyDialogParticipants(normalizedTicketId, text, url, null);
-        } else {
-            notificationService.notifyScopedDialogParticipants(scope, text, url, null);
-        }
+        // Feedback remains in reports and realtime updates, without a bell notification.
         publishDialogsChanged("dialog_feedback_created", normalizedTicketId, scope);
     }
 

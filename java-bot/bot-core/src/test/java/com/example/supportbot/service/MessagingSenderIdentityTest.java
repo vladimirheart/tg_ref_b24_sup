@@ -33,7 +33,7 @@ class MessagingSenderIdentityTest {
     void exactProviderProofStillDelivers(String platform, boolean support) throws Exception {
         var provider = provider(platform, "valid", new AtomicBoolean());
         assertThat(send(service(provider, null), channel(platform), support)).isTrue();
-        if (support) verify(provider).sendToSupportChat("-100", "payload");
+        if (support) verify(provider).sendToSupportChat("-100", SupportNotificationText.fromChannel(channel(platform), platform, "payload"));
         else verify(provider).sendToUser(77L, "payload");
     }
     @ParameterizedTest @MethodSource("destinations")

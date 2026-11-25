@@ -16,6 +16,21 @@ import org.junit.jupiter.api.Test;
 class DialogRealtimeEventServiceTest {
 
     @Test
+    void feedbackRefreshesDialogWithoutCreatingBellNotification() {
+        var notices = mock(NotificationService.class);
+        var stream = mock(UiEventStreamService.class);
+        var guard = mock(LegacyTicketIdJdbcGuard.class);
+        when(guard.hasUniqueNonGeneralTicket("T-FEEDBACK")).thenReturn(true);
+        var service = new DialogRealtimeEventService(notices, mock(DialogAiAssistantService.class),
+                mock(AlertQueueService.class), mock(ChannelAssignmentRoutingService.class), mock(ChannelRepository.class),
+                mock(DialogResponsibilityService.class), mock(DialogNotificationService.class), stream, guard,
+                mock(UiEventTicketAccessService.class));
+        service.handleFeedbackCreated("T-FEEDBACK", 5);
+        verify(stream).publishDialogsChanged("dialog_feedback_created", "T-FEEDBACK");
+        verifyNoInteractions(notices);
+    }
+
+    @Test
     void directLegacyTicketCreationKeepsItsOriginalAssignmentApiAndExactId() {
         NotificationService notices = mock(NotificationService.class);
         DialogResponsibilityService responsibility = mock(DialogResponsibilityService.class);

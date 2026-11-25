@@ -737,6 +737,33 @@
     return value.replace(HTML_ESCAPE_RE, (char) => HTML_ESCAPE_MAP[char] || char);
   }
 
+  const NOTIFICATION_SOURCES = Object.freeze({
+    dialogs: { label: 'Диалоги', icon: 'bi-chat-dots', color: 'primary' },
+    incidents: { label: 'Инциденты', icon: 'bi-exclamation-triangle', color: 'danger' },
+    tasks: { label: 'Задачи', icon: 'bi-check2-square', color: 'info' },
+    projects: { label: 'Проекты', icon: 'bi-kanban', color: 'success' },
+    monitoring: { label: 'Мониторинг', icon: 'bi-activity', color: 'warning' },
+    knowledge: { label: 'База знаний', icon: 'bi-book', color: 'secondary' },
+    settings: { label: 'Настройки', icon: 'bi-gear', color: 'secondary' },
+    system: { label: 'Система', icon: 'bi-bell', color: 'secondary' },
+  });
+
+  function notificationSource(item) {
+    const source = typeof item?.source === 'string' ? item.source : '';
+    if (Object.hasOwn(NOTIFICATION_SOURCES, source)) return source;
+    const url = typeof item?.url === 'string' ? item.url : '';
+    const section = /^\/(dialogs|incidents|tasks|projects|analytics|monitoring|knowledge-base|knowledge|settings)(?:[/?#]|$)/.exec(url)?.[1];
+    if (section === 'analytics') return 'monitoring';
+    if (section === 'knowledge-base') return 'knowledge';
+    return section || 'system';
+  }
+
+  function renderNotificationSource(item) {
+    const source = notificationSource(item);
+    const display = NOTIFICATION_SOURCES[source];
+    return `<div class="mb-1" data-notification-source="${source}"><span class="badge rounded-pill text-bg-${display.color}"><i class="bi ${display.icon} me-1" aria-hidden="true"></i>${display.label}</span></div>`;
+  }
+
   function normalizeNotificationItem(item) {
     if (!item || typeof item !== 'object') return null;
     const numericId = Number(item.id);
@@ -744,6 +771,7 @@
     return {
       id,
       text: typeof item.text === 'string' ? item.text : '',
+      source: notificationSource(item),
       url: typeof item.url === 'string' ? item.url : '',
       created_at: item.created_at || item.createdAt || '',
       is_read: item.is_read === true || item.is_read === 1 || item.read === true || item.read === 1,
@@ -1195,6 +1223,7 @@
       const classes = ['notif-item', 'position-relative', item.is_read ? 'notif-item-read' : 'notif-item-unread'];
       return `
         <div class="${classes.join(' ')}" data-id="${item.id ?? ''}" data-read="${item.is_read ? 'true' : 'false'}">
+          ${renderNotificationSource(item)}
           ${linkStart}<div class="notif-text">${text}</div>${linkEnd}
           ${dateStr ? `<div class="notif-time">${escapeHtml(dateStr)}</div>` : ''}
         </div>
@@ -1250,6 +1279,7 @@
       const classes = ['notif-item', 'position-relative', item.is_read ? 'notif-item-read' : 'notif-item-unread'];
       return `
         <div class="${classes.join(' ')}" data-id="${item.id ?? ''}" data-read="${item.is_read ? 'true' : 'false'}">
+          ${renderNotificationSource(item)}
           ${linkStart}<div class="notif-text">${text}</div>${linkEnd}
           ${dateStr ? `<div class="notif-time">${escapeHtml(dateStr)}</div>` : ''}
         </div>

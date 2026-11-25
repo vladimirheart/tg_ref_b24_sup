@@ -9,27 +9,27 @@ class MaxActiveMessageSupportTest {
     @Test
     void textMessagePreservesClientLabelTicketAndBody() {
         assertThat(MaxActiveMessageSupport.buildOperatorMessage(
-                "INC-42", "Клиент (@client)", "Текст сообщения", "text", null, 0
+                "20261125-042", "Клиент (@client)", "Текст сообщения", "text", null, 0
         )).isEqualTo("Новый ответ клиента Клиент (@client)\n"
-                + "ID заявки: #INC-42\n"
+                + "Обращение №20261125-042\n"
                 + "Текст сообщения");
     }
 
     @Test
     void blankTextFallsBackToMessageType() {
         assertThat(MaxActiveMessageSupport.buildOperatorMessage(
-                "INC-43", "1001", "   ", "image", null, 0
+                "20261125-043", "1001", "   ", "image", null, 0
         )).isEqualTo("Новый ответ клиента 1001\n"
-                + "ID заявки: #INC-43\n"
+                + "Обращение №20261125-043\n"
                 + "[image]");
     }
 
     @Test
     void storedAttachmentReferenceTakesPrecedenceOverAttachmentCount() {
         assertThat(MaxActiveMessageSupport.buildOperatorMessage(
-                "INC-44", "1001", "Фото", "image", "attachments/abc.jpg", 3
+                "20261125-044", "1001", "Фото", "image", "attachments/abc.jpg", 3
         )).isEqualTo("Новый ответ клиента 1001\n"
-                + "ID заявки: #INC-44\n"
+                + "Обращение №20261125-044\n"
                 + "Фото\n"
                 + "Вложение: attachments/abc.jpg");
     }
@@ -37,9 +37,9 @@ class MaxActiveMessageSupportTest {
     @Test
     void attachmentCountIsShownWhenStoredReferenceIsMissing() {
         assertThat(MaxActiveMessageSupport.buildOperatorMessage(
-                "INC-45", "1001", null, "file", "   ", 2
+                "20261125-045", "1001", null, "file", "   ", 2
         )).isEqualTo("Новый ответ клиента 1001\n"
-                + "ID заявки: #INC-45\n"
+                + "Обращение №20261125-045\n"
                 + "[file]\n"
                 + "Вложений: 2");
     }
