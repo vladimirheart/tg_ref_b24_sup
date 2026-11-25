@@ -35,6 +35,6 @@ class SettingsSecretMaskerTest {
                 "integrationNetworkProfiles", List.of(Map.of("password", "proxy-secret")),
                 "botSettings", Map.of("api_key", "bot-secret")), actor);
         assertThat(result.get("integrationNetworkProfiles")).isEqualTo(List.of(Map.of("password", "proxy-secret")));
-        assertThat(result.get("botSettings")).isEqualTo(Map.of("api_key", "", "api_key_saved", true));
+        assertThat(result).doesNotContainKey("botSettings");
     }
 }

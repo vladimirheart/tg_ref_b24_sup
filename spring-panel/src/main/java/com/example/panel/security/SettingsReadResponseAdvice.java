@@ -55,7 +55,9 @@ public class SettingsReadResponseAdvice implements ResponseBodyAdvice<Object> {
     private Map<String, Object> parameters(Map<String, Object> groups) {
         Map<String, Object> result = new LinkedHashMap<>();
         var actor = SecurityContextHolder.getContext().getAuthentication();
-        groups.forEach((key, value) -> result.put(key, SettingsSecretMasker.forBlock(value, PanelAccessPolicy.parameterBlock(key), actor)));
+        groups.forEach((key, value) -> {
+            if (PanelAccessPolicy.canEdit(actor, PanelAccessPolicy.parameterBlock(key))) result.put(key, value);
+        });
         return result;
     }
 }

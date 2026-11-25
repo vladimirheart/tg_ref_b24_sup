@@ -83,10 +83,19 @@ public class AuthManagementApiController {
     }
 
     @GetMapping("/auth/state")
-    @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public Map<String, Object> getAuthState(Authentication authentication) {
         List<Map<String, Object>> users = fetchUsers(authentication);
-        List<Map<String, Object>> roles = fetchRoles();
+        boolean accountsAllowed = com.example.panel.security.PanelAccessPolicy.canManageAccounts(authentication);
+        if (!accountsAllowed) {
+            users = users.stream().map(user -> {
+                Map<String, Object> roster = new LinkedHashMap<>();
+                for (String key : List.of("id", "permissions_user_id", "username", "full_name", "photo", "department"))
+                    roster.put(key, user.get(key));
+                return roster;
+            }).toList();
+        }
+        List<Map<String, Object>> roles = accountsAllowed ? fetchRoles() : List.of();
         List<Map<String, String>> editableFields = new ArrayList<>(EDITABLE_FIELD_PERMISSIONS);
         com.example.panel.security.PanelAccessPolicy.BLOCKS.forEach((key, label) ->
                 editableFields.add(Map.of("key", "settings." + key, "label", "Изменение настроек: " + label)));
@@ -116,12 +125,13 @@ public class AuthManagementApiController {
         response.put("catalog", catalog);
         response.put("capabilities", capabilities);
         response.put("current_user_id", currentUserId);
-        response.put("org_structure", sharedConfigService.loadOrgStructure());
+        response.put("org_structure", com.example.panel.security.PanelAccessPolicy.canEdit(authentication, "organization")
+                ? sharedConfigService.loadOrgStructure() : Map.of("nodes", List.of()));
         return response;
     }
 
     @PostMapping({"/auth/org-structure", "/auth/org-structure/"})
-    @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public Map<String, Object> updateOrgStructure(@org.springframework.web.bind.annotation.RequestBody Map<String, Object> payload) {
         Object structure = payload.getOrDefault("org_structure", payload);
         sharedConfigService.saveOrgStructure(structure);
@@ -129,13 +139,13 @@ public class AuthManagementApiController {
     }
 
     @GetMapping("/users")
-    @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public List<Map<String, Object>> listUsers(Authentication authentication) {
         return fetchUsers(authentication);
     }
 
     @GetMapping("/users/activity")
-    @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public Map<String, Object> listUserActivity() {
         List<Map<String, Object>> activity = usersJdbcTemplate.queryForList(
                 "SELECT id, last_portal_activity_at, is_blocked, enabled FROM users ORDER BY id").stream()
@@ -206,7 +216,7 @@ public class AuthManagementApiController {
     }
 
     @PostMapping({"/users", "/users/"})
-    @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public Map<String, Object> createUser(Authentication authentication, HttpServletRequest request) throws IOException {
         if (!hasEditPermission(authentication, "user.create")) {
             return Map.of("success", false, "error", "Недостаточно прав для создания пользователя");
@@ -282,7 +292,7 @@ public class AuthManagementApiController {
     }
 
     @RequestMapping(value = "/users/{userId}", method = {RequestMethod.PUT, RequestMethod.PATCH})
-    @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public Map<String, Object> updateUser(@PathVariable long userId,
                                           Authentication authentication,
                                           @RequestBody Map<String, Object> payload) {
@@ -293,6 +303,7 @@ public class AuthManagementApiController {
         Long currentUserId = resolveCurrentUserId(authentication);
         boolean isSelf = currentUserId != null && currentUserId.equals(userId);
 
+        requireSafeSystemAccountMutation(userId, payload, isSelf);
         if (!isSelf) requireUnprotectedAccount(authentication, userId);
 
         if (hasEditPermission(authentication, "user.username") && payload.containsKey("username") && userColumns.contains("username")) {
@@ -396,7 +407,7 @@ public class AuthManagementApiController {
     }
 
     @DeleteMapping("/users/{userId}")
-    @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public Map<String, Object> deleteUser(@PathVariable long userId, Authentication authentication) {
         if (!hasEditPermission(authentication, "user.delete")) {
             return Map.of("success", false, "error", "Недостаточно прав для удаления пользователя");
@@ -414,19 +425,19 @@ public class AuthManagementApiController {
     }
 
     @GetMapping("/users/{userId}/password")
-    @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public Map<String, Object> getUserPassword() {
         return Map.of("success", false, "error", "Просмотр пароля недоступен");
     }
 
     @GetMapping("/roles")
-    @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public List<Map<String, Object>> listRoles() {
         return fetchRoles();
     }
 
     @PostMapping({"/roles", "/roles/"})
-    @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public Map<String, Object> createRole(Authentication authentication, HttpServletRequest request) throws IOException {
         if (!hasEditPermission(authentication, "role.create")) {
             return Map.of("success", false, "error", "Недостаточно прав для создания роли");
@@ -460,10 +471,11 @@ public class AuthManagementApiController {
     }
 
     @RequestMapping(value = "/roles/{roleId}", method = {RequestMethod.PUT, RequestMethod.PATCH})
-    @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public Map<String, Object> updateRole(@PathVariable long roleId,
                                           Authentication authentication,
                                           @RequestBody Map<String, Object> payload) {
+        requireMutableRole(roleId, payload);
         if (!permissionService.isSuperUser(authentication)) {
             var existingRole = usersJdbcTemplate.queryForList("SELECT name FROM roles WHERE id = ?", roleId);
             if ((!existingRole.isEmpty() && UserPermissionsController.protectedRole(existingRole.get(0).get("name")))
@@ -511,11 +523,12 @@ public class AuthManagementApiController {
     }
 
     @DeleteMapping("/roles/{roleId}")
-    @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public Map<String, Object> deleteRole(@PathVariable long roleId, Authentication authentication) {
         if (!hasEditPermission(authentication, "role.delete")) {
             return Map.of("success", false, "error", "Недостаточно прав для удаления роли");
         }
+        requireMutableRole(roleId, Map.of("delete", true));
         if (!permissionService.isSuperUser(authentication)) {
             var role = usersJdbcTemplate.queryForList("SELECT name FROM roles WHERE id = ?", roleId);
             if (role.stream().anyMatch(row -> UserPermissionsController.protectedRole(row.get("name"))))
@@ -540,7 +553,7 @@ public class AuthManagementApiController {
     }
 
     @PostMapping(value = {"/users/photo-upload", "/users/photo-upload/"}, consumes = "multipart/form-data")
-    @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public Map<String, Object> uploadUserPhoto(Authentication authentication,
                                                @RequestParam("photo") MultipartFile file,
                                                @RequestParam(value = "userId", required = false) Long userId) throws IOException {
@@ -607,13 +620,14 @@ public class AuthManagementApiController {
             user.put("is_blocked", isAccountBlocked(row));
             user.put("last_portal_activity_at", formatActivityTimestamp(row.get("last_portal_activity_at")));
             user.put("is_self", isSelf);
-            user.put("role_is_admin", "admin".equalsIgnoreCase(stringValue(user.get("role"))));
+            boolean systemAccount = UserPermissionsController.systemUsername(row.get("username"));
+            user.put("role_is_admin", UserPermissionsController.protectedRole(user.get("role")));
             user.put("can_view_password", false);
             user.put("can_edit_password", isSelf || canEditPassword);
-            user.put("can_edit_username", canEditUsername);
-            user.put("can_edit_role", canEditRole);
-            user.put("can_delete", canDeleteUser && !isSelf);
-            user.put("can_block", !isSelf && (isAccountBlocked(row)
+            user.put("can_edit_username", canEditUsername && !systemAccount);
+            user.put("can_edit_role", canEditRole && !isSelf && !systemAccount);
+            user.put("can_delete", canDeleteUser && !isSelf && !systemAccount);
+            user.put("can_block", !isSelf && !systemAccount && (isAccountBlocked(row)
                     ? com.example.panel.service.AccessRecoveryService.canRecover(authentication) : canBlockUser));
             user.put("can_revoke_sessions", canRevokeSessions(authentication));
             users.add(user);
@@ -640,6 +654,7 @@ public class AuthManagementApiController {
             role.put("name", row.get("name"));
             role.put("description", row.get("description"));
             role.put("permissions", parsePermissions(row.get("permissions")));
+            role.put("is_admin", UserPermissionsController.protectedRole(row.get("name")));
             roles.add(role);
         }
         return roles;
@@ -694,7 +709,7 @@ public class AuthManagementApiController {
                 .map(org.springframework.security.core.GrantedAuthority::getAuthority).collect(java.util.stream.Collectors.toSet());
         if ("edit".equals(mode) && tokenRights.contains("DENY_" + authority)) return false;
         if (permissionKey.startsWith("settings."))
-            return com.example.panel.security.PanelAccessPolicy.has(authentication, authority);
+            return com.example.panel.security.PanelAccessPolicy.canEdit(authentication, permissionKey.substring("settings.".length()));
         if (permissionService.isSuperUser(authentication)
             || permissionService.hasAuthority(authentication, "ROLE_PORTAL_ADMIN")) {
             return true;
@@ -771,6 +786,9 @@ public class AuthManagementApiController {
     }
 
     private void requireUnprotectedAccount(Authentication actor, long id) {
+        var systemNames = usersJdbcTemplate.queryForList("SELECT username FROM users WHERE id = ?", id);
+        if (systemNames.stream().anyMatch(row -> UserPermissionsController.systemUsername(row.get("username"))))
+            throw new org.springframework.security.access.AccessDeniedException("Системная учётная запись admin защищена");
         if (permissionService.isSuperUser(actor)) return;
         var rows = usersJdbcTemplate.queryForList("SELECT u.username, r.name AS role_name FROM users u LEFT JOIN roles r ON r.id = u.role_id WHERE u.id = ?", id);
         if (rows.stream().anyMatch(row -> UserPermissionsController.systemUsername(row.get("username"))
@@ -779,6 +797,29 @@ public class AuthManagementApiController {
         var direct = usersJdbcTemplate.queryForList("SELECT authority FROM user_authorities WHERE user_id = ?", id);
         if (direct.stream().anyMatch(row -> java.util.Set.of("ROLE_ADMIN", "ROLE_PORTAL_ADMIN").contains(row.get("authority"))))
             throw new org.springframework.security.access.AccessDeniedException("Системный администратор защищён");
+    }
+
+    private void requireSafeSystemAccountMutation(long id, Map<String, Object> payload, boolean self) {
+        var rows = usersJdbcTemplate.queryForList("SELECT username, "
+                + (loadUserColumns().contains("role_id") ? "role_id" : "NULL AS role_id") + " FROM users WHERE id = ?", id);
+        if (rows.size() != 1) return;
+        Map<String, Object> current = rows.get(0);
+        boolean roleChange = payload.containsKey("role_id")
+                && !java.util.Objects.equals(String.valueOf(payload.get("role_id")), String.valueOf(current.get("role_id")));
+        if (self && (roleChange || payload.containsKey("role")))
+            throw new org.springframework.security.access.AccessDeniedException("Нельзя менять собственную роль");
+        if (UserPermissionsController.systemUsername(current.get("username"))
+                && (roleChange || payload.containsKey("role")
+                    || (payload.containsKey("username") && !java.util.Objects.equals(payload.get("username"), current.get("username")))
+                    || Boolean.TRUE.equals(payload.get("is_blocked")) || Boolean.FALSE.equals(payload.get("enabled"))))
+            throw new org.springframework.security.access.AccessDeniedException("Нельзя понижать права или отключать системного администратора");
+    }
+
+    private void requireMutableRole(long id, Map<String, Object> payload) {
+        var rows = usersJdbcTemplate.queryForList("SELECT name FROM roles WHERE id = ?", id);
+        if (rows.stream().anyMatch(row -> UserPermissionsController.protectedRole(row.get("name")))
+                && (payload.containsKey("name") || payload.containsKey("permissions") || payload.containsKey("delete")))
+            throw new org.springframework.security.access.AccessDeniedException("Название и права системной роли защищены");
     }
 
     private void requireDelegableRole(Authentication actor, Object name, Object permissions) {

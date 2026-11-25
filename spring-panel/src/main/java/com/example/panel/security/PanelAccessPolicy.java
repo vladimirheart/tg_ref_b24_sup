@@ -130,6 +130,10 @@ public final class PanelAccessPolicy {
             result.remove(value.substring(5));
             result.add(value);
         });
+        // Retired standalone admin pages cannot outlive their parent Settings grant.
+        if (!result.contains("PAGE_SETTINGS")) {
+            result.removeAll(LEGACY_PAGES.values());
+        }
         return result;
     }
 
@@ -137,13 +141,20 @@ public final class PanelAccessPolicy {
         if (authentication == null || !authentication.isAuthenticated()) return false;
         Set<String> rights = AuthorityUtils.authorityListToSet(authentication.getAuthorities());
         if (rights.contains("DENY_" + authority)) return false;
+        if (LEGACY_PAGES.containsValue(authority) && (!rights.contains("PAGE_SETTINGS") || rights.contains("DENY_PAGE_SETTINGS"))) return false;
         if (authority.startsWith("PAGE_")) return rights.contains(authority);
         return rights.contains(authority) || (!rights.contains("DENY_" + authority)
                 && (rights.contains("ROLE_ADMIN") || rights.contains("ROLE_PORTAL_ADMIN")));
     }
 
     public static boolean canEdit(Authentication authentication, String block) {
-        return BLOCKS.containsKey(block) && has(authentication, editAuthority("settings." + block));
+        return BLOCKS.containsKey(block) && has(authentication, "PAGE_SETTINGS")
+                && has(authentication, editAuthority("settings." + block));
+    }
+
+    public static boolean canManageAccounts(Authentication actor) {
+        return has(actor, "PAGE_SETTINGS") && (canEdit(actor, "access")
+                || USER_FIELDS.stream().anyMatch(field -> has(actor, editAuthority(field))));
     }
 
     public static void requireBlock(String block) {

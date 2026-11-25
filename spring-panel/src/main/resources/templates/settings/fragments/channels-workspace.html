@@ -78,7 +78,7 @@
                   </div>
 
                   <div class="tab-content channels-manage-tab-content" id="channelsManageTabsContent">
-                    <section class="tab-pane fade show active" id="channels-manage-bots" role="tabpanel" aria-labelledby="channels-manage-bots-tab" tabindex="0">
+                    <section th:if="${settingsBlocks.channels}" class="tab-pane fade show active" id="channels-manage-bots" role="tabpanel" aria-labelledby="channels-manage-bots-tab" tabindex="0">
                       <div class="channels-manage-toolbar">
                         <div class="channels-manage-toolbar__meta">
                           <div class="channels-manage-stats">

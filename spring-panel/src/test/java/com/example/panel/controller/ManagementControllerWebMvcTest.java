@@ -52,8 +52,10 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 
 @WebMvcTest({ManagementController.class, ObjectPassportPageController.class, SettingsPageController.class})
 @AutoConfigureMockMvc
-@Import({NavigationService.class, BotSettingsPayloadNormalizer.class, AutoCloseConfigNormalizer.class, ObjectPassportPageModelAssembler.class})
+@Import({com.example.panel.security.SecurityConfig.class, NavigationService.class, BotSettingsPayloadNormalizer.class, AutoCloseConfigNormalizer.class, ObjectPassportPageModelAssembler.class})
 class ManagementControllerWebMvcTest {
+    @MockBean(name = "usersJdbcTemplate")
+    private org.springframework.jdbc.core.JdbcTemplate usersJdbc;
     @MockBean
     private com.example.panel.service.SharedWorkAccessService sharedWorkAccessService;
 
@@ -339,33 +341,15 @@ class ManagementControllerWebMvcTest {
     }
 
     @Test
-    void channelsPageIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
-        stubNavigationDefaults();
-        when(channelRepository.findAll()).thenReturn(List.of());
-        when(permissionService.hasAuthority(any(), eq("PAGE_SETTINGS"))).thenReturn(false);
-
+    void legacyChannelsPageCannotBypassDeniedSettings() throws Exception {
         mockMvc.perform(get("/channels").with(user("system").authorities(() -> "PAGE_CHANNELS", () -> "ROLE_ADMIN")))
-            .andExpect(status().isOk())
-            .andExpect(view().name("channels/index"))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-preferences.js")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/theme.js")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-config.js")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"channels\"")));
+            .andExpect(status().isForbidden());
     }
 
     @Test
-    void usersPageIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
-        stubNavigationDefaults();
-        when(panelUserRepository.findAll()).thenReturn(List.of());
-        when(permissionService.hasAuthority(any(), eq("PAGE_SETTINGS"))).thenReturn(false);
-
+    void legacyUsersPageCannotBypassDeniedSettings() throws Exception {
         mockMvc.perform(get("/users").with(user("operator").authorities(() -> "PAGE_USERS")))
-            .andExpect(status().isOk())
-            .andExpect(view().name("users/index"))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-preferences.js")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/theme.js")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-config.js")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"users\"")));
+            .andExpect(status().isForbidden());
     }
 
     @Test
@@ -381,26 +365,17 @@ class ManagementControllerWebMvcTest {
     void usersPageRedirectsIntoSettingsWhenSettingsPageIsAvailable() throws Exception {
         when(permissionService.hasAuthority(any(), eq("PAGE_SETTINGS"))).thenReturn(true);
 
-        mockMvc.perform(get("/users").with(user("operator").authorities(() -> "PAGE_USERS")))
+        mockMvc.perform(get("/users").with(user("operator").authorities(() -> "PAGE_SETTINGS")))
             .andExpect(status().is3xxRedirection())
             .andExpect(redirectedUrl("/settings?open=users"));
     }
 
     @Test
-    void userDetailPageIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
-        stubNavigationDefaults();
-        PanelUser panelUser = new PanelUser();
-        panelUser.setUsername("operator");
-        panelUser.setFullName("Оператор");
-        when(panelUserRepository.findByUsernameIgnoreCase("operator")).thenReturn(Optional.of(panelUser));
-
+    void legacyUserDetailRequiresSettingsAndOnlyRedirectsToTheCurrentWorkspace() throws Exception {
         mockMvc.perform(get("/users/operator").with(user("operator").authorities(() -> "PAGE_USERS")))
-            .andExpect(status().isOk())
-            .andExpect(view().name("users/detail"))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-preferences.js")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/theme.js")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-config.js")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"users\"")));
+            .andExpect(status().isForbidden());
+        mockMvc.perform(get("/users/operator").with(user("operator").authorities(() -> "PAGE_SETTINGS")))
+            .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/settings?open=users"));
     }
 
     @Test

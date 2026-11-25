@@ -15,6 +15,7 @@ public class PanelPermissionsController {
         Map<String, Boolean> pages = new LinkedHashMap<>();
         PanelAccessPolicy.BLOCKS.keySet().forEach(block -> blocks.put(block, PanelAccessPolicy.canEdit(actor, block)));
         PanelAccessPolicy.PAGES.forEach((key, right) -> pages.put(key, PanelAccessPolicy.has(actor, right)));
-        return Map.of("success", true, "settings", blocks, "pages", pages);
+        return Map.of("success", true, "settings", blocks, "pages", pages,
+                "accounts", PanelAccessPolicy.canManageAccounts(actor));
     }
 }

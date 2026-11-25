@@ -4,15 +4,14 @@ import java.util.Set;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.AuthorityUtils;
 
-/** Global channel administration requires an explicit system role and page authority. */
+/** Channel administration is owned by the Settings channels block. */
 public final class ChannelManagementAccess {
-    public static final String REQUIRE = "hasAnyAuthority('PAGE_CHANNELS', 'PAGE_SETTINGS')";
+    public static final String REQUIRE = "T(com.example.panel.security.PanelAccessPolicy).canEdit(authentication, 'channels')";
 
     private ChannelManagementAccess() {}
 
     public static boolean isAllowed(Authentication authentication) {
-        Set<String> rights = authorities(authentication);
-        return rights.contains("PAGE_CHANNELS") || rights.contains("PAGE_SETTINGS");
+        return PanelAccessPolicy.canEdit(authentication, "channels");
     }
 
     public static boolean hasSettingsPage(Authentication authentication) {

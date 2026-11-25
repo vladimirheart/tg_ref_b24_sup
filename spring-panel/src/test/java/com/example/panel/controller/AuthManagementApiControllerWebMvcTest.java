@@ -129,7 +129,7 @@ class AuthManagementApiControllerWebMvcTest {
             .thenReturn(List.of(Map.of("id", 7L)));
 
         mockMvc.perform(get("/api/auth/state")
-                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")))
+                .principal(new UsernamePasswordAuthenticationToken("admin", "", org.springframework.security.core.authority.AuthorityUtils.createAuthorityList("PAGE_SETTINGS", "ROLE_ADMIN"))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.users[0].username").value("admin"))
             .andExpect(jsonPath("$.users[0].last_portal_activity_at").value("2026-11-25T07:00:00Z"))
@@ -162,7 +162,7 @@ class AuthManagementApiControllerWebMvcTest {
             .thenReturn(List.of(Map.of("id", 11L)));
 
         mockMvc.perform(get("/api/auth/state")
-                .with(user("self").authorities(() -> "PAGE_SETTINGS")))
+                .principal(new UsernamePasswordAuthenticationToken("self", "", org.springframework.security.core.authority.AuthorityUtils.createAuthorityList("PAGE_SETTINGS", "ROLE_ADMIN"))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.current_user_id").isEmpty())
             .andExpect(jsonPath("$.users[0].can_edit_password").value(true))
@@ -197,7 +197,7 @@ class AuthManagementApiControllerWebMvcTest {
             .thenReturn(List.of(Map.of("id", 21L)));
 
         var result = mockMvc.perform(get("/api/auth/state")
-                .with(user("operator").authorities(() -> "PAGE_SETTINGS")))
+                .principal(new UsernamePasswordAuthenticationToken("operator", "", org.springframework.security.core.authority.AuthorityUtils.createAuthorityList("PAGE_SETTINGS", "EDIT_ROLE_FIELDS_VIEW"))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.roles[0].name").value("reviewer"))
             .andExpect(jsonPath("$.catalog.pages[*].key").value(org.hamcrest.Matchers.contains(

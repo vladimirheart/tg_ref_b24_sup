@@ -76,9 +76,12 @@ public class SettingsPageController {
         model.addAttribute("canManageBusinesses", multibusinessFlags.isFoundationEnabled()
                 && permissionService.hasAuthority(authentication, "ROLE_ADMIN"));
         try {
-            List<AppSetting> appSettings = appSettingRepository.findAll();
+            List<AppSetting> appSettings = com.example.panel.security.PanelAccessPolicy.canEdit(authentication, "bot_templates")
+                    ? appSettingRepository.findAll() : List.of();
             List<SettingsParameter> systemParameters = settingsParameterRepository.findAll().stream()
                     .filter(parameter -> !com.example.panel.service.SettingsParameterService.isPrivateParameterType(parameter.getParamType()))
+                    .filter(parameter -> com.example.panel.security.PanelAccessPolicy.canEdit(authentication,
+                            com.example.panel.security.PanelAccessPolicy.parameterBlock(parameter.getParamType())))
                     .toList();
             model.addAttribute("appSettings", appSettings);
             model.addAttribute("systemParameters", systemParameters);
@@ -87,16 +90,24 @@ public class SettingsPageController {
             settings.put("auto_close_config", normalizedAutoCloseConfig);
             settings.put("bot_settings", botSettingsPayloadNormalizer.normalize(settings.get("bot_settings")));
             settings.remove("unblock_request_cooldown_minutes");
-            model.addAttribute("settingsPayload", com.example.panel.security.SettingsSecretMasker.settings(settings, authentication));
+            Map<String, Object> visibleSettings = com.example.panel.security.SettingsSecretMasker.settings(settings, authentication);
+            model.addAttribute("settingsPayload", visibleSettings);
+            Map<String, Boolean> blocks = new LinkedHashMap<>();
+            com.example.panel.security.PanelAccessPolicy.BLOCKS.keySet().forEach(key -> blocks.put(key,
+                    com.example.panel.security.PanelAccessPolicy.canEdit(authentication, key)));
+            model.addAttribute("settingsBlocks", blocks);
             model.addAttribute("autoCloseFallbackHours",
-                    autoCloseConfigNormalizer.resolveFallbackHours(normalizedAutoCloseConfig));
+                    com.example.panel.security.PanelAccessPolicy.canEdit(authentication, "auto_close")
+                            ? autoCloseConfigNormalizer.resolveFallbackHours(normalizedAutoCloseConfig) : 0);
             model.addAttribute("autoCloseFollowUpProjectId",
-                    autoCloseConfigNormalizer.resolveFollowUpProjectId(normalizedAutoCloseConfig));
+                    com.example.panel.security.PanelAccessPolicy.canEdit(authentication, "auto_close")
+                            ? autoCloseConfigNormalizer.resolveFollowUpProjectId(normalizedAutoCloseConfig) : null);
             model.addAttribute("autoCloseProjectOptions",
-                    projectRepository.findAllById(sharedAccess.visibleLongIds(com.example.panel.service.SharedWorkAccessService.Kind.PROJECT)).stream()
-                        .filter(project->project.getArchivedAt()==null).toList());
+                    com.example.panel.security.PanelAccessPolicy.canEdit(authentication, "auto_close")
+                            ? projectRepository.findAllById(sharedAccess.visibleLongIds(com.example.panel.service.SharedWorkAccessService.Kind.PROJECT)).stream()
+                                .filter(project->project.getArchivedAt()==null).toList() : List.of());
             model.addAttribute("dialogLegacyQuestionTemplateAudit",
-                    buildDialogLegacyQuestionTemplateAudit(settings));
+                    buildDialogLegacyQuestionTemplateAudit(visibleSettings));
             IikoDepartmentLocationCatalogService.LocationCatalogSnapshot effectiveCatalog = locationCatalogService.loadCatalog();
             Map<String, Object> effectiveLocationsPayload = locationCatalogService.buildEffectiveLocationsPayload(effectiveCatalog);
             Map<String, Object> effectiveLocationTree = Map.of();
@@ -108,14 +119,18 @@ public class SettingsPageController {
                 effectiveLocationStatuses = (Map<String, Object>) statuses;
             }
             model.addAttribute("cities", settingsCatalogService.collectCities(effectiveLocationTree));
-            model.addAttribute("parameterTypes", settingsCatalogService.getParameterTypes());
+            Map<String, String> visibleParameterTypes = new LinkedHashMap<>();
+            settingsCatalogService.getParameterTypes().forEach((type, label) -> {
+                if (com.example.panel.security.PanelAccessPolicy.canEdit(authentication,
+                        com.example.panel.security.PanelAccessPolicy.parameterBlock(type))) visibleParameterTypes.put(type, label);
+            });
+            model.addAttribute("parameterTypes", visibleParameterTypes);
             model.addAttribute("parameterDependencies", settingsCatalogService.getParameterDependencies());
-            model.addAttribute("itConnectionCategories", settingsCatalogService.getItConnectionCategories(settings));
+            model.addAttribute("itConnectionCategories", com.example.panel.security.PanelAccessPolicy.canEdit(authentication, "it_connections")
+                    ? settingsCatalogService.getItConnectionCategories(settings) : List.of());
             model.addAttribute("itConnectionCategoryFields", settingsCatalogService.getItConnectionCategoryFields());
-            model.addAttribute("botQuestionPresets",
-                settingsCatalogService.buildLocationPresets(
-                        effectiveLocationTree,
-                        effectiveLocationStatuses));
+            model.addAttribute("botQuestionPresets", com.example.panel.security.PanelAccessPolicy.canEdit(authentication, "bot_templates")
+                    ? settingsCatalogService.buildLocationPresets(effectiveLocationTree, effectiveLocationStatuses) : Map.of());
             model.addAttribute("canRunStorageInventory", permissionService.isSuperUser(authentication));
             model.addAttribute("canPublishDialogMacros",
                 canPublishDialogMacros(authentication, settings));

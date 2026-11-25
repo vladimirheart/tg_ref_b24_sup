@@ -181,15 +181,6 @@
                         <span class="nav-label-sub">Пульсы, cert-monitoring и KPI</span>
                     </span>
                 </a>
-                <a class="nav-link" data-page-key="channels" data-nav-group="admin" th:if="${canManageChannels == true and canManageChannelsInSettings != true}"
-                   th:classappend="${active}=='channels' ? ' active'"
-                   th:href="@{/channels}">
-                    <span class="icon" aria-hidden="true"><i class="bi bi-broadcast"></i></span>
-                    <span class="label">
-                        <span class="nav-label-main">Каналы</span>
-                        <span class="nav-label-sub">Telegram, VK, MAX и маршруты</span>
-                    </span>
-                </a>
                 <a class="nav-link" data-page-key="settings" data-nav-group="admin" th:if="${canViewSettings}"
                    th:classappend="${active}=='settings' ? ' active'"
                    th:href="@{/settings}">
@@ -197,15 +188,6 @@
                     <span class="label">
                         <span class="nav-label-main">Настройки</span>
                         <span class="nav-label-sub">Конфигурация системы и UI</span>
-                    </span>
-                </a>
-                <a class="nav-link" data-page-key="users" data-nav-group="admin" th:if="${canManageUsers == true and canViewSettings != true}"
-                   th:classappend="${active}=='users' ? ' active'"
-                   th:href="@{/users}">
-                    <span class="icon" aria-hidden="true"><i class="bi bi-people"></i></span>
-                    <span class="label">
-                        <span class="nav-label-main">Пользователи</span>
-                        <span class="nav-label-sub">Роли, доступы и профили</span>
                     </span>
                 </a>
             </div>

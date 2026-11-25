@@ -43,6 +43,7 @@ public class SecurityBootstrap {
 
         ensureAdminAuthorities(adminId);
         ensurePortalAdminRole();
+        ensureSystemAdministratorRole(adminId);
     }
 
     private void ensureAuthoritiesTable() {
@@ -195,6 +196,28 @@ public class SecurityBootstrap {
         } catch (DataAccessException ignored) {
             // roles table may be absent in bootstrap edge cases
         }
+    }
+
+    private void ensureSystemAdministratorRole(long userId) {
+        if (!hasUsersColumn("role_id")) return;
+        var accounts = jdbcTemplate.queryForList("SELECT username FROM users WHERE id = ?", userId);
+        if (accounts.size() != 1 || !"admin".equals(accounts.get(0).get("username"))) return;
+        Integer unique = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM users WHERE lower(username) = 'admin'", Integer.class);
+        if (!Integer.valueOf(1).equals(unique)) return;
+        var roles = jdbcTemplate.queryForList("SELECT id FROM roles WHERE lower(name) = 'admin'");
+        if (roles.isEmpty()) {
+            jdbcTemplate.update("INSERT INTO roles(name, description, permissions) VALUES ('admin', ?, ?) ON CONFLICT(name) DO NOTHING",
+                    "Системный администратор панели", "{\"pages\":[\"*\"],\"fields\":{\"edit\":[\"*\"],\"view\":[\"*\"]}}");
+            roles = jdbcTemplate.queryForList("SELECT id FROM roles WHERE lower(name) = 'admin'");
+        }
+        if (roles.size() != 1) throw new IllegalStateException("System administrator role is ambiguous or missing");
+        Object roleId = roles.get(0).get("id");
+        jdbcTemplate.update("""
+            UPDATE users account SET role_id = ?
+             WHERE account.id = ? AND account.username = 'admin' AND account.role_id IS DISTINCT FROM ?
+               AND EXISTS (SELECT 1 FROM user_authorities grant_row WHERE grant_row.user_id = account.id AND grant_row.authority = 'ROLE_ADMIN')
+               AND 1 = (SELECT COUNT(*) FROM users candidate WHERE lower(candidate.username) = 'admin')
+            """, roleId, userId, roleId);
     }
 
     private boolean hasUsersColumn(String columnName) {

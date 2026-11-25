@@ -18,7 +18,8 @@ public final class SettingsSecretMasker {
         Map<String, Object> result = new LinkedHashMap<>();
         values.forEach((key, value) -> {
             String block = PanelAccessPolicy.payloadBlock(key);
-            result.put(key, block == null ? redact(value) : forBlock(value, block, actor));
+            if (block != null && PanelAccessPolicy.canEdit(actor, block)) result.put(key, value);
+            else if (block == null && PanelAccessPolicy.has(actor, "ROLE_ADMIN")) result.put(key, redact(value));
         });
         return result;
     }
@@ -27,15 +28,18 @@ public final class SettingsSecretMasker {
         Map<String, Object> result = new LinkedHashMap<>();
         values.forEach((key, value) -> {
             String block = switch (key) {
+                case "notificationChannels" -> "reporting";
                 case "botSettings" -> "bot_templates";
                 case "integrationNetwork", "integrationNetworkProfiles", "networkProfiles" -> "network_profiles";
                 case "iikoServerSources", "iikoSyncSettings", "tree" -> "locations";
                 case "netBoxSyncSettings", "netBoxSyncStatus" -> "netbox";
                 case "reportingConfig" -> "reporting";
                 case "managerLocationBindings" -> "manager_bindings";
+                case "assignmentRoutingCatalog" -> "channels";
+                case "botPresetDefinitions" -> "bot_templates";
                 default -> null;
             };
-            result.put(key, block == null ? redact(value) : forBlock(value, block, actor));
+            if (block != null && PanelAccessPolicy.canEdit(actor, block)) result.put(key, value);
         });
         return result;
     }

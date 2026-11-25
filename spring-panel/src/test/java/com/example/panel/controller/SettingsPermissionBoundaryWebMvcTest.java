@@ -73,6 +73,19 @@ class SettingsPermissionBoundaryWebMvcTest {
     }
 
     @ParameterizedTest @MethodSource("operations")
+    void aDeniedBlockAlsoClosesItsReadApi(String path, String block) throws Exception {
+        mvc.perform(get(path).with(user("viewer").authorities(() -> "PAGE_SETTINGS")))
+                .andExpect(status().isForbidden());
+    }
+
+    @ParameterizedTest @MethodSource("operations")
+    void aGrantedBlockKeepsItsReadApiUsable(String path, String block) throws Exception {
+        mvc.perform(get(path).with(user("editor").authorities(() -> "PAGE_SETTINGS",
+                        () -> PanelAccessPolicy.editAuthority("settings."+block))))
+                .andExpect(status().isOk());
+    }
+
+    @ParameterizedTest @MethodSource("operations")
     void eachBlockCanBeGrantedIndependently(String path, String block) throws Exception {
         mvc.perform(post(path).with(user("editor").authorities(() -> "PAGE_SETTINGS",
                         () -> PanelAccessPolicy.editAuthority("settings." + block))).with(csrf())
@@ -141,7 +154,7 @@ class SettingsPermissionBoundaryWebMvcTest {
         when(users.queryForList(startsWith("SELECT u.id, u.username"), eq(7L)))
                 .thenReturn(List.of(Map.of("id", 7L, "username", "target", "role_name", "reader",
                         "permissions", "{\"pages\":[\"ai_ops\"]}")));
-        mvc.perform(get("/api/users/7/permissions").with(user("viewer").authorities(() -> "PAGE_SETTINGS")))
+        mvc.perform(get("/api/users/7/permissions").with(user("viewer").authorities(() -> "PAGE_SETTINGS", () -> "EDIT_SETTINGS_ACCESS")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.rows[?(@.kind == 'page')].key").value(org.hamcrest.Matchers.contains(
                         "dialogs", "ai_ops", "tasks", "clients", "object_passports", "knowledge_base", "dashboard", "analytics", "settings")))
@@ -270,17 +283,16 @@ class SettingsPermissionBoundaryWebMvcTest {
         verify(users, never()).update(startsWith("DELETE FROM roles"), any(Object[].class));
     }
 
-    @Test void channelTokensAreHiddenFromViewersAndAvailableToTheChannelEditor() throws Exception {
+    @Test void channelReadsAreDeniedToViewersAndAvailableToTheChannelEditor() throws Exception {
         var body = Map.<String, Object>of("success", true, "channels", List.of(Map.of(
                 "channel_name", "Support", "token", "bot-secret", "platform_config", Map.of("secret", "callback-secret"))));
         when(channelTransport.getChannels()).thenReturn(org.springframework.http.ResponseEntity.ok(body));
         mvc.perform(get("/api/channels").with(user("viewer").authorities(() -> "PAGE_SETTINGS")))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.channels[0].token").value(""))
-                .andExpect(jsonPath("$.channels[0].token_saved").value(true))
-                .andExpect(jsonPath("$.channels[0].platform_config.secret").value(""));
+                .andExpect(status().isForbidden());
         mvc.perform(get("/panel/api/channels").contextPath("/panel").servletPath("/api/channels")
                         .with(user("viewer").authorities(() -> "PAGE_SETTINGS")))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.channels[0].token").value(""));
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(channelTransport);
         mvc.perform(get("/api/channels").with(user("editor").authorities(() -> "PAGE_SETTINGS", () -> "EDIT_SETTINGS_CHANNELS")))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.channels[0].token").value("bot-secret"));
     }

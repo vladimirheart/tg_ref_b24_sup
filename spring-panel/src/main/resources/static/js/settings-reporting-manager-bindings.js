@@ -276,9 +276,10 @@
       }
       reportingState.channelsLoaded = true;
       try {
-        const response = await fetch('/api/channels');
+        const response = await fetch('/api/settings/page-data/admin');
         const data = await response.json();
-        const channels = Array.isArray(data.channels) ? data.channels : [];
+        if (!response.ok) throw new Error(data.error || 'Нет доступа к настройкам отчётов');
+        const channels = Array.isArray(data.data?.notificationChannels) ? data.data.notificationChannels : [];
         const optionsHtml = ['<option value="">Подобрать автоматически</option>'];
 
         channels.forEach((channel) => {
@@ -334,15 +335,21 @@
 
       try {
         const manager = getAuthManagerInstance();
-        if (manager && manager.state) {
+        if (manager && Array.isArray(manager.state?.users) && manager.state.users.length) {
           managerBindingsState.options.managers = extractOrgPeopleOptions(manager.state);
           managerBindingsState.options.supervisors = managerBindingsState.options.managers.slice();
           return;
         }
 
-        const response = await fetch('/api/auth/state', { credentials: 'same-origin' });
+        const response = await fetch('/api/panel-users/options', { credentials: 'same-origin' });
         const data = await response.json();
-        managerBindingsState.options.managers = extractOrgPeopleOptions(data || {});
+        if (!response.ok) throw new Error('Не удалось загрузить справочник сотрудников');
+        managerBindingsState.options.managers = uniqueSorted((Array.isArray(data) ? data : []).map(option => {
+          const value = String(option.value || '');
+          const label = String(option.label || value);
+          const suffix = ' · ' + value;
+          return (label.endsWith(suffix) ? label.slice(0, -suffix.length) : value).trim();
+        }).filter(Boolean));
         managerBindingsState.options.supervisors = managerBindingsState.options.managers.slice();
       } catch (error) {
         console.error('Не удалось загрузить орг.структуру для привязок локаций', error);

@@ -68,7 +68,7 @@ class AuthManagementIdentityWebMvcTest {
     private final Map<Long,Map<String,Object>> accounts=new LinkedHashMap<>();
     private final Map<Long,String> fields=new LinkedHashMap<>(),roles=new LinkedHashMap<>();
     private final List<String> writes=new ArrayList<>();
-    private List<String> authorities=List.of("PAGE_SETTINGS");
+    private List<String> authorities=List.of("PAGE_SETTINGS", "EDIT_SETTINGS_ACCESS");
     private String fieldIssue="";
     private Cookie csrfCookie;
     private String csrfToken;
@@ -86,7 +86,7 @@ class AuthManagementIdentityWebMvcTest {
         @Bean PanelUserPhotoService photos(){return mock(PanelUserPhotoService.class);}
     }
     @BeforeEach void setup() throws Exception {
-        accounts.clear();fields.clear();roles.clear();writes.clear();authorities=List.of("PAGE_SETTINGS");fieldIssue="";reset(jdbc,photos);
+        accounts.clear();fields.clear();roles.clear();writes.clear();authorities=List.of("PAGE_SETTINGS", "EDIT_SETTINGS_ACCESS");fieldIssue="";reset(jdbc,photos);
         ReflectionTestUtils.setField(controller,"userColumns",Set.of("username","password","password_hash","full_name","email","phones","photo","role_id","is_blocked","enabled"));
         when(jdbc.getDataSource()).thenReturn(mock(DataSource.class));
         when(jdbc.queryForObject(contains("public_auth_rate_limits"),eq(Integer.class),anyString(),anyString(),anyLong())).thenReturn(1);
@@ -180,9 +180,9 @@ class AuthManagementIdentityWebMvcTest {
     }
     @ParameterizedTest @ValueSource(strings={"PAGE_SETTINGS", "PAGE_USERS", "PAGE_DIALOGS"})
     void activityProjectionRequiresAnExistingUserManagementPageGrant(String authority) throws Exception {
-        authorities=List.of(authority);account(7L,"reader");var session=login("reader");
+        authorities=List.of(authority,"EDIT_SETTINGS_ACCESS");account(7L,"reader");var session=login("reader");
         var request=mvc.perform(get("/api/users/activity").session(session));
-        if (authority.equals("PAGE_DIALOGS")) {
+        if (!authority.equals("PAGE_SETTINGS")) {
             request.andExpect(status().isForbidden());
             verify(jdbc,never()).queryForList("SELECT id, last_portal_activity_at, is_blocked, enabled FROM users ORDER BY id");
         } else {
@@ -242,8 +242,8 @@ class AuthManagementIdentityWebMvcTest {
         send(login("reader"),"PATCH","/api/users/7",Map.of("photo","")).andExpect(jsonPath("$.success").value(true));
         assertThat(accounts.get(7L).get("photo")).isEqualTo("");verify(photos).deleteUserAvatarFiles(7L);assertThat(writes).hasSize(1);
     }
-    @Test void usersPageWithAnExplicitFieldGrantCanManageUsers() throws Exception {
-        authorities=List.of("PAGE_USERS");account(7L,"reader","user.create");action(login("reader"),actions().findFirst().orElseThrow()).andExpect(jsonPath("$.success").value(true));assertThat(writes).hasSize(1);
+    @Test void legacyUsersPageWithAnExplicitFieldGrantStillRequiresSettings() throws Exception {
+        authorities=List.of("PAGE_USERS");account(7L,"reader","user.create");action(login("reader"),actions().findFirst().orElseThrow()).andExpect(status().isForbidden());assertThat(writes).isEmpty();
     }
     @Test void managementPageGateStillPrecedesTheHandler() throws Exception {
         authorities=List.of("PAGE_DIALOGS");account(7L,"reader","user.create");action(login("reader"),actions().findFirst().orElseThrow()).andExpect(status().isForbidden());assertThat(writes).isEmpty();

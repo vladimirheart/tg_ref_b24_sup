@@ -25,7 +25,7 @@ import org.springframework.http.HttpStatus;
 
 @RestController
 @RequestMapping("/api/users/{userId}/permissions")
-@PreAuthorize("hasAnyAuthority('PAGE_SETTINGS','PAGE_USERS')")
+@PreAuthorize("hasAuthority('PAGE_SETTINGS')")
 public class UserPermissionsController {
     private final JdbcTemplate jdbc;
 

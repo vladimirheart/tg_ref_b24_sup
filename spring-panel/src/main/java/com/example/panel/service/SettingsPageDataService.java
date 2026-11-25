@@ -17,6 +17,7 @@ public class SettingsPageDataService {
     private final IikoDepartmentLocationCatalogService locationCatalogService;
     private final SettingsCatalogService settingsCatalogService;
     private final ChannelAssignmentRoutingService channelAssignmentRoutingService;
+    private final com.example.panel.repository.ChannelRepository channels;
 
     public SettingsPageDataService(SharedConfigService sharedConfigService,
                                    BotSettingsPayloadNormalizer botSettingsPayloadNormalizer,
@@ -27,6 +28,22 @@ public class SettingsPageDataService {
                                    IikoDepartmentLocationCatalogService locationCatalogService,
                                    SettingsCatalogService settingsCatalogService,
                                    ChannelAssignmentRoutingService channelAssignmentRoutingService) {
+        this(sharedConfigService, botSettingsPayloadNormalizer, locationsIikoServerSourceSettingsService,
+                locationsIikoSyncSettingsService, netBoxSyncSettingsService, netBoxObjectPassportSyncService,
+                locationCatalogService, settingsCatalogService, channelAssignmentRoutingService, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public SettingsPageDataService(SharedConfigService sharedConfigService,
+                                   BotSettingsPayloadNormalizer botSettingsPayloadNormalizer,
+                                   LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService,
+                                   LocationsIikoSyncSettingsService locationsIikoSyncSettingsService,
+                                   NetBoxSyncSettingsService netBoxSyncSettingsService,
+                                   NetBoxObjectPassportSyncService netBoxObjectPassportSyncService,
+                                   IikoDepartmentLocationCatalogService locationCatalogService,
+                                   SettingsCatalogService settingsCatalogService,
+                                   ChannelAssignmentRoutingService channelAssignmentRoutingService,
+                                   com.example.panel.repository.ChannelRepository channels) {
         this.sharedConfigService = sharedConfigService;
         this.botSettingsPayloadNormalizer = botSettingsPayloadNormalizer;
         this.locationsIikoServerSourceSettingsService = locationsIikoServerSourceSettingsService;
@@ -36,6 +53,7 @@ public class SettingsPageDataService {
         this.locationCatalogService = locationCatalogService;
         this.settingsCatalogService = settingsCatalogService;
         this.channelAssignmentRoutingService = channelAssignmentRoutingService;
+        this.channels = channels;
     }
 
     public Map<String, Object> loadSection(String sectionName) {
@@ -44,6 +62,10 @@ public class SettingsPageDataService {
         return switch (normalizedSection) {
             case "admin" -> Map.of(
                     "reportingConfig", settings.getOrDefault("reporting_config", Map.of()),
+                    "notificationChannels", channels == null ? List.of() : channels.findAll().stream()
+                            .filter(channel -> channel.getId() != null)
+                            .map(channel -> Map.of("id", channel.getId().toString(), "channel_name",
+                                    java.util.Objects.requireNonNullElse(channel.getChannelName(), "Канал"))).toList(),
                     "managerLocationBindings", settings.getOrDefault("manager_location_bindings", List.of())
             );
             case "channels" -> {

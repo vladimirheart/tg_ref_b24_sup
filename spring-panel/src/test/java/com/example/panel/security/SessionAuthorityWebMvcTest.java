@@ -116,7 +116,7 @@ class SessionAuthorityWebMvcTest {
         users.put(id,new LinkedHashMap<>(Map.of("id",id,"username",username,"password",HASH,"enabled",true,"is_blocked",false)));
         rights.put(id,List.of(authorities));
     }
-    private void admin() { account(7L," reader ","ROLE_ADMIN","PAGE_CHANNELS"); }
+    private void admin() { account(7L," reader ","ROLE_ADMIN","PAGE_SETTINGS"); }
     private void role(String name,String pages) { roles.put(7L,List.of(Map.of("role_name",name,"permissions","{\"pages\":"+pages+"}"))); }
     private MockHttpServletRequestBuilder csrf(MockHttpServletRequestBuilder request) throws Exception {
         MvcResult page=mvc.perform(get("/login")).andExpect(status().isOk()).andReturn();
@@ -175,7 +175,7 @@ class SessionAuthorityWebMvcTest {
     }
 
     @Test void portalAdminCanRevokeAndCsrfRemainsRequired() throws Exception {
-        account(7L,"portal","ROLE_PORTAL_ADMIN","PAGE_USERS");account(99L,"target","PAGE_USERS");var session=session(login("portal",false));
+        account(7L,"portal","ROLE_PORTAL_ADMIN","PAGE_SETTINGS");account(99L,"target","PAGE_USERS");var session=session(login("portal",false));
         mvc.perform(post("/api/users/99/sessions/revoke").session(session)).andExpect(status().isForbidden());
         mvc.perform(csrf(post("/api/users/99/sessions/revoke")).session(session)).andExpect(status().isOk());
     }
@@ -221,13 +221,13 @@ class SessionAuthorityWebMvcTest {
 
     @ParameterizedTest @ValueSource(strings={"direct-admin","direct-page","role-admin","role-page"})
     void revokedRoleOrPageBlocksActualChannelWriteBeforeService(String mode) throws Exception {
-        admin();if(mode.startsWith("role")){rights.put(7L,List.of());role("admin","[\"channels\"]");}
+        admin();if(mode.startsWith("role")){rights.put(7L,List.of());role("admin","[\"settings\"]");}
         var session=session(login(" reader ",false));
         var request=csrf(post("/api/channels")).session(session).contentType("application/json").content("{}");
         switch(mode){
-            case "direct-admin" -> rights.put(7L,List.of("PAGE_CHANNELS"));
+            case "direct-admin" -> rights.put(7L,List.of("PAGE_SETTINGS"));
             case "direct-page" -> rights.put(7L,List.of("ROLE_ADMIN"));
-            case "role-admin" -> role("operator","[\"channels\"]");
+            case "role-admin" -> role("operator","[\"settings\"]");
             default -> role("admin","[]");
         }
         mvc.perform(request).andExpect(status().isForbidden());verifyNoInteractions(transport);
@@ -236,18 +236,18 @@ class SessionAuthorityWebMvcTest {
     @ParameterizedTest @ValueSource(strings={"direct","role"})
     void newlyGrantedRightsApplyWithoutAnotherLogin(String mode) throws Exception {
         account(7L," reader ","PAGE_DIALOGS");var session=session(login(" reader ",false));
-        if(mode.equals("direct"))rights.put(7L,List.of("ROLE_ADMIN","PAGE_CHANNELS"));
-        else{rights.put(7L,List.of());role("admin","[\"channels\"]");}
+        if(mode.equals("direct"))rights.put(7L,List.of("ROLE_ADMIN","PAGE_SETTINGS"));
+        else{rights.put(7L,List.of());role("admin","[\"settings\"]");}
         mvc.perform(get("/api/channels").session(session)).andExpect(status().isOk());verify(transport).getChannels();
     }
 
     @ParameterizedTest @ValueSource(strings={"reader"," reader ","\treader\t","\nreader\r","mem\r\nber"})
     void whoamiAndPersistedContextReceiveOnlyCurrentRightsOfTheSameId(String username) throws Exception {
         account(7L,username,"PAGE_DIALOGS");account(99L,"neighbour","ROLE_ADMIN","PAGE_SETTINGS");
-        var session=session(login(username,false));rights.put(7L,List.of("PAGE_USERS"));clearInvocations(jdbc);
+        var session=session(login(username,false));rights.put(7L,List.of("PAGE_CLIENTS"));clearInvocations(jdbc);
         mvc.perform(get("/api/auth/whoami").session(session)).andExpect(status().isOk())
-            .andExpect(jsonPath("$.username").value(username)).andExpect(jsonPath("$.authorities",containsInAnyOrder("PAGE_USERS")));
-        assertThat(auth(session).getAuthorities()).extracting(a->a.getAuthority()).containsExactly("PAGE_USERS");
+            .andExpect(jsonPath("$.username").value(username)).andExpect(jsonPath("$.authorities",containsInAnyOrder("PAGE_CLIENTS")));
+        assertThat(auth(session).getAuthorities()).extracting(a->a.getAuthority()).containsExactly("PAGE_CLIENTS");
         assertThat(auth(session).getCredentials()).isNull();
         verify(jdbc).queryForMap(ID_SQL,7L);verify(jdbc,never()).queryForList(eq(USER_SQL),anyString());
     }
@@ -282,9 +282,9 @@ class SessionAuthorityWebMvcTest {
         admin();var session=session(login(" reader ",false));
         Authentication previous=auth(session);var remembered=new RememberMeAuthenticationToken("iguana-panel-remember-me",previous.getPrincipal(),previous.getAuthorities());
         remembered.setDetails(previous.getDetails());var context=SecurityContextHolder.createEmptyContext();context.setAuthentication(remembered);session.setAttribute(CONTEXT,context);
-        rights.put(7L,List.of("PAGE_USERS"));
+        rights.put(7L,List.of("PAGE_CLIENTS"));
         mvc.perform(get("/api/auth/whoami").session(session)).andExpect(status().isOk())
-            .andExpect(jsonPath("$.authorities",containsInAnyOrder("PAGE_USERS")));
+            .andExpect(jsonPath("$.authorities",containsInAnyOrder("PAGE_CLIENTS")));
         assertThat(auth(session)).isInstanceOf(RememberMeAuthenticationToken.class);
         mvc.perform(get("/api/session-test/full-only").session(session)).andExpect(status().is3xxRedirection()).andExpect(redirectedUrlPattern("**/login"));
     }
@@ -333,9 +333,9 @@ class SessionAuthorityWebMvcTest {
         mvc.perform(get("/api/auth/whoami").session(session)).andExpect(status().isOk());assertThat(session.getAttribute(CONTEXT)).isSameAs(before);
     }
     @Test void rememberMeCookieUsesCurrentRightsAndKeepsRememberedAuthentication() throws Exception {
-        admin();Cookie cookie=login(" reader ",true).getResponse().getCookie("remember-me");rights.put(7L,List.of("PAGE_USERS"));
+        admin();Cookie cookie=login(" reader ",true).getResponse().getCookie("remember-me");rights.put(7L,List.of("PAGE_CLIENTS"));
         mvc.perform(get("/api/auth/whoami").cookie(cookie)).andExpect(status().isOk())
-            .andExpect(jsonPath("$.username").value(" reader ")).andExpect(jsonPath("$.authorities",containsInAnyOrder("PAGE_USERS")));
+            .andExpect(jsonPath("$.username").value(" reader ")).andExpect(jsonPath("$.authorities",containsInAnyOrder("PAGE_CLIENTS")));
         mvc.perform(get("/api/session-test/full-only").cookie(cookie)).andExpect(status().is3xxRedirection()).andExpect(redirectedUrlPattern("**/login"));
     }
 }

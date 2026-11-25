@@ -30,6 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({SecurityConfig.class, NavigationService.class, PermissionService.class, BotSettingsPayloadNormalizer.class, AutoCloseConfigNormalizer.class})
 class ChannelManagementPageSecurityWebMvcTest {
     @Autowired private MockMvc mvc;
+    @MockBean(name = "usersJdbcTemplate") private org.springframework.jdbc.core.JdbcTemplate usersJdbc;
     @MockBean private TaskRepository tasks;
     @MockBean private SharedWorkAccessService sharedWorkAccess;
     @MockBean private ChannelRepository channels;
@@ -53,7 +54,6 @@ class ChannelManagementPageSecurityWebMvcTest {
 
     static Stream<Arguments> nonAdmins() {
         return Stream.of(Arguments.of("operator",new String[]{"PAGE_SETTINGS","PAGE_CHANNELS"}),
-            Arguments.of("operator",new String[]{"ROLE_PORTAL_ADMIN","PAGE_SETTINGS","PAGE_CHANNELS"}),
             Arguments.of("operator",new String[]{"BUSINESS_ADMIN","ALL_BUSINESSES","PAGE_SETTINGS","PAGE_CHANNELS"}),
             Arguments.of("admin",new String[]{"PAGE_SETTINGS","PAGE_CHANNELS"}),
             Arguments.of(" admin ",new String[]{"PAGE_SETTINGS","PAGE_CHANNELS"}));
@@ -64,31 +64,29 @@ class ChannelManagementPageSecurityWebMvcTest {
     }
 
     @ParameterizedTest @MethodSource("nonAdmins")
-    void channelPageCanBeViewedWithItsPagePermission(String username,String[] rights) throws Exception {
+    void aPageGrantAloneCannotOpenTheChannelBlock(String username,String[] rights) throws Exception {
         mvc.perform(get("/channels").with(user(username).authorities(authorities(rights))))
-            .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/settings?open=channels"));
+            .andExpect(status().isForbidden());
         verifyNoInteractions(channels,config,locations);
     }
 
     @ParameterizedTest @MethodSource("nonAdmins")
-    void settingsShowsChannelWorkspaceForInspectionWithWritesGuardedSeparately(String username,String[] rights) throws Exception {
+    void settingsHidesTheChannelTileWithoutTheBlockGrant(String username,String[] rights) throws Exception {
         mvc.perform(get("/settings?open=channels").with(user(username).authorities(authorities(rights))))
             .andExpect(status().isOk()).andExpect(view().name("settings/index"))
-            .andExpect(model().attribute("canManageChannels",true))
-            .andExpect(content().string(containsString("data-settings-overview-target=\"channelsModal\"")))
-            .andExpect(content().string(containsString("id=\"channelsModal\"")))
-            .andExpect(content().string(containsString("id=\"addChannelModal\"")))
-            .andExpect(content().string(containsString("id=\"channelEditorModal\"")))
+            .andExpect(model().attribute("canManageChannels",false))
+            .andExpect(content().string(not(containsString("data-settings-overview-target=\"channelsModal\""))))
+            .andExpect(content().string(not(containsString("id=\"channelsModal\""))))
+            .andExpect(content().string(not(containsString("id=\"addChannelModal\""))))
+            .andExpect(content().string(not(containsString("id=\"channelEditorModal\""))))
             .andExpect(content().string(containsString("id=\"reportingModal\"")));
         verifyNoInteractions(channels);
     }
 
-    @Test void channelOnlyAdminGetsLegacyPageAndUsableNavigationInsteadOfSettingsRedirect() throws Exception {
+    @Test void aLegacyChannelGrantCannotBypassTheSettingsParent() throws Exception {
         mvc.perform(get("/channels").with(user("system").authorities(authorities("ROLE_ADMIN","PAGE_CHANNELS"))))
-            .andExpect(status().isOk()).andExpect(view().name("channels/index"))
-            .andExpect(model().attribute("canManageChannels",true))
-            .andExpect(content().string(containsString("href=\"/channels\"")));
-        verify(channels).findAll();verifyNoInteractions(config,locations);
+            .andExpect(status().isForbidden());
+        verifyNoInteractions(channels,config,locations);
     }
 
     @Test void settingsAdminCanUseChannelAliasAndTheFullChannelWorkspace() throws Exception {
@@ -112,6 +110,19 @@ class ChannelManagementPageSecurityWebMvcTest {
         when(parameters.findAll()).thenReturn(List.of(owned, legacy, automation, legacyAutomation, ordinary));
         mvc.perform(get("/settings").with(user("system").authorities(authorities("ROLE_ADMIN","PAGE_SETTINGS"))))
             .andExpect(status().isOk()).andExpect(model().attribute("systemParameters", List.of(ordinary)));
+    }
+
+    @Test void templateOnlyEditorsRetainTheirWorkspaceWithoutChannelControlsOrSecrets() throws Exception {
+        when(config.loadSettings()).thenReturn(Map.of("bot_settings",Map.of(),"integration_network_profiles",List.of(Map.of("password","denied-secret"))));
+        mvc.perform(get("/settings").with(user("templates").authorities(authorities("PAGE_SETTINGS","EDIT_SETTINGS_BOT_TEMPLATES"))))
+            .andExpect(status().isOk()).andExpect(model().attribute("canManageChannels",false))
+            .andExpect(content().string(containsString("data-settings-overview-target=\"channelsModal\"")))
+            .andExpect(content().string(containsString("id=\"channelsModal\"")))
+            .andExpect(content().string(containsString("id=\"channels-templates\"")))
+            .andExpect(content().string(not(containsString("id=\"channels-manage-bots\""))))
+            .andExpect(content().string(not(containsString("id=\"addChannelModal\""))))
+            .andExpect(content().string(not(containsString("denied-secret"))));
+        verifyNoInteractions(channels);
     }
 
     @Test void adminRoleAloneCannotOpenEitherManagementPage() throws Exception {

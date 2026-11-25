@@ -74,48 +74,20 @@ public class ManagementController {
     @GetMapping("/channels")
     @PreAuthorize(ChannelManagementAccess.REQUIRE)
     public String channels(Authentication authentication, Model model) {
-        if (ChannelManagementAccess.hasSettingsPage(authentication)) {
-            return "redirect:/settings?open=channels";
-        }
-        navigationService.enrich(model, authentication);
-        try {
-            List<Channel> channels = channelRepository.findAll();
-            model.addAttribute("channels", channels);
-            log.info("Loaded {} channels for user {}", channels.size(), authentication.getName());
-        } catch (Exception ex) {
-            log.error("Failed to load channels page for user {}", authentication != null ? authentication.getName() : "unknown", ex);
-            throw ex;
-        }
-        return "channels/index";
+        return "redirect:/settings?open=channels";
     }
 
     @GetMapping("/users")
-    @PreAuthorize("hasAuthority('PAGE_USERS')")
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public String users(Authentication authentication, Model model) {
-        if (permissionService.hasAuthority(authentication, "PAGE_SETTINGS")) {
-            return "redirect:/settings?open=users";
-        }
-        navigationService.enrich(model, authentication);
-        try {
-            List<PanelUser> users = panelUserRepository.findAll();
-            model.addAttribute("users", users);
-            log.info("Loaded {} panel users for user {}", users.size(), authentication.getName());
-        } catch (Exception ex) {
-            log.error("Failed to load users page for user {}", authentication != null ? authentication.getName() : "unknown", ex);
-            throw ex;
-        }
-        return "users/index";
+        return "redirect:/settings?open=users";
     }
 
 
     @GetMapping("/users/{username}")
-    @PreAuthorize("hasAuthority('PAGE_USERS')")
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public String userCard(@PathVariable String username, Authentication authentication, Model model) {
-        navigationService.enrich(model, authentication);
-        PanelUser user = panelUserRepository.findByUsernameIgnoreCase(username)
-                .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден"));
-        model.addAttribute("panelUser", user);
-        return "users/detail";
+        return "redirect:/settings?open=users";
     }
 
 }

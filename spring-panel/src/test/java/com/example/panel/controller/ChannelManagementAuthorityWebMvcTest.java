@@ -62,6 +62,7 @@ class ChannelManagementAuthorityWebMvcTest {
         new Route("GET", "/api/bots/" + ID + "/runtime-contract", "bot-contract"));
 
     @Autowired private MockMvc mvc;
+    @MockBean(name = "usersJdbcTemplate") private org.springframework.jdbc.core.JdbcTemplate usersJdbc;
     @MockBean private ChannelTransportService transport;
     @MockBean private BotProcessService bots;
     @MockBean private BotRunnerLifecycleClient runner;
@@ -101,20 +102,23 @@ class ChannelManagementAuthorityWebMvcTest {
             new Actor("operator","PAGE_CHANNELS"), new Actor("operator","PAGE_SETTINGS"), new Actor("operator","ROLE_ADMIN"),
             new Actor("operator","ROLE_PORTAL_ADMIN","PAGE_SETTINGS"), new Actor("operator","BUSINESS_ADMIN","PAGE_CHANNELS"),
             new Actor("operator","ALL_BUSINESSES","PAGE_SETTINGS"), new Actor("operator","ROLE_ADMIN","PAGE_DIALOGS"),
-            new Actor("admin","PAGE_CHANNELS","PAGE_SETTINGS"), new Actor(" admin ","PAGE_SETTINGS"))
+            new Actor("admin","PAGE_CHANNELS","PAGE_SETTINGS"), new Actor(" admin ","PAGE_SETTINGS"),
+            new Actor("operator","PAGE_CHANNELS","EDIT_SETTINGS_CHANNELS"),
+            new Actor("operator","PAGE_SETTINGS","EDIT_SETTINGS_CHANNELS","DENY_EDIT_SETTINGS_CHANNELS"),
+            new Actor("operator","PAGE_SETTINGS","EDIT_SETTINGS_CHANNELS","DENY_PAGE_SETTINGS"))
             .filter(actor -> {
                 var rights = Arrays.asList(actor.authorities());
-                boolean page = rights.contains("PAGE_SETTINGS") || rights.contains("PAGE_CHANNELS");
+                boolean page = rights.contains("PAGE_SETTINGS") && !rights.contains("DENY_PAGE_SETTINGS");
                 boolean edit = rights.contains("ROLE_ADMIN") || rights.contains("ROLE_PORTAL_ADMIN") || rights.contains("EDIT_SETTINGS_CHANNELS");
-                return !page || (route.writes() && !edit);
+                return !page || !edit || rights.contains("DENY_EDIT_SETTINGS_CHANNELS");
             }).map(actor -> Arguments.of(route, actor)));
     }
     static Stream<Arguments> allowed() {
-        return ROUTES.stream().flatMap(route -> Stream.of("PAGE_CHANNELS", "PAGE_SETTINGS")
-                .flatMap(authority -> Stream.of("ROLE_ADMIN", "EDIT_SETTINGS_CHANNELS").map(edit -> Arguments.of(route, authority, edit))));
+        return ROUTES.stream().flatMap(route -> Stream.of("ROLE_ADMIN", "ROLE_PORTAL_ADMIN", "EDIT_SETTINGS_CHANNELS")
+                .map(edit -> Arguments.of(route, "PAGE_SETTINGS", edit)));
     }
     static Stream<Arguments> csrfFailures() {
-        return ROUTES.stream().filter(Route::writes).flatMap(route -> Stream.of("PAGE_CHANNELS", "PAGE_SETTINGS")
+        return ROUTES.stream().filter(Route::writes).flatMap(route -> Stream.of("PAGE_SETTINGS")
             .flatMap(authority -> Stream.of(false, true).map(invalid -> Arguments.of(route, authority, invalid))));
     }
     static Stream<Route> anonymous() { return ROUTES.stream(); }
@@ -127,7 +131,7 @@ class ChannelManagementAuthorityWebMvcTest {
     }
 
     @ParameterizedTest @MethodSource("allowed")
-    void explicitEditorWithEitherManagementPageAuthorityCanManageChannels(Route route, String authority, String edit) throws Exception {
+    void anEditorRequiresBothSettingsAndTheChannelBlock(Route route, String authority, String edit) throws Exception {
         var req = build(route).with(user("manager").authorities(new SimpleGrantedAuthority(edit),new SimpleGrantedAuthority(authority)));
         if (route.writes()) req.with(csrf());
         var response = mvc.perform(req).andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true));
@@ -169,7 +173,8 @@ class ChannelManagementAuthorityWebMvcTest {
 
     @ParameterizedTest @MethodSource("anonymous")
     void anonymousRequestCannotReachTransportEvenWithValidCsrf(Route route) throws Exception {
-        mvc.perform(build(route).with(csrf())).andExpect(status().is3xxRedirection()).andExpect(redirectedUrlPattern("**/login"));
+        mvc.perform(build(route).with(csrf())).andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
         verifyNoInteractions(transport,bots,runner,channels,events,runtime);
     }
 }

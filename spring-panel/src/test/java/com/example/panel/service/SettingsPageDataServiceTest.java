@@ -37,8 +37,23 @@ class SettingsPageDataServiceTest {
     @Mock
     private ChannelAssignmentRoutingService channelAssignmentRoutingService;
 
+    @Mock
+    private com.example.panel.repository.ChannelRepository channels;
+
     @InjectMocks
     private SettingsPageDataService settingsPageDataService;
+
+    @Test
+    void reportingOptionsExposeOnlyChannelNameAndAnExactStringId() {
+        var channel = new com.example.panel.entity.Channel();
+        channel.setId(9007199254740993L);
+        channel.setChannelName("Reporting reference");
+        channel.setToken("must-not-expose");
+        when(channels.findAll()).thenReturn(List.of(channel));
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of());
+        assertThat(settingsPageDataService.loadSection("admin").get("notificationChannels"))
+                .isEqualTo(List.of(Map.of("id","9007199254740993","channel_name","Reporting reference")));
+    }
 
     @Test
     void loadChannelsSectionIncludesDynamicBotPresetDefinitions() {

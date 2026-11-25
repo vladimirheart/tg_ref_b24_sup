@@ -49,7 +49,7 @@
           </div>
         </a>
       </div>
-      <div class="col" th:if="${canManageChannels}">
+      <div class="col" th:if="${settingsBlocks.channels or settingsBlocks.bot_templates or settingsBlocks.auto_close or settingsBlocks.network_profiles}">
         <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-overview-target="channelsModal">
           <div class="card-body">
             <div class="settings-tile__head">
@@ -64,7 +64,7 @@
         </div>
       </div>
 
-      <div class="col">
+      <div class="col" th:if="${settingsBlocks.reporting}">
         <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-overview-target="reportingModal">
           <div class="card-body">
             <div class="settings-tile__head">
@@ -79,7 +79,7 @@
         </div>
       </div>
 
-      <div class="col">
+      <div class="col" th:if="${settingsBlocks.input_formatting}">
         <div
           class="card settings-tile settings-tile--accent h-100"
           role="button"
@@ -101,7 +101,7 @@
         </div>
       </div>
 
-      <div class="col">
+      <div class="col" th:if="${settingsBlocks.dialogs}">
         <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-settings-overview-target="categoriesModal">
           <div class="card-body">
             <div class="settings-tile__head">
@@ -116,7 +116,7 @@
         </div>
       </div>
 
-      <div class="col">
+      <div class="col" th:if="${settingsBlocks.appearance}">
         <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-overview-target="panelDesignSettingsModal">
           <div class="card-body">
             <div class="settings-tile__head">
@@ -131,7 +131,7 @@
         </div>
       </div>
 
-      <div class="col">
+      <div class="col" th:if="${settingsBlocks.parameters or settingsBlocks.equipment or settingsBlocks.it_connections or settingsBlocks.legal_entities}">
         <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-settings-overview-target="parametersModal">
           <div class="card-body">
             <div class="settings-tile__head">
@@ -146,7 +146,7 @@
         </div>
       </div>
 
-      <div class="col">
+      <div class="col" th:if="${settingsBlocks.it_connections or settingsBlocks.equipment or settingsBlocks.network_profiles or settingsBlocks.netbox}">
         <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-settings-overview-target="itConnectionsModal">
           <div class="card-body">
             <div class="settings-tile__head">
@@ -161,7 +161,7 @@
         </div>
       </div>
 
-      <div class="col">
+      <div class="col" th:if="${canManageUsers or settingsBlocks.organization or settingsBlocks.workforce}">
         <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-settings-overview-target="usersModal">
           <div class="card-body">
             <div class="settings-tile__head">
@@ -176,7 +176,7 @@
         </div>
       </div>
 
-      <div class="col">
+      <div class="col" th:if="${settingsBlocks.manager_bindings}">
         <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-overview-target="managerBindingsModal">
           <div class="card-body">
             <div class="settings-tile__head">
@@ -191,7 +191,7 @@
         </div>
       </div>
 
-      <div class="col">
+      <div class="col" th:if="${settingsBlocks.locations}">
         <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-settings-overview-target="locationsModal">
           <div class="card-body">
             <div class="settings-tile__head">
@@ -206,7 +206,7 @@
         </div>
       </div>
 
-      <div class="col">
+      <div class="col" th:if="${settingsBlocks.legal_entities}">
         <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-settings-overview-target="legalEntitiesModal">
           <div class="card-body">
             <div class="settings-tile__head">
@@ -221,7 +221,7 @@
         </div>
       </div>
 
-      <div class="col">
+      <div class="col" th:if="${settingsBlocks.backup}">
         <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-overview-target="backupSettingsModal">
           <div class="card-body">
             <div class="settings-tile__head">
@@ -236,7 +236,7 @@
         </div>
       </div>
 
-      <div class="col">
+      <div class="col" th:if="${settingsBlocks.backup}">
         <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-overview-target="productionReadinessModal">
           <div class="card-body">
             <div class="settings-tile__head">
@@ -251,7 +251,7 @@
         </div>
       </div>
 
-      <div class="col" th:if="${canRunStorageInventory}">
+      <div class="col" th:if="${settingsBlocks.backup and canRunStorageInventory}">
         <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-overview-target="storageInventoryModal">
           <div class="card-body">
             <div class="settings-tile__head">
@@ -331,12 +331,13 @@
 
     <th:block th:replace="~{settings/fragments/reporting-manager-bindings :: managerBindingsWorkspace}"></th:block>
 
-  <th:block th:if="${canManageChannels}">
+  <th:block th:if="${settingsBlocks.channels or settingsBlocks.bot_templates or settingsBlocks.auto_close or settingsBlocks.network_profiles}">
     <th:block th:replace="~{settings/fragments/channels-workspace :: channelsWorkspace}"></th:block>
-
+  <th:block th:if="${canManageChannels}">
   <th:block th:replace="~{settings/fragments/channels-add-channel :: addChannelWorkspace}"></th:block>
 
   <th:block th:replace="~{settings/fragments/channel-editor :: channelEditorWorkspace}"></th:block>
+  </th:block>
   </th:block>
 
 </div>
@@ -347,7 +348,7 @@
     <script src="/js/settings-runtime-access.js"></script>
     <script src="/js/settings-page-shell.js?v=20261125-employee-preview-r1"></script>
     <script src="/js/settings-production-readiness.js"></script>
-    <script src="/js/settings-save-runtime.js?v=20260925-01-275-s1-r1"></script>
+    <script src="/js/settings-save-runtime.js?v=20261125-access-318"></script>
     <script src="/js/settings-appearance-runtime.js"></script>
     <script src="/js/settings-dialog-shell-runtime.js"></script>
     <script src="/js/settings-dialog-sla-core-runtime.js"></script>
@@ -378,7 +379,7 @@
     <script src="/js/settings-netbox-sync-runtime.js"></script>
     <script src="/js/settings-locations-tree-runtime.js?v=20261007-closed-filter-r32"></script>
     <script src="/js/settings-location-wizard-runtime.js"></script>
-    <script src="/js/settings-reporting-manager-bindings.js"></script>
+    <script src="/js/settings-reporting-manager-bindings.js?v=20261125-access-318"></script>
     <script src="/js/settings-admin-shell-runtime.js"></script>
     <script src="/js/settings-page-config-runtime.js"></script>
     <script src="/js/settings-page-bootstrap-runtime.js"></script>
@@ -452,9 +453,9 @@
     </div>
 </main>
   <script src="/js/input-settings.js"></script>
-  <script src="/js/settings-permissions.js?v=20261112"></script>
+  <script src="/js/settings-permissions.js?v=20261125-access-318"></script>
   <script src="/js/user-permissions.js?v=20261112-documents"></script>
-  <script th:src="@{/js/auth-management.js(v='20261125-employee-preview-r1')}"></script>
+  <script th:src="@{/js/auth-management.js(v='20261125-access-318')}"></script>
   <script src="/js/workforce-management.js"></script>
   <script src="/js/password-reset-requests.js?v=20261125-employee-preview-r1"></script>
   <script src="/js/modal-transitions.js"></script>

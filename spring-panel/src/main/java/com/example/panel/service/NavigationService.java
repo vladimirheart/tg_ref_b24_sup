@@ -53,7 +53,7 @@ public class NavigationService {
         boolean canManageChannels = ChannelManagementAccess.isAllowed(authentication);
         model.addAttribute("canManageChannels", canManageChannels);
         model.addAttribute("canManageChannelsInSettings", canManageChannels && ChannelManagementAccess.hasSettingsPage(authentication));
-        model.addAttribute("canManageUsers", permissionService.hasAuthority(authentication, "PAGE_USERS"));
+        model.addAttribute("canManageUsers", com.example.panel.security.PanelAccessPolicy.canManageAccounts(authentication));
         model.addAttribute("canViewIncidents", GeneralTicketActor.from(authentication) != null);
         model.addAttribute("canManagePasswordResetRequests", AccessRecoveryService.canRecover(authentication));
         model.addAttribute("canUnblockClient", AccessRecoveryService.canUnblockClient(authentication));

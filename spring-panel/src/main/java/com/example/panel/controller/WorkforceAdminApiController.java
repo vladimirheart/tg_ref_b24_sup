@@ -22,7 +22,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/workforce")
-@PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
+@PreAuthorize("hasAuthority('PAGE_SETTINGS')")
 public class WorkforceAdminApiController {
 
     private final WorkforceService workforceService;

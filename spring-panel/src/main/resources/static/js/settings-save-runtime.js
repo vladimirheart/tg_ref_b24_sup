@@ -202,16 +202,17 @@
     }
 
     function collectFullPayload() {
-      const dialogPayload = collectDialogPayload();
+      const canUse = block => !window.SettingsPermissions || window.SettingsPermissions.canEdit(block);
+      const dialogPayload = canUse('dialogs') ? collectDialogPayload() : {};
       if (!dialogPayload) {
         return null;
       }
-      const autoClosePayload = collectAutoClosePayload();
-      if (!autoClosePayload) {
+      const autoClosePayload = canUse('auto_close') ? collectAutoClosePayload() : undefined;
+      if (canUse('auto_close') && !autoClosePayload) {
         return null;
       }
 
-      const networkProfilesPayload = options.networkProfilesRuntime?.collectNetworkProfilesPayload?.() || [];
+      const networkProfilesPayload = canUse('network_profiles') ? options.networkProfilesRuntime?.collectNetworkProfilesPayload?.() || [] : undefined;
       const locationsLoaded = typeof options.areLocationsLoaded === 'function'
         ? Boolean(options.areLocationsLoaded())
         : true;
@@ -221,7 +222,7 @@
 
       const payload = {
         ...dialogPayload,
-        client_statuses: collectStatuses(),
+        ...(canUse('appearance') ? { client_statuses: collectStatuses() } : {}),
         locations_iiko_server_sources: typeof options.serializeLocationsIikoServerSources === 'function'
           ? options.serializeLocationsIikoServerSources()
           : [],
@@ -235,7 +236,12 @@
         auto_close_config: autoClosePayload,
       };
 
-      if (locationsLoaded && locationsState && typeof locationsState === 'object') {
+      if (!canUse('locations')) { delete payload.locations_iiko_server_sources; delete payload.locations_iiko_sync; }
+      if (!canUse('netbox')) delete payload.netbox_sync;
+      if (!canUse('network_profiles')) delete payload.network_profiles;
+      if (!canUse('auto_close')) delete payload.auto_close_config;
+
+      if (canUse('locations') && locationsLoaded && locationsState && typeof locationsState === 'object') {
         payload.locations = locationsState;
       }
       return payload;

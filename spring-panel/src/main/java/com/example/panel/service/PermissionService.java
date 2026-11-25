@@ -24,15 +24,7 @@ public class PermissionService {
     }
 
     public boolean hasAuthority(Authentication authentication, String authority) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return false;
-        }
-        if (isSuperUser(authentication) && !authority.startsWith("PAGE_")) {
-            return true;
-        }
-        return authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .anyMatch(auth -> auth.equals(authority));
+        return com.example.panel.security.PanelAccessPolicy.has(authentication, authority);
     }
 
     public boolean hasAnyRole(Authentication authentication, Set<String> allowedRoles) {
