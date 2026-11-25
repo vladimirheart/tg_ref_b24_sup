@@ -36,23 +36,62 @@
   let suppressGenericUntil = 0;
   const lastPlayedAt = new Map();
   const knownNotificationIds = new Set();
+  let streamConnected = false;
+  let polledDialogs = null;
 
-  function unlockAudio() {
-    audioUnlocked = true;
-    const context = getAudioContext();
-    if (context?.state === 'suspended') {
-      void context.resume().catch(() => {
-        // Браузер может запретить звук до следующего явного действия оператора.
-      });
+  function handlePolledDialogs(event) {
+    const detail = event?.detail;
+    if (!detail || typeof detail.queryKey !== 'string' || !Array.isArray(detail.dialogs)) return;
+    const rows = new Map();
+    let latest = 0;
+    let incoming = false;
+    const previous = polledDialogs?.queryKey === detail.queryKey ? polledDialogs : null;
+    for (const row of detail.dialogs) {
+      if (!row || typeof row.ticketId !== 'string' || !row.ticketId) continue;
+      const key = JSON.stringify([row.ticketId, row.ticketPublicId, row.userId, row.channelId, row.businessId, row.scopeKind]);
+      const stamp = Number(row.lastActivityEpoch) || Date.parse(row.lastMessageTimestamp || row.createdAt || '') || 0;
+      const unread = Math.max(0, Number(row.unreadCount) || 0);
+      const sender = String(row.lastMessageSender || '').toLowerCase();
+      const client = sender && !['operator', 'support', 'admin', 'system', 'ai_agent'].includes(sender);
+      const old = previous?.rows.get(key);
+      if (previous && (old ? unread > old.unread || (client && stamp > old.stamp)
+        : client && unread > 0 && stamp > previous.latest)) incoming = true;
+      rows.set(key, { stamp, unread });
+      latest = Math.max(latest, stamp);
+    }
+    polledDialogs = { queryKey: detail.queryKey, rows, latest };
+    if (!streamConnected && incoming) {
+      cancelGenericSound();
+      play(CATEGORY.MESSAGE);
     }
   }
 
+  function updateSoundControls() {
+    const ready = audioUnlocked && audioContext?.state === 'running';
+    document.querySelectorAll('[data-notification-sound-enable]').forEach(button => {
+      button.setAttribute('aria-label', ready ? 'Проверить звук оповещений' : 'Включить звук оповещений');
+      button.setAttribute('title', ready ? 'Проверить звук оповещений' : 'Включить звук оповещений');
+      button.querySelector('i')?.setAttribute('class', ready ? 'bi bi-volume-up' : 'bi bi-volume-mute');
+    });
+  }
+
+  async function unlockAudio() {
+    const context = getAudioContext();
+    if (!context) return false;
+    try { if (context.state !== 'running') await context.resume(); }
+    catch (_) { /* Keep gesture listeners: the next explicit action may unlock audio. */ }
+    audioUnlocked = context.state === 'running';
+    updateSoundControls();
+    return audioUnlocked;
+  }
+
   function getAudioContext() {
-    if (audioContext) return audioContext;
+    if (audioContext && audioContext.state !== 'closed') return audioContext;
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (typeof AudioContextClass !== 'function') return null;
     try {
       audioContext = new AudioContextClass();
+      audioContext.addEventListener?.('statechange', updateSoundControls);
       return audioContext;
     } catch (_error) {
       return null;
@@ -61,9 +100,13 @@
 
   function play(category) {
     const pattern = SOUND_PATTERNS[category];
-    if (!audioUnlocked || document.visibilityState !== 'visible' || !pattern) return;
+    if (!audioUnlocked || !pattern) return;
     const context = getAudioContext();
-    if (!context || context.state !== 'running') return;
+    if (!context) return;
+    if (context.state !== 'running') {
+      void unlockAudio().then(ready => { if (ready) play(category); });
+      return;
+    }
     const now = Date.now();
     const previous = lastPlayedAt.get(category) || 0;
     if (now - previous < (MIN_INTERVAL_MS[category] || 0)) return;
@@ -179,10 +222,21 @@
     }
   }
 
-  window.addEventListener('pointerdown', unlockAudio, { once: true, passive: true });
-  window.addEventListener('keydown', unlockAudio, { once: true });
+  window.addEventListener('pointerdown', unlockAudio, { passive: true });
+  window.addEventListener('keydown', unlockAudio);
+  window.addEventListener('touchend', unlockAudio, { passive: true });
+  document.querySelectorAll('[data-notification-sound-enable]').forEach(button => {
+    button.addEventListener('click', () => void unlockAudio().then(ready => { if (ready) play(CATEGORY.MESSAGE); }));
+  });
+  updateSoundControls();
   window.addEventListener('iguana:notification-count', handleNotificationCount);
   window.addEventListener('iguana:unblock-count', handleUnblockCount);
   window.addEventListener('panel:sse:dialogs_changed', handleDialogEvent);
+  window.addEventListener('panel:dialogs-polled', handlePolledDialogs);
+  window.addEventListener('panel:sse-status', event => {
+    const next = event?.detail?.connected === true;
+    if (next !== streamConnected) polledDialogs = null;
+    streamConnected = next;
+  });
   window.IguanaNotificationSounds = Object.freeze({ preview: play });
 })();

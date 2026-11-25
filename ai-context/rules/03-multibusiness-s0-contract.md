@@ -7371,3 +7371,16 @@ UI presets/reference editor, полный route/required validator и все п�
   S3–S5/S2B/S6 gates. Одновременные бизнес-обращения не добавлялись. Перед выпуском
   нужны совместимые backend/SDK/боты и один shared storage volume либо S3
   domain/bucket/prefix; rollout этим source-пакетом не разрешён.
+
+### 01-319: спам в BUSINESS из общего окна диалога
+
+Кнопка спама для BUSINESS передаёт Authentication в BusinessTicketWorkService,
+а не заходит в legacy UNRESOLVED mutation. Полный owner tuple, numeric actor,
+текущие READ/OPERATE grants, flags, channel, status и work revision проверяются
+под теми же locks/CAS, что и категории. Категория «Спам», global client_blacklist
+для канонического ticket_user_id, blacklist history и scoped outbox записываются
+в одной JDBC transaction. Ошибка любого обязательного write откатывает всё.
+Уже имеющаяся категория не создаёт фиктивную work revision; повторная явная
+блокировка клиента всё равно проверяет текущий owner/actor/grants под locks.
+Schema и legacy/general authority этим действием не расширяются; GENERAL
+по-прежнему использует отдельный явный read/operate grant.

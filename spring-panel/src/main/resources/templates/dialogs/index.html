@@ -69,6 +69,8 @@
         <div class="card-body py-3">
             <div class="d-flex flex-wrap gap-2 align-items-center">
                 <h2 class="dialogs-title me-2">Диалоги</h2>
+                <a th:if="${canViewGeneralDialogs}" class="btn btn-sm btn-outline-primary"
+                   th:href="@{/general-dialogs}" data-general-dialogs-link>Без бизнеса</a>
                 <input type="search"
 				   id="dialogQuickSearch"
 				   class="form-control form-control-sm dialog-toolbar-search flex-grow-1"
@@ -1314,7 +1316,7 @@
 </script>
 <th:block th:with="dialogsAssetVersion='20261118-dialog-reply-delivery'">
 <script th:src="@{/js/dialogs-auth-response-runtime.js(v='20261119-session-relogin')}"></script>
-<script th:src="@{/js/dialogs-list-runtime.js(v='20261119-session-relogin')}"></script>
+<script th:src="@{/js/dialogs-list-runtime.js(v='20261125-list-sound-r319-r2')}"></script>
 <script th:src="@{/js/dialogs-shell-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-avatar-runtime.js(v='20261125-employee-preview-r1')}"></script>
 <script th:src="@{/js/dialogs-sla-runtime.js(v=${dialogsAssetVersion})}"></script>

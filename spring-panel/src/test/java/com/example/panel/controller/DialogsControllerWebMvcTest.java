@@ -102,6 +102,25 @@ class DialogsControllerWebMvcTest {
 
     @MockBean
     private MultibusinessFeatureFlags multibusinessFlags;
+    @MockBean
+    private com.example.panel.service.GeneralTicketAccessService generalAccess;
+
+    @Test
+    void generalQueueLinkAppearsOnlyForItsCurrentReader() throws Exception {
+        stubNavigationDefaults();
+        stubDialogsPageData(new DialogSummary(0,0,0,List.of()),List.of(),DialogMyDialogs.empty());
+        when(multibusinessFlags.isFoundationEnabled()).thenReturn(true);
+        when(multibusinessFlags.isGeneralTicketQueue()).thenReturn(true);
+        when(generalAccess.requireAuthenticatedUserId(any())).thenReturn(19L);
+        when(generalAccess.canRead(19L)).thenReturn(true);
+        var actor=new org.springframework.security.authentication.UsernamePasswordAuthenticationToken("operator","",
+            org.springframework.security.core.authority.AuthorityUtils.createAuthorityList("PAGE_DIALOGS"));
+        mockMvc.perform(get("/dialogs").principal(actor)).andExpect(status().isOk())
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("data-general-dialogs-link")));
+        when(generalAccess.canRead(19L)).thenReturn(false);
+        mockMvc.perform(get("/dialogs").principal(actor)).andExpect(status().isOk())
+            .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("data-general-dialogs-link"))));
+    }
 
     @Test
     void dialogsTicketRouteProvidesInitialDialogTicketId() throws Exception {
@@ -231,7 +250,7 @@ class DialogsControllerWebMvcTest {
     }
 
     @Test
-    void dialogsPageRendersChannelsSidebarLinkFromNavigationPermissions() throws Exception {
+    void dialogsPageCannotReviveTheRemovedLegacyChannelsSidebarLink() throws Exception {
         stubNavigationDefaults();
         when(permissionService.hasAuthority(any(), anyString())).thenAnswer(invocation -> {
             String authority = invocation.getArgument(1, String.class);
@@ -247,7 +266,7 @@ class DialogsControllerWebMvcTest {
                                 "operator", "", org.springframework.security.core.authority.AuthorityUtils
                                         .createAuthorityList("PAGE_DIALOGS", "PAGE_CHANNELS"))))
                 .andExpect(status().isOk())
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-page-key=\"channels\"")));
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("data-page-key=\"channels\""))));
     }
 
     @Test

@@ -364,6 +364,14 @@ public class DialogQuickActionService {
                 .orElse(false);
     }
 
+    public DialogSpamResult markBusinessClientAsSpam(String ticketId,Authentication actor,String reason) {
+        if(businessTicketWorkService==null)return new DialogSpamResult(false,false,"Диалог недоступен",null,List.of());
+        var result=businessTicketWorkService.markSpamByTicketId(ticketId,actor,reason);
+        return new DialogSpamResult(result.found(),result.committed(),
+                result.committed()?null:"Не удалось пометить диалог как спам. Обновите диалог и повторите.",
+                result.userId(),result.categories());
+    }
+
     public DialogSpamResult markClientAsSpam(String ticketId,
                                              String operator,
                                              String reason) {

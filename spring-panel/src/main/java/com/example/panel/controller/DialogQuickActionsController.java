@@ -226,7 +226,9 @@ public class DialogQuickActionsController {
                 return permissionDenied;
             }
             String operator = authentication != null ? authentication.getName() : null;
-            DialogQuickActionService.DialogSpamResult result = dialogQuickActionService.markClientAsSpam(
+            DialogQuickActionService.DialogSpamResult result = dialogQuickActionService.requiresBusinessWorkflow(ticketId,operator)
+                    ? dialogQuickActionService.markBusinessClientAsSpam(ticketId,authentication,request!=null?request.reason():null)
+                    : dialogQuickActionService.markClientAsSpam(
                     ticketId,
                     operator,
                     request != null ? request.reason() : null

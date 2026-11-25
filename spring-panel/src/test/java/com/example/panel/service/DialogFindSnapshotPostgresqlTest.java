@@ -57,7 +57,7 @@ class DialogFindSnapshotPostgresqlTest {
                     user_id BIGINT NOT NULL, ticket_id VARCHAR(255) NOT NULL,
                     channel_id BIGINT, status TEXT DEFAULT 'pending',
                     resolved_by TEXT, resolved_at TIMESTAMPTZ,
-                    ticket_public_id TEXT, business_id BIGINT,
+                    ticket_public_id TEXT, business_id BIGINT,business_categories JSONB NOT NULL DEFAULT '[]',
                     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     PRIMARY KEY(user_id, ticket_id), UNIQUE(ticket_id, channel_id))
                 """);
@@ -177,7 +177,7 @@ class DialogFindSnapshotPostgresqlTest {
         assertDenied(raw, number);
 
         assertThat(primaryBindings).hasSize(1);
-        assertThat(primaryBindings.get(0)).containsExactly(number ? "" : "operator", raw);
+        assertThat(primaryBindings.get(0)).containsExactly(number ? new Object[]{raw} : new Object[]{"operator",raw});
         assertThat(numberBindings).isEmpty();
         assertThat(snapshot()).isEqualTo(committed.get());
         verifyNoInteractions(usersJdbc, photos);
@@ -197,7 +197,7 @@ class DialogFindSnapshotPostgresqlTest {
         assertAllowed(raw, number);
 
         assertThat(primaryBindings).hasSize(1);
-        assertThat(primaryBindings.get(0)).containsExactly(number ? "" : "operator", raw);
+        assertThat(primaryBindings.get(0)).containsExactly(number ? new Object[]{raw} : new Object[]{"operator",raw});
         assertThat(numberBindings).hasSize(1);
         assertThat(numberBindings.get(0)).containsExactly(
                 "2026-04-21", expectedNumberTimestamp(), expectedNumberTimestamp(), raw);

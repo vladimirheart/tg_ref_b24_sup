@@ -36,6 +36,9 @@ class BusinessTicketWorkPostgresTest {
                 reopen_count INT DEFAULT 7,last_reopen_at TIMESTAMPTZ,PRIMARY KEY(user_id,ticket_id));
             CREATE TABLE ui_event_outbox(id BIGINT PRIMARY KEY,event_type TEXT,ticket_id TEXT,channel_id BIGINT,created_at TIMESTAMPTZ,
                 ticket_user_id BIGINT,ticket_public_id TEXT,ticket_scope_kind TEXT,ticket_business_id BIGINT);
+            CREATE TABLE client_blacklist(user_id TEXT PRIMARY KEY,is_blacklisted BOOLEAN,reason TEXT,added_at TIMESTAMPTZ,
+                added_by TEXT,unblock_requested BOOLEAN,unblock_requested_at TIMESTAMPTZ);
+            CREATE TABLE client_blacklist_history(user_id TEXT,action TEXT,reason TEXT,actor TEXT,created_at TIMESTAMPTZ);
             INSERT INTO users(id,username) VALUES(1,'Operator'),(2,'viewer'),(3,'foreign');
             INSERT INTO businesses(id) VALUES(11),(22);
             INSERT INTO business_memberships(user_id,business_id,role_code) VALUES(1,11,'OPERATOR'),(2,11,'VIEWER'),(3,22,'ADMIN');
@@ -64,6 +67,47 @@ class BusinessTicketWorkPostgresTest {
     }
     private boolean command(String action) {
         return service.change(scope,boundActor("Operator"),0,action.equals("reopen")?"resolved":"pending",action,action.equals("reopen")?List.of():List.of(" Billing ","Billing","Payment"));
+    }
+    @Test void spamUsesTheBusinessOwnerAndCommitsBlacklistCategoriesHistoryAndOutboxTogether() {
+        var before=snapshot();
+        var result=service.markSpamByTicketId(RAW,boundActor("Operator"),"Fixture spam");
+        assertThat(result.found()).isTrue();assertThat(result.committed()).isTrue();
+        assertThat(result.userId()).isEqualTo("42");assertThat(result.categories()).containsExactly("Спам");
+        assertThat(jdbc.queryForMap("SELECT user_id,is_blacklisted,reason,added_by FROM client_blacklist"))
+            .containsEntry("user_id","42").containsEntry("is_blacklisted",true).containsEntry("added_by","Operator");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM client_blacklist_history WHERE user_id='42' AND action='blocked'",Long.class)).isEqualTo(1);
+        assertThat(service.find(PUBLIC,boundActor("Operator")).orElseThrow().status()).isEqualTo("pending");
+        assertThat(revision()).isEqualTo(1);
+        for(String table:before.keySet())if(!List.of("tickets","ui_event_outbox","business_ticket_work_events").contains(table))
+            assertThat(snapshot().get(table)).as(table).isEqualTo(before.get(table));
+    }
+    @Test void spamCanBlockAnAlreadyLabelledClientAgainWithoutInventingAWorkRevision() {
+        assertThat(service.markSpamByTicketId(RAW,boundActor("Operator"),"First").committed()).isTrue();
+        jdbc.update("UPDATE client_blacklist SET is_blacklisted=FALSE WHERE user_id='42'");
+        assertThat(service.markSpamByTicketId(RAW,boundActor("Operator"),"Again").committed()).isTrue();
+        assertThat(revision()).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT is_blacklisted FROM client_blacklist WHERE user_id='42'",Boolean.class)).isTrue();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM client_blacklist_history",Long.class)).isEqualTo(2);
+    }
+    @ParameterizedTest @ValueSource(strings={"viewer","foreign","disabled","revoked","collision","flags"})
+    void spamCannotBorrowAnotherBusinessOrAnInvalidActor(String denial) {
+        if(denial.equals("disabled"))jdbc.update("UPDATE users SET enabled=FALSE WHERE id=1");
+        if(denial.equals("revoked"))jdbc.update("UPDATE business_memberships SET is_active=FALSE WHERE user_id=1");
+        if(denial.equals("flags"))flags.getFoundation().setEnabled(false);
+        if(denial.equals("collision"))jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,business_id,status) VALUES(99,?, ?,22,'open')",RAW,"c".repeat(32));
+        var before=snapshot();
+        String actor=List.of("viewer","foreign").contains(denial)?denial:"Operator";
+        assertThat(service.markSpamByTicketId(RAW,boundActor(actor),"Denied").committed()).isFalse();
+        assertThat(snapshot()).isEqualTo(before);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM client_blacklist",Long.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM client_blacklist_history",Long.class)).isZero();
+    }
+    @Test void spamHistoryFailureRollsBackTheCategoryAndBlacklist() {
+        jdbc.execute("ALTER TABLE client_blacklist_history ADD CONSTRAINT reject_test_history CHECK (action <> 'blocked')");
+        var before=snapshot();
+        assertThat(service.markSpamByTicketId(RAW,boundActor("Operator"),"Rollback").committed()).isFalse();
+        assertThat(snapshot()).isEqualTo(before);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM client_blacklist",Long.class)).isZero();
     }
     private void prepare(String action){if(action.equals("reopen"))jdbc.update("UPDATE tickets SET status='resolved' WHERE ticket_id=?",RAW);}
     private long revision(){return jdbc.queryForObject("SELECT business_work_revision FROM tickets WHERE ticket_id=?",Long.class,RAW);}

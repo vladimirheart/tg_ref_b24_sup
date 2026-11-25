@@ -19,6 +19,8 @@ public class NavigationService {
     private final UnblockRequestService unblockRequestService;
     private final PanelUserPhotoService panelUserPhotoService;
     private final MultibusinessFeatureFlags flags;
+    @Autowired(required=false)
+    private GeneralTicketAccessService generalTickets;
 
     public NavigationService(PermissionService permissionService,
                              PanelUserRepository panelUserRepository,
@@ -42,6 +44,7 @@ public class NavigationService {
 
     public void enrich(Model model, Authentication authentication) {
         model.addAttribute("canViewDialogs", permissionService.hasAuthority(authentication, "PAGE_DIALOGS"));
+        model.addAttribute("canViewGeneralDialogs", canViewGeneralDialogs(authentication));
         model.addAttribute("canViewAiOps", permissionService.hasAuthority(authentication, "PAGE_AI_OPS"));
         model.addAttribute("canViewAnalytics", permissionService.hasAuthority(authentication, "PAGE_ANALYTICS"));
         model.addAttribute("canViewDashboard", permissionService.hasAuthority(authentication, "PAGE_DASHBOARD"));
@@ -62,6 +65,13 @@ public class NavigationService {
         model.addAttribute("canViewClients", permissionService.hasAuthority(authentication, "PAGE_CLIENTS"));
         model.addAttribute("pendingUnblockRequests", loadPendingUnblockCount(authentication));
         enrichUser(model, authentication);
+    }
+
+    boolean canViewGeneralDialogs(Authentication actor) {
+        if(generalTickets==null||flags==null||!flags.isFoundationEnabled()||!flags.isGeneralTicketQueue()
+                ||!permissionService.hasAuthority(actor,"PAGE_DIALOGS"))return false;
+        try { return generalTickets.canRead(generalTickets.requireAuthenticatedUserId(actor)); }
+        catch(org.springframework.security.access.AccessDeniedException|org.springframework.dao.DataAccessException denied) { return false; }
     }
 
     private long loadPendingUnblockCount(Authentication authentication) {

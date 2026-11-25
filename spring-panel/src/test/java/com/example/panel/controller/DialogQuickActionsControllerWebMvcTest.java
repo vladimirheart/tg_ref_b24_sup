@@ -368,6 +368,19 @@ class DialogQuickActionsControllerWebMvcTest {
         verify(dialogAuthorizationService).logDialogAction("operator", "T-604B", "mark_spam", "success", "blacklisted_user=77");
     }
 
+    @Test void businessSpamFromTheQueryRouteUsesTheAuthenticatedBusinessWorkflow() throws Exception {
+        when(dialogQuickActionService.requiresBusinessWorkflow("T-BUSINESS","operator")).thenReturn(true);
+        when(dialogQuickActionService.markBusinessClientAsSpam(eq("T-BUSINESS"),org.mockito.ArgumentMatchers.any(),eq("Spam")))
+            .thenReturn(new DialogQuickActionService.DialogSpamResult(true,true,null,"77",List.of("Спам")));
+        mockMvc.perform(post("/api/dialog-ticket/spam").param("ticketId","T-BUSINESS")
+                .with(user("operator")).with(csrf()).contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"Spam\"}"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true)).andExpect(jsonPath("$.userId").value("77"));
+        verify(dialogQuickActionService).markBusinessClientAsSpam(eq("T-BUSINESS"),
+            org.mockito.ArgumentMatchers.argThat(actor->actor!=null&&actor.getName().equals("operator")),eq("Spam"));
+        verify(dialogQuickActionService,org.mockito.Mockito.never()).markClientAsSpam(
+            org.mockito.ArgumentMatchers.anyString(),org.mockito.ArgumentMatchers.anyString(),org.mockito.ArgumentMatchers.any());
+    }
+
     @Test
     void snoozeRejectsMissingOrInvalidDuration() throws Exception {
         when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_snooze"), eq("snooze"), eq("T-605")))

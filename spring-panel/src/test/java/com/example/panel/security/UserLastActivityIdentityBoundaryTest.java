@@ -26,7 +26,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class UserLastActivityIdentityBoundaryTest {
-    private static final String SQL = "UPDATE users SET last_portal_activity_at = ? WHERE id = ? AND username = ?";
+    private static final String SQL = UserLastActivityFilter.TOUCH_SQL;
     final JdbcTemplate jdbc = mock(JdbcTemplate.class);
     final AtomicInteger chained = new AtomicInteger();
     UserLastActivityFilter filter;

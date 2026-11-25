@@ -92,6 +92,31 @@ public class BusinessTicketWorkService {
         return new DialogResolveResult(changed,true,changed?null:"business_work_changed");
     }
 
+    /** Block only the client of the currently authorized canonical BUSINESS root. */
+    public SpamUpdate markSpamByTicketId(String ticketId,Authentication authentication,String reason) {
+        var current=findByTicketId(ticketId,authentication);
+        if(current.isEmpty()||!current.get().canOperate())return new SpamUpdate(false,false,null,List.of());
+        View view=current.get();
+        var categories=new LinkedHashSet<>(view.categories());categories.add("Спам");
+        String actor=boundActor(authentication).getUsername();
+        String note=reason==null||reason.isBlank()?"Спам":reason.trim();
+        String client=Long.toString(view.scope().ticketUserId());
+        boolean changed=change(view.scope(),authentication,view.revision(),view.status(),"categories",List.copyOf(categories),()->{
+            int blocked=jdbc.update("""
+                INSERT INTO client_blacklist(user_id,is_blacklisted,reason,added_at,added_by,unblock_requested,unblock_requested_at)
+                VALUES(:client,TRUE,:reason,CURRENT_TIMESTAMP,:actor,FALSE,NULL)
+                ON CONFLICT(user_id) DO UPDATE SET is_blacklisted=TRUE,reason=EXCLUDED.reason,
+                    added_at=EXCLUDED.added_at,added_by=EXCLUDED.added_by,unblock_requested=FALSE,unblock_requested_at=NULL
+                """,new MapSqlParameterSource("client",client).addValue("reason",note).addValue("actor",actor));
+            int recorded=jdbc.update("""
+                INSERT INTO client_blacklist_history(user_id,action,reason,actor,created_at)
+                VALUES(:client,'blocked',:reason,:actor,CURRENT_TIMESTAMP)
+                """,new MapSqlParameterSource("client",client).addValue("reason",note).addValue("actor",actor));
+            if(blocked!=1||recorded!=1)throw new IllegalStateException("Spam blacklist mutation was not recorded");
+        });
+        return new SpamUpdate(true,changed,client,changed?List.copyOf(categories):view.categories());
+    }
+
     private Optional<View> findByTicketId(String ticketId,Authentication authentication) {
         var account=boundActor(authentication);
         String identity=account==null?null:account.getUsername();
@@ -121,6 +146,9 @@ public class BusinessTicketWorkService {
         }catch(DataAccessException|IllegalArgumentException ex){return List.of();}
     }
     public boolean change(UiEventTicketScope scope,Authentication authentication,long revision,String expectedStatus,String action,List<String> submitted) {
+        return change(scope,authentication,revision,expectedStatus,action,submitted,null);
+    }
+    private boolean change(UiEventTicketScope scope,Authentication authentication,long revision,String expectedStatus,String action,List<String> submitted,Runnable beforeCommit) {
         var account=boundActor(authentication);
         if(account==null||!valid(scope,account.getUsername())||revision<0||revision==Long.MAX_VALUE||!allowed(expectedStatus,action))return false;
         String identity=account.getUsername();
@@ -149,7 +177,21 @@ public class BusinessTicketWorkService {
             if(!valid(scope,identity))return false;
             var previous=categories(root.categories());
             var next=action.equals("reopen")?previous:requested;
-            if(action.equals("categories")&&previous.equals(next))return false;
+            if(action.equals("categories")&&previous.equals(next)) {
+                if(beforeCommit==null)return false;
+                // Already labelled spam: block again without inventing a work revision.
+                if(jdbc.query("SELECT owner.business_work_revision"+from
+                        +" AND owner.business_work_revision=:revision AND owner.status=:expectedStatus"
+                        +" AND owner.channel_id IS NOT DISTINCT FROM CAST(:channel AS BIGINT)",params.addValue("channel",root.channel(),Types.BIGINT),
+                        (rs,row)->rs.getLong(1)).size()!=1||!valid(scope,identity))return false;
+                beforeCommit.run();
+                int outbox=jdbc.update("""
+                    INSERT INTO ui_event_outbox(id,event_type,ticket_id,channel_id,created_at,ticket_user_id,ticket_public_id,ticket_scope_kind,ticket_business_id)
+                    VALUES(:eventId,'business_work_changed',:raw,:channel,CURRENT_TIMESTAMP,:owner,:public,'BUSINESS',:business)
+                    """,params.addValue("eventId",ids.nextEventId()));
+                if(outbox!=1||!valid(scope,identity)){tx.setRollbackOnly();return false;}
+                return true;
+            }
             params.addValue("previousCategories",root.categories()).addValue("categories",encode(next))
                 .addValue("actor",root.actor()).addValue("channel",root.channel(),Types.BIGINT).addValue("enabled",enabled(identity));
             var changed=jdbc.query("""
@@ -188,6 +230,8 @@ public class BusinessTicketWorkService {
             if(audit!=1||outbox!=1||confirmation.size()!=1||!valid(scope,identity)) {
                 tx.setRollbackOnly();return false;
             }
+            if(beforeCommit!=null)beforeCommit.run();
+            if(!valid(scope,identity)){tx.setRollbackOnly();return false;}
             if(action.equals("close") && closureNotifications!=null)
                 notice[0]=closureNotifications.recordClosure(scope,root.channel(),changed.get(0));
             return true;
@@ -238,6 +282,7 @@ public class BusinessTicketWorkService {
     }
     public record View(UiEventTicketScope scope,String status,long revision,List<String> categories,boolean canOperate){}
     public record CategoryUpdate(boolean found,boolean valid,boolean changed,boolean committed,List<String> categories){}
+    public record SpamUpdate(boolean found,boolean committed,String userId,List<String> categories){}
     public record Event(long revision,String action,String fromStatus,String toStatus,List<String> previousCategories,List<String> categories,String actor,OffsetDateTime createdAt){}
     private record Root(Long channel,String categories,long actorId,String actor){}
 }

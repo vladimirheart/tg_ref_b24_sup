@@ -45,6 +45,15 @@ class DialogLookupReadServiceTest {
         assertThat(service.resolveRequestNumber("BUSINESS")).isEqualTo("20260421-002");
     }
 
+    @Test
+    void resolvingOnlyANumberDoesNotLoadTheDialogWorkspace() {
+        jdbcTemplate.update("INSERT INTO tickets(ticket_id,status,user_id,created_at) VALUES ('NUMBER-ONLY','pending',123,'2026-04-21T09:00:00Z')");
+        var isolated=org.mockito.Mockito.spy(service);
+        org.mockito.Mockito.doThrow(new AssertionError("Full workspace lookup is forbidden for number formatting"))
+                .when(isolated).findDialog(org.mockito.ArgumentMatchers.anyString(),org.mockito.ArgumentMatchers.anyString());
+        assertThat(isolated.resolveRequestNumber("NUMBER-ONLY")).isEqualTo("20260421-001");
+    }
+
     private JdbcTemplate jdbcTemplate;
     private JdbcTemplate usersJdbcTemplate;
     private DialogLookupReadService service;

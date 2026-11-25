@@ -628,6 +628,15 @@
         errorNotified = false;
         getFilterState().page = Math.max(1, Number(data.pagination.page) || 1);
         const dialogs = data.dialogs || [];
+        window.dispatchEvent(new CustomEvent('panel:dialogs-polled', {
+          detail: { queryKey, dialogs: dialogs.map(row => ({
+            ticketId: row.ticketId, ticketPublicId: row.ticketPublicId, userId: row.userId,
+            channelId: row.channelId, businessId: row.businessId, scopeKind: row.scopeKind,
+            unreadCount: row.unreadCount, lastMessageSender: row.lastMessageSender,
+            lastMessageTimestamp: row.lastMessageTimestamp, createdAt: row.createdAt,
+            lastActivityEpoch: options.parseUtcDateValue?.(String(row.lastMessageTimestamp || row.createdAt || ''))?.getTime(),
+          })) },
+        }));
         syncSlaOrchestrationSignals(data.sla_orchestration || null);
         applySlaOrchestrationToRows();
         const marker = options.buildDialogsMarker(dialogs);

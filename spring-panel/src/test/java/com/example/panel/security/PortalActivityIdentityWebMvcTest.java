@@ -56,7 +56,7 @@ class PortalActivityIdentityWebMvcTest {
     private static final String LOGIN="SELECT * FROM users WHERE lower(username) = lower(?) LIMIT 2";
     private static final String ID="SELECT * FROM users WHERE id = ?";
     private static final String OLD="UPDATE users SET last_portal_activity_at = ? WHERE lower(username) = lower(?)";
-    private static final String UPDATE="UPDATE users SET last_portal_activity_at = ? WHERE id = ? AND username = ?";
+    private static final String UPDATE=UserLastActivityFilter.TOUCH_SQL;
     private static final String AUTH="SELECT authority FROM user_authorities WHERE user_id = ?";
     private static final String ROLE="SELECT r.name AS role_name, r.permissions AS permissions FROM users u LEFT JOIN roles r ON r.id = u.role_id WHERE u.id = ? LIMIT 1";
     private static final String PASSWORD="fixture current",HASH=new LegacyCompatiblePasswordEncoder().encode(PASSWORD);

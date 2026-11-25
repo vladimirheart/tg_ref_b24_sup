@@ -378,19 +378,45 @@ public class DialogLookupReadService {
     }
 
     public String resolveRequestNumber(String ticketId) {
-        if (!StringUtils.hasText(ticketId)) {
+        if (!StringUtils.hasText(ticketId) || !legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)) {
             return null;
         }
-        return findDialog(ticketId, "")
-                .map(DialogListItem::requestNumber)
-                .map(this::trimToNull)
-                .filter(this::isCanonicalRequestNumber)
-                .orElse(null);
+        // Number formatting must not load history, unread counters, feedback or operator profiles.
+        try {
+            var roots = jdbcTemplate.query("""
+                    SELECT m.group_msg_id AS request_number,COALESCE(m.created_at,t.created_at) AS created_at,m.created_date,m.created_time
+                      FROM tickets t LEFT JOIN messages m ON m.group_msg_id=(
+                          SELECT m0.group_msg_id FROM messages m0 WHERE m0.ticket_id=t.ticket_id
+                          ORDER BY %s LIMIT 1)
+                     WHERE t.ticket_id=? AND t.is_general=FALSE
+                       AND 1=(SELECT count(*) FROM tickets collision WHERE collision.ticket_id=t.ticket_id)
+                    """.formatted(latestMessageOrderSql("m0")),
+                    (rs,row) -> {
+                        String createdAt=rs.getString("created_at");
+                        LocalDate date=parseRequestDate(rs.getString("created_date"),createdAt);
+                        String sortKey=timestampSqlSupport.normalizeComparableTimestamp(createdAt);
+                        if (sortKey==null && date!=null) {
+                            String time=resolveCreatedTime(rs.getString("created_time"),createdAt);
+                            sortKey=date.format(REQUEST_NUMBER_ISO_DATE_FORMAT)+"T"+(time==null?"00:00:00":time);
+                        }
+                        var seed=date==null||sortKey==null ? null : new RequestNumberSeed(
+                                date.format(REQUEST_NUMBER_ISO_DATE_FORMAT),date.format(REQUEST_NUMBER_DISPLAY_DATE_FORMAT),sortKey);
+                        return new RequestNumberLookup(seed,trimToNull(rs.getString("request_number")));
+                    },ticketId);
+            if(roots.size()!=1)return null;
+            var root=roots.get(0);
+            String number=resolveDailyRequestNumber(root.seed(),ticketId);
+            return number!=null?number:isCanonicalRequestNumber(root.fallback())?root.fallback():null;
+        } catch (DataAccessException ex) {
+            return null;
+        }
     }
 
     private boolean isCanonicalRequestNumber(String value) {
         return value != null && value.matches("\\d{8}-\\d{3,}");
     }
+
+    private record RequestNumberLookup(RequestNumberSeed seed,String fallback) {}
 
     public DialogMyDialogs groupMyActiveDialogs(List<DialogListItem> dialogs, String currentOperator) {
         String normalizedOperator = normalizeIdentity(currentOperator);
@@ -677,12 +703,17 @@ public class DialogLookupReadService {
         }
         RequestNumberSeed seed = buildRequestNumberSeed(item);
         String ticketId = item.ticketId();
+        String number = resolveDailyRequestNumber(seed, ticketId);
+        return number != null ? item.withRequestNumber(number) : item;
+    }
+
+    private String resolveDailyRequestNumber(RequestNumberSeed seed, String ticketId) {
         if (seed == null || !StringUtils.hasText(ticketId)) {
-            return item;
+            return null;
         }
         String comparableCreatedAt = timestampSqlSupport.normalizeComparableTimestamp(seed.sortKey());
         if (comparableCreatedAt == null) {
-            return item;
+            return null;
         }
         String createdAtExpr = comparableTicketCreatedAtSql("t");
         String sql = """
@@ -706,7 +737,7 @@ public class DialogLookupReadService {
                 ticketId
         );
         int sequence = count != null && count > 0 ? count.intValue() : 1;
-        return item.withRequestNumber(formatRequestNumber(seed.displayDate(), sequence));
+        return formatRequestNumber(seed.displayDate(), sequence);
     }
 
     private RequestNumberSeed buildRequestNumberSeed(DialogListItem item) {

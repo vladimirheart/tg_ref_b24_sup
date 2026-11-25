@@ -25,6 +25,18 @@ import java.time.ZoneOffset;
 public class UserLastActivityFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(UserLastActivityFilter.class);
+    static final String TOUCH_SQL = """
+            WITH touch AS (SELECT CAST(? AS TIMESTAMPTZ) AS at),
+            unlocked AS (
+                SELECT account.id FROM users account CROSS JOIN touch
+                 WHERE account.id=? AND account.username=?
+                   AND (account.last_portal_activity_at IS NULL
+                        OR account.last_portal_activity_at < touch.at-INTERVAL '30 seconds')
+                 FOR UPDATE OF account SKIP LOCKED
+            )
+            UPDATE users account SET last_portal_activity_at=touch.at FROM touch,unlocked
+             WHERE account.id=unlocked.id
+            """;
 
     private final JdbcTemplate usersJdbcTemplate;
     private volatile boolean columnMissing = false;
@@ -64,7 +76,7 @@ public class UserLastActivityFilter extends OncePerRequestFilter {
         }
         try {
             usersJdbcTemplate.update(
-                    "UPDATE users SET last_portal_activity_at = ? WHERE id = ? AND username = ?",
+                    TOUCH_SQL,
                     OffsetDateTime.now(ZoneOffset.UTC),
                     principal.getUserId(),
                     username

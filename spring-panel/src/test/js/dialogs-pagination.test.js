@@ -26,10 +26,12 @@ test('prepaint fallback releases SSR without a working main runtime and supports
 });
 
 function harness({ bootstrap, overrides = {}, initialTimeoutMs } = {}) {
-  const requests = [], markers = [], overviews = [], errors = [], listeners = new Map();
+  const requests = [], markers = [], overviews = [], errors = [], listeners = new Map(), events = [];
   let loading = false, timer = null, readyCount = 0;
   const context = {
-    window: { DIALOG_LIST_PAGINATION: { page: 1, page_size: 20, total_items: 10000, total_pages: 500 } },
+    window: { DIALOG_LIST_PAGINATION: { page: 1, page_size: 20, total_items: 10000, total_pages: 500 },
+      dispatchEvent(event) { events.push(event); } },
+    CustomEvent: class { constructor(type, options) { this.type = type; this.detail = options.detail; } },
     document: { visibilityState: 'visible', addEventListener: (name, fn) => listeners.set(name, fn),
       removeEventListener: name => listeners.delete(name) },
     localStorage: { getItem: () => 'all', setItem: () => {} },
@@ -63,7 +65,7 @@ function harness({ bootstrap, overrides = {}, initialTimeoutMs } = {}) {
   const answer = (index, ticket = 'fresh', extra = {}) => requests[index].resolve({ ok: true,
     json: async () => ({ success: true, dialogs: ticket ? [{ ticketId: ticket }] : [],
       pagination: { page: 1, page_size: 20, total_items: 10000, total_pages: 500 }, ...extra }) });
-  return { context, state, options, runtime, selection, requests, answer, markers, overviews, errors, listeners,
+  return { context, state, options, runtime, selection, requests, answer, markers, overviews, errors, listeners, events,
     readyCount: () => readyCount, loading: () => loading };
 }
 
@@ -169,6 +171,20 @@ test('read-only query carries bounded page, full filter and exact opaque snoozed
   assert.deepEqual(body, { query: { page: 17, pageSize: 20, search: 'заказ', status: 'Новый', view: 'active',
     slaWindowMinutes: 30, sortMode: 'sla_priority', snoozedTicketIds: [' T/1,?& Ю '], pinnedTicketIds: ['pinned'] }, includeOverview: false });
   h.answer(0); await pending; assert.equal(h.overviews.length, 0, 'Page switch must not replace global My dialogs with the page');
+  h.runtime.dispose();
+});
+
+test('accepted poll snapshots publish only fields needed for notification sounds', async () => {
+  const h = harness();
+  const pending = h.runtime.refreshDialogsList();
+  h.answer(0, null, { dialogs: [{ ticketId: ' T/1?& Ю ', unreadCount: 2,
+    lastMessageSender: 'client', lastMessageTimestamp: '2026-11-25T15:20:00Z', problem: 'private body' }] });
+  await pending;
+  assert.equal(h.events.length, 1);
+  assert.equal(h.events[0].type, 'panel:dialogs-polled');
+  assert.equal(h.events[0].detail.dialogs[0].ticketId, ' T/1?& Ю ');
+  assert.equal(h.events[0].detail.dialogs[0].unreadCount, 2);
+  assert.equal(h.events[0].detail.dialogs[0].problem, undefined);
   h.runtime.dispose();
 });
 
