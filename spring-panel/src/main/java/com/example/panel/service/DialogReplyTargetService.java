@@ -94,7 +94,9 @@ public class DialogReplyTargetService {
         boolean storeSenderIdentity = hasSenderIdentityColumn();
         String sql = storeSenderIdentity ? """
                 INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, channel_id, tg_message_id, reply_to_tg_id, ticket_owner_user_id, sender_identity)
-                SELECT outgoing.*, t.user_id
+                SELECT outgoing.user_id, outgoing.sender, outgoing.message, outgoing.timestamp,
+                       outgoing.ticket_id, outgoing.message_type, outgoing.channel_id,
+                       outgoing.tg_message_id, outgoing.reply_to_tg_id, t.user_id, outgoing.sender_identity
                   FROM (VALUES (
                     ?::bigint, ?::text, ?::text, ?::timestamptz, ?::text,
                     ?::text, ?::bigint, ?::bigint, ?::bigint, ?::text
@@ -180,7 +182,9 @@ public class DialogReplyTargetService {
         Long chatHistoryId = jdbcTemplate.execute((Connection connection) -> {
             String sql = storeSenderIdentity ? """
                     INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, attachment, channel_id, tg_message_id, reply_to_tg_id, ticket_owner_user_id, sender_identity)
-                    SELECT outgoing.*, t.user_id
+                    SELECT outgoing.user_id, outgoing.sender, outgoing.message, outgoing.timestamp,
+                           outgoing.ticket_id, outgoing.message_type, outgoing.attachment, outgoing.channel_id,
+                           outgoing.tg_message_id, outgoing.reply_to_tg_id, t.user_id, outgoing.sender_identity
                       FROM (VALUES (
                         ?::bigint, ?::text, ?::text, ?::timestamptz, ?::text,
                         ?::text, ?::text, ?::bigint, ?::bigint, ?::bigint, ?::text

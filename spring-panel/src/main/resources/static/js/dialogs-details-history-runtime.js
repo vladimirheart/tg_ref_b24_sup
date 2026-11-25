@@ -881,84 +881,12 @@
       return false;
     }
 
-    function normalizeHistoryComparisonValue(value) {
-      return String(value || '')
-        .toLowerCase()
-        .replace(/\s+/g, ' ')
-        .trim();
-    }
-
-    function buildHistoryTechnicalValueSet(context = {}) {
-      const values = new Set();
-      const addValue = (value) => {
-        const normalized = normalizeHistoryComparisonValue(value);
-        if (!normalized) return;
-        values.add(normalized);
-        normalized
-          .split(/[,/|]+/)
-          .map((item) => normalizeHistoryComparisonValue(item))
-          .filter(Boolean)
-          .forEach((item) => values.add(item));
-      };
-      addValue(context?.business);
-      addValue(context?.location);
-      return values;
-    }
-
-    function isLikelyQuestionnaireProblemMessage(text, technicalValues) {
-      const normalized = normalizeHistoryComparisonValue(text);
-      if (!normalized) return false;
-      if (technicalValues.has(normalized)) return false;
-      const words = normalized.split(' ').filter(Boolean);
-      if (normalized.length >= 48) return true;
-      if (words.length >= 4) return true;
-      if (/[,.!?;:()-]/.test(text) && words.length >= 2) return true;
-      return false;
-    }
-
-    function filterDialogHistoryMessages(messages, context = getActiveDialogState().context || {}) {
-      const baseMessages = Array.isArray(messages)
+    function filterDialogHistoryMessages(messages) {
+      // questionnaireAnswer marks initial history, not proof that a client message is disposable.
+      // Keep even short messages sent before the questionnaire so "see above" retains its context.
+      return Array.isArray(messages)
         ? messages.filter((message) => !isTechnicalHistoryMessage(message))
         : [];
-      if (baseMessages.length < 2) {
-        return baseMessages;
-      }
-
-      let prefixLength = 0;
-      while (prefixLength < baseMessages.length) {
-        const senderType = options.normalizeMessageSenderByType?.(baseMessages[prefixLength]?.messageType, baseMessages[prefixLength]?.sender) || '';
-        if (senderType !== 'user' || baseMessages[prefixLength]?.questionnaireAnswer !== true) {
-          break;
-        }
-        prefixLength += 1;
-      }
-
-      if (prefixLength < 2) {
-        return baseMessages;
-      }
-
-      const technicalValues = buildHistoryTechnicalValueSet(context);
-      const prefix = baseMessages.slice(0, prefixLength);
-      const preservedIndexes = new Set();
-
-      prefix.forEach((message, index) => {
-        if (message?.attachment) {
-          preservedIndexes.add(index);
-        }
-      });
-
-      let informativeIndex = -1;
-      for (let index = prefix.length - 1; index >= 0; index -= 1) {
-        const text = String(prefix[index]?.message || '').trim();
-        if (isLikelyQuestionnaireProblemMessage(text, technicalValues)) {
-          informativeIndex = index;
-          break;
-        }
-      }
-
-      preservedIndexes.add(informativeIndex >= 0 ? informativeIndex : prefix.length - 1);
-
-      return baseMessages.filter((message, index) => index >= prefixLength || preservedIndexes.has(index));
     }
 
     function resetPreviousDialogHistoryState() {
