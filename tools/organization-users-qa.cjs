@@ -3,12 +3,13 @@ const fs=require('node:fs'),path=require('node:path'),http=require('node:http'),
 const root=path.resolve(__dirname,'..'),resources=path.join(root,'spring-panel/src/main/resources');
 const capture=path.join(root,'spring-panel/target/org-rendered/settings/index.html'),out=path.join(root,'spring-panel/target/organization-users-qa');
 const baseNodes=[{id:'root',name:'Управляющая компания',parent_id:null,members:[]},{id:'it',name:'IT-Dep',parent_id:'root',members:[]},{id:'support',name:'ITS',parent_id:'it',members:[2,999]},{id:'other',name:'Другой филиал',parent_id:null,members:[]},{id:'other-support',name:'ITS',parent_id:'other',members:[]}];
-const users=[{id:1,username:'ivan',full_name:'Иван Сотрудник',department:'Управляющая компания / IT-Dep / ITS',email:'ivan@example.test',phones:[{type:'mobile',value:'+7 (999) 000-00-01'}],role_id:1,role:'Оператор',can_edit_username:true,can_edit_role:true,can_edit_password:true,can_view_password:false,can_block:true},
- {id:2,username:'manual',full_name:'Мария Участник',department:'',role:'Оператор'},
+const fixturePhoto='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160"><rect width="160" height="160" fill="#44546a"/><circle cx="80" cy="58" r="27" fill="#dae2ed"/><path d="M24 154v-20a56 56 0 0 1 112 0v20z" fill="#dae2ed"/></svg>');
+const users=[{id:1,username:'ivan',full_name:'Иван Сотрудник',department:'Управляющая компания / IT-Dep / ITS',email:'ivan@example.test',phones:[{type:'mobile',value:'+7 (999) 000-00-01'}],role_id:1,role:'Оператор',can_edit_username:true,can_edit_role:true,can_edit_password:true,can_view_password:false,can_block:true,can_revoke_sessions:true,last_portal_activity_at:new Date(Date.now()-5*60000).toISOString()},
+ {id:2,username:'manual',full_name:'Мария Участник',department:'',role:'Оператор',is_blocked:true,last_portal_activity_at:new Date(Date.now()-31*60000).toISOString()},
  {id:3,username:'ambiguous',full_name:'Неоднозначный отдел',department:'ITS'},
  {id:4,username:'legacy',full_name:'Сотрудник старого отдела',department:'IT-Dep'},
  ...Array.from({length:85},(_,i)=>({id:i+10,username:'user'+String(i).padStart(2,'0'),full_name:'Сотрудник '+String(i).padStart(2,'0'),department:''}))];
-function state(nodes){return {users,roles:[{id:1,name:'Оператор',permissions:{pages:[],fields:{edit:[],view:[]}}}],org_structure:{nodes},catalog:{pages:[],fields:{edit:[],view:[]}},capabilities:{fields:{edit:{'user.create':true,'user.role':true},view:{}}},current_user_id:1};}
+function state(nodes){return {users:users.map(user=>user.id===1?{...user,photo:fixturePhoto}:user),roles:[{id:1,name:'Оператор',permissions:{pages:[],fields:{edit:[],view:[]}}}],org_structure:{nodes},catalog:{pages:[],fields:{edit:[],view:[]}},capabilities:{fields:{edit:{'user.create':true,'user.role':true},view:{}}},current_user_id:1};}
 async function main(){
  assert(fs.existsSync(capture),'Run targeted MVC capture first');fs.mkdirSync(out,{recursive:true});
  const server=http.createServer((req,res)=>{
@@ -19,18 +20,19 @@ async function main(){
   if(['.html','.css','.js'].includes(ext))res.end(fs.readFileSync(file,'utf8').replaceAll('\r\n','\n'));else fs.createReadStream(file).pipe(res);
  });
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const origin='http://127.0.0.1:'+server.address().port;
- const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright'),browser=await chromium.launch({headless:true});
+ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright'),browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHANNEL?{channel:process.env.PLAYWRIGHT_CHANNEL}:{})});
  const report=[],errors=[];
  try{
   const savedCases=[{width:1280,height:663,theme:'dark',savedSmall:true},{width:1280,height:663,theme:'light',savedSmall:true},{width:1280,height:480,theme:'dark',savedSmall:true},{width:390,height:663,theme:'dark',savedSmall:true}];
-  const scenarios=process.argv.includes('--saved-size-only')?savedCases:[...[1440,1024,390,320].flatMap(width=>['light','dark'].map(theme=>({width,height:900,theme,savedSmall:false}))),...savedCases];
+  const scenarios=process.argv.includes('--short-height-only')?savedCases.filter(item=>item.height<540):process.argv.includes('--saved-size-only')?savedCases:[...[1440,1024,390,320].flatMap(width=>['light','dark'].map(theme=>({width,height:900,theme,savedSmall:false}))),...savedCases];
   for(const {width,height,theme,savedSmall} of scenarios){
    const context=await browser.newContext({viewport:{width,height},reducedMotion:'reduce'});
-   let nodes=structuredClone(baseNodes),canEdit=true,saves=0,profilePayload=null;
+   let nodes=structuredClone(baseNodes),canEdit=true,saves=0,profilePayload=null,activityReads=0;
    await context.addInitScript(({theme,savedSmall})=>{localStorage.setItem('sidebarPinned','1');localStorage.setItem('theme',theme);localStorage.setItem('colorTheme','neo');if(savedSmall){localStorage.setItem('iguana:modal-size:v1:%2Fsettings:orgMembersModal',JSON.stringify({width:896,height:220}));localStorage.setItem('iguana:modal-size:v1:%2Fsettings:authUserPasswordModal',JSON.stringify({width:480,height:250}));}},{theme,savedSmall});
    await context.route('**/*',async route=>{
     const request=route.request(),url=new URL(request.url());if(url.origin!==origin)return route.abort();
     if(url.pathname==='/api/auth/state')return route.fulfill({json:state(nodes)});
+    if(url.pathname==='/api/users/activity'){activityReads++;return route.fulfill({json:{server_time:new Date().toISOString(),users:users.map(({id,is_blocked,last_portal_activity_at})=>({id,is_blocked:!!is_blocked,last_portal_activity_at:last_portal_activity_at||null}))}});}
     if(url.pathname==='/api/auth/permissions')return route.fulfill({json:{success:true,settings:{organization:canEdit,users:canEdit,workforce:canEdit}}});
     if(url.pathname==='/api/users/1'&&request.method()==='PUT'){profilePayload=request.postDataJSON();return route.fulfill({json:{success:true}});}
     if(url.pathname==='/api/auth/org-structure'){
@@ -45,7 +47,35 @@ async function main(){
    assert.equal(await page.evaluate(()=>document.body.dataset.theme),theme);
    await page.locator('[data-settings-overview-target="usersModal"]').click();
    await page.waitForFunction(()=>document.querySelector('[data-auth-management]')?.__authManager?.state.users.length>0);
+   await page.waitForFunction(()=>{const manager=document.querySelector('[data-auth-management]').__authManager;return Number.isFinite(manager.activityClockOffset)&&!manager.activityPending;});
+   assert(activityReads>0,'Visible user list never fetched activity');
+   await page.waitForFunction(()=>document.querySelector('[data-user-status="1"] .auth-user-state--online'));
+   assert.equal(await page.locator('[data-user-status="2"] .auth-user-state--blocked').count(),1);
+   assert.equal(await page.locator('[data-user-status="2"] .auth-user-state--offline').count(),1);
+   assert.equal(await page.locator('[data-user-status="3"] .auth-user-last-activity').textContent(),'Нет данных');
+   assert.match(await page.locator('[data-user-status="1"] .auth-user-state--online').getAttribute('aria-label'),/Последняя активность:.*30 минут/);
+   const thresholds=await page.evaluate(()=>{
+    const manager=document.querySelector('[data-auth-management]').__authManager,cell=document.createElement('div'),originalNow=Date.now,now=originalNow();Date.now=()=>now;
+    try{return [29*60000,30*60000,30*60000+1,null,'invalid'].map(age=>{manager.renderUserStatus(cell,{last_portal_activity_at:typeof age==='number'?new Date(now+(manager.activityClockOffset||0)-age).toISOString():age});return !!cell.querySelector('.auth-user-state--online');});}
+    finally{Date.now=originalNow;}
+   });
+   assert.deepEqual(thresholds,[true,true,false,false,false]);
+   const firstUser=page.locator('[data-auth-users-body] tr[data-user-id="1"]');
+   assert.equal(await firstUser.locator('[data-action="open-user"]').isVisible(),false);
+   await firstUser.locator('[data-bs-toggle="dropdown"]').click();
+   const menuVisible=await firstUser.locator('[data-action="open-user"]').evaluate(el=>{const rect=el.getBoundingClientRect();return el.contains(document.elementFromPoint(rect.x+rect.width/2,rect.y+rect.height/2));});
+   assert(menuVisible,'Row menu is clipped by the table or modal');
+   assert(await firstUser.locator('[data-action="revoke-sessions"]').isVisible());
+   await firstUser.locator('[data-bs-toggle="dropdown"]').press('Escape');
+   assert.equal(await firstUser.locator('[data-action="open-user"]').isVisible(),false);
+   const lastUser=page.locator('[data-auth-users-body] tr').last();
+   await lastUser.locator('[data-bs-toggle="dropdown"]').click();
+   assert(await lastUser.locator('[data-action="open-user"]').evaluate(el=>{const rect=el.getBoundingClientRect();return el.contains(document.elementFromPoint(rect.x+rect.width/2,rect.y+rect.height/2));}),'Last-row menu is clipped');
+   assert(await lastUser.locator('[data-action="delete-user"]').isDisabled());
+   await lastUser.locator('[data-bs-toggle="dropdown"]').press('Escape');
    await page.locator('#auth-org-tab').click();
+   const pausedReads=activityReads;await page.evaluate(()=>document.querySelector('[data-auth-management]').__authManager.refreshUserActivity());
+   assert.equal(activityReads,pausedReads,'Activity polling continued outside the users tab');
    const branch=id=>page.locator(`li[data-node-id="${id}"] > .org-node`);
    assert.equal(await page.locator('[data-org-tree] > li').count(),2);
    assert(await branch('support').getByText('Иван Сотрудник',{exact:true}).count());
@@ -76,7 +106,8 @@ async function main(){
    assert(geometry.listHeight>100&&geometry.scroll>geometry.listHeight,'List must own scroll');assert(geometry.buttonBottom<=geometry.viewport&&geometry.right<=width&&geometry.left>=0,'Modal clipped');
    if(width===1440)assert(geometry.width>=1100,'Membership dialog too narrow');
    const visibleList=await modal.locator('.employee-picker__list').evaluate(list=>{const body=list.closest('.modal-body').getBoundingClientRect(),rect=list.getBoundingClientRect();return Math.max(0,Math.min(rect.bottom,body.bottom)-Math.max(rect.top,body.top));});
-   assert(visibleList>=Math.min(150,height*0.25),`Employee list clipped: ${visibleList}px visible`);
+   await page.screenshot({path:path.join(out,`members-${width}-${height}-${theme}-${savedSmall?"saved":"fresh"}.png`)});
+   assert(visibleList>=Math.min(150,height*0.25),`Employee list clipped at ${width}x${height}: ${visibleList}px visible`);
    assert.equal(await modal.locator('[data-employee-value="2"]').getAttribute('aria-pressed'),'true');
    const search=modal.locator('.employee-picker__menu input[type=search]');
    await search.fill('Сотрудник 00');await modal.locator('[data-employee-value="10"]').click();
@@ -90,10 +121,26 @@ async function main(){
    assert.equal(saves,1);assert.deepEqual(nodes.find(n=>n.id==='support').members,[10,999]);assert.equal(nodes.find(n=>n.id==='support').parent_id,'it');
    await page.evaluate(()=>document.querySelector('[data-auth-management]').__authManager.refresh());
    assert(await branch('support').getByText('Иван Сотрудник',{exact:true}).count());assert(await branch('support').getByText('Сотрудник 00',{exact:true}).count());assert.equal(await branch('support').getByText('Мария Участник',{exact:true}).count(),0);
-   await page.locator('#auth-users-tab').click();await page.locator('[data-auth-users-body] tr[data-user-id="1"] [data-action="open-user"]').click();
+   await page.locator('#auth-users-tab').click();await firstUser.locator('[data-bs-toggle="dropdown"]').click();await firstUser.locator('[data-action="open-user"]').click();
    const card=page.locator('#authUserDetailsModal');await card.waitFor({state:'visible'});
    assert.equal(await card.locator('#authUserModalFullName').inputValue(),'Иван Сотрудник');assert.equal(await card.locator('#authUserModalEmail').inputValue(),'ivan@example.test');
    assert.equal(await card.locator('[data-user-security-disclosure]').getAttribute('open'),null);
+   assert.equal(await card.locator('[data-user-contacts-disclosure]').getAttribute('open'),null);
+   assert.equal(await card.locator('.auth-user-department-disclosure').getAttribute('open'),null);
+   assert.equal(await card.locator('[data-auth-user-card-status] .auth-user-state--online').count(),1);
+   const contrast=await card.locator('.auth-user-state--online').evaluate(el=>{
+    const luminance=color=>{const rgb=color.match(/[\d.]+/g).slice(0,3).map(value=>{const s=Number(value)/255;return s<=0.04045?s/12.92:((s+0.055)/1.055)**2.4;});return rgb[0]*0.2126+rgb[1]*0.7152+rgb[2]*0.0722;};
+    const a=luminance(getComputedStyle(el).color),b=luminance(getComputedStyle(el.closest('.modal-content')).backgroundColor);return (Math.max(a,b)+0.05)/(Math.min(a,b)+0.05);
+   });
+   assert(contrast>=3,`Presence indicator contrast is too low: ${contrast}`);
+   assert.equal(await card.locator('[data-auth-user-registration]').evaluate(el=>el.tagName),'SPAN');
+   const photoSize=await card.locator('[data-auth-user-photo-img]').boundingBox();
+   assert(photoSize.width>=145&&photoSize.height>=145,'User photo must stay about 40% larger than the original 104 px');
+   assert.equal(await card.locator('[data-auth-user-photo-change]').isVisible(),false);
+   await card.locator('.auth-user-photo-actions [data-bs-toggle="dropdown"]').click();
+   assert(await card.locator('[data-auth-user-photo-change]').isVisible());assert(await card.locator('[data-auth-user-photo-remove]').isVisible());
+   await card.locator('.auth-user-photo-actions [data-bs-toggle="dropdown"]').press('Escape');
+   assert(await card.isVisible(),'Esc in the photo menu must keep the user card open');
    await page.screenshot({path:path.join(out,`employee-${width}-${height}-${theme}-${savedSmall?"saved":"fresh"}.png`)});
    const sizes=await card.evaluate(el=>[...el.querySelectorAll('.auth-user-overview,.auth-user-main,.auth-user-photo')].map(n=>({name:n.className,scroll:n.scrollWidth,width:n.clientWidth,display:getComputedStyle(n).display,grid:getComputedStyle(n).gridTemplateColumns})));
    assert(!sizes.some(n=>n.scroll>n.width+2),'Employee card horizontal overflow: '+JSON.stringify(sizes));
@@ -118,7 +165,7 @@ async function main(){
    // Corrupt cycles remain visible without recursion or source mutation.
    const cycle=await page.evaluate(()=>{const m=document.querySelector('[data-auth-management]').__authManager,original=m.state.orgStructure;m.state.orgStructure=m.normalizeOrgStructure({nodes:[{id:'a',name:'A',parent_id:'b',members:[]},{id:'b',name:'B',parent_id:'a',members:[]},{id:'orphan',name:'<img onerror=alert(1)>',parent_id:'missing',members:[]}]});m.renderOrgStructure();const result={count:document.querySelectorAll('[data-org-tree] li').length,unsafe:document.querySelectorAll('[data-org-tree] img').length,parent:m.state.orgStructure.nodes[0].parent_id};m.state.orgStructure=original;m.renderOrgStructure();return result;});
    assert.deepEqual(cycle,{count:3,unsafe:0,parent:'b'});
-   report.push({width,height,theme,savedSmall,initialSize,visibleList,geometry,checks:['nested-tree','department-and-manual-members','ambiguous-department-excluded','filter-preserves-selection','save-reload','missing-user-retained','employee-layout-and-profile-save','readonly','cycle-xss']});
+   report.push({width,height,theme,savedSmall,activityReads,photoSize,initialSize,visibleList,geometry,checks:['status-threshold-and-tooltips','blocked-independent-of-presence','row-menu-and-escape','photo-size-and-menu','compact-card-disclosures','nested-tree','department-and-manual-members','ambiguous-department-excluded','filter-preserves-selection','save-reload','missing-user-retained','employee-layout-and-profile-save','readonly','cycle-xss']});
    await context.close();
   }
   assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,'report.json'),JSON.stringify({report,errors},null,2));console.log(`GREEN: ${report.length} viewport/theme scenarios; tree, membership save/reload, employee card and read-only permissions.`);

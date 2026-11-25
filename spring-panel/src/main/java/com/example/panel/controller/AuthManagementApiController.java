@@ -134,6 +134,38 @@ public class AuthManagementApiController {
         return fetchUsers(authentication);
     }
 
+    @GetMapping("/users/activity")
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
+    public Map<String, Object> listUserActivity() {
+        List<Map<String, Object>> activity = usersJdbcTemplate.queryForList(
+                "SELECT id, last_portal_activity_at, is_blocked, enabled FROM users ORDER BY id").stream()
+                .map(row -> {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("id", row.get("id"));
+                    item.put("last_portal_activity_at", formatActivityTimestamp(row.get("last_portal_activity_at")));
+                    item.put("is_blocked", isAccountBlocked(row));
+                    return item;
+                }).toList();
+        return Map.of("users", activity, "server_time", java.time.Instant.now().toString());
+    }
+
+    private boolean isAccountBlocked(Map<String, Object> row) {
+        return asBoolean(row.get("is_blocked"))
+                || (row.get("enabled") != null && !asBoolean(row.get("enabled")));
+    }
+
+    private String formatActivityTimestamp(Object value) {
+        if (value instanceof java.sql.Timestamp timestamp) return timestamp.toInstant().toString();
+        if (value instanceof OffsetDateTime date) return date.toInstant().toString();
+        if (value instanceof java.time.Instant instant) return instant.toString();
+        if (value == null) return null;
+        try {
+            return OffsetDateTime.parse(value.toString().replace(' ', 'T')).toInstant().toString();
+        } catch (java.time.format.DateTimeParseException ignored) {
+            return null;
+        }
+    }
+
     @PostMapping("/users/{userId}/sessions/revoke")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_PORTAL_ADMIN')")
     public Map<String, Object> revokeUserSessions(Authentication authentication, @PathVariable long userId) {
@@ -572,7 +604,8 @@ public class AuthManagementApiController {
             user.put("email", row.get("email"));
             user.put("department", row.get("department"));
             user.put("phones", decodePhones(row.get("phones")));
-            user.put("is_blocked", asBoolean(row.get("is_blocked")));
+            user.put("is_blocked", isAccountBlocked(row));
+            user.put("last_portal_activity_at", formatActivityTimestamp(row.get("last_portal_activity_at")));
             user.put("is_self", isSelf);
             user.put("role_is_admin", "admin".equalsIgnoreCase(stringValue(user.get("role"))));
             user.put("can_view_password", false);
@@ -580,7 +613,7 @@ public class AuthManagementApiController {
             user.put("can_edit_username", canEditUsername);
             user.put("can_edit_role", canEditRole);
             user.put("can_delete", canDeleteUser && !isSelf);
-            user.put("can_block", !isSelf && (asBoolean(row.get("is_blocked"))
+            user.put("can_block", !isSelf && (isAccountBlocked(row)
                     ? com.example.panel.service.AccessRecoveryService.canRecover(authentication) : canBlockUser));
             user.put("can_revoke_sessions", canRevokeSessions(authentication));
             users.add(user);

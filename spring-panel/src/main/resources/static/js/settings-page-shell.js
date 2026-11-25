@@ -1295,7 +1295,7 @@
 
   function initSettingsTopModalEscapeGuard() {
     document.addEventListener('keydown', (event) => {
-      if (event.key !== 'Escape') {
+      if (event.key !== 'Escape' || event.defaultPrevented) {
         return;
       }
       const openModals = Array.from(document.querySelectorAll('.modal.show'))
@@ -1311,6 +1311,14 @@
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
+
+      const menu = topModal.querySelector('.dropdown-menu.show');
+      const menuToggle = menu?.closest('.dropdown')?.querySelector('[data-bs-toggle="dropdown"]');
+      if (menuToggle && window.bootstrap?.Dropdown) {
+        window.bootstrap.Dropdown.getOrCreateInstance(menuToggle).hide();
+        menuToggle.focus();
+        return;
+      }
 
       if (topModal.getAttribute('data-bs-keyboard') === 'false') {
         return;

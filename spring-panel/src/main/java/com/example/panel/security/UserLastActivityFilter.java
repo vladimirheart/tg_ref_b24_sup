@@ -65,7 +65,7 @@ public class UserLastActivityFilter extends OncePerRequestFilter {
         try {
             usersJdbcTemplate.update(
                     "UPDATE users SET last_portal_activity_at = ? WHERE id = ? AND username = ?",
-                    OffsetDateTime.now(ZoneOffset.UTC).toString(),
+                    OffsetDateTime.now(ZoneOffset.UTC),
                     principal.getUserId(),
                     username
             );

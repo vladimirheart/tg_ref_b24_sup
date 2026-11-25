@@ -43,8 +43,13 @@
                   <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-3">
                     <div class="text-muted small">Управляйте карточками пользователей, контактами и доступом.</div>
                     <div class="d-flex flex-wrap gap-2">
-                      <button type="button" class="btn btn-outline-danger btn-sm d-none" data-auth-sessions-revoke-all disabled>Завершить все сеансы</button>
                       <button type="button" class="btn btn-primary btn-sm" data-auth-user-create-trigger>+ Создать пользователя</button>
+                      <div class="dropdown d-none" data-auth-sessions-menu>
+                        <button type="button" class="btn btn-sm auth-user-menu-toggle" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Общие действия с пользователями" title="Действия"><i class="bi bi-three-dots" aria-hidden="true"></i></button>
+                        <div class="dropdown-menu dropdown-menu-end">
+                          <button type="button" class="dropdown-item text-danger d-none" data-auth-sessions-revoke-all disabled>Завершить все сеансы</button>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -52,10 +57,11 @@
                     <table class="table table-sm align-middle" data-auth-users-table>
                       <thead>
                         <tr>
-                          <th style="width: 30%">Пользователь</th>
-                          <th style="width: 22%">Роль</th>
-                          <th style="width: 32%">Контакты</th>
-                          <th class="text-end" style="width: 16%">Действия</th>
+                          <th>Пользователь</th>
+                          <th>Роль</th>
+                          <th>Контакты</th>
+                          <th>Статус</th>
+                          <th class="text-end"><span class="visually-hidden">Действия</span></th>
                         </tr>
                       </thead>
                       <tbody data-auth-users-body></tbody>
@@ -195,7 +201,8 @@
             </div>
             <div class="modal-body">
               <div class="alert alert-danger d-none" role="alert" data-auth-user-modal-error></div>
-              <div class="d-flex flex-column gap-4">
+              <div class="auth-user-card-layout">
+                <div class="auth-user-card-status" data-auth-user-card-status hidden></div>
                 <div class="auth-user-overview">
                   <div class="auth-user-main">
                     <div class="auth-user-fullname-field mb-3">
@@ -216,7 +223,9 @@
                           <option value="">По умолчанию</option>
                         </select>
                       </div>
-                      <div class="col-12">
+                      <details class="col-12 auth-user-department-disclosure">
+                        <summary>Отдел <span class="text-muted" data-auth-user-department-summary>Не выбран</span></summary>
+                        <div class="pt-3">
                         <label class="form-label small mb-1" for="authUserModalDepartment">Отдел</label>
                         <input
                           type="search"
@@ -234,13 +243,12 @@
                         >
                           <option value="">Не выбран</option>
                         </select>
-                        <div class="form-text">Список отделов формируется на вкладке «Орг.структура».</div>
-                      </div>
+                        </div>
+                      </details>
                     </div>
                   </div>
                   <div class="auth-user-photo">
                     <div class="auth-user-photo-wrapper auth-user-photo-uploader" data-auth-user-photo-uploader>
-                      <label class="form-label small mb-1" for="authUserModalPhoto">Фото</label>
                       <input type="hidden" id="authUserModalPhoto" name="photo" data-auth-user-photo-value>
                       <input type="file" class="visually-hidden" accept="image/*" data-auth-user-photo-file>
                       <div class="auth-user-photo-dropzone" data-auth-user-photo-dropzone>
@@ -248,9 +256,7 @@
                           <div class="auth-user-photo-icon mb-2">
                             <i class="bi bi-image"></i>
                           </div>
-                          <p class="mb-2">Фото сотрудника</p>
-                          <button type="button" class="btn btn-outline-primary btn-sm" data-auth-user-photo-trigger>Выбрать файл</button>
-                          <div class="text-muted small mt-2">PNG, JPG, WebP до 5 МБ</div>
+                          <button type="button" class="btn btn-sm auth-user-photo-add" data-auth-user-photo-trigger title="Добавить фото: PNG, JPG, WebP до 5 МБ" aria-label="Добавить фото"><i class="bi bi-plus" aria-hidden="true"></i></button>
                         </div>
                         <div class="auth-user-photo-preview d-none" data-auth-user-photo-preview>
                           <img
@@ -264,14 +270,17 @@
                             aria-label="Открыть фото в полном размере"
                             loading="lazy"
                           >
-                          <div class="d-flex gap-2 mt-3">
-                            <button type="button" class="btn btn-outline-primary btn-sm" data-auth-user-photo-change>Заменить</button>
-                            <button type="button" class="btn btn-outline-danger btn-sm" data-auth-user-photo-remove>Удалить</button>
-                          </div>
                         </div>
                         <div class="auth-user-photo-uploading d-none" data-auth-user-photo-uploading>
                           <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
                           <span class="ms-2 small">Загрузка...</span>
+                        </div>
+                      </div>
+                      <div class="dropdown auth-user-photo-actions">
+                        <button type="button" class="btn btn-sm auth-user-menu-toggle" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Действия с фото" title="Действия с фото"><i class="bi bi-three-dots" aria-hidden="true"></i></button>
+                        <div class="dropdown-menu dropdown-menu-end">
+                          <button type="button" class="dropdown-item" data-auth-user-photo-change>Заменить фото</button>
+                          <button type="button" class="dropdown-item text-danger" data-auth-user-photo-remove>Удалить фото</button>
                         </div>
                       </div>
                       <div class="form-text mt-2" data-auth-user-photo-status></div>
@@ -280,11 +289,9 @@
                 </div>
                 <div class="row g-3">
                   <div class="col-12">
-                    <div class="auth-user-section auth-user-contacts">
-                      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-                        <h6 class="mb-0">Контактные данные</h6>
-                      </div>
-                      <div class="row g-3">
+                    <details class="auth-user-section auth-user-contacts" data-user-contacts-disclosure>
+                      <summary>Контакты и личные данные</summary>
+                      <div class="row g-3 mt-0">
                         <div class="col-md-6">
                           <label class="form-label small mb-1" for="authUserModalEmail">E-mail</label>
                           <input type="email" class="form-control form-control-sm" id="authUserModalEmail" name="email" autocomplete="off">
@@ -302,14 +309,13 @@
                         <div class="d-flex flex-column gap-2 mt-2" data-auth-user-phones></div>
                         <div class="text-muted small d-none" data-auth-user-phones-empty>Телефоны не указаны.</div>
                       </div>
-                    </div>
+                    </details>
                   </div>
                   <div class="col-12" data-workforce-user-section>
                     <details class="ui-disclosure-native workforce-user-disclosure">
                       <summary class="workforce-user-disclosure__summary">
                         <span class="workforce-user-disclosure__heading">
                           <span class="workforce-user-disclosure__title">Работа и расписание</span>
-                          <span class="workforce-user-disclosure__description">Должность, check-in, смены и оповещения</span>
                         </span>
                         <span class="workforce-user-disclosure__chevron" aria-hidden="true"></span>
                       </summary>
@@ -537,15 +543,11 @@
                       </div>
                     </details>
                   </div>
-                  <div class="col-12 auth-user-registration">
-                    <label class="form-label small mb-1" for="authUserModalRegistration">Дата регистрации</label>
-                    <div class="row g-2 align-items-center flex-wrap">
-                      <div class="col-auto">
-                        <input type="text" class="form-control form-control-sm auth-user-registration-input" id="authUserModalRegistration" data-auth-user-registration readonly>
-                      </div>
-                      <div class="col-auto text-muted small auth-user-registration-relative" data-auth-user-registration-relative>—</div>
-                    </div>
-                  </div>
+                </div>
+                <div class="auth-user-registration">
+                  <span>Регистрация:</span>
+                  <span data-auth-user-registration></span>
+                  <span class="auth-user-registration-relative" data-auth-user-registration-relative>—</span>
                 </div>
               </div>
             </div>

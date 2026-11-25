@@ -178,6 +178,18 @@ class AuthManagementIdentityWebMvcTest {
             .andExpect(jsonPath("$.users[0].id").value(99)).andExpect(jsonPath("$.users[0].is_self").value(false))
             .andExpect(jsonPath("$.users[1].id").value(7)).andExpect(jsonPath("$.users[1].is_self").value(true));
     }
+    @ParameterizedTest @ValueSource(strings={"PAGE_SETTINGS", "PAGE_USERS", "PAGE_DIALOGS"})
+    void activityProjectionRequiresAnExistingUserManagementPageGrant(String authority) throws Exception {
+        authorities=List.of(authority);account(7L,"reader");var session=login("reader");
+        var request=mvc.perform(get("/api/users/activity").session(session));
+        if (authority.equals("PAGE_DIALOGS")) {
+            request.andExpect(status().isForbidden());
+            verify(jdbc,never()).queryForList("SELECT id, last_portal_activity_at, is_blocked, enabled FROM users ORDER BY id");
+        } else {
+            request.andExpect(status().isOk()).andExpect(jsonPath("$.users").isArray());
+            verify(jdbc).queryForList("SELECT id, last_portal_activity_at, is_blocked, enabled FROM users ORDER BY id");
+        }
+    }
     @Test void ownProfileStillCanBeEditedWithoutGlobalFieldPermission() throws Exception {
         account(7L,"reader");var session=login("reader");collision();send(session,"PATCH","/api/users/7",Map.of("full_name","Own fixture","phones",List.of())).andExpect(jsonPath("$.success").value(true));assertThat(accounts.get(7L).get("full_name")).isEqualTo("Own fixture");assertThat(accounts.get(99L)).doesNotContainKey("full_name");
     }

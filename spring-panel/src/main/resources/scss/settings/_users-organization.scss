@@ -1,5 +1,17 @@
 /* Organization branches and employee workspaces share the Settings theme tokens. */
 body[data-ui-page='settings'] {
+  .auth-user-menu-toggle { color: var(--color-text-muted); border: 0; min-width: 2rem; }
+  .auth-user-menu-toggle:hover, .auth-user-menu-toggle:focus-visible { color: var(--color-text); background: var(--surface-raised); }
+  .auth-user-actions { display: inline-block; }
+  .auth-user-state-cell { min-width: 6.5rem; }
+  .auth-user-state-icons { display: flex; align-items: center; gap: 0.7rem; }
+  .auth-user-state { display: inline-flex; align-items: center; justify-content: center; min-width: 1rem; }
+  .auth-user-state:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; border-radius: 2px; }
+  .auth-user-state--online { color: var(--state-success-text, #198754); font-size: 0.65rem; }
+  .auth-user-state--offline { color: var(--color-text-muted); font-size: 0.65rem; }
+  .auth-user-state--active { color: var(--color-text-muted); }
+  .auth-user-state--blocked { color: var(--state-danger-text, #dc3545); }
+  .auth-user-last-activity { display: block; margin-top: 0.2rem; font-size: 0.75rem; color: var(--color-text-muted); white-space: nowrap; }
   #settingsAuthOrg > .card { background: transparent; box-shadow: none !important; }
   #settingsAuthOrg > .card > .card-body { padding: 0; }
   .org-tree, .org-tree__children { margin: 0; padding: 0; list-style: none; }
@@ -51,7 +63,7 @@ body[data-ui-page='settings'] {
     .org-members-roster { max-height: 4rem; }
   }
   @media (max-height: 540px) {
-    #orgMembersModal .modal-body { padding: 0.75rem 1rem; }
+    #orgMembersModal .modal-body { padding: 0.375rem 1rem; }
     #orgMembersModal .employee-picker__menu { padding: 0.5rem; }
     #orgMembersModal .modal-body:has(.employee-picker__menu:not([hidden])) .org-members-roster { display: none; }
   }
@@ -64,30 +76,48 @@ body[data-ui-page='settings'] {
   &[data-theme='dark'] #authUserDetailsModal .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
 
   #authUserDetailsModal {
-    .auth-user-overview { display: grid; grid-template-columns: minmax(0, 1fr) 13rem; gap: 1.75rem; }
+    .modal-dialog { width: min(860px, calc(100vw - 24px)); max-width: calc(100vw - 24px); }
+    .auth-user-card-layout { display: flex; flex-direction: column; gap: 1rem; }
+    .auth-user-card-status { display: flex; align-items: center; gap: 0.8rem; color: var(--color-text-muted); }
+    .auth-user-card-status[hidden] { display: none; }
+    .auth-user-card-status .auth-user-last-activity { margin: 0; }
+    .auth-user-overview { display: grid; grid-template-columns: minmax(0, 1fr) 156px; gap: 1.5rem; align-items: start; }
+    .auth-user-card-layout > .row { --bs-gutter-y: 0; }
     .auth-user-main { width: auto; min-width: 0; }
     .auth-user-main > .row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin: 0; }
-    .auth-user-main > .row > div { width: auto; min-width: 0; padding: 0; margin: 0; }
+    .auth-user-main > .row > * { width: auto; min-width: 0; padding: 0; margin: 0; }
     .auth-user-main > .row > .col-12 { grid-column: 1 / -1; }
-    .auth-user-photo { width: auto; min-width: 0; }
-    .auth-user-photo-dropzone { min-height: 0; padding: 0.8rem; border-style: solid; }
-    .auth-user-photo-placeholder { gap: 0.25rem; }
+    .auth-user-photo { width: auto; min-width: 0; position: relative; }
+    .auth-user-photo-dropzone { min-height: 0; padding: 0; border: 0; background: transparent; }
     .auth-user-photo-icon { font-size: 1.65rem; }
-    .auth-user-photo-placeholder p { font-size: 0.82rem; }
-    .auth-user-photo-img { width: 104px; height: 104px; border-radius: var(--control-radius); box-shadow: none; }
-    .auth-user-photo-preview .d-flex { flex-wrap: wrap; justify-content: center; gap: 0.4rem !important; margin-top: 0.6rem !important; }
-    .auth-user-section { padding: 1rem 0; border-top: 1px solid var(--color-border); }
-    .auth-user-security summary { cursor: pointer; font-weight: 500; }
+    .auth-user-photo-img { width: 146px; height: 146px; border-radius: var(--control-radius); object-fit: cover; box-shadow: none; }
+    .auth-user-photo-placeholder { position: relative; width: 146px; height: 146px; border-radius: var(--control-radius); background: var(--surface-raised); }
+    .auth-user-photo-icon { margin: 0 !important; }
+    .auth-user-photo-add { position: absolute; inset: 0; color: transparent; border-radius: var(--control-radius); }
+    .auth-user-photo-add:hover, .auth-user-photo-add:focus-visible { color: var(--color-text); background: var(--surface-raised); }
+    .auth-user-photo-actions { margin-top: 0.25rem; text-align: right; width: 146px; }
+    .auth-user-section { padding: 0.9rem 0; border-top: 1px solid var(--color-border); }
+    .auth-user-section > summary, .auth-user-department-disclosure > summary { cursor: pointer; font-weight: 500; list-style: none; display: flex; align-items: center; gap: 0.6rem; }
+    .auth-user-section > summary::-webkit-details-marker, .auth-user-department-disclosure > summary::-webkit-details-marker { display: none; }
+    .auth-user-section > summary::after, .auth-user-department-disclosure > summary::after { content: '\203A'; margin-left: auto; color: var(--color-text-muted); font-size: 1.2rem; line-height: 1; }
+    .auth-user-section[open] > summary::after, .auth-user-department-disclosure[open] > summary::after { transform: rotate(90deg); }
+    .auth-user-department-disclosure > summary { font-size: 0.82rem; }
+    [data-auth-user-department-summary] { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
     .auth-user-field-help { display: none; }
     .col-md-6:focus-within > .auth-user-field-help { display: block; }
-    .auth-user-registration { color: var(--color-text-muted); font-size: 0.8rem; }
-    .workforce-user-disclosure { border-inline: 0; border-radius: 0; }
-    .workforce-user-disclosure > summary::after { display: none; }
+    .auth-user-registration { display: flex; flex-wrap: wrap; gap: 0.3rem 0.5rem; color: var(--color-text-muted); font-size: 0.75rem; }
+    .auth-user-registration-relative::before { content: '\00B7'; margin-right: 0.5rem; }
+    .workforce-user-disclosure { border-inline: 0; border-bottom: 0; border-radius: 0; margin: 0; }
+    .workforce-user-disclosure__summary { padding: 0.9rem 0; }
+    .workforce-user-disclosure__title { font-size: 1rem; font-weight: 500; }
+    .workforce-user-disclosure__chevron { display: none; }
+    .workforce-user-disclosure > summary::after { display: block; content: '\203A'; margin-left: auto; border: 0; width: auto; height: auto; transform: none; color: var(--color-text-muted); font-size: 1.2rem; line-height: 1; }
+    .workforce-user-disclosure[open] > summary::after { transform: rotate(90deg); }
   }
   @media (max-width: 767.98px) {
-    #authUserDetailsModal .auth-user-overview { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+    #authUserDetailsModal .auth-user-overview { grid-template-columns: minmax(0, 1fr); gap: 0.75rem; }
     #authUserDetailsModal .auth-user-main > .row { grid-template-columns: minmax(0, 1fr); }
-    #authUserDetailsModal .auth-user-photo { max-width: 16rem; }
+    #authUserDetailsModal .auth-user-photo { grid-row: 1; justify-self: start; }
     .org-tree__children { margin-left: 0.5rem; padding-left: 0.75rem; }
     .org-tree__children > .org-tree__item::before { left: -0.75rem; width: 0.75rem; }
     .org-node { padding: 0.6rem; }

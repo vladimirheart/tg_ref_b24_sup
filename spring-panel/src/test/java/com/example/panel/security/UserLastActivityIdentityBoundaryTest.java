@@ -47,9 +47,9 @@ class UserLastActivityIdentityBoundaryTest {
 
     @ParameterizedTest @ValueSource(strings = {"reader", " reader", "reader ", " reader ", "\treader\t", "\nreader\r", "mem\r\nber", "member,one", "member;one", "9007199254740993", "ReAdEr", " user/%?#&+ Ю ", "<img>"})
     void activityBindsExactAuthenticatedAccountKey(String username) throws Exception {
-        invoke(actor(username)); var timestamp = ArgumentCaptor.forClass(String.class);
+        invoke(actor(username)); var timestamp = ArgumentCaptor.forClass(OffsetDateTime.class);
         verify(jdbc).update(eq(SQL), timestamp.capture(), eq(7L), eq(username));
-        assertThat(OffsetDateTime.parse(timestamp.getValue()).getOffset()).isEqualTo(ZoneOffset.UTC); assertThat(chained).hasValue(1);
+        assertThat(timestamp.getValue().getOffset()).isEqualTo(ZoneOffset.UTC); assertThat(chained).hasValue(1);
     }
 
     @ParameterizedTest @NullSource @ValueSource(strings = {"", " ", "\t", "\n", "\u2003"})
@@ -67,6 +67,6 @@ class UserLastActivityIdentityBoundaryTest {
     }
     @Test void otherDatabaseFailureRemainsBestEffortAndCanRetry() throws Exception {
         when(jdbc.update(anyString(), any(Object[].class))).thenThrow(new DataAccessResourceFailureException("fixture transient failure")).thenReturn(1);
-        invoke(actor("reader")); invoke(actor("reader")); verify(jdbc, times(2)).update(eq(SQL), anyString(), eq(7L), eq("reader")); assertThat(chained).hasValue(2);
+        invoke(actor("reader")); invoke(actor("reader")); verify(jdbc, times(2)).update(eq(SQL), any(OffsetDateTime.class), eq(7L), eq("reader")); assertThat(chained).hasValue(2);
     }
 }

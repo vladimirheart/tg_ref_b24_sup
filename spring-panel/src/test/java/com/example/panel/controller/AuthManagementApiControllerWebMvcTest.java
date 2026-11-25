@@ -24,6 +24,7 @@ import com.example.panel.service.PanelUserPhotoService;
 import com.example.panel.service.SharedConfigService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -70,6 +71,29 @@ class AuthManagementApiControllerWebMvcTest {
     private PanelUserPhotoService panelUserPhotoService;
 
     @Test
+    void activityProjectionNormalizesJdbcTimestampsAndIncludesDisabledAccounts() throws Exception {
+        when(usersJdbcTemplate.queryForList("SELECT id, last_portal_activity_at, is_blocked, enabled FROM users ORDER BY id"))
+            .thenReturn(List.of(
+                Map.of("id", 7L, "last_portal_activity_at", java.sql.Timestamp.from(java.time.Instant.parse("2026-11-25T07:00:00Z")), "is_blocked", false, "enabled", true),
+                Map.of("id", 8L, "last_portal_activity_at", OffsetDateTime.parse("2026-11-25T10:00:00+03:00"), "is_blocked", false, "enabled", false),
+                Map.of("id", 9L, "is_blocked", true, "enabled", true),
+                Map.of("id", 10L, "last_portal_activity_at", "invalid", "is_blocked", false, "enabled", true)));
+
+        mockMvc.perform(get("/api/users/activity"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.server_time").isString())
+            .andExpect(jsonPath("$.users[0].last_portal_activity_at").value("2026-11-25T07:00:00Z"))
+            .andExpect(jsonPath("$.users[0].is_blocked").value(false))
+            .andExpect(jsonPath("$.users[1].last_portal_activity_at").value("2026-11-25T07:00:00Z"))
+            .andExpect(jsonPath("$.users[1].is_blocked").value(true))
+            .andExpect(jsonPath("$.users[2].last_portal_activity_at").isEmpty())
+            .andExpect(jsonPath("$.users[2].is_blocked").value(true))
+            .andExpect(jsonPath("$.users[3].last_portal_activity_at").isEmpty())
+            .andExpect(jsonPath("$.users[0].password").doesNotExist())
+            .andExpect(jsonPath("$.users[0].email").doesNotExist());
+    }
+
+    @Test
     void getAuthStateReturnsOrgStructureAndBasePayloadContract() throws Exception {
         when(permissionService.isSuperUser(any())).thenReturn(true);
         when(permissionService.hasAuthority(any(), anyString())).thenReturn(true);
@@ -88,6 +112,7 @@ class AuthManagementApiControllerWebMvcTest {
             Map.entry("role_id", 1L),
             Map.entry("photo", ""),
             Map.entry("registration_date", "2026-01-01T00:00:00Z"),
+            Map.entry("last_portal_activity_at", "2026-11-25T10:00:00+03:00"),
             Map.entry("birth_date", ""),
             Map.entry("email", "admin@example.com"),
             Map.entry("department", "Support"),
@@ -107,6 +132,7 @@ class AuthManagementApiControllerWebMvcTest {
                 .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.users[0].username").value("admin"))
+            .andExpect(jsonPath("$.users[0].last_portal_activity_at").value("2026-11-25T07:00:00Z"))
             .andExpect(jsonPath("$.roles[0].name").value("portal-admin"))
             .andExpect(jsonPath("$.current_user_id").isEmpty())
             .andExpect(jsonPath("$.org_structure.departments[0].id").value("support"));

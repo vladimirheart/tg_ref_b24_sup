@@ -77,13 +77,14 @@ class PortalActivityIdentityWebMvcTest {
     @BeforeEach void setup(){
         accounts.clear();attempts.clear();race="";failure="";sessionStoreFailure=false;reset(jdbc);ReflectionTestUtils.setField(activity,"columnMissing",false);
         when(jdbc.getDataSource()).thenReturn(mock(DataSource.class));
+        when(jdbc.queryForObject(contains("public_auth_rate_limits"),eq(Integer.class),anyString(),anyString(),anyLong())).thenReturn(1);
         when(jdbc.queryForList(eq(LOGIN),anyString())).thenAnswer(c -> accounts.values().stream().filter(r -> r.get("username").toString().equalsIgnoreCase(c.getArgument(1))).limit(2).map(LinkedHashMap::new).toList());
         when(jdbc.queryForMap(eq(ID),anyLong())).thenAnswer(c -> {if(sessionStoreFailure)throw new DataAccessResourceFailureException("fixture session read unavailable");var row=accounts.get(c.<Long>getArgument(1));if(row==null)throw new EmptyResultDataAccessException(1);return new LinkedHashMap<>(row);});
         when(jdbc.query(eq(AUTH),org.mockito.ArgumentMatchers.<RowMapper<String>>any(),anyLong())).thenReturn(List.of("PAGE_DIALOGS"));
         when(jdbc.queryForList(eq(ROLE),anyLong())).thenReturn(List.of());
         when(jdbc.update(anyString(),any(Object[].class))).thenAnswer(c -> {
-            String sql=c.getArgument(0),timestamp=c.getArgument(1);assertThat(sql).isIn(OLD,UPDATE);attempts.add(sql);
-            assertThat(OffsetDateTime.parse(timestamp).getOffset()).isEqualTo(ZoneOffset.UTC);
+            String sql=c.getArgument(0);OffsetDateTime timestamp=c.getArgument(1);assertThat(sql).isIn(OLD,UPDATE);attempts.add(sql);
+            assertThat(timestamp.getOffset()).isEqualTo(ZoneOffset.UTC);
             if(!failure.isEmpty()){String message=failure.equals("column")?"column last_portal_activity_at not found":"fixture transient unavailable";if(failure.equals("transient"))failure="";throw new DataAccessResourceFailureException(message);}
             var own=accounts.get(7L);if(own!=null){switch(race){case "rename" -> own.put("username","changed");case "case-rename" -> own.put("username","READER");case "delete" -> accounts.remove(7L);default -> {}}}
             int count=0;for(var row:accounts.values()){

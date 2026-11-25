@@ -3,6 +3,7 @@
   const PERMISSION_WILDCARD = '*';
   const DEFAULT_PHONE_TYPES = ['Рабочий', 'Личный', 'Дополнительный'];
   const DEFAULT_PHONE_PLACEHOLDER = '+7 (999) 000-00-00';
+  const USER_OFFLINE_AFTER_MS = 30 * 60 * 1000;
 
   function escapeHtml(value) {
     return String(value ?? '')
@@ -154,7 +155,7 @@
       this.customDepartmentOptions = new Set();
       this.departmentSearchTerm = '';
       this.inputSettings = typeof window !== 'undefined' ? window.__inputSettings || {} : {};
-      this.parentSheetModal = root.closest('.modal[data-settings-sheet]');
+      this.parentSheetModal = root.closest('.modal[data-settings-sheet]') || root.closest('.modal');
       this.handleUsersClick = this.handleUsersClick.bind(this);
       this.handleRolesClick = this.handleRolesClick.bind(this);
       this.handlePermissionToggle = this.handlePermissionToggle.bind(this);
@@ -234,6 +235,14 @@
     }
 
     bindEvents() {
+      this.parentSheetModal?.addEventListener('shown.bs.modal', () => this.refreshUserActivity());
+      this.parentSheetModal?.addEventListener('hidden.bs.modal', () => clearTimeout(this.activityTimer));
+      this.documentRoot?.getElementById('auth-users-tab')?.addEventListener('shown.bs.tab', () => this.refreshUserActivity());
+      this.documentRoot?.getElementById('auth-users-tab')?.addEventListener('hidden.bs.tab', () => clearTimeout(this.activityTimer));
+      this.documentRoot?.addEventListener('visibilitychange', () => {
+        clearTimeout(this.activityTimer);
+        if (!this.documentRoot.hidden) this.refreshUserActivity();
+      });
       this.elements.revokeAllSessionsButton?.addEventListener('click', () => this.handleRevokeSessions(null, this.elements.revokeAllSessionsButton));
       if (this.elements.usersSection) {
         this.elements.usersSection.addEventListener('click', this.handleUsersClick);
@@ -250,10 +259,18 @@
       }
       if (this.elements.userForm) {
         this.elements.userForm.addEventListener('submit', this.handleUserFormSubmit);
+        this.elements.userForm.addEventListener('invalid', event => {
+          let section = event.target.closest('details');
+          while (section) { section.open = true; section = section.parentElement?.closest('details'); }
+        }, true);
       }
       if (this.elements.userPhoneAddButton) {
         this.elements.userPhoneAddButton.addEventListener('click', this.handleAddPhone);
       }
+      this.elements.userDepartmentInput?.addEventListener('change', () => {
+        const summary = this.elements.userModal?.querySelector('[data-auth-user-department-summary]');
+        if (summary) summary.textContent = this.elements.userDepartmentInput.value || 'Не выбран';
+      });
       if (this.elements.userPhonesContainer) {
         this.elements.userPhonesContainer.addEventListener('click', this.handlePhoneListClick);
         this.elements.userPhonesContainer.addEventListener('input', this.handlePhoneValueInput);
@@ -266,6 +283,16 @@
       }
       if (this.elements.userModal) {
         this.elements.userModal.addEventListener('hidden.bs.modal', this.handleUserModalHidden);
+        this.elements.userModal.querySelectorAll('.dropdown').forEach(dropdown => {
+          dropdown.addEventListener('keydown', event => {
+            if (event.key !== 'Escape' || !dropdown.querySelector('.dropdown-menu.show')) return;
+            const toggle = dropdown.querySelector('[data-bs-toggle="dropdown"]');
+            event.preventDefault();
+            event.stopPropagation();
+            this.bootstrap?.Dropdown?.getInstance(toggle)?.hide();
+            toggle?.focus();
+          });
+        });
       }
       if (this.elements.userPhotoFileInput) {
         this.elements.userPhotoFileInput.addEventListener('change', this.handlePhotoFileChange);
@@ -402,6 +429,7 @@
         })
         .finally(() => {
           this.setLoading(false);
+          this.refreshUserActivity();
         });
     }
 
@@ -440,6 +468,7 @@
         const allowed = Boolean(this.state.capabilities?.sessions?.revoke_all);
         this.elements.revokeAllSessionsButton.classList.toggle('d-none', !allowed);
         this.elements.revokeAllSessionsButton.disabled = !allowed;
+        this.elements.revokeAllSessionsButton.closest('[data-auth-sessions-menu]')?.classList.toggle('d-none', !allowed);
       }
       if (this.elements.createUserButton) {
         const canCreateUser = this.capabilitiesEdit('user.create');
@@ -473,6 +502,7 @@
     renderUsers() {
       const tbody = this.elements.usersBody;
       if (tbody) {
+        tbody.querySelectorAll('[data-bs-toggle="dropdown"]').forEach(toggle => this.bootstrap?.Dropdown?.getInstance(toggle)?.dispose());
         tbody.innerHTML = '';
       }
 
@@ -512,12 +542,6 @@
         fullNameRow.textContent = user.full_name;
         userInfo.appendChild(fullNameRow);
       }
-      if (user.is_blocked) {
-        const statusBadge = document.createElement('span');
-        statusBadge.className = 'badge rounded-pill text-bg-danger align-self-start mt-2';
-        statusBadge.textContent = 'Заблокирован';
-        userInfo.appendChild(statusBadge);
-      }
       if (user.department) {
         const departmentRow = document.createElement('div');
         departmentRow.className = 'text-muted small';
@@ -554,47 +578,154 @@
       }
       contactsCell.appendChild(contactsWrapper);
 
+      const statusCell = document.createElement('td');
+      statusCell.className = 'auth-user-state-cell';
+      statusCell.dataset.userStatus = String(user.id);
+      this.renderUserStatus(statusCell, user);
+
       const actionsCell = document.createElement('td');
       actionsCell.className = 'text-end';
       const actionsWrapper = document.createElement('div');
-      actionsWrapper.className = 'd-flex flex-wrap justify-content-end gap-2';
+      actionsWrapper.className = 'dropdown auth-user-actions';
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'btn btn-sm auth-user-menu-toggle';
+      toggle.dataset.bsToggle = 'dropdown';
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.setAttribute('aria-label', `Действия пользователя ${displayName}`);
+      toggle.title = 'Действия';
+      toggle.innerHTML = '<i class="bi bi-three-dots" aria-hidden="true"></i>';
+      actionsWrapper.appendChild(toggle);
+      const menu = document.createElement('div');
+      menu.className = 'dropdown-menu dropdown-menu-end';
+      actionsWrapper.appendChild(menu);
+      if (this.bootstrap?.Dropdown) {
+        new this.bootstrap.Dropdown(toggle, {
+          popperConfig: config => ({ ...config, strategy: 'fixed' }),
+        });
+      }
 
       const openBtn = document.createElement('button');
       openBtn.type = 'button';
-      openBtn.className = 'btn btn-outline-primary btn-sm';
+      openBtn.className = 'dropdown-item';
       openBtn.dataset.action = 'open-user';
       openBtn.textContent = 'Открыть';
-      actionsWrapper.appendChild(openBtn);
+      menu.appendChild(openBtn);
       const permissionsBtn = document.createElement('button');
-      permissionsBtn.type = 'button'; permissionsBtn.className = 'btn btn-outline-secondary btn-sm';
+      permissionsBtn.type = 'button'; permissionsBtn.className = 'dropdown-item';
       permissionsBtn.dataset.userPermissions = user.permissions_user_id || String(user.id); permissionsBtn.textContent = 'Права';
-      actionsWrapper.appendChild(permissionsBtn);
+      menu.appendChild(permissionsBtn);
 
       if (user.can_revoke_sessions) {
         const revokeBtn = document.createElement('button');
         revokeBtn.type = 'button';
-        revokeBtn.className = 'btn btn-outline-warning btn-sm';
+        revokeBtn.className = 'dropdown-item';
         revokeBtn.dataset.action = 'revoke-sessions';
         revokeBtn.textContent = 'Завершить сеансы';
         revokeBtn.title = 'Завершить сеансы этого пользователя на всех устройствах';
-        actionsWrapper.appendChild(revokeBtn);
+        menu.appendChild(revokeBtn);
       }
 
       const deleteBtn = document.createElement('button');
       deleteBtn.type = 'button';
-      deleteBtn.className = 'btn btn-outline-danger btn-sm';
+      deleteBtn.className = 'dropdown-item text-danger';
       deleteBtn.dataset.action = 'delete-user';
       deleteBtn.textContent = 'Удалить';
       deleteBtn.disabled = !user.can_delete;
-      actionsWrapper.appendChild(deleteBtn);
+      menu.appendChild(deleteBtn);
 
       actionsCell.appendChild(actionsWrapper);
 
       row.appendChild(usernameCell);
       row.appendChild(roleCell);
       row.appendChild(contactsCell);
+      row.appendChild(statusCell);
       row.appendChild(actionsCell);
       return row;
+    }
+
+    renderUserStatus(container, user) {
+      const lastActivity = user.last_portal_activity_at ? new Date(user.last_portal_activity_at) : null;
+      const known = lastActivity && Number.isFinite(lastActivity.getTime());
+      const age = known ? Math.max(0, Date.now() + (this.activityClockOffset || 0) - lastActivity.getTime()) : null;
+      const online = known && age <= USER_OFFLINE_AFTER_MS;
+      const relative = !known ? 'Нет данных' : age < 60000 ? 'Только что'
+        : age < 3600000 ? `${Math.floor(age / 60000)} мин назад`
+        : age < 86400000 ? `${Math.floor(age / 3600000)} ч назад`
+        : `${Math.floor(age / 86400000)} дн назад`;
+      const activityText = known ? `Последняя активность: ${lastActivity.toLocaleString('ru-RU')}`
+        : 'Последняя активность не зафиксирована';
+      const presenceTitle = `${online ? 'Online' : 'Offline'}. ${activityText}. Offline после 30 минут отсутствия активности.`;
+      const accessTitle = user.is_blocked ? 'Заблокирован: доступ к панели закрыт' : 'Активен: доступ к панели разрешён';
+      container.replaceChildren();
+      const icons = document.createElement('div');
+      icons.className = 'auth-user-state-icons';
+      for (const [icon, variant, title] of [
+        ['circle-fill', online ? 'online' : 'offline', presenceTitle],
+        [user.is_blocked ? 'lock-fill' : 'shield-check', user.is_blocked ? 'blocked' : 'active', accessTitle],
+      ]) {
+        const indicator = document.createElement('span');
+        indicator.className = `auth-user-state auth-user-state--${variant}`;
+        indicator.tabIndex = 0;
+        indicator.title = title;
+        indicator.setAttribute('aria-label', title);
+        indicator.innerHTML = `<i class="bi bi-${icon}" aria-hidden="true"></i>`;
+        icons.appendChild(indicator);
+      }
+      const time = document.createElement('span');
+      time.className = 'auth-user-last-activity';
+      time.textContent = relative;
+      time.title = activityText;
+      container.append(icons, time);
+    }
+
+    async refreshUserActivity() {
+      clearTimeout(this.activityTimer);
+      if (this.activityPending || !this.isUserActivityVisible()) return;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      this.activityPending = true;
+      try {
+        const response = await fetch(`${this.usersEndpoint}/activity`, {
+          credentials: 'same-origin', signal: controller.signal, headers: { Accept: 'application/json' },
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        const serverTime = Date.parse(data.server_time);
+        if (Number.isFinite(serverTime)) this.activityClockOffset = serverTime - Date.now();
+        for (const item of Array.isArray(data.users) ? data.users : []) {
+          const user = this.state.users.find(candidate => String(candidate.id) === String(item.id));
+          if (!user) continue;
+          user.last_portal_activity_at = item.last_portal_activity_at;
+          user.is_blocked = item.is_blocked;
+        }
+      } catch (_) {
+        // Keep the last known timestamps; their age continues to advance during outages.
+      } finally {
+        clearTimeout(timeout);
+        this.activityPending = false;
+        this.elements.usersBody?.querySelectorAll('[data-user-status]').forEach(cell => {
+          const user = this.state.users.find(item => String(item.id) === cell.dataset.userStatus);
+          if (user) this.renderUserStatus(cell, user);
+        });
+        this.updateUserCardStatus();
+        if (this.isUserActivityVisible()) {
+          this.activityTimer = setTimeout(() => this.refreshUserActivity(), 60000);
+        }
+      }
+    }
+
+    isUserActivityVisible() {
+      return !this.documentRoot?.hidden && this.parentSheetModal?.classList.contains('show')
+        && this.elements.usersSection?.classList.contains('active');
+    }
+
+    updateUserCardStatus() {
+      const container = this.elements.userModal?.querySelector('[data-auth-user-card-status]');
+      if (!container) return;
+      const user = this.state.users.find(item => String(item.id) === String(this.modalState?.userId));
+      container.hidden = !user;
+      if (user) this.renderUserStatus(container, user);
     }
 
     createUserAvatar(user) {
@@ -1133,7 +1264,11 @@
         permissions,
         isBlocked: Boolean(user?.is_blocked),
       };
+      this.elements.userModal?.querySelectorAll('details').forEach(item => { item.open = false; });
       this.elements.userModal?.querySelectorAll('[data-user-security-disclosure]').forEach(item => { item.open = mode === 'create'; });
+      this.updateUserCardStatus();
+      const departmentSummary = this.elements.userModal?.querySelector('[data-auth-user-department-summary]');
+      if (departmentSummary) departmentSummary.textContent = user?.department || 'Не выбран';
       this.usernameEdited = false;
       this.resetCredentialFeedback();
       this.elements.userForm.dataset.mode = mode;
@@ -2344,7 +2479,7 @@
         delete this.elements.userForm.dataset.userId;
       }
       if (this.elements.userRegistrationInput) {
-        this.elements.userRegistrationInput.value = '';
+        this.elements.userRegistrationInput.textContent = '';
       }
       if (this.elements.userRegistrationRelative) {
         this.elements.userRegistrationRelative.textContent = '—';
@@ -2514,11 +2649,12 @@
 
     setRegistrationInfo(value, relativeText) {
       if (this.elements.userRegistrationInput) {
-        this.elements.userRegistrationInput.value = value || '';
+        this.elements.userRegistrationInput.textContent = value || '';
       }
       if (this.elements.userRegistrationRelative) {
         const text = relativeText && relativeText.trim() ? relativeText.trim() : '—';
         this.elements.userRegistrationRelative.textContent = text;
+        this.elements.userRegistrationRelative.hidden = text === '—';
       }
     }
 
