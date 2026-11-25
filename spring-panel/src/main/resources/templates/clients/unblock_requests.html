@@ -14,7 +14,7 @@
 </head>
 <body class="with-sidebar sidebar-pinned" data-ui-page="clients">
 <div th:replace="~{fragments/navbar :: navbar('clients')}"></div>
-<main class="main-content container-fluid py-4">
+<main class="main-content container-fluid py-4" data-attention-page="unblock">
     <div class="page-header-card mb-4">
 		<span class="page-kicker">Безопасность клиентов</span>
 
@@ -27,7 +27,7 @@
 				</p>
 			</div>
 
-			<a class="btn btn-sm btn-outline-secondary"
+			<a th:if="${canViewClients}" class="btn btn-sm btn-outline-secondary"
 			   th:href="@{/clients}">
 				К списку клиентов
 			</a>
@@ -69,12 +69,13 @@
                     <td th:text="${request.id}">0</td>
                     <td>
                         <div class="d-flex flex-column">
-                            <code th:text="${request.userId}">0</code>
+                            <code th:if="${canViewClients or canUnblockClient}" th:text="${request.userId}">0</code>
+                            <span th:unless="${canViewClients or canUnblockClient}">Запрос клиента</span>
                         </div>
                     </td>
-                    <td th:text="${request.channelName} ?: '—'">—</td>
+                    <td th:text="${canViewClients or canUnblockClient} ? (${request.channelName} ?: '—') : '—'">—</td>
                     <td th:text="${request.createdAt} ?: '—'">—</td>
-                    <td th:text="${request.reason} ?: '—'">—</td>
+                    <td th:text="${canViewClients or canUnblockClient} ? (${request.reason} ?: '—') : '—'">—</td>
                     <td>
                         <span class="badge text-bg-warning" th:if="${request.status} == 'pending'">pending</span>
                         <span class="badge text-bg-secondary" th:if="${request.status} != 'pending'"
@@ -84,16 +85,16 @@
                         <div th:if="${request.decidedAt != null || request.decidedBy != null || request.decisionComment != null}">
                             <div class="small text-muted" th:text="${request.decidedAt} ?: '—'">—</div>
                             <div class="small" th:if="${request.decidedBy != null}" th:text="${request.decidedBy}">—</div>
-                            <div class="small text-muted" th:if="${request.decisionComment != null}"
+                            <div class="small text-muted" th:if="${request.decisionComment != null and (canViewClients or canUnblockClient)}"
                                  th:text="${request.decisionComment}">—</div>
                         </div>
                         <span th:if="${request.decidedAt == null && request.decidedBy == null && request.decisionComment == null}">—</span>
                     </td>
                     <td>
                         <div class="d-flex flex-column gap-2">
-                            <a class="btn btn-sm btn-outline-primary"
+                            <a th:if="${canViewClients}" class="btn btn-sm btn-outline-primary"
                                th:href="@{/client/{id}(id=${request.userId})}">Карточка</a>
-                            <div th:if="${request.status} == 'pending'">
+                            <div th:if="${request.status == 'pending' and canUnblockClient}">
                                 <input type="text" class="form-control form-control-sm mb-2"
                                        placeholder="Комментарий (необязательно)"
                                        data-unblock-comment>
@@ -138,7 +139,7 @@
             try {
                 const response = await fetch('/api/unblock-requests/decision', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded', [document.querySelector('meta[name="_csrf_header"]')?.content || 'X-XSRF-TOKEN']: document.querySelector('meta[name="_csrf"]').content },
                     body: params.toString()
                 });
                 const payload = await response.json();

@@ -47,9 +47,10 @@
       event.preventDefault();
       setForgotMessage('', '');
       var formData = new FormData(forgotPasswordForm);
-      var username = String(formData.get('username') || '').trim();
+      var username = String(formData.get('username') || '');
       var comment = String(formData.get('comment') || '').trim();
-      if (!username) {
+      var kind = String(formData.get('kind') || 'other');
+      if (!username.trim() && kind !== 'other') {
         setForgotMessage('error', 'Введите логин.');
         return;
       }
@@ -61,11 +62,14 @@
         credentials: 'same-origin',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': getCsrfToken()
+          [document.querySelector('meta[name="_csrf_header"]')?.content || 'X-XSRF-TOKEN']: getCsrfToken()
         },
         body: JSON.stringify({
           username: username,
-          comment: comment
+          comment: comment,
+          kind: kind,
+          full_name: String(formData.get('full_name') || '').trim(),
+          contact: String(formData.get('contact') || '').trim()
         })
       })
         .then(function (response) { return response.json(); })

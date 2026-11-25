@@ -55,6 +55,15 @@ spring:
       max-request-size: ${APP_MULTIPART_MAX_REQUEST_SIZE:60MB}
 
 app:
+  access-recovery:
+    minimum-response-time: ${APP_ACCESS_RECOVERY_MINIMUM_RESPONSE_TIME:350ms}
+    rate-window: ${APP_ACCESS_RECOVERY_RATE_WINDOW:15m}
+    requests-per-ip: ${APP_ACCESS_RECOVERY_REQUESTS_PER_IP:20}
+    requests-per-login: ${APP_ACCESS_RECOVERY_REQUESTS_PER_LOGIN:5}
+    login-attempts-per-ip: ${APP_ACCESS_RECOVERY_LOGIN_ATTEMPTS_PER_IP:100}
+    login-attempts-per-login: ${APP_ACCESS_RECOVERY_LOGIN_ATTEMPTS_PER_LOGIN:20}
+    metadata-retention-days: ${APP_ACCESS_RECOVERY_METADATA_RETENTION_DAYS:90}
+    trusted-proxies: ${APP_ACCESS_RECOVERY_TRUSTED_PROXIES:}
   runtime:
     role: ${APP_RUNTIME_ROLE:all}
     instance-id: ${APP_INSTANCE_ID:${HOSTNAME:local}}

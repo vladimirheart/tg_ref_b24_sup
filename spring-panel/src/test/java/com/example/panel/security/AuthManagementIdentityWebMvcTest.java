@@ -89,6 +89,7 @@ class AuthManagementIdentityWebMvcTest {
         accounts.clear();fields.clear();roles.clear();writes.clear();authorities=List.of("PAGE_SETTINGS");fieldIssue="";reset(jdbc,photos);
         ReflectionTestUtils.setField(controller,"userColumns",Set.of("username","password","password_hash","full_name","email","phones","photo","role_id","is_blocked","enabled"));
         when(jdbc.getDataSource()).thenReturn(mock(DataSource.class));
+        when(jdbc.queryForObject(contains("public_auth_rate_limits"),eq(Integer.class),anyString(),anyString(),anyLong())).thenReturn(1);
         when(jdbc.queryForList(eq(LOGIN),anyString())).thenAnswer(c -> matching(c.getArgument(1)).stream().limit(2).map(LinkedHashMap::new).toList());
         when(jdbc.queryForMap(eq(ID),anyLong())).thenAnswer(c -> {var row=accounts.get(c.<Long>getArgument(1));if(row==null)throw new EmptyResultDataAccessException(1);return new LinkedHashMap<>(row);});
         when(jdbc.query(eq(AUTH),org.mockito.ArgumentMatchers.<RowMapper<String>>any(),anyLong())).thenAnswer(c -> authorities);

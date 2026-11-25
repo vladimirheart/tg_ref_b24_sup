@@ -11,6 +11,7 @@ import org.springframework.util.StringUtils;
 public class LegacyCompatiblePasswordEncoder implements PasswordEncoder {
 
     private final BCryptPasswordEncoder bcrypt = new BCryptPasswordEncoder();
+    private final String timingHash = bcrypt.encode("legacy-authentication-timing");
 
     @Override
     public String encode(CharSequence rawPassword) {
@@ -29,7 +30,9 @@ public class LegacyCompatiblePasswordEncoder implements PasswordEncoder {
             return bcrypt.matches(rawPassword, stored);
         }
         // A stored hash must never become a usable password via the legacy path.
-        return stored.equals(raw);
+        bcrypt.matches(raw, timingHash);
+        return java.security.MessageDigest.isEqual(stored.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                raw.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
     @Override

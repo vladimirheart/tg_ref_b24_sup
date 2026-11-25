@@ -23,7 +23,7 @@ public class UnblockRequestsController {
     }
 
     @GetMapping("/unblock-requests")
-    @PreAuthorize("hasAuthority('PAGE_CLIENTS')")
+    @PreAuthorize("isAuthenticated()")
     public String list(@RequestParam(name = "status", required = false) String status,
                        Model model,
                        Authentication authentication) {

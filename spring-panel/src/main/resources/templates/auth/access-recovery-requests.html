@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Восстановление доступа — iguana</title>
+  <link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css">
+  <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
+  <link rel="stylesheet" href="/css/style.css?v=20261125">
+  <link rel="stylesheet" href="/css/app.css?v=20261125">
+  <link rel="stylesheet" href="/css/sidebar.css?v=20261125">
+  <script src="/js/common.js"></script>
+</head>
+<body class="with-sidebar sidebar-pinned" data-ui-page="access-recovery">
+<div th:replace="~{fragments/navbar :: navbar('')}"></div>
+<main class="main-content container-fluid py-4" data-password-reset-requests data-password-reset-endpoint="/api/password-reset-requests" data-recovery-page>
+  <div class="page-header-card mb-4">
+    <h1 class="page-title">Восстановление доступа</h1>
+    <p class="page-subtitle">Ожидающие обращения и история решений. Просмотр заявки сохраняет её в работе до принятия решения.</p>
+  </div>
+  <p class="text-muted small">Перед восстановлением подтвердите личность по известным вам контактам или через ответственного руководителя. Контакт, введённый в заявке, сам по себе не подтверждает владение учётной записью.</p>
+  <div class="d-flex gap-2 align-items-center mb-3">
+    <label for="recoveryFilter" class="form-label mb-0">Показать</label>
+    <select id="recoveryFilter" class="form-select form-select-sm w-auto" data-recovery-filter>
+      <option value="pending">Требуют внимания</option><option value="all">Все и история</option>
+    </select>
+    <button type="button" class="btn btn-outline-primary btn-sm ms-auto" data-password-reset-refresh>Обновить</button>
+  </div>
+  <div class="alert alert-danger d-none" data-password-reset-error role="alert"></div>
+  <div class="alert alert-success d-none" data-password-reset-success role="status"></div>
+  <div class="card"><div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead><tr><th>Пользователь</th><th>Статус</th><th>Создана / повторы</th><th>Кем обработана</th><th>Дата решения</th><th>Заявка</th></tr></thead>
+      <tbody data-password-reset-body></tbody>
+    </table>
+  </div></div>
+  <p class="text-muted mt-3 d-none" data-password-reset-empty>Заявок для выбранного фильтра нет.</p>
+</main>
+<script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js"></script>
+<script src="/js/password-reset-requests.js?v=20261125-access-recovery"></script>
+</body>
+</html>

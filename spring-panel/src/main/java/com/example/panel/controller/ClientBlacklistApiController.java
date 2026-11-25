@@ -39,6 +39,8 @@ public class ClientBlacklistApiController {
     @PostMapping("/remove")
     public Map<String, Object> remove(@RequestParam("user_id") String userId,
                                       Authentication authentication) {
+        if (!com.example.panel.service.AccessRecoveryService.canUnblockClient(authentication))
+            throw new org.springframework.security.access.AccessDeniedException("Нет права «Разблокировать клиента»");
         ClientBlacklistService.BlacklistMutationResult result = clientBlacklistService.unblockClient(
                 userId,
                 authentication != null ? authentication.getName() : "system",

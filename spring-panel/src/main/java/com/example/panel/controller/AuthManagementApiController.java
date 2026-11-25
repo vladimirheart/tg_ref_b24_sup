@@ -312,7 +312,12 @@ public class AuthManagementApiController {
             params.add(stringValue(payload.get("role")));
         }
 
-        if (hasEditPermission(authentication, "user.block")
+        if (payload.containsKey("is_blocked") && Boolean.FALSE.equals(payload.get("is_blocked"))
+                && !com.example.panel.service.AccessRecoveryService.canRecover(authentication))
+            throw new org.springframework.security.access.AccessDeniedException("Нет права «Восстановить доступ»");
+
+        if ((Boolean.TRUE.equals(payload.get("is_blocked")) ? hasEditPermission(authentication, "user.block")
+                : com.example.panel.service.AccessRecoveryService.canRecover(authentication))
             && payload.containsKey("is_blocked") && userColumns.contains("is_blocked")) {
             if (isSelf) {
                 return Map.of("success", false, "error", "Нельзя заблокировать собственную учётную запись");
@@ -575,7 +580,8 @@ public class AuthManagementApiController {
             user.put("can_edit_username", canEditUsername);
             user.put("can_edit_role", canEditRole);
             user.put("can_delete", canDeleteUser && !isSelf);
-            user.put("can_block", canBlockUser && !isSelf);
+            user.put("can_block", !isSelf && (asBoolean(row.get("is_blocked"))
+                    ? com.example.panel.service.AccessRecoveryService.canRecover(authentication) : canBlockUser));
             user.put("can_revoke_sessions", canRevokeSessions(authentication));
             users.add(user);
         }

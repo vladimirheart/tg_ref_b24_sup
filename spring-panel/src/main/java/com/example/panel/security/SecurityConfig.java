@@ -32,7 +32,7 @@ import org.springframework.web.servlet.handler.HandlerMappingIntrospector;
 
 @Configuration
 @EnableMethodSecurity
-@EnableConfigurationProperties(PanelSecurityProperties.class)
+@EnableConfigurationProperties({PanelSecurityProperties.class, AccessRecoveryProperties.class})
 public class SecurityConfig {
 
     @Bean
@@ -43,7 +43,9 @@ public class SecurityConfig {
                                                    UserDetailsService userDetailsService,
                                                    UserRepositoryUserDetailsService users,
                                                    HandlerMappingIntrospector introspector,
-                                                   PanelSecurityProperties securityProperties) throws Exception {
+                                                   PanelSecurityProperties securityProperties,
+                                                   PublicAuthenticationGuard publicGuard,
+                                                   RequestClientAddressResolver clientAddresses) throws Exception {
         var publicRequests = new OrRequestMatcher(
                 new DispatcherTypeRequestMatcher(DispatcherType.ERROR),
                 PathRequest.toStaticResources().atCommonLocations(),
@@ -68,6 +70,13 @@ public class SecurityConfig {
                 .with(new ExactFormLoginConfigurer(), form -> form
                         .loginPage("/login")
                         .defaultSuccessUrl("/post-login", true)
+                        .failureHandler((request, response, failure) -> {
+                            publicGuard.recordFailure("login_failed", clientAddresses.resolve(request), request.getParameter("username"), request.getHeader("User-Agent"));
+                            Object started = request.getAttribute(LoginRequestGuardFilter.START);
+                            publicGuard.finish(started instanceof Long value ? value : System.nanoTime());
+                            response.setHeader("Cache-Control", "no-store");
+                            response.sendRedirect(request.getContextPath() + "/login?error");
+                        })
                         .permitAll()
                 )
                 .rememberMe(rememberMe -> rememberMe
@@ -131,6 +140,8 @@ public class SecurityConfig {
         }
 
         http.authenticationProvider(daoAuthenticationProvider);
+        http.addFilterBefore(new LoginRequestGuardFilter(publicGuard, clientAddresses),
+                org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -162,10 +173,19 @@ public class SecurityConfig {
 
     @Bean
     public DaoAuthenticationProvider daoAuthenticationProvider(UserDetailsService userDetailsService, PasswordEncoder passwordEncoder) {
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-        provider.setUserDetailsService(userDetailsService);
-        provider.setPasswordEncoder(passwordEncoder);
-        return provider;
+        return new UniformAuthenticationProvider(userDetailsService, passwordEncoder);
+    }
+
+    @Bean
+    public RequestClientAddressResolver requestClientAddressResolver(AccessRecoveryProperties properties) {
+        return new RequestClientAddressResolver(properties);
+    }
+
+    @Bean
+    public PublicAuthenticationGuard publicAuthenticationGuard(
+            @org.springframework.beans.factory.annotation.Qualifier("usersJdbcTemplate") JdbcTemplate jdbc,
+            AccessRecoveryProperties properties) {
+        return new PublicAuthenticationGuard(jdbc, properties);
     }
 
     @Bean

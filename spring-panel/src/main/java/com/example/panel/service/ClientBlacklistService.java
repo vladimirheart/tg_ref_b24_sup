@@ -17,13 +17,19 @@ public class ClientBlacklistService {
     private final ClientBlacklistRepository repository;
     private final BlacklistHistoryService blacklistHistoryService;
     private final DialogNotificationService dialogNotificationService;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+    private final UiEventStreamService uiEvents;
 
     public ClientBlacklistService(ClientBlacklistRepository repository,
                                   BlacklistHistoryService blacklistHistoryService,
-                                  DialogNotificationService dialogNotificationService) {
+                                  DialogNotificationService dialogNotificationService,
+                                  org.springframework.jdbc.core.JdbcTemplate jdbc,
+                                  UiEventStreamService uiEvents) {
         this.repository = repository;
         this.blacklistHistoryService = blacklistHistoryService;
         this.dialogNotificationService = dialogNotificationService;
+        this.jdbc = jdbc;
+        this.uiEvents = uiEvents;
     }
 
     @Transactional
@@ -114,6 +120,18 @@ public class ClientBlacklistService {
         }
 
         log.info("Client {} removed from blacklist by {}", normalizedUserId, normalizedActor);
+        jdbc.update("""
+                UPDATE client_unblock_requests SET status = 'approved', decided_at = ?, decided_by = ?,
+                    decision_comment = 'Клиент разблокирован из карточки'
+                WHERE user_id = ? AND status = 'pending'
+                """, now, normalizedActor, normalizedUserId);
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                new org.springframework.transaction.support.TransactionSynchronization() {
+                    @Override public void afterCommit() {
+                        try { uiEvents.publishSidebarUnblockChanged("client_unblocked"); }
+                        catch (RuntimeException unavailable) { log.warn("Attention refresh unavailable after client unblock"); }
+                    }
+                });
         return BlacklistMutationResult.success("Клиент разблокирован");
     }
 

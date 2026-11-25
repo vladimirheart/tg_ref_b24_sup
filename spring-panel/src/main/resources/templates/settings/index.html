@@ -420,15 +420,16 @@
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">Запросы на восстановление пароля</h5>
+            <h5 class="modal-title">Запросы на восстановление доступа</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body" data-password-reset-requests data-password-reset-endpoint="/api/password-reset-requests">
             <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-3">
-              <div class="text-muted small">Доступ к обработке заявок есть только у администратора портала и admin.</div>
+              <div class="text-muted small">Обработка доступна с правом «Восстановить доступ». Перед решением проверьте личность заявителя по известным вам данным.</div>
               <button type="button" class="btn btn-outline-primary btn-sm" data-password-reset-refresh>Обновить</button>
             </div>
             <div class="alert alert-danger d-none" data-password-reset-error role="alert"></div>
+            <div class="alert alert-success d-none" data-password-reset-success role="status"></div>
             <div class="table-responsive">
               <table class="table table-sm align-middle">
                 <thead>
@@ -455,7 +456,7 @@
   <script src="/js/user-permissions.js?v=20261112-documents"></script>
   <script th:src="@{/js/auth-management.js(v='20261123-session-revocation')}"></script>
   <script src="/js/workforce-management.js"></script>
-  <script src="/js/password-reset-requests.js"></script>
+  <script src="/js/password-reset-requests.js?v=20261125-access-recovery"></script>
   <script src="/js/modal-transitions.js"></script>
   <script src="/js/business-questionnaire-presets.js?v=20261021-r151"></script>
   <script src="/js/bot-settings.js?v=20261112-question-editor"></script>

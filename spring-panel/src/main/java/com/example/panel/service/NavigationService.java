@@ -55,8 +55,8 @@ public class NavigationService {
         model.addAttribute("canManageChannelsInSettings", canManageChannels && ChannelManagementAccess.hasSettingsPage(authentication));
         model.addAttribute("canManageUsers", permissionService.hasAuthority(authentication, "PAGE_USERS"));
         model.addAttribute("canViewIncidents", GeneralTicketActor.from(authentication) != null);
-        model.addAttribute("canManagePasswordResetRequests",
-                permissionService.isSuperUser(authentication) || permissionService.hasAuthority(authentication, "ROLE_PORTAL_ADMIN"));
+        model.addAttribute("canManagePasswordResetRequests", AccessRecoveryService.canRecover(authentication));
+        model.addAttribute("canUnblockClient", AccessRecoveryService.canUnblockClient(authentication));
         model.addAttribute("canViewSettings", permissionService.hasAuthority(authentication, "PAGE_SETTINGS"));
         model.addAttribute("canViewPassports", permissionService.hasAuthority(authentication, "PAGE_OBJECT_PASSPORTS"));
         model.addAttribute("canViewClients", permissionService.hasAuthority(authentication, "PAGE_CLIENTS"));
@@ -65,7 +65,7 @@ public class NavigationService {
     }
 
     private long loadPendingUnblockCount(Authentication authentication) {
-        if (!permissionService.hasAuthority(authentication, "PAGE_CLIENTS")) {
+        if (authentication == null || !authentication.isAuthenticated()) {
             return 0;
         }
         return unblockRequestService.countPendingRequests();

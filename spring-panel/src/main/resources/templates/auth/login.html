@@ -42,7 +42,7 @@
                     </div>
 
                     <div class="alert alert-danger" role="alert" th:if="${param.error}">
-                        Неверный логин или пароль. Попробуйте ещё раз.
+                        Не удалось войти. Проверьте логин и пароль или отправьте заявку на восстановление доступа.
                     </div>
                     <div class="alert alert-success" role="alert" th:if="${param.logout}">
                         Вы успешно вышли из системы.
@@ -69,7 +69,7 @@
                                 <input class="form-check-input m-0" type="checkbox" name="remember-me" value="true">
                                 <span>Запомнить меня</span>
                             </label>
-                            <button type="button" class="btn btn-link p-0 link-primary text-decoration-none" data-bs-toggle="modal" data-bs-target="#forgotPasswordModal" data-auth-forgot-password>Забыли пароль?</button>
+                            <button type="button" class="btn btn-link p-0 link-primary text-decoration-none" data-bs-toggle="modal" data-bs-target="#forgotPasswordModal" data-auth-forgot-password>Восстановить доступ</button>
                         </div>
                         <button type="submit" class="btn btn-primary w-100 btn-rounded">Войти</button>
                     </form>
@@ -90,14 +90,30 @@
               <div class="alert alert-danger d-none" data-forgot-password-error role="alert"></div>
               <div class="alert alert-success d-none" data-forgot-password-success role="status"></div>
               <div class="mb-3">
-                <label class="form-label" for="forgotUsername">Логин</label>
-                <input id="forgotUsername" class="form-control" name="username" autocomplete="username" required>
+                <label class="form-label" for="forgotUsername">Логин (если помните)</label>
+                <input id="forgotUsername" class="form-control" name="username" autocomplete="username" maxlength="255">
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="forgotKind">Причина обращения</label>
+                <select id="forgotKind" class="form-select" name="kind" required>
+                  <option value="password">Забыл пароль</option>
+                  <option value="blocked">Доступ заблокирован</option>
+                  <option value="other">Не помню логин / другая проблема</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="forgotFullName">ФИО</label>
+                <input id="forgotFullName" class="form-control" name="full_name" autocomplete="name" maxlength="200" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="forgotContact">Контакт для связи</label>
+                <input id="forgotContact" class="form-control" name="contact" autocomplete="email" maxlength="255" placeholder="Корпоративная почта или телефон" required>
               </div>
               <div class="mb-0">
                 <label class="form-label" for="forgotComment">Комментарий (опционально)</label>
-                <textarea id="forgotComment" class="form-control" rows="3" name="comment" placeholder="Например: нет доступа к почте / сменился телефон"></textarea>
+                <textarea id="forgotComment" class="form-control" rows="3" name="comment" maxlength="1000" placeholder="Опишите проблему. Не указывайте пароли и коды доступа."></textarea>
               </div>
-              <p class="small text-muted mt-3 mb-0">Заявку увидит администратор портала и обработает вручную.</p>
+              <p class="small text-muted mt-3 mb-0">Ответственный сотрудник рассмотрит обращение вручную и проверит вашу личность. Для разбора заявки сохраняются IP, сведения браузера и время отправки.</p>
             </div>
             <div class="modal-footer">
               <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
@@ -109,6 +125,6 @@
     </div>
 </main>
 <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-<script th:src="@{/js/auth-login.js}"></script>
+<script th:src="@{/js/auth-login.js(v='20261125-access-recovery')}"></script>
 </body>
 </html>

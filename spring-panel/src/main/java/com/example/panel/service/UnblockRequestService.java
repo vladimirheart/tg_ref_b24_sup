@@ -52,7 +52,7 @@ public class UnblockRequestService {
             FROM client_unblock_requests r
             LEFT JOIN channels c ON c.id = r.channel_id
             %s
-            ORDER BY r.created_at DESC
+            ORDER BY CASE WHEN r.status = 'pending' THEN 0 ELSE 1 END, r.created_at DESC LIMIT 300
             """.formatted(StringUtils.hasText(normalizedStatus) ? "WHERE r.status = ?" : "");
 
         Object[] args = StringUtils.hasText(normalizedStatus) ? new Object[]{normalizedStatus} : new Object[]{};
@@ -104,7 +104,7 @@ public class UnblockRequestService {
                     WHERE id = ?
                     """,
                 approve ? "approved" : "rejected",
-                now.toString(),
+                now,
                 decidedBy,
                 normalizedComment,
                 requestId
@@ -112,7 +112,15 @@ public class UnblockRequestService {
 
         String notification = buildNotificationMessage(context.userId(), approve, normalizedComment, now);
         dialogNotificationService.notifyUserByLastChannel(parseUserId(context.userId()), notification, true);
-        uiEventStreamService.publishSidebarUnblockChanged("unblock_request_decided");
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                new org.springframework.transaction.support.TransactionSynchronization() {
+                    @Override public void afterCommit() {
+                        try { uiEventStreamService.publishSidebarUnblockChanged("unblock_request_decided"); }
+                        catch (RuntimeException unavailable) {
+                            org.slf4j.LoggerFactory.getLogger(UnblockRequestService.class).warn("Attention refresh unavailable after unblock decision");
+                        }
+                    }
+                });
 
         return DecisionOutcome.success(approve ? "Запрос одобрен" : "Запрос отклонен");
     }

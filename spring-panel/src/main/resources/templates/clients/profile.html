@@ -25,7 +25,7 @@
             <div class="d-flex align-items-center gap-2 flex-wrap client-profile-page-actions">
                 <a class="btn btn-outline-secondary btn-sm" th:href="@{/clients}">← Назад</a>
                 <button class="btn btn-outline-danger btn-sm" type="button" th:if="${!profile.blacklist.blacklisted}" th:attr="data-blacklist-user-id=${profile.header.userId}" onclick="openBlacklistModal(this)">Заблокировать</button>
-                <button class="btn btn-success btn-sm" type="button" th:if="${profile.blacklist.blacklisted}" th:attr="data-blacklist-user-id=${profile.header.userId}" onclick="removeBlacklist(this)">Разблокировать</button>
+                <button class="btn btn-success btn-sm" type="button" th:if="${profile.blacklist.blacklisted and canUnblockClient}" th:attr="data-blacklist-user-id=${profile.header.userId}" onclick="removeBlacklist(this)">Разблокировать</button>
             </div>
         </div>
     </div>

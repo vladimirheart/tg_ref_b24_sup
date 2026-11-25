@@ -1,246 +1,47 @@
 package com.example.panel.controller;
 
-import com.example.panel.service.PermissionService;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.*;
-
+import com.example.panel.security.PublicAuthenticationGuard;
+import com.example.panel.service.AccessRecoveryService;
 import jakarta.servlet.http.HttpServletRequest;
-import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.ResultSet;
-import java.security.SecureRandom;
-import java.time.OffsetDateTime;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
 import java.util.Map;
+import org.springframework.http.CacheControl;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/password-reset-requests")
 public class PasswordResetRequestApiController {
-
-    private static final String STATUS_PENDING = "PENDING";
-    private static final String STATUS_APPROVED = "APPROVED";
-    private static final String STATUS_REJECTED = "REJECTED";
-
-    private final JdbcTemplate usersJdbcTemplate;
-    private final PasswordEncoder passwordEncoder;
-    private final PermissionService permissionService;
-    public PasswordResetRequestApiController(@Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate,
-                                             PasswordEncoder passwordEncoder,
-                                             PermissionService permissionService) {
-        this.usersJdbcTemplate = usersJdbcTemplate;
-        this.passwordEncoder = passwordEncoder;
-        this.permissionService = permissionService;
+    private final AccessRecoveryService recovery;
+    private final PublicAuthenticationGuard guard;
+    public PasswordResetRequestApiController(AccessRecoveryService recovery, PublicAuthenticationGuard guard) {
+        this.recovery = recovery; this.guard = guard;
     }
-
     @PostMapping("/public")
-    public Map<String, Object> createPublicRequest(@RequestBody Map<String, Object> payload,
-                                                   HttpServletRequest request) {
-        String username = stringValue(payload.get("username"));
-        String note = shorten(stringValue(payload.get("comment")), 1000);
-        if (!StringUtils.hasText(username)) {
-            return Map.of("success", true, "message", "Если пользователь существует, запрос будет обработан администратором.");
-        }
-
-        List<Map<String, Object>> rows = usersJdbcTemplate.queryForList(
-                "SELECT id, username FROM users WHERE lower(username) = lower(?) LIMIT 1",
-                username
-        );
-        if (!rows.isEmpty()) {
-            Map<String, Object> user = rows.get(0);
-            Object userId = user.get("id");
-            String userNameSnapshot = stringValue(user.get("username"));
-            usersJdbcTemplate.update(
-                    "INSERT INTO password_reset_requests(" +
-                            "user_id, username_snapshot, requested_by_username, requested_by_ip, requested_user_agent, requested_note, status, created_at" +
-                            ") VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
-                    userId,
-                    userNameSnapshot,
-                    username,
-                    request.getRemoteAddr(),
-                    shorten(stringValue(request.getHeader("User-Agent")), 512),
-                    note,
-                    STATUS_PENDING,
-                    OffsetDateTime.now().toString()
-            );
-        }
-
-        return Map.of(
-                "success", true,
-                "message", "Если пользователь существует, запрос будет обработан администратором."
-        );
+    public ResponseEntity<Map<String, Object>> createPublicRequest(@RequestBody Map<String, Object> payload, HttpServletRequest request) {
+        long started = System.nanoTime();
+        try { recovery.submit(payload, request); }
+        finally { guard.finish(started); }
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(Map.of("success", true, "message", AccessRecoveryService.PUBLIC_MESSAGE));
     }
-
     @GetMapping
-    public Map<String, Object> listRequests(Authentication authentication) {
-        if (!canManageRequests(authentication)) {
-            return Map.of("success", false, "error", "Недостаточно прав для просмотра запросов");
-        }
-        List<Map<String, Object>> rows = usersJdbcTemplate.queryForList(
-                "SELECT id, user_id, username_snapshot, requested_by_username, requested_by_ip, status, " +
-                        "requested_note, resolution_note, created_at, resolved_at, resolved_by_username " +
-                        "FROM password_reset_requests ORDER BY id DESC LIMIT 300"
-        );
-        return Map.of("success", true, "items", rows);
+    public ResponseEntity<Map<String, Object>> listRequests(Authentication actor) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(Map.of("success", true, "items", recovery.list(actor)));
     }
-
-    @PostMapping("/{requestId}/approve")
-    public Map<String, Object> approveRequest(@PathVariable long requestId,
-                                              @RequestBody(required = false) Map<String, Object> payload,
-                                              Authentication authentication) {
-        if (!canManageRequests(authentication)) {
-            return Map.of("success", false, "error", "Недостаточно прав для обработки запроса");
-        }
-        List<Map<String, Object>> rows = usersJdbcTemplate.queryForList(
-                "SELECT id, user_id, username_snapshot, status FROM password_reset_requests WHERE id = ? LIMIT 1",
-                requestId
-        );
-        if (rows.isEmpty()) {
-            return Map.of("success", false, "error", "Запрос не найден");
-        }
-        Map<String, Object> row = rows.get(0);
-        String status = stringValue(row.get("status"));
-        if (!STATUS_PENDING.equalsIgnoreCase(status)) {
-            return Map.of("success", false, "error", "Запрос уже обработан");
-        }
-
-        Object userId = row.get("user_id");
-        if (!(userId instanceof Number)) {
-            rejectMissingUserRequest(requestId, authentication, "Пользователь больше не существует");
-            return Map.of("success", false, "error", "Пользователь для запроса не найден");
-        }
-
-        String temporaryPassword = generateTemporaryPassword();
-        String hash = passwordEncoder.encode(temporaryPassword);
-        Integer updated;
-        if (hasColumn("users", "password_hash")) {
-            updated = usersJdbcTemplate.update(
-                    "UPDATE users SET password = ?, password_hash = ? WHERE id = ?",
-                    hash,
-                    hash,
-                    ((Number) userId).longValue()
-            );
-        } else {
-            updated = usersJdbcTemplate.update(
-                    "UPDATE users SET password = ? WHERE id = ?",
-                    hash,
-                    ((Number) userId).longValue()
-            );
-        }
-        if (updated == null || updated == 0) {
-            rejectMissingUserRequest(requestId, authentication, "Пользователь больше не существует");
-            return Map.of("success", false, "error", "Пользователь для запроса не найден");
-        }
-
-        String note = payload == null ? "" : shorten(stringValue(payload.get("note")), 1000);
-        usersJdbcTemplate.update(
-                "UPDATE password_reset_requests SET status = ?, resolution_note = ?, resolved_at = ?, resolved_by_username = ? WHERE id = ?",
-                STATUS_APPROVED,
-                note,
-                OffsetDateTime.now().toString(),
-                authentication != null ? authentication.getName() : "system",
-                requestId
-        );
-        return Map.of(
-                "success", true,
-                "temporary_password", temporaryPassword,
-                "message", "Пароль пользователя сброшен, передайте временный пароль безопасным каналом."
-        );
+    @GetMapping("/{id}/events")
+    public ResponseEntity<Map<String, Object>> history(@PathVariable long id, Authentication actor) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(Map.of("success", true, "items", recovery.history(id, actor)));
     }
-
-    @PostMapping("/{requestId}/reject")
-    public Map<String, Object> rejectRequest(@PathVariable long requestId,
-                                             @RequestBody(required = false) Map<String, Object> payload,
-                                             Authentication authentication) {
-        if (!canManageRequests(authentication)) {
-            return Map.of("success", false, "error", "Недостаточно прав для обработки запроса");
-        }
-        List<Map<String, Object>> rows = usersJdbcTemplate.queryForList(
-                "SELECT id, status FROM password_reset_requests WHERE id = ? LIMIT 1",
-                requestId
-        );
-        if (rows.isEmpty()) {
-            return Map.of("success", false, "error", "Запрос не найден");
-        }
-        String status = stringValue(rows.get(0).get("status"));
-        if (!STATUS_PENDING.equalsIgnoreCase(status)) {
-            return Map.of("success", false, "error", "Запрос уже обработан");
-        }
-        String note = payload == null ? "" : shorten(stringValue(payload.get("note")), 1000);
-        usersJdbcTemplate.update(
-                "UPDATE password_reset_requests SET status = ?, resolution_note = ?, resolved_at = ?, resolved_by_username = ? WHERE id = ?",
-                STATUS_REJECTED,
-                note,
-                OffsetDateTime.now().toString(),
-                authentication != null ? authentication.getName() : "system",
-                requestId
-        );
-        return Map.of("success", true);
+    @PostMapping("/{id}/link")
+    public Map<String, Object> link(@PathVariable long id, @RequestBody Map<String, Object> payload, Authentication actor) {
+        return recovery.link(id, payload, actor);
     }
-
-    private boolean canManageRequests(Authentication authentication) {
-        return permissionService.isSuperUser(authentication)
-                || permissionService.hasAuthority(authentication, "ROLE_PORTAL_ADMIN");
+    @PostMapping("/{id}/approve")
+    public ResponseEntity<Map<String, Object>> approve(@PathVariable long id, @RequestBody Map<String, Object> payload, Authentication actor) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(recovery.approve(id, payload, actor));
     }
-
-    private void rejectMissingUserRequest(long requestId, Authentication authentication, String note) {
-        usersJdbcTemplate.update(
-                "UPDATE password_reset_requests SET status = ?, resolution_note = ?, resolved_at = ?, resolved_by_username = ? WHERE id = ?",
-                STATUS_REJECTED,
-                note,
-                OffsetDateTime.now().toString(),
-                authentication != null ? authentication.getName() : "system",
-                requestId
-        );
-    }
-
-    private String stringValue(Object value) {
-        return value == null ? "" : value.toString().trim();
-    }
-
-    private String shorten(String value, int maxLength) {
-        if (value == null) {
-            return "";
-        }
-        if (value.length() <= maxLength) {
-            return value;
-        }
-        return value.substring(0, maxLength);
-    }
-
-    private String generateTemporaryPassword() {
-        final String alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789@#$%";
-        SecureRandom random = new SecureRandom();
-        StringBuilder sb = new StringBuilder(14);
-        for (int i = 0; i < 14; i++) {
-            sb.append(alphabet.charAt(random.nextInt(alphabet.length())));
-        }
-        return sb.toString();
-    }
-
-    private boolean hasColumn(String tableName, String columnName) {
-        DataSource dataSource = usersJdbcTemplate.getDataSource();
-        if (dataSource == null) {
-            return false;
-        }
-        try (Connection connection = dataSource.getConnection()) {
-            DatabaseMetaData metaData = connection.getMetaData();
-            try (ResultSet columns = metaData.getColumns(null, null, tableName, columnName)) {
-                if (columns.next()) {
-                    return true;
-                }
-            }
-            try (ResultSet columns = metaData.getColumns(null, null, tableName.toUpperCase(Locale.ROOT), columnName.toUpperCase(Locale.ROOT))) {
-                return columns.next();
-            }
-        } catch (Exception ex) {
-            return false;
-        }
+    @PostMapping("/{id}/reject")
+    public Map<String, Object> reject(@PathVariable long id, @RequestBody Map<String, Object> payload, Authentication actor) {
+        return recovery.reject(id, payload, actor);
     }
 }

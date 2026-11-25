@@ -212,6 +212,17 @@
         </nav>
 
         <div class="sidebar-footer">
+            <div class="sidebar-attention" data-attention-panel aria-label="Требуют внимания" hidden>
+                <span class="sidebar-attention-title">Требуют внимания</span>
+                <a class="sidebar-attention-link" href="/unblock-requests" data-attention-kind="unblock" hidden title="Запросы на разблокировку клиентов">
+                    <i class="bi bi-unlock" aria-hidden="true"></i><span class="sidebar-attention-label">Разблокировки клиентов</span>
+                    <small data-attention-new hidden>Новое</small><strong data-attention-count>0</strong>
+                </a>
+                <a class="sidebar-attention-link" href="/access-recovery-requests" data-attention-kind="recovery" hidden title="Запросы на восстановление доступа">
+                    <i class="bi bi-key" aria-hidden="true"></i><span class="sidebar-attention-label">Восстановление доступа</span>
+                    <small data-attention-new hidden>Новое</small><strong data-attention-count>0</strong>
+                </a>
+            </div>
             <div class="sidebar-footer-main">
                 <div class="sidebar-account-block" data-sidebar-action-menu>
                     <button type="button" class="sidebar-user-card" data-sidebar-action-trigger aria-controls="sidebarActionMenu" aria-expanded="false" title="Профиль и действия">
@@ -289,4 +300,5 @@
     <script th:src="@{/js/sidebar.js(v='20261123-session-revocation')}"></script>
     <script th:src="@{/js/notification-sounds.js(v='20261116-r291')}"></script>
     <script th:src="@{/js/content-disclosure.js}"></script>
+    <script th:src="@{/js/attention.js(v='20261125-access-recovery')}"></script>
 </div>

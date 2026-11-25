@@ -1804,6 +1804,9 @@
         void updateUnblockRequestCount();
         dispatchPanelSseEvent('sidebar_unblock_changed', detail);
       });
+      source.addEventListener('attention_changed', (event) => {
+        dispatchPanelSseEvent('attention_changed', parseSsePayload(event));
+      });
       source.addEventListener('sidebar_bots_changed', (event) => {
         const detail = parseSsePayload(event);
         setPanelEventsConnected(true);

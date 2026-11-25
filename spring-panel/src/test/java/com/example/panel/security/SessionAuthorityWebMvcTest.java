@@ -91,6 +91,7 @@ class SessionAuthorityWebMvcTest {
     @BeforeEach void fixtures() {
         users.clear();rights.clear();roles.clear();failing="";reset(jdbc,transport);
         when(jdbc.getDataSource()).thenReturn(mock(DataSource.class));
+        when(jdbc.queryForObject(contains("public_auth_rate_limits"),eq(Integer.class),anyString(),anyString(),anyLong())).thenReturn(1);
         when(jdbc.queryForList(eq(USER_SQL),anyString())).thenAnswer(call -> users.values().stream()
             .filter(row -> row.get("username").toString().equalsIgnoreCase(call.getArgument(1))).limit(2).toList());
         when(jdbc.queryForMap(eq(ID_SQL),anyLong())).thenAnswer(call -> {

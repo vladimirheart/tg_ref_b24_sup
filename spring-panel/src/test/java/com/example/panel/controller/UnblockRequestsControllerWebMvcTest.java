@@ -43,9 +43,13 @@ class UnblockRequestsControllerWebMvcTest {
     @MockBean
     private PanelUserPhotoService panelUserPhotoService;
 
+    @MockBean
+    private com.example.panel.config.MultibusinessFeatureFlags featureFlags;
+
     @Test
     void unblockRequestsPageIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
-        when(unblockRequestService.loadRequests(null)).thenReturn(List.of());
+        when(unblockRequestService.loadRequests(null)).thenReturn(List.of(new com.example.panel.model.clients.UnblockRequestItem(
+                1L, "private-client-id", "private-channel", "private-reason", "approved", "2026-11-25", "2026-11-25", "admin", "private-decision")));
         when(permissionService.hasAuthority(any(), any())).thenReturn(false);
         when(panelUserRepository.findByUsernameIgnoreCase("operator")).thenReturn(Optional.empty());
         when(panelUserPhotoService.resolveUrl(any(), any())).thenReturn("/avatar_default.svg");
@@ -56,6 +60,9 @@ class UnblockRequestsControllerWebMvcTest {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-preferences.js")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/theme.js")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-config.js")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"clients\"")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"clients\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("private-client-id"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("private-reason"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("private-decision"))));
     }
 }

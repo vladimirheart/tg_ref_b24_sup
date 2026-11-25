@@ -113,6 +113,10 @@ public class UiEventStreamService {
         publishToAll("sidebar_unblock_changed", basePayload(reason, null, null));
     }
 
+    public void publishAttentionChanged() {
+        publishToAll("attention_changed", basePayload("attention_changed", null, null));
+    }
+
     public void publishSidebarBotsChanged(String reason, Long channelId) {
         publishToAll("sidebar_bots_changed", basePayload(reason, null, channelId));
     }

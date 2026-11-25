@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/unblock-requests")
-@PreAuthorize("hasAuthority('PAGE_CLIENTS')")
+@PreAuthorize("isAuthenticated()")
 public class UnblockRequestsApiController {
 
     private final UnblockRequestService unblockRequestService;
@@ -31,6 +31,8 @@ public class UnblockRequestsApiController {
                                       @RequestParam("decision") String decision,
                                       @RequestParam(value = "comment", required = false) String comment,
                                       Authentication authentication) {
+        if (!com.example.panel.service.AccessRecoveryService.canUnblockClient(authentication))
+            throw new org.springframework.security.access.AccessDeniedException("Нет права «Разблокировать клиента»");
         boolean approve = "approve".equalsIgnoreCase(decision) || "approved".equalsIgnoreCase(decision);
         boolean reject = "reject".equalsIgnoreCase(decision) || "rejected".equalsIgnoreCase(decision);
         if (!approve && !reject) {
