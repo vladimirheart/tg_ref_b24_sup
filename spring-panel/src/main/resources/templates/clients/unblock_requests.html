@@ -84,7 +84,7 @@
                     <td>
                         <div th:if="${request.decidedAt != null || request.decidedBy != null || request.decisionComment != null}">
                             <div class="small text-muted" th:text="${request.decidedAt} ?: '—'">—</div>
-                            <div class="small" th:if="${request.decidedBy != null}" th:text="${request.decidedBy}">—</div>
+                            <div class="small" th:if="${request.decidedBy != null}"><th:block th:replace="~{fragments/employee-identity :: identity(${request.decidedBy})}"></th:block></div>
                             <div class="small text-muted" th:if="${request.decisionComment != null and (canViewClients or canUnblockClient)}"
                                  th:text="${request.decisionComment}">—</div>
                         </div>

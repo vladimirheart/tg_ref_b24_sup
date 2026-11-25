@@ -535,6 +535,8 @@
       const usernameTitle = document.createElement('div');
       usernameTitle.className = 'fw-semibold';
       usernameTitle.textContent = user.username || '—';
+      usernameTitle.dataset.employeeId = String(user.id);
+      usernameTitle.dataset.employeePreserveContent = 'true';
       userInfo.appendChild(usernameTitle);
       if (user.full_name) {
         const fullNameRow = document.createElement('div');
@@ -731,6 +733,8 @@
     createUserAvatar(user) {
       const container = document.createElement('div');
       container.className = 'auth-user-avatar';
+      container.dataset.employeeId = String(user.id);
+      container.dataset.employeePreserveContent = 'true';
       const displayName = (user?.full_name || user?.username || '').trim();
       const photoUrl = String(user?.photo || '').trim();
       if (photoUrl) {
@@ -3463,6 +3467,8 @@
           const badge = document.createElement('span');
           badge.className = 'org-node__badge';
           badge.textContent = user.full_name || user.username || `ID ${user.id}`;
+          badge.dataset.employeeId = String(user.id);
+          badge.dataset.employeeCompact = 'true';
           badge.title = this.isOrgDepartmentMember(node, user) ? 'Отдел указан в карточке сотрудника' : 'Назначен в состав ветки';
           membersContainer.appendChild(badge);
         });
@@ -3793,6 +3799,7 @@
           const icon = document.createElement('i'); icon.className = 'bi bi-person'; icon.setAttribute('aria-hidden', 'true');
           const info = document.createElement('span'); info.className = 'org-member__info';
           const name = document.createElement('span'); name.className = 'org-member__name'; name.textContent = user.full_name || user.username;
+          name.dataset.employeeId = String(user.id); name.dataset.employeeCompact = 'true';
           const meta = document.createElement('span'); meta.className = 'org-member__meta'; meta.textContent = [user.full_name ? user.username : '', user.department].filter(Boolean).join(' · ');
           info.append(name, meta);
           const source = document.createElement('span'); source.className = 'org-member__source';

@@ -366,7 +366,7 @@
           <div class="fw-semibold">${escapeHtml(item.action_type || '—')}</div>
           <div class="small text-muted">${escapeHtml(item.summary_text || '—')}</div>
         </td>
-        <td>${escapeHtml(item.actor || 'system')}</td>
+        <td>${item.actor && window.EmployeeProfiles ? window.EmployeeProfiles.actor(item.actor) : escapeHtml(item.actor || 'system')}</td>
         <td><span class="badge ${badgeClassForSeverity(item.result_status === 'success' ? 'ok' : 'warning')}">${escapeHtml(item.result_status || '—')}</span></td>
       </tr>
     `).join('');
@@ -411,7 +411,7 @@
           <div>${escapeHtml(item.target_type || '—')}</div>
           <div class="small text-muted">${escapeHtml(item.target_id || item.ticket_id || '—')}</div>
         </td>
-        <td>${escapeHtml(item.actor || 'system')}</td>
+        <td>${item.actor && window.EmployeeProfiles ? window.EmployeeProfiles.actor(item.actor) : escapeHtml(item.actor || 'system')}</td>
         <td><span class="badge ${badgeClassForSeverity(item.result_status === 'success' ? 'ok' : 'warning')}">${escapeHtml(item.result_status || '—')}</span></td>
       </tr>
     `).join('');

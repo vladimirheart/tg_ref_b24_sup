@@ -69,7 +69,11 @@
       for (const event of rows) {
         if (!id(event.id)) throw new Error('Некорректный ответ журнала.');
         const item = node('li', undefined, 'list-group-item');
-        item.appendChild(node('div', event.occurredAt + ' · ' + (labels[event.action] || event.action) + ' · ' + event.actorName));
+        const summary = node('div', event.occurredAt + ' · ' + (labels[event.action] || event.action) + ' · ');
+        summary.append(event.actorUserId && window.EmployeeProfiles
+          ? window.EmployeeProfiles.node({ userId: event.actorUserId, fullName: event.actorName }, { compact: true, optional: true })
+          : document.createTextNode(event.actorName || 'Система'));
+        item.appendChild(summary);
         const detail = node('details'); detail.appendChild(node('summary', 'Изменение'));
         detail.appendChild(node('pre', event.beforeState + ' → ' + event.afterState)); item.appendChild(detail); list.appendChild(item);
       }

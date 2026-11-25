@@ -66,7 +66,7 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(html.contains("/js/passport-detail-header-runtime.js?v=20261006-legacy-editor-removal-r1"));
         assertTrue(html.contains("/js/passport-detail-page-runtime.js?v=20261120-equipment-preview-r1"));
         assertTrue(html.contains("data-passport-tab=\"documents\""));
-        assertTrue(html.contains("/js/passport-documents-runtime.js?v=20261112-documents"));
+        assertTrue(html.contains("/js/passport-documents-runtime.js?v=20261125-employee-preview-r1"));
         assertTrue(html.contains("PassportDetailPageRuntime"));
         assertTrue(pageRuntime.contains("PassportDetailEditorRuntime"));
         assertTrue(coreRuntime.contains("findCatalogItem"));
@@ -157,7 +157,7 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(runtime.contains("firstPhoto(item)"));
         assertTrue(runtime.contains("data-it-equipment-action=\"preview-photo\""));
         assertTrue(runtime.contains("buildEquipmentHierarchy"));
-        assertTrue(settings.contains("/css/settings.css(v='20261123-equipment-catalog-hierarchy-r1')"));
+        assertTrue(settings.contains("/css/settings.css(v='20261125-user-status-menu-r1')"));
         assertTrue(settings.contains("/js/equipment-media-runtime.js?v=20260922-01-272-s7"));
         assertTrue(settings.contains("/js/settings-it-equipment-runtime.js?v=20261123-equipment-catalog-hierarchy-r2"));
         assertTrue(settingsCatalogueScss.contains("Equipment catalogue media and lifecycle — 01-259 r4.4"));

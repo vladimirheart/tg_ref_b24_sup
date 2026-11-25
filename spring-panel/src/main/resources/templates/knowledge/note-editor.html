@@ -102,7 +102,7 @@
             </div>
             <div class="card ops-section-card" th:if="${note.id != null}">
                 <div class="card-body small text-muted">
-                    <div>Создал: <span th:text="${note.createdBy != null and !note.createdBy.isBlank()} ? ${note.createdBy} : '—'"></span></div>
+                    <div>Создал: <th:block th:replace="~{fragments/employee-identity :: identity(${note.createdBy})}"></th:block></div>
                     <div>Создано: <time data-note-time th:attr="datetime=${note.createdAt}" th:text="${note.createdAt}"></time></div>
                     <div>Обновлено: <time data-note-time th:attr="datetime=${note.updatedAt}" th:text="${note.updatedAt}"></time></div>
                 </div>

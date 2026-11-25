@@ -18,6 +18,8 @@ class Element {
   addEventListener() {}
 }
 
+const {enableTextNodes,identityContext}=require('./fixtures/employee-identity-dom.cjs');enableTextNodes(Element);
+
 function cell(row, value) {
   const item = new Element();
   item.textContent = String(value ?? '');
@@ -96,6 +98,7 @@ async function main() {
     statusLabel: value => value, ticketTime, announce: message => cardMessages.push(message),
     document: { createElement: () => new Element() }, encodeURIComponent
   };
+  Object.assign(cardContext,identityContext(Element,cardContext.document));
   const openCard = vm.runInNewContext(`${source.slice(cardStart, cardEnd)}\nopenCard`, cardContext);
   await openCard(ticket, 4);
   assert.equal(card.hidden, false);

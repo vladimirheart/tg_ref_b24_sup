@@ -28,7 +28,13 @@
     const date = value => value ? new Date(value).toLocaleString('ru-RU') : '';
     const bytes = size => size < 1024 * 1024 ? `${Math.ceil(size / 1024)} КБ` : `${(size / 1024 / 1024).toFixed(1)} МБ`;
     const url = item => `${base}/${encodeURIComponent(item.id)}/revisions/${item.revision}`;
-    const meta = item => [`Версия ${item.revision}`, actions[item.action] || '', item.actor, date(item.changed_at)].filter(Boolean).join(' · ');
+    const meta = item => {
+      const content = document.createDocumentFragment();
+      content.append([`Версия ${item.revision}`, actions[item.action] || ''].filter(Boolean).join(' · '));
+      if (item.actor) content.append(' · ', window.EmployeeProfiles?.node(item.actor, { compact: true, optional: true }) || document.createTextNode(item.actor));
+      if (item.changed_at) content.append(' · ' + date(item.changed_at));
+      return content;
+    };
 
     async function request(address, options = {}) {
       const headers = { Accept: 'application/json', ...(options.headers || {}) };
@@ -59,7 +65,7 @@
         content.append(node('span', 'small text-muted', [item.category, item.event_date, item.archived ? 'Архив' : ''].filter(Boolean).join(' · ')), node('h3', '', item.title));
         content.append(node('p', 'passport-document-card__description', item.description.length > 200 ? item.description.slice(0, 200) + '…' : item.description));
         if (item.file) content.append(node('p', 'small text-muted mb-1', item.file.name + ' · ' + bytes(item.file.size)));
-        content.append(node('p', 'small text-muted mb-0', meta(item)));
+        const metadata = node('p', 'small text-muted mb-0'); metadata.append(meta(item)); content.append(metadata);
         const controls = node('div', 'passport-document-card__actions'); controls.append(button('Просмотр', 'view'));
         if (canEdit) {
           if (!item.archived) controls.append(button('Изменить', 'edit'));
@@ -172,7 +178,7 @@
         if (token !== viewerGeneration) return;
         const current = result.document; viewing = current;
         document.getElementById('passportDocumentViewerTitle').textContent = current.title;
-        viewer.querySelector('[data-document-version-meta]').textContent = meta(current);
+        viewer.querySelector('[data-document-version-meta]').replaceChildren(meta(current));
         const description = viewer.querySelector('[data-document-description]'); description.style.whiteSpace = 'pre-wrap'; description.textContent = current.description;
         const properties = viewer.querySelector('[data-document-properties]');
         for (const [key, value] of [['Тип записи', current.category], ['Дата события', current.event_date], ...Object.entries(current.fields || {})]) {
@@ -201,7 +207,7 @@
         if (documentId !== viewing?.id) return;
         if (!append) rows.replaceChildren();
         for (const item of result.items) {
-          const row = node('div', 'passport-document-history-row'); row.append(node('span', 'small', meta(item)));
+          const row = node('div', 'passport-document-history-row'), metadata = node('span', 'small'); metadata.append(meta(item)); row.append(metadata);
           const open = button('Открыть версию ' + item.revision, 'version'); open.addEventListener('click', () => openViewer(item, true)); row.append(open); rows.append(row);
         }
         historyCursor = result.next_cursor; moreHistory.hidden = !result.has_more;

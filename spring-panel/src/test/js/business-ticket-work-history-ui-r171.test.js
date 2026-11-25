@@ -6,6 +6,8 @@ class Element {
   append(...items){this.children.push(...items);}
   set innerHTML(value){throw Error('Unsafe audit markup '+value);}
 }
+const {enableTextNodes,identityContext}=require('./fixtures/employee-identity-dom.cjs');enableTextNodes(Element);
+
 async function main(){
   const source=fs.readFileSync(path.resolve(__dirname,'../../main/resources/static/js/business-dialogs.js'),'utf8');
   const template=fs.readFileSync(path.resolve(__dirname,'../../main/resources/templates/businesses/dialogs.html'),'utf8');
@@ -22,6 +24,7 @@ async function main(){
     generation:1,cardRequest:7,currentTicketPublicId:ticket.ticketPublicId,workTicket:null,workRevision:null,workLatest:null,
     workBefore:null,workLoading:false,encodeURIComponent,ticketTime:value=>value,statusLabel:value=>value,
     document:{createElement:()=>new Element()},getJson:url=>new Promise((resolve,reject)=>pending.push({url,resolve,reject}))};
+  Object.assign(context,identityContext(Element,context.document));
   const api=vm.runInNewContext(`${source.slice(clearStart,clearEnd)}\n${source.slice(start,end)}\n({loadWorkHistory,loadOlderWorkEvents,clearWorkHistory})`,context);
   const events=()=>fields.get('[data-ticket-work-events]'),status=()=>fields.get('[data-ticket-work-status]'),button=()=>fields.get('[data-ticket-work-older]');
   async function load(value=history){const call=api.loadWorkHistory(ticket,context.generation,context.cardRequest);assert(pending[0].url.endsWith('/work/history?limit=50'));pending.shift().resolve(value);await call;}

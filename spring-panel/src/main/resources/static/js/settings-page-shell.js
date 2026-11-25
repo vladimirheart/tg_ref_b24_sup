@@ -1295,7 +1295,7 @@
 
   function initSettingsTopModalEscapeGuard() {
     document.addEventListener('keydown', (event) => {
-      if (event.key !== 'Escape' || event.defaultPrevented) {
+      if (event.key !== 'Escape' || event.defaultPrevented || event.target.closest?.('dialog[open]')) {
         return;
       }
       const openModals = Array.from(document.querySelectorAll('.modal.show'))

@@ -227,7 +227,7 @@
           <span class="fw-semibold">${escapeHtml(item?.event_type || 'event')}</span>
           <span class="text-muted">${escapeHtml(createdAt)}</span>
         </div>
-        <div class="text-muted">ticket: ${escapeHtml(item?.ticket_id || '-')} | actor: ${escapeHtml(item?.actor || 'system')}</div>
+        <div class="text-muted">ticket: ${escapeHtml(item?.ticket_id || '-')} | actor: ${item?.actor && window.EmployeeProfiles ? window.EmployeeProfiles.actor(item.actor) : escapeHtml(item?.actor || 'system')}</div>
         <div>${escapeHtml(item?.decision_reason || item?.detail || '')}</div>
       </div>`;
     }).join('');
@@ -343,7 +343,7 @@
         setHtmlIfChanged(offlineEvalMetricsEl, '<div class="text-muted">Прогонов ещё не было. Можно запустить первый eval вручную.</div>');
       } else {
         const createdAt = formatUtcDate(payload?.created_at);
-        const actor = escapeHtml(String(payload?.actor || 'system'));
+        const actor = payload?.actor && window.EmployeeProfiles ? window.EmployeeProfiles.actor(payload.actor) : escapeHtml(String(payload?.actor || 'system'));
         setHtmlIfChanged(offlineEvalMetricsEl, `
           <div><strong>Последний запуск:</strong> ${escapeHtml(createdAt)}</div>
           <div><strong>Actor:</strong> ${actor}</div>
@@ -739,7 +739,7 @@
       historyEl.innerHTML = items.map((h) => {
         const id = Number(h?.id || 0);
         const createdAt = formatUtcDate(h?.created_at);
-        const who = escapeHtml(h?.changed_by || 'system');
+        const who = h?.changed_by && window.EmployeeProfiles ? window.EmployeeProfiles.actor(h.changed_by) : escapeHtml(h?.changed_by || 'system');
         const action = escapeHtml(h?.change_action || 'update');
         const oldSolution = escapeHtml(h?.old_solution_text || '');
         const newSolution = escapeHtml(h?.new_solution_text || '');

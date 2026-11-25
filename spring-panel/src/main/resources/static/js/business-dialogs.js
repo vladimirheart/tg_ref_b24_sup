@@ -390,11 +390,16 @@
     }
   }
 
+  function employeeNode(username, userId) {
+    return window.EmployeeProfiles?.node({ username, userId }, { compact: true }) || document.createTextNode(username || '—');
+  }
+
   function participantEventItem(entry) {
     const item = document.createElement('li');
     item.className = 'list-group-item text-break';
     const action = entry.action === 'add' ? 'Добавлен' : 'Удалён';
-    item.textContent = `${entry.revision} · ${action}: ${entry.member} (ID ${entry.memberId}) · ${entry.actor} · ${ticketTime(entry.createdAt)}`;
+    item.replaceChildren(`${entry.revision} · ${action}: `, employeeNode(entry.member, entry.memberId), ` (ID ${entry.memberId}) · `,
+      employeeNode(entry.actor, entry.actorId), ` · ${ticketTime(entry.createdAt)}`);
     return item;
   }
 
@@ -413,7 +418,7 @@
       for (const member of roster.members) {
         const item = document.createElement('li');
         item.className = 'list-group-item text-break';
-        item.textContent = `${member.username || member.snapshot} (ID ${member.id})${member.eligible ? '' : ' · нет текущего доступа'}`;
+        item.replaceChildren(employeeNode(member.username || member.snapshot, member.id), ` (ID ${member.id})${member.eligible ? '' : ' · нет текущего доступа'}`);
         list.appendChild(item);
       }
       card.querySelector('[data-ticket-participants-status]').textContent = roster.members.length
@@ -465,8 +470,8 @@
     item.className = 'list-group-item text-break';
     const origin = event.origin === 'SLA' ? 'SLA' : 'Вручную';
     const action = event.action === 'take' ? 'взял в работу' : 'назначил';
-    item.textContent = `${ticketTime(event.createdAt)} · ${origin} · ревизия ${event.revision} · ` +
-      `${event.actor}: ${action} → ${event.assignee}`;
+    item.replaceChildren(`${ticketTime(event.createdAt)} · ${origin} · ревизия ${event.revision} · `,
+      employeeNode(event.actor, event.actorId), `: ${action} → `, employeeNode(event.assignee, event.assigneeId));
     return item;
   }
 
@@ -534,9 +539,9 @@
     const item = document.createElement('li');
     item.className = 'list-group-item text-break';
     const action = ({ close: 'Закрыл', reopen: 'Открыл повторно', categories: 'Изменил категории' })[event.action] || event.action;
-    item.textContent = `${ticketTime(event.createdAt)} · ревизия ${event.revision} · ${event.actor}: ${action}; ` +
+    item.replaceChildren(`${ticketTime(event.createdAt)} · ревизия ${event.revision} · `, employeeNode(event.actor, event.actorId), `: ${action}; ` +
       `${statusLabel(event.fromStatus)} → ${statusLabel(event.toStatus)}; категории: ` +
-      `${event.previousCategories.join(', ') || 'нет'} → ${event.categories.join(', ') || 'нет'}`;
+      `${event.previousCategories.join(', ') || 'нет'} → ${event.categories.join(', ') || 'нет'}`);
     return item;
   }
 
@@ -661,7 +666,7 @@
       card.querySelector('[data-ticket-categories]').textContent = detail.categories?.join(', ') || 'Нет';
       card.querySelector('[data-ticket-created]').textContent = ticketTime(detail.createdAt);
       card.querySelector('[data-ticket-resolved-at]').textContent = ticketTime(detail.resolvedAt);
-      card.querySelector('[data-ticket-resolved-by]').textContent = detail.resolvedBy || '—';
+      card.querySelector('[data-ticket-resolved-by]').replaceChildren(employeeNode(detail.resolvedBy));
       history.replaceChildren();
       if (!snapshot.entries.length) {
         const empty = document.createElement('li');

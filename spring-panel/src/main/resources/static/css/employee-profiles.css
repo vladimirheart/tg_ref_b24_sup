@@ -33,10 +33,25 @@
 .employee-identity:hover {
   color: var(--primary);
 }
+.employee-identity[role=button], .employee-identity[href] {
+  cursor: pointer;
+}
+.employee-identity:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
 .employee-identity__name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.employee-identity--text {
+  gap: 0;
+}
+.employee-identity--text .employee-identity__name {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .employee-picker__trigger {
@@ -81,12 +96,16 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 1;
   padding: 1rem 1.25rem;
   border-bottom: 1px solid var(--color-border);
   color: var(--color-text-muted);
+  background: var(--surface-card);
 }
 .employee-profile__body {
-  padding: 1.75rem;
+  padding: 1.25rem;
   overflow-wrap: anywhere;
 }
 .employee-profile .employee-avatar {
@@ -102,11 +121,46 @@
 .employee-profile__department, .employee-profile dt {
   color: var(--color-text-muted);
 }
+.employee-profile__statuses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+  margin: 1rem 0 0.5rem;
+}
+.employee-profile__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+.employee-profile__status.is-online {
+  color: var(--state-success-text);
+}
+.employee-profile__status.is-blocked {
+  color: var(--state-danger-text);
+}
+.employee-profile__status .bi-circle-fill {
+  font-size: 0.6rem;
+}
+.employee-profile__activity {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}
+.employee-profile__contacts {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+.employee-profile__contacts h3 {
+  font-size: 1rem;
+  margin: 0 0 0.8rem;
+}
 .employee-profile dl {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 1rem;
-  margin: 1.5rem 0 0;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.6fr);
+  gap: 0.65rem 1rem;
+  margin: 0;
   font-size: 0.875rem;
 }
 .employee-profile dt {
@@ -114,4 +168,7 @@
 }
 .employee-profile dd {
   margin: 0;
+}
+.employee-profile a {
+  color: var(--primary);
 }

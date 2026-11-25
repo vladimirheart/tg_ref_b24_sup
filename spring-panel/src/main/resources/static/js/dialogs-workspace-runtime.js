@@ -2267,7 +2267,7 @@
         if (elements.workspaceRelatedEventsContent) {
           elements.workspaceRelatedEventsContent.classList.remove('d-none');
           elements.workspaceRelatedEventsContent.innerHTML = renderWorkspaceSimpleList(relatedEvents, (item) => {
-            const actor = escapeHtml(item.actor || 'Система');
+            const actor = item.actor && window.EmployeeProfiles ? window.EmployeeProfiles.actor({ userId: item.actorUserId, username: item.actor }) : escapeHtml(item.actor || 'Система');
             const type = escapeHtml(item.type || 'event');
             const timestamp = escapeHtml(formatWorkspaceDateTime(item.timestamp));
             const detail = escapeHtml(item.detail || '—');

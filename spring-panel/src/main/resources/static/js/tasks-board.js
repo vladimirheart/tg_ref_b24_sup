@@ -160,7 +160,7 @@
           <span class="badge task-status-badge" data-task-status="${escapeHtml(card.status || '')}">${escapeHtml(card.status || '—')}</span>
         </div>
         <button class="tasks-kanban-title" type="button" data-open-task="${escapeHtml(card.id)}">${escapeHtml(card.title || 'Без названия')}</button>
-        <div class="tasks-kanban-card-meta"><span><i class="bi bi-person" aria-hidden="true"></i>${escapeHtml(card.assignee || '—')}</span><span><i class="bi bi-calendar3" aria-hidden="true"></i>${escapeHtml(fmtDate(card.due_at))}</span></div>
+        <div class="tasks-kanban-card-meta"><span><i class="bi bi-person" aria-hidden="true"></i>${card.assignee && window.EmployeeProfiles ? window.EmployeeProfiles.actor(card.assignee) : '—'}</span><span><i class="bi bi-calendar3" aria-hidden="true"></i>${escapeHtml(fmtDate(card.due_at))}</span></div>
         <div class="tasks-kanban-tags">${tagsHtml(card.tags)}</div>
       </article>`;
   }

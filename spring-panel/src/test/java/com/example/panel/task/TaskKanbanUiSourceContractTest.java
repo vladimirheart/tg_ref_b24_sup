@@ -23,8 +23,8 @@ class TaskKanbanUiSourceContractTest {
             .contains("id=\"taskBoardView\"")
             .contains("id=\"taskBoardScope\"")
             .contains("id=\"taskKanban\"")
-            .contains("tasks-board.js?v=20260925-01-274-analytics-r45")
-            .contains("tasks.js?v=20261002-01-278-status-r4");
+            .contains("tasks-board.js?v=20261125-employee-preview-r1")
+            .contains("tasks.js?v=20261124-task-card-r3");
 
         assertThat(boardRuntime)
             .contains("/api/task-boards/mine/ensure")

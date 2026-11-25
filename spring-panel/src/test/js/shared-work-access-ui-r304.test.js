@@ -2,6 +2,7 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
+const {enableTextNodes}=require('./fixtures/employee-identity-dom.cjs');
 const source=fs.readFileSync(path.resolve(__dirname,'../../main/resources/static/js/shared-work-access.js'),'utf8');
 const tick=async()=>{for(let i=0;i<6;i++)await new Promise(setImmediate);};
 class Element {
@@ -21,6 +22,7 @@ class Element {
   get selectedOptions(){return this.children.filter(child=>child.value===this.value);}
   set innerHTML(value){throw new Error('Unsafe HTML: '+value);}
 }
+enableTextNodes(Element);
 function fixture(options={}){
   const module=new Element(),root=new Element(),modal=new Element(),create=new Element('button'),requests=[],events=[];
   create.dataset.workCreate='TASK';create.disabled=true;root.dataset.workObject='TASK';root.modal=modal;
@@ -55,7 +57,8 @@ function fixture(options={}){
   const document={
     querySelector:selector=>selector==='[data-work-module]'?module:selector==='meta[name="_csrf"]'?token:selector==='meta[name="_csrf_header"]'?header:null,
     querySelectorAll:selector=>selector==='[data-work-object]'?[root]:selector==='[data-work-create]'?[create]:[],
-    createElement:tag=>new Element(tag)
+    createElement:tag=>new Element(tag),
+    createTextNode:value=>{const text=new Element('#text');text.textContent=value;return text;}
   };
   const window={dispatchEvent:event=>events.push(event),confirm:()=>options.confirm!==false};
   class CustomEvent{constructor(type,{detail}={}){this.type=type;this.detail=detail;}}
@@ -132,7 +135,8 @@ test('tasks and projects include access panels and updated scripts',()=>{
   for(const page of ['tasks','projects']){
     const html=fs.readFileSync(path.resolve(__dirname,'../../main/resources/templates',page,'index.html'),'utf8');
     assert(html.includes('fragments/shared-work-access :: moduleAccess'));assert(html.includes('fragments/shared-work-access :: objectAccess'));
-    assert(html.includes('shared-work-access.js?v=20261109-r304'));assert(html.includes(page+'.js?v=20261109-r304'));
+    assert(html.includes('shared-work-access.js?v=20261125-employee-preview-r1'));
+    assert(html.includes(page === 'tasks' ? 'tasks.js?v=20261124-task-card-r3' : 'projects.js?v=20261109-r304'));
     assert(html.includes('data-work-write disabled'));assert(html.includes('data-work-create='));
   }
 });

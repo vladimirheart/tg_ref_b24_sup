@@ -49,7 +49,7 @@ class SettingsItEquipmentPhotoUiSourceContractTest {
                 .contains("settings.css(v='20261125-user-status-menu-r1')")
                 .contains("equipment-media-runtime.js?v=20260922-01-272-s7")
                 .contains("settings-it-equipment-runtime.js?v=20261123-equipment-catalog-hierarchy-r2")
-                .contains("settings-page-shell.js?v=20261125-user-menu-escape-r1")
+                .contains("settings-page-shell.js?v=20261125-employee-preview-r1")
                 .doesNotContain("<div class=\"small text-muted\">Фото сохраняются сразу. Нажмите на превью для просмотра.</div>");
 
         assertThat(runtime)

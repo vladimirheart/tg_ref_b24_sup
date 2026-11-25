@@ -3,7 +3,7 @@ const fs = require('node:fs'), path = require('node:path'), http = require('node
 const root = path.resolve(__dirname, '..'), assets = path.join(root, 'spring-panel/src/main/resources/static');
 const capture = path.join(root, 'spring-panel/target/task-card-rendered/tasks.html'), out = path.join(root, 'spring-panel/target/task-card-qa');
 const employees = {
-  anna: { username: 'anna', fullName: 'Анна Смирнова', department: 'Поддержка', photo: '/fixture/avatar.svg' },
+  anna: { userId: '1', username: 'anna', fullName: 'Анна Смирнова', department: 'Поддержка', photo: '/fixture/avatar.svg', email: 'anna@example.test', phones: [{ label: 'work', value: '+7 495 123-45-67' }], blocked: false, lastPortalActivityAt: new Date().toISOString(), serverTime: new Date().toISOString() },
   victor: { username: 'victor', fullName: 'Виктор Крюков', department: 'Разработка', photo: '/fixture/broken.jpg' },
   old: { username: 'old', fullName: 'Исторический сотрудник', department: '', photo: '' },
 };
@@ -44,12 +44,13 @@ async function main() {
         if (url.origin !== origin) return route.abort();
         if (!url.pathname.startsWith('/api/')) return route.continue();
         if (url.pathname === '/api/panel-users/profile') {
-          const person = employees[url.searchParams.get('username')];
+          const person = url.searchParams.has('userId') ? Object.values(employees).find(person => person.userId === url.searchParams.get('userId')) : employees[url.searchParams.get('username')];
           return route.fulfill({ status: failProfile ? 503 : person ? 200 : 404, json: person || {} });
         }
         if (url.pathname === '/api/shared-work/context') return route.fulfill({ json: { canCreateTask: true, canCreateProject: true, systemAdmin: true } });
         if (/\/api\/shared-work\/TASK\/41\/access$/.test(url.pathname)) return route.fulfill({ json: { kind: 'TASK', id: '41', canWrite: !readonly, canManage: !readonly, members: [{ userId: '1', username: 'anna', role: 'OWNER' }, { userId: '2', username: 'victor', role: 'EDITOR' }] } });
         if (url.pathname.endsWith('/people')) return route.fulfill({ json: [{ userId: '1', username: 'anna' }, { userId: '2', username: 'victor' }] });
+        if (url.pathname === '/api/shared-work/TASK/41/history') return route.fulfill({ json: [{ id: '7', action: 'MEMBER_SET', actorUserId: '1', actorName: 'Старое имя', occurredAt: '2026-11-20T09:00:00Z', beforeState: '{}', afterState: '{}' }] });
         if (url.pathname.endsWith('/history')) return route.fulfill({ json: [] });
         if (url.pathname === '/api/projects') return route.fulfill({ json: { items: original.projects } });
         if (url.pathname === '/api/dialog-ticket') return route.fulfill({ json: { summary: { rawResponsible: 'anna', responsible: 'Анна Смирнова', responsibleAvatarUrl: '/fixture/avatar.svg' }, history: [] } });
@@ -79,7 +80,16 @@ async function main() {
       await page.locator('#taskPeople [data-employee-identity="anna"]').first().click();
       await page.locator('#employeeProfileTitle').filter({ hasText: 'Анна Смирнова' }).waitFor();
       assert.match(await page.locator('#employeeProfileDialog').innerText(), /Поддержка/);
+      assert.match(await page.locator('#employeeProfileDialog').innerText(), /anna@example.test/);
+      assert.match(await page.locator('#employeeProfileDialog').innerText(), /Online/);
+      assert.match(await page.locator('#employeeProfileDialog').innerText(), /Активен/);
+      assert(!(await page.locator('#employeeProfileDialog').innerText()).includes('Логин'));
       await page.keyboard.press('Escape'); assert(await modal.isVisible(), 'Escape closes the employee card and preserves the task');
+      await page.locator('.tasks-access-panel > summary').click();
+      await page.locator('#taskModal [data-work-manage] > details > summary').click();
+      await page.locator('#taskModal [data-work-history] [data-employee-id="1"]').click();
+      await page.locator('#employeeProfileTitle').filter({ hasText: 'Анна Смирнова' }).waitFor();
+      await page.keyboard.press('Escape'); await page.locator('#taskModal [data-work-manage] > details > summary').click(); await page.locator('.tasks-access-panel > summary').click();
       await page.locator('#taskStatus').selectOption('Ожидание');
       await page.locator('.tasks-participant-editor > summary').click();
       const coPicker = page.locator('#taskCo').locator('..');

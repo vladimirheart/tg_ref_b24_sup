@@ -135,6 +135,9 @@
       const replyPreviewText = String(message?.replyPreview || message?.reply_preview || '').trim();
       const telegramMessageId = Number.parseInt(message?.telegramMessageId ?? message?.telegram_message_id, 10);
       const senderType = String(message?.senderRole || message?.sender || '').trim().toLowerCase();
+      const authorMarkup = ['support', 'operator', 'admin'].includes(senderType) && (message?.senderUserId || message?.senderUsername) && window.EmployeeProfiles
+        ? window.EmployeeProfiles.actor({ userId: message.senderUserId, username: message.senderUsername, fullName: author })
+        : escapeHtml(author);
       const localMessageId = Number.parseInt(message?.localMessageId, 10);
       const deliveryState = String(message?.deliveryState || '').trim().toLowerCase();
       const normalizedMessage = {
@@ -170,7 +173,7 @@
         options.resolveWorkspaceMessageAvatarSpec?.(message),
         'workspace-message-avatar'
       ) || '';
-      return `<article class="workspace-message-item${senderType === 'system' ? ' is-system-message' : ''}" data-telegram-message-id="${Number.isFinite(telegramMessageId) ? telegramMessageId : ''}" data-local-message-id="${Number.isFinite(localMessageId) ? localMessageId : ''}">${avatarMarkup}<div class="workspace-message-content"><div class="workspace-message-meta">${escapeHtml(author)} · ${escapeHtml(timestamp)}<span data-workspace-delivery-state>${escapeHtml(deliveryStatus)}</span></div>${replyPreviewMarkup}${textMarkup}${mediaMarkup}${fallbackMarkup}${actionMarkup}</div></article>`;
+      return `<article class="workspace-message-item${senderType === 'system' ? ' is-system-message' : ''}" data-telegram-message-id="${Number.isFinite(telegramMessageId) ? telegramMessageId : ''}" data-local-message-id="${Number.isFinite(localMessageId) ? localMessageId : ''}">${avatarMarkup}<div class="workspace-message-content"><div class="workspace-message-meta">${authorMarkup} · ${escapeHtml(timestamp)}<span data-workspace-delivery-state>${escapeHtml(deliveryStatus)}</span></div>${replyPreviewMarkup}${textMarkup}${mediaMarkup}${fallbackMarkup}${actionMarkup}</div></article>`;
     }
 
     return {

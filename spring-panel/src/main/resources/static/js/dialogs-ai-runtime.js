@@ -389,7 +389,7 @@
         const ticketId = escapeHtml(String(item?.ticket_id || '-'));
         const reason = escapeHtml(String(item?.decision_reason || item?.detail || ''));
         const source = escapeHtml(String(item?.source || ''));
-        const actor = escapeHtml(String(item?.actor || 'system'));
+        const actor = item?.actor && window.EmployeeProfiles ? window.EmployeeProfiles.actor(item.actor) : escapeHtml(String(item?.actor || 'system'));
         return `<div class="border rounded p-2 mb-1">
           <div class="d-flex flex-wrap justify-content-between gap-2">
             <span class="fw-semibold">${eventType}</span>

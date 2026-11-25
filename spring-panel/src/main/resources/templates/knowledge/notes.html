@@ -40,7 +40,7 @@
                     </td>
                     <td><span class="badge text-bg-light border" th:text="${note.customFieldCount}"></span></td>
                     <td><span class="badge text-bg-light border" th:text="${note.relationCount}"></span></td>
-                    <td class="text-muted" th:text="${note.createdBy != null and !note.createdBy.isBlank()} ? ${note.createdBy} : '—'"></td>
+                    <td class="text-muted"><th:block th:replace="~{fragments/employee-identity :: identity(${note.createdBy})}"></th:block></td>
                     <td class="text-muted text-nowrap"><time data-note-time th:attr="datetime=${note.updatedAt}" th:text="${note.updatedAt}"></time></td>
                 </tr>
                 </tbody>

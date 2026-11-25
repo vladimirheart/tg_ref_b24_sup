@@ -42,7 +42,7 @@
         <p th:if="${assignment == null}" class="alert alert-info">Назначение сейчас недоступно. Обновите страницу.</p>
         <th:block th:if="${assignment != null}">
             <p th:if="${assignment.assignee == null}">Ответственный не назначен.</p>
-            <p th:if="${assignment.assignee != null}">Назначен: <strong th:text="${assignment.assignee}"></strong>.</p>
+            <p th:if="${assignment.assignee != null}">Назначен: <strong class="employee-identity employee-identity--text" data-employee-compact="true" th:attr="data-employee-id=${assignment.assigneeUserId}" th:text="${assignment.assignee}"></strong>.</p>
             <p th:if="${assignment.assignee != null and !assignment.eligible}" class="alert alert-info">
                 У назначенного сотрудника больше нет действующих прав GENERAL. Выберите другого или снимите назначение.</p>
             <form th:if="${canOperate and (status == 'pending' or status == 'open')}" method="post"
@@ -62,8 +62,8 @@
         </th:block>
         <h3 class="h5 mt-3">Последние 10 назначений</h3>
         <article th:each="event : ${assignmentEvents}" class="card card-body mb-2">
-            <p><time th:text="${event.createdAt}"></time>; изменил: <span th:text="${event.actor}"></span>.</p>
-            <p th:text="${event.assignee == null ? 'Назначение снято' : 'Назначен: ' + event.assignee}"></p>
+            <p><time th:text="${event.createdAt}"></time>; изменил: <th:block th:replace="~{fragments/employee-identity :: identity(${event.actor})}"></th:block>.</p>
+            <p><span th:if="${event.assignee == null}">Назначение снято</span><span th:if="${event.assignee != null}">Назначен: <th:block th:replace="~{fragments/employee-identity :: identity(${event.assignee})}"></th:block></span></p>
         </article>
     </section>
     <section class="mt-4" data-general-participants>
@@ -75,7 +75,7 @@
         <p th:if="${participantRevision == null}" class="alert alert-info">Список сейчас недоступен. Проверьте готовность схемы данных.</p>
         <p th:if="${participantRevision != null}">Ревизия списка: <span th:text="${participantRevision}"></span>.</p>
         <ul><li th:each="member : ${participants}" class="mb-2">
-            <span th:text="${member.username ?: member.snapshot}"></span>
+            <span class="employee-identity employee-identity--text" data-employee-compact="true" th:attr="data-employee-id=${member.id}" th:text="${member.username ?: member.snapshot}"></span>
             <span th:if="${!member.eligible}">(нет действующего GENERAL READ)</span>
             <form th:if="${canOperate and (status == 'pending' or status == 'open') and participantRevision != null}" method="post" class="d-inline"
                   th:action="@{/general-dialog-work/{id}/participants/remove(id=${publicId})}">
@@ -96,7 +96,7 @@
             <button type="submit" class="btn btn-outline-primary mt-2" th:disabled="${#lists.isEmpty(participantCandidates)}">Добавить участника</button>
         </form>
         <h3 class="h5 mt-3">Последние 10 изменений списка</h3>
-        <ul><li th:each="event : ${participantEvents}" th:text="${event.revision + ' · ' + event.action + ' · ' + event.actor + ' → ' + event.member + ' · ' + event.createdAt}"></li></ul>
+        <ul><li th:each="event : ${participantEvents}"><span th:text="${event.revision + ' · ' + event.action + ' · '}"></span><th:block th:replace="~{fragments/employee-identity :: identity(${event.actor})}"></th:block> → <th:block th:replace="~{fragments/employee-identity :: identity(${event.member})}"></th:block><span th:text="${' · ' + event.createdAt}"></span></li></ul>
     </section>
     <section class="mt-4" data-general-work-time>
         <h2 class="h4">Время в работе</h2>

@@ -53,10 +53,10 @@
       if (extraClassName) classes.push(extraClassName);
       if (safeSrc) classes.push('has-image');
       const classAttr = classes.join(' ');
-      if (safeSrc) {
-        return `<span class="${classAttr}" aria-hidden="true"><img src="${escapeHtml(safeSrc)}" alt="${safeLabel}"></span>`;
-      }
-      return `<span class="${classAttr}" aria-hidden="true"><span>${safeInitial}</span></span>`;
+      const markup = safeSrc
+        ? `<span class="${classAttr}" aria-hidden="true"><img src="${escapeHtml(safeSrc)}" alt="${safeLabel}"></span>`
+        : `<span class="${classAttr}" aria-hidden="true"><span>${safeInitial}</span></span>`;
+      return spec?.employeeUsername ? `<span data-employee-identity="${escapeHtml(spec.employeeUsername)}" data-employee-preserve-content="true">${markup}</span>` : markup;
     }
 
     function resolveDialogMessageAvatarSpec(message, context) {
@@ -69,6 +69,7 @@
           src: String(message?.senderAvatarUrl || (currentOperatorOwned ? options.operatorAvatarUrl : '') || '').trim(),
           initial: options.avatarInitial?.(senderLabel) || '—',
           label: senderLabel,
+          employeeUsername: senderIdentity,
         };
       }
       if (senderType === 'system') {
@@ -95,6 +96,7 @@
           src: String(message?.senderAvatarUrl || (currentOperatorOwned ? options.operatorAvatarUrl : '') || '').trim(),
           initial: options.avatarInitial?.(senderLabel) || '—',
           label: senderLabel,
+          employeeUsername: senderIdentity,
         };
       }
       if (senderRole === 'system') {

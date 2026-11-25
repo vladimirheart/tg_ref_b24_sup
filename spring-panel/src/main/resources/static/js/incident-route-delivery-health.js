@@ -132,7 +132,7 @@
           <span class="badge ${statusBadge(status)}">${escapeHtml(status)}</span>
         </div>
         <div class="incident-route-health__event-meta mt-1">
-          ${escapeHtml(formatDate(item?.created_at))} · attempts ${escapeHtml(item?.attempt_count ?? 0)}${escapeHtml(retry)} · actor ${escapeHtml(item?.requested_by || 'system')}
+          ${escapeHtml(formatDate(item?.created_at))} · attempts ${escapeHtml(item?.attempt_count ?? 0)}${escapeHtml(retry)} · actor ${item?.requested_by && window.EmployeeProfiles ? window.EmployeeProfiles.actor(item.requested_by) : escapeHtml(item?.requested_by || 'system')}
         </div>
         ${error ? `
           <div class="incident-route-health__event-meta mt-1">Причина: ${escapeHtml(item?.error_kind || 'delivery_error')}</div>

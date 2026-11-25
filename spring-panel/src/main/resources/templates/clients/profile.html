@@ -279,7 +279,7 @@
                         <div class="d-flex flex-wrap gap-2 align-items-center">
                             <span class="text-muted" th:text="${entry.at}">—</span>
                             <span class="fw-semibold" th:text="${entry.actionLabel}">—</span>
-                            <span th:if="${entry.actor != null}" th:text="'• ' + ${entry.actor}">—</span>
+                            <span th:if="${entry.actor != null}">• <th:block th:replace="~{fragments/employee-identity :: identity(${entry.actor})}"></th:block></span>
                         </div>
                         <div class="text-muted" th:if="${entry.reason != null}" th:text="${entry.reason}">—</div>
                     </li>

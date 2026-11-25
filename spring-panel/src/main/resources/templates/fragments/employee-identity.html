@@ -1,0 +1,8 @@
+<th:block xmlns:th="http://www.thymeleaf.org" th:fragment="identity(username)">
+  <span th:if="${username != null and !#strings.isEmpty(#strings.trim(username))}"
+     class="employee-identity employee-identity--text" data-employee-compact="true" data-employee-optional="true"
+     th:attr="data-employee-identity=${username}"
+     th:text="${username}"
+     title="Открыть карточку сотрудника"></span>
+  <span th:unless="${username != null and !#strings.isEmpty(#strings.trim(username))}">—</span>
+</th:block>

@@ -74,7 +74,7 @@
             <tbody><tr th:each="entry : ${history}">
                 <td th:text="${entry['revision']}"></td>
                 <td th:text="${entry['status'] == 'DRAFT' ? 'Черновик' : (entry['status'] == 'APPROVED' ? 'Одобрен' : 'Архив')}"></td>
-                <td th:text="${entry['actor']}"></td>
+                <td><th:block th:replace="~{fragments/employee-identity :: identity(${entry['actor']})}"></th:block></td>
                 <td th:text="${entry['created_at']}"></td>
             </tr></tbody>
         </table></div>

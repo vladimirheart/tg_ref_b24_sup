@@ -51,7 +51,7 @@
                 </tr>
                 <tr th:each="user : ${users}">
                     <td><button type="button" class="btn btn-outline-secondary btn-sm" th:attr="data-user-permissions=${user.id}">Права</button></td>
-                    <td th:text="${user.username}"></td>
+                    <td><span th:attr="data-employee-id=${user.id}" data-employee-preserve-content="true" th:text="${user.username}"></span></td>
                     <td th:text="${user.fullName} ?: '—'"></td>
                     <td th:text="${user.role} ?: (user.roleRef != null ? user.roleRef.name : '—')"></td>
                     <td th:text="${user.department} ?: '—'"></td>

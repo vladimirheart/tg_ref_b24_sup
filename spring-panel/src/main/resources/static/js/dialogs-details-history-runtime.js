@@ -765,6 +765,9 @@
       const isDeleted = Boolean(message?.deletedAt);
       const isEdited = Boolean(message?.editedAt);
       const isSupport = senderType === 'support';
+      const senderMarkup = isSupport && (message?.senderUserId || message?.senderUsername) && window.EmployeeProfiles
+        ? window.EmployeeProfiles.actor({ userId: message.senderUserId, username: message.senderUsername, fullName: senderLabel })
+        : escapeHtml(senderLabel);
       const archivedHistory = renderOptions.archivedHistory === true;
       const mediaKind = message?.attachment
         ? resolveAttachmentKind(message.messageType, message.attachment)
@@ -848,7 +851,7 @@
           ${avatarMarkup}
           <div class="chat-message-stack">
             <div class="chat-message-meta-line">
-              <span class="chat-message-meta-sender">${escapeHtml(senderLabel)}</span>
+              <span class="chat-message-meta-sender">${senderMarkup}</span>
               <span class="chat-message-meta-time">${escapeHtml(timestamp)}</span>
               ${statusBadges}
             </div>

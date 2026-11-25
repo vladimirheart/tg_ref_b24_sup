@@ -76,7 +76,7 @@
         <td class="text-break"><strong>${esc(item.username_snapshot)}</strong><div class="small text-muted">№${item.id} · ${esc(kinds[item.request_kind] || '')}</div></td>
         <td><span class="badge ${pending(item) ? 'text-bg-warning' : 'text-bg-secondary'} text-wrap">${esc(statuses[item.status] || item.status)}</span></td>
         <td>${date(item.created_at)}<div class="small text-muted">Отправок: ${Number(item.repeat_count || 1)}</div></td>
-        <td>${esc(item.resolved_by_username || '—')}</td><td>${date(item.resolved_at)}</td>
+        <td>${item.resolved_by_username && window.EmployeeProfiles ? window.EmployeeProfiles.actor(item.resolved_by_username) : '—'}</td><td>${date(item.resolved_at)}</td>
         <td><button type="button" class="btn btn-outline-primary btn-sm" data-recovery-open="${item.id}" aria-expanded="false">Открыть</button></td>
       </tr>${details(item)}`).join('');
     }
@@ -120,7 +120,7 @@
       if (history) {
         try {
           const data = await request(`${endpoint}/${history.dataset.recoveryHistory}/events`);
-          body.querySelector(`[data-recovery-history-body="${history.dataset.recoveryHistory}"]`).textContent = data.items.map(item => `${new Date(item.created_at).toLocaleString('ru-RU')} · ${actions[item.action] || item.action} · ${item.actor}${item.note ? ': ' + item.note : ''}`).join('\n') || 'История отсутствует';
+          body.querySelector(`[data-recovery-history-body="${history.dataset.recoveryHistory}"]`).innerHTML = data.items.map(item => `<div>${esc(new Date(item.created_at).toLocaleString('ru-RU'))} · ${esc(actions[item.action] || item.action)} · ${item.actor !== 'public' && window.EmployeeProfiles ? window.EmployeeProfiles.actor(item.actor) : 'Заявитель'}${item.note ? ': ' + esc(item.note) : ''}</div>`).join('') || 'История отсутствует';
         } catch (failure) { showError(failure.message); }
         return;
       }

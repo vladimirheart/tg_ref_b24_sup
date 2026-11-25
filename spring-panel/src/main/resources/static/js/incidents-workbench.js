@@ -1448,11 +1448,15 @@ function restoreIncidentDetailFocus(
     return `<div class="incident-surface-item"><div class="small text-muted mb-1">${escapeHtml(label)}</div><div>${escapeHtml(value || '—')}</div></div>`;
   }
 
-  function renderMetadataRow(label, value) {
+  function actorMarkup(actor, userId) {
+    return (actor || userId) && window.EmployeeProfiles ? window.EmployeeProfiles.actor({ userId, username: actor }) : escapeHtml(actor || 'system');
+  }
+
+  function renderMetadataRow(label, value, employee = false) {
     return `
       <div class="incident-metadata-row">
         <div class="incident-metadata-label">${escapeHtml(label)}</div>
-        <div class="incident-metadata-value">${escapeHtml(value || '\u2014')}</div>
+        <div class="incident-metadata-value">${employee ? actorMarkup(value) : escapeHtml(value || '\u2014')}</div>
       </div>
     `;
   }
@@ -1675,7 +1679,7 @@ function restoreIncidentDetailFocus(
                       <span class="small text-muted">${escapeHtml(formatDate(event.created_at))}</span>
                     </div>
                     <div class="incident-event-text incident-multiline mb-1">${escapeHtml(event.event_text || '')}</div>
-                    <div class="small text-muted">actor: ${escapeHtml(event.actor || 'system')}</div>
+                    <div class="small text-muted">actor: ${actorMarkup(event.actor, event.actor_user_id)}</div>
                   </div>
                 `).join('') : '<div class="text-muted">История incident пока пуста.</div>'}
               </div>
@@ -1688,7 +1692,7 @@ function restoreIncidentDetailFocus(
             <div class="card-body incident-metadata-list">
               ${renderMetadataRow('Тип технического сигнала', incident.signal_type || '\u2014')}
               ${renderMetadataRow('Ключ технического сигнала', incident.signal_key || '\u2014')}
-              ${renderMetadataRow('\u0421\u043e\u0437\u0434\u0430\u043b', incident.created_by || '\u2014')}
+              ${renderMetadataRow('\u0421\u043e\u0437\u0434\u0430\u043b', incident.created_by, true)}
               ${renderMetadataRow('\u041e\u0431\u043d\u043e\u0432\u043b\u0451\u043d', formatDate(incident.updated_at))}
             </div>
           </section>
@@ -2293,7 +2297,7 @@ function restoreIncidentDetailFocus(
         <div class="d-flex flex-wrap justify-content-between gap-2 mb-2">
           <div>
             <div class="fw-semibold">${escapeHtml(item.summary_text || item.action_type || 'operation')}</div>
-            <div class="small text-muted">${escapeHtml(item.action_type || '—')} · actor=${escapeHtml(item.actor || 'system')}</div>
+            <div class="small text-muted">${escapeHtml(item.action_type || '—')} · actor=${actorMarkup(item.actor, item.actor_user_id)}</div>
           </div>
           <span class="badge ${badgeClass(item.result_status)}">${escapeHtml(item.result_status || 'success')}</span>
         </div>
@@ -2393,7 +2397,7 @@ function restoreIncidentDetailFocus(
                   <div>${escapeHtml(item.summary_text || item.action_type || 'operation')}</div>
                   <span class="badge ${badgeClass(item.result_status)}">${escapeHtml(item.result_status || 'success')}</span>
                 </div>
-                <div class="small text-muted">${escapeHtml(item.actor || 'system')} · ${escapeHtml(formatDate(item.created_at))}</div>
+                <div class="small text-muted">${actorMarkup(item.actor, item.actor_user_id)} · ${escapeHtml(formatDate(item.created_at))}</div>
               </div>
             `).join('') : '<div class="text-muted">Recovery actions по ticket ещё не зафиксированы.</div>'}
           </div>

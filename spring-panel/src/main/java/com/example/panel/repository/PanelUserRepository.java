@@ -46,15 +46,31 @@ public class PanelUserRepository {
     /** Public work identity only. Ambiguous legacy usernames must never select an arbitrary account. */
     public Optional<EmployeeProfile> findEmployeeProfile(String username) {
         if (!StringUtils.hasText(username)) return Optional.empty();
-        List<EmployeeProfile> rows = usersJdbcTemplate.query("""
-                SELECT id, username, full_name, department, photo
-                  FROM users WHERE lower(username) = lower(?) LIMIT 2
-                """, (rs, rowNum) -> new EmployeeProfile(rs.getLong("id"), rs.getString("username"), rs.getString("full_name"),
-                    rs.getString("department"), rs.getString("photo")), username);
+        List<EmployeeProfile> rows = usersJdbcTemplate.query(EMPLOYEE_PROFILE_COLUMNS +
+                " FROM users WHERE lower(username) = lower(?) LIMIT 2", this::mapEmployeeProfile, username);
         return rows.size() == 1 ? Optional.of(rows.get(0)) : Optional.empty();
     }
 
-    public record EmployeeProfile(Long id, String username, String fullName, String department, String photo) {}
+    public Optional<EmployeeProfile> findEmployeeProfile(long userId) {
+        if (userId <= 0) return Optional.empty();
+        List<EmployeeProfile> rows = usersJdbcTemplate.query(EMPLOYEE_PROFILE_COLUMNS +
+                " FROM users WHERE id = ?", this::mapEmployeeProfile, userId);
+        return rows.size() == 1 ? Optional.of(rows.get(0)) : Optional.empty();
+    }
+
+    private static final String EMPLOYEE_PROFILE_COLUMNS = """
+            SELECT id, username, full_name, department, photo, email, phones, last_portal_activity_at,
+                   (COALESCE(is_blocked, FALSE) OR NOT COALESCE(enabled, TRUE)) AS account_blocked
+            """;
+
+    private EmployeeProfile mapEmployeeProfile(ResultSet rs, int rowNum) throws SQLException {
+        return new EmployeeProfile(rs.getLong("id"), rs.getString("username"), rs.getString("full_name"),
+                rs.getString("department"), rs.getString("photo"), rs.getString("email"), rs.getString("phones"),
+                rs.getObject("last_portal_activity_at", OffsetDateTime.class), rs.getBoolean("account_blocked"));
+    }
+
+    public record EmployeeProfile(Long id, String username, String fullName, String department, String photo,
+                                  String email, String phones, OffsetDateTime lastPortalActivityAt, boolean blocked) {}
 
     public Optional<PanelUser> findByUsernameIgnoreCase(String username) {
         if (!StringUtils.hasText(username)) {

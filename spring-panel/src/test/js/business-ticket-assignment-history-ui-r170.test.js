@@ -6,6 +6,8 @@ class Element {
   append(...items){this.children.push(...items);}
   set innerHTML(value){throw Error('Unsafe audit markup '+value);}
 }
+const {enableTextNodes,identityContext}=require('./fixtures/employee-identity-dom.cjs');enableTextNodes(Element);
+
 async function main(){
   const source=fs.readFileSync(path.resolve(__dirname,'../../main/resources/static/js/business-dialogs.js'),'utf8');
   const template=fs.readFileSync(path.resolve(__dirname,'../../main/resources/templates/businesses/dialogs.html'),'utf8');
@@ -24,6 +26,7 @@ async function main(){
     document:{createElement:()=>new Element()},getJson:url=>new Promise((resolve,reject)=>pending.push({url,resolve,reject}))};
   const currentClearStart=source.indexOf('  function clearCurrentAssignment('),currentClearEnd=source.indexOf('  function clearParticipants(',currentClearStart);
   assert(currentClearStart>0&&currentClearEnd>currentClearStart);
+  Object.assign(context,identityContext(Element,context.document));
   const api=vm.runInNewContext(`${source.slice(currentClearStart,currentClearEnd)}\n${source.slice(clearStart,clearEnd)}\n${source.slice(start,end)}\n({loadAssignmentHistory,loadOlderAssignments,clearAssignmentHistory})`,context);
   const events=()=>fields.get('[data-ticket-assignment-events]'),status=()=>fields.get('[data-ticket-assignment-status]'),button=()=>fields.get('[data-ticket-assignment-older]');
   async function load(value=history){const call=api.loadAssignmentHistory(ticket,context.generation,context.cardRequest);assert(pending[0].url.endsWith('/assignments/history?limit=50'));pending.shift().resolve(value);await call;}
