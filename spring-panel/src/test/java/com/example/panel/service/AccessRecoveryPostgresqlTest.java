@@ -176,12 +176,12 @@ class AccessRecoveryPostgresqlTest {
         assertThat(jdbc.queryForObject("SELECT count(*) FROM client_unblock_requests WHERE status='pending'",Integer.class)).isEqualTo(1);
     }
     @Test void clientRequestDecisionUsesPostgresTimestampsAndCannotRepeat() {
-        jdbc.execute("CREATE TABLE client_blacklist(user_id TEXT PRIMARY KEY,is_blacklisted INTEGER,unblock_requested INTEGER,unblock_requested_at TIMESTAMPTZ)");
-        jdbc.update("INSERT INTO client_blacklist VALUES ('123',1,1,CURRENT_TIMESTAMP)");
+        jdbc.execute("CREATE TABLE client_blacklist(user_id TEXT PRIMARY KEY,is_blacklisted BOOLEAN,unblock_requested BOOLEAN,unblock_requested_at TIMESTAMPTZ)");
+        jdbc.update("INSERT INTO client_blacklist VALUES ('123',TRUE,TRUE,CURRENT_TIMESTAMP)");
         long id = jdbc.queryForObject("INSERT INTO client_unblock_requests(status,user_id) VALUES ('pending','123') RETURNING id",Long.class);
         var clients = new UnblockRequestService(jdbc,mock(BlacklistHistoryService.class),mock(DialogNotificationService.class),mock(UiEventStreamService.class));
         assertThat(transaction(() -> clients.decideRequest(id,true,"Проверено","admin")).success()).isTrue();
         assertThat(transaction(() -> clients.decideRequest(id,true,"Повтор","admin")).success()).isFalse();
-        assertThat(jdbc.queryForObject("SELECT is_blacklisted FROM client_blacklist WHERE user_id='123'",Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT is_blacklisted FROM client_blacklist WHERE user_id='123'",Boolean.class)).isFalse();
     }
 }

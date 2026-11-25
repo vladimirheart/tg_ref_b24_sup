@@ -78,7 +78,7 @@ public class UnblockRequestService {
         if (requestId <= 0) {
             return DecisionOutcome.failure("Некорректный запрос");
         }
-        Optional<UnblockDecisionContext> contextOpt = loadDecisionContext(requestId);
+        Optional<UnblockDecisionContext> contextOpt = loadDecisionContext(requestId, false);
         if (contextOpt.isEmpty()) {
             return DecisionOutcome.failure("Запрос не найден");
         }
@@ -86,9 +86,27 @@ public class UnblockRequestService {
         if (!"pending".equalsIgnoreCase(context.status())) {
             return DecisionOutcome.failure("Запрос уже обработан");
         }
+        // Use the same lock order as /unblock creation and direct blacklist mutations.
+        boolean currentlyBlocked = Boolean.TRUE.equals(jdbcTemplate.query(
+            "SELECT is_blacklisted FROM client_blacklist WHERE user_id = ? FOR UPDATE",
+            rs -> rs.next() ? rs.getBoolean("is_blacklisted") : false, context.userId()));
+        Optional<UnblockDecisionContext> locked = loadDecisionContext(requestId, true);
+        if (locked.isEmpty() || !Objects.equals(context.userId(), locked.get().userId())
+                || !"pending".equalsIgnoreCase(locked.get().status())) {
+            return DecisionOutcome.failure("Запрос уже обработан или изменён");
+        }
         OffsetDateTime now = OffsetDateTime.now();
         String decidedBy = StringUtils.hasText(actor) ? actor : "system";
         String normalizedComment = StringUtils.hasText(comment) ? comment.trim() : null;
+
+        if (!currentlyBlocked) {
+            clearUnblockRequestFlag(context.userId());
+            String explanation = "Клиент уже разблокирован; заявка утратила актуальность";
+            finishDecision(requestId, "expired", now, decidedBy,
+                normalizedComment == null ? explanation : explanation + ". " + normalizedComment);
+            publishDecisionAfterCommit();
+            return DecisionOutcome.success(explanation);
+        }
 
         if (approve) {
             updateBlacklistStatus(context.userId(), false);
@@ -97,21 +115,32 @@ public class UnblockRequestService {
             clearUnblockRequestFlag(context.userId());
         }
 
+        finishDecision(requestId, approve ? "approved" : "rejected", now, decidedBy, normalizedComment);
+
+        String notification = buildNotificationMessage(context.userId(), approve, normalizedComment, now);
+        dialogNotificationService.notifyUserByLastChannel(parseUserId(context.userId()), notification, true);
+        publishDecisionAfterCommit();
+        return DecisionOutcome.success(approve ? "Запрос одобрен" : "Запрос отклонен");
+    }
+
+    private void finishDecision(long requestId, String status, OffsetDateTime now,
+                                String actor, String comment) {
         jdbcTemplate.update(
                 """
                     UPDATE client_unblock_requests
                     SET status = ?, decided_at = ?, decided_by = ?, decision_comment = ?
                     WHERE id = ?
                     """,
-                approve ? "approved" : "rejected",
+                status,
                 now,
-                decidedBy,
-                normalizedComment,
+                actor,
+                comment,
                 requestId
         );
 
-        String notification = buildNotificationMessage(context.userId(), approve, normalizedComment, now);
-        dialogNotificationService.notifyUserByLastChannel(parseUserId(context.userId()), notification, true);
+    }
+
+    private void publishDecisionAfterCommit() {
         org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
                 new org.springframework.transaction.support.TransactionSynchronization() {
                     @Override public void afterCommit() {
@@ -122,17 +151,15 @@ public class UnblockRequestService {
                     }
                 });
 
-        return DecisionOutcome.success(approve ? "Запрос одобрен" : "Запрос отклонен");
     }
 
-    private Optional<UnblockDecisionContext> loadDecisionContext(long requestId) {
+    private Optional<UnblockDecisionContext> loadDecisionContext(long requestId, boolean lock) {
         return Optional.ofNullable(jdbcTemplate.query(
                 """
                     SELECT id, user_id, status
                     FROM client_unblock_requests
                     WHERE id = ?
-                    FOR UPDATE
-                    """,
+                    """ + (lock ? " FOR UPDATE" : ""),
                 rs -> rs.next()
                         ? new UnblockDecisionContext(
                                 rs.getLong("id"),
@@ -149,21 +176,21 @@ public class UnblockRequestService {
                 """
                     UPDATE client_blacklist
                     SET is_blacklisted = ?,
-                        unblock_requested = 0,
+                        unblock_requested = FALSE,
                         unblock_requested_at = NULL
                     WHERE user_id = ?
                     """,
-                blocked ? 1 : 0,
+                blocked,
                 userId
         );
         if (updated == 0) {
             jdbcTemplate.update(
                     """
                         INSERT INTO client_blacklist(user_id, is_blacklisted, unblock_requested, unblock_requested_at)
-                        VALUES (?, ?, 0, NULL)
+                        VALUES (?, ?, FALSE, NULL)
                         """,
                     userId,
-                    blocked ? 1 : 0
+                    blocked
             );
         }
     }
@@ -172,7 +199,7 @@ public class UnblockRequestService {
         jdbcTemplate.update(
                 """
                     UPDATE client_blacklist
-                    SET unblock_requested = 0,
+                    SET unblock_requested = FALSE,
                         unblock_requested_at = NULL
                     WHERE user_id = ?
                     """,

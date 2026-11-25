@@ -322,3 +322,4 @@
 🟣 [01-310] Снизить нагрузку панели: критические уведомления, serialized polling и PostgreSQL capacity
 🟣 [01-311] Включить статистику SQL и slow-query log PostgreSQL с оценкой накладных расходов
 🟣 [01-312] Укрепить SSE и настроить child JDBC-пулы minimumIdle=5, maximumPoolSize=20
+🟣 [01-313] Исправить решения unblock-заявок PostgreSQL и закрыть неактуальные pending-заявки
