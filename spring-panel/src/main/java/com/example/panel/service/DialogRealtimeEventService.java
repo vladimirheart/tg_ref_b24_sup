@@ -78,18 +78,20 @@ public class DialogRealtimeEventService {
                 }
             }
         }
-        String text = notificationService.formatNewAppealText(normalizedTicketId);
-        String url = notificationService.buildDialogUrl(normalizedTicketId);
-        Set<String> routedRecipients = Set.of();
-        if (channel != null) {
-            routedRecipients = scope == null
-                ? alertQueueService.notifyQueueForNewPublicAppealRecipients(channel, normalizedTicketId, previewText)
-                : alertQueueService.notifyScopedQueueForNewPublicAppealRecipients(channel, scope, previewText);
-        }
-        Set<String> remainingOperators = new LinkedHashSet<>(notificationService.findAllOperatorRecipients());
-        remainingOperators.removeAll(routedRecipients);
-        if (!remainingOperators.isEmpty()) {
-            notifyUsers(normalizedTicketId, scope, remainingOperators, text, url);
+        if (OperationalNotificationPolicy.allowsRoutineDialogAlert()) {
+            String text = notificationService.formatNewAppealText(normalizedTicketId);
+            String url = notificationService.buildDialogUrl(normalizedTicketId);
+            Set<String> routedRecipients = Set.of();
+            if (channel != null) {
+                routedRecipients = scope == null
+                    ? alertQueueService.notifyQueueForNewPublicAppealRecipients(channel, normalizedTicketId, previewText)
+                    : alertQueueService.notifyScopedQueueForNewPublicAppealRecipients(channel, scope, previewText);
+            }
+            Set<String> remainingOperators = new LinkedHashSet<>(notificationService.findAllOperatorRecipients());
+            remainingOperators.removeAll(routedRecipients);
+            if (!remainingOperators.isEmpty()) {
+                notifyUsers(normalizedTicketId, scope, remainingOperators, text, url);
+            }
         }
         publishDialogsChanged("ticket_created", normalizedTicketId, scope);
     }
@@ -126,7 +128,7 @@ public class DialogRealtimeEventService {
         if (!isCurrent(scope)) {
             return;
         }
-        if (notifyBell) {
+        if (notifyBell && OperationalNotificationPolicy.allowsRoutineDialogAlert()) {
             boolean handledByQueue = channel != null
                     && (scope == null ? alertQueueService.notifyIncomingClientMessage(channel, normalizedTicketId, message)
                         : alertQueueService.notifyScopedIncomingClientMessage(channel, scope, message));

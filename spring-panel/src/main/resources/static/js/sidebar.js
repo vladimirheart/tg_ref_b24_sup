@@ -32,6 +32,7 @@
   const PREF_KEY_WIDTH = 'sidebarWidth';
   const PREF_KEY_NAV_SCROLL = 'sidebarNavScrollTop';
   const NOTIFICATIONS_POLL_INTERVAL_MS = 5000;
+  const NOTIFICATIONS_POLL_MAX_INTERVAL_MS = 60000;
   const UNBLOCK_POLL_INTERVAL_MS = 30000;
   const PANEL_SSE_URL = '/api/events/stream';
   const PANEL_SSE_STATUS_EVENT = 'panel:sse-status';
@@ -50,6 +51,8 @@
   let panelEventsReconnectTimer = null;
   let panelEventsConnected = false;
   let notificationsPollTimer = null;
+  let notificationCountRequest = null;
+  let notificationPollFailureCount = 0;
   let unblockPollTimer = null;
 
   function parseSsePayload(event) {
@@ -77,9 +80,10 @@
 
   function stopNotificationPolling() {
     if (notificationsPollTimer) {
-      clearInterval(notificationsPollTimer);
+      clearTimeout(notificationsPollTimer);
       notificationsPollTimer = null;
     }
+    notificationPollFailureCount = 0;
   }
 
   function stopUnblockPolling() {
@@ -1487,66 +1491,42 @@
     }
   }
 
-  async function updateNotificationCount() {
-    try {
-      const response = await fetch('/api/notifications/unread_count', {
-        credentials: 'same-origin',
-        headers: { Accept: 'application/json' },
-      });
-      if (!response.ok) return;
-      const data = await response.json();
-      const newCount = Number(data.unread ?? data.count ?? 0);
-      const previousCount = lastUnreadCount;
-      setBellCount(newCount);
-      if (hasInitialUnread && newCount > lastUnreadCount) {
-        const diff = newCount - lastUnreadCount;
-        const message = diff === 1 ? 'Новое оповещение' : `Новых оповещений: ${diff}`;
-        showNotificationToast(message);
-      }
-      lastUnreadCount = newCount;
-      hasInitialUnread = true;
-      window.dispatchEvent(new CustomEvent('iguana:notification-count', {
-        detail: { count: newCount, initialized: hasInitialUnread, previousCount },
-      }));
-      if (notificationsOpen && newCount > previousCount) {
-        await loadNotificationsSafe({ preserveLoaded: notificationItems.length > 0 });
-      } else if (notificationsOpen) {
-        updateNotificationToolbarState(newCount);
-      }
-    } catch (error) {
-      /* ignore */
-    }
-  }
-
   async function updateNotificationCountSafe() {
-    try {
-      const response = await fetch('/api/notifications/unread_count', {
-        credentials: 'same-origin',
-        headers: { Accept: 'application/json' },
-      });
-      if (!response.ok) return;
-      const data = await response.json();
-      const newCount = Number(data.unread ?? data.count ?? 0);
-      const previousCount = lastUnreadCount;
-      setBellCount(newCount);
-      if (hasInitialUnread && newCount > lastUnreadCount) {
-        const diff = newCount - lastUnreadCount;
-        const message = diff === 1 ? NOTIFICATION_TOAST_ONE : `${NOTIFICATION_TOAST_MANY_PREFIX}${diff}`;
-        showNotificationToast(message);
+    if (notificationCountRequest) return notificationCountRequest;
+    notificationCountRequest = (async () => {
+      try {
+        const response = await fetch('/api/notifications/unread_count', {
+          credentials: 'same-origin',
+          headers: { Accept: 'application/json' },
+        });
+        if (!response.ok) return false;
+        const data = await response.json();
+        const newCount = Number(data.unread ?? data.count ?? 0);
+        const previousCount = lastUnreadCount;
+        setBellCount(newCount);
+        if (hasInitialUnread && newCount > lastUnreadCount) {
+          const diff = newCount - lastUnreadCount;
+          const message = diff === 1 ? NOTIFICATION_TOAST_ONE : `${NOTIFICATION_TOAST_MANY_PREFIX}${diff}`;
+          showNotificationToast(message);
+        }
+        lastUnreadCount = newCount;
+        hasInitialUnread = true;
+        window.dispatchEvent(new CustomEvent('iguana:notification-count', {
+          detail: { count: newCount, initialized: hasInitialUnread, previousCount },
+        }));
+        if (notificationsOpen && newCount > previousCount) {
+          await loadNotificationsSafe({ preserveLoaded: notificationItems.length > 0 });
+        } else if (notificationsOpen) {
+          updateNotificationToolbarState(newCount);
+        }
+        return true;
+      } catch (_error) {
+        return false;
+      } finally {
+        notificationCountRequest = null;
       }
-      lastUnreadCount = newCount;
-      hasInitialUnread = true;
-      window.dispatchEvent(new CustomEvent('iguana:notification-count', {
-        detail: { count: newCount, initialized: hasInitialUnread, previousCount },
-      }));
-      if (notificationsOpen && newCount > previousCount) {
-        await loadNotificationsSafe({ preserveLoaded: notificationItems.length > 0 });
-      } else if (notificationsOpen) {
-        updateNotificationToolbarState(newCount);
-      }
-    } catch (_error) {
-      /* ignore */
-    }
+    })();
+    return notificationCountRequest;
   }
 
   function requestNotificationRefresh() {
@@ -1557,7 +1537,18 @@
     if (panelEventsConnected || notificationsPollTimer) {
       return;
     }
-    notificationsPollTimer = setInterval(updateNotificationCountSafe, NOTIFICATIONS_POLL_INTERVAL_MS);
+    const poll = async () => {
+      notificationsPollTimer = null;
+      const succeeded = await updateNotificationCountSafe();
+      notificationPollFailureCount = succeeded ? 0 : Math.min(notificationPollFailureCount + 1, 4);
+      if (panelEventsConnected) return;
+      const delay = Math.min(
+        NOTIFICATIONS_POLL_INTERVAL_MS * (2 ** notificationPollFailureCount),
+        NOTIFICATIONS_POLL_MAX_INTERVAL_MS,
+      );
+      notificationsPollTimer = window.setTimeout(poll, delay);
+    };
+    notificationsPollTimer = window.setTimeout(poll, NOTIFICATIONS_POLL_INTERVAL_MS);
   }
 
   if (bellBtn) {

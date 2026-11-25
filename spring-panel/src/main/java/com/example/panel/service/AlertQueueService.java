@@ -123,6 +123,10 @@ public class AlertQueueService {
 
     private Set<String> notifyChannelEventRecipients(Channel channel, AlertEvent event, String ticketId,
                                                      String text, String url, UiEventTicketScope expectedScope) {
+        if (event != AlertEvent.FIRST_RESPONSE_OVERDUE
+                && !OperationalNotificationPolicy.allowsRoutineDialogAlert()) {
+            return Set.of();
+        }
         ChannelAssignmentRoutingService.ResolvedAssignmentRouting assignmentRouting =
                 channelAssignmentRoutingService.resolveRecipients(channel, mapRoutingEvent(event), ticketId);
         if (assignmentRouting.enabled() && !assignmentRouting.recipients().isEmpty()) {

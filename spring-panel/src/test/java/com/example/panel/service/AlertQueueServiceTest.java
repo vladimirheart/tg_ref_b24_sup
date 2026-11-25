@@ -68,7 +68,7 @@ class AlertQueueServiceTest {
     }
 
     @Test
-    void notifyIncomingClientMessageUsesReadableTextAndOnlineDepartmentRouting() {
+    void notifyIncomingClientMessageIsSuppressedByTheLoadSheddingPolicy() {
         insertUser("alice", true, false, "Support", LocalDateTime.now(ZoneOffset.UTC).minusMinutes(5).format(LOCAL_TS));
         insertUser("bob", true, false, "Support", LocalDateTime.now(ZoneOffset.UTC).minusHours(2).format(LOCAL_TS));
         insertUser("carol", true, false, "Sales", LocalDateTime.now(ZoneOffset.UTC).minusMinutes(3).format(LOCAL_TS));
@@ -92,16 +92,9 @@ class AlertQueueServiceTest {
                 "  Клиент прислал лог ошибки  "
         );
 
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<Set<String>> recipientsCaptor = ArgumentCaptor.forClass(Set.class);
-        ArgumentCaptor<String> textCaptor = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<String> urlCaptor = ArgumentCaptor.forClass(String.class);
-
-        assertThat(notified).isTrue();
-        verify(notificationService).notifyDialogUsers(org.mockito.ArgumentMatchers.eq("T-88"), recipientsCaptor.capture(), textCaptor.capture(), urlCaptor.capture());
-        assertThat(recipientsCaptor.getValue()).containsExactly("alice");
-        assertThat(textCaptor.getValue()).isEqualTo("Новое сообщение в обращении T-88: Клиент прислал лог ошибки");
-        assertThat(urlCaptor.getValue()).isEqualTo("/dialogs/T-88");
+        assertThat(notified).isFalse();
+        verify(notificationService, never()).notifyDialogUsers(any(), any(), any(), any());
+        verify(channelAssignmentRoutingService, never()).resolveRecipients(any(), any(), any());
     }
 
     @Test
@@ -141,7 +134,7 @@ class AlertQueueServiceTest {
     }
 
     @Test
-    void notifyQueueForNewPublicAppealSupportsLegacyAlertQueueEmployeesOnlyRouting() {
+    void notifyQueueForNewPublicAppealIsSuppressedByTheLoadSheddingPolicy() {
         insertUser("mila", true, false, "Support", OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(1).toString());
         insertUser("sasha", true, false, "Support", OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(30).toString());
         insertUser("dima", true, false, "Support", OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(1).toString());
@@ -163,20 +156,12 @@ class AlertQueueServiceTest {
                 preview
         );
 
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<Set<String>> recipientsCaptor = ArgumentCaptor.forClass(Set.class);
-        ArgumentCaptor<String> textCaptor = ArgumentCaptor.forClass(String.class);
-
-        verify(notificationService).notifyDialogUsers(org.mockito.ArgumentMatchers.eq("T-11"), recipientsCaptor.capture(), textCaptor.capture(), org.mockito.ArgumentMatchers.eq("/dialogs/T-11"));
-        assertThat(recipientsCaptor.getValue()).containsExactlyInAnyOrder("mila", "sasha");
-        assertThat(textCaptor.getValue())
-                .startsWith("Новое обращение (Веб-форма): ")
-                .hasSize("Новое обращение (Веб-форма): ".length() + 143);
-        assertThat(textCaptor.getValue()).endsWith("...");
+        verify(notificationService, never()).notifyDialogUsers(any(), any(), any(), any());
+        verify(channelAssignmentRoutingService, never()).resolveRecipients(any(), any(), any());
     }
 
     @Test
-    void notifyQueueForNewPublicAppealPrefersAssignmentRoutingRecipients() {
+    void notifyQueueForNewPublicAppealDoesNotResolveAssignmentRoutingWhenSuppressed() {
         when(channelAssignmentRoutingService.resolveRecipients(any(), any(), any()))
                 .thenReturn(new ChannelAssignmentRoutingService.ResolvedAssignmentRouting(
                         true,
@@ -200,11 +185,9 @@ class AlertQueueServiceTest {
                 "Новый запрос"
         );
 
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<Set<String>> recipientsCaptor = ArgumentCaptor.forClass(Set.class);
-        assertThat(notified).isTrue();
-        verify(notificationService).notifyDialogUsers(org.mockito.ArgumentMatchers.eq("T-77"), recipientsCaptor.capture(), any(), org.mockito.ArgumentMatchers.eq("/dialogs/T-77"));
-        assertThat(recipientsCaptor.getValue()).containsExactlyInAnyOrder("alice", "bob");
+        assertThat(notified).isFalse();
+        verify(notificationService, never()).notifyDialogUsers(any(), any(), any(), any());
+        verify(channelAssignmentRoutingService, never()).resolveRecipients(any(), any(), any());
     }
 
     @Test

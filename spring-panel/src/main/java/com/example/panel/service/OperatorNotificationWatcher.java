@@ -187,6 +187,13 @@ public class OperatorNotificationWatcher {
         if (!StringUtils.hasText(ticketId) || !legacyTicketIdJdbcGuard.hasUniqueNonGeneralTicket(ticketId)) {
             return;
         }
+        if (!OperationalNotificationPolicy.allowsRoutineDialogAlert()) {
+            publishDialogsChanged("incoming_client_message", ticketId);
+            if (channel != null) {
+                publishDialogHistoryChanged(ticketId, channel.getId(), "incoming_client_message");
+            }
+            return;
+        }
         boolean handledByQueue = channel != null
                 && alertQueueService.notifyIncomingClientMessage(channel, ticketId, message);
         if (handledByQueue) {

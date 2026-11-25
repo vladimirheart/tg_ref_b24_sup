@@ -69,7 +69,7 @@ class IncidentRouteIdentityBoundaryTest {
         final CapturingJdbc jdbc=new CapturingJdbc();final Incident incident=new Incident();final IncidentRoute route=new IncidentRoute();
         final IncidentRouteDeliveryOutboxService outbox;
         Fixture(String type,String target){
-            incident.setId(7L);incident.setIncidentKey("INC-7");incident.setTitle("Fixture");
+            incident.setId(7L);incident.setIncidentKey("INC-7");incident.setTitle("Fixture");incident.setSeverity("critical");
             route.setId(11L);route.setIncident(incident);route.setRouteType(type);route.setRouteTarget(target);
             var repository=mock(IncidentRouteRepository.class);when(repository.findByIncidentIdOrderByCreatedAtAscIdAsc(7L)).thenReturn(List.of(route));when(repository.findById(11L)).thenReturn(Optional.of(route));
             outbox=new IncidentRouteDeliveryOutboxService(jdbc,new ObjectMapper(),repository,mock(RuntimeCoordinationService.class),delivery);

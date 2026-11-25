@@ -65,6 +65,9 @@ public class IncidentRouteDeliveryOutboxService {
             return 0;
         }
         if (monitoringPolicy != null && monitoringPolicy.isSignalSuppressed(incident.getSignalType(), incident.getSignalKey())) return 0;
+        if (!OperationalNotificationPolicy.allowsIncidentNotification(incident, eventType)) {
+            return 0;
+        }
         List<IncidentRoute> routes = incidentRouteRepository.findByIncidentIdOrderByCreatedAtAscIdAsc(incident.getId());
         int queued = 0;
         for (IncidentRoute route : routes) {

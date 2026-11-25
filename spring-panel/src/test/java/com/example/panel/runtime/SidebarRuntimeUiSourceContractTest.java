@@ -102,7 +102,7 @@ class SidebarRuntimeUiSourceContractTest {
         String sidebarJs = read(SIDEBAR_JS);
 
         assertThat(navbar)
-            .contains("sidebar.js(v='20261027-credentials-r187')");
+            .contains("sidebar.js(v='20261123-session-revocation')");
         assertThat(sidebarJs)
             .contains("const SIDEBAR_RUNTIME_FLAG = '__IGUANA_SIDEBAR_RUNTIME_READY__';")
             .contains("if (window[SIDEBAR_RUNTIME_FLAG] === true) return;")
@@ -112,6 +112,19 @@ class SidebarRuntimeUiSourceContractTest {
         assertThat(read(DASHBOARD)).doesNotContain("/js/sidebar.js");
         assertThat(read(PROJECTS)).doesNotContain("/js/sidebar.js");
         assertThat(read(TASKS)).doesNotContain("/js/sidebar.js");
+    }
+
+    @Test
+    void notificationPollingSerializesRequestsAndBacksOffAfterFailures() throws IOException {
+        String sidebarJs = read(SIDEBAR_JS);
+
+        assertThat(sidebarJs)
+            .contains("let notificationCountRequest = null;")
+            .contains("if (notificationCountRequest) return notificationCountRequest;")
+            .contains("NOTIFICATIONS_POLL_MAX_INTERVAL_MS = 60000")
+            .contains("notificationPollFailureCount = succeeded ? 0")
+            .contains("window.setTimeout(poll, delay)")
+            .doesNotContain("setInterval(updateNotificationCountSafe");
     }
 
     @Test

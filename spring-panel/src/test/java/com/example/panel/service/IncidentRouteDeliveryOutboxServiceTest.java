@@ -103,6 +103,7 @@ class IncidentRouteDeliveryOutboxServiceTest {
         incident.setId(7L);
         incident.setIncidentKey("INC-7");
         incident.setTitle("Transport degradation");
+        incident.setSeverity("critical");
 
         jdbcTemplate.update("INSERT INTO incidents(id, incident_key, title) VALUES (7, 'INC-7', 'Transport degradation')");
         jdbcTemplate.update("""
@@ -110,7 +111,7 @@ class IncidentRouteDeliveryOutboxServiceTest {
                 VALUES (11, 7, 'user', 'opslead', 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """);
 
-        int queued = service.enqueueIncidentRoutes(incident, "incident_created", "Incident created", Map.of("severity", "high"), "commander");
+        int queued = service.enqueueIncidentRoutes(incident, "incident_created", "Incident created", Map.of("severity", "critical"), "commander");
         service.dispatchBatch();
 
         assertThat(queued).isEqualTo(1);
@@ -129,7 +130,7 @@ class IncidentRouteDeliveryOutboxServiceTest {
     @org.junit.jupiter.params.provider.ValueSource(strings = {"integration_transport", "integration_transport.ui_updates"})
     void pauseDefersOldQueuedNotificationsWithoutDeliveryAttemptsAndResumeDelivers(String direction,
             @org.junit.jupiter.api.io.TempDir java.nio.file.Path directory) {
-        Incident incident = new Incident(); incident.setId(7L); incident.setIncidentKey("INC-7");
+        Incident incident = new Incident(); incident.setId(7L); incident.setIncidentKey("INC-7"); incident.setSeverity("critical");
         incident.setTitle("Transport degradation"); incident.setSignalType("integration_transport");
         incident.setSignalKey("panel-runtime-checkpoints/ui-event-outbox-watch");
         jdbcTemplate.update("INSERT INTO incidents(id, incident_key, title) VALUES (7, 'INC-7', 'Transport degradation')");
@@ -147,5 +148,19 @@ class IncidentRouteDeliveryOutboxServiceTest {
         jdbcTemplate.update("UPDATE incident_route_delivery_outbox SET available_at=CURRENT_TIMESTAMP");
         service.dispatchBatch();
         assertThat(jdbcTemplate.queryForObject("SELECT status FROM incident_route_delivery_outbox", String.class)).isEqualTo("delivered");
+    }
+
+    @Test
+    void highIncidentRoutesAreSuppressedButEscalationsRemainDeliverable() {
+        Incident incident = new Incident();
+        incident.setId(7L);
+        incident.setIncidentKey("INC-7");
+        incident.setTitle("Degraded integration");
+        incident.setSeverity("high");
+
+        assertThat(service.enqueueIncidentRoutes(incident, "incident_created", "Created", Map.of(), "operator"))
+            .isZero();
+        assertThat(service.enqueueIncidentRoutes(incident, "incident_escalation", "Escalated", Map.of(), "operator"))
+            .isEqualTo(1);
     }
 }

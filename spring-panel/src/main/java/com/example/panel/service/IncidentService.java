@@ -1410,6 +1410,9 @@ public class IncidentService {
 
     private void notifyIncidentParticipants(Incident incident, String event, String text, String actor) {
         if (monitoringPolicy != null && monitoringPolicy.isSignalSuppressed(incident.getSignalType(), incident.getSignalKey())) return;
+        if (!OperationalNotificationPolicy.allowsIncidentNotification(incident, event)) {
+            return;
+        }
         Set<String> recipients = new LinkedHashSet<>();
         if (StringUtils.hasText(incident.getOwner())) {
             recipients.add(incident.getOwner().toLowerCase(Locale.ROOT));
