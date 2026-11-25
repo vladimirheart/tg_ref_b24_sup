@@ -56,17 +56,29 @@ public class DataSourceConfig {
         if (!(dataSource instanceof HikariDataSource hikari)) {
             return;
         }
-        String configuredMax = environment.getProperty("APP_DB_MAX_POOL_SIZE");
-        if (!StringUtils.hasText(configuredMax)) {
-            return;
+        int maximum = readPoolSetting(environment, "APP_DB_MAX_POOL_SIZE", 10);
+        int minimum = readPoolSetting(environment, "APP_DB_MIN_IDLE", Math.min(5, maximum));
+        int idleTimeout = readPoolSetting(environment, "APP_DB_IDLE_TIMEOUT_MS", 120_000);
+        if (maximum < 1 || minimum < 0 || minimum > maximum
+                || (idleTimeout != 0 && idleTimeout < 10_000)) {
+            throw new IllegalArgumentException("Invalid bot JDBC pool: require maximum >= 1, "
+                + "0 <= minimumIdle <= maximum, idleTimeout = 0 or >= 10000ms");
         }
+        hikari.setMaximumPoolSize(maximum);
+        hikari.setMinimumIdle(minimum);
+        hikari.setIdleTimeout(idleTimeout);
+        org.slf4j.LoggerFactory.getLogger(DataSourceConfig.class).info(
+            "Bot Hikari pool configured: maximumPoolSize={}, minimumIdle={}, idleTimeoutMs={}",
+            maximum, minimum, idleTimeout);
+    }
+
+    private static int readPoolSetting(ConfigurableEnvironment environment, String key, int fallback) {
+        String raw = environment.getProperty(key);
+        if (!StringUtils.hasText(raw)) return fallback;
         try {
-            int maxPoolSize = Integer.parseInt(configuredMax.trim());
-            if (maxPoolSize > 0) {
-                hikari.setMaximumPoolSize(maxPoolSize);
-            }
-        } catch (NumberFormatException ignored) {
-            // Keep Hikari's default when an operator provides an invalid optional limit.
+            return Integer.parseInt(raw.trim());
+        } catch (NumberFormatException invalid) {
+            throw new IllegalArgumentException(key + " must be an integer", invalid);
         }
     }
 

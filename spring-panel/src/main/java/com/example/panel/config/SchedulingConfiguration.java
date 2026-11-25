@@ -14,6 +14,18 @@ public class SchedulingConfiguration {
     private static final Logger log = LoggerFactory.getLogger(SchedulingConfiguration.class);
 
     @Bean
+    public TaskScheduler uiEventHeartbeatTaskScheduler() {
+        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+        scheduler.setPoolSize(2);
+        scheduler.setThreadNamePrefix("panel-sse-heartbeat-");
+        scheduler.setWaitForTasksToCompleteOnShutdown(true);
+        scheduler.setAwaitTerminationSeconds(5);
+        scheduler.setErrorHandler(throwable ->
+            log.error("SSE heartbeat execution failed: {}", throwable.getMessage(), throwable));
+        return scheduler;
+    }
+
+    @Bean
     public TaskScheduler taskScheduler(@Value("${panel.scheduling.pool-size:4}") int configuredPoolSize) {
         ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
         scheduler.setPoolSize(Math.max(2, configuredPoolSize));

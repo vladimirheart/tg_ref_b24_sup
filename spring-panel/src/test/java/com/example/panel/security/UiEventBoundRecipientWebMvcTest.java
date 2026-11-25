@@ -31,9 +31,12 @@ class UiEventBoundRecipientWebMvcTest {
     static final String PASSWORD="fixture bound SSE",HASH=new LegacyCompatiblePasswordEncoder().encode(PASSWORD);
     @Autowired org.springframework.test.web.servlet.MockMvc mvc;@Autowired JdbcTemplate jdbc;@Autowired UiEventStreamService stream;
     @Configuration(proxyBeanMethods=false)
-    @Import({PreferenceIdentityWebMvcTest.Application.class,UiEventsController.class,UiEventStreamService.class,UiEventTicketAccessService.class,LegacyTicketIdJdbcGuard.class})
+    @Import({PreferenceIdentityWebMvcTest.Application.class,UiEventsController.class,UiEventStreamService.class,UiEventTicketAccessService.class,LegacyTicketIdJdbcGuard.class,PanelSessionVersionService.class,SharedWorkAccessService.class})
     static class Application {
-        @Bean InitializingBean schema(JdbcTemplate jdbc){return ()->UiEventActorFixture.schema(jdbc,true);}
+        @Bean InitializingBean schema(JdbcTemplate jdbc){return ()->{
+            jdbc.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS session_version BIGINT NOT NULL DEFAULT 0");
+            UiEventActorFixture.schema(jdbc,true);
+        };}
         @Bean MultibusinessFeatureFlags flags(){return new MultibusinessFeatureFlags();}
         @Bean UiEventFanoutPublisher publisher(){return mock(UiEventFanoutPublisher.class);}
     }
@@ -42,7 +45,7 @@ class UiEventBoundRecipientWebMvcTest {
     @AfterEach void close(){closeStreams();}
     void resetFixture(boolean all){seed(jdbc,7,"caller",HASH,all);jdbc.execute("TRUNCATE user_authorities,roles,settings_parameters");jdbc.update("INSERT INTO user_authorities VALUES(7,'PAGE_DIALOGS'),(55,'PAGE_DIALOGS')");}
     MockHttpSession login()throws Exception{var page=mvc.perform(get("/login")).andExpect(status().isOk()).andReturn();var token=Pattern.compile("name=\"_csrf\"[^>]*value=\"([^\"]+)\"").matcher(page.getResponse().getContentAsString());assertThat(token.find()).isTrue();var result=mvc.perform(post("/login").cookie(page.getResponse().getCookie("XSRF-TOKEN")).param("_csrf",token.group(1)).param("username","caller").param("password",PASSWORD)).andExpect(redirectedUrl("/post-login")).andReturn();return (MockHttpSession)result.getRequest().getSession(false);}
-    org.springframework.test.web.servlet.MvcResult open()throws Exception{return mvc.perform(get("/api/events/stream").session(login())).andExpect(status().isOk()).andExpect(request().asyncStarted()).andReturn();}
+    org.springframework.test.web.servlet.MvcResult open()throws Exception{return mvc.perform(get("/api/events/stream").session(login())).andExpect(status().isOk()).andExpect(header().string("X-Accel-Buffering","no")).andExpect(header().string("Cache-Control","no-store")).andExpect(request().asyncStarted()).andReturn();}
     String body(org.springframework.test.web.servlet.MvcResult result)throws Exception{return result.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);}
     @ParameterizedTest @ValueSource(booleans={false,true}) void realLoginReceivesItsBusinessEvent(boolean all)throws Exception{resetFixture(all);var socket=open();stream.publishDialogsChanged("private R233",RAW);assertThat(body(socket)).contains("private R233");}
     static Stream<Arguments> late(){return Stream.of("rename-reuse","delete-reuse","case","blocked","duplicate").flatMap(mode->Stream.of(false,true).map(all->Arguments.of(mode,all)));}

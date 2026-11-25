@@ -2,6 +2,7 @@ package com.example.panel.controller;
 
 import com.example.panel.service.UiEventStreamService;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,7 +20,10 @@ public class UiEventsController {
     }
 
     @GetMapping(path = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter stream(Authentication authentication) {
-        return uiEventStreamService.connect(authentication);
+    public ResponseEntity<SseEmitter> stream(Authentication authentication) {
+        return ResponseEntity.ok()
+            .header("Cache-Control", "no-store")
+            .header("X-Accel-Buffering", "no")
+            .body(uiEventStreamService.connect(authentication));
     }
 }

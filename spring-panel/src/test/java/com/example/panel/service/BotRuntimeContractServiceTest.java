@@ -107,6 +107,9 @@ class BotRuntimeContractServiceTest {
 
         assertThat(env)
             .containsEntry("APP_DB_MODE", "postgresql")
+            .containsEntry("APP_DB_MAX_POOL_SIZE", "20")
+            .containsEntry("APP_DB_MIN_IDLE", "5")
+            .containsEntry("APP_DB_IDLE_TIMEOUT_MS", "120000")
             .containsEntry("SPRING_DATASOURCE_URL", "jdbc:postgresql://db.example.local:5432/iguana")
             .containsEntry("SPRING_DATASOURCE_USERNAME", "iguana_child_117")
             .containsEntry("SPRING_DATASOURCE_PASSWORD", com.example.panel.security.ChildBotCredentials.databasePassword("test-only-control-plane-secret-0123456789", null, new com.example.panel.security.ChildBotCredentials.Principal(117,"telegram")))

@@ -29,7 +29,7 @@ BEGIN
                    WHERE n.nspname='public' AND c.relkind IN ('r','p','v','m','f') AND a.grantee=0) THEN
         RAISE EXCEPTION 'PUBLIC grants must be reviewed before provisioning restricted children';
     END IF;
-    EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS CONNECTION LIMIT 16', child_role, spec.password);
+    EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS CONNECTION LIMIT 20', child_role, spec.password);
     EXECUTE format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), child_role);
     EXECUTE format('GRANT USAGE ON SCHEMA public TO %I', child_role);
     EXECUTE format('GRANT EXECUTE ON FUNCTION public.bot_child_channel(), public.bot_child_platform(), public.bot_child_bound_channel() TO %I', child_role);

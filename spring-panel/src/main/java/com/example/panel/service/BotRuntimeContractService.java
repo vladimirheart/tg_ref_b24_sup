@@ -324,7 +324,8 @@ public class BotRuntimeContractService {
             "SPRING_PROFILES_ACTIVE",
             "JAVA_TOOL_OPTIONS"
         ));
-        keys.addAll(List.of("APP_DB_MODE", "SPRING_DATASOURCE_URL"));
+        keys.addAll(List.of("APP_DB_MODE", "SPRING_DATASOURCE_URL",
+            "APP_DB_MAX_POOL_SIZE", "APP_DB_MIN_IDLE", "APP_DB_IDLE_TIMEOUT_MS"));
         String platform = normalizePlatform(channel);
         if ("vk".equals(platform)) {
             keys.addAll(List.of("VK_BOT_ENABLED", "VK_BOT_TOKEN", "VK_OPERATOR_CHAT_ID", "VK_WEBHOOK_ENABLED"));
@@ -412,6 +413,9 @@ public class BotRuntimeContractService {
             );
         }
         env.put("APP_DB_MODE", "postgresql");
+        env.put("APP_DB_MAX_POOL_SIZE", environment.getProperty("APP_BOT_DB_MAX_POOL_SIZE", "20"));
+        env.put("APP_DB_MIN_IDLE", environment.getProperty("APP_BOT_DB_MIN_IDLE", "5"));
+        env.put("APP_DB_IDLE_TIMEOUT_MS", environment.getProperty("APP_BOT_DB_IDLE_TIMEOUT_MS", "120000"));
         env.put("SPRING_DATASOURCE_URL", settings.jdbcUrl());
         putIfHasText(env, "SPRING_DATASOURCE_USERNAME", settings.username());
         putIfHasText(env, "SPRING_DATASOURCE_PASSWORD", settings.password());

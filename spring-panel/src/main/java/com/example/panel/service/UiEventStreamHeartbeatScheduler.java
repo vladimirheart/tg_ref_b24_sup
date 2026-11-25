@@ -27,9 +27,13 @@ public class UiEventStreamHeartbeatScheduler {
         this.generalRealtime = generalRealtime;
     }
 
-    @Scheduled(fixedDelayString = "${panel.ui-events.heartbeat-ms:25000}")
+    @Scheduled(fixedDelayString = "${panel.ui-events.heartbeat-ms:25000}", scheduler = "uiEventHeartbeatTaskScheduler")
     void sendHeartbeat() {
         uiEventStreamService.sendHeartbeat();
+    }
+
+    @Scheduled(fixedDelayString = "${panel.ui-events.heartbeat-ms:25000}", scheduler = "uiEventHeartbeatTaskScheduler")
+    void sendGeneralHeartbeat() {
         if (generalRealtime != null) generalRealtime.sendHeartbeat();
     }
 }

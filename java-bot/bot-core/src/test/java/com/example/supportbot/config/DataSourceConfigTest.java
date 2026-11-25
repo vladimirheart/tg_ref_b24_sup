@@ -39,6 +39,32 @@ class DataSourceConfigTest {
     }
 
     @Test
+    void childPoolKeepsFiveWarmAndCanGrowToTwenty() {
+        var environment = new MockEnvironment()
+            .withProperty("spring.datasource.url", "jdbc:postgresql://db.example.local:5432/iguana")
+            .withProperty("APP_DB_MAX_POOL_SIZE", "20")
+            .withProperty("APP_DB_MIN_IDLE", "5");
+        try (var pool = (HikariDataSource) new DataSourceConfig().dataSource(environment)) {
+            assertThat(pool.getMaximumPoolSize()).isEqualTo(20);
+            assertThat(pool.getMinimumIdle()).isEqualTo(5);
+            assertThat(pool.getIdleTimeout()).isEqualTo(120_000);
+        }
+    }
+
+    @Test
+    void invalidPoolBoundsFailBeforeConnecting() {
+        var environment = new MockEnvironment()
+            .withProperty("spring.datasource.url", "jdbc:postgresql://db.example.local:5432/iguana")
+            .withProperty("APP_DB_MAX_POOL_SIZE", "4")
+            .withProperty("APP_DB_MIN_IDLE", "5");
+        assertThatThrownBy(() -> new DataSourceConfig().dataSource(environment))
+            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Invalid bot JDBC pool");
+        environment.setProperty("APP_DB_MAX_POOL_SIZE", "twenty");
+        assertThatThrownBy(() -> new DataSourceConfig().dataSource(environment))
+            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("APP_DB_MAX_POOL_SIZE");
+    }
+
+    @Test
     void legacyDatabaseModesAreRejected() {
         assertThatThrownBy(() -> new DataSourceConfig().dataSource(
             new MockEnvironment().withProperty("support-bot.database.mode", "sqlite")
