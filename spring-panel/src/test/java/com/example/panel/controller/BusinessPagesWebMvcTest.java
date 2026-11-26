@@ -67,6 +67,14 @@ class BusinessPagesWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("businesses/manage"))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"businessCreateForm\"")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"businessLocationForm\"")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"businessLocationForm\"")))
+                .andDo(result -> {
+                    String capture = System.getProperty("iguana.businesses.capture");
+                    if (capture != null && !capture.isBlank()) {
+                        java.nio.file.Path file = java.nio.file.Path.of(capture);
+                        java.nio.file.Files.createDirectories(file.toAbsolutePath().getParent());
+                        java.nio.file.Files.writeString(file, result.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8), java.nio.charset.StandardCharsets.UTF_8);
+                    }
+                });
     }
 }

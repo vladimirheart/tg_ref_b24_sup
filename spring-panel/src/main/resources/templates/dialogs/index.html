@@ -27,7 +27,7 @@
     <link rel="stylesheet" href="/vendor/bootstrap-icons/1.10.5/bootstrap-icons.css">
     <link rel="stylesheet" th:href="@{/css/style.css(v='20261119-refined-r1')}">
     <script src="/js/dialog-embedded-runtime.js?v=20261123-profile-dialog"></script>
-    <link rel="stylesheet" th:href="@{/css/app.css(v='20261124-note-viewer')}">
+    <link rel="stylesheet" th:href="@{/css/app.css(v='20261126-dialog-layout-r1')}">
 	<link rel="stylesheet" th:href="@{/css/sidebar.css(v='20261119-refined-r1')}">
     <style data-dialogs-first-paint>
         html.dialogs-list-preparing .dialogs-table-card { position: relative; min-height: 14rem; }
@@ -1046,6 +1046,7 @@
                 </div>
             </div>
             <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-dialog-participants-refresh>Обновить</button>
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
             </div>
         </div>
@@ -1324,10 +1325,10 @@
 <script th:src="@{/js/dialogs-ai-runtime.js(v='20261125-employee-preview-r1')}"></script>
 <script th:src="@{/js/dialogs-details-history-runtime.js(v='20261125-full-client-history-r316')}"></script>
 <script th:src="@{/js/knowledge-note-content.js(v='20261124-note-viewer')}"></script>
-<script th:src="@{/js/dialogs-details-runtime.js(v='20261124-task-card-r1')}"></script>
+<script th:src="@{/js/dialogs-details-runtime.js(v='20261126-dialog-layout-r1')}"></script>
 <script th:src="@{/js/dialogs-workspace-runtime.js(v='20261125-employee-preview-r1')}"></script>
 <script th:src="@{/js/dialogs-actions-runtime.js(v='20261124-task-card-r1')}"></script>
-<script th:src="@{/js/dialogs-participants-runtime.js(v='20261124-task-card-r1')}"></script>
+<script th:src="@{/js/dialogs-participants-runtime.js(v='20261126-dialog-layout-r1')}"></script>
 <script th:src="@{/js/dialogs-my-dialogs-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-macro-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-notifications-runtime.js(v=${dialogsAssetVersion})}"></script>
@@ -1335,7 +1336,7 @@
 <script th:src="@{/js/dialogs-flow-runtime.js(v='20261120-passport-overlay-r2')}"></script>
 <script th:src="@{/js/dialogs-experiment-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-media-composer-enhancements.js(v=${dialogsAssetVersion})}"></script>
-<script th:src="@{/js/dialogs.js(v='20261124-task-card-r1')}"></script>
+<script th:src="@{/js/dialogs.js(v='20261126-dialog-layout-r1')}"></script>
 </th:block>
 <script th:inline="javascript">
   (() => {

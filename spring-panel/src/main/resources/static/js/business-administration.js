@@ -12,7 +12,54 @@
 
   function announce(message, error = false) {
     status.textContent = message;
-    status.className = `alert ${error ? 'alert-danger' : 'alert-info'}`;
+    status.className = `business-admin__status small ${error ? 'alert alert-danger' : 'text-muted'}`;
+  }
+
+  const roleLabels = { VIEWER: 'Чтение', OPERATOR: 'Оператор', MANAGER: 'Менеджер', ADMIN: 'Администратор бизнеса' };
+  const lists = {
+    catalog: { rows: 'businessCatalogRows', columns: 4, empty: 'Бизнесов пока нет.' },
+    memberships: { rows: 'businessMembershipRows', columns: 3, owner: 'membershipBusiness', empty: 'Отдельные доступы к этому бизнесу не назначены. Общие доступы указаны ниже.' },
+    locations: { rows: 'businessLocationRows', columns: 5, owner: 'locationBusiness', empty: 'У этого бизнеса пока нет локаций.' },
+    channels: { rows: 'businessChannelRows', columns: 4, empty: 'Каналов пока нет.' }
+  };
+
+  function count(name, value) {
+    page.querySelectorAll(`[data-business-count="${name}"]`).forEach(item => { item.textContent = String(value); });
+  }
+
+  function filterRows(kind) {
+    const config = lists[kind];
+    const body = page.querySelector(`#${config.rows}`);
+    body.querySelector('[data-list-empty]')?.remove();
+    const query = page.querySelector(`[data-business-search="${kind}"]`).value.trim().toLocaleLowerCase('ru');
+    const owner = config.owner ? page.querySelector(`#${config.owner}`).value : null;
+    let visible = 0;
+    for (const row of body.children) {
+      row.hidden = (owner !== null && row.dataset.businessOwner !== owner)
+        || !row.textContent.toLocaleLowerCase('ru').includes(query);
+      if (!row.hidden) visible++;
+    }
+    if (!visible) {
+      const row = document.createElement('tr');
+      row.dataset.listEmpty = '';
+      const empty = cell(row, query ? 'По вашему запросу ничего не найдено.'
+        : owner === '' ? 'Сначала создайте бизнес в каталоге.' : config.empty);
+      empty.colSpan = config.columns;
+      empty.className = 'text-muted text-center py-4';
+      body.appendChild(row);
+    }
+    if (config.owner) {
+      const form = page.querySelector(config.owner === 'membershipBusiness' ? '#businessMembershipForm' : '#businessLocationForm');
+      const business = snapshot?.businesses.find(item => String(item.id) === owner);
+      form.querySelectorAll('input[name], select, button[type="submit"]').forEach(control => {
+        control.disabled = business?.status !== 'active' || (kind === 'memberships' && !snapshot.users.length);
+      });
+    }
+  }
+
+  for (const [kind, config] of Object.entries(lists)) {
+    page.querySelector(`[data-business-search="${kind}"]`).addEventListener('input', () => filterRows(kind));
+    if (config.owner) page.querySelector(`#${config.owner}`).addEventListener('change', () => filterRows(kind));
   }
 
   async function request(path, method = 'GET', body) {
@@ -67,30 +114,56 @@
     return button;
   }
 
+  function catalogMenu(actions, name) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'dropdown';
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'btn btn-sm business-admin__menu-toggle';
+    toggle.dataset.bsToggle = 'dropdown';
+    toggle.setAttribute('aria-label', `Действия бизнеса ${name}`);
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.title = 'Действия';
+    const icon = document.createElement('i');
+    icon.className = 'bi bi-three-dots';
+    icon.setAttribute('aria-hidden', 'true');
+    toggle.appendChild(icon);
+    const menu = document.createElement('div');
+    menu.className = 'dropdown-menu dropdown-menu-end';
+    wrapper.append(toggle, menu);
+    actions.appendChild(wrapper);
+    if (window.bootstrap?.Dropdown) new window.bootstrap.Dropdown(toggle, {
+      popperConfig: config => ({ ...config, strategy: 'fixed' })
+    });
+    return menu;
+  }
+
   function render(data) {
     snapshot = data;
     const users = new Map(data.users.map((user) => [user.id, user.username]));
-    const businesses = new Map(data.businesses.map((business) => [business.id, business.displayName]));
-    fillSelect('membershipBusiness', data.businesses.filter((business) => business.status === 'active'),
-      (business) => business.displayName);
-    fillSelect('locationBusiness', data.businesses.filter((business) => business.status === 'active'),
-      (business) => business.displayName);
+    const scopedBusinesses = [...data.businesses.filter(business => business.status === 'active'),
+      ...data.businesses.filter(business => business.status !== 'active')];
+    fillSelect('membershipBusiness', scopedBusinesses,
+      (business) => business.displayName + (business.status === 'active' ? '' : ' · Архив'));
+    fillSelect('locationBusiness', scopedBusinesses,
+      (business) => business.displayName + (business.status === 'active' ? '' : ' · Архив'));
     fillSelect('channelBindingBusiness', data.businesses.filter((business) => business.status === 'active'),
       (business) => business.displayName);
     fillSelect('membershipUser', data.users, (user) => user.username);
     fillSelect('allGrantUser', data.users, (user) => user.username);
 
     const catalog = page.querySelector('#businessCatalogRows');
+    catalog.querySelectorAll('[data-bs-toggle="dropdown"]').forEach(toggle => window.bootstrap?.Dropdown.getInstance(toggle)?.dispose());
     catalog.replaceChildren();
     for (const business of data.businesses) {
       const row = document.createElement('tr');
       cell(row, business.displayName);
       cell(row, business.code);
       cell(row, business.status === 'active' ? 'Активен' : 'Архив');
-      const actions = cell(row, '');
+      const actions = catalogMenu(cell(row, ''), business.displayName);
       const rename = document.createElement('button');
       rename.type = 'button';
-      rename.className = 'btn btn-sm btn-outline-primary me-2';
+      rename.className = 'dropdown-item';
       rename.textContent = 'Переименовать';
       rename.setAttribute('aria-label', `Переименовать бизнес ${business.displayName}`);
       rename.addEventListener('click', async () => {
@@ -104,7 +177,7 @@
       const active = business.status === 'active';
       const toggle = document.createElement('button');
       toggle.type = 'button';
-      toggle.className = `btn btn-sm ${active ? 'btn-outline-danger' : 'btn-outline-primary'}`;
+      toggle.className = `dropdown-item${active ? ' text-danger' : ''}`;
       toggle.textContent = active ? 'Архивировать' : 'Восстановить';
       toggle.setAttribute('aria-label', `${toggle.textContent} бизнес ${business.displayName}`);
       toggle.addEventListener('click', async () => {
@@ -122,7 +195,7 @@
     locationRows.replaceChildren();
     for (const location of data.locations) {
       const row = document.createElement('tr');
-      cell(row, businesses.get(location.businessId) || location.businessId);
+      row.dataset.businessOwner = String(location.businessId);
       cell(row, location.locationName);
       cell(row, location.locationType);
       cell(row, location.city);
@@ -151,9 +224,9 @@
     membershipRows.replaceChildren();
     for (const grant of data.memberships) {
       const row = document.createElement('tr');
-      cell(row, businesses.get(grant.businessId) || grant.businessId);
+      row.dataset.businessOwner = String(grant.businessId);
       cell(row, users.get(grant.userId) || grant.userId);
-      cell(row, grant.roleCode);
+      cell(row, roleLabels[grant.roleCode] || grant.roleCode);
       cell(row, '').appendChild(revokeButton(async () => {
         if (!window.confirm('Отозвать доступ сотрудника к выбранному бизнесу?')) return;
         await perform(async () => {
@@ -168,7 +241,7 @@
     for (const grant of data.allGrants) {
       const row = document.createElement('tr');
       cell(row, users.get(grant.userId) || grant.userId);
-      cell(row, grant.roleCode);
+      cell(row, roleLabels[grant.roleCode] || grant.roleCode);
       cell(row, '').appendChild(revokeButton(async () => {
         if (!window.confirm('Отозвать доступ сотрудника ко всем бизнесам?')) return;
         await perform(async () => {
@@ -177,6 +250,16 @@
       }));
       allRows.appendChild(row);
     }
+    if (!data.allGrants.length) {
+      const row = document.createElement('tr');
+      cell(row, 'Общие доступы не назначены.').colSpan = 3;
+      allRows.appendChild(row);
+    }
+    count('businesses', data.businesses.length);
+    count('memberships', data.memberships.length + data.allGrants.length);
+    count('locations', data.locations.length);
+    count('allGrants', data.allGrants.length);
+    ['catalog', 'memberships', 'locations'].forEach(filterRows);
   }
 
   async function refresh() {
@@ -266,6 +349,8 @@
         rows.appendChild(row);
       }
       channelStatus.textContent = channels.length ? `Каналов: ${channels.length}.` : 'Каналов пока нет.';
+      count('channels', channels.length);
+      filterRows('channels');
     } catch (error) {
       channelStatus.textContent = error.message || 'Не удалось загрузить каналы.';
       channelStatus.className = 'text-danger small';

@@ -8,6 +8,8 @@
     const state = {
       assignableOperators: null,
       participants: [],
+      scoped: null,
+      generation: 0,
     };
 
     function exactLegacyTicketId(value) {
@@ -59,6 +61,69 @@
     function getWorkspaceCandidates(key) {
       const ticketId = getActiveDialogTicketId();
       return options.getWorkspaceWorkflowCollection?.(key, ticketId);
+    }
+
+    function businessReference() {
+      const context = getActiveDialogContext(), row = options.getActiveDialogRow?.()?.dataset || {};
+      if (String(context.scopeKind || row.scopeKind || '').toUpperCase() !== 'BUSINESS') return null;
+      const ref = { ticketId: getActiveDialogTicketId(), ticketPublicId: String(context.ticketPublicId || row.ticketPublicId || ''),
+        businessId: String(context.businessId || row.businessId || '') };
+      return { ...ref, key: JSON.stringify(ref) };
+    }
+
+    function currentScoped() {
+      return state.scoped?.key === businessReference()?.key ? state.scoped : null;
+    }
+
+    async function scopedRequest(url, init = {}) {
+      const headers = { Accept: 'application/json', ...(init.headers || {}) };
+      if (init.method) {
+        headers['Content-Type'] = 'application/json';
+        const token = document.querySelector('meta[name="_csrf"]')?.content;
+        if (token) headers[document.querySelector('meta[name="_csrf_header"]')?.content || 'X-XSRF-TOKEN'] = token;
+      }
+      const response = await fetch(url, { ...init, headers, credentials: 'same-origin', cache: 'no-store', redirect: 'error' });
+      if (!response.ok) {
+        const messages = { 403: 'Доступ к участникам отозван.', 404: 'Обращение недоступно. Обновите список диалогов.',
+          409: 'Список или права изменились. Обновите участников.', 503: 'Список участников временно недоступен.' };
+        throw new Error(messages[response.status] || `Не удалось загрузить или изменить участников (${response.status}).`);
+      }
+      return response.status === 204 ? null : response.json();
+    }
+
+    async function loadBusinessParticipants(ref) {
+      const serial = ++state.generation;
+      state.scoped = null;
+      renderDialogParticipantsLoadingState(); syncParticipantsSelectOptions();
+      const base = `/api/business-scope/tickets/${encodeURIComponent(ref.ticketPublicId)}/participants`;
+      let roster, management;
+      try { [roster, management] = await Promise.all([scopedRequest(base), scopedRequest(base + '/management')]); }
+      catch (error) { if (serial === state.generation && businessReference()?.key === ref.key) throw error; return []; }
+      if (serial !== state.generation || businessReference()?.key !== ref.key) return [];
+      const owner = roster?.owner;
+      if (!owner || ['userId', 'ticketId', 'ticketPublicId', 'businessId'].some(key => typeof owner[key] !== 'string') || owner.ticketId !== ref.ticketId || owner.ticketPublicId !== ref.ticketPublicId || owner.businessId !== ref.businessId
+          || !/^(0|-?[1-9][0-9]*)$/.test(owner.userId) || !/^(0|[1-9][0-9]*)$/.test(roster.revision)
+          || ['userId', 'ticketId', 'ticketPublicId', 'businessId'].some(key => owner[key] !== management?.owner?.[key])
+          || typeof roster.revision !== 'string' || roster.revision !== management.revision
+          || !Array.isArray(roster.members) || !Array.isArray(management.candidates)
+          || roster.members.some(person => typeof person.id !== 'string' || !/^[1-9][0-9]*$/.test(person.id))
+          || management.candidates.some(person => typeof person.userId !== 'string' || !/^[1-9][0-9]*$/.test(person.userId)))
+        throw new Error('Данные обращения или список участников изменились. Обновите участников.');
+      state.scoped = { key: ref.key, base, owner, revision: roster.revision, canManage: management.canManage === true,
+        candidates: management.candidates };
+      setParticipantsState(roster.members.map(member => ({ userId: String(member.id), username: member.username || '',
+        displayName: member.username || member.snapshot || 'Сотрудник', eligible: member.eligible })));
+      renderDialogParticipantsState(); syncParticipantsSelectOptions();
+      return getParticipantsState();
+    }
+
+    async function changeBusinessParticipant(method, memberId) {
+      const scoped = currentScoped();
+      if (!scoped?.canManage || !/^[1-9][0-9]*$/.test(memberId)) return;
+      await scopedRequest(scoped.base, { method, body: JSON.stringify({ ...scoped.owner, revision: scoped.revision, memberId }) });
+      if (businessReference()?.key !== scoped.key) return;
+      await loadBusinessParticipants(businessReference());
+      notify(method === 'POST' ? 'Пользователь подключён к диалогу' : 'Участник убран из диалога', 'success');
     }
 
     function getParticipantsState() {
@@ -125,13 +190,15 @@
       const metaParts = [department, role].filter(Boolean);
       const avatarMarkup = buildParticipantAvatarMarkup(displayName, avatarUrl, 'Аватар участника');
       const profileHref = buildParticipantProfileHref(participant);
-      const removeButton = runtimeOptions.removable && username
-        ? `<button type="button" class="btn btn-sm btn-outline-danger" data-remove-participant="${escapeHtml(username)}">${escapeHtml(runtimeOptions.removeLabel || 'Убрать')}</button>`
+      const removeButton = runtimeOptions.removable && (username || participant.userId)
+        ? `<button type="button" class="btn btn-sm btn-outline-danger" ${currentScoped() ? `data-remove-participant-id="${escapeHtml(participant.userId)}"` : `data-remove-participant="${escapeHtml(username)}"`}>${escapeHtml(runtimeOptions.removeLabel || 'Убрать')}</button>`
         : '';
       return `
         <div class="dialog-details-participant-card">
           <div class="dialog-details-participant-main">
-            ${profileHref
+            ${participant.userId && window.EmployeeProfiles
+              ? `<div class="dialog-details-participant-copy">${window.EmployeeProfiles.link({ userId: participant.userId, username, fullName: displayName })}</div>`
+              : profileHref
               ? `<div class="dialog-details-participant-copy">${window.EmployeeProfiles?.link(username) || `<a class="dialog-details-participant-link" href="${escapeHtml(profileHref)}">${avatarMarkup}${escapeHtml(displayName)}</a>`}<div class="dialog-details-participant-meta">${metaParts.map((item) => `<span>${escapeHtml(item)}</span>`).join('')}</div></div>`
               : `${avatarMarkup}<div class="dialog-details-participant-copy"><div class="dialog-details-participant-name">${escapeHtml(displayName)}</div><div class="dialog-details-participant-meta">${metaParts.map((item) => `<span>${escapeHtml(item)}</span>`).join('')}</div></div>`}
           </div>
@@ -152,6 +219,7 @@
       }
       const profileHref = buildParticipantProfileHref(participant);
       const safeTitle = escapeHtml(titleParts.join(' · '));
+      if (participant.userId && window.EmployeeProfiles) return window.EmployeeProfiles.link({ userId: participant.userId, username, fullName: displayName });
       if (username && window.EmployeeProfiles) return window.EmployeeProfiles.link(username);
       return `
         ${profileHref
@@ -185,7 +253,7 @@
       }
       if (elements.participantsCurrentList) {
         elements.participantsCurrentList.innerHTML = participants.map((participant) => renderParticipantCard(participant, {
-          removable: options.isWorkspaceActionEnabled?.(
+          removable: businessReference() ? currentScoped()?.canManage : options.isWorkspaceActionEnabled?.(
             'participants_remove',
             options.canRunAction?.('can_assign'),
             getActiveDialogTicketId()
@@ -214,6 +282,25 @@
 
     function syncParticipantsSelectOptions() {
       if (!elements.participantsSelect) return;
+      const ref = businessReference(), scoped = currentScoped();
+      if (ref) {
+        const existing = new Set(getParticipantsState().map(person => person.userId));
+        elements.participantsSelect.replaceChildren();
+        const placeholder = document.createElement('option'); placeholder.value = ''; placeholder.textContent = 'Выберите сотрудника';
+        elements.participantsSelect.append(placeholder);
+        const candidates = (scoped?.candidates || []).filter(person => !existing.has(person.userId));
+        for (const person of candidates) {
+          const option = document.createElement('option'); option.value = person.userId; option.textContent = person.username;
+          option.dataset.employeeName = person.username; elements.participantsSelect.append(option);
+        }
+        elements.participantsSelect.disabled = !scoped?.canManage || !candidates.length;
+        if (elements.participantsAddBtn) elements.participantsAddBtn.disabled = elements.participantsSelect.disabled;
+        if (elements.participantsSelectHint) elements.participantsSelectHint.textContent = !scoped ? 'Загрузка участников…'
+          : !scoped.canManage ? 'Доступен просмотр участников. Изменение требует права обработки этого бизнеса и открытого обращения.'
+            : !candidates.length ? 'Доступных сотрудников для подключения больше нет.' : 'Показаны сотрудники с доступом к этому бизнесу.';
+        window.EmployeePicker?.refresh();
+        return;
+      }
       const workspaceCandidates = getWorkspaceCandidates('participant_candidates');
       const operators = Array.isArray(workspaceCandidates) ? workspaceCandidates : getAssignableOperators();
       const participantIds = new Set(getParticipantsState().map((item) => normalizeIdentity(item?.username)));
@@ -326,6 +413,11 @@
     }
 
     async function loadDialogParticipants() {
+      syncDialogAssignControls();
+      const ref = businessReference();
+      if (ref) return loadBusinessParticipants(ref);
+      state.scoped = null;
+      const serial = ++state.generation;
       const ticketId = getActiveDialogTicketId();
       if (!ticketId) {
         setParticipantsState([]);
@@ -341,6 +433,7 @@
       if (!response.ok || !payload?.success) {
         throw new Error(payload?.error || `Ошибка ${response.status}`);
       }
+      if (serial !== state.generation || getActiveDialogTicketId() !== ticketId) return [];
       setParticipantsState(payload.participants);
       renderDialogParticipantsState();
       syncParticipantsSelectOptions();
@@ -356,6 +449,13 @@
     async function openParticipantsManager() {
       const ticketId = getActiveDialogTicketId();
       if (!ticketId) return;
+      if (businessReference()) {
+        if (elements.participantsMeta) elements.participantsMeta.textContent = 'Дополнительные участники текущего обращения.';
+        options.showModalSafe?.(elements.participantsModalEl, elements.participantsModal);
+        try { await loadDialogParticipants(); }
+        catch (error) { renderDialogParticipantsLoadingState(error.message); notify(error.message, 'error'); }
+        return;
+      }
       const canAddParticipants = options.isWorkspaceActionEnabled?.('participants_add', options.canRunAction?.('can_assign'), ticketId);
       const canRemoveParticipants = options.isWorkspaceActionEnabled?.('participants_remove', options.canRunAction?.('can_assign'), ticketId);
       if (!canAddParticipants && !canRemoveParticipants) {
@@ -412,12 +512,13 @@
       }
       [elements.detailsParticipantsBtn, elements.detailsParticipantsManageBtn].forEach((button) => {
         if (!button) return;
-        button.classList.toggle('d-none', !participantsEnabled);
-        button.disabled = !participantsEnabled;
+        button.classList.toggle('d-none', !businessReference() && !participantsEnabled);
+        button.disabled = !businessReference() && !participantsEnabled;
       });
     }
 
     function bindParticipantEvents() {
+      elements.participantsModalEl?.querySelector('[data-dialog-participants-refresh]')?.addEventListener('click', () => openParticipantsManager());
       if (elements.detailsParticipantsBtn) {
         elements.detailsParticipantsBtn.addEventListener('click', () => {
           openParticipantsManager();
@@ -434,6 +535,12 @@
           const ticketId = getActiveDialogTicketId();
           if (!ticketId || !username) return;
           elements.participantsAddBtn.disabled = true;
+          if (businessReference()) {
+            try { await changeBusinessParticipant('POST', username); }
+            catch (error) { notify(error.message, 'error'); }
+            finally { syncParticipantsSelectOptions(); }
+            return;
+          }
           try {
             const response = await fetch(`/api/dialog-ticket/participants?ticketId=${encodeURIComponent(ticketId)}`, {
               method: 'POST',
@@ -458,10 +565,17 @@
       if (elements.participantsCurrentList) {
         elements.participantsCurrentList.addEventListener('click', async (event) => {
           const removeButton = event.target instanceof Element
-            ? event.target.closest('[data-remove-participant]')
+            ? event.target.closest('[data-remove-participant], [data-remove-participant-id]')
             : null;
           const ticketId = getActiveDialogTicketId();
           if (!removeButton || !ticketId) return;
+          if (businessReference()) {
+            removeButton.disabled = true;
+            try { await changeBusinessParticipant('DELETE', removeButton.dataset.removeParticipantId); }
+            catch (error) { notify(error.message, 'error'); }
+            finally { if (removeButton.isConnected) removeButton.disabled = false; }
+            return;
+          }
           const username = String(removeButton.getAttribute('data-remove-participant') || '').trim();
           if (!username) return;
           removeButton.disabled = true;

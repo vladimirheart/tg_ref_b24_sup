@@ -3846,6 +3846,17 @@
       return;
     }
   });
+  table.addEventListener('dblclick', (event) => {
+    const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+    if (!target || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey
+        || target.closest('a,button,input,select,textarea,label,summary,[role="button"],[role="link"],[contenteditable="true"],.dialog-actions-dropdown,.column-resize-handle')) return;
+    const row = target.closest('tr[data-ticket-id]');
+    if (!row || !table.contains(row) || !row.dataset.ticketId) return;
+    event.preventDefault();
+    setActiveDialogRow(row, { ensureVisible: true });
+    closeDialogActionsMenus();
+    openDialogEntry(row.dataset.ticketId, row);
+  });
   if (selectAllCheckbox) {
     selectAllCheckbox.addEventListener('change', () => {
       visibleRows().forEach((row) => {

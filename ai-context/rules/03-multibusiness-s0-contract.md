@@ -7384,3 +7384,18 @@ UI presets/reference editor, полный route/required validator и все п�
 блокировка клиента всё равно проверяет текущий owner/actor/grants под locks.
 Schema и legacy/general authority этим действием не расширяются; GENERAL
 по-прежнему использует отдельный явный read/operate grant.
+
+### 01-320: участники BUSINESS в основном окне диалога
+
+Основное окно читает canonical roster через public locator и полный owner,
+не compatibility workflow.participants и не raw ticket_participants. JSON
+management adapter вызывает тот же BusinessTicketParticipantService.change,
+что форма business-dialog-assignment: bound Authentication, current READ/OPERATE,
+открытый root, full owner и отдельная roster revision, locks/transaction/outbox
+сохраняются. PAGE_DIALOGS и CSRF обязательны; admin bypass и новые grants отсутствуют.
+ID аккаунта участника положительный; ticket_user_id клиента сохраняет прежний
+signed BIGINT contract. IDs/revision в JSON передаются decimal strings.
+Список кандидатов ограничен текущим бизнесом; пустой/недоступный scoped read
+не включает глобальный справочник и не возвращает legacy mutation. Несовпадение
+owner/revision, поздний ответ и отказ доступа не создают writable stale roster.
+Legacy записи не переносятся; GENERAL и UNRESOLVED authority не расширяются.

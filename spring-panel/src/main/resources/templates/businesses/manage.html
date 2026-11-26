@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="/vendor/bootstrap-icons/1.10.5/bootstrap-icons.css">
     <link rel="stylesheet" th:href="@{/css/style.css(v='20261119-refined-r1')}">
     <link rel="stylesheet" th:href="@{/css/app.css(v='20261119-refined-r1')}">
+    <link rel="stylesheet" th:href="@{/css/business-administration.css(v='20261126-business-workspace-r1')}">
     <link rel="stylesheet" th:href="@{/css/sidebar.css(v='20261119-refined-r1')}">
 </head>
 <body class="with-sidebar sidebar-pinned" data-ui-page="settings">
@@ -18,75 +19,128 @@
     <div class="page-header-card page-hero mb-4">
         <span class="page-kicker">Настройки</span>
         <h1 class="page-title">Бизнесы и доступы</h1>
-        <p class="page-subtitle mb-0">Новый бизнес создаётся независимо от канала и внешних интеграций.</p>
-        <a class="btn btn-outline-primary mt-3" href="/general-dialogs/access"
-           th:if="${generalTicketQueueEnabled}">Доступ к обращениям без бизнеса</a>
+        <p class="page-subtitle mb-0">Бизнесы, сотрудники и подключения.</p>
+        <div class="business-admin__header-actions">
+            <a href="/settings">К настройкам</a>
+            <a href="/general-dialogs/access" th:if="${generalTicketQueueEnabled}">Доступ к обращениям без бизнеса</a>
+        </div>
     </div>
-    <div class="alert alert-info" role="status" aria-live="polite" data-business-status>Загрузка…</div>
-    <div class="row g-4">
-        <section class="col-12 col-xl-6" aria-labelledby="businessCatalogTitle">
+    <div class="business-admin__status text-muted small" role="status" aria-live="polite" data-business-status>Загрузка…</div>
+<nav class="business-admin__navigation" aria-label="Разделы управления бизнесами"><div class="nav business-admin__tabs" role="tablist">
+<button class="nav-link active" id="business-catalog-tab" data-bs-toggle="tab" data-bs-target="#business-catalog" type="button" role="tab" aria-controls="business-catalog" aria-selected="true">Бизнесы <span class="business-admin__count" data-business-count="businesses">…</span></button>
+<button class="nav-link" id="business-access-tab" data-bs-toggle="tab" data-bs-target="#business-access" type="button" role="tab" aria-controls="business-access" aria-selected="false" tabindex="-1">Доступы <span class="business-admin__count" data-business-count="memberships">…</span></button>
+<button class="nav-link" id="business-locations-tab" data-bs-toggle="tab" data-bs-target="#business-locations" type="button" role="tab" aria-controls="business-locations" aria-selected="false" tabindex="-1">Локации <span class="business-admin__count" data-business-count="locations">…</span></button>
+<button class="nav-link" id="business-channels-tab" data-bs-toggle="tab" data-bs-target="#business-channels" type="button" role="tab" aria-controls="business-channels" aria-selected="false" tabindex="-1">Каналы <span class="business-admin__count" data-business-count="channels">…</span></button>
+<button class="nav-link" id="business-presets-tab" data-bs-toggle="tab" data-bs-target="#business-presets" type="button" role="tab" aria-controls="business-presets" aria-selected="false" tabindex="-1">Вопросник</button>
+</div></nav>
+<div class="tab-content business-admin__content">
+        <section id="business-catalog" role="tabpanel" aria-labelledby="business-catalog-tab" tabindex="0" class="tab-pane business-admin__pane active">
             <div class="card h-100"><div class="card-body">
-                <h2 class="h5" id="businessCatalogTitle">Каталог бизнесов</h2>
-                <form id="businessCreateForm" class="row g-2 align-items-end mb-3">
+                <div class="business-admin__section-head"><h2 class="h5 mb-0" id="businessCatalogTitle">Каталог бизнесов</h2><label class="business-admin__search"><span class="visually-hidden">Найти бизнес</span><i class="bi bi-search" aria-hidden="true"></i><input type="search" class="form-control" data-business-search="catalog" placeholder="Найти бизнес" autocomplete="off"></label></div>
+                <details class="business-admin__editor"><summary>Создать бизнес</summary><div class="business-admin__editor-body"><form id="businessCreateForm" class="row g-2 align-items-end mb-3">
                     <div class="col-sm-4"><label class="form-label" for="businessCode">Код</label>
                         <input class="form-control" id="businessCode" name="code" pattern="[a-z][a-z0-9-]*" maxlength="100" required autocomplete="off"></div>
                     <div class="col-sm-5"><label class="form-label" for="businessName">Название</label>
                         <input class="form-control" id="businessName" name="displayName" maxlength="200" required autocomplete="off"></div>
                     <div class="col-sm-3"><button class="btn btn-primary w-100" type="submit">Создать</button></div>
-                </form>
-                <div class="table-responsive"><table class="table table-sm align-middle">
+                </form></div></details>
+                <div class="table-responsive business-admin__table" tabindex="0"><table class="table table-sm align-middle">
                     <thead><tr><th scope="col">Название</th><th scope="col">Код</th><th scope="col">Статус</th><th scope="col">Действия</th></tr></thead>
                     <tbody id="businessCatalogRows"></tbody>
                 </table></div>
             </div></div>
         </section>
-        <section class="col-12 col-xl-6" aria-labelledby="businessMembershipTitle">
+        <section id="business-access" role="tabpanel" aria-labelledby="business-access-tab" tabindex="0" class="tab-pane business-admin__pane">
             <div class="card h-100"><div class="card-body">
-                <h2 class="h5" id="businessMembershipTitle">Доступ к выбранному бизнесу</h2>
-                <form id="businessMembershipForm" class="row g-2 align-items-end mb-3">
-                    <div class="col-sm-4"><label class="form-label" for="membershipBusiness">Бизнес</label>
-                        <select class="form-select" id="membershipBusiness" required></select></div>
-                    <div class="col-sm-4"><label class="form-label" for="membershipUser">Сотрудник</label>
+                <h2 class="h5" id="businessMembershipTitle">Доступ к выбранному бизнесу</h2><div class="business-admin__toolbar"><div class="business-admin__owner"><label class="form-label" for="membershipBusiness">Бизнес</label><select class="form-select" id="membershipBusiness" form="businessMembershipForm" required></select></div><label class="business-admin__search"><span class="visually-hidden">Найти сотрудника</span><i class="bi bi-search" aria-hidden="true"></i><input type="search" class="form-control" data-business-search="memberships" placeholder="Найти сотрудника" autocomplete="off"></label></div>
+                <details class="business-admin__editor"><summary>Выдать или изменить доступ</summary><div class="business-admin__editor-body"><form id="businessMembershipForm" class="row g-2 align-items-end mb-3">
+                    <div class="col-md-5"><label class="form-label" for="membershipUser">Сотрудник</label>
                         <select class="form-select" id="membershipUser" required></select></div>
-                    <div class="col-sm-2"><label class="form-label" for="membershipRole">Роль</label>
+                    <div class="col-md"><label class="form-label" for="membershipRole">Роль</label>
                         <select class="form-select" id="membershipRole">
                             <option value="VIEWER">Чтение</option><option value="OPERATOR">Оператор</option>
                             <option value="MANAGER">Менеджер</option><option value="ADMIN">Администратор бизнеса</option>
                         </select></div>
-                    <div class="col-sm-2"><button class="btn btn-primary w-100" type="submit">Сохранить</button></div>
-                </form>
-                <div class="table-responsive"><table class="table table-sm align-middle">
-                    <thead><tr><th scope="col">Бизнес</th><th scope="col">Сотрудник</th><th scope="col">Роль</th><th scope="col"></th></tr></thead>
+                    <div class="col-md"><button class="btn btn-primary w-100" type="submit">Сохранить</button></div>
+                </form></div></details>
+                <div class="table-responsive business-admin__table" tabindex="0"><table class="table table-sm align-middle">
+                    <thead><tr><th scope="col">Сотрудник</th><th scope="col">Роль</th><th scope="col"><span class="visually-hidden">Действия</span></th></tr></thead>
                     <tbody id="businessMembershipRows"></tbody>
                 </table></div>
+<details class="business-admin__group"><summary>Доступ ко всем бизнесам <span class="business-admin__count" data-business-count="allGrants">…</span></summary><div class="business-admin__editor-body">
+                <details class="business-admin__help"><summary>Как это работает</summary><p class="text-muted small mb-0">Охватывает новые бизнесы автоматически. Системные права сотрудника не меняются.</p></details>
+                <details class="business-admin__editor"><summary>Выдать или изменить общий доступ</summary><div class="business-admin__editor-body"><form id="allBusinessGrantForm" class="row g-2 align-items-end mb-3">
+                    <div class="col-sm-5"><label class="form-label" for="allGrantUser">Сотрудник</label>
+                        <select class="form-select" id="allGrantUser" required></select></div>
+                    <div class="col-sm-4"><label class="form-label" for="allGrantRole">Роль в бизнесах</label>
+                        <select class="form-select" id="allGrantRole">
+                            <option value="VIEWER">Чтение</option><option value="OPERATOR">Оператор</option>
+                            <option value="MANAGER">Менеджер</option><option value="ADMIN">Администратор бизнеса</option>
+                        </select></div>
+                    <div class="col-sm-3"><button class="btn btn-primary w-100" type="submit">Сохранить</button></div>
+                </form></div></details>
+                <div class="table-responsive business-admin__table" tabindex="0"><table class="table table-sm align-middle">
+                    <thead><tr><th scope="col">Сотрудник</th><th scope="col">Роль</th><th scope="col"></th></tr></thead>
+                    <tbody id="allBusinessGrantRows"></tbody>
+                </table></div>
+            </div></details>
             </div></div>
         </section>
-        <section class="col-12" aria-labelledby="businessLocationsTitle">
+        <section id="business-locations" role="tabpanel" aria-labelledby="business-locations-tab" tabindex="0" class="tab-pane business-admin__pane">
             <div class="card"><div class="card-body">
-                <h2 class="h5" id="businessLocationsTitle">Локации бизнесов</h2>
-                <p class="text-muted small">Локация принадлежит только выбранному бизнесу. Создание не подключает iiko, канал или старые обращения.</p>
-                <form id="businessLocationForm" class="row g-2 align-items-end mb-3">
-                    <div class="col-md-3"><label class="form-label" for="locationBusiness">Бизнес</label>
-                        <select class="form-select" id="locationBusiness" required></select></div>
-                    <div class="col-md-3"><label class="form-label" for="locationName">Название</label>
+                <h2 class="h5" id="businessLocationsTitle">Локации бизнесов</h2><div class="business-admin__toolbar"><div class="business-admin__owner"><label class="form-label" for="locationBusiness">Бизнес</label><select class="form-select" id="locationBusiness" form="businessLocationForm" required></select></div><label class="business-admin__search"><span class="visually-hidden">Найти локацию</span><i class="bi bi-search" aria-hidden="true"></i><input type="search" class="form-control" data-business-search="locations" placeholder="Найти локацию" autocomplete="off"></label></div>
+                <details class="business-admin__help"><summary>Как это работает</summary><p class="text-muted small mb-0">Локация принадлежит только выбранному бизнесу. Создание не подключает iiko, канал или старые обращения.</p></details>
+                <details class="business-admin__editor"><summary>Добавить локацию</summary><div class="business-admin__editor-body"><form id="businessLocationForm" class="row g-2 align-items-end mb-3">
+                    <div class="col-md-4"><label class="form-label" for="locationName">Название</label>
                         <input class="form-control" id="locationName" name="locationName" maxlength="200" required></div>
                     <div class="col-md-2"><label class="form-label" for="locationType">Тип</label>
                         <input class="form-control" id="locationType" name="locationType" maxlength="80"></div>
                     <div class="col-md-2"><label class="form-label" for="locationCity">Город</label>
                         <input class="form-control" id="locationCity" name="city" maxlength="120"></div>
                     <div class="col-md-2"><button class="btn btn-primary w-100" type="submit">Добавить</button></div>
-                </form>
-                <div class="table-responsive"><table class="table table-sm align-middle">
-                    <thead><tr><th scope="col">Бизнес</th><th scope="col">Локация</th><th scope="col">Тип</th>
+                </form></div></details>
+                <div class="table-responsive business-admin__table" tabindex="0"><table class="table table-sm align-middle">
+                    <thead><tr><th scope="col">Локация</th><th scope="col">Тип</th>
                         <th scope="col">Город</th><th scope="col">Статус</th><th scope="col"></th></tr></thead>
                     <tbody id="businessLocationRows"></tbody>
                 </table></div>
             </div></div>
         </section>
-        <section class="col-12" aria-labelledby="businessPresetsTitle" data-business-presets>
+        <section id="business-channels" role="tabpanel" aria-labelledby="business-channels-tab" tabindex="0" class="tab-pane business-admin__pane">
+            <div class="card"><div class="card-body">
+                <div class="business-admin__section-head"><h2 class="h5 mb-0" id="businessChannelsTitle">Каналы и привязки</h2><label class="business-admin__search"><span class="visually-hidden">Найти канал</span><i class="bi bi-search" aria-hidden="true"></i><input type="search" class="form-control" data-business-search="channels" placeholder="Найти канал" autocomplete="off"></label></div>
+                <details class="business-admin__help"><summary>Как это работает</summary><p class="text-muted small mb-0">Привязки не назначают бизнес старым обращениям и сами по себе не включают маршрутизацию новых. Для общего канала доступен только режим явного выбора; вопросники и выбор в боте подключаются отдельно.</p></details>
+                <details class="business-admin__editor"><summary>Добавить или изменить привязку</summary><div class="business-admin__editor-body"><form id="channelBindingForm" class="row g-2 align-items-end mb-3">
+                    <div class="col-md-4"><label class="form-label" for="channelBindingChannel">Канал</label>
+                        <select class="form-select" id="channelBindingChannel" required></select></div>
+                    <div class="col-md-3"><label class="form-label" for="channelBindingBusiness">Бизнес</label>
+                        <select class="form-select" id="channelBindingBusiness" required></select></div>
+                    <div class="col-md-3"><label class="form-label" for="channelBindingMode">Режим</label>
+                        <select class="form-select" id="channelBindingMode">
+                            <option value="SINGLE_BUSINESS">Один бизнес</option>
+                            <option value="EXPLICIT_SELECTION">Явный выбор</option>
+                        </select></div>
+                    <div class="col-md-2"><button class="btn btn-primary w-100" type="submit">Сохранить</button></div>
+                </form></div></details>
+                <p class="text-muted small" role="status" aria-live="polite" data-channel-list-status>Загрузка каналов…</p>
+                <div class="table-responsive business-admin__table" tabindex="0"><table class="table table-sm align-middle">
+                    <thead><tr><th scope="col">Канал</th><th scope="col">Платформа</th><th scope="col">Статус</th><th scope="col"></th></tr></thead>
+                    <tbody id="businessChannelRows"></tbody>
+                </table></div>
+                <div id="channelBindingPreview" hidden>
+                    <h3 class="h6" data-channel-preview-title></h3>
+                    <p class="small" role="status" aria-live="polite" data-channel-preview-status></p>
+                    <div class="table-responsive business-admin__table" tabindex="0"><table class="table table-sm align-middle">
+                        <thead><tr><th scope="col">Бизнес</th><th scope="col">Режим</th><th scope="col">Статус бизнеса</th><th scope="col">Привязка</th><th scope="col"></th></tr></thead>
+                        <tbody id="channelBindingRows"></tbody>
+                    </table></div>
+                </div>
+            </div></div>
+        </section>
+        <section id="business-presets" role="tabpanel" aria-labelledby="business-presets-tab" tabindex="0" class="tab-pane business-admin__pane" data-business-presets>
             <div class="card"><div class="card-body">
                 <h2 class="h5" id="businessPresetsTitle">Готовые поля вопросника</h2>
-                <p class="text-muted small">Задайте варианты ответа для выбранного бизнеса. Локации берутся из раздела выше. В редакторе вопросника выберите этот бизнес и нужное готовое поле; привязка шаблона к бизнесу настраивается в каналах.</p>
+                <details class="business-admin__help"><summary>Как это работает</summary><p class="text-muted small mb-0">Задайте варианты ответа для выбранного бизнеса. Локации берутся из раздела выше. В редакторе вопросника выберите этот бизнес и нужное готовое поле; привязка шаблона к бизнесу настраивается в каналах.</p></details>
                 <div class="d-flex flex-wrap gap-2 align-items-end mb-3">
                     <div><label class="form-label" for="presetsBusiness">Бизнес</label>
                         <select class="form-select" id="presetsBusiness" data-presets-business><option value="">Загрузка…</option></select></div>
@@ -94,7 +148,7 @@
                 </div>
                 <form data-presets-form>
                     <p class="small text-muted">Коды группы и поля: латинские строчные буквы, цифры и подчёркивание. Варианты — по одному на строку. Пустой список полей при сохранении очистит справочник.</p>
-                    <div class="table-responsive"><table class="table align-middle">
+                    <div class="table-responsive business-admin__table" tabindex="0"><table class="table align-middle">
                         <thead><tr><th scope="col">Код группы</th><th scope="col">Код поля</th><th scope="col">Варианты ответа</th><th scope="col">Действия</th></tr></thead>
                         <tbody data-presets-rows></tbody>
                     </table></div>
@@ -106,61 +160,10 @@
                 </form>
             </div></div>
         </section>
-        <section class="col-12" aria-labelledby="businessChannelsTitle">
-            <div class="card"><div class="card-body">
-                <h2 class="h5" id="businessChannelsTitle">Каналы и привязки</h2>
-                <p class="text-muted small">Привязки не назначают бизнес старым обращениям и сами по себе не включают маршрутизацию новых. Для общего канала доступен только режим явного выбора; вопросники и выбор в боте подключаются отдельно.</p>
-                <form id="channelBindingForm" class="row g-2 align-items-end mb-3">
-                    <div class="col-md-4"><label class="form-label" for="channelBindingChannel">Канал</label>
-                        <select class="form-select" id="channelBindingChannel" required></select></div>
-                    <div class="col-md-3"><label class="form-label" for="channelBindingBusiness">Бизнес</label>
-                        <select class="form-select" id="channelBindingBusiness" required></select></div>
-                    <div class="col-md-3"><label class="form-label" for="channelBindingMode">Режим</label>
-                        <select class="form-select" id="channelBindingMode">
-                            <option value="SINGLE_BUSINESS">Один бизнес</option>
-                            <option value="EXPLICIT_SELECTION">Явный выбор</option>
-                        </select></div>
-                    <div class="col-md-2"><button class="btn btn-primary w-100" type="submit">Сохранить</button></div>
-                </form>
-                <p class="text-muted small" role="status" aria-live="polite" data-channel-list-status>Загрузка каналов…</p>
-                <div class="table-responsive"><table class="table table-sm align-middle">
-                    <thead><tr><th scope="col">Канал</th><th scope="col">Платформа</th><th scope="col">Статус</th><th scope="col"></th></tr></thead>
-                    <tbody id="businessChannelRows"></tbody>
-                </table></div>
-                <div id="channelBindingPreview" hidden>
-                    <h3 class="h6" data-channel-preview-title></h3>
-                    <p class="small" role="status" aria-live="polite" data-channel-preview-status></p>
-                    <div class="table-responsive"><table class="table table-sm align-middle">
-                        <thead><tr><th scope="col">Бизнес</th><th scope="col">Режим</th><th scope="col">Статус бизнеса</th><th scope="col">Привязка</th><th scope="col"></th></tr></thead>
-                        <tbody id="channelBindingRows"></tbody>
-                    </table></div>
-                </div>
-            </div></div>
-        </section>
-        <section class="col-12" aria-labelledby="allBusinessGrantTitle">
-            <div class="card"><div class="card-body">
-                <h2 class="h5" id="allBusinessGrantTitle">Доступ ко всем бизнесам</h2>
-                <p class="text-muted small">Охватывает новые бизнесы автоматически. Системные права сотрудника не меняются.</p>
-                <form id="allBusinessGrantForm" class="row g-2 align-items-end mb-3">
-                    <div class="col-sm-5"><label class="form-label" for="allGrantUser">Сотрудник</label>
-                        <select class="form-select" id="allGrantUser" required></select></div>
-                    <div class="col-sm-4"><label class="form-label" for="allGrantRole">Роль в бизнесах</label>
-                        <select class="form-select" id="allGrantRole">
-                            <option value="VIEWER">Чтение</option><option value="OPERATOR">Оператор</option>
-                            <option value="MANAGER">Менеджер</option><option value="ADMIN">Администратор бизнеса</option>
-                        </select></div>
-                    <div class="col-sm-3"><button class="btn btn-primary w-100" type="submit">Сохранить</button></div>
-                </form>
-                <div class="table-responsive"><table class="table table-sm align-middle">
-                    <thead><tr><th scope="col">Сотрудник</th><th scope="col">Роль</th><th scope="col"></th></tr></thead>
-                    <tbody id="allBusinessGrantRows"></tbody>
-                </table></div>
-            </div></div>
-        </section>
-    </div>
+</div>
 </main>
 <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js"></script>
-<script th:src="@{/js/business-administration.js(v='20261015-r111')}"></script>
+<script th:src="@{/js/business-administration.js(v='20261126-business-workspace-r1')}"></script>
 <script th:src="@{/js/business-questionnaire-presets.js(v='20261021-r151')}"></script>
 </body>
 </html>
