@@ -4,13 +4,13 @@
   display: flex;
   align-items: flex-start;
   gap: 0.32rem;
-  width: fit-content;
+  width: max-content;
   max-width: 100%;
 }
 
 #dialogDetailsHistory .chat-message-bubble-line.has-actions > .chat-message {
   flex: 0 1 auto;
-  max-width: calc(100% - 2.1rem);
+  max-width: 100%;
 }
 
 #dialogDetailsHistory .chat-message-bubble-line > .chat-message-menu {

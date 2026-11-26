@@ -7399,3 +7399,18 @@ signed BIGINT contract. IDs/revision в JSON передаются decimal string
 не включает глобальный справочник и не возвращает legacy mutation. Несовпадение
 owner/revision, поздний ответ и отказ доступа не создают writable stale roster.
 Legacy записи не переносятся; GENERAL и UNRESOLVED authority не расширяются.
+
+### 01-322: явный перенос BUSINESS оператором
+
+Перенос между бизнесами — отдельный workflow, не расширение UNRESOLVED selection.
+Требуются PAGE_DIALOGS, bound numeric actor, действующий OPERATE в обоих активных
+бизнесах, открытый root, полный исходный owner и business_work_revision. Advisory
+guard, root/account/business/grant locks и повторные SQL predicates защищают CAS.
+Root сохраняет ID, канал и исходную анкету; существующие triggers сбрасывают
+проекцию категорий и меняют work revision/feedback epoch. Текущий ответственный
+сбрасывается. Старые assignment/roster/work/AI/notification records не получают
+подменённого owner: остаются историей исходного scope и не наследуются целевым.
+Append-only transfer audit и два scoped invalidation events атомарны с root write.
+Ошибка обязательного write откатывает перенос. Клиентская история и отдельная
+внутренняя переписка следуют стабильному numeric/raw/public owner, но читаются
+только после проверки текущего бизнеса root. GENERAL не переклассифицируется.

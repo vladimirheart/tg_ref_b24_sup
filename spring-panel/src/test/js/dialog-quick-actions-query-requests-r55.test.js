@@ -141,7 +141,7 @@ async function participantRequests() {
   };
   const context = {
     fetch: captured.fetch, Element: Node, elements, options: {},
-    getActiveDialogTicketId: () => currentId, setParticipantsState() {},
+    getActiveDialogTicketId: () => currentId, businessReference: () => null, setParticipantsState() {},
     renderDialogParticipantsState() {}, syncParticipantsSelectOptions() {},
     syncReassignSelectOptions() {}, renderReassignCurrentResponsible() {}, notify() {},
   };
@@ -241,7 +241,7 @@ async function workspaceReplyIsOptimisticAndReportsDeliveryFailureInHistory() {
   await workspaceReplyIsOptimisticAndReportsDeliveryFailureInHistory();
   const template = fs.readFileSync(path.resolve(__dirname, '../../main/resources/templates/dialogs/index.html'), 'utf8');
   for (const file of ['actions', 'details-history', 'workspace', 'participants', 'templates']) {
-    const version = ['actions', 'participants'].includes(file) ? '20261124-task-card-r1' : file === 'details-history'
+    const version = file === 'actions' ? '20261126-operator-r322' : file === 'participants' ? '20261126-dialog-layout-r1' : file === 'details-history'
       ? '20261125-full-client-history-r316'
       : (file === 'workspace' ? '20261125-employee-preview-r1' : '20261012-01-278-r55');
     assert.ok(template.includes('dialogs-' + file + "-runtime.js(v='" + version + "')"));

@@ -1,133 +1,76 @@
 (() => {
   'use strict';
-
   const editButton = document.getElementById('dialogDetailsLocationBusinessBtn');
   const modalElement = document.getElementById('dialogLocationBusinessModal');
   const form = document.getElementById('dialogLocationBusinessForm');
-  const businessSelect = document.getElementById('dialogLocationBusinessBusiness');
-  const errorElement = document.getElementById('dialogLocationBusinessError');
-  const saveButton = document.getElementById('dialogLocationBusinessSave');
-  if (!editButton || !modalElement || !form || !businessSelect
-      || typeof bootstrap === 'undefined' || !bootstrap.Modal) return;
-
+  const select = document.getElementById('dialogLocationBusinessBusiness');
+  const error = document.getElementById('dialogLocationBusinessError');
+  const save = document.getElementById('dialogLocationBusinessSave');
+  if (!editButton || !modalElement || !form || !select || !window.bootstrap?.Modal) return;
   const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
-  const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content') || '';
-  const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content') || 'X-XSRF-TOKEN';
-  let activeContext = null;
-
-  function clean(value) {
-    return String(value || '').trim();
-  }
-
-  function currentContext() {
-    const row = document.querySelector('tr.dialog-row-active');
-    return {
-      ticketId: clean(row?.dataset?.ticketId),
-      channelId: clean(row?.dataset?.channelId),
-      scopeKind: clean(row?.dataset?.scopeKind),
-      ticketPublicId: clean(row?.dataset?.ticketPublicId),
-    };
-  }
-
-  function validPublicId(value) {
-    return /^[a-f0-9]{32}$/.test(value);
-  }
-
-  function showError(message) {
-    const text = clean(message);
-    errorElement.textContent = text;
-    errorElement.classList.toggle('d-none', !text);
-  }
-
-  function requestOptions(method, body) {
-    const headers = new Headers({ 'Content-Type': 'application/json' });
-    if (csrfToken) headers.set(csrfHeader, csrfToken);
-    return { method, credentials: 'same-origin', headers, body: JSON.stringify(body) };
-  }
-
-  function setBusinesses(items) {
-    businessSelect.replaceChildren();
+  const api = window.DialogOperatorActions;
+  let active = null, serial = 0, saving = false;
+  const row = () => document.querySelector('tr.dialog-row-active');
+  const message = value => { error.textContent = value; error.classList.toggle('d-none', !value); };
+  const snapshot = () => { const r = row(); return r ? {
+    ticketId: r.dataset.ticketId, ticketPublicId: r.dataset.ticketPublicId, scopeKind: r.dataset.scopeKind,
+    businessId: String(r.dataset.businessId || ''),
+  } : null; };
+  const same = c => c && JSON.stringify(snapshot()) === JSON.stringify(c);
+  function fill(items, current) {
+    select.replaceChildren();
     const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = 'Выберите бизнес';
-    businessSelect.appendChild(placeholder);
-    (Array.isArray(items) ? items : []).forEach((item) => {
-      const id = Number(item?.id);
-      const displayName = clean(item?.displayName);
-      if (!Number.isSafeInteger(id) || id <= 0 || !displayName) return;
-      const option = document.createElement('option');
-      option.value = String(id);
-      option.textContent = displayName;
-      businessSelect.appendChild(option);
-    });
-  }
-
-  async function openEditor() {
-    activeContext = currentContext();
-    showError('');
-    if (activeContext.scopeKind === 'BUSINESS') {
-      showError('Бизнес уже выбран для этого обращения. Изменить его можно в карточке диалога.');
-      modal.show();
-      return;
+    placeholder.value = ''; placeholder.textContent = 'Выберите бизнес'; select.append(placeholder);
+    for (const item of items) {
+      const id = String(item.id);
+      if (!/^[1-9][0-9]*$/.test(id) || !item.displayName || id === current) continue;
+      const option = document.createElement('option'); option.value = id;
+      option.textContent = item.displayName; select.append(option);
     }
-    if (activeContext.scopeKind !== 'UNRESOLVED' || !validPublicId(activeContext.ticketPublicId)) {
-      showError('Бизнес можно выбрать только для обращения, где вопросник его не определил.');
-      modal.show();
-      return;
+  }
+  editButton.addEventListener('click', async () => {
+    const c = snapshot(), turn = ++serial;
+    active = null; message(''); fill([], ''); save.disabled = true; select.disabled = true;
+    modal.show();
+    if (!c || !/^[a-f0-9]{32}$/.test(c.ticketPublicId) || !['BUSINESS', 'UNRESOLVED'].includes(c.scopeKind)) {
+      message('Смена бизнеса недоступна для этого обращения.'); return;
     }
     try {
-      const response = await fetch('/api/unresolved-scope/businesses', {
-        credentials: 'same-origin', cache: 'no-store',
-      });
-      const payload = await response.json().catch(() => []);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      setBusinesses(payload);
-      if (businessSelect.options.length <= 1) {
-        throw new Error('Нет доступных бизнесов с правом работы.');
+      let payload;
+      if (c.scopeKind === 'BUSINESS') {
+        payload = await api.request('/api/operator-dialogs/' + c.ticketPublicId + '/business');
+        if (!api.matches(payload.owner, row()) || !payload.canManage) throw new Error('Для смены бизнеса нужно право работы с открытым диалогом.');
+      } else {
+        payload = { businesses: await api.request('/api/unresolved-scope/businesses') };
       }
-      modal.show();
-    } catch (error) {
-      showError(error instanceof Error ? error.message : String(error));
-      modal.show();
-    }
-  }
-
-  editButton.addEventListener('click', openEditor);
-
-  form.addEventListener('submit', async (event) => {
+      if (turn !== serial || !same(c)) return;
+      fill(payload.businesses, c.businessId);
+      if (select.options.length <= 1) throw new Error('Других доступных бизнесов с правом работы нет.');
+      active = { context: c, owner: payload.owner, revision: payload.revision };
+      select.disabled = false; save.disabled = false;
+    } catch (e) { if (turn === serial && same(c)) message(e.message); }
+  });
+  modalElement.addEventListener('hidden.bs.modal', () => { serial++; active = null; });
+  form.addEventListener('submit', async event => {
     event.preventDefault();
-    showError('');
-    const businessId = Number(businessSelect.value);
-    if (!activeContext || activeContext.scopeKind !== 'UNRESOLVED' || !validPublicId(activeContext.ticketPublicId)) {
-      showError('Обращение больше не находится в состоянии выбора бизнеса. Обновите страницу.');
-      return;
-    }
-    if (!Number.isSafeInteger(businessId) || businessId <= 0) {
-      showError('Выберите бизнес.');
-      return;
-    }
-    if (saveButton) saveButton.disabled = true;
+    if (saving) return;
+    const saved = active, target = select.value;
+    if (!saved || !same(saved.context)) { message('Диалог изменился. Закройте и откройте выбор бизнеса.'); return; }
+    if (!/^[1-9][0-9]*$/.test(target)) { message('Выберите бизнес.'); return; }
+    if (saved.context.scopeKind === 'BUSINESS' && !window.confirm('Перенести обращение в выбранный бизнес? История и анкета сохранятся; ответственный и категории прежнего бизнеса будут сброшены.')) return;
+    saving = true; save.disabled = true; select.disabled = true; message('');
     try {
-      const response = await fetch(
-        `/api/unresolved-scope/tickets/${encodeURIComponent(activeContext.ticketPublicId)}/business`,
-        requestOptions('POST', { businessId }),
-      );
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok || payload?.success !== true) {
-        throw new Error(payload?.error || `HTTP ${response.status}`);
+      const c = saved.context;
+      if (c.scopeKind === 'BUSINESS') {
+        await api.request('/api/operator-dialogs/' + c.ticketPublicId + '/business',
+          { ...saved.owner, revision: saved.revision, businessTargetId: target });
+      } else {
+        // Preserve the existing unresolved-selection contract; its endpoint accepts a JSON BIGINT.
+        if (!Number.isSafeInteger(Number(target))) throw new Error('Идентификатор бизнеса не поддерживается этой формой.');
+        await api.request('/api/unresolved-scope/tickets/' + c.ticketPublicId + '/business', { businessId: Number(target) });
       }
-      if (!activeContext.ticketId) {
-        throw new Error('Не удалось определить обращение для обновления.');
-      }
-      const query = new URLSearchParams({ ticketId: activeContext.ticketId });
-      if (activeContext.channelId) {
-        query.set('channelId', activeContext.channelId);
-      }
-      window.location.assign(`/dialogs?${query.toString()}`);
-    } catch (error) {
-      showError(error instanceof Error ? error.message : String(error));
-    } finally {
-      if (saveButton) saveButton.disabled = false;
-    }
+      if (same(c)) { modal.hide(); window.location.reload(); }
+    } catch (e) { if (same(saved.context)) message(e.message); }
+    finally { saving = false; if (saved === active) { save.disabled = false; select.disabled = false; } }
   });
 })();

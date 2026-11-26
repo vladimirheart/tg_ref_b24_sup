@@ -27,7 +27,7 @@
     <link rel="stylesheet" href="/vendor/bootstrap-icons/1.10.5/bootstrap-icons.css">
     <link rel="stylesheet" th:href="@{/css/style.css(v='20261119-refined-r1')}">
     <script src="/js/dialog-embedded-runtime.js?v=20261123-profile-dialog"></script>
-    <link rel="stylesheet" th:href="@{/css/app.css(v='20261126-dialog-layout-r1')}">
+    <link rel="stylesheet" th:href="@{/css/app.css(v='20261126-operator-r322')}">
 	<link rel="stylesheet" th:href="@{/css/sidebar.css(v='20261119-refined-r1')}">
     <style data-dialogs-first-paint>
         html.dialogs-list-preparing .dialogs-table-card { position: relative; min-height: 14rem; }
@@ -829,6 +829,14 @@
                         <div class="card h-100 dialog-details-history-card">
                             <div class="card-body d-flex flex-column">
                                 <div class="d-flex flex-column chat-history flex-grow-1" id="dialogDetailsHistory"></div>
+                                <details id="dialogInternalChat" class="dialog-internal-chat mt-2">
+                                    <summary>Внутренняя переписка · клиент не видит</summary>
+                                    <div class="small text-muted my-2" data-internal-status aria-live="polite">Клиент не видит внутреннюю переписку.</div>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" data-internal-older hidden>Предыдущие сообщения</button>
+                                    <div class="dialog-internal-thread" data-internal-thread></div>
+                                    <textarea class="form-control mt-2" rows="2" maxlength="10000" aria-label="Внутреннее сообщение операторам" placeholder="Сообщение сотрудникам — клиент его не получит" disabled></textarea>
+                                    <button type="button" class="btn btn-outline-primary btn-sm mt-2" data-internal-send disabled>Отправить сотрудникам</button>
+                                </details>
                                 <div class="dialog-details-composer mt-2">
                                                                         <div class="dialog-composer-panels">
                                         <div class="dialog-template-panel dialog-emoji-panel" id="dialogEmojiPanel">
@@ -1327,7 +1335,8 @@
 <script th:src="@{/js/knowledge-note-content.js(v='20261124-note-viewer')}"></script>
 <script th:src="@{/js/dialogs-details-runtime.js(v='20261126-dialog-layout-r1')}"></script>
 <script th:src="@{/js/dialogs-workspace-runtime.js(v='20261125-employee-preview-r1')}"></script>
-<script th:src="@{/js/dialogs-actions-runtime.js(v='20261124-task-card-r1')}"></script>
+<script th:src="@{/js/dialogs-operator-collaboration.js(v='20261126-operator-r322')}"></script>
+<script th:src="@{/js/dialogs-actions-runtime.js(v='20261126-operator-r322')}"></script>
 <script th:src="@{/js/dialogs-participants-runtime.js(v='20261126-dialog-layout-r1')}"></script>
 <script th:src="@{/js/dialogs-my-dialogs-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-macro-runtime.js(v=${dialogsAssetVersion})}"></script>
@@ -1429,7 +1438,7 @@
                             <label class="form-label" for="dialogLocationBusinessLocation">Локация</label>
                             <select class="form-select" id="dialogLocationBusinessLocation"></select>
                         </div>
-                        <div class="form-text mt-2">Выбор доступен только если бизнес не был определён вопросником. После сохранения бизнес появится в карточке обращения.</div>
+                        <div class="form-text mt-2">Доступны бизнесы с правом работы. При переносе история и анкета сохранятся; ответственный и категории прежнего бизнеса будут сброшены.</div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
@@ -1439,7 +1448,7 @@
             </div>
         </div>
     </div>
-    <script th:src="@{/js/dialogs-business-selection-runtime.js(v='20261117-dialog-entry')}"></script>
+    <script th:src="@{/js/dialogs-business-selection-runtime.js(v='20261126-operator-r322')}"></script>
 
 </body>
 </html>

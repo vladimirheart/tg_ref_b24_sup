@@ -57,13 +57,8 @@ public class ChannelTransportService {
 
     public ResponseEntity<Map<String, Object>> getChannels() {
         List<Channel> channels = channelRepository.findAll();
-        try {
-            if (com.example.panel.security.PanelAccessPolicy.canEdit(
-                    org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication(), "channels"))
-                updateTelegramBotInfoIfMissing(channels);
-        } catch (RuntimeException ex) {
-            log.warn("Failed to refresh Telegram bot info: {}", ex.getMessage());
-        }
+        // A list read must not retain an OSIV connection while waiting for provider HTTP.
+        // Bot metadata is refreshed by the existing explicit create/update operations.
         Map<Long, Map<String, Object>> credentials = buildCredentialIndex(loadBotCredentials());
         List<Map<String, Object>> responseChannels = channels.stream()
                 .map(channel -> toChannelResponse(channel, credentials))

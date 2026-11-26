@@ -2256,6 +2256,32 @@ body[data-ui-page=dialogs] .dialog-sla-timing {
   gap: 0.5rem;
 }
 
+.dialog-internal-chat {
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-md);
+  padding: 0.5rem 0.75rem;
+  flex: 0 0 auto;
+  max-height: 45vh;
+  overflow-y: auto;
+}
+
+.dialog-internal-chat summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.dialog-internal-thread {
+  max-height: 18vh;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+
+.dialog-internal-message {
+  border-bottom: 1px solid var(--color-border);
+  padding: 0.5rem 0;
+}
+
 #dialogDetailsHistory .chat-message-row + .chat-message-row {
   margin-top: 0.35rem;
 }
@@ -3845,13 +3871,13 @@ html.resizing * {
   display: flex;
   align-items: flex-start;
   gap: 0.32rem;
-  width: fit-content;
+  width: max-content;
   max-width: 100%;
 }
 
 #dialogDetailsHistory .chat-message-bubble-line.has-actions > .chat-message {
   flex: 0 1 auto;
-  max-width: calc(100% - 2.1rem);
+  max-width: 100%;
 }
 
 #dialogDetailsHistory .chat-message-bubble-line > .chat-message-menu {

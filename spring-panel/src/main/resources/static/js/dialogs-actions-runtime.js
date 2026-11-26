@@ -258,13 +258,18 @@
       const btn = triggerButton || null;
       if (btn) btn.disabled = true;
       try {
+        let data;
+        if (targetRow?.dataset?.scopeKind === 'BUSINESS') {
+          data = await window.DialogOperatorActions.take(targetRow);
+        } else {
         const resp = await fetch(`/api/dialog-ticket/take?ticketId=${encodeURIComponent(ticketId)}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
         });
-        const data = await resp.json();
+        data = await resp.json();
         if (!resp.ok || !data?.success) {
           throw new Error(data?.error || `Ошибка ${resp.status}`);
+        }
         }
         updateRowResponsible(row || targetRow, data.responsible || '');
         if (exactLegacyTicketId(activeDialogState.ticketId) === exactLegacyTicketId(ticketId)
