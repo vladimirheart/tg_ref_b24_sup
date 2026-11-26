@@ -2584,7 +2584,7 @@
 
   function scheduleDialogsListRefresh(reason = 'sse') {
     if (dialogsSseRefreshTimer) {
-      window.clearTimeout(dialogsSseRefreshTimer);
+      return;
     }
     dialogsSseRefreshTimer = window.setTimeout(() => {
       dialogsSseRefreshTimer = null;
@@ -3723,7 +3723,7 @@
 
   function scheduleHistoryRefresh(reason = 'sse') {
     if (historySseRefreshTimer) {
-      window.clearTimeout(historySseRefreshTimer);
+      return;
     }
     historySseRefreshTimer = window.setTimeout(() => {
       historySseRefreshTimer = null;
@@ -3742,6 +3742,7 @@
       stopDialogsPolling();
       stopHistoryPolling();
       scheduleDialogsListRefresh('sse_connected');
+      if (activeDialogTicketId) scheduleHistoryRefresh('sse_reconnected');
       return;
     }
     startDialogsPolling();
@@ -3753,6 +3754,27 @@
   function handleDialogsChangedEvent(event) {
     const ticketId = exactLegacyTicketId(event?.detail?.ticketId);
     const reason = String(event?.detail?.reason || 'dialogs_changed').trim();
+    if (reason === 'dialog_feedback_created') {
+      const detail = event.detail;
+      const row = findDialogRowByTicketId(ticketId);
+      const rating = Number(detail.rating);
+      if (row && String(row.dataset.ticketPublicId || '') === detail.ticketPublicId
+          && String(row.dataset.businessId || '') === String(detail.businessId || '')
+          && Number.isInteger(rating) && rating >= 1 && rating <= 5 && /^\d+$/.test(String(detail.feedbackVersion || ''))) {
+        if (BigInt(detail.feedbackVersion) <= BigInt(row.dataset.feedbackVersion || '0')) return;
+        row.dataset.feedbackVersion = detail.feedbackVersion; row.dataset.rating = String(rating);
+        const cell = row.querySelector('[data-column-key="status"]');
+        if (cell) {
+          let badge = cell.querySelector('[data-dialog-rating], .text-warning');
+          if (!badge) { badge = document.createElement('div'); badge.className = 'small text-warning'; cell.appendChild(badge); }
+          badge.dataset.dialogRating = ''; badge.textContent = formatRatingStars(rating);
+        }
+        if (ticketId === exactLegacyTicketId(activeDialogTicketId) && detailsRating) {
+          detailsRating.textContent = formatRatingStars(rating); detailsRating.classList.remove('d-none');
+        }
+        return;
+      }
+    }
     scheduleDialogsListRefresh(reason);
     if (ticketId && activeDialogTicketId && ticketId === exactLegacyTicketId(activeDialogTicketId)) {
       scheduleHistoryRefresh(reason);

@@ -14,6 +14,36 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class UiEventStreamFanoutTest {
+    @Test void notificationPublicationWaitsForCommitAndRollbackPublishesNothing() {
+        var publisher=mock(UiEventFanoutPublisher.class);
+        var service=new UiEventStreamService(publisher,uniqueTicketGuard(),mock(UiEventTicketAccessService.class));
+        org.springframework.transaction.support.TransactionSynchronizationManager.initSynchronization();
+        org.springframework.transaction.support.TransactionSynchronizationManager.setActualTransactionActive(true);
+        try {
+            service.publishNotificationsChanged("operator","created");
+            org.mockito.Mockito.verifyNoInteractions(publisher);
+            org.springframework.transaction.support.TransactionSynchronizationUtils.triggerAfterCommit();
+            verify(publisher).publish(eq("operator"),eq("notifications_changed"),any());
+        } finally {org.springframework.transaction.support.TransactionSynchronizationManager.clear();}
+        org.mockito.Mockito.clearInvocations(publisher);
+        org.springframework.transaction.support.TransactionSynchronizationManager.initSynchronization();
+        org.springframework.transaction.support.TransactionSynchronizationManager.setActualTransactionActive(true);
+        try {
+            service.publishNotificationsChanged("operator","rolled_back");
+            org.springframework.transaction.support.TransactionSynchronizationUtils.triggerAfterCompletion(
+                org.springframework.transaction.support.TransactionSynchronization.STATUS_ROLLED_BACK);
+            org.mockito.Mockito.verifyNoInteractions(publisher);
+        } finally {org.springframework.transaction.support.TransactionSynchronizationManager.clear();}
+    }
+    @Test void heartbeatReconcilesSnapshotsEvenWhenAQueueEventWasMissed() {
+        var service=new UiEventStreamService(mock(UiEventFanoutPublisher.class),uniqueTicketGuard(),mock(UiEventTicketAccessService.class));
+        var push=mock(NotificationPushService.class);
+        org.springframework.test.util.ReflectionTestUtils.setField(service,"notificationPush",push);
+        var principal=new com.example.panel.security.PanelUserPrincipal(7,"operator","test",true,java.util.List.of(),3);
+        var auth=org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated(principal,null,principal.getAuthorities());
+        service.connect(auth);service.sendHeartbeat();
+        verify(push,org.mockito.Mockito.times(2)).request(new UiEventRecipient(7,"operator",3));
+    }
 
     @Test
     void dialogsChangedUsesDistributedFanoutEnvelope() {

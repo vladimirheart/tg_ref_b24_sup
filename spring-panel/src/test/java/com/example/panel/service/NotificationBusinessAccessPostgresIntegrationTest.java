@@ -39,6 +39,8 @@ class NotificationBusinessAccessPostgresIntegrationTest extends PostgresqlIntegr
     @Autowired private JdbcTemplate jdbc;
     @Autowired private NotificationService service;
     @Autowired private NotificationRepository repository;
+    @Autowired private NotificationSnapshotReader snapshotReader;
+    @Autowired private DialogFeedbackPushReader feedbackReader;
     @Autowired private MultibusinessFeatureFlags flags;
     @Autowired private MockMvc mvc;
     @MockBean private UiEventStreamService stream;
@@ -65,7 +67,7 @@ class NotificationBusinessAccessPostgresIntegrationTest extends PostgresqlIntegr
     }
 
     @AfterEach
-    void restoreFlags() { flags.setStrictReadScope(false); }
+    void restoreFlags() { flags.setStrictReadScope(false); org.springframework.security.core.context.SecurityContextHolder.clearContext(); }
 
     @Test
     void deliveryAndEveryReadSurfaceRequireTheRecipientsBusinessRead() {
@@ -87,13 +89,45 @@ class NotificationBusinessAccessPostgresIntegrationTest extends PostgresqlIntegr
         assertUnread(hidden);
     }
 
+    @Test
+    void pushedSnapshotUsesCurrentOwnerGrantAccountAndSession() {
+        Owner allowed=owner(businessA,false);
+        service.notifyDialogUsers(allowed.ticketId(),Set.of(viewer),"push-visible","/dialogs");
+        var recipient=new UiEventRecipient(viewerId,viewer,0);
+        var snapshot=snapshotReader.read(recipient);
+        assertThat(snapshot.page().items()).extracting(item->item.text()).containsExactly("push-visible");
+        assertThat(snapshot.unread()).isEqualTo(1);
+        jdbc.update("DELETE FROM business_memberships WHERE user_id=? AND business_id=?",viewerId,businessA);
+        snapshot=snapshotReader.read(recipient);
+        assertThat(snapshot.page().items()).isEmpty();assertThat(snapshot.unread()).isZero();
+        jdbc.update("UPDATE users SET session_version=session_version+1 WHERE id=?",viewerId);
+        org.assertj.core.api.Assertions.assertThatThrownBy(()->snapshotReader.read(recipient))
+            .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+        jdbc.update("UPDATE users SET enabled=FALSE WHERE id=?",viewerId);
+        org.assertj.core.api.Assertions.assertThatThrownBy(()->snapshotReader.read(new UiEventRecipient(viewerId,viewer,1)))
+            .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+    }
+
+    @Test void feedbackPushProjectionRejectsAnObsoleteOwnerAndGeneral() {
+        Owner owner=owner(businessA,false);
+        jdbc.update("INSERT INTO feedbacks(user_id,ticket_id,rating,timestamp) VALUES(?,?,5,CURRENT_TIMESTAMP)",owner.userId(),owner.ticketId());
+        var scope=new UiEventTicketScope(owner.userId(),owner.ticketId(),owner.publicId(),"BUSINESS",businessA);
+        assertThat(feedbackReader.read(scope)).containsEntry("rating",5).containsEntry("ticketPublicId",owner.publicId());
+        jdbc.update("UPDATE tickets SET business_id=? WHERE user_id=? AND ticket_id=?",businessB,owner.userId(),owner.ticketId());
+        assertThat(feedbackReader.read(scope)).isEmpty();
+        Owner general=owner(null,true);
+        assertThat(feedbackReader.read(new UiEventTicketScope(general.userId(),general.ticketId(),general.publicId(),"UNRESOLVED",null))).isEmpty();
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"inactive", "deleted"})
     void membershipRevocationImmediatelyAffectsAnExistingHttpSession(String mutation) throws Exception {
         Owner owner = owner(businessA, false);
         service.notifyDialogUsers(owner.ticketId(), Set.of(viewer), "notice", "/dialogs");
         long id = repository.findAll().get(0).getId();
-        var session = new TestingAuthenticationToken(viewer.toUpperCase(Locale.ROOT), "not-used", "ROLE_ADMIN");
+        var principal=new com.example.panel.security.PanelUserPrincipal(viewerId,viewer,"not-used",true,List.of());
+        var session = org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated(principal,null,principal.getAuthorities());
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(session);
         if ("deleted".equals(mutation)) {
             jdbc.update("DELETE FROM business_memberships WHERE user_id=?", viewerId);
         } else {
@@ -168,15 +202,17 @@ class NotificationBusinessAccessPostgresIntegrationTest extends PostgresqlIntegr
         typed(owner(null, false), "UNRESOLVED", null, OffsetDateTime.now());
         service.notifyUser(viewer, "system", "/settings");
         flags.setStrictReadScope(true);
-        assertThat(service.findForUser(viewer)).hasSize(3);
-        assertThat(service.summary(viewer).unreadCount()).isEqualTo(3);
+        assertThat(service.findForUser(viewer)).extracting(item->item.text()).containsExactly("system","notice","notice","notice");
+        assertThat(service.summary(viewer).unreadCount()).isEqualTo(4);
         jdbc.update("UPDATE business_access_grants SET is_active=FALSE WHERE user_id=?", viewerId);
         clearInvocations(stream);
-        assertThat(service.findForUser(viewer)).isEmpty();
-        assertThat(service.markAllAsRead(viewer)).isZero();
+        // Common system notices remain accessible; revoked business notices remain hidden.
+        assertThat(service.findForUser(viewer)).extracting(item->item.text()).containsExactly("system");
+        assertThat(service.markAllAsRead(viewer)).isEqualTo(1);
         assertThat(service.notifyDialogUsers(owner(future, false).ticketId(), Set.of(viewer), "late", "/dialogs")).isEmpty();
         assertUnread(hiddenGeneral);
-        verifyNoInteractions(stream);
+        org.mockito.Mockito.verify(stream).publishNotificationsChanged(viewer,"notifications_marked_read");
+        org.mockito.Mockito.verifyNoMoreInteractions(stream);
     }
 
     @Test

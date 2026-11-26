@@ -80,7 +80,7 @@ class NotificationApiControllerWebMvcTest {
 
     @Test
     void invalidCursorReturnsBadRequest() throws Exception {
-        when(notificationService.findPageForUser("operator", "bad", 20))
+        when(notificationService.findPageForUser("operator", "bad", 10))
                 .thenThrow(new IllegalArgumentException("bad cursor"));
 
         mockMvc.perform(get("/api/notifications")

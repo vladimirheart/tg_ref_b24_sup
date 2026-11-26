@@ -36,6 +36,7 @@
   let suppressGenericUntil = 0;
   const lastPlayedAt = new Map();
   const knownNotificationIds = new Set();
+  let latestNotificationCategory = CATEGORY.SYSTEM;
   let streamConnected = false;
   let polledDialogs = null;
 
@@ -137,20 +138,6 @@
     suppressGenericUntil = Date.now() + SPECIFIC_SUPPRESSION_MS;
   }
 
-  async function loadLatestNotifications() {
-    try {
-      const response = await fetch('/api/notifications?limit=20', {
-        credentials: 'same-origin',
-        headers: { Accept: 'application/json' },
-      });
-      if (!response.ok) return [];
-      const payload = await response.json();
-      return Array.isArray(payload?.items) ? payload.items : [];
-    } catch (_error) {
-      return [];
-    }
-  }
-
   function rememberNotificationIds(items) {
     items.forEach((item) => {
       const id = String(item?.id || '').trim();
@@ -158,14 +145,14 @@
     });
   }
 
-  async function resolveGenericCategory() {
-    const items = await loadLatestNotifications();
+  function handleNotificationSnapshot(event) {
+    const items = Array.isArray(event?.detail?.items) ? event.detail.items : [];
     const unseenItems = items.filter((item) => {
       const id = String(item?.id || '').trim();
       return id && !knownNotificationIds.has(id);
     });
     rememberNotificationIds(items);
-    return unseenItems.some((item) => isIncidentNotification(item)) ? CATEGORY.INCIDENT : CATEGORY.SYSTEM;
+    latestNotificationCategory = unseenItems.some((item) => isIncidentNotification(item)) ? CATEGORY.INCIDENT : CATEGORY.SYSTEM;
   }
 
   function isIncidentNotification(item) {
@@ -182,7 +169,7 @@
     pendingGenericTimer = window.setTimeout(async () => {
       pendingGenericTimer = 0;
       if (Date.now() < suppressGenericUntil) return;
-      play(await resolveGenericCategory());
+      play(latestNotificationCategory);
     }, GENERIC_DELAY_MS);
   }
 
@@ -191,7 +178,6 @@
     if (!Number.isFinite(count)) return;
     if (lastUnreadCount === null) {
       lastUnreadCount = count;
-      void loadLatestNotifications().then(rememberNotificationIds);
       return;
     }
     if (count > lastUnreadCount) queueGenericSound();
@@ -214,11 +200,9 @@
     if (reason === 'incoming_client_message') {
       cancelGenericSound();
       play(CATEGORY.MESSAGE);
-      window.setTimeout(() => void loadLatestNotifications().then(rememberNotificationIds), GENERIC_DELAY_MS);
     } else if (reason === 'dialog_feedback_created') {
       cancelGenericSound();
       play(CATEGORY.RATING);
-      window.setTimeout(() => void loadLatestNotifications().then(rememberNotificationIds), GENERIC_DELAY_MS);
     }
   }
 
@@ -230,6 +214,7 @@
   });
   updateSoundControls();
   window.addEventListener('iguana:notification-count', handleNotificationCount);
+  window.addEventListener('iguana:notification-snapshot', handleNotificationSnapshot);
   window.addEventListener('iguana:unblock-count', handleUnblockCount);
   window.addEventListener('panel:sse:dialogs_changed', handleDialogEvent);
   window.addEventListener('panel:dialogs-polled', handlePolledDialogs);

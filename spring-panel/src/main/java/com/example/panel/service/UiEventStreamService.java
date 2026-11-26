@@ -20,6 +20,10 @@ public class UiEventStreamService {
 
     @org.springframework.beans.factory.annotation.Autowired
     private SharedWorkAccessService sharedWorkAccess;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private NotificationPushService notificationPush;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private DialogFeedbackPushReader feedbackPush;
     private static final long EMITTER_TIMEOUT_MS = 0L;
 
     private final UiEventFanoutPublisher fanoutPublisher;
@@ -56,6 +60,7 @@ public class UiEventStreamService {
             "connected", true,
             "emittedAt", nowUtc()
         ), null);
+        if(notificationPush!=null)notificationPush.request(recipient);
         return emitter;
     }
 
@@ -124,6 +129,8 @@ public class UiEventStreamService {
     void sendHeartbeat() {
         Map<String, Object> payload = Map.of("emittedAt", nowUtc());
         deliverToAll("ping", payload, null);
+        // Redis pub/sub is not a replay log. Reconcile quietly even after a missed fanout event.
+        if(notificationPush!=null)emittersByUser.keySet().forEach(notificationPush::request);
     }
 
     void deliverFanoutEvent(UiEventFanoutEnvelope envelope) {
@@ -162,8 +169,38 @@ public class UiEventStreamService {
 
     private void publishToUser(String userIdentity, String eventName, Map<String, Object> payload) {
         String identity = normalizeIdentity(userIdentity);
-        if (!fanoutPublisher.publish(identity, eventName, payload)) {
-            deliverToUser(identity, eventName, payload, null);
+        afterCommit(()->{
+            if (!fanoutPublisher.publish(identity, eventName, payload))
+                deliverToUser(identity, eventName, payload, null);
+        });
+    }
+
+    private void afterCommit(Runnable action) {
+        if(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()
+                &&org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive())
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                new org.springframework.transaction.support.TransactionSynchronization(){@Override public void afterCommit(){
+                    try {action.run();}
+                    catch(RuntimeException failure){org.slf4j.LoggerFactory.getLogger(UiEventStreamService.class)
+                        .warn("UI refresh publication failed after commit; reconnect resync remains available");}
+                }});
+        else action.run();
+    }
+
+    boolean hasRecipient(UiEventRecipient recipient){return emittersByUser.containsKey(recipient);}
+    void deliverNotificationSnapshot(UiEventRecipient recipient,Map<String,Object> snapshot) {
+        var emitters=emittersByUser.get(recipient);if(emitters==null)return;
+        for(var emitter:emitters)sendToEmitter(recipient,emitter,"notifications_snapshot",snapshot,null);
+    }
+    void deliverNotificationRefreshRequired(UiEventRecipient recipient) {
+        var emitters=emittersByUser.get(recipient);if(emitters==null)return;
+        for(var emitter:emitters)sendToEmitter(recipient,emitter,"notifications_refresh_required",Map.of("refresh",true),null);
+    }
+    void revokeNotificationRecipient(UiEventRecipient recipient) {
+        var emitters=emittersByUser.get(recipient);if(emitters==null)return;
+        for(var emitter:emitters) {
+            sendToEmitter(recipient,emitter,"session_revoked",Map.of("login",true),null);
+            unregister(recipient,emitter);emitter.complete();
         }
     }
 
@@ -227,6 +264,13 @@ public class UiEventStreamService {
             }
         }
         try {
+            if(scope!=null&&feedbackPush!=null&&"dialog_feedback_created".equals(payload.get("reason"))) {
+                var enriched=new LinkedHashMap<String,Object>(payload);enriched.putAll(feedbackPush.read(scope));payload=enriched;
+            }
+            if("notifications_changed".equals(eventName)&&notificationPush!=null) {
+                notificationPush.request(recipient);
+                var announced=new LinkedHashMap<String,Object>(payload);announced.put("snapshotExpected",true);payload=announced;
+            }
             emitter.send(SseEmitter.event()
                 .name(eventName)
                 .data(payload));

@@ -71,7 +71,7 @@ class NotificationPagingServiceTest {
     }
 
     @Test
-    void pageSizeIsCappedAtTwentyAndInvalidCursorIsRejected() {
+    void pageSizeIsCappedAtTenAndInvalidCursorIsRejected() {
         NotificationRepository repository = mock(NotificationRepository.class);
         NotificationService service = new NotificationService(
                 repository,
@@ -87,7 +87,7 @@ class NotificationPagingServiceTest {
 
         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
         verify(repository).findVisiblePage(eq("operator"), eq(true), pageable.capture());
-        assertThat(pageable.getValue().getPageSize()).isEqualTo(21);
+        assertThat(pageable.getValue().getPageSize()).isEqualTo(11);
         assertThatThrownBy(() -> service.findPageForUser("operator", "not-a-valid-cursor", 20))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Invalid notification cursor");

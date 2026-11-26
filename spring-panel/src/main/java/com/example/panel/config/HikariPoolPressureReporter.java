@@ -27,6 +27,8 @@ public class HikariPoolPressureReporter {
     private static final Logger log = LoggerFactory.getLogger(HikariPoolPressureReporter.class);
 
     private final DataSource dataSource;
+    private long waitingSince;
+    private long lastDump;
 
     public HikariPoolPressureReporter(DataSource dataSource) {
         this.dataSource = dataSource;
@@ -46,6 +48,24 @@ public class HikariPoolPressureReporter {
         int idle = pool.getIdleConnections();
         int total = pool.getTotalConnections();
         int waiting = pool.getThreadsAwaitingConnection();
+        long now=System.nanoTime();
+        if(waiting<=0)waitingSince=0;
+        else {
+            if(waitingSince==0)waitingSince=now;
+            if(now-waitingSince>=java.util.concurrent.TimeUnit.SECONDS.toNanos(15)
+                    &&(lastDump==0||now-lastDump>=java.util.concurrent.TimeUnit.MINUTES.toNanos(5))) {
+                lastDump=now;
+                var dump=new StringBuilder("[DB-POOL] sustained waiting thread dump");
+                for(var info:java.lang.management.ManagementFactory.getThreadMXBean().dumpAllThreads(true,true)) {
+                    if(info==null)continue;
+                    dump.append('\n').append(info.getThreadName()).append(" state=").append(info.getThreadState())
+                        .append(" lockOwner=").append(info.getLockOwnerId());
+                    var stack=info.getStackTrace();
+                    for(int i=0;i<Math.min(32,stack.length);i++)dump.append("\n at ").append(stack[i]);
+                }
+                log.warn("{}",dump);
+            }
+        }
         if (waiting <= 0 && (total <= 0 || active < total)) {
             return;
         }

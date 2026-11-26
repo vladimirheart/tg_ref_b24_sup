@@ -1087,7 +1087,8 @@
 
     async function refreshHistory() {
       const activeDialogState = getActiveDialogState();
-      if (!activeDialogState.ticketId || state.historyLoading) return;
+      if (!activeDialogState.ticketId) return;
+      if (state.historyLoading) { state.historyRefreshQueued = true; return; }
       state.historyLoading = true;
       try {
         const url = buildDialogHistoryApiUrl(activeDialogState.ticketId, activeDialogState.channelId, withChannelParam);
@@ -1098,6 +1099,8 @@
         });
         window.DialogsAuthResponseRuntime?.ensureApiSession(resp);
         const data = await resp.json();
+        const currentDialog = getActiveDialogState();
+        if (currentDialog.ticketId !== activeDialogState.ticketId || currentDialog.channelId !== activeDialogState.channelId) return;
         if (!resp.ok || !data?.success) {
           throw new Error(data?.error || `Ошибка ${resp.status}`);
         }
@@ -1121,6 +1124,9 @@
         // ignore polling errors
       } finally {
         state.historyLoading = false;
+        if (state.historyRefreshQueued) {
+          state.historyRefreshQueued = false; void refreshHistory();
+        }
       }
     }
 

@@ -34,7 +34,7 @@ public class NotificationApiController {
     @GetMapping
     public NotificationPage list(
             @RequestParam(required = false) String cursor,
-            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(defaultValue = "10") int limit,
             Authentication authentication
     ) {
         String identity = resolveIdentity(authentication);

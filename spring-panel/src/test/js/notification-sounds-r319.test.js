@@ -14,7 +14,7 @@ function fixture() {
     querySelector() { return icon; },
     addEventListener(name, fn) { controls[name] = fn; },
   };
-  const state = { resumes: 0, tones: 0, deny: true, now: 5000 };
+  const state = { resumes: 0, tones: 0, deny: true, now: 5000, requests: 0, timers: [] };
   class AudioContext {
     constructor() { this.state = 'suspended'; this.currentTime = 1; this.destination = {}; }
     addEventListener() {}
@@ -25,11 +25,12 @@ function fixture() {
   const window = {
     AudioContext, location: { origin: 'http://10.20.30.40:8080' },
     addEventListener(name, fn, options) { handlers.set(name, { fn, options }); },
-    setTimeout() { return 1; }, clearTimeout() {},
+    setTimeout(fn) { state.timers.push(fn); return state.timers.length; }, clearTimeout() {},
   };
   const document = { visibilityState: 'hidden', querySelectorAll() { return [button]; } };
   class ClockDate extends Date { static now() { return state.now; } }
-  vm.runInNewContext(source, { window, document, Date: ClockDate, Map, Set, URL });
+  const fetch = async () => { state.requests++; return { ok: true, json: async () => ({ items: [] }) }; };
+  vm.runInNewContext(source, { window, document, Date: ClockDate, Map, Set, URL, fetch });
   return { window, document, controls, handlers, state };
 }
 
@@ -87,4 +88,17 @@ test('fallback polling sounds for a new client message but not initial history, 
   assert.equal(f.state.tones, 2);
   poll(0, '2026-11-25T15:20:05Z', 'other-filter');
   assert.equal(f.state.tones, 4, 'active-dialog client message also sounds after read count resets');
+});
+
+test('push supplies the incident sound category without hidden notification requests', async () => {
+  const f=fixture();f.state.deny=false;await f.handlers.get('pointerdown').fn();
+  f.handlers.get('iguana:notification-count').fn({detail:{count:1}});
+  f.handlers.get('iguana:notification-snapshot').fn({detail:{items:[{id:11,url:'/incidents'}]}});
+  f.handlers.get('iguana:notification-count').fn({detail:{count:2}});
+  for(const callback of f.state.timers.splice(0))await callback();
+  assert.equal(f.state.tones,2,'incident uses its specific two-tone pattern');
+  f.state.now+=3000;
+  f.handlers.get('panel:sse:dialogs_changed').fn({detail:{reason:'dialog_feedback_created'}});
+  for(const callback of f.state.timers.splice(0))await callback();
+  assert.equal(f.state.requests,0,'initial count, push, generic sound and rating must not load the inbox');
 });

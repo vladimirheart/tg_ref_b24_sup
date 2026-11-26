@@ -70,7 +70,9 @@ public class PanelDataSourceConfiguration {
     @Bean(name = "transactionManager")
     @Primary
     public PlatformTransactionManager transactionManager(EntityManagerFactory entityManagerFactory) {
-        return new JpaTransactionManager(entityManagerFactory);
+        var manager=new JpaTransactionManager(entityManagerFactory);
+        manager.setJpaDialect(new ReleasingHibernateJpaDialect());
+        return manager;
     }
 
     private static void configureExternalHikari(DataSource dataSource, ConfigurableEnvironment environment) {

@@ -673,12 +673,19 @@
   const NOTIFICATION_READ_ALL_LABEL = '\u041f\u0440\u043e\u0447\u0438\u0442\u0430\u0442\u044c \u0432\u0441\u0435';
   const NOTIFICATION_VISIBLE_READ_DELAY_MS = 2000;
   const NOTIFICATION_VISIBLE_READ_THRESHOLD = 0.6;
-  const NOTIFICATION_PAGE_SIZE = 20;
+  const NOTIFICATION_PAGE_SIZE = 10;
   const NOTIFICATION_LOAD_MORE_THRESHOLD_PX = 48;
   let notificationItems = [];
   let notificationNextCursor = null;
   let notificationHasMore = false;
   let notificationPageLoading = false;
+  let notificationListGeneration = 0;
+  let notificationReloadQueued = false;
+  let notificationRetryAfter = 0;
+  let notificationListFailures = 0;
+  let notificationSnapshot = null;
+  let notificationSnapshotInstance = null;
+  let notificationSnapshotSequence = 0;
   let notificationListReloadTimer = 0;
   let notificationVisibilityObserver = null;
   const notificationVisibleReadTimers = new Map();
@@ -834,7 +841,6 @@
     notificationItems = [];
     notificationNextCursor = null;
     notificationHasMore = false;
-    notificationPageLoading = false;
   }
 
   function formatNotificationTime(value) {
@@ -1001,7 +1007,7 @@
         return;
       }
       await loadNotificationsSafe({ preserveLoaded: notificationItems.length > 0 });
-    }, 180);
+    }, Math.max(180, notificationRetryAfter - Date.now()));
   }
 
   function applyNotificationReadState(itemEl, options = {}) {
@@ -1339,16 +1345,67 @@
     const params = new URLSearchParams();
     params.set('limit', String(NOTIFICATION_PAGE_SIZE));
     if (cursor) params.set('cursor', cursor);
-    const response = await fetch(`/api/notifications?${params.toString()}`, {
-      credentials: 'same-origin',
-      headers: { Accept: 'application/json' },
-    });
-    if (!response.ok) throw new Error('Failed to load notifications');
-    return normalizeNotificationPage(await response.json());
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 15000);
+    try {
+      const response = await fetch(`/api/notifications?${params.toString()}`, {
+        credentials: 'same-origin', signal: controller.signal,
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) throw new Error('Failed to load notifications');
+      return normalizeNotificationPage(await response.json());
+    } finally { window.clearTimeout(timeout); }
+  }
+
+  function applyNotificationCount(newCount) {
+    const previousCount = lastUnreadCount;
+    newCount = Math.max(0, Number(newCount) || 0);
+    setBellCount(newCount);
+    if (hasInitialUnread && newCount > previousCount) {
+      const diff = newCount - previousCount;
+      showNotificationToast(diff === 1 ? NOTIFICATION_TOAST_ONE : `${NOTIFICATION_TOAST_MANY_PREFIX}${diff}`);
+    }
+    lastUnreadCount = newCount; hasInitialUnread = true;
+    window.dispatchEvent(new CustomEvent('iguana:notification-count', {
+      detail: { count: newCount, initialized: true, previousCount },
+    }));
+    if (notificationsOpen) updateNotificationToolbarState(newCount);
+    return previousCount;
+  }
+
+  function applyNotificationSnapshot(detail) {
+    if (!detail || typeof detail.instance !== 'string' || !Number.isSafeInteger(detail.sequence)) return;
+    if (notificationSnapshotInstance === detail.instance && detail.sequence <= notificationSnapshotSequence) return;
+    notificationSnapshotInstance = detail.instance; notificationSnapshotSequence = detail.sequence;
+    const page = normalizeNotificationPage(detail.page);
+    notificationSnapshot = { page, at: Date.now() };
+    notificationListGeneration += 1; // Old HTTP responses may not overwrite newer pushed state.
+    notificationReloadQueued = false;
+    window.dispatchEvent(new CustomEvent('iguana:notification-snapshot', { detail: { items: page.items } }));
+    applyNotificationCount(detail.unread);
+    if (!notificationsOpen) return;
+    const previousScrollTop = bellDropdown.scrollTop;
+    const hadItems = notificationItems.length > 0;
+    notificationItems = mergeNotificationItems(page.items, notificationItems);
+    if (!hadItems) { notificationNextCursor = page.nextCursor; notificationHasMore = page.hasMore; }
+    renderLoadedNotifications();
+    bellDropdown.scrollTop = previousScrollTop;
+    initNotificationVisibilityTracking();
   }
 
   async function loadNotificationsSafe(options = {}) {
     if (!bellDropdown) return;
+    bellDropdown.hidden = false; notificationsOpen = true;
+    if (bellBtn) bellBtn.setAttribute('aria-expanded', 'true');
+    if (notificationSnapshot && Date.now() - notificationSnapshot.at < 30000) {
+      const page = notificationSnapshot.page;
+      notificationItems = options.preserveLoaded ? mergeNotificationItems(page.items, notificationItems) : page.items;
+      if (!options.preserveLoaded) { notificationNextCursor = page.nextCursor; notificationHasMore = page.hasMore; }
+      renderLoadedNotifications(); initNotificationVisibilityTracking(); return;
+    }
+    if (notificationPageLoading) { notificationReloadQueued = true; return; }
+    if (Date.now() < notificationRetryAfter) { scheduleNotificationListReload(); return; }
+    const generation = notificationListGeneration;
     const preserveLoaded = options.preserveLoaded === true && notificationItems.length > 0;
     const previousItems = notificationItems;
     const previousNextCursor = notificationNextCursor;
@@ -1366,7 +1423,8 @@
     requestNotificationsDropdownPosition();
     try {
       const page = await fetchNotificationPage();
-      if (!notificationsOpen) return;
+      if (!notificationsOpen || generation !== notificationListGeneration) return;
+      notificationListFailures = 0; notificationRetryAfter = 0;
       notificationItems = preserveLoaded
         ? mergeNotificationItems(page.items, previousItems)
         : page.items;
@@ -1382,12 +1440,18 @@
       initNotificationVisibilityTracking();
       requestNotificationsDropdownPosition();
     } catch (_error) {
+      if (generation !== notificationListGeneration) return;
+      notificationListFailures = Math.min(4, notificationListFailures + 1);
+      notificationRetryAfter = Date.now() + Math.min(30000, 1000 * (2 ** notificationListFailures));
       if (!preserveLoaded) {
         bellDropdown.innerHTML = `<div class="notif-item text-danger">${NOTIFICATION_LOAD_ERROR_LABEL}</div>`;
         requestNotificationsDropdownPosition();
       }
     } finally {
       notificationPageLoading = false;
+      if (notificationReloadQueued && notificationsOpen) {
+        notificationReloadQueued = false; scheduleNotificationListReload();
+      }
     }
   }
 
@@ -1396,11 +1460,14 @@
       return;
     }
     const cursor = notificationNextCursor;
+    if (Date.now() < notificationRetryAfter) return;
+    const generation = notificationListGeneration;
     const previousScrollTop = bellDropdown.scrollTop;
     notificationPageLoading = true;
     try {
       const page = await fetchNotificationPage(cursor);
-      if (!notificationsOpen || cursor !== notificationNextCursor) return;
+      if (!notificationsOpen || generation !== notificationListGeneration || cursor !== notificationNextCursor) return;
+      notificationListFailures = 0; notificationRetryAfter = 0;
       notificationItems = mergeNotificationItems(notificationItems, page.items);
       notificationNextCursor = page.nextCursor;
       notificationHasMore = page.hasMore;
@@ -1410,8 +1477,13 @@
       requestNotificationsDropdownPosition();
     } catch (_error) {
       // keep the already loaded page set and allow another scroll retry
+      notificationListFailures = Math.min(4, notificationListFailures + 1);
+      notificationRetryAfter = Date.now() + Math.min(30000, 1000 * (2 ** notificationListFailures));
     } finally {
       notificationPageLoading = false;
+      if (notificationReloadQueued && notificationsOpen) {
+        notificationReloadQueued = false; scheduleNotificationListReload();
+      }
     }
   }
 
@@ -1513,6 +1585,8 @@
     resetNotificationVisibilityTracking();
     bellDropdown.hidden = true;
     notificationsOpen = false;
+    notificationListGeneration += 1;
+    notificationReloadQueued = false;
     resetNotificationPageState();
     if (bellBtn) bellBtn.setAttribute('aria-expanded', 'false');
     if (notificationPositionFrame) {
@@ -1523,6 +1597,8 @@
 
   async function updateNotificationCountSafe() {
     if (notificationCountRequest) return notificationCountRequest;
+    const snapshotSequence = notificationSnapshotSequence;
+    const snapshotInstance = notificationSnapshotInstance;
     notificationCountRequest = (async () => {
       try {
         const response = await fetch('/api/notifications/unread_count', {
@@ -1531,19 +1607,9 @@
         });
         if (!response.ok) return false;
         const data = await response.json();
+        if (snapshotSequence !== notificationSnapshotSequence || snapshotInstance !== notificationSnapshotInstance) return true;
         const newCount = Number(data.unread ?? data.count ?? 0);
-        const previousCount = lastUnreadCount;
-        setBellCount(newCount);
-        if (hasInitialUnread && newCount > lastUnreadCount) {
-          const diff = newCount - lastUnreadCount;
-          const message = diff === 1 ? NOTIFICATION_TOAST_ONE : `${NOTIFICATION_TOAST_MANY_PREFIX}${diff}`;
-          showNotificationToast(message);
-        }
-        lastUnreadCount = newCount;
-        hasInitialUnread = true;
-        window.dispatchEvent(new CustomEvent('iguana:notification-count', {
-          detail: { count: newCount, initialized: hasInitialUnread, previousCount },
-        }));
+        const previousCount = applyNotificationCount(newCount);
         if (notificationsOpen && newCount > previousCount) {
           await loadNotificationsSafe({ preserveLoaded: notificationItems.length > 0 });
         } else if (notificationsOpen) {
@@ -1560,6 +1626,7 @@
   }
 
   function requestNotificationRefresh() {
+    if (panelEventsConnected && notificationSnapshot) return Promise.resolve(true);
     return updateNotificationCountSafe();
   }
 
@@ -1818,6 +1885,8 @@
         setPanelEventsConnected(true);
       });
       source.addEventListener('connected', (event) => {
+        notificationSnapshot = null;
+        notificationSnapshotInstance = null; notificationSnapshotSequence = 0;
         panelSessionProbeAttempted = false;
         setPanelEventsConnected(true);
         dispatchPanelSseEvent('connected', parseSsePayload(event));
@@ -1825,8 +1894,17 @@
       source.addEventListener('notifications_changed', (event) => {
         const detail = parseSsePayload(event);
         setPanelEventsConnected(true);
-        requestNotificationRefresh();
+        if (detail?.snapshotExpected !== true) requestNotificationRefresh();
         dispatchPanelSseEvent('notifications_changed', detail);
+      });
+      source.addEventListener('notifications_snapshot', (event) => {
+        setPanelEventsConnected(true);
+        applyNotificationSnapshot(parseSsePayload(event));
+      });
+      source.addEventListener('notifications_refresh_required', () => {
+        notificationSnapshot = null;
+        void updateNotificationCountSafe();
+        if (notificationsOpen) scheduleNotificationListReload();
       });
       source.addEventListener('sidebar_unblock_changed', (event) => {
         const detail = parseSsePayload(event);

@@ -130,6 +130,7 @@ public class NotificationService {
 
     @Transactional
     public List<NotificationDto> findForUser(String userIdentity) {
+        disableNotificationJit();
         String identity = normalizeIdentity(userIdentity);
         var scope=workScope(identity);
         return (scope==null?notificationRepository.findVisibleForUser(identity,allowLegacyNotifications()):
@@ -140,6 +141,7 @@ public class NotificationService {
 
     @Transactional
     public NotificationPage findPageForUser(String userIdentity, String cursor, int requestedLimit) {
+        disableNotificationJit();
         String identity = normalizeIdentity(userIdentity);
         int limit = normalizeNotificationPageLimit(requestedLimit);
         NotificationCursor decodedCursor = decodeNotificationCursor(cursor);
@@ -167,9 +169,9 @@ public class NotificationService {
 
     private int normalizeNotificationPageLimit(int requestedLimit) {
         if (requestedLimit <= 0) {
-            return 20;
+            return 10;
         }
-        return Math.min(requestedLimit, 20);
+        return Math.min(requestedLimit, 10);
     }
 
     private String encodeNotificationCursor(Notification notification) {
@@ -179,6 +181,13 @@ public class NotificationService {
         String raw = notification.getCreatedAt() + "|" + notification.getId();
         return java.util.Base64.getUrlEncoder().withoutPadding()
                 .encodeToString(raw.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private void disableNotificationJit() {
+        // PostgreSQL-only runtime. SET LOCAL expires with this transaction.
+        // Access SQL and its row/owner checks are unchanged.
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive())
+            jdbcTemplate.execute("SET LOCAL jit=off");
     }
 
     private NotificationCursor decodeNotificationCursor(String cursor) {
@@ -207,6 +216,7 @@ public class NotificationService {
 
     @Transactional
     public NotificationSummary summary(String userIdentity) {
+        disableNotificationJit();
         String identity = normalizeIdentity(userIdentity);
         var scope=workScope(identity);
         long unread = scope==null?notificationRepository.countVisibleUnread(identity,allowLegacyNotifications()):

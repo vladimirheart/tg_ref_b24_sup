@@ -41,5 +41,5 @@ assert.equal(context.normalizeNotificationItem({source:'dialogs',url:'/dialogs',
 assert.equal(context.notificationSource({url:'/dialogsevil'}),'system');
 assert(context.renderNotificationItems([], 'Пусто', 0).includes('Пусто'));
 const template = fs.readFileSync(path.resolve(__dirname,'../../main/resources/templates/fragments/navbar.html'),'utf8');
-assert(template.includes("sidebar.js(v='20261125-notification-sources-r317')"));
+assert(template.includes("sidebar.js(v='20261126-notification-push-r326')"));
 console.log('NOTIFICATION_SOURCES_R317=GREEN;SOURCES=7;UNTRUSTED_SOURCES=4');
