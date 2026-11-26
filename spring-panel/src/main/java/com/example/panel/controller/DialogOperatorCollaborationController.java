@@ -75,6 +75,13 @@ public class DialogOperatorCollaborationController {
     private DialogOperatorCollaborationService.Context find(String publicId,Authentication auth) {
         return collaboration.find(publicId,auth).orElseThrow(()->error(HttpStatus.NOT_FOUND));
     }
+    @PostMapping("/internal-messages/read")
+    public ResponseEntity<?> markRead(@PathVariable String publicId,@RequestBody Command command,Authentication auth) {
+        var state=find(publicId,auth);
+        if(!matches(publicId,command,state.scope())
+            ||!collaboration.markRead(state,auth,decimal(command.lastReadId(),true)))throw error(HttpStatus.CONFLICT);
+        return ok(Map.of("success",true));
+    }
     private boolean matches(String publicId,Command c,UiEventTicketScope s) {
         return c!=null&&Objects.equals(publicId,c.ticketPublicId())&&Objects.equals(c.ticketId(),s.ticketId())
             &&Objects.equals(c.userId(),Long.toString(s.ticketUserId()))
@@ -95,6 +102,6 @@ public class DialogOperatorCollaborationController {
     }
     private ResponseEntity<?> ok(Object body){return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(body);}
     public record Command(String userId,String ticketId,String ticketPublicId,String scopeKind,String businessId,
-            String revision,String businessTargetId,String requestId,String body) {}
+            String revision,String businessTargetId,String requestId,String body,String lastReadId) {}
 }
 

@@ -2275,11 +2275,46 @@ body[data-ui-page=dialogs] .dialog-sla-timing {
   max-height: 18vh;
   overflow: auto;
   overflow-wrap: anywhere;
+  overscroll-behavior: contain;
 }
 
 .dialog-internal-message {
   border-bottom: 1px solid var(--color-border);
   padding: 0.5rem 0;
+}
+
+.dialog-internal-body {
+  white-space: pre-wrap;
+}
+
+.dialog-internal-chat {
+  overscroll-behavior: contain;
+}
+
+.dialog-internal-emojis:not([hidden]) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  max-height: 8rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.dialog-internal-emoji {
+  border: 0;
+  background: transparent;
+  padding: 0.25rem;
+  font-size: 1.25rem;
+  border-radius: var(--radius-md);
+}
+
+.dialog-internal-emoji:hover {
+  background: var(--surface-interactive);
+}
+
+html:has(#dialogDetailsModal.show), body:has(#dialogDetailsModal.show) {
+  overflow: hidden !important;
+  overscroll-behavior: none;
 }
 
 #dialogDetailsHistory .chat-message-row + .chat-message-row {

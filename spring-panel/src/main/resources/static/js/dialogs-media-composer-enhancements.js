@@ -527,6 +527,7 @@
     initialize,
     readSendMode,
     saveSendMode,
+    installSendModeControl,
   };
 
   if (document.readyState === 'loading') {

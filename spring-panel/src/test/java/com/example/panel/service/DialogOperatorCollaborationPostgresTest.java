@@ -21,7 +21,7 @@ class DialogOperatorCollaborationPostgresTest {
     @BeforeEach void setup() throws Exception {
         jdbc=PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType("operator_collaboration");
         jdbc.execute("""
-            CREATE TABLE users(id BIGINT PRIMARY KEY,username TEXT,enabled BOOLEAN DEFAULT TRUE,is_blocked BOOLEAN DEFAULT FALSE);
+            CREATE TABLE users(id BIGINT PRIMARY KEY,username TEXT,full_name TEXT,enabled BOOLEAN DEFAULT TRUE,is_blocked BOOLEAN DEFAULT FALSE);
             CREATE TABLE businesses(id BIGINT PRIMARY KEY,status TEXT DEFAULT 'active',display_name TEXT);
             CREATE TABLE business_memberships(user_id BIGINT,business_id BIGINT,role_code TEXT,is_active BOOLEAN DEFAULT TRUE);
             CREATE TABLE business_access_grants(user_id BIGINT,grant_scope TEXT,role_code TEXT,is_active BOOLEAN DEFAULT TRUE);
@@ -38,7 +38,7 @@ class DialogOperatorCollaborationPostgresTest {
             INSERT INTO business_memberships(user_id,business_id,role_code) VALUES(1,11,'OPERATOR'),(1,22,'OPERATOR'),(2,11,'VIEWER'),(3,22,'ADMIN');
             """);
         for(String migration:List.of("V77__scoped_sla_assignment_revision.sql","V78__business_manual_assignment_events.sql",
-                "V81__business_ticket_manual_work.sql","V106__dialog_operator_collaboration.sql"))
+                "V81__business_ticket_manual_work.sql","V106__dialog_operator_collaboration.sql","V107__dialog_internal_read_markers.sql"))
             jdbc.execute(Files.readString(Path.of("src/main/resources/db/migration/postgresql/"+migration)));
         jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,business_id,channel_id,status) VALUES(-42,?,?,11,9,'open')",raw,pub);
         flags=new MultibusinessFeatureFlags();flags.getFoundation().setEnabled(true);flags.setUiSelector(true);flags.setGeneralTicketQueue(true);
@@ -159,6 +159,43 @@ class DialogOperatorCollaborationPostgresTest {
             assertThat(a.get(15,TimeUnit.SECONDS)).isTrue();assertThat(b.get(15,TimeUnit.SECONDS)).isTrue();
             assertThat(jdbc.queryForObject("SELECT count(*) FROM dialog_internal_messages",Long.class)).isEqualTo(1);
         } finally {pool.shutdownNow();}
+    }
+    @Test void authorNameUsesTheNumericEmployeeProfileWithSnapshotLoginFallback() {
+        assertThat(service.post(context(),operator(),UUID.randomUUID(),"Internal")).isTrue();
+        jdbc.update("UPDATE users SET full_name=' Иван Иванов ',username='Renamed' WHERE id=1");
+        var message=service.messages(pub,auth(2,"viewer"),0).get(0);
+        assertThat(message.authorName()).isEqualTo("Иван Иванов");
+        assertThat(message.author()).isEqualTo("Operator");
+        jdbc.update("UPDATE users SET full_name='   ' WHERE id=1");
+        assertThat(service.messages(pub,auth(2,"viewer"),0).get(0).authorName()).isEqualTo("Operator");
+    }
+    @Test void personalReadMarkerExcludesOwnMessagesAndNeverMarksLaterMessages() {
+        assertThat(service.post(context(),operator(),UUID.randomUUID(),"First")).isTrue();
+        long first=Long.parseLong(service.messages(pub,auth(2,"viewer"),0).get(0).id());
+        assertThat(service.unread(List.of(pub),operator()).get(0).unreadCount()).isEqualTo("0");
+        assertThat(service.unread(List.of(pub),auth(2,"viewer")).get(0).unreadCount()).isEqualTo("1");
+        var viewer=service.find(pub,auth(2,"viewer")).orElseThrow();
+        assertThat(service.markRead(viewer,auth(2,"viewer"),first)).isTrue();
+        assertThat(service.post(context(),operator(),UUID.randomUUID(),"Second")).isTrue();
+        assertThat(service.markRead(viewer,auth(2,"viewer"),first)).isTrue();
+        assertThat(service.unread(List.of(pub),auth(2,"viewer")).get(0).unreadCount()).isEqualTo("1");
+        long second=Long.parseLong(service.messages(pub,auth(2,"viewer"),0).get(0).id());
+        assertThat(service.markRead(viewer,auth(2,"viewer"),second)).isTrue();
+        assertThat(service.markRead(viewer,auth(2,"viewer"),first)).isTrue();
+        assertThat(service.unread(List.of(pub),auth(2,"viewer")).get(0).unreadCount()).isEqualTo("0");
+        assertThat(jdbc.queryForObject("SELECT last_read_id FROM dialog_internal_read_markers",Long.class)).isEqualTo(second);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM ui_event_outbox",Long.class)).isZero();
+    }
+    @Test void readMarkerCannotUseFutureForeignOwnerOrRevokedRead() {
+        assertThat(service.post(context(),operator(),UUID.randomUUID(),"Source")).isTrue();
+        var viewer=service.find(pub,auth(2,"viewer")).orElseThrow();
+        long id=Long.parseLong(service.messages(pub,auth(2,"viewer"),0).get(0).id());
+        assertThat(service.markRead(viewer,auth(2,"viewer"),id+1)).isFalse();
+        assertThat(service.unread(List.of(pub),auth(3,"foreign"))).isEmpty();
+        jdbc.update("UPDATE business_memberships SET is_active=FALSE WHERE user_id=2");
+        assertThat(service.markRead(viewer,auth(2,"viewer"),id)).isFalse();
+        assertThat(service.unread(List.of(pub),auth(2,"viewer"))).isEmpty();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM dialog_internal_read_markers",Long.class)).isZero();
     }
 }
 

@@ -97,5 +97,15 @@ class DialogOperatorCollaborationControllerWebMvcTest {
             .andExpect(status().isNotFound());
         verify(collaboration,never()).messages(any(),any(),anyLong());
     }
+    @Test void readAcknowledgementUsesExactOwnerAndReadPermissionRatherThanOperate() throws Exception {
+        state=new DialogOperatorCollaborationService.Context(scope,7,"open",false);
+        when(collaboration.find(eq(pub),any())).thenReturn(Optional.of(state));
+        when(collaboration.markRead(eq(state),any(),eq(99L))).thenReturn(true);
+        mvc.perform(post(base+"/internal-messages/read").with(user("viewer").authorities(()->"PAGE_DIALOGS")).with(csrf())
+            .contentType(MediaType.APPLICATION_JSON).content(body(",\"lastReadId\":\"99\"")))
+            .andExpect(status().isOk());
+        mvc.perform(post(base+"/internal-messages/read").with(user("viewer").authorities(()->"PAGE_DIALOGS"))
+            .contentType(MediaType.APPLICATION_JSON).content(body(",\"lastReadId\":\"99\""))).andExpect(status().isForbidden());
+    }
 }
 

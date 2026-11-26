@@ -74,14 +74,16 @@ public class DialogOperatorCollaborationService {
         var args=args(publicId,auth);
         if(args==null)return List.of();
         return jdbc.query("""
-            SELECT entry.id,entry.author_user_id,entry.author,entry.body,entry.created_at
+            SELECT entry.id,entry.author_user_id,entry.author,entry.body,entry.created_at,
+                COALESCE(NULLIF(btrim(author_account.full_name),''),entry.author) AS author_name
             """+FROM+"""
             JOIN dialog_internal_messages entry ON entry.ticket_user_id=owner.user_id
                 AND entry.ticket_id=owner.ticket_id AND entry.ticket_public_id=owner.ticket_public_id
+            LEFT JOIN users author_account ON author_account.id=entry.author_user_id
             WHERE
             """+ROOT+READ+" AND (:before=0 OR entry.id<:before) ORDER BY entry.id DESC LIMIT 50",
             args.addValue("before",before),(rs,row)->new Message(Long.toString(rs.getLong("id")),
-                Long.toString(rs.getLong("author_user_id")),rs.getString("author"),rs.getString("body"),
+                Long.toString(rs.getLong("author_user_id")),rs.getString("author"),rs.getString("author_name"),rs.getString("body"),
                 rs.getObject("created_at",OffsetDateTime.class)));
     }
     public boolean post(Context expected,Authentication auth,UUID requestId,String body) {
@@ -171,6 +173,53 @@ public class DialogOperatorCollaborationService {
             .addValue("identity",actor.getUsername().toLowerCase(Locale.ROOT)).addValue("generalQueue",flags.isGeneralTicketQueue());
     }
     public record Context(UiEventTicketScope scope,long revision,String status,boolean canWrite){}
-    public record Message(String id,String authorId,String author,String body,OffsetDateTime createdAt){}
+    public record Message(String id,String authorId,String author,String authorName,String body,OffsetDateTime createdAt){}
+
+    public List<Unread> unread(List<String> publicIds,Authentication auth) {
+        if(publicIds==null||publicIds.isEmpty()||publicIds.size()>100
+            ||publicIds.stream().anyMatch(id->id==null||!id.matches("[a-f0-9]{32}")))return List.of();
+        var args=args(publicIds.get(0),auth);
+        if(args==null)return List.of();
+        return jdbc.query("""
+            SELECT owner.ticket_public_id,
+              (SELECT count(*) FROM dialog_internal_messages entry
+                WHERE entry.ticket_user_id=owner.user_id AND entry.ticket_id=owner.ticket_id
+                  AND entry.ticket_public_id=owner.ticket_public_id AND entry.author_user_id<>actor.id
+                  AND entry.id>COALESCE((SELECT marker.last_read_id FROM dialog_internal_read_markers marker
+                    WHERE marker.user_id=actor.id AND marker.ticket_user_id=owner.user_id
+                      AND marker.ticket_id=owner.ticket_id AND marker.ticket_public_id=owner.ticket_public_id),0)) AS unread_count,
+              (SELECT COALESCE(max(entry.id),0) FROM dialog_internal_messages entry
+                WHERE entry.ticket_user_id=owner.user_id AND entry.ticket_id=owner.ticket_id
+                  AND entry.ticket_public_id=owner.ticket_public_id) AS latest_id
+            """+FROM+" WHERE "+ROOT.replace("owner.ticket_public_id=:public","owner.ticket_public_id IN (:publicIds)")+READ,
+            args.addValue("publicIds",publicIds.stream().distinct().toList()),
+            (rs,row)->new Unread(rs.getString("ticket_public_id"),Long.toString(rs.getLong("unread_count")),Long.toString(rs.getLong("latest_id"))));
+    }
+    public boolean markRead(Context expected,Authentication auth,long messageId) {
+        if(expected==null||messageId<=0)return false;
+        var args=args(expected.scope().ticketPublicId(),auth);
+        if(args==null)return false;
+        return Boolean.TRUE.equals(transaction.execute(tx->{
+            guard.acquire(expected.scope().ticketId());
+            var current=context(args,true).orElse(null);
+            if(current==null||!current.scope().equals(expected.scope()))return false;
+            lockGrants(args);
+            if(current.scope().businessId()!=null)jdbc.query("SELECT id FROM businesses WHERE id=:source FOR SHARE",
+                args.addValue("source",current.scope().businessId()),(rs,row)->rs.getLong(1));
+            return jdbc.update("""
+                INSERT INTO dialog_internal_read_markers AS marker(user_id,ticket_user_id,ticket_id,ticket_public_id,last_read_id)
+                SELECT actor.id,owner.user_id,owner.ticket_id,owner.ticket_public_id,seen.id
+                """+FROM+"""
+                JOIN dialog_internal_messages seen ON seen.ticket_user_id=owner.user_id AND seen.ticket_id=owner.ticket_id
+                  AND seen.ticket_public_id=owner.ticket_public_id AND seen.id=:seen
+                WHERE
+                """+ROOT+READ+"""
+                ON CONFLICT(user_id,ticket_public_id) DO UPDATE
+                  SET last_read_id=GREATEST(marker.last_read_id,EXCLUDED.last_read_id),updated_at=CURRENT_TIMESTAMP
+                  WHERE marker.ticket_user_id=EXCLUDED.ticket_user_id AND marker.ticket_id=EXCLUDED.ticket_id
+                """,args.addValue("seen",messageId))==1;
+        }));
+    }
+    public record Unread(String ticketPublicId,String unreadCount,String latestId){}
 }
 
