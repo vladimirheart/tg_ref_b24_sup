@@ -38,7 +38,7 @@ class DialogOperatorCollaborationPostgresTest {
             INSERT INTO business_memberships(user_id,business_id,role_code) VALUES(1,11,'OPERATOR'),(1,22,'OPERATOR'),(2,11,'VIEWER'),(3,22,'ADMIN');
             """);
         for(String migration:List.of("V77__scoped_sla_assignment_revision.sql","V78__business_manual_assignment_events.sql",
-                "V81__business_ticket_manual_work.sql","V106__dialog_operator_collaboration.sql","V107__dialog_internal_read_markers.sql"))
+                "V81__business_ticket_manual_work.sql","V106__dialog_operator_collaboration.sql","V107__dialog_internal_read_markers.sql","V108__dialog_internal_attachments.sql"))
             jdbc.execute(Files.readString(Path.of("src/main/resources/db/migration/postgresql/"+migration)));
         jdbc.update("INSERT INTO tickets(user_id,ticket_id,ticket_public_id,business_id,channel_id,status) VALUES(-42,?,?,11,9,'open')",raw,pub);
         flags=new MultibusinessFeatureFlags();flags.getFoundation().setEnabled(true);flags.setUiSelector(true);flags.setGeneralTicketQueue(true);

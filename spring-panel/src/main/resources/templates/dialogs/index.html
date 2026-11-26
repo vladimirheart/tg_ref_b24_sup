@@ -27,7 +27,7 @@
     <link rel="stylesheet" href="/vendor/bootstrap-icons/1.10.5/bootstrap-icons.css">
     <link rel="stylesheet" th:href="@{/css/style.css(v='20261119-refined-r1')}">
     <script src="/js/dialog-embedded-runtime.js?v=20261123-profile-dialog"></script>
-    <link rel="stylesheet" th:href="@{/css/app.css(v='20261126-internal-r323')}">
+    <link rel="stylesheet" th:href="@{/css/app.css(v='20261126-internal-files-r324')}">
 	<link rel="stylesheet" th:href="@{/css/sidebar.css(v='20261119-refined-r1')}">
     <style data-dialogs-first-paint>
         html.dialogs-list-preparing .dialogs-table-card { position: relative; min-height: 14rem; }
@@ -841,10 +841,13 @@
                                             <textarea class="form-control" id="dialogInternalText" rows="2" maxlength="10000" aria-label="Внутреннее сообщение операторам" placeholder="Сообщение сотрудникам…" disabled></textarea>
                                             <div class="dialog-composer-overlay">
                                                 <button type="button" class="dialog-template-icon" data-internal-emoji-toggle aria-label="Добавить эмодзи во внутреннее сообщение" aria-expanded="false" disabled>☺</button>
+                                                <button type="button" class="dialog-template-icon" data-internal-attach aria-label="Прикрепить файлы сотрудникам" title="Прикрепить файлы" disabled>📎</button>
                                             </div>
                                         </div>
                                         <button type="button" class="btn btn-primary dialog-reply-send-icon" id="dialogInternalSend" data-internal-send aria-label="Отправить сотрудникам" title="Отправить сотрудникам" disabled><i class="bi bi-send-fill" aria-hidden="true"></i></button>
                                     </div>
+                                    <input type="file" data-internal-files class="d-none" multiple disabled>
+                                    <div class="dialog-internal-file-preview mt-2" data-internal-file-preview hidden></div>
                                 </details>
                                 <div class="dialog-details-composer mt-2">
                                                                         <div class="dialog-composer-panels">
@@ -1344,7 +1347,7 @@
 <script th:src="@{/js/knowledge-note-content.js(v='20261124-note-viewer')}"></script>
 <script th:src="@{/js/dialogs-details-runtime.js(v='20261126-dialog-layout-r1')}"></script>
 <script th:src="@{/js/dialogs-workspace-runtime.js(v='20261125-employee-preview-r1')}"></script>
-<script th:src="@{/js/dialogs-operator-collaboration.js(v='20261126-internal-r323')}"></script>
+<script th:src="@{/js/dialogs-operator-collaboration.js(v='20261126-internal-files-r324')}"></script>
 <script th:src="@{/js/dialogs-actions-runtime.js(v='20261126-operator-r322')}"></script>
 <script th:src="@{/js/dialogs-participants-runtime.js(v='20261126-dialog-layout-r1')}"></script>
 <script th:src="@{/js/dialogs-my-dialogs-runtime.js(v=${dialogsAssetVersion})}"></script>

@@ -82,7 +82,7 @@ public class DialogOperatorCollaborationController {
             ||!collaboration.markRead(state,auth,decimal(command.lastReadId(),true)))throw error(HttpStatus.CONFLICT);
         return ok(Map.of("success",true));
     }
-    private boolean matches(String publicId,Command c,UiEventTicketScope s) {
+    static boolean matches(String publicId,Command c,UiEventTicketScope s) {
         return c!=null&&Objects.equals(publicId,c.ticketPublicId())&&Objects.equals(c.ticketId(),s.ticketId())
             &&Objects.equals(c.userId(),Long.toString(s.ticketUserId()))
             &&Objects.equals(c.businessId(),s.businessId()==null?"":Long.toString(s.businessId()))

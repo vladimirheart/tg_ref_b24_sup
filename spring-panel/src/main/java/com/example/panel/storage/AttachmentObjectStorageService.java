@@ -167,6 +167,16 @@ public class AttachmentObjectStorageService {
         return storeBinary(attachmentsRoot.resolve("task_attachments"), normalizeStorageKey(key), "task_attachments", contentType, inputStream);
     }
 
+    public StoredBinary storeInternalDialogAttachment(String key,String contentType,InputStream input) throws IOException {
+        return storeBinary(attachmentsRoot.resolve("internal_dialogs"),normalizeStorageKey(key),"internal_dialogs",contentType,input);
+    }
+    public StoredBinary openInternalDialogAttachment(String key) throws IOException {
+        return openBinary(attachmentsRoot.resolve("internal_dialogs"),normalizeStorageKey(key),"internal_dialogs");
+    }
+    public void deleteInternalDialogAttachment(String key) throws IOException {
+        deleteBinary(attachmentsRoot.resolve("internal_dialogs"),normalizeStorageKey(key),"internal_dialogs");
+    }
+
     public StoredBinary openTaskAttachment(String key) throws IOException {
         return openBinary(attachmentsRoot.resolve("task_attachments"), normalizeStorageKey(key), "task_attachments");
     }

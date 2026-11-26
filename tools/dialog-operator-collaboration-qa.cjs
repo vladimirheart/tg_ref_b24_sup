@@ -28,13 +28,35 @@ async function main(){
     createdAt:'2026-11-26T08:00:00Z',createdDate:'2026-11-26',createdTime:'11:00'};
    const writes=[],errors=[],messages=Array.from({length:12},(_,n)=>({id:String(n+1),authorId:'2',author:'login',
     authorName:'Иван Иванов',body:'Внутреннее '+(n+1)+'\n'+'Строка\n'.repeat(3),createdAt:new Date().toISOString()}));
-   let legacy=0,canWrite=true,conflict=false,lastRead=0;
+   let legacy=0,canWrite=true,conflict=false,lastRead=0,fileConflict=false;
+   const binaries=new Map();
+   const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jD1sAAAAASUVORK5CYII=','base64');
    page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());
    await context.route('**/*',async route=>{
     const req=route.request(),url=new URL(req.url());
     if(url.origin!==origin)return route.abort();
     if(!url.pathname.startsWith('/api/'))return route.continue();
     const suffix=url.pathname.split('/api/operator-dialogs/'+pub)[1];
+    if(suffix==='/internal-messages/files'){
+     const form=await new Response(req.postDataBuffer(),{headers:{'Content-Type':req.headers()['content-type']}}).formData();
+     const command=JSON.parse(await form.get('command').text()),parts=form.getAll('files');
+     assert.deepEqual(Object.fromEntries(Object.keys(owner).map(k=>[k,command[k]])),owner);
+     const uploaded=[];
+     for(const file of parts){
+      const id=require('node:crypto').randomUUID(),bytes=Buffer.from(await file.arrayBuffer());
+      uploaded.push({id,name:file.name,mimeType:file.type,size:String(bytes.length)});
+      if(!fileConflict)binaries.set(id,{bytes,type:file.type});
+     }
+     writes.push({kind:'internal-files',body:command,attachments:uploaded});
+     if(fileConflict)return route.fulfill({status:409,json:{}});
+     messages.push({id:String(messages.length+1),authorId:'1',author:'Оператор',body:command.body,
+      attachments:uploaded,createdAt:new Date().toISOString()});
+     return route.fulfill({json:{success:true}});
+    }
+    if(suffix?.startsWith('/internal-messages/attachments/')){
+     const id=suffix.split('/').at(-1),file=binaries.get(id);
+     assert(file,'Unknown internal binary');return route.fulfill({body:file.bytes,contentType:file.type,headers:{'Cache-Control':'no-store'}});
+    }
     if(url.pathname==='/api/operator-dialog-unread')return route.fulfill({json:{items:[{ticketPublicId:pub,
      unreadCount:String(messages.filter(m=>Number(m.id)>lastRead&&m.authorId!=='1').length),latestId:String(messages.length)}]}});
     if(suffix==='/internal-messages/read'){
@@ -107,9 +129,35 @@ async function main(){
    assert.equal(await internal.locator('.dialog-internal-message script').count(),0);
    assert.equal(writes.filter(w=>w.kind==='internal').length,2);
    assert.match(writes.find(w=>w.kind==='internal').body.requestId,/^[a-f0-9-]{36}$/);
+   const chooser=page.waitForEvent('filechooser');await internal.locator('[data-internal-attach]').click();
+   await (await chooser).setFiles([{name:'remove.txt',mimeType:'text/plain',buffer:Buffer.from('Remove me')},{name:'photo.png',mimeType:'image/png',buffer:png}]);
+   await internal.locator('textarea').evaluate((el,bytes)=>{
+    const transfer=new DataTransfer();transfer.items.add(new File([new Uint8Array(bytes)],'paste.png',{type:'image/png'}));
+    el.dispatchEvent(new ClipboardEvent('paste',{clipboardData:transfer,bubbles:true,cancelable:true}));
+   },[...png]);
+   const drop=await page.evaluateHandle(()=>{const data=new DataTransfer();data.items.add(new File(['Private dropped file'],'drop.txt',{type:'text/plain'}));return data;});
+   await internal.dispatchEvent('dragover',{dataTransfer:drop});await internal.dispatchEvent('drop',{dataTransfer:drop});
+   assert.equal(await internal.locator('.dialog-internal-pending-file').count(),4);
+   await internal.getByRole('button',{name:'Убрать remove.txt',exact:true}).click();
+   assert.equal(await internal.locator('.dialog-internal-pending-file').count(),3);
+   await internal.locator('textarea').fill('');fileConflict=true;await internal.locator('textarea').press('Enter');
+   await page.waitForFunction(()=>document.querySelector('[data-internal-status]').textContent.includes('вложения сохранены'));
+   assert.equal(await internal.locator('.dialog-internal-pending-file').count(),3);
+   const retryId=writes.filter(w=>w.kind==='internal-files').at(-1).body.requestId;
+   fileConflict=false;await internal.locator('[data-internal-send]').click();
+   await internal.locator('[data-internal-file-preview]').waitFor({state:'hidden'});
+   assert.equal(writes.filter(w=>w.kind==='internal-files').at(-1).body.requestId,retryId);
+   assert.equal(writes.filter(w=>w.kind==='internal-files').at(-1).body.body,'');
+   assert.equal(writes.filter(w=>w.kind==='internal-files').at(-1).attachments.length,3);
+   const download=internal.locator('.dialog-internal-file a[download]').filter({hasText:'drop.txt'});
+   const href=await download.getAttribute('href');assert(href.startsWith('/api/operator-dialogs/'+pub+'/internal-messages/attachments/'));
+   assert.equal(await page.evaluate(async url=>await(await fetch(url)).text(),href),'Private dropped file');
+   assert.equal(await page.locator('#dialogReplyText').inputValue(),'Черновик клиенту');
+   await internal.locator('.dialog-internal-file img').first().evaluate(el=>{el.dataset.playbackSentinel='preserved';});
    messages.push({id:String(messages.length+1),authorId:'2',author:'login',authorName:'Иван Иванов',
     body:'Новое входящее внутреннее',createdAt:new Date().toISOString()});
    await page.waitForFunction(()=>document.querySelector('[data-internal-thread]').textContent.includes('Новое входящее внутреннее'));
+   assert.equal(await internal.locator('.dialog-internal-file img').first().getAttribute('data-playback-sentinel'),'preserved','Polling retains existing media nodes');
    assert(await internal.locator('[data-internal-thread]').evaluate(el=>el.scrollHeight-el.clientHeight-el.scrollTop<22));
    await internal.locator('[data-internal-thread]').evaluate(el=>{el.scrollTop=0;});
    messages.push({id:String(messages.length+1),authorId:'2',author:'login',authorName:'Иван Иванов',

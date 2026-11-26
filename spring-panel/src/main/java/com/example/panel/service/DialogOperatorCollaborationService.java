@@ -73,7 +73,7 @@ public class DialogOperatorCollaborationService {
     public List<Message> messages(String publicId,Authentication auth,long before) {
         var args=args(publicId,auth);
         if(args==null)return List.of();
-        return jdbc.query("""
+        var items=jdbc.query("""
             SELECT entry.id,entry.author_user_id,entry.author,entry.body,entry.created_at,
                 COALESCE(NULLIF(btrim(author_account.full_name),''),entry.author) AS author_name
             """+FROM+"""
@@ -84,35 +84,71 @@ public class DialogOperatorCollaborationService {
             """+ROOT+READ+" AND (:before=0 OR entry.id<:before) ORDER BY entry.id DESC LIMIT 50",
             args.addValue("before",before),(rs,row)->new Message(Long.toString(rs.getLong("id")),
                 Long.toString(rs.getLong("author_user_id")),rs.getString("author"),rs.getString("author_name"),rs.getString("body"),
-                rs.getObject("created_at",OffsetDateTime.class)));
+                rs.getObject("created_at",OffsetDateTime.class),List.of()));
+        if(items.isEmpty())return items;
+        var files=files(publicId,auth,null,items.stream().map(m->Long.parseLong(m.id())).toList());
+        return items.stream().map(m->new Message(m.id(),m.authorId(),m.author(),m.authorName(),m.body(),m.createdAt(),
+            files.stream().filter(file->Long.toString(file.messageId()).equals(m.id())).map(FileRecord::view).toList())).toList();
     }
     public boolean post(Context expected,Authentication auth,UUID requestId,String body) {
-        if(expected==null||requestId==null||body==null||body.isBlank()||body.length()>10000||body.indexOf('\0')>=0)return false;
+        if(body==null||body.isBlank())return false;
+        return save(expected,auth,requestId,body,List.of(),new SaveAttempt()).success();
+    }
+    public SaveResult save(Context expected,Authentication auth,UUID requestId,String body,List<PreparedAttachment> files,SaveAttempt attempt) {
+        if(expected==null||requestId==null||body==null||body.length()>10000||body.indexOf('\0')>=0
+            ||files==null||files.size()>10||body.isBlank()&&files.isEmpty())return new SaveResult(false,false);
         var args=args(expected.scope().ticketPublicId(),auth);
-        if(args==null)return false;
-        return Boolean.TRUE.equals(transaction.execute(tx->{
+        if(args==null)return new SaveResult(false,false);
+        var result=transaction.execute(tx->{
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                new org.springframework.transaction.support.TransactionSynchronization(){
+                    @Override public void afterCompletion(int status){attempt.completion=status;}
+                });
             guard.acquire(expected.scope().ticketId());
             var current=context(args,true).orElse(null);
-            if(current==null||!current.scope().equals(expected.scope())||!current.canWrite())return false;
+            if(current==null||!current.scope().equals(expected.scope())||!current.canWrite())return new SaveResult(false,false);
             lockGrants(args);
-            if(current.scope().businessId()!=null) {
-                jdbc.query("SELECT id FROM businesses WHERE id=:source FOR SHARE",
-                    args.addValue("source",current.scope().businessId()),(rs,row)->rs.getLong(1));
-            }
-            // Check idempotency before INSERT: the existing payload must be exactly the same.
-            var existing=jdbc.queryForList("SELECT ticket_user_id,ticket_id,ticket_public_id,body FROM dialog_internal_messages WHERE author_user_id=:actorId AND request_id=:request",
+            if(current.scope().businessId()!=null)jdbc.query("SELECT id FROM businesses WHERE id=:source FOR SHARE",
+                args.addValue("source",current.scope().businessId()),(rs,row)->rs.getLong(1));
+            var existing=jdbc.queryForList("SELECT id,ticket_user_id,ticket_id,ticket_public_id,body FROM dialog_internal_messages WHERE author_user_id=:actorId AND request_id=:request",
                 args.addValue("request",requestId));
             if(!existing.isEmpty()){
-                var e=existing.get(0);
-                return Objects.equals(e.get("ticket_user_id"),current.scope().ticketUserId())
-                    && Objects.equals(e.get("ticket_id"),current.scope().ticketId())
-                    && Objects.equals(e.get("ticket_public_id"),current.scope().ticketPublicId())&&Objects.equals(e.get("body"),body);
+                var entry=existing.get(0);
+                var signatures=jdbc.query("SELECT original_name,mime_type,file_size,sha256 FROM dialog_internal_attachments WHERE message_id=:message ORDER BY position",
+                    args.addValue("message",((Number)entry.get("id")).longValue()),(rs,row)->new Signature(rs.getString(1),rs.getString(2),rs.getLong(3),rs.getString(4)));
+                boolean same=Objects.equals(entry.get("ticket_user_id"),current.scope().ticketUserId())
+                    &&Objects.equals(entry.get("ticket_id"),current.scope().ticketId())
+                    &&Objects.equals(entry.get("ticket_public_id"),current.scope().ticketPublicId())
+                    &&Objects.equals(entry.get("body"),body)&&signatures.equals(files.stream().map(PreparedAttachment::signature).toList());
+                return new SaveResult(same,false);
             }
-            return jdbc.update("""
+            var inserted=jdbc.query("""
                 INSERT INTO dialog_internal_messages(ticket_user_id,ticket_id,ticket_public_id,author_user_id,author,request_id,body)
                 SELECT owner.user_id,owner.ticket_id,owner.ticket_public_id,actor.id,actor.username,:request,:body
-                """+FROM+" WHERE "+ROOT+READ+" AND "+WRITE,args.addValue("body",body))==1;
-        }));
+                """+FROM+" WHERE "+ROOT+READ+" AND "+WRITE+" RETURNING id",args.addValue("body",body),(rs,row)->rs.getLong(1));
+            if(inserted.size()!=1)return new SaveResult(false,false);
+            long id=inserted.get(0);int position=0;
+            for(var file:files){
+                int count=jdbc.update("""
+                    INSERT INTO dialog_internal_attachments(id,message_id,position,original_name,mime_type,file_size,sha256,stored_key)
+                    VALUES(:id,:message,:position,:name,:mime,:size,:sha,:key)
+                    """,new MapSqlParameterSource("id",file.id()).addValue("message",id).addValue("position",position++)
+                        .addValue("name",file.name()).addValue("mime",file.mimeType()).addValue("size",file.size())
+                        .addValue("sha",file.sha256()).addValue("key",file.key()));
+                if(count!=1)throw new IllegalStateException("Attachment metadata was not written");
+            }
+            return new SaveResult(true,true);
+        });
+        return result==null?new SaveResult(false,false):result;
+    }
+    public static final class SaveAttempt {
+        private int completion=org.springframework.transaction.support.TransactionSynchronization.STATUS_UNKNOWN;
+        public boolean rolledBack(){return completion==org.springframework.transaction.support.TransactionSynchronization.STATUS_ROLLED_BACK;}
+    }
+    public record SaveResult(boolean success,boolean created){}
+    public record Signature(String name,String mimeType,long size,String sha256){}
+    public record PreparedAttachment(UUID id,String key,String name,String mimeType,long size,String sha256){
+        Signature signature(){return new Signature(name,mimeType,size,sha256);}
     }
     public boolean transfer(Context expected,long businessId,Authentication auth) {
         if(expected==null||!"BUSINESS".equals(expected.scope().scopeKind())||businessId<=0
@@ -173,7 +209,28 @@ public class DialogOperatorCollaborationService {
             .addValue("identity",actor.getUsername().toLowerCase(Locale.ROOT)).addValue("generalQueue",flags.isGeneralTicketQueue());
     }
     public record Context(UiEventTicketScope scope,long revision,String status,boolean canWrite){}
-    public record Message(String id,String authorId,String author,String authorName,String body,OffsetDateTime createdAt){}
+    public record Message(String id,String authorId,String author,String authorName,String body,OffsetDateTime createdAt,List<AttachmentView> attachments){}
+    public record AttachmentView(String id,String name,String mimeType,String size){}
+    public record FileRecord(UUID id,long messageId,String key,String name,String mimeType,long size,String sha256){
+        AttachmentView view(){return new AttachmentView(id.toString(),name,mimeType,Long.toString(size));}
+    }
+    public Optional<FileRecord> file(String publicId,Authentication auth,UUID id){
+        if(id==null)return Optional.empty();
+        var found=files(publicId,auth,id,null);return found.size()==1?Optional.of(found.get(0)):Optional.empty();
+    }
+    private List<FileRecord> files(String publicId,Authentication auth,UUID fileId,List<Long> messageIds){
+        var args=args(publicId,auth);if(args==null)return List.of();
+        return jdbc.query("""
+            SELECT file.*
+            """+FROM+"""
+            JOIN dialog_internal_messages entry ON entry.ticket_user_id=owner.user_id AND entry.ticket_id=owner.ticket_id
+                AND entry.ticket_public_id=owner.ticket_public_id
+            JOIN dialog_internal_attachments file ON file.message_id=entry.id WHERE
+            """+ROOT+READ+(fileId==null?" AND entry.id IN (:messages)":" AND file.id=:file")+" ORDER BY file.message_id,file.position",
+            args.addValue("file",fileId).addValue("messages",messageIds),
+            (rs,row)->new FileRecord(rs.getObject("id",UUID.class),rs.getLong("message_id"),rs.getString("stored_key"),
+                rs.getString("original_name"),rs.getString("mime_type"),rs.getLong("file_size"),rs.getString("sha256")));
+    }
 
     public List<Unread> unread(List<String> publicIds,Authentication auth) {
         if(publicIds==null||publicIds.isEmpty()||publicIds.size()>100

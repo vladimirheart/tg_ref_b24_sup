@@ -9,12 +9,13 @@
       && owner.businessId === clean(row.dataset.businessId);
   }
   async function request(path, body) {
-    const headers = { 'Content-Type': 'application/json' };
+    const multipart = body instanceof FormData;
+    const headers = multipart ? {} : { 'Content-Type': 'application/json' };
     const token = document.querySelector('meta[name="_csrf"]')?.content;
     const header = document.querySelector('meta[name="_csrf_header"]')?.content || 'X-XSRF-TOKEN';
     if (token) headers[header] = token;
     const response = await fetch(path, { method: body ? 'POST' : 'GET', credentials: 'same-origin', cache: 'no-store',
-      signal: AbortSignal.timeout(15000), headers, ...(body ? { body: JSON.stringify(body) } : {}) })
+      signal: AbortSignal.timeout(multipart ? 120000 : 15000), headers, ...(body ? { body: multipart ? body : JSON.stringify(body) } : {}) })
       .catch(() => { throw new Error('Не удалось дождаться ответа сервера. Повторите действие.'); });
     const data = await response.json().catch(() => { throw new Error('Не удалось прочитать ответ сервера. Повторите действие.'); });
     if (!response.ok) throw new Error(response.status === 409 ? 'Данные или права изменились. Обновите диалог.'
@@ -43,7 +44,12 @@
   const jump = panel.querySelector('[data-internal-jump]');
   const emojiToggle = panel.querySelector('[data-internal-emoji-toggle]');
   const emojis = panel.querySelector('[data-internal-emojis]');
-  const cache = new Map(), drafts = new Map(), pending = new Map(), unread = new Map();
+  const picker = panel.querySelector('[data-internal-files]');
+  const attach = panel.querySelector('[data-internal-attach]');
+  const filePreview = panel.querySelector('[data-internal-file-preview]');
+  const cache = new Map(), drafts = new Map(), pending = new Map(), unread = new Map(), fileDrafts = new Map();
+  let fileSerial = 0, previewUrls = [], following = true;
+  const stagedFiles = () => fileDrafts.get(key()) || [];
   let context = null, generation = 0, loading = false, busy = false, active = '', cursor = '0';
   let unreadLoading = false, unreadAgain = false, unreadGeneration = 0, ackId = '0';
   const row = () => document.querySelector('tr.dialog-row-active');
@@ -57,7 +63,68 @@
   const notice = message => { status.textContent = message; status.hidden = !message; };
   const idValue = value => /^[0-9]+$/.test(String(value)) ? BigInt(value) : 0n;
   const latest = () => [...cache.keys()].reduce((a, b) => idValue(a) > idValue(b) ? a : b, '0');
-  function scrollBottom() { thread.scrollTop = thread.scrollHeight; jump.hidden = true; }
+  function scrollBottom() { following = true; thread.scrollTop = thread.scrollHeight; jump.hidden = true; }
+  function paintFiles() {
+    previewUrls.forEach(url => URL.revokeObjectURL(url)); previewUrls = [];
+    filePreview.replaceChildren();
+    const selected = stagedFiles(); filePreview.hidden = !selected.length;
+    for (const item of selected) {
+      const card = document.createElement('div'); card.className = 'dialog-internal-pending-file';
+      if (['image/png','image/jpeg','image/gif','image/webp'].includes(item.file.type)) {
+        const image = document.createElement('img'); const url = URL.createObjectURL(item.file); previewUrls.push(url);
+        image.src = url; image.alt = item.file.name; card.append(image);
+      }
+      const label = document.createElement('span'); label.textContent = item.file.name + ' · ' + (item.file.size / 1024 / 1024).toFixed(2) + ' МБ';
+      const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'btn btn-outline-secondary btn-sm';
+      remove.textContent = '×'; remove.setAttribute('aria-label', 'Убрать ' + item.file.name); remove.disabled = busy;
+      remove.addEventListener('click', () => { if (!busy) { fileDrafts.set(key(), stagedFiles().filter(f => f.id !== item.id)); paintFiles(); } });
+      card.append(label, remove); filePreview.append(card);
+    }
+  }
+  function addFiles(files) {
+    if (busy || !context?.canWrite) return;
+    const next = [...stagedFiles(), ...Array.from(files).map(file => ({ file, id: ++fileSerial }))];
+    if (next.length > 10 || next.some(f => f.file.size === 0) || next.reduce((sum, f) => sum + f.file.size, 0) > 50 * 1024 * 1024) {
+      notice('До 10 непустых файлов, суммарно до 50 МБ. Выбранные ранее файлы сохранены.'); return;
+    }
+    fileDrafts.set(key(), next); notice(''); paintFiles();
+  }
+  attach.addEventListener('click', () => { if (!busy && context?.canWrite) picker.click(); });
+  picker.addEventListener('change', () => { addFiles(picker.files); picker.value = ''; });
+  text.addEventListener('paste', event => {
+    let files = Array.from(event.clipboardData?.files || []);
+    if (!files.length) files = Array.from(event.clipboardData?.items || []).filter(item => item.kind === 'file').map(item => item.getAsFile()).filter(Boolean);
+    if (files.length) { event.preventDefault(); event.stopPropagation(); addFiles(files); }
+  });
+  panel.addEventListener('dragover', event => {
+    if (Array.from(event.dataTransfer?.types || []).includes('Files')) { event.preventDefault(); panel.classList.add('is-dragover'); }
+  });
+  panel.addEventListener('dragleave', event => { if (!panel.contains(event.relatedTarget)) panel.classList.remove('is-dragover'); });
+  panel.addEventListener('drop', event => {
+    const files = Array.from(event.dataTransfer?.files || []);
+    if (files.length) { event.preventDefault(); event.stopPropagation(); panel.classList.remove('is-dragover'); addFiles(files); }
+  });
+  function renderAttachments(container, attachments) {
+    for (const file of Array.isArray(attachments) ? attachments : []) {
+      if (!/^[a-f0-9-]{36}$/.test(file.id)) continue;
+      const url = '/api/operator-dialogs/' + key() + '/internal-messages/attachments/' + encodeURIComponent(file.id);
+      const link = document.createElement('a'); link.href = url; link.download = file.name;
+      link.textContent = '📎 ' + file.name + ' · ' + (Number(file.size) / 1024 / 1024).toFixed(2) + ' МБ';
+      const box = document.createElement('div'); box.className = 'dialog-internal-file';
+      if (file.mimeType?.startsWith('image/') && file.mimeType !== 'image/svg+xml') {
+        const image = document.createElement('img'); image.src = url + '?preview=true'; image.alt = file.name; image.loading = 'lazy';
+        const preview = document.createElement('a'); preview.href = image.src; preview.target = '_blank'; preview.rel = 'noopener noreferrer';
+        image.addEventListener('load', () => { if (following) scrollBottom(); requestAnimationFrame(acknowledge); });
+        preview.append(image); box.append(preview);
+      } else if (file.mimeType?.startsWith('video/') || file.mimeType?.startsWith('audio/')) {
+        const media = document.createElement(file.mimeType.startsWith('video/') ? 'video' : 'audio');
+        media.src = url + '?preview=true'; media.controls = true; media.preload = 'metadata';
+        media.addEventListener('loadedmetadata', () => { if (following) scrollBottom(); });
+        box.append(media);
+      }
+      box.append(link); container.append(box);
+    }
+  }
   function setBadge(node, count) {
     const visible = idValue(count) > 0n;
     node.hidden = !visible;
@@ -107,11 +174,19 @@
   }
   async function acknowledge() {
     const ticket = key(), owner = context?.owner, seen = latest();
+    if (idValue(seen) <= idValue(ackId)) return;
     const rect = thread.getBoundingClientRect();
     const last = thread.lastElementChild?.getBoundingClientRect();
+    let visibleTop = Math.max(rect.top, 0), visibleBottom = Math.min(rect.bottom, window.innerHeight);
+    for (let parent = thread.parentElement; parent; parent = parent.parentElement) {
+      if (/(auto|scroll|hidden|clip)/.test(getComputedStyle(parent).overflowY)) {
+        const bounds = parent.getBoundingClientRect();
+        visibleTop = Math.max(visibleTop, bounds.top); visibleBottom = Math.min(visibleBottom, bounds.bottom);
+      }
+    }
     if (!owner || !panel.open || document.visibilityState === 'hidden' || !atBottom() || !last
-      || rect.height <= 0 || last.bottom > Math.min(rect.bottom, window.innerHeight) + 2
-      || last.bottom <= Math.max(rect.top, 0) || !current(owner, ticket) || seen === '0'
+      || rect.height <= 0 || last.bottom > visibleBottom + 2
+      || last.bottom <= visibleTop || !current(owner, ticket) || seen === '0'
       || idValue(seen) <= idValue(ackId)) return;
     ackId = seen;
     try {
@@ -127,16 +202,21 @@
     const oldHeight = thread.scrollHeight, oldTop = thread.scrollTop, previousLatest = latest();
     for (const message of messages) cache.set(message.id, message);
     const ordered = [...cache.values()].sort((a, b) => idValue(a.id) < idValue(b.id) ? -1 : 1);
-    const fragment = document.createDocumentFragment();
+    const existing = new Map([...thread.children].map(node => [node.dataset.messageId, node]));
+    let anchor = thread.firstElementChild;
     for (const message of ordered) {
-      const article = document.createElement('article');
-      article.className = 'dialog-internal-message';
-      const meta = document.createElement('div'); meta.className = 'small text-muted';
-      meta.textContent = (message.authorName || message.author) + ' · ' + new Date(message.createdAt).toLocaleString('ru-RU');
-      const body = document.createElement('div'); body.className = 'dialog-internal-body'; body.textContent = message.body;
-      article.append(meta, body); fragment.append(article);
+      let article = existing.get(message.id);
+      if (!article) {
+        article = document.createElement('article'); article.className = 'dialog-internal-message'; article.dataset.messageId = message.id;
+        const meta = document.createElement('div'); meta.className = 'small text-muted';
+        const body = document.createElement('div'); body.className = 'dialog-internal-body'; body.textContent = message.body;
+        article.append(meta, body); renderAttachments(article, message.attachments);
+      }
+      const meta = article.querySelector('.small');
+      const label = (message.authorName || message.author) + ' · ' + new Date(message.createdAt).toLocaleString('ru-RU');
+      if (meta.textContent !== label) meta.textContent = label;
+      if (article === anchor) anchor = anchor.nextElementSibling; else thread.insertBefore(article, anchor);
     }
-    thread.replaceChildren(fragment);
     if (append) {
       cursor = messages.at(-1)?.id || cursor;
       older.hidden = messages.length < 50;
@@ -160,41 +240,50 @@
       if (turn !== generation || !current(data.owner, ticket)) return;
       context = data;
       render(data.messages || [], append, forceBottom || cache.size === 0);
-      send.disabled = !data.canWrite || busy; text.disabled = !data.canWrite || busy; emojiToggle.disabled = !data.canWrite || busy;
+      send.disabled = !data.canWrite || busy; text.disabled = attach.disabled = picker.disabled = !data.canWrite || busy; emojiToggle.disabled = !data.canWrite || busy;
       notice(data.canWrite ? '' : 'Только просмотр. Для отправки требуется право работы с диалогом.');
     } catch (error) {
       if (turn !== generation || ticket !== key()) return;
       context = null; cache.clear(); thread.replaceChildren();
-      send.disabled = text.disabled = emojiToggle.disabled = true;
+      send.disabled = text.disabled = attach.disabled = picker.disabled = emojiToggle.disabled = true;
       notice(error.message);
     } finally { if (turn === generation) loading = false; }
   }
   async function sendMessage() {
-    if (busy || !context?.canWrite || !text.value.trim() || !current(context.owner, key())) return;
+    if (busy || !context?.canWrite || (!text.value.trim() && !stagedFiles().length) || !current(context.owner, key())) return;
     const ticket = key(), value = text.value, owner = context.owner;
+    const files = [...stagedFiles()], fileKey = files.map(f => f.id).join(',');
     let requestInfo = pending.get(ticket);
-    if (!requestInfo || requestInfo.body !== value) {
+    if (!requestInfo || requestInfo.body !== value || requestInfo.fileKey !== fileKey) {
       const bytes = crypto.getRandomValues(new Uint8Array(16));
       bytes[6] = (bytes[6] & 15) | 64; bytes[8] = (bytes[8] & 63) | 128;
       const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
-      requestInfo = { body: value, requestId: hex.slice(0, 8) + '-' + hex.slice(8, 12) + '-' + hex.slice(12, 16) + '-' + hex.slice(16, 20) + '-' + hex.slice(20) };
+      requestInfo = { body: value, fileKey, requestId: hex.slice(0, 8) + '-' + hex.slice(8, 12) + '-' + hex.slice(12, 16) + '-' + hex.slice(16, 20) + '-' + hex.slice(20) };
       pending.set(ticket, requestInfo);
     }
-    busy = true; send.disabled = text.disabled = emojiToggle.disabled = true;
+    busy = true; send.disabled = text.disabled = attach.disabled = picker.disabled = emojiToggle.disabled = true; paintFiles();
+    if (files.length) notice('Загрузка вложений…');
     try {
-      await request('/api/operator-dialogs/' + ticket + '/internal-messages', { ...owner, ...requestInfo });
+      const command = { ...owner, body: value, requestId: requestInfo.requestId };
+      let payload = command, path = '/api/operator-dialogs/' + ticket + '/internal-messages';
+      if (files.length) {
+        payload = new FormData(); payload.append('command', new Blob([JSON.stringify(command)], { type: 'application/json' }));
+        files.forEach(item => payload.append('files', item.file, item.file.name)); path += '/files';
+      }
+      await request(path, payload);
+      drafts.delete(ticket); pending.delete(ticket); fileDrafts.delete(ticket);
       if (!current(owner, ticket)) return;
-      text.value = ''; drafts.delete(ticket); pending.delete(ticket); notice('');
+      text.value = ''; paintFiles(); notice('');
       // A polling request may have started before this write; wait for its completion before the explicit refresh.
       while (loading && current(owner, ticket)) await new Promise(resolve => window.setTimeout(resolve, 20));
       if (current(owner, ticket)) await load(false, true);
     } catch (error) {
-      if (current(owner, ticket)) notice(error.message + ' Текст сохранён; повторите отправку.');
+      if (current(owner, ticket)) notice(error.message + (files.length ? ' Текст и вложения сохранены; повторите отправку.' : ' Текст сохранён; повторите отправку.'));
     } finally {
       busy = false;
-      if (current(owner, ticket)) {
-        send.disabled = text.disabled = emojiToggle.disabled = !context?.canWrite;
-        text.focus();
+      if (context?.owner && current(context.owner, key())) {
+        send.disabled = text.disabled = attach.disabled = picker.disabled = emojiToggle.disabled = !context?.canWrite; paintFiles();
+        if (current(owner, ticket)) text.focus();
       }
     }
   }
@@ -203,7 +292,7 @@
   panel.addEventListener('toggle', () => { if (panel.open) load(false, true); });
   older.addEventListener('click', () => load(true));
   jump.addEventListener('click', () => { scrollBottom(); acknowledge(); });
-  thread.addEventListener('scroll', () => { if (atBottom()) { jump.hidden = true; acknowledge(); } }, { passive: true });
+  thread.addEventListener('scroll', () => { following = atBottom(); if (following) { jump.hidden = true; acknowledge(); } }, { passive: true });
   document.addEventListener('scroll', () => requestAnimationFrame(acknowledge), { passive: true, capture: true });
   emojiToggle.addEventListener('click', () => {
     emojis.hidden = !emojis.hidden;
@@ -226,8 +315,9 @@
     if (next !== active) {
       active = next; generation++; context = null; cache.clear(); thread.replaceChildren();
       text.value = drafts.get(ticket) || '';
-      send.disabled = text.disabled = emojiToggle.disabled = true;
+      send.disabled = text.disabled = attach.disabled = picker.disabled = emojiToggle.disabled = true;
       cursor = ackId = '0'; loading = false; older.hidden = jump.hidden = emojis.hidden = true; notice('');
+      following = true; picker.value = ''; panel.classList.remove('is-dragover'); paintFiles();
       paintUnread();
       if (ticket && panel.open) load(false, true);
       pollUnread();

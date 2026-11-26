@@ -2287,6 +2287,50 @@ body[data-ui-page=dialogs] .dialog-sla-timing {
   white-space: pre-wrap;
 }
 
+.dialog-internal-file {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding-block: 0.25rem;
+  overflow-wrap: anywhere;
+}
+
+.dialog-internal-file img, .dialog-internal-file video {
+  max-width: 100%;
+  max-height: 14rem;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+}
+
+.dialog-internal-file audio {
+  max-width: 100%;
+}
+
+.dialog-internal-pending-file {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-block: 0.25rem;
+  overflow-wrap: anywhere;
+}
+
+.dialog-internal-pending-file img {
+  width: 3rem;
+  height: 3rem;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+}
+
+.dialog-internal-pending-file span {
+  flex: 1;
+  min-width: 0;
+}
+
+.dialog-internal-chat.is-dragover {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
 .dialog-internal-chat {
   overscroll-behavior: contain;
 }

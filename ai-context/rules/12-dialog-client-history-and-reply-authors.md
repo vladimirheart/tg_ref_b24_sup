@@ -51,3 +51,22 @@
 - Внутреннее и клиентское поля разделены, но используют один send-mode control
   и общую настройку Enter/Ctrl+Enter. Клиентский draft/transport не участвует.
   Wheel/touch остаются в открытом диалоге и не прокручивают страницу под ним.
+
+## Внутренние файлы — 01-324
+
+- Бинарники принадлежат отдельному object-storage domain internal_dialogs,
+  а metadata — dialog_internal_attachments. Они не регистрируются как клиентские
+  chat_history attachments и не получают публичные/transport URLs.
+- Multipart batch отправляется по current OPERATE/full owner. IO хранилища
+  выполняется вне JDBC locks; в одной SQL transaction повторно проверяются
+  account/grants/owner и записываются сообщение и все metadata.
+- Idempotency включает body и упорядоченные name/MIME/size/SHA-256 файлов.
+  Replay удаляет новые копии; известный rollback удаляет upload. При неизвестном
+  результате commit объекты сохраняются приватными для reconciliation, чтобы
+  не удалить уже зафиксированные файлы. API без metadata их не выдаёт.
+- GET требует PAGE_DIALOGS/current READ того же numeric/raw/public owner, даже
+  для preview/range. Имя не участвует в storage key. MIME определяется по
+  содержимому; SVG/HTML и неизвестные типы — только download с nosniff/no-store.
+- До 10 непустых файлов, суммарно до 50 МБ. Файловое сообщение может быть без
+  текста. Клиентское поле/файлы отдельны; изменения unread/ответственного/outbox
+  доставки не добавляются. Polling сохраняет существующие media DOM nodes.
