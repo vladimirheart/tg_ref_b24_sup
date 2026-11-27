@@ -6,6 +6,17 @@ const path = require('node:path');
 const vm = require('node:vm');
 const api = require('../../main/resources/static/js/business-questionnaire-presets.js');
 
+function questionModel(context) {
+  context.window = context.window || {};
+  context.QUESTION_ROUTE_PROBLEM_ID = 'problem';
+  context.generatedQuestionIds = new Set();
+  context.generatedOptionIds = new Set();
+  context.DASHBOARD_ATTRIBUTE_KEY_SET = new Set(['direction', 'problem']);
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.resolve(__dirname, '../../main/resources/static/js/bot-settings-model.js'), 'utf8'), context);
+  return context.window.BotQuestionModel.create(context);
+}
+
 class Element {
   constructor() { this.children = []; this.listeners = {}; this.dataset = {}; this.value = ''; this.disabled = false; this.textContent = ''; }
   addEventListener(type, handler) { this.listeners[type] = handler; }
@@ -113,12 +124,10 @@ test('reference context clears old fields and ignores stale owner responses incl
 });
 
 test('saving unrelated templates preserves their preset references, exclusions and forward routes', () => {
-  const source = fs.readFileSync(path.resolve(__dirname, '../../main/resources/static/js/bot-settings.js'), 'utf8');
-  const start = source.indexOf('  function serializeQuestion('), end = source.indexOf('\n  function collectPayload', start);
   const context = { normalizeBindingKey: value => value, getPresetMeta: () => null, cloneQuestionRoutes: routes => routes || [],
     generateQuestionId: () => { throw new Error('Existing ID must survive'); }, normalizeEditableQuestionOptions: value => value };
-  vm.createContext(context); vm.runInContext(source.slice(start, end), context);
-  const result = JSON.parse(JSON.stringify(context.serializeQuestion({ id: 'a', type: 'preset', text: 'Private A', preset: { group: 'only_a', field: 'name' },
+  const model = questionModel(context);
+  const result = JSON.parse(JSON.stringify(model.serializeQuestion({ id: 'a', type: 'preset', text: 'Private A', preset: { group: 'only_a', field: 'name' },
     excludedOptions: ['Hidden'], routes: [{ valueId: 'A', nextQuestionId: 'last-a' }] }, 0)));
   assert.deepEqual(result.preset, { group: 'only_a', field: 'name' }); assert.deepEqual(result.excluded_options, ['Hidden']);
   assert.deepEqual(result.routes, [{ value_id: 'A', next_question_id: 'last-a' }]);
@@ -137,16 +146,14 @@ test('legacy bootstrap finishing after a business selection cannot restore globa
 });
 
 test('background route validation uses each template flow without the open business preview', () => {
-  const source = fs.readFileSync(path.resolve(__dirname, '../../main/resources/static/js/bot-settings.js'), 'utf8');
-  const start = source.indexOf('  function validateQuestionFlow('), end = source.indexOf('\n  function ', start + 10);
   const context = { resolveQuestionBindingKey: q => q.binding_key || '', getPresetMeta: () => null,
     resolveQuestionRouteChoices: () => [], cloneQuestionRoutes: routes => (routes || []).map(route => ({ valueId: route.value_id, nextQuestionId: route.next_question_id })),
     normalizeBindingKey: value => value, isDashboardBindingKeyAllowed: () => true };
-  vm.createContext(context); vm.runInContext(source.slice(start, end), context);
+  const model = questionModel(context);
   const flow = [{ id: 'a', type: 'preset', preset: { group: 'only_a', field: 'name' }, routes: [{ value_id: 'A', next_question_id: 'last-a' }] },
     { id: 'last-a', type: 'custom', text: 'Describe' }];
-  assert.ok(!context.validateQuestionFlow(flow, 'A', false));
-  assert.match(context.validateQuestionFlow(flow, 'A', true), /маршруты/);
+  assert.ok(!model.validateQuestionFlow(flow, 'A', false));
+  assert.match(model.validateQuestionFlow(flow, 'A', true), /маршруты/);
   flow[0].routes[0].next_question_id = 'foreign-b';
-  assert.match(context.validateQuestionFlow(flow, 'A', false), /маршруты/);
+  assert.match(model.validateQuestionFlow(flow, 'A', false), /маршруты/);
 });

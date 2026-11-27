@@ -16,7 +16,7 @@ class WorkforceManagementUiSourceContractTest {
         String runtime = read("src/main/resources/static/js/workforce-management.js");
 
         assertThat(settings)
-                .contains("<script th:src=\"@{/js/auth-management.js(v='20261125-access-318')}\"></script>")
+                .contains("<script th:src=\"@{/js/auth-management.js(v='20261127-modules-330')}\"></script>")
                 .contains("<script src=\"/js/workforce-management.js\"></script>");
         assertThat(settings.indexOf("/js/workforce-management.js"))
                 .isGreaterThan(settings.indexOf("/js/auth-management.js"));
@@ -60,18 +60,18 @@ class WorkforceManagementUiSourceContractTest {
 
     @Test
     void authRuntimePublishesStableUserModalBridgeForWorkforceEditor() throws Exception {
-        String auth = read("src/main/resources/static/js/auth-management.js");
+        String auth = read("src/main/resources/static/js/auth-management-user.js");
 
         assertThat(auth)
-                .contains("this.elements.userForm.dataset.userId")
+                .contains("this.context.elements.userForm.dataset.userId")
                 .contains("new CustomEvent('authManagement:userModalOpen'")
-                .contains("detail: { mode, userId: this.modalState.userId }")
-                .contains("delete this.elements.userForm.dataset.userId");
+                .contains("detail: { mode, userId: this.context.modalState.userId }")
+                .contains("delete this.context.elements.userForm.dataset.userId");
     }
 
     @Test
     void footerSavesChangedWorkforceSettingsAndTimezoneUsesSelect() throws Exception {
-        String auth = read("src/main/resources/static/js/auth-management.js");
+        String auth = read("src/main/resources/static/js/auth-management-user.js");
         String workforce = read("src/main/resources/static/js/workforce-management.js");
         String users = read("src/main/resources/templates/settings/fragments/users-access.html");
 

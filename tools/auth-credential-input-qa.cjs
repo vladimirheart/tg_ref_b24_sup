@@ -3,7 +3,10 @@ const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_pro
 const root=path.resolve(__dirname,'..');const reportFile=path.resolve(process.argv.find(arg=>arg.startsWith('--report='))?.slice(9)||path.join(root,'spring-panel/target/auth-credential-input-r187/report.json'));
 const inputs=['spring-panel/src/main/resources/static/js/auth-management.js','spring-panel/src/main/resources/templates/settings/fragments/users-access.html'];
 const sources=inputs.map(file=>({file,sha256:crypto.createHash('sha256').update(fs.readFileSync(path.join(root,file))).digest('hex')}));
-const payload={source:fs.readFileSync(path.join(root,inputs[0]),'utf8'),fragment:fs.readFileSync(path.join(root,inputs[1]),'utf8')};
+const controllerFiles = ['photo','user','roles','organization'].map(name => 'spring-panel/src/main/resources/static/js/auth-management-' + name + '.js');
+const controllerSources = controllerFiles.map(file => fs.readFileSync(path.join(root, file), 'utf8'));
+controllerFiles.forEach((file, i) => sources.push({ file, sha256: crypto.createHash('sha256').update(controllerSources[i]).digest('hex') }));
+const payload={source:controllerSources.join('\n')+'\n'+fs.readFileSync(path.join(root,inputs[0]),'utf8'),fragment:fs.readFileSync(path.join(root,inputs[1]),'utf8')};
 class Cdp {
   constructor(ws) {
     this.ws = ws; this.next = 0; this.pending = new Map();

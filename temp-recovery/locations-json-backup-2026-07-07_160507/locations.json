@@ -1,8 +1,0 @@
-{
-  "tree" : { },
-  "statuses" : { },
-  "city_meta" : { },
-  "location_meta" : { },
-  "locationsLoaded" : false,
-  "locationsLoadingPromise" : null
-}

@@ -72,8 +72,7 @@ body[data-ui-page='settings'] {
   .org-member__name { font-weight: 500; }
   .org-member__meta, .org-member__source { font-size: 0.78rem; color: var(--color-text-muted); }
   .org-member__source { padding-top: 0.2rem; }
-  &[data-theme='dark'] #orgMembersModal .btn-close,
-  &[data-theme='dark'] #authUserDetailsModal .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
+
 
   #authUserDetailsModal {
     .modal-dialog { width: min(860px, calc(100vw - 24px)); max-width: calc(100vw - 24px); }

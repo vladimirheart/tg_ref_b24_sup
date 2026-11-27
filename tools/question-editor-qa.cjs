@@ -28,7 +28,7 @@ ${clean(parts[1])}<script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js">
 window.SettingsRuntimeAccess={resolvePageConfigRuntime:()=>({getBotSettingsInitial:()=>initial,getBotPresetDefinitions:()=>presets}),
 fetchPageDataSection:async()=>({botSettings:initial,botPresetDefinitions:presets})};
 window.SettingsPageShell={showModal:el=>bootstrap.Modal.getOrCreateInstance(el).show(),hideModal:el=>bootstrap.Modal.getOrCreateInstance(el).hide()};
-</script><script src="/js/business-questionnaire-presets.js"></script><script src="/js/bot-settings.js"></script></body></html>`;
+</script><script src="/js/business-questionnaire-presets.js"></script><script src="/js/bot-settings-model.js"></script><script src="/js/bot-settings-rating.js"></script><script src="/js/bot-settings-editor.js"></script><script src="/js/bot-settings.js"></script></body></html>`;
 
 async function main() {
   const server = http.createServer((req, res) => {

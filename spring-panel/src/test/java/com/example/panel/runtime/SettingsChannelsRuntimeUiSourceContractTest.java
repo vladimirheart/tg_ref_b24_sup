@@ -152,7 +152,7 @@ class SettingsChannelsRuntimeUiSourceContractTest {
     void templateAndAutomationWorkspacesStayCompactAndUseAccessibleInfoAndIconActions() throws IOException {
         String templatesWorkspace = read(TEMPLATES_WORKSPACE);
         String workspace = read(WORKSPACE);
-        String botSettings = read(BOT_SETTINGS);
+        String botSettings = read(BOT_SETTINGS) + read(Path.of("src/main/resources/static/js/bot-settings-rating.js"));
         String dialogTemplates = read(DIALOG_TEMPLATES);
         String channelsScss = read(CHANNELS_SCSS);
 
@@ -214,14 +214,14 @@ class SettingsChannelsRuntimeUiSourceContractTest {
 
     @Test
     void questionTemplateEditUsesSingleWorkingRendererBeforeOpeningModal() throws IOException {
-        String botSettings = read(BOT_SETTINGS);
+        String botSettings = read(Path.of("src/main/resources/static/js/bot-settings-editor.js"));
 
         String renderMarker = "function renderQuestions(options = {})";
         int renderStart = botSettings.indexOf(renderMarker);
         assertThat(renderStart).isGreaterThanOrEqualTo(0);
         assertThat(botSettings.indexOf(renderMarker, renderStart + renderMarker.length())).isEqualTo(-1);
 
-        int renderEnd = botSettings.indexOf("\n  function openTemplateEditor(index)", renderStart);
+        int renderEnd = botSettings.indexOf("\n      function openTemplateEditor(index)", renderStart);
         assertThat(renderEnd).isGreaterThan(renderStart);
         String renderer = botSettings.substring(renderStart, renderEnd);
         assertThat(renderer)
@@ -230,12 +230,12 @@ class SettingsChannelsRuntimeUiSourceContractTest {
             .doesNotContain("buildPresetOptionsHtml(");
 
         int editorStart = botSettings.lastIndexOf("function openTemplateEditor(index)");
-        int editorEnd = botSettings.indexOf("\n  async function saveTemplateFromEditor()", editorStart);
+        int editorEnd = botSettings.indexOf("\n      async function saveTemplateFromEditor()", editorStart);
         assertThat(editorStart).isGreaterThan(renderEnd);
         assertThat(editorEnd).isGreaterThan(editorStart);
         String editor = botSettings.substring(editorStart, editorEnd);
         int renderCall = editor.indexOf("renderQuestions();");
-        int showCall = editor.indexOf("showChildModal(templateModalEl);");
+        int showCall = editor.indexOf("context.showChildModal(context.templateModalEl);");
         assertThat(renderCall).isGreaterThanOrEqualTo(0);
         assertThat(showCall).isGreaterThan(renderCall);
     }

@@ -14,7 +14,7 @@ const fixture = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><met
 <div data-auth-roles-empty></div><div data-auth-roles-container></div></section></div>
 <button class="btn btn-primary mt-3" data-user-permissions="7">Права пользователя</button></main>
 <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js"></script><script src="/js/common.js"></script>
-<script src="/js/auth-management.js"></script><script src="/js/user-permissions.js"></script>
+<script src="/js/auth-management-photo.js"></script><script src="/js/auth-management-user.js"></script><script src="/js/auth-management-roles.js"></script><script src="/js/auth-management-organization.js"></script><script src="/js/auth-management.js"></script><script src="/js/user-permissions.js"></script>
 <script>window.AuthManagement.mount(document.querySelector('[data-auth-root]'));</script></body></html>`;
 
 async function main() {

@@ -1,26 +1,39 @@
-/* Browser regression against the actual Settings MVC render and production scripts/styles. */
+/* Browser regression against the actual Thymeleaf users fragment and production scripts/styles. */
 const fs=require('node:fs'),path=require('node:path'),http=require('node:http'),assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'..'),resources=path.join(root,'spring-panel/src/main/resources');
-const capture=path.join(root,'spring-panel/target/org-rendered/settings/index.html'),out=path.join(root,'spring-panel/target/organization-users-qa');
+const capture=path.join(root,'spring-panel/target/permission-editors-qa/users-workspace.html'),out=path.join(root,'spring-panel/target/organization-users-qa');
 const baseNodes=[{id:'root',name:'Управляющая компания',parent_id:null,members:[]},{id:'it',name:'IT-Dep',parent_id:'root',members:[]},{id:'support',name:'ITS',parent_id:'it',members:[2,999]},{id:'other',name:'Другой филиал',parent_id:null,members:[]},{id:'other-support',name:'ITS',parent_id:'other',members:[]}];
 const fixturePhoto='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160"><rect width="160" height="160" fill="#44546a"/><circle cx="80" cy="58" r="27" fill="#dae2ed"/><path d="M24 154v-20a56 56 0 0 1 112 0v20z" fill="#dae2ed"/></svg>');
-const users=[{id:1,username:'ivan',full_name:'Иван Сотрудник',department:'Управляющая компания / IT-Dep / ITS',email:'ivan@example.test',phones:[{type:'mobile',value:'+7 (999) 000-00-01'}],role_id:1,role:'Оператор',can_edit_username:true,can_edit_role:true,can_edit_password:true,can_view_password:false,can_block:true,can_revoke_sessions:true,last_portal_activity_at:new Date(Date.now()-5*60000).toISOString()},
+const users=[{id:1,username:'ivan',full_name:'Иван Сотрудник',department:'Управляющая компания / IT-Dep / ITS',email:'ivan@example.test',phones:[{type:'mobile',value:'79990000001'}],role_id:1,role:'Оператор',can_edit_username:true,can_edit_role:true,can_edit_password:true,can_view_password:false,can_block:true,can_revoke_sessions:true,last_portal_activity_at:new Date(Date.now()-5*60000).toISOString()},
  {id:2,username:'manual',full_name:'Мария Участник',department:'',role:'Оператор',is_blocked:true,last_portal_activity_at:new Date(Date.now()-31*60000).toISOString()},
  {id:3,username:'ambiguous',full_name:'Неоднозначный отдел',department:'ITS'},
  {id:4,username:'legacy',full_name:'Сотрудник старого отдела',department:'IT-Dep'},
  ...Array.from({length:85},(_,i)=>({id:i+10,username:'user'+String(i).padStart(2,'0'),full_name:'Сотрудник '+String(i).padStart(2,'0'),department:''}))];
 function state(nodes){return {users:users.map(user=>user.id===1?{...user,photo:fixturePhoto}:user),roles:[{id:1,name:'Оператор',permissions:{pages:[],fields:{edit:[],view:[]}}}],org_structure:{nodes},catalog:{pages:[],fields:{edit:[],view:[]}},capabilities:{fields:{edit:{'user.create':true,'user.role':true},view:{}}},current_user_id:1};}
 async function main(){
- assert(fs.existsSync(capture),'Run targeted MVC capture first');fs.mkdirSync(out,{recursive:true});
+ assert(fs.existsSync(capture),'Run PermissionEditorsRenderTest first');fs.mkdirSync(out,{recursive:true});
+ const settings=fs.readFileSync(path.join(resources,'templates/settings/index.html'),'utf8');
+ const css=[...settings.matchAll(/<link th:href="@\{(\/css\/[^()]+)\(v='[^']+'\)\}" rel="stylesheet"/g)].map(match=>match[1]);
+ const authScripts=[...settings.matchAll(/<script (?:th:)?src="(?:@\{)?(\/js\/auth-management[^?(" ]*\.js)/g)].map(match=>match[1]);
+ assert.equal(authScripts.length,5,'Use all production auth dependencies');
+ const html=`<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+ <link rel="stylesheet" href="/vendor/bootstrap/5.3.0/bootstrap.min.css"><link rel="stylesheet" href="/vendor/bootstrap-icons/1.10.5/bootstrap-icons.css">
+ ${css.map(file=>`<link rel="stylesheet" href="${file}">`).join('')}
+ <script src="/js/ui-preferences.js"></script><script src="/js/theme.js"></script><script src="/js/common.js"></script></head>
+ <body data-ui-page="settings"><button data-settings-overview-target="usersModal">Сотрудники</button>${fs.readFileSync(capture,'utf8')}
+ <script src="/vendor/bootstrap/5.3.0/bootstrap.bundle.min.js"></script><script src="/js/modal-helpers.js"></script><script src="/js/modal-resize.js"></script>
+ <script src="/js/employee-picker.js"></script><script src="/js/settings-permissions.js"></script><script src="/js/permission-editor.js"></script><script src="/js/user-permissions.js"></script>
+ ${authScripts.map(file=>`<script src="${file}"></script>`).join('')}
+ <script>AuthManagement.mount(document.querySelector('[data-auth-management]'));document.querySelector('[data-settings-overview-target]').onclick=()=>bootstrap.Modal.getOrCreateInstance(document.getElementById('usersModal')).show();</script></body></html>`;
  const server=http.createServer((req,res)=>{
   const url=new URL(req.url,'http://localhost'); const file=url.pathname==='/settings'?capture:path.resolve(resources,'static',url.pathname.slice(1));
   if(file!==capture&&!file.startsWith(path.join(resources,'static')+path.sep)||!fs.existsSync(file)||!fs.statSync(file).isFile()){res.writeHead(404);res.end();return;}
   const ext=path.extname(file),mime={'.html':'text/html; charset=utf-8','.css':'text/css','.js':'application/javascript','.woff2':'font/woff2','.svg':'image/svg+xml'};
   res.writeHead(200,{'Content-Type':mime[ext]||'application/octet-stream'});
-  if(['.html','.css','.js'].includes(ext))res.end(fs.readFileSync(file,'utf8').replaceAll('\r\n','\n'));else fs.createReadStream(file).pipe(res);
+  if(file===capture)res.end(html);else if(['.css','.js'].includes(ext))res.end(fs.readFileSync(file,'utf8').replaceAll('\r\n','\n'));else fs.createReadStream(file).pipe(res);
  });
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const origin='http://127.0.0.1:'+server.address().port;
- const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright'),browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHANNEL?{channel:process.env.PLAYWRIGHT_CHANNEL}:{})});
+ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright'),browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_BROWSER_EXECUTABLE?{executablePath:process.env.PLAYWRIGHT_BROWSER_EXECUTABLE}:{}),...(process.env.PLAYWRIGHT_CHANNEL?{channel:process.env.PLAYWRIGHT_CHANNEL}:{})});
  const report=[],errors=[];
  try{
   const savedCases=[{width:1280,height:663,theme:'dark',savedSmall:true},{width:1280,height:663,theme:'light',savedSmall:true},{width:1280,height:480,theme:'dark',savedSmall:true},{width:390,height:663,theme:'dark',savedSmall:true}];
@@ -33,7 +46,7 @@ async function main(){
     const request=route.request(),url=new URL(request.url());if(url.origin!==origin)return route.abort();
     if(url.pathname==='/api/auth/state')return route.fulfill({json:state(nodes)});
     if(url.pathname==='/api/users/activity'){activityReads++;return route.fulfill({json:{server_time:new Date().toISOString(),users:users.map(({id,is_blocked,last_portal_activity_at})=>({id,is_blocked:!!is_blocked,last_portal_activity_at:last_portal_activity_at||null}))}});}
-    if(url.pathname==='/api/auth/permissions')return route.fulfill({json:{success:true,settings:{organization:canEdit,users:canEdit,workforce:canEdit}}});
+    if(url.pathname==='/api/auth/permissions')return route.fulfill({json:{success:true,accounts:true,settings:{organization:canEdit,users:canEdit,workforce:canEdit}}});
     if(url.pathname==='/api/users/1'&&request.method()==='PUT'){profilePayload=request.postDataJSON();return route.fulfill({json:{success:true}});}
     if(url.pathname==='/api/auth/org-structure'){
      assert(canEdit,'Read-only user wrote org structure');nodes=request.postDataJSON().org_structure.nodes;saves++;return route.fulfill({json:{success:true,org_structure:{nodes}}});
@@ -154,14 +167,11 @@ async function main(){
    await page.waitForFunction(()=>document.querySelector('[data-auth-user-save-status]')?.textContent.includes('Сохранено'));
    assert.deepEqual(profilePayload,{full_name:'Иван Проверенный'});
    await card.locator('.modal-header [data-bs-dismiss]').click();await card.waitFor({state:'hidden'});
-   // Real permission runtime keeps the roster visible while editing is disabled.
-   canEdit=false;await page.evaluate(()=>window.SettingsPermissions.refresh());await page.locator('#auth-org-tab').click();
-   assert(await branch('support').locator('[data-org-action="members"]').isEnabled());
-   assert(await branch('support').locator('[data-org-action="rename"]').isDisabled());
-   await branch('support').locator('[data-org-action="members"]').click();await modal.waitFor({state:'visible'});
-   assert(await modal.locator('[data-org-members-roster]').getByText('Иван Сотрудник',{exact:true}).count());
-   assert(await modal.locator('.employee-picker__trigger').isDisabled());assert(await modal.locator('[type=submit]').isDisabled());
-   await modal.locator('.modal-header [data-bs-dismiss]').click();
+   // Current settings permissions hide sections whose access was revoked.
+   canEdit=false;await page.evaluate(()=>window.SettingsPermissions.refresh());
+   assert.equal(await page.locator('#auth-org-tab').isVisible(),false);
+   assert.equal(await page.evaluate(()=>window.SettingsPermissions.canOpen('settingsAuthOrg')),false);
+   assert.equal(await page.locator('[data-org-save]').isVisible(),false);
    // Corrupt cycles remain visible without recursion or source mutation.
    const cycle=await page.evaluate(()=>{const m=document.querySelector('[data-auth-management]').__authManager,original=m.state.orgStructure;m.state.orgStructure=m.normalizeOrgStructure({nodes:[{id:'a',name:'A',parent_id:'b',members:[]},{id:'b',name:'B',parent_id:'a',members:[]},{id:'orphan',name:'<img onerror=alert(1)>',parent_id:'missing',members:[]}]});m.renderOrgStructure();const result={count:document.querySelectorAll('[data-org-tree] li').length,unsafe:document.querySelectorAll('[data-org-tree] img').length,parent:m.state.orgStructure.nodes[0].parent_id};m.state.orgStructure=original;m.renderOrgStructure();return result;});
    assert.deepEqual(cycle,{count:3,unsafe:0,parent:'b'});

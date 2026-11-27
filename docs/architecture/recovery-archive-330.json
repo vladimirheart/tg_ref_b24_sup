@@ -1,0 +1,319 @@
+{
+  "version": 1,
+  "baseline": "90f2a54f21f93a0fddbbfc9b6f57d987cc97119a",
+  "description": "Retired recovery snapshots; not runtime data, migrations or fixtures.",
+  "files": [
+    {
+      "path": "spring-panel/db-backup-20260805-170855/panel_runtime.db",
+      "bytes": 98734080,
+      "sha256": "8e96198b9d20e1d1fbcf4e77d50f91818487b62f1e9d498e771123303f46860d",
+      "git_blob": "b4358d195b827f97ed61b92aff6d097ea836db5b"
+    },
+    {
+      "path": "spring-panel/db-backup-20260805-170855/panel_runtime.db-shm",
+      "bytes": 32768,
+      "sha256": "3cc88ec0d8290aa32fbcead2396f84065a7e8ee45b940d30e3be74ac0ca537f3",
+      "git_blob": "94fe259b7b8a5247eb1a53ede537dcba09a2ada6"
+    },
+    {
+      "path": "spring-panel/db-backup-20260805-170855/panel_runtime.db-wal",
+      "bytes": 4420792,
+      "sha256": "501938f5262c3c3f6bfe7221c1b27c024a90a99503d93683c924cd7a3083875e",
+      "git_blob": "1b893b472fe38393f98c2d5bb11082b5602b9d62"
+    },
+    {
+      "path": "spring-panel/panel_runtime.db.corrupt-20260805-171309",
+      "bytes": 98734080,
+      "sha256": "8e96198b9d20e1d1fbcf4e77d50f91818487b62f1e9d498e771123303f46860d",
+      "git_blob": "b4358d195b827f97ed61b92aff6d097ea836db5b"
+    },
+    {
+      "path": "spring-panel/recovery-20260805-171047/corrupt.db",
+      "bytes": 98734080,
+      "sha256": "8e96198b9d20e1d1fbcf4e77d50f91818487b62f1e9d498e771123303f46860d",
+      "git_blob": "b4358d195b827f97ed61b92aff6d097ea836db5b"
+    },
+    {
+      "path": "spring-panel/recovery-20260805-171047/recovered.db",
+      "bytes": 98160640,
+      "sha256": "5bf21c4f00ed4e587f7a8bd0457b0e0fca7b604aba6149e41225b7c0f5cfb0ff",
+      "git_blob": "36d4e3869c3bf9549ecb69817ad2bac781b74099"
+    },
+    {
+      "path": "spring-panel/recovery-20260805-171047/recovered.sql",
+      "bytes": 98887678,
+      "sha256": "0f8fc7631c43d661549ef9e24c481160171ef7be3bb8182fcac0c88b81f9bb5e",
+      "git_blob": "c7e97db30cfd22f36e91ec427df0be236774bfe9"
+    },
+    {
+      "path": "spring-panel/recovery-20260805-171047/sqlite-tools.zip",
+      "bytes": 6557792,
+      "sha256": "f46ee2475de4cbe287e6e5f7d43c838796b14e7379cd216bdbb28d391429f9fc",
+      "git_blob": "788eb4df03b2023eec344f18ebb54b4fb5e25e04"
+    },
+    {
+      "path": "spring-panel/recovery-20260805-171047/sqlite-tools/sqldiff.exe",
+      "bytes": 3243520,
+      "sha256": "c21117bef137119cad08d15f16ed488d8ac42613aebf6ee93bf9aab526626762",
+      "git_blob": "99ed03586bf02c1f9c7a3acc8f9a5267a74e8351"
+    },
+    {
+      "path": "spring-panel/recovery-20260805-171047/sqlite-tools/sqlite3.exe",
+      "bytes": 4022272,
+      "sha256": "5da2398d4913b893bd1ea578d85403b3a83a06fabf9d2303ca9f63ef0849fc6f",
+      "git_blob": "5f5427387189b2d282e6b7b3f534be883356bdb9"
+    },
+    {
+      "path": "spring-panel/recovery-20260805-171047/sqlite-tools/sqlite3_analyzer.exe",
+      "bytes": 4484608,
+      "sha256": "b83298cc2f87f666bad01bf69ccec9b505d3c23ebb7a3a66b46ae1991a5913e6",
+      "git_blob": "41836c251fd766ca8b91b4fad484684f5e4dc069"
+    },
+    {
+      "path": "spring-panel/recovery-20260805-171047/sqlite-tools/sqlite3_rsync.exe",
+      "bytes": 3179520,
+      "sha256": "6025aecc035207f5148c8dccf0a7d18ff113ee9283a813eb8e171bbb4dc6986c",
+      "git_blob": "aa1bcfbfcb9f00c3d1d2b10736f33730954c191a"
+    },
+    {
+      "path": "temp-recovery/db-compat-sync-backup-2026-07-07_171907/bot_runtime.db",
+      "bytes": 20480,
+      "sha256": "00cea539c021be1e9640359c6143c0dfc3333a5ee64f7b6ba8eafa5b47f79922",
+      "git_blob": "8fb42b2e1b3cc427f3bc5048a7e183a64eadcb90"
+    },
+    {
+      "path": "temp-recovery/db-compat-sync-backup-2026-07-07_171907/java-bot__panel_runtime.db",
+      "bytes": 43884544,
+      "sha256": "e9c1e9b75bcb52b317da6663b64d6986def285651d583bd67f4e0ecdc724f299",
+      "git_blob": "06288c138a9571680cf5ed1bf1a43f4250fddc76"
+    },
+    {
+      "path": "temp-recovery/db-compat-sync-backup-2026-07-07_171907/monitoring.db",
+      "bytes": 147456,
+      "sha256": "94523944c6f74903c6220a2e914afd0227dc111550ab4a3f93357acd5f3855b1",
+      "git_blob": "3bee1d990b52784f1aa010abdc2aed18547e99fa"
+    },
+    {
+      "path": "temp-recovery/db-compat-sync-backup-2026-07-07_171907/objects.db",
+      "bytes": 36864,
+      "sha256": "b41f58cbcfd68205f1f08306d918784e70dbfb73822686668a70463fdba914d6",
+      "git_blob": "856e83268ce55bd9e577d5ed59143a4b122f052c"
+    },
+    {
+      "path": "temp-recovery/db-compat-sync-backup-2026-07-07_171907/panel_identity.db",
+      "bytes": 32768,
+      "sha256": "940579a74ccd99882de60de11b2af64e40cc9d882e06c6164a715f095634f819",
+      "git_blob": "f3f164919a886f55b9f9b61e199290445b20cb00"
+    },
+    {
+      "path": "temp-recovery/db-compat-sync-backup-2026-07-07_171907/panel_runtime.db",
+      "bytes": 43884544,
+      "sha256": "e9c1e9b75bcb52b317da6663b64d6986def285651d583bd67f4e0ecdc724f299",
+      "git_blob": "06288c138a9571680cf5ed1bf1a43f4250fddc76"
+    },
+    {
+      "path": "temp-recovery/db-compat-sync-backup-2026-07-07_171907/settings.db",
+      "bytes": 36864,
+      "sha256": "14a2ca7a56d10bf62b5de375373808fd846733827eeaa1415ccba7de3f7cfa53",
+      "git_blob": "84ae383c7abde262e143be0a79504572e57eec12"
+    },
+    {
+      "path": "temp-recovery/db-compat-sync-backup-2026-07-07_171907/spring-panel__bot_runtime.db",
+      "bytes": 20480,
+      "sha256": "00cea539c021be1e9640359c6143c0dfc3333a5ee64f7b6ba8eafa5b47f79922",
+      "git_blob": "8fb42b2e1b3cc427f3bc5048a7e183a64eadcb90"
+    },
+    {
+      "path": "temp-recovery/locations-business-alias-backup-2026-07-07_162903/locations.json",
+      "bytes": 67828,
+      "sha256": "3deea66ca30d587bfb61331b04f558afaf23e1cf5500871442bfa6d2b09a4619",
+      "git_blob": "d53e2a058dbac191daf2d891fa3105a9eed5b814"
+    },
+    {
+      "path": "temp-recovery/locations-business-alias-backup-2026-07-07_162903/root__panel_runtime.db",
+      "bytes": 42631168,
+      "sha256": "74ddf3ad2a00613129e3c41c9bd1e18cf1ac5643a2499e1647c03af657f915f3",
+      "git_blob": "85d59e73cabad2e3994735d589217b72686490b8"
+    },
+    {
+      "path": "temp-recovery/locations-business-alias-backup-2026-07-07_162903/spring-panel__panel_runtime.db",
+      "bytes": 43884544,
+      "sha256": "e7994aae0c065b17b6cf06d37f2eb27c209ea922315702d5efdce2ac92663c18",
+      "git_blob": "35cc6d8251bc67062c121306cd95ed616d6f8090"
+    },
+    {
+      "path": "temp-recovery/locations-json-backup-2026-07-07_160507/locations.json",
+      "bytes": 156,
+      "sha256": "0feab13ac4d44118e178cba1e3f0d45819d7a8102957f16926d390ba530d5c50",
+      "git_blob": "fda288779387a1e7d41b03155dff70a0a5c7640a"
+    },
+    {
+      "path": "temp-recovery/locations-rebuild-backup-2026-07-08_093243/locations.json",
+      "bytes": 156,
+      "sha256": "0feab13ac4d44118e178cba1e3f0d45819d7a8102957f16926d390ba530d5c50",
+      "git_blob": "fda288779387a1e7d41b03155dff70a0a5c7640a"
+    },
+    {
+      "path": "temp-recovery/restore-backup-2026-07-07_144339/panel_identity.db",
+      "bytes": 32768,
+      "sha256": "940579a74ccd99882de60de11b2af64e40cc9d882e06c6164a715f095634f819",
+      "git_blob": "f3f164919a886f55b9f9b61e199290445b20cb00"
+    },
+    {
+      "path": "temp-recovery/restore-backup-2026-07-07_144339/panel_runtime.db",
+      "bytes": 12288,
+      "sha256": "1effb00badfa5d28e094e4ccae8d79b5114154bc9e524cee092e94e0a1c5e4a6",
+      "git_blob": "1c5e498de62c1a0f0c32e85b6f45e1d656e908d3"
+    },
+    {
+      "path": "temp-recovery/restore-snapshot-2026-07-07_144550/root__panel_identity.db",
+      "bytes": 32768,
+      "sha256": "940579a74ccd99882de60de11b2af64e40cc9d882e06c6164a715f095634f819",
+      "git_blob": "f3f164919a886f55b9f9b61e199290445b20cb00"
+    },
+    {
+      "path": "temp-recovery/restore-snapshot-2026-07-07_144550/root__panel_runtime.db",
+      "bytes": 42631168,
+      "sha256": "c2071e4e290249448e29ac3fa54ffe186d6ab7251b0008febe25fff2bc4b438e",
+      "git_blob": "39672b64dd67c2d614605e7676d7b9818ccfa5b8"
+    },
+    {
+      "path": "temp-recovery/restore-snapshot-2026-07-07_144550/spring-panel__panel_identity.db",
+      "bytes": 32768,
+      "sha256": "940579a74ccd99882de60de11b2af64e40cc9d882e06c6164a715f095634f819",
+      "git_blob": "f3f164919a886f55b9f9b61e199290445b20cb00"
+    },
+    {
+      "path": "temp-recovery/restore-snapshot-2026-07-07_144550/spring-panel__panel_runtime.db",
+      "bytes": 42631168,
+      "sha256": "c2071e4e290249448e29ac3fa54ffe186d6ab7251b0008febe25fff2bc4b438e",
+      "git_blob": "39672b64dd67c2d614605e7676d7b9818ccfa5b8"
+    },
+    {
+      "path": "temp-recovery/routing-migration-backup-2026-07-08_085737/README.md",
+      "bytes": 1415,
+      "sha256": "6869391c6fd6f79f948b7e1a23120e21a321ea4ad671d9cd0f1ebd97cf3bcc7c",
+      "git_blob": "0e197c5581a2853475365ca8511d2054edd8e92f"
+    },
+    {
+      "path": "temp-recovery/routing-migration-backup-2026-07-08_085737/panel_runtime.db",
+      "bytes": 43884544,
+      "sha256": "e9c1e9b75bcb52b317da6663b64d6986def285651d583bd67f4e0ecdc724f299",
+      "git_blob": "06288c138a9571680cf5ed1bf1a43f4250fddc76"
+    },
+    {
+      "path": "temp-recovery/routing-migration-backup-2026-07-08_085737/settings.json",
+      "bytes": 25668,
+      "sha256": "128b277da4c6128a3b9e82312606068ff562776476aaa1ead9588b992511c8a0",
+      "git_blob": "f347a47ab6d99ae47164b921104f94deb3058522"
+    },
+    {
+      "path": "temp-recovery/telegram-scheme-backup-2026-07-07_151156/root__panel_runtime.db",
+      "bytes": 42631168,
+      "sha256": "c2071e4e290249448e29ac3fa54ffe186d6ab7251b0008febe25fff2bc4b438e",
+      "git_blob": "39672b64dd67c2d614605e7676d7b9818ccfa5b8"
+    },
+    {
+      "path": "temp-recovery/telegram-scheme-backup-2026-07-07_151156/spring-panel__panel_runtime.db",
+      "bytes": 43102208,
+      "sha256": "f6e4349cc48cbf1d8842c4f81f224ea632f0ba007b520aa2379aa52b842cf3d0",
+      "git_blob": "47697c0954bbb002a29671f92fd9d7521ae0de80"
+    },
+    {
+      "path": "temp-recovery/zip0/tg_ref_b24_sup-main/spring-panel/bot_database.db",
+      "bytes": 1236992,
+      "sha256": "87073e1dbbca92d9690df90b79ec712b1b00895621273beef1fd1d39bf238f5b",
+      "git_blob": "3e3cfe4f5e9775e455dbadff0d1ed8563dbeb2af"
+    },
+    {
+      "path": "temp-recovery/zip0/tg_ref_b24_sup-main/spring-panel/clients.db",
+      "bytes": 40960,
+      "sha256": "997e1c6101945d2145a46493f0fedb8487c84e829264cd949bbf72342effedfa",
+      "git_blob": "9c6a3ebe27141f2d6fb026006aa0dd99ddeea68a"
+    },
+    {
+      "path": "temp-recovery/zip0/tg_ref_b24_sup-main/spring-panel/settings.db",
+      "bytes": 32768,
+      "sha256": "b687cd15e35ebdee638bbeef4a8cd2b46d39cc85d9c55485577810757acdea5a",
+      "git_blob": "b5bf56f124bb2a44cef284881d874afdd9fb206b"
+    },
+    {
+      "path": "temp-recovery/zip0/tg_ref_b24_sup-main/spring-panel/tickets.db",
+      "bytes": 417792,
+      "sha256": "e243fedd9e4bd72fe6f11ebcc177bebe8358c982b7fc0c7e654eb56c4dccbb8e",
+      "git_blob": "a87838c1b42ea603032864db5d1b197b42e53139"
+    },
+    {
+      "path": "temp-recovery/zip0/tg_ref_b24_sup-main/spring-panel/users.db",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "temp-recovery/zip1/tg_ref_b24_sup-main/spring-panel/bot_database.db",
+      "bytes": 43610112,
+      "sha256": "27da6f644f0d822907177ab641a915f9418369fa14031c2c127f05ed1e45ae95",
+      "git_blob": "e0b2886ac0d3b3d640f104c5f876abe56fb22e7f"
+    },
+    {
+      "path": "temp-recovery/zip1/tg_ref_b24_sup-main/spring-panel/clients.db",
+      "bytes": 40960,
+      "sha256": "997e1c6101945d2145a46493f0fedb8487c84e829264cd949bbf72342effedfa",
+      "git_blob": "9c6a3ebe27141f2d6fb026006aa0dd99ddeea68a"
+    },
+    {
+      "path": "temp-recovery/zip1/tg_ref_b24_sup-main/spring-panel/knowledge_base.db",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "temp-recovery/zip1/tg_ref_b24_sup-main/spring-panel/monitoring.db",
+      "bytes": 147456,
+      "sha256": "94523944c6f74903c6220a2e914afd0227dc111550ab4a3f93357acd5f3855b1",
+      "git_blob": "3bee1d990b52784f1aa010abdc2aed18547e99fa"
+    },
+    {
+      "path": "temp-recovery/zip1/tg_ref_b24_sup-main/spring-panel/objects.db",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "temp-recovery/zip1/tg_ref_b24_sup-main/spring-panel/settings.db",
+      "bytes": 32768,
+      "sha256": "f88c6d9d00c01fc9c84d311186766cd4faffd428fcb880eb0b7a7b1c09d98afe",
+      "git_blob": "cae33fcef0c25e5fa5d5b8cf49d9674efa0af085"
+    },
+    {
+      "path": "temp-recovery/zip1/tg_ref_b24_sup-main/spring-panel/tickets.db",
+      "bytes": 663552,
+      "sha256": "61f621ef9b9a52396a2ebbc56e35725a578cba9e0c84292454d7410ab71dbd8a",
+      "git_blob": "d1e9bc37e459e2c682dc02b9e6837a85488685ee"
+    },
+    {
+      "path": "temp-recovery/zip1/tg_ref_b24_sup-main/spring-panel/users.db",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "temp-recovery/zip1root/tg_ref_b24_sup-main/bot_database.db",
+      "bytes": 20480,
+      "sha256": "00cea539c021be1e9640359c6143c0dfc3333a5ee64f7b6ba8eafa5b47f79922",
+      "git_blob": "8fb42b2e1b3cc427f3bc5048a7e183a64eadcb90"
+    },
+    {
+      "path": "temp-recovery/zip1root/tg_ref_b24_sup-main/tickets.db",
+      "bytes": 12288,
+      "sha256": "1effb00badfa5d28e094e4ccae8d79b5114154bc9e524cee092e94e0a1c5e4a6",
+      "git_blob": "1c5e498de62c1a0f0c32e85b6f45e1d656e908d3"
+    },
+    {
+      "path": "temp-recovery/zip1root/tg_ref_b24_sup-main/users.db",
+      "bytes": 32768,
+      "sha256": "940579a74ccd99882de60de11b2af64e40cc9d882e06c6164a715f095634f819",
+      "git_blob": "f3f164919a886f55b9f9b61e199290445b20cb00"
+    }
+  ]
+}

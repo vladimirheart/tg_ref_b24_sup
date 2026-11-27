@@ -1,6 +1,99 @@
 (function () {
   'use strict';
 
+  // Lazy access preserves initialization order; feature modules never copy mutable page state.
+  const questionModel = window.BotQuestionModel.create({
+    get DASHBOARD_ATTRIBUTE_KEY_SET() { return DASHBOARD_ATTRIBUTE_KEY_SET; },
+    get DEFAULT_FIRST_RESPONSE_TIMEOUT_MESSAGE() { return DEFAULT_FIRST_RESPONSE_TIMEOUT_MESSAGE; },
+    get DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES() { return DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES; },
+    get QUESTION_ROUTE_PROBLEM_ID() { return QUESTION_ROUTE_PROBLEM_ID; },
+    get defaultRatingPrompt() { return defaultRatingPrompt; },
+    get defaultResponsesMap() { return defaultResponsesMap; },
+    get editorState() { return editorState; },
+    get firstPreset() { return firstPreset; },
+    get generateRatingTemplateId() { return generateRatingTemplateId; },
+    get generatedOptionIds() { return generatedOptionIds; },
+    get generatedQuestionIds() { return generatedQuestionIds; },
+    get generatedRatingTemplateIds() { return generatedRatingTemplateIds; },
+    get generatedTemplateIds() { return generatedTemplateIds; },
+    get getPresetMeta() { return getPresetMeta; },
+    get normalizeRatingTemplate() { return normalizeRatingTemplate; },
+    get presetExists() { return presetExists; },
+  });
+  const ratingEditor = window.BotRatingEditor.create({
+    get applyStatusAppearance() { return applyStatusAppearance; },
+    get generatedRatingTemplateIds() { return generatedRatingTemplateIds; },
+    get hideChildModal() { return hideChildModal; },
+    get html() { return html; },
+    get ratingDescriptionInput() { return ratingDescriptionInput; },
+    get ratingDiagnosticEl() { return ratingDiagnosticEl; },
+    get ratingEditorState() { return ratingEditorState; },
+    get ratingModalEl() { return ratingModalEl; },
+    get ratingNameInput() { return ratingNameInput; },
+    get ratingPromptInput() { return ratingPromptInput; },
+    get ratingResponsesContainer() { return ratingResponsesContainer; },
+    get ratingScaleInput() { return ratingScaleInput; },
+    get ratingStatusEl() { return ratingStatusEl; },
+    get ratingTemplatesContainer() { return ratingTemplatesContainer; },
+    get showChildModal() { return showChildModal; },
+    get state() { return state; },
+  });
+  const questionEditor = window.BotQuestionEditor.create({
+    get DASHBOARD_ATTRIBUTE_KEYS() { return DASHBOARD_ATTRIBUTE_KEYS; },
+    get DEFAULT_FIRST_RESPONSE_TIMEOUT_MESSAGE() { return DEFAULT_FIRST_RESPONSE_TIMEOUT_MESSAGE; },
+    get DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES() { return DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES; },
+    get PRESET_GROUPS() { return PRESET_GROUPS; },
+    get QUESTION_ROUTE_PROBLEM_ID() { return QUESTION_ROUTE_PROBLEM_ID; },
+    get addQuestionButtons() { return addQuestionButtons; },
+    get canManageChildModal() { return canManageChildModal; },
+    get cloneQuestion() { return cloneQuestion; },
+    get cloneTemplate() { return cloneTemplate; },
+    get editorState() { return editorState; },
+    get encodePresetValue() { return encodePresetValue; },
+    get ensurePresetDefinitionsLoaded() { return ensurePresetDefinitionsLoaded; },
+    get generateTemplateId() { return generateTemplateId; },
+    get getPresetMeta() { return getPresetMeta; },
+    get hasPresetDefinitions() { return hasPresetDefinitions; },
+    get hideChildModal() { return hideChildModal; },
+    get html() { return html; },
+    get isDashboardBindingKeyAllowed() { return isDashboardBindingKeyAllowed; },
+    get legacyDiagnosticEl() { return legacyDiagnosticEl; },
+    get normalizeBindingKey() { return normalizeBindingKey; },
+    get normalizeFirstResponseTimeoutMessageValue() { return normalizeFirstResponseTimeoutMessageValue; },
+    get normalizeFirstResponseTimeoutMinutesValue() { return normalizeFirstResponseTimeoutMinutesValue; },
+    get normalizeRatingResponses() { return normalizeRatingResponses; },
+    get normalizeScale() { return normalizeScale; },
+    get normalizeStringArray() { return normalizeStringArray; },
+    get persistBotSettingsPayload() { return persistBotSettingsPayload; },
+    get presetEmptyAlertEl() { return presetEmptyAlertEl; },
+    get presetExists() { return presetExists; },
+    get presetHintsEl() { return presetHintsEl; },
+    get presetStatusMessage() { return presetStatusMessage; },
+    get presetSummaryCardEl() { return presetSummaryCardEl; },
+    get questionsContainer() { return questionsContainer; },
+    get refreshLinkedBotSettingsConsumers() { return refreshLinkedBotSettingsConsumers; },
+    get renderTemplates() { return renderTemplates; },
+    get resolveQuestionOptionLabels() { return resolveQuestionOptionLabels; },
+    get resolveQuestionRouteChoices() { return resolveQuestionRouteChoices; },
+    get resolveQuestionRouteTargets() { return resolveQuestionRouteTargets; },
+    get sanitizeQuestionRoutes() { return sanitizeQuestionRoutes; },
+    get serializeQuestion() { return serializeQuestion; },
+    get setTemplateStatus() { return setTemplateStatus; },
+    get showChildModal() { return showChildModal; },
+    get state() { return state; },
+    get templateCancelButton() { return templateCancelButton; },
+    get templateDescriptionInput() { return templateDescriptionInput; },
+    get templateFirstResponseTimeoutInput() { return templateFirstResponseTimeoutInput; },
+    get templateFirstResponseTimeoutMessageInput() { return templateFirstResponseTimeoutMessageInput; },
+    get templateModalEl() { return templateModalEl; },
+    get templateNameInput() { return templateNameInput; },
+    get templateSaveButton() { return templateSaveButton; },
+    get templateStartMessageInput() { return templateStartMessageInput; },
+    get templateUnifiedFieldsInput() { return templateUnifiedFieldsInput; },
+    get validateQuestionFlow() { return validateQuestionFlow; },
+  });
+
+
   function resolvePageBotConfig() {
     const pageConfigRuntime = window.SettingsRuntimeAccess?.resolvePageConfigRuntime?.();
     if (pageConfigRuntime
@@ -298,162 +391,19 @@
     return div.innerHTML;
   }
 
-  function normalizeStringArray(raw) {
-    if (!Array.isArray(raw)) {
-      return [];
-    }
-    return raw
-      .map((value) => (typeof value === 'string' ? value.trim() : ''))
-      .filter((value) => Boolean(value));
-  }
+  function normalizeStringArray(...args) { return questionModel.normalizeStringArray(...args); }
 
-  function normalizeQuestionRequired(raw, fallback = true) {
-    if (typeof raw === 'boolean') {
-      return raw;
-    }
-    if (typeof raw === 'string') {
-      const normalized = raw.trim().toLowerCase();
-      if (normalized === 'true' || normalized === '1') {
-        return true;
-      }
-      if (normalized === 'false' || normalized === '0') {
-        return false;
-      }
-    }
-    return Boolean(fallback);
-  }
+  function normalizeQuestionRequired(...args) { return questionModel.normalizeQuestionRequired(...args); }
 
-  function buildDependencyValueHtml(label, values) {
-    const normalized = normalizeStringArray(values);
-    if (!normalized.length) {
-      return '';
-    }
-    const badges = normalized
-      .map((value) => `<span class="badge text-bg-light border">${html(value)}</span>`)
-      .join(' ');
-    return `
-      <div>
-        <span class="fw-semibold text-muted">${html(label)}:</span>
-        <span class="d-inline-flex flex-wrap gap-1 align-items-center ms-1">${badges}</span>
-      </div>
-    `;
-  }
+  function buildDependencyValueHtml(...args) { return questionEditor.buildDependencyValueHtml(...args); }
 
-  function buildDependencyPathsHtml(paths) {
-    if (!Array.isArray(paths) || !paths.length) {
-      return '';
-    }
-    const LABELS = {
-      business: 'Бизнес',
-      location_type: 'Тип бизнеса',
-      city: 'Город',
-    };
-    const items = paths
-      .map((path) => {
-        if (!path || typeof path !== 'object') {
-          return '';
-        }
-        const segments = [];
-        Object.keys(LABELS).forEach((key) => {
-          const value = typeof path[key] === 'string' ? path[key].trim() : '';
-          if (value) {
-            segments.push(`${LABELS[key]}: ${value}`);
-          }
-        });
-        if (!segments.length) {
-          return '';
-        }
-        const chain = segments
-          .map((segment) => `<span>${html(segment)}</span>`)
-          .join('<span class="text-muted mx-1">→</span>');
-        return `<li>${chain}</li>`;
-      })
-      .filter(Boolean);
-    if (!items.length) {
-      return '';
-    }
-    return `
-      <div>
-        <div class="small fw-semibold text-muted">Комбинации значений:</div>
-        <ul class="small mb-0 ps-3 d-flex flex-column gap-1">${items.join('')}</ul>
-      </div>
-    `;
-  }
+  function buildDependencyPathsHtml(...args) { return questionEditor.buildDependencyPathsHtml(...args); }
 
-  function buildOptionDependencyHtml(entry) {
-    if (!entry || typeof entry !== 'object') {
-      return '<div class="text-muted small">Для этого варианта нет дополнительных зависимостей.</div>';
-    }
-    const pieces = [];
-    pieces.push(buildDependencyValueHtml('Бизнес', entry.business));
-    pieces.push(buildDependencyValueHtml('Тип бизнеса', entry.location_type));
-    pieces.push(buildDependencyValueHtml('Город', entry.city));
-    pieces.push(buildDependencyPathsHtml(entry.paths));
-    const content = pieces.filter(Boolean).join('');
-    if (!content) {
-      return '<div class="text-muted small">Для этого варианта нет дополнительных зависимостей. Он доступен без ограничений.</div>';
-    }
-    const intro = '<div class="small text-muted">Этот вариант увидит клиент, если выполнены условия:</div>';
-    return `<div class="d-flex flex-column gap-2">${intro}${content}</div>`;
-  }
+  function buildOptionDependencyHtml(...args) { return questionEditor.buildOptionDependencyHtml(...args); }
 
-  function highlightOptionRow(card, optionValue) {
-    if (!card) {
-      return null;
-    }
-    const normalized = typeof optionValue === 'string' ? optionValue.trim() : '';
-    let activeRow = null;
-    card.querySelectorAll('[data-bot-question-option-row]').forEach((row) => {
-      if (!(row instanceof HTMLElement)) {
-        return;
-      }
-      const rowValue = typeof row.dataset.optionValue === 'string' ? row.dataset.optionValue.trim() : '';
-      const isActive = normalized && rowValue === normalized;
-      row.classList.toggle('is-active', isActive);
-      if (isActive) {
-        row.setAttribute('data-bot-question-option-active', 'true');
-        activeRow = row;
-      } else {
-        row.removeAttribute('data-bot-question-option-active');
-        const details = row.querySelector('[data-bot-question-option-dependencies]');
-        if (details) {
-          details.classList.add('d-none');
-          details.innerHTML = '';
-        }
-      }
-    });
-    return activeRow;
-  }
+  function highlightOptionRow(...args) { return questionEditor.highlightOptionRow(...args); }
 
-  function showOptionDependencies(card, optionValue) {
-    if (!card) {
-      return;
-    }
-    const meta = card.__questionMeta || null;
-    if (!meta || typeof meta.optionDependencies !== 'object') {
-      return;
-    }
-    const value = typeof optionValue === 'string' ? optionValue.trim() : '';
-    if (!value) {
-      return;
-    }
-    const activeRow = highlightOptionRow(card, value);
-    if (!activeRow) {
-      return;
-    }
-    const container = activeRow.querySelector('[data-bot-question-option-dependencies]');
-    if (!container) {
-      return;
-    }
-    const entry = meta.optionDependencies[value] || meta.optionDependencies[optionValue] || null;
-    container.innerHTML = `
-      <div class="bot-question-option__dependencies-title small fw-semibold text-primary">
-        Вариант: <span class="fw-normal text-body">${html(value)}</span>
-      </div>
-      ${buildOptionDependencyHtml(entry)}
-    `;
-    container.classList.remove('d-none');
-  }
+  function showOptionDependencies(...args) { return questionEditor.showOptionDependencies(...args); }
 
   function presetExists(group, field) {
     return Boolean(
@@ -511,948 +461,91 @@
     return [parts[0] || null, parts[1] || null];
   }
 
-  function generateQuestionId() {
-    let id;
-    do {
-      id = `q_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-    } while (generatedQuestionIds.has(id));
-    generatedQuestionIds.add(id);
-    return id;
-  }
+  function generateQuestionId(...args) { return questionModel.generateQuestionId(...args); }
 
-  function ensureQuestionId(rawId) {
-    if (typeof rawId === 'string' && rawId.trim()) {
-      const trimmed = rawId.trim();
-      generatedQuestionIds.add(trimmed);
-      return trimmed;
-    }
-    return generateQuestionId();
-  }
+  function ensureQuestionId(...args) { return questionModel.ensureQuestionId(...args); }
 
-  function generateOptionId() {
-    let id;
-    do {
-      id = `opt_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-    } while (generatedOptionIds.has(id));
-    generatedOptionIds.add(id);
-    return id;
-  }
+  function generateOptionId(...args) { return questionModel.generateOptionId(...args); }
 
-  function ensureOptionId(rawId) {
-    if (typeof rawId === 'string' && rawId.trim()) {
-      const trimmed = rawId.trim();
-      generatedOptionIds.add(trimmed);
-      return trimmed;
-    }
-    return generateOptionId();
-  }
+  function ensureOptionId(...args) { return questionModel.ensureOptionId(...args); }
 
-  function cloneQuestionOptions(rawOptions) {
-    if (!Array.isArray(rawOptions)) {
-      return [];
-    }
-    return rawOptions
-      .map((option) => {
-        if (!option || typeof option !== 'object') {
-          return null;
-        }
-        const label = typeof option.label === 'string' ? option.label : '';
-        return {
-          id: ensureOptionId(option.id),
-          label,
-        };
-      })
-      .filter((option) => option && option.id);
-  }
+  function cloneQuestionOptions(...args) { return questionModel.cloneQuestionOptions(...args); }
 
-  function normalizeBindingKey(value) {
-    if (typeof value !== 'string') {
-      return '';
-    }
-    return value
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '_')
-      .replace(/^_+|_+$/g, '')
-      .replace(/_+/g, '_');
-  }
+  function normalizeBindingKey(...args) { return questionModel.normalizeBindingKey(...args); }
 
-  function normalizeEditableQuestionOptions(rawOptions) {
-    return cloneQuestionOptions(rawOptions)
-      .map((option) => ({
-        id: ensureOptionId(option && option.id),
-        label: typeof option?.label === 'string' ? option.label.trim() : '',
-      }))
-      .filter((option) => option.label);
-  }
+  function normalizeEditableQuestionOptions(...args) { return questionModel.normalizeEditableQuestionOptions(...args); }
 
-  function resolveQuestionBindingKey(question) {
-    const explicitKey = normalizeBindingKey(
-      question && typeof question.bindingKey === 'string'
-        ? question.bindingKey
-        : (question && typeof question.binding_key === 'string' ? question.binding_key : ''),
-    );
-    if (explicitKey) {
-      return explicitKey;
-    }
-    if (question && question.preset && typeof question.preset.field === 'string') {
-      return question.preset.field.trim();
-    }
-    return '';
-  }
+  function resolveQuestionBindingKey(...args) { return questionModel.resolveQuestionBindingKey(...args); }
 
-  function isDashboardBindingKeyAllowed(value) {
-    return typeof value === 'string' && DASHBOARD_ATTRIBUTE_KEY_SET.has(value.trim());
-  }
+  function isDashboardBindingKeyAllowed(...args) { return questionModel.isDashboardBindingKeyAllowed(...args); }
 
-  function suggestDashboardBindingKey(question) {
-    const explicitKey = resolveQuestionBindingKey(question);
-    if (isDashboardBindingKeyAllowed(explicitKey)) {
-      return explicitKey;
-    }
-    const presetField = question && question.preset && typeof question.preset.field === 'string'
-      ? question.preset.field.trim()
-      : '';
-    if (isDashboardBindingKeyAllowed(presetField)) {
-      return presetField;
-    }
-    return '';
-  }
+  function suggestDashboardBindingKey(...args) { return questionModel.suggestDashboardBindingKey(...args); }
 
-  function buildDashboardBindingOptions(selectedValue) {
-    const normalized = isDashboardBindingKeyAllowed(selectedValue) ? selectedValue.trim() : '';
-    return ['<option value="">Выберите атрибут</option>']
-      .concat(DASHBOARD_ATTRIBUTE_KEYS.map((item) => (
-        `<option value="${html(item.value)}"${item.value === normalized ? ' selected' : ''}>${html(item.label)}</option>`
-      )))
-      .join('');
-  }
 
-  function buildBindingEditorHtml(question, bindingKey, analyticsHint) {
-    const includeInDashboard = Boolean(question && (question.includeInDashboard || question.include_in_dashboard));
-    if (includeInDashboard) {
-      return `
-        <label class="form-label">Атрибут дашборда</label>
-        <select class="form-select" data-bot-question-binding>
-          ${buildDashboardBindingOptions(bindingKey)}
-        </select>
-        <div class="form-text mb-0">Для дашборда можно выбирать только разрешённые атрибуты, чтобы не создавать ошибки в аналитике.</div>
-      `;
-    }
-    return `
-      <label class="form-label">Ключ атрибута</label>
-      <input type="text" class="form-control font-monospace" value="${html(bindingKey)}" data-bot-question-binding placeholder="company">
-      <div class="form-text mb-0">${html(analyticsHint)}</div>
-    `;
-  }
 
-  function resolveQuestionOptionLabels(question, meta) {
-    if (!question) {
-      return [];
-    }
-    if (question.type === 'preset') {
-      return Array.isArray(meta && meta.options)
-        ? meta.options
-            .map((value) => (typeof value === 'string' ? value.trim() : ''))
-            .filter((value) => value)
-        : [];
-    }
-    if (question.type === 'select') {
-      return normalizeEditableQuestionOptions(question.options).map((option) => option.label);
-    }
-    return [];
-  }
 
-  function cloneQuestionRoutes(rawRoutes) {
-    if (!Array.isArray(rawRoutes)) {
-      return [];
-    }
-    return rawRoutes
-      .map((route) => {
-        if (!route || typeof route !== 'object') {
-          return null;
-        }
-        const valueId = typeof route.value_id === 'string'
-          ? route.value_id.trim()
-          : (typeof route.valueId === 'string' ? route.valueId.trim() : '');
-        const nextQuestionId = typeof route.next_question_id === 'string'
-          ? route.next_question_id.trim()
-          : (typeof route.nextQuestionId === 'string' ? route.nextQuestionId.trim() : '');
-        if (!valueId || !nextQuestionId) {
-          return null;
-        }
-        return { valueId, nextQuestionId };
-      })
-      .filter((route) => route && route.valueId && route.nextQuestionId);
-  }
 
-  function resolveQuestionRouteChoices(question, meta) {
-    if (!question) {
-      return [];
-    }
-    if (question.type === 'select') {
-      return normalizeEditableQuestionOptions(question.options).map((option) => ({
-        id: option.id,
-        label: option.label,
-      }));
-    }
-    if (question.type === 'preset') {
-      const excluded = new Set(
-        Array.isArray(question.excludedOptions)
-          ? question.excludedOptions
-            .map((value) => (typeof value === 'string' ? value.trim() : ''))
-            .filter((value) => value)
-          : [],
-      );
-      return Array.isArray(meta && meta.options)
-        ? meta.options
-            .map((value) => (typeof value === 'string' ? value.trim() : ''))
-            .filter((value) => value && !excluded.has(value))
-            .map((value) => ({ id: value, label: value }))
-        : [];
-    }
-    return [];
-  }
+  function resolveQuestionOptionLabels(...args) { return questionModel.resolveQuestionOptionLabels(...args); }
 
-  function resolveQuestionRouteTargets(questionIndex) {
-    const targets = [];
-    for (let i = questionIndex + 1; i < editorState.questionFlow.length; i += 1) {
-      const candidate = editorState.questionFlow[i];
-      if (!candidate || !candidate.id) {
-        continue;
-      }
-      const title = String(candidate.text || '').trim() || `Вопрос ${i + 1}`;
-      targets.push({
-        id: candidate.id,
-        label: `${i + 1}. ${title}`,
-      });
-    }
-    targets.push({
-      id: QUESTION_ROUTE_PROBLEM_ID,
-      label: 'Финальный шаг: "Опишите проблему"',
-    });
-    return targets;
-  }
+  function cloneQuestionRoutes(...args) { return questionModel.cloneQuestionRoutes(...args); }
 
-  function sanitizeQuestionRoutes(question, questionIndex, meta) {
-    if (!question || (question.type !== 'select' && question.type !== 'preset')) {
-      return [];
-    }
-    const choiceIds = new Set(resolveQuestionRouteChoices(question, meta).map((option) => option.id));
-    if (!choiceIds.size) {
-      return [];
-    }
-    const targetIds = new Set(resolveQuestionRouteTargets(questionIndex).map((target) => target.id));
-    return cloneQuestionRoutes(question.routes)
-      .filter((route) => choiceIds.has(route.valueId) && targetIds.has(route.nextQuestionId));
-  }
+  function resolveQuestionRouteChoices(...args) { return questionModel.resolveQuestionRouteChoices(...args); }
 
-  function buildQuestionRouteControls(question, questionIndex, meta) {
-    const routeChoices = resolveQuestionRouteChoices(question, meta);
-    if (!routeChoices.length) {
-      return '';
-    }
-    const targetChoices = resolveQuestionRouteTargets(questionIndex);
-    const hasIntermediateTargets = targetChoices.some((target) => target.id !== QUESTION_ROUTE_PROBLEM_ID);
-    const targetOptions = ['<option value="">По порядку</option>']
-      .concat(targetChoices.map((target) => `<option value="${html(target.id)}">${html(target.label)}</option>`))
-      .join('');
-    const rows = routeChoices.map((option) => `
-      <div class="bot-question-route-row">
-        <div class="small fw-semibold">Если клиент выбрал: ${html(option.label)}</div>
-        <label class="small text-muted">Следующий шаг</label>
-        <select class="form-select form-select-sm" data-bot-question-route-target="${html(option.id)}">
-          ${targetOptions}
-        </select>
-      </div>
-    `).join('');
-    return `
-      <div class="row g-3 mt-1 align-items-stretch bot-question-route-rowset">
-        <div class="col-12">
-          <div class="border rounded-3 bg-light p-3 bot-question-surface bot-question-info-surface bot-question-route-surface">
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-              <div class="small text-uppercase text-muted fw-semibold">Маршрутизация</div>
-              <div class="small text-muted">Если маршрут не задан, бот задаст следующий вопрос по порядку.</div>
-            </div>
-            <div class="bot-question-route-grid">
-              ${rows}
-            </div>
-            <div class="form-text mt-2 mb-0">Можно отправить клиента сразу к следующему релевантному вопросу или сразу к финальному описанию проблемы.</div>
-          </div>
-        </div>
-      </div>
-    `;
-  }
+  function resolveQuestionRouteTargets(...args) { return questionModel.resolveQuestionRouteTargets(...args); }
 
-  function escapeSelectorValue(value) {
-    const stringValue = value == null ? '' : String(value);
-    if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
-      return CSS.escape(stringValue);
-    }
-    return stringValue.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-  }
+  function sanitizeQuestionRoutes(...args) { return questionModel.sanitizeQuestionRoutes(...args); }
 
-  function resolveQuestionEditorScrollContainer() {
-    if (templateModalEl instanceof HTMLElement) {
-      const modalBody = templateModalEl.querySelector('.modal-body');
-      if (modalBody instanceof HTMLElement) {
-        return modalBody;
-      }
-    }
-    return questionsContainer instanceof HTMLElement ? questionsContainer : null;
-  }
+  function buildQuestionRouteControls(...args) { return questionEditor.buildQuestionRouteControls(...args); }
 
-  function resolveFocusedQuestionFieldState(activeElement, card) {
-    if (!(activeElement instanceof HTMLElement) || !(card instanceof HTMLElement)) {
-      return null;
-    }
-    if (activeElement.matches('[data-bot-question-text]')) {
-      return { selector: '[data-bot-question-text]' };
-    }
-    if (activeElement.matches('[data-bot-question-type]')) {
-      return { selector: '[data-bot-question-type]' };
-    }
-    if (activeElement.matches('[data-bot-question-preset]')) {
-      return { selector: '[data-bot-question-preset]' };
-    }
-    if (activeElement.matches('[data-bot-question-select-options]')) {
-      return { selector: '[data-bot-question-select-options]' };
-    }
-    if (activeElement.matches('[data-bot-question-binding]')) {
-      return { selector: '[data-bot-question-binding]' };
-    }
-    if (activeElement.matches('[data-bot-question-required]')) {
-      return { selector: '[data-bot-question-required]' };
-    }
-    if (activeElement.matches('[data-bot-question-dashboard]')) {
-      return { selector: '[data-bot-question-dashboard]' };
-    }
-    if (activeElement.matches('[data-bot-question-route-target]')) {
-      const routeValueId = activeElement.dataset.botQuestionRouteTarget || '';
-      return routeValueId
-        ? { selector: `[data-bot-question-route-target="${escapeSelectorValue(routeValueId)}"]` }
-        : { selector: '[data-bot-question-route-target]' };
-    }
-    if (activeElement.matches('[data-bot-question-filter]')) {
-      const filterKey = activeElement.dataset.botQuestionFilter || '';
-      return filterKey ? { selector: `[data-bot-question-filter="${escapeSelectorValue(filterKey)}"]` } : null;
-    }
-    if (activeElement.matches('[data-bot-question-option]')) {
-      const optionValue = activeElement.getAttribute('value') || '';
-      return optionValue
-        ? { selector: `[data-bot-question-option][value="${escapeSelectorValue(optionValue)}"]` }
-        : { selector: '[data-bot-question-option]' };
-    }
-    if (activeElement.matches('[data-bot-question-option-info]')) {
-      const row = activeElement.closest('[data-bot-question-option-row]');
-      const optionValue = row instanceof HTMLElement ? (row.dataset.optionValue || '') : '';
-      return optionValue
-        ? { selector: `[data-bot-question-option-row][data-option-value="${escapeSelectorValue(optionValue)}"] [data-bot-question-option-info]` }
-        : { selector: '[data-bot-question-option-info]' };
-    }
-    if (activeElement.matches('[data-bot-question-action]')) {
-      const action = activeElement.dataset.botQuestionAction || '';
-      return action ? { selector: `[data-bot-question-action="${escapeSelectorValue(action)}"]` } : null;
-    }
-    return null;
-  }
+  function escapeSelectorValue(...args) { return questionEditor.escapeSelectorValue(...args); }
 
-  function captureQuestionEditorUiState() {
-    if (!(questionsContainer instanceof HTMLElement)) {
-      return null;
-    }
-    const scrollContainer = resolveQuestionEditorScrollContainer();
-    const uiState = {
-      scrollTop: scrollContainer ? scrollContainer.scrollTop : 0,
-      activeQuestionId: '',
-      activeFieldSelector: '',
-      selectionStart: null,
-      selectionEnd: null,
-      anchorOffsetTop: null,
-      expandedOptions: [],
-      disclosures: [],
-    };
-    questionsContainer.querySelectorAll('.card[data-question-id]').forEach((card) => {
-      if (!(card instanceof HTMLElement)) {
-        return;
-      }
-      card.querySelectorAll('details[data-question-section]').forEach((details) => {
-        uiState.disclosures.push({ questionId: card.dataset.questionId || '', section: details.dataset.questionSection, open: details.open });
-      });
-      const activeRow = card.querySelector('[data-bot-question-option-active="true"]');
-      if (!(activeRow instanceof HTMLElement)) {
-        return;
-      }
-      const optionValue = activeRow.dataset.optionValue || '';
-      if (!optionValue) {
-        return;
-      }
-      uiState.expandedOptions.push({
-        questionId: card.dataset.questionId || '',
-        optionValue,
-      });
-    });
-    const activeElement = document.activeElement;
-    if (!(activeElement instanceof HTMLElement) || !questionsContainer.contains(activeElement)) {
-      return uiState;
-    }
-    const card = activeElement.closest('.card[data-question-id]');
-    if (!(card instanceof HTMLElement)) {
-      return uiState;
-    }
-    const fieldState = resolveFocusedQuestionFieldState(activeElement, card);
-    if (!fieldState || !fieldState.selector) {
-      return uiState;
-    }
-    uiState.activeQuestionId = card.dataset.questionId || '';
-    uiState.activeFieldSelector = fieldState.selector;
-    if (scrollContainer instanceof HTMLElement) {
-      uiState.anchorOffsetTop = card.getBoundingClientRect().top - scrollContainer.getBoundingClientRect().top;
-    }
-    if ((activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement)
-      && typeof activeElement.selectionStart === 'number'
-      && typeof activeElement.selectionEnd === 'number') {
-      uiState.selectionStart = activeElement.selectionStart;
-      uiState.selectionEnd = activeElement.selectionEnd;
-    }
-    return uiState;
-  }
+  function resolveQuestionEditorScrollContainer(...args) { return questionEditor.resolveQuestionEditorScrollContainer(...args); }
 
-  function restoreQuestionEditorUiState(uiState) {
-    if (!uiState || !(questionsContainer instanceof HTMLElement)) {
-      return;
-    }
-    const scrollContainer = resolveQuestionEditorScrollContainer();
-    (uiState.disclosures || []).forEach((entry) => {
-      const card = questionsContainer.querySelector(`.card[data-question-id="${escapeSelectorValue(entry.questionId)}"]`);
-      const details = card?.querySelector(`details[data-question-section="${escapeSelectorValue(entry.section)}"]`);
-      if (details) details.open = entry.open;
-    });
-    if (scrollContainer instanceof HTMLElement && Number.isFinite(uiState.scrollTop)) {
-      scrollContainer.scrollTop = uiState.scrollTop;
-    }
-    if (Array.isArray(uiState.expandedOptions)) {
-      uiState.expandedOptions.forEach((entry) => {
-        if (!entry || !entry.questionId || !entry.optionValue) {
-          return;
-        }
-        const card = questionsContainer.querySelector(`.card[data-question-id="${escapeSelectorValue(entry.questionId)}"]`);
-        if (card instanceof HTMLElement) {
-          showOptionDependencies(card, entry.optionValue);
-        }
-      });
-    }
-    if (!uiState.activeQuestionId || !uiState.activeFieldSelector) {
-      if (scrollContainer instanceof HTMLElement && Number.isFinite(uiState.scrollTop)) {
-        requestAnimationFrame(() => {
-          scrollContainer.scrollTop = uiState.scrollTop;
-        });
-      }
-      return;
-    }
-    const card = questionsContainer.querySelector(`.card[data-question-id="${escapeSelectorValue(uiState.activeQuestionId)}"]`);
-    if (!(card instanceof HTMLElement)) {
-      if (scrollContainer instanceof HTMLElement && Number.isFinite(uiState.scrollTop)) {
-        requestAnimationFrame(() => {
-          scrollContainer.scrollTop = uiState.scrollTop;
-        });
-      }
-      return;
-    }
-    const target = card.querySelector(uiState.activeFieldSelector);
-    if (target instanceof HTMLElement) {
-      try {
-        target.focus({ preventScroll: true });
-      } catch (error) {
-        target.focus();
-      }
-      if ((target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)
-        && typeof uiState.selectionStart === 'number'
-        && typeof uiState.selectionEnd === 'number'
-        && typeof target.setSelectionRange === 'function') {
-        target.setSelectionRange(uiState.selectionStart, uiState.selectionEnd);
-      }
-    }
-    if (scrollContainer instanceof HTMLElement) {
-      const restorePosition = () => {
-        if (typeof uiState.anchorOffsetTop === 'number') {
-          const delta = card.getBoundingClientRect().top - scrollContainer.getBoundingClientRect().top - uiState.anchorOffsetTop;
-          scrollContainer.scrollTop += delta;
-        } else if (Number.isFinite(uiState.scrollTop)) {
-          scrollContainer.scrollTop = uiState.scrollTop;
-        }
-      };
-      restorePosition();
-      requestAnimationFrame(restorePosition);
-    }
-  }
+  function resolveFocusedQuestionFieldState(...args) { return questionEditor.resolveFocusedQuestionFieldState(...args); }
 
-  function validateQuestionFlow(questionFlow, templateName, checkResources = true) {
-    const usedBindingKeys = new Map();
-    let businessQuestionCount = 0;
-    for (let i = 0; i < questionFlow.length; i += 1) {
-      const question = questionFlow[i] || {};
-      const questionNumber = i + 1;
-      const bindingKey = resolveQuestionBindingKey(question);
-      const includeInDashboard = Boolean(question.includeInDashboard || question.include_in_dashboard);
-      if (question.type === 'business') {
-        businessQuestionCount += 1;
-        if (businessQuestionCount > 1 || bindingKey !== 'business') {
-          return `В шаблоне${templateName ? ` "${templateName}"` : ''} может быть только один вопрос «Бизнес канала» с ключом business.`;
-        }
-      }
-      const meta = question.type === 'preset' && question.preset
-        ? getPresetMeta(question.preset.group, question.preset.field)
-        : null;
-      if (question.type === 'preset') {
-        if (!question.preset || !question.preset.group || !question.preset.field) {
-          return `Выберите готовое поле для вопроса №${questionNumber}${templateName ? ` в шаблоне "${templateName}"` : ''}.`;
-        }
-      } else {
-        const text = String(question.text || '').trim();
-        if (!text) {
-          return `Укажите текст для вопроса №${questionNumber}${templateName ? ` в шаблоне "${templateName}"` : ''}.`;
-        }
-        if (question.type === 'select') {
-          const options = resolveQuestionOptionLabels(question, null);
-          if (!options.length) {
-            return `Добавьте хотя бы один вариант ответа для вопроса №${questionNumber}${templateName ? ` в шаблоне "${templateName}"` : ''}.`;
-          }
-          if (new Set(options.map((value) => value.toLowerCase())).size !== options.length) {
-            return `Варианты ответа для вопроса №${questionNumber}${templateName ? ` в шаблоне "${templateName}"` : ''} должны быть уникальными.`;
-          }
-        }
-      }
-      const targets = new Set(questionFlow.slice(i + 1).map(item => item.id));
-      const choices = new Set(resolveQuestionRouteChoices(question, meta).map(item => item.id));
-      if (cloneQuestionRoutes(question.routes).some(route => !targets.has(route.nextQuestionId)
-          || (!(question.type === 'preset' && !checkResources) && !choices.has(route.valueId)))) {
-        return `Проверьте маршруты для вопроса №${questionNumber}${templateName ? ` в шаблоне "${templateName}"` : ''}: часть переходов указывает на недоступные варианты или вопросы выше по сценарию.`;
-      }
-      if (includeInDashboard && !bindingKey) {
-        return `Для вопроса №${questionNumber}${templateName ? ` в шаблоне "${templateName}"` : ''} заполните ключ атрибута латиницей, если он должен попадать в дашборд.`;
-      }
-      if (includeInDashboard && !isDashboardBindingKeyAllowed(bindingKey)) {
-        return `Для вопроса №${questionNumber}${templateName ? ` в шаблоне "${templateName}"` : ''} выберите атрибут из списка разрешённых значений дашборда.`;
-      }
-      const effectiveKey = normalizeBindingKey(question.bindingKey || question.binding_key || '') || question.id;
-      if (effectiveKey) {
-        const previousIndex = usedBindingKeys.get(effectiveKey);
-        if (previousIndex != null) {
-          return `Ключ атрибута "${effectiveKey}" повторяется в вопросах №${previousIndex + 1} и №${questionNumber}${templateName ? ` шаблона "${templateName}"` : ''}.`;
-        }
-        usedBindingKeys.set(effectiveKey, i);
-      }
-    }
-    return null;
-  }
+  function captureQuestionEditorUiState(...args) { return questionEditor.captureQuestionEditorUiState(...args); }
 
-  function generateTemplateId() {
-    let id;
-    do {
-      id = `tpl_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-    } while (generatedTemplateIds.has(id));
-    generatedTemplateIds.add(id);
-    return id;
-  }
+  function restoreQuestionEditorUiState(...args) { return questionEditor.restoreQuestionEditorUiState(...args); }
 
-  function ensureTemplateId(rawId) {
-    if (typeof rawId === 'string' && rawId.trim()) {
-      const trimmed = rawId.trim();
-      generatedTemplateIds.add(trimmed);
-      return trimmed;
-    }
-    return generateTemplateId();
-  }
+  function validateQuestionFlow(...args) { return questionModel.validateQuestionFlow(...args); }
 
-  function generateRatingTemplateId() {
-    let id;
-    do {
-      id = `rtpl_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-    } while (generatedRatingTemplateIds.has(id));
-    generatedRatingTemplateIds.add(id);
-    return id;
-  }
+  function generateTemplateId(...args) { return questionModel.generateTemplateId(...args); }
 
-  function ensureRatingTemplateId(rawId) {
-    if (typeof rawId === 'string' && rawId.trim()) {
-      const trimmed = rawId.trim();
-      generatedRatingTemplateIds.add(trimmed);
-      return trimmed;
-    }
-    return generateRatingTemplateId();
-  }
+  function ensureTemplateId(...args) { return questionModel.ensureTemplateId(...args); }
 
-  function cloneQuestion(question, { preserveId = true } = {}) {
-    const id = preserveId ? ensureQuestionId(question && question.id) : generateQuestionId();
-    const preset = question && question.preset && question.preset.group && question.preset.field
-      ? { group: question.preset.group, field: question.preset.field }
-      : null;
-    const options = cloneQuestionOptions(question && question.options);
-    const excluded = Array.isArray(question && question.excludedOptions)
-      ? Array.from(new Set(question.excludedOptions.map((value) => (value || '').toString())))
-      : [];
-    const filterState = question && typeof question.filterState === 'object'
-      ? Object.assign({}, question.filterState)
-      : {};
-    const routes = cloneQuestionRoutes(question && question.routes);
-    return {
-      id,
-      type: question && (question.type === 'preset' || question.type === 'select' || question.type === 'business') ? question.type : 'custom',
-      text: question && typeof question.text === 'string' ? question.text : '',
-      order: Number.isFinite(question && question.order) ? Number(question.order) : 0,
-      preset,
-      options,
-      presetUnavailable: Boolean(question && question.presetUnavailable),
-      excludedOptions: excluded,
-      filterState,
-      bindingKey: question && typeof question.bindingKey === 'string'
-        ? question.bindingKey
-        : (question && typeof question.binding_key === 'string' ? question.binding_key : ''),
-      includeInDashboard: Boolean(question && (question.includeInDashboard || question.include_in_dashboard)),
-      routes,
-      required: question && (question.type === 'preset' || question.type === 'business')
-        ? true
-        : normalizeQuestionRequired(question && question.required, true),
-    };
-  }
+  function generateRatingTemplateId(...args) { return ratingEditor.generateRatingTemplateId(...args); }
 
-  function cloneTemplate(template, { preserveIds = true } = {}) {
-    const id = preserveIds ? ensureTemplateId(template && template.id) : generateTemplateId();
-    const questionFlow = Array.isArray(template && template.questionFlow)
-      ? template.questionFlow.map((question) => cloneQuestion(question, { preserveId: preserveIds }))
-      : [];
-    return {
-      id,
-      name: template && typeof template.name === 'string' ? template.name : 'Шаблон вопросов',
-      description: template && typeof template.description === 'string' ? template.description : '',
-      startMessage: template && typeof template.startMessage === 'string'
-        ? template.startMessage
-        : (template && typeof template.start_message === 'string' ? template.start_message : ''),
-      firstResponseTimeoutMinutes: normalizeFirstResponseTimeoutMinutesValue(
-        template && (template.firstResponseTimeoutMinutes ?? template.first_response_timeout_minutes)
-      ),
-      firstResponseTimeoutMessage: normalizeFirstResponseTimeoutMessageValue(
-        template && (template.firstResponseTimeoutMessage ?? template.first_response_timeout_message)
-      ),
-      unifiedFields: Boolean(template && (template.unifiedFields || template.scope_mode === 'UNIFIED_FIELDS')),
-      questionFlow,
-    };
-  }
+  function ensureRatingTemplateId(...args) { return ratingEditor.ensureRatingTemplateId(...args); }
 
-  function defaultRatingPrompt(scale) {
-    const normalized = normalizeScale(scale);
-    if (normalized <= 1) {
-      return 'Пожалуйста, оцените качество ответа: отправьте число 1.';
-    }
-    return `Пожалуйста, оцените качество ответа от 1 до ${normalized}.`;
-  }
+  function cloneQuestion(...args) { return questionModel.cloneQuestion(...args); }
 
-  function normalizeScale(value) {
-    const num = Number.parseInt(value, 10);
-    if (!Number.isFinite(num)) {
-      return 5;
-    }
-    if (num < 1) {
-      return 1;
-    }
-    if (num > 10) {
-      return 10;
-    }
-    return num;
-  }
+  function cloneTemplate(...args) { return questionModel.cloneTemplate(...args); }
 
-  function normalizeRatingResponses(rawResponses, scale) {
-    const collected = {};
-    if (Array.isArray(rawResponses)) {
-      rawResponses.forEach((item) => {
-        if (!item || typeof item !== 'object') {
-          return;
-        }
-        const rawValue = item.value != null ? item.value : item.key;
-        const rawText = item.text != null ? item.text : item.label;
-        const value = Number.parseInt(rawValue, 10);
-        if (!Number.isFinite(value)) {
-          return;
-        }
-        const text = typeof rawText === 'string' ? rawText.trim() : '';
-        if (text) {
-          collected[String(value)] = text;
-        }
-      });
-    } else if (rawResponses && typeof rawResponses === 'object') {
-      Object.entries(rawResponses).forEach(([key, rawText]) => {
-        const value = Number.parseInt(key, 10);
-        if (!Number.isFinite(value)) {
-          return;
-        }
-        const text = typeof rawText === 'string' ? rawText.trim() : '';
-        if (text) {
-          collected[String(value)] = text;
-        }
-      });
-    }
-    const ensured = {};
-    const defaults = defaultResponsesMap(scale);
-    for (let value = 1; value <= Math.max(1, scale); value += 1) {
-      const key = String(value);
-      ensured[key] = collected[key] || defaults[key] || `Спасибо за вашу оценку ${value}!`;
-    }
-    return ensured;
-  }
+  function defaultRatingPrompt(...args) { return ratingEditor.defaultRatingPrompt(...args); }
 
-  function cloneRatingTemplate(template, { preserveId = true } = {}) {
-    const id = preserveId ? ensureRatingTemplateId(template && template.id) : generateRatingTemplateId();
-    const name = template && typeof template.name === 'string' ? template.name.trim() : '';
-    const description = template && typeof template.description === 'string' ? template.description.trim() : '';
-    const scale = normalizeScale(template && (template.scaleSize ?? template.scale_size ?? template.scale));
-    const promptSource = template && (template.promptText ?? template.prompt_text ?? template.prompt);
-    const promptText = typeof promptSource === 'string' && promptSource.trim()
-      ? promptSource.trim()
-      : defaultRatingPrompt(scale);
-    const responsesSource = template && template.responses ? template.responses : {};
-    const responses = normalizeRatingResponses(responsesSource, scale);
-    return {
-      id,
-      name: name || 'Шаблон оценок',
-      description,
-      promptText,
-      scaleSize: scale,
-      responses,
-    };
-  }
+  function normalizeScale(...args) { return ratingEditor.normalizeScale(...args); }
 
-  function normalizeQuestion(raw, order) {
-    if (typeof raw === 'string') {
-      const text = raw.trim();
-      return {
-        id: generateQuestionId(),
-        type: 'custom',
-        text,
-        order,
-        preset: null,
-        options: [],
-        presetUnavailable: false,
-        excludedOptions: [],
-        bindingKey: '',
-        includeInDashboard: false,
-        routes: [],
-        required: true,
-      };
-    }
+  function normalizeRatingResponses(...args) { return ratingEditor.normalizeRatingResponses(...args); }
 
-    const source = raw && typeof raw === 'object' ? raw : {};
-    const id = ensureQuestionId(source.id);
-    let type = source.type === 'preset' ? 'preset' : (source.type === 'select' ? 'select' : (source.type === 'business' ? 'business' : 'custom'));
-    let text = typeof source.text === 'string' ? source.text.trim() : '';
-    let preset = null;
-    let presetUnavailable = false;
-    const options = cloneQuestionOptions(source.options);
-    if (type === 'preset') {
-      const presetSource = source.preset && typeof source.preset === 'object' ? source.preset : source;
-      let group = typeof presetSource.group === 'string' ? presetSource.group.trim() : '';
-      let field = typeof presetSource.field === 'string' ? presetSource.field.trim() : '';
-      if (presetExists(group, field)) {
-        preset = { group, field };
-        const meta = getPresetMeta(group, field);
-        if (!text && meta) {
-          text = meta.label;
-        }
-      } else {
-        preset = group && field ? { group, field } : null;
-        presetUnavailable = true;
-      }
-    }
-    if (type === 'custom' && !text) {
-      text = '';
-    }
-    const excludedOptions = [];
-    const rawExcluded = source.excluded_options || source.excludedOptions;
-    if (Array.isArray(rawExcluded)) {
-      rawExcluded.forEach((value) => {
-        if (typeof value === 'string' && value.trim()) {
-          excludedOptions.push(value.trim());
-        }
-      });
-    }
-    return {
-      id,
-      type,
-      text,
-      order,
-      preset,
-      options,
-      presetUnavailable,
-      excludedOptions: Array.from(new Set(excludedOptions)),
-      bindingKey: typeof source.binding_key === 'string'
-        ? source.binding_key.trim()
-        : (typeof source.bindingKey === 'string' ? source.bindingKey.trim() : ''),
-      includeInDashboard: Boolean(source.include_in_dashboard || source.includeInDashboard),
-      routes: cloneQuestionRoutes(source.routes),
-      required: type === 'preset' || type === 'business' ? true : normalizeQuestionRequired(source.required, true),
-    };
-  }
+  function cloneRatingTemplate(...args) { return ratingEditor.cloneRatingTemplate(...args); }
 
-  function normalizeTemplate(raw, index) {
-    if (!raw || typeof raw !== 'object') {
-      return null;
-    }
-    const templateId = ensureTemplateId(raw.id || `tpl_${index}`);
-    const name = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : 'Шаблон вопросов';
-    const description = typeof raw.description === 'string' ? raw.description.trim() : '';
-    const startMessageRaw = raw.start_message ?? raw.startMessage;
-    const startMessage = typeof startMessageRaw === 'string' ? startMessageRaw.trim() : '';
-    const firstResponseTimeoutMinutes = normalizeFirstResponseTimeoutMinutesValue(
-      raw.first_response_timeout_minutes ?? raw.firstResponseTimeoutMinutes
-    );
-    const firstResponseTimeoutMessage = normalizeFirstResponseTimeoutMessageValue(
-      raw.first_response_timeout_message ?? raw.firstResponseTimeoutMessage
-    );
-    const flowSource = Array.isArray(raw.question_flow) ? raw.question_flow : [];
-    const questionFlow = flowSource
-      .map((item, order) => normalizeQuestion(item, order + 1))
-      .filter((question) => question.type !== 'custom' || question.text);
-    return {
-      id: templateId,
-      name,
-      description,
-      startMessage,
-      firstResponseTimeoutMinutes,
-      firstResponseTimeoutMessage,
-      unifiedFields: raw.scope_mode === 'UNIFIED_FIELDS',
-      questionFlow,
-    };
-  }
+  function normalizeQuestion(...args) { return questionModel.normalizeQuestion(...args); }
 
-  function defaultResponsesMap(scale) {
-    const map = {};
-    for (let value = 1; value <= Math.max(1, scale); value += 1) {
-      map[String(value)] = `Спасибо за вашу оценку ${value}!`;
-    }
-    return map;
-  }
+  function normalizeTemplate(...args) { return questionModel.normalizeTemplate(...args); }
 
-  function normalizeRatingTemplate(raw, index) {
-    if (!raw || typeof raw !== 'object') {
-      return null;
-    }
-    const templateId = ensureRatingTemplateId(raw.id || `rtpl_${index}`);
-    const name = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : 'Шаблон оценок';
-    const description = typeof raw.description === 'string' ? raw.description.trim() : '';
-    const scale = normalizeScale(raw.scale_size ?? raw.scaleSize ?? raw.scale);
-    const promptSource = raw.prompt_text ?? raw.promptText ?? raw.prompt;
-    const promptText = typeof promptSource === 'string' && promptSource.trim()
-      ? promptSource.trim()
-      : defaultRatingPrompt(scale);
-    const responses = normalizeRatingResponses(raw.responses, scale);
-    return {
-      id: templateId,
-      name,
-      description,
-      promptText,
-      scaleSize: scale,
-      responses,
-    };
-  }
+  function defaultResponsesMap(...args) { return ratingEditor.defaultResponsesMap(...args); }
 
-  function normalizeCooldownMinutes(raw) {
-    const source = raw && typeof raw === 'object' ? raw : {};
-    const rawValue = source.unblock_request_cooldown_minutes ?? source.unblockRequestCooldownMinutes;
-    const parsed = Number.parseInt(rawValue, 10);
-    if (Number.isFinite(parsed) && parsed >= 0) {
-      return parsed;
-    }
-    return 60;
-  }
+  function normalizeRatingTemplate(...args) { return ratingEditor.normalizeRatingTemplate(...args); }
 
-  function normalizeFirstResponseTimeoutMinutesValue(rawValue) {
-    const parsed = Number.parseInt(rawValue, 10);
-    if (Number.isFinite(parsed) && parsed >= 0) {
-      return parsed;
-    }
-    return DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES;
-  }
+  function normalizeCooldownMinutes(...args) { return questionModel.normalizeCooldownMinutes(...args); }
 
-  function normalizeFirstResponseTimeoutMessageValue(rawValue) {
-    const value = typeof rawValue === 'string' ? rawValue.trim() : '';
-    return value || DEFAULT_FIRST_RESPONSE_TIMEOUT_MESSAGE;
-  }
+  function normalizeFirstResponseTimeoutMinutesValue(...args) { return questionModel.normalizeFirstResponseTimeoutMinutesValue(...args); }
 
-  function createLegacyDiagnostics() {
-    return {};
-  }
+  function normalizeFirstResponseTimeoutMessageValue(...args) { return questionModel.normalizeFirstResponseTimeoutMessageValue(...args); }
 
-  function normalizeSettings(raw) {
-    generatedQuestionIds.clear();
-    generatedTemplateIds.clear();
-    generatedRatingTemplateIds.clear();
-    const source = raw && typeof raw === 'object' ? raw : {};
-    const legacyDiagnostics = createLegacyDiagnostics();
-    const templateSource = Array.isArray(source.question_templates) ? source.question_templates : [];
-    const templates = templateSource
-      .map((item, index) => normalizeTemplate(item, index))
-      .filter((template) => Boolean(template));
+  function createLegacyDiagnostics(...args) { return questionModel.createLegacyDiagnostics(...args); }
 
-    if (!templates.length) {
-      const [group, field] = firstPreset();
-      if (group && field) {
-        templates.push({
-          id: generateTemplateId(),
-          name: 'Шаблон вопросов',
-          description: '',
-          startMessage: '',
-          questionFlow: [
-            {
-              id: generateQuestionId(),
-              type: 'preset',
-              text: getPresetMeta(group, field)?.label || 'Вопрос',
-              order: 1,
-              preset: { group, field },
-              excludedOptions: [],
-            },
-          ],
-        });
-      }
-    }
-
-    const activeIdRaw = typeof source.active_template_id === 'string' ? source.active_template_id.trim() : '';
-    const activeTemplateId = templates.some((template) => template.id === activeIdRaw)
-      ? activeIdRaw
-      : templates[0]?.id;
-
-    const ratingTemplateSource = Array.isArray(source.rating_templates) ? source.rating_templates : [];
-    const ratingTemplates = ratingTemplateSource
-      .map((item, index) => normalizeRatingTemplate(item, index))
-      .filter((template) => template && template.promptText);
-
-    if (!ratingTemplates.length) {
-      const scale = 5;
-      ratingTemplates.push({
-        id: generateRatingTemplateId(),
-        name: 'Шаблон оценок',
-        description: '',
-        promptText: defaultRatingPrompt(scale),
-        scaleSize: scale,
-        responses: defaultResponsesMap(scale),
-      });
-    }
-
-    const activeRatingRaw = typeof source.active_rating_template_id === 'string'
-      ? source.active_rating_template_id.trim()
-      : '';
-    const activeRatingTemplateId = ratingTemplates.some((template) => template.id === activeRatingRaw)
-      ? activeRatingRaw
-      : ratingTemplates[0]?.id;
-
-    return {
-      templates,
-      activeTemplateId,
-      ratingTemplates,
-      activeRatingTemplateId,
-      unblockCooldownMinutes: normalizeCooldownMinutes(source),
-      legacyDiagnostics,
-    };
-  }
+  function normalizeSettings(...args) { return questionModel.normalizeSettings(...args); }
 
   const state = {
     templates: [],
@@ -1655,1130 +748,47 @@
     });
   }
 
-  function setRatingTemplateStatus(message, isError) {
-    if (!ratingStatusEl) {
-      return;
-    }
-    applyStatusAppearance(ratingStatusEl, message, isError);
-    if (!isError) {
-      setTimeout(() => {
-        if (ratingStatusEl.textContent === message) {
-          applyStatusAppearance(ratingStatusEl, '', false);
-        }
-      }, 3000);
-    }
-  }
+  function setRatingTemplateStatus(...args) { return ratingEditor.setRatingTemplateStatus(...args); }
 
-  function ensureRatingEditorResponses(scale) {
-    ratingEditorState.responses = normalizeRatingResponses(ratingEditorState.responses, scale);
-  }
+  function ensureRatingEditorResponses(...args) { return ratingEditor.ensureRatingEditorResponses(...args); }
 
-  function renderRatingEditorResponses() {
-    if (!ratingResponsesContainer) {
-      return;
-    }
-    ratingResponsesContainer.innerHTML = '';
-    const scale = normalizeScale(ratingEditorState.scaleSize || 5);
-    ensureRatingEditorResponses(scale);
-    for (let value = 1; value <= Math.max(1, scale); value += 1) {
-      const textValue = ratingEditorState.responses[String(value)] || '';
-      const card = document.createElement('div');
-      card.className = 'card border rounded-3';
-      card.innerHTML = `
-        <div class="card-body p-3">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <span class="fw-semibold">Оценка ${value}</span>
-            <span class="badge bg-light text-muted">${value}</span>
-          </div>
-          <textarea class="form-control" rows="2" data-bot-rating-template-response data-value="${value}">${html(textValue)}</textarea>
-        </div>
-      `;
-      ratingResponsesContainer.appendChild(card);
-    }
-  }
+  function renderRatingEditorResponses(...args) { return ratingEditor.renderRatingEditorResponses(...args); }
 
-  function renderRatingTemplates() {
-    renderActiveRatingDiagnostic();
-    if (!ratingTemplatesContainer) {
-      return;
-    }
-    ratingTemplatesContainer.innerHTML = '';
-    if (!state.ratingTemplates.length) {
-      const placeholder = document.createElement('div');
-      placeholder.className = 'alert alert-light border mb-0';
-      placeholder.textContent = 'Шаблоны оценок не созданы. Добавьте шаблон, чтобы настроить систему оценок.';
-      ratingTemplatesContainer.appendChild(placeholder);
-      return;
-    }
-    state.ratingTemplates.forEach((template) => {
-      const isActive = template.id === state.activeRatingTemplateId;
-      const card = document.createElement('div');
-      card.className = `card template-card channels-template-card${isActive ? ' border-primary' : ''}`;
-      card.dataset.ratingTemplateId = template.id;
-      const descriptionHtml = template.description
-        ? `<p class="small text-muted mb-1">${html(template.description)}</p>`
-        : '';
-      const scale = normalizeScale(template.scaleSize || template.scale_size || 5);
-      const responsesCount = Object.keys(template.responses || {}).length;
-      const responsesLabel = responsesCount === 1 ? '1 ответ' : `${responsesCount} ответ${responsesCount >= 5 ? 'ов' : responsesCount >= 2 ? 'а' : ''}`;
-      const promptPreview = template.promptText ? template.promptText.trim() : '';
-      const promptSummary = promptPreview.length > 120 ? `${promptPreview.slice(0, 117)}…` : promptPreview;
-      const summaryParts = [`Шкала: 1–${scale}`, responsesLabel];
-      if (promptSummary) {
-        summaryParts.push(`Запрос: ${promptSummary}`);
-      }
-      const summaryText = summaryParts.join(' • ');
-      const activeBadgeHtml = isActive
-        ? '<span class="channels-template-active" role="img" aria-label="Активный шаблон" title="Активный шаблон"><i class="bi bi-check-circle-fill" aria-hidden="true"></i></span>'
-        : '';
-      card.innerHTML = `
-        <div class="card-body">
-          <div class="channels-template-card__layout">
-            <div class="template-card-header channels-template-card__header">
-              <h6 class="mb-1">${html(template.name || 'Шаблон оценок')}${activeBadgeHtml}</h6>
-              ${descriptionHtml}
-              <div class="small text-muted">${html(summaryText)}</div>
-            </div>
-            <div class="channels-template-card__controls">
-              <div class="form-check form-switch channels-template-default">
-                <input class="form-check-input" type="radio" name="bot-rating-template-default" value="${html(template.id)}" ${template.id === state.activeRatingTemplateId ? 'checked' : ''} data-bot-rating-template-select>
-                <label class="form-check-label small">Использовать по умолчанию</label>
-              </div>
-              <div class="d-flex template-card-actions channels-template-actions">
-                <button class="btn btn-outline-primary channels-template-action" type="button" data-bot-rating-template-edit aria-label="Редактировать" title="Редактировать"><i class="bi bi-pencil" aria-hidden="true"></i><span class="visually-hidden">Редактировать</span></button>
-                <button class="btn btn-outline-secondary channels-template-action" type="button" data-bot-rating-template-duplicate aria-label="Дублировать" title="Дублировать"><i class="bi bi-files" aria-hidden="true"></i><span class="visually-hidden">Дублировать</span></button>
-                <button class="btn btn-outline-danger channels-template-action" type="button" data-bot-rating-template-delete aria-label="Удалить" title="Удалить" ${state.ratingTemplates.length === 1 ? 'disabled' : ''}><i class="bi bi-trash3" aria-hidden="true"></i><span class="visually-hidden">Удалить</span></button>
-              </div>
-            </div>
-          </div>
-        </div>
-      `;
-      ratingTemplatesContainer.appendChild(card);
-    });
-  }
+  function renderRatingTemplates(...args) { return ratingEditor.renderRatingTemplates(...args); }
 
-  function openRatingTemplateEditor(index) {
-    ratingEditorState.index = Number.isFinite(index) ? index : -1;
-    ratingEditorState.templateId = null;
-    ratingEditorState.name = '';
-    ratingEditorState.description = '';
-    ratingEditorState.scaleSize = 5;
-    ratingEditorState.promptText = defaultRatingPrompt(5);
-    ratingEditorState.responses = defaultResponsesMap(5);
+  function openRatingTemplateEditor(...args) { return ratingEditor.openRatingTemplateEditor(...args); }
 
-    const existing = Number.isFinite(index) && index >= 0 && index < state.ratingTemplates.length
-      ? state.ratingTemplates[index]
-      : null;
-    if (existing) {
-      ratingEditorState.templateId = existing.id;
-      ratingEditorState.name = existing.name || '';
-      ratingEditorState.description = existing.description || '';
-      ratingEditorState.scaleSize = normalizeScale(existing.scaleSize || existing.scale_size || 5);
-      ratingEditorState.promptText = existing.promptText || existing.prompt_text || defaultRatingPrompt(ratingEditorState.scaleSize);
-      ratingEditorState.responses = Object.assign({}, existing.responses || {});
-      ensureRatingEditorResponses(ratingEditorState.scaleSize);
-    } else {
-      ensureRatingEditorResponses(ratingEditorState.scaleSize);
-    }
+  function saveRatingTemplateFromEditor(...args) { return ratingEditor.saveRatingTemplateFromEditor(...args); }
 
-    if (ratingNameInput) {
-      ratingNameInput.value = ratingEditorState.name;
-    }
-    if (ratingDescriptionInput) {
-      ratingDescriptionInput.value = ratingEditorState.description;
-    }
-    if (ratingPromptInput) {
-      ratingPromptInput.value = ratingEditorState.promptText;
-    }
-    if (ratingScaleInput) {
-      ratingScaleInput.value = ratingEditorState.scaleSize;
-    }
+  function findRatingTemplateIndexById(...args) { return ratingEditor.findRatingTemplateIndexById(...args); }
 
-    renderRatingEditorResponses();
-    setRatingTemplateStatus('', false);
-    showChildModal(ratingModalEl);
-  }
+  function duplicateRatingTemplate(...args) { return ratingEditor.duplicateRatingTemplate(...args); }
 
-  function saveRatingTemplateFromEditor() {
-    const name = ratingNameInput ? ratingNameInput.value.trim() : '';
-    const description = ratingDescriptionInput ? ratingDescriptionInput.value.trim() : '';
-    const promptText = ratingPromptInput ? ratingPromptInput.value.trim() : '';
-    const scale = ratingScaleInput ? normalizeScale(ratingScaleInput.value) : normalizeScale(ratingEditorState.scaleSize);
-    ensureRatingEditorResponses(scale);
-    const responses = {};
-    for (let value = 1; value <= Math.max(1, scale); value += 1) {
-      const key = String(value);
-      const text = ratingEditorState.responses[key] ? ratingEditorState.responses[key].trim() : '';
-      if (!text) {
-        setRatingTemplateStatus(`Укажите текст ответа для оценки ${value}.`, true);
-        return;
-      }
-      responses[key] = text;
-    }
-    if (!promptText) {
-      setRatingTemplateStatus('Укажите текст запроса оценки.', true);
-      return;
-    }
+  function deleteRatingTemplate(...args) { return ratingEditor.deleteRatingTemplate(...args); }
 
-    const templateId = ensureRatingTemplateId(ratingEditorState.templateId);
-    const template = {
-      id: templateId,
-      name: name || 'Шаблон оценок',
-      description,
-      promptText,
-      scaleSize: scale,
-      responses,
-    };
+  function renderPresetHints(...args) { return questionEditor.renderPresetHints(...args); }
 
-    const isExisting = ratingEditorState.index >= 0 && ratingEditorState.index < state.ratingTemplates.length;
-    if (isExisting) {
-      const previous = state.ratingTemplates[ratingEditorState.index];
-      const wasActive = previous && previous.id === state.activeRatingTemplateId;
-      state.ratingTemplates[ratingEditorState.index] = template;
-      if (wasActive) {
-        state.activeRatingTemplateId = template.id;
-      }
-    } else {
-      state.ratingTemplates.push(template);
-      if (!state.activeRatingTemplateId) {
-        state.activeRatingTemplateId = template.id;
-      }
-    }
+  function renderActiveRatingDiagnostic(...args) { return ratingEditor.renderActiveRatingDiagnostic(...args); }
 
-    hideChildModal(ratingModalEl);
-    renderRatingTemplates();
-  }
+  function renderLegacyDiagnostics(...args) { return questionEditor.renderLegacyDiagnostics(...args); }
 
-  function findRatingTemplateIndexById(id) {
-    return state.ratingTemplates.findIndex((template) => template.id === id);
-  }
+  function renderHiddenSummary(...args) { return questionEditor.renderHiddenSummary(...args); }
 
-  function duplicateRatingTemplate(index) {
-    if (index < 0 || index >= state.ratingTemplates.length) {
-      return;
-    }
-    const copy = cloneRatingTemplate(state.ratingTemplates[index], { preserveId: false });
-    copy.name = `${state.ratingTemplates[index].name} (копия)`;
-    state.ratingTemplates.splice(index + 1, 0, copy);
-    renderRatingTemplates();
-  }
+  function renderQuestionPreview(...args) { return questionEditor.renderQuestionPreview(...args); }
 
-  function deleteRatingTemplate(index) {
-    if (state.ratingTemplates.length <= 1 || index < 0 || index >= state.ratingTemplates.length) {
-      return;
-    }
-    const removed = state.ratingTemplates.splice(index, 1)[0];
-    if (removed && removed.id === state.activeRatingTemplateId) {
-      state.activeRatingTemplateId = state.ratingTemplates.length ? state.ratingTemplates[0].id : null;
-    }
-    renderRatingTemplates();
-  }
+  function collectDependencyValues(...args) { return questionEditor.collectDependencyValues(...args); }
 
-  function renderPresetHints() {
-    const presetsAvailable = hasPresetDefinitions();
-    const statusMessage = presetStatusMessage();
-    addQuestionButtons.forEach((button) => {
-      if (!(button instanceof HTMLButtonElement) || button.dataset.type !== 'preset') {
-        return;
-      }
-      button.disabled = !presetsAvailable;
-      button.title = presetsAvailable ? '' : statusMessage;
-    });
-    if (presetEmptyAlertEl) {
-      presetEmptyAlertEl.classList.toggle('d-none', presetsAvailable);
-      presetEmptyAlertEl.textContent = statusMessage;
-    }
-    if (presetSummaryCardEl) {
-      presetSummaryCardEl.classList.toggle('border', !presetsAvailable);
-      presetSummaryCardEl.classList.toggle('border-warning', !presetsAvailable);
-      presetSummaryCardEl.classList.toggle('bg-warning-subtle', !presetsAvailable);
-    }
-    if (!presetHintsEl) {
-      return;
-    }
-    const rows = [];
-    Object.entries(PRESET_GROUPS).forEach(([groupKey, groupValue]) => {
-      const fieldEntries = Object.entries(groupValue.fields || {});
-      if (!fieldEntries.length) {
-        return;
-      }
-      const parts = fieldEntries.map(([fieldKey, fieldValue]) => {
-        const options = fieldValue.options || [];
-        if (options.length) {
-          const preview = options.slice(0, 5).join(', ');
-          return `${fieldValue.label || fieldKey} (например: ${preview}${options.length > 5 ? ' ...' : ''})`;
-        }
-        return fieldValue.label || fieldKey;
-      });
-      rows.push(`${groupValue.label || groupKey}: ${parts.join(' | ')}`);
-    });
-    presetHintsEl.textContent = rows.length
-      ? rows.join('  ||  ')
-      : statusMessage;
-  }
+  function buildFilterSelectHtml(...args) { return questionEditor.buildFilterSelectHtml(...args); }
 
-  function renderActiveRatingDiagnostic() {
-    if (!ratingDiagnosticEl) {
-      return;
-    }
-    const activeTemplate = state.ratingTemplates.find((template) => template.id === state.activeRatingTemplateId) || null;
-    if (!activeTemplate) {
-      ratingDiagnosticEl.textContent = 'Активный шаблон оценок не выбран.';
-      return;
-    }
-    const scale = normalizeScale(activeTemplate.scaleSize || activeTemplate.scale_size || 5);
-    const responseValues = [];
-    for (let value = 1; value <= scale; value += 1) {
-      if (activeTemplate.responses && activeTemplate.responses[String(value)]) {
-        responseValues.push(String(value));
-      }
-    }
-    const maxValue = String(scale);
-    const maxResponse = activeTemplate.responses && activeTemplate.responses[maxValue]
-      ? activeTemplate.responses[maxValue].trim()
-      : '';
-    const diagnosticParts = [
-      `Активный шаблон: ${activeTemplate.name || 'Шаблон оценок'}`,
-      `id: ${activeTemplate.id}`,
-      `шкала 1-${scale}`,
-      `ответы: ${responseValues.join(', ') || 'не заданы'}`,
-    ];
-    if (maxResponse) {
-      diagnosticParts.push(`оценка ${maxValue}: ${maxResponse}`);
-    }
-    ratingDiagnosticEl.textContent = diagnosticParts.join(' | ');
-  }
+  function buildFilterControls(...args) { return questionEditor.buildFilterControls(...args); }
 
-  function renderLegacyDiagnostics() {
-    if (!legacyDiagnosticEl) {
-      return;
-    }
-    const message = typeof state.legacyDiagnostics?.message === 'string'
-      ? state.legacyDiagnostics.message.trim()
-      : '';
-    if (!message) {
-      legacyDiagnosticEl.hidden = true;
-      legacyDiagnosticEl.textContent = '';
-      return;
-    }
-    legacyDiagnosticEl.hidden = false;
-    legacyDiagnosticEl.classList.remove('alert-light', 'alert-warning', 'alert-success');
-    legacyDiagnosticEl.classList.add(state.legacyDiagnostics.level === 'warning' ? 'alert-warning' : 'alert-success');
-    legacyDiagnosticEl.textContent = message;
-  }
-
-  function renderHiddenSummary(card, question, meta) {
-    if (!card) {
-      return;
-    }
-    const summaryEl = card.querySelector('[data-bot-question-hidden-summary]');
-    if (!summaryEl) {
-      return;
-    }
-    const options = (meta && meta.options) || [];
-    const excluded = Array.isArray(question.excludedOptions) ? question.excludedOptions : [];
-    if (!options.length) {
-      summaryEl.textContent = 'Готовые варианты недоступны';
-      return;
-    }
-    if (!excluded.length) {
-      summaryEl.textContent = 'Все варианты отображаются пользователю';
-      return;
-    }
-    if (excluded.length >= options.length) {
-      summaryEl.textContent = 'Все варианты скрыты';
-      return;
-    }
-    summaryEl.textContent = `Скрыто: ${excluded.length} из ${options.length}`;
-  }
-
-  function renderQuestionPreview(card, question, meta) {
-    if (!card) {
-      return;
-    }
-    const previewEl = card.querySelector('[data-bot-question-preview]');
-    if (!previewEl) {
-      return;
-    }
-    const titleEl = previewEl.querySelector('[data-bot-question-preview-title]');
-    const descriptionEl = previewEl.querySelector('[data-bot-question-preview-description]');
-    const optionsEl = previewEl.querySelector('[data-bot-question-preview-options]');
-    const hintEl = previewEl.querySelector('[data-bot-question-preview-hint]');
-    const text = question && typeof question.text === 'string' ? question.text.trim() : '';
-    const isPreset = Boolean(question && question.type === 'preset');
-    const isSelect = Boolean(question && question.type === 'select');
-    if (titleEl) {
-      titleEl.textContent = text || 'Текст вопроса пока не задан';
-      titleEl.classList.toggle('text-muted', !text);
-    }
-    if (!question || (!isPreset && !isSelect)) {
-      if (descriptionEl) {
-        descriptionEl.textContent = 'Клиент введёт ответ в свободной форме.';
-      }
-      if (optionsEl) {
-        optionsEl.innerHTML = '';
-        optionsEl.classList.add('d-none');
-      }
-      if (hintEl) {
-        if (question && question.required === false) {
-          hintEl.textContent = 'Вопрос необязательный: клиент сможет пропустить его.';
-          hintEl.classList.remove('d-none');
-        } else {
-          hintEl.classList.add('d-none');
-          hintEl.textContent = '';
-        }
-      }
-      return;
-    }
-    if (isSelect) {
-      const options = resolveQuestionOptionLabels(question, meta);
-      if (descriptionEl) {
-        descriptionEl.textContent = options.length
-          ? 'Клиент выберет один из подготовленных вариантов ответа.'
-          : 'Добавьте варианты ответа, чтобы вопрос корректно отображался клиенту.';
-      }
-      if (optionsEl) {
-        if (options.length) {
-          const badges = options
-            .slice(0, 12)
-            .map((value) => `<button class="btn btn-outline-secondary btn-sm bot-question-preview__badge" type="button" disabled>${html(value)}</button>`);
-          if (options.length > 12) {
-            badges.push(
-              `<button class="btn btn-outline-secondary btn-sm bot-question-preview__badge" type="button" disabled>+${options.length - 12} ещё</button>`,
-            );
-          }
-          optionsEl.innerHTML = badges.join(' ');
-        } else {
-          optionsEl.innerHTML = '<span class="text-muted small">Список вариантов пока пуст.</span>';
-        }
-        optionsEl.classList.remove('d-none');
-      }
-      if (hintEl) {
-        if (question.required === false) {
-          hintEl.textContent = 'Вопрос необязательный: клиент сможет пропустить его.';
-          hintEl.classList.remove('d-none');
-        } else {
-          hintEl.classList.add('d-none');
-          hintEl.textContent = '';
-        }
-      }
-      return;
-    }
-    if (!meta) {
-      if (descriptionEl) {
-        descriptionEl.textContent = 'Выберите готовое поле, чтобы показать клиенту связанные варианты ответа.';
-      }
-      if (optionsEl) {
-        optionsEl.innerHTML = '';
-        optionsEl.classList.add('d-none');
-      }
-      if (hintEl) {
-        hintEl.classList.add('d-none');
-        hintEl.textContent = '';
-      }
-      return;
-    }
-    const options = Array.isArray(meta.options) ? meta.options : [];
-    const excludedValues = Array.isArray(question.excludedOptions)
-      ? question.excludedOptions
-          .map((value) => (typeof value === 'string' ? value.trim() : ''))
-          .filter((value) => value)
-      : [];
-    const hiddenSet = new Set(excludedValues);
-    const visibleOptions = options.filter((value) => !hiddenSet.has(value));
-    if (descriptionEl) {
-      descriptionEl.textContent = visibleOptions.length
-        ? 'Клиент увидит следующие варианты ответа:'
-        : 'Сейчас ни один вариант не отображается клиенту.';
-    }
-    if (optionsEl) {
-      if (visibleOptions.length) {
-        const badges = visibleOptions
-          .slice(0, 12)
-          .map((value) => `<button class="btn btn-outline-secondary btn-sm bot-question-preview__badge" type="button" disabled>${html(value)}</button>`);
-        if (visibleOptions.length > 12) {
-          badges.push(
-            `<button class="btn btn-outline-secondary btn-sm bot-question-preview__badge" type="button" disabled>+${visibleOptions.length - 12} ещё</button>`,
-          );
-        }
-        optionsEl.innerHTML = badges.join(' ');
-      } else {
-        optionsEl.innerHTML = '<span class="text-muted small">Варианты будут скрыты до изменения настроек.</span>';
-      }
-      optionsEl.classList.remove('d-none');
-    }
-    if (hintEl) {
-      const hasDependencies = meta.optionDependencies && Object.keys(meta.optionDependencies).length > 0;
-      if (hasDependencies) {
-        hintEl.textContent = 'Нажмите на иконку рядом с вариантом, чтобы увидеть условия его показа для клиента.';
-        hintEl.classList.remove('d-none');
-      } else {
-        hintEl.classList.add('d-none');
-        hintEl.textContent = '';
-      }
-    }
-  }
-
-  function collectDependencyValues(optionDependencies) {
-    const values = {
-      business: new Set(),
-      location_type: new Set(),
-    };
-    if (!optionDependencies || typeof optionDependencies !== 'object') {
-      return values;
-    }
-    Object.values(optionDependencies).forEach((entry) => {
-      if (!entry || typeof entry !== 'object') {
-        return;
-      }
-      const businessValues = Array.isArray(entry.business) ? entry.business : [];
-      businessValues.forEach((value) => {
-        if (typeof value === 'string' && value.trim()) {
-          values.business.add(value.trim());
-        }
-      });
-      const typeValues = Array.isArray(entry.location_type) ? entry.location_type : [];
-      typeValues.forEach((value) => {
-        if (typeof value === 'string' && value.trim()) {
-          values.location_type.add(value.trim());
-        }
-      });
-    });
-    return values;
-  }
-
-  function buildFilterSelectHtml(key, label, valuesSet) {
-    if (!valuesSet || typeof valuesSet.forEach !== 'function' || valuesSet.size <= 1) {
-      return '';
-    }
-    const collator = typeof Intl !== 'undefined' && Intl.Collator
-      ? new Intl.Collator('ru', { sensitivity: 'base' })
-      : null;
-    const sorted = Array.from(valuesSet).sort((a, b) => {
-      if (collator) {
-        return collator.compare(a, b);
-      }
-      return a.localeCompare(b);
-    });
-    const options = ['<option value="">Все</option>'].concat(
-      sorted.map((value) => `<option value="${html(value)}">${html(value)}</option>`),
-    );
-    return `
-      <div class="d-flex align-items-center gap-1" data-bot-question-filter-wrapper="${html(key)}">
-        <span class="small text-muted">${html(label)}:</span>
-        <select class="form-select form-select-sm" data-bot-question-filter="${html(key)}">
-          ${options.join('')}
-        </select>
-      </div>
-    `;
-  }
-
-  function buildFilterControls(meta) {
-    if (!meta || typeof meta.optionDependencies !== 'object') {
-      return '';
-    }
-    const dependencyValues = collectDependencyValues(meta.optionDependencies);
-    const pieces = [];
-    const businessFilter = buildFilterSelectHtml('business', 'Бизнес', dependencyValues.business);
-    if (businessFilter) {
-      pieces.push(businessFilter);
-    }
-    const locationTypeFilter = buildFilterSelectHtml('location_type', 'Тип бизнеса', dependencyValues.location_type);
-    if (locationTypeFilter) {
-      pieces.push(locationTypeFilter);
-    }
-    if (!pieces.length) {
-      return '';
-    }
-    return `<div class="d-flex flex-wrap gap-2 align-items-center" data-bot-question-filters>${pieces.join('')}</div>`;
-  }
-
-  function applyQuestionFilters(card) {
-    if (!card) {
-      return;
-    }
-    const container = card.querySelector('[data-bot-question-options]');
-    if (!container) {
-      return;
-    }
-    const filters = {
-      business: card.dataset.filterBusiness || '',
-      location_type: card.dataset.filterLocationType || '',
-    };
-    let visibleCount = 0;
-    container.querySelectorAll('.form-check').forEach((row) => {
-      if (!(row instanceof HTMLElement)) {
-        return;
-      }
-      let visible = true;
-      if (filters.business) {
-        const tags = (row.dataset.businessTags || '').split('|').filter(Boolean);
-        if (!tags.includes(filters.business)) {
-          visible = false;
-        }
-      }
-      if (visible && filters.location_type) {
-        const tags = (row.dataset.locationTypeTags || '').split('|').filter(Boolean);
-        if (!tags.includes(filters.location_type)) {
-          visible = false;
-        }
-      }
-      row.classList.toggle('d-none', !visible);
-      if (visible) {
-        visibleCount += 1;
-      }
-    });
-    const placeholder = container.querySelector('[data-bot-question-options-empty]');
-    if (placeholder) {
-      placeholder.classList.toggle('d-none', visibleCount > 0);
-    }
-  }
+  function applyQuestionFilters(...args) { return questionEditor.applyQuestionFilters(...args); }
 
 
-  function renderQuestions(options = {}) {
-    if (!questionsContainer) {
-      return;
-    }
-    const shouldPreserveUi = options.preserveUi !== false
-      && templateModalEl instanceof HTMLElement
-      && templateModalEl.classList.contains('show');
-    const uiState = shouldPreserveUi ? captureQuestionEditorUiState() : null;
-    questionsContainer.innerHTML = '';
-    if (!editorState.questionFlow.length) {
-      const empty = document.createElement('div');
-      empty.className = 'alert alert-light border mb-0';
-      empty.textContent = 'Вопросы не заданы. Добавьте вопрос, чтобы сохранить шаблон.';
-      questionsContainer.appendChild(empty);
-      renderPresetHints();
-      return;
-    }
-    editorState.questionFlow.forEach((question, index) => {
-      question.order = index + 1;
-      const card = document.createElement('div');
-      card.className = 'card bot-question-card';
-      card.dataset.index = String(index);
-      card.dataset.questionId = question.id || '';
-      const preset = question.preset && question.preset.group && question.preset.field ? question.preset : null;
-      const presetValue = preset ? encodePresetValue(preset.group, preset.field) : '';
-      const isPreset = question.type === 'preset';
-      const isSelect = question.type === 'select';
-      const isBusiness = question.type === 'business';
-      const presetsAvailable = hasPresetDefinitions();
-      const presetOptions = (() => {
-        const groups = Object.entries(PRESET_GROUPS);
-        if (!groups.length) {
-          return `<option value="" selected disabled>${html(presetStatusMessage())}</option>`;
-        }
-        const pieces = ['<option value="">Выберите поле</option>'];
-        groups.forEach(([groupKey, groupValue]) => {
-          const options = Object.entries(groupValue.fields || {});
-          if (!options.length) {
-            return;
-          }
-          const htmlOptions = options
-            .map(([fieldKey, fieldValue]) => {
-              const value = encodePresetValue(groupKey, fieldKey);
-              const selected = presetValue === value ? ' selected' : '';
-              return `<option value="${html(value)}"${selected}>${html(fieldValue.label || fieldKey)}</option>`;
-            })
-            .join('');
-          pieces.push(`<optgroup label="${html(groupValue.label || groupKey)}">${htmlOptions}</optgroup>`);
-        });
-        return pieces.join('');
-      })();
-      const meta = preset && presetExists(preset.group, preset.field) ? getPresetMeta(preset.group, preset.field) : null;
-      const options = meta && Array.isArray(meta.options) ? meta.options : [];
-      const optionDependencies = meta && typeof meta.optionDependencies === 'object' ? meta.optionDependencies : {};
-      const excluded = new Set(Array.isArray(question.excludedOptions) ? question.excludedOptions : []);
-      let optionsHtml;
-      if (options.length) {
-        const items = options
-          .map((option) => {
-            const optionValue = typeof option === 'string' ? option.trim() : '';
-            if (!optionValue) {
-              return '';
-            }
-            const deps = optionDependencies[optionValue] && typeof optionDependencies[optionValue] === 'object'
-              ? optionDependencies[optionValue]
-              : {};
-            const locationTypeTags = Array.isArray(deps.location_type)
-              ? deps.location_type.filter((value) => typeof value === 'string' && value.trim()).map((value) => value.trim())
-              : [];
-            const businessTags = Array.isArray(deps.business)
-              ? deps.business.filter((value) => typeof value === 'string' && value.trim()).map((value) => value.trim())
-              : [];
-            const locationTypeAttr = locationTypeTags.length
-              ? ` data-location-type-tags="${html(locationTypeTags.join('|'))}"`
-              : '';
-            const businessAttr = businessTags.length
-              ? ` data-business-tags="${html(businessTags.join('|'))}"`
-              : '';
-            const checked = excluded.has(optionValue) ? '' : ' checked';
-            return `
-              <div class="bot-question-option form-check form-check-sm py-2 px-3 mb-2"${locationTypeAttr}${businessAttr} data-bot-question-option-row="true" data-option-value="${html(optionValue)}">
-                <div class="d-flex align-items-start justify-content-between gap-2 bot-question-option__header">
-                  <div class="flex-grow-1 d-flex align-items-start gap-2">
-                    <input class="form-check-input mt-1" type="checkbox" value="${html(optionValue)}" data-bot-question-option${checked}>
-                    <label class="form-check-label">${html(optionValue)}</label>
-                  </div>
-                  <button type="button" class="btn btn-link btn-sm px-1 text-decoration-none" data-bot-question-option-info title="Показать зависимости варианта" aria-label="Показать зависимости варианта">
-                    <i class="bi bi-diagram-3"></i>
-                  </button>
-                </div>
-                <div class="bot-question-option__dependencies small text-muted mt-2 d-none" data-bot-question-option-dependencies></div>
-              </div>
-            `;
-          })
-          .filter(Boolean);
-        if (items.length) {
-          items.push('<div class="text-muted small d-none" data-bot-question-options-empty>Нет вариантов для выбранных фильтров.</div>');
-          optionsHtml = items.join('');
-        } else {
-          optionsHtml = '<div class="text-muted small">Нет готовых значений для скрытия.</div>';
-        }
-      } else {
-        optionsHtml = '<div class="text-muted small">Нет готовых значений для отображения.</div>';
-      }
-      const hintText = !presetsAvailable
-        ? presetStatusMessage()
-        : meta && meta.options && meta.options.length
-        ? `Варианты: ${meta.options.slice(0, 5).join(', ')}${meta.options.length > 5 ? ' ...' : ''}`
-        : 'Значения берутся из выбранного справочника.';
-      const presetAlertText = !presetsAvailable
-        ? presetStatusMessage()
-        : (isPreset && !meta)
-          ? 'Выбранное готовое поле недоступно в текущих preset definitions. Проверьте структуру локаций и конфиг готовых полей.'
-          : '';
-      const filtersHtml = isPreset ? buildFilterControls(meta) : '';
-      const filterState = question.filterState && typeof question.filterState === 'object'
-        ? question.filterState
-        : {};
-      card.dataset.filterBusiness = filterState.business || '';
-      card.dataset.filterLocationType = filterState.location_type || '';
-      const isRequired = isBusiness || question.required !== false;
-      const selectOptionsText = isSelect ? resolveQuestionOptionLabels(question, null).join('\n') : '';
-      const bindingKey = normalizeBindingKey(question.bindingKey || question.binding_key || '');
-      const analyticsHint = isPreset
-        ? 'Оставьте поле пустым, чтобы использовать системный ключ готового поля. Для вывода в дашборд можно задать свой ключ.'
-        : 'Стабильный ключ для интеграций и аналитики, например company, direction или bot_product. Если включён дашборд, ключ обязателен.';
-      const answerBodyHtml = isBusiness
-        ? `
-            <div class="small text-uppercase text-muted fw-semibold mb-2">Канонический бизнес</div>
-            <div class="small mb-1">Бот покажет активные бизнесы, привязанные к тому каналу, где выбран этот шаблон.</div>
-            <div class="form-text mb-0">Значение записывается в обращение и аналитику как <code>business</code>. Список вручную не задаётся.</div>
-          `
-        : isSelect
-        ? `
-            <label class="form-label">Варианты ответа</label>
-            <textarea class="form-control font-monospace" rows="6" data-bot-question-select-options placeholder="По одному варианту на строку">${html(selectOptionsText)}</textarea>
-            <div class="form-text mb-0">Каждая строка станет отдельным вариантом ответа для клиента.</div>
-          `
-        : `
-            <div class="small text-uppercase text-muted fw-semibold mb-2">Поле ответа</div>
-            <div class="small mb-1 bot-question-answer-copy">Ответ клиента будет сохранён как свободный текст для этого вопроса.</div>
-            <div class="form-text mb-0">Если отключить обязательность, клиент сможет написать "Пропустить" и перейти дальше.</div>
-          `;
-      card.innerHTML = `
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
-            <div class="d-flex align-items-center gap-2">
-              <span class="bot-question-number">Вопрос ${index + 1}</span>
-            </div>
-            <div class="btn-group btn-group-sm">
-              <button class="btn btn-outline-secondary" type="button" data-bot-question-action="move-up" ${index === 0 ? 'disabled' : ''}>↑</button>
-              <button class="btn btn-outline-secondary" type="button" data-bot-question-action="move-down" ${index === editorState.questionFlow.length - 1 ? 'disabled' : ''}>↓</button>
-              <button class="btn btn-outline-danger" type="button" data-bot-question-action="remove">Удалить</button>
-            </div>
-          </div>
-          <div class="row g-3 align-items-end">
-            <div class="col-lg-6">
-              <label class="form-label">Текст вопроса</label>
-              <input type="text" class="form-control" value="${html(question.text || '')}" data-bot-question-text${isPreset ? ' readonly aria-readonly="true"' : ''}>
-            </div>
-            <div class="col-lg-3">
-              <label class="form-label">Тип вопроса</label>
-              <select class="form-select" data-bot-question-type>
-                <option value="custom"${isPreset || isBusiness || isSelect ? '' : ' selected'}>Свободный текст</option>
-                <option value="select"${isSelect ? ' selected' : ''}>Выбор из списка</option>
-                <option value="business"${isBusiness ? ' selected' : ''}>Бизнес канала</option>
-                <option value="preset"${isPreset ? ' selected' : ''}${!presetsAvailable && !isPreset ? ' disabled' : ''}>Готовое поле</option>
-              </select>
-            </div>
-            <div class="col-lg-3${isPreset ? '' : ' d-none'}" data-bot-question-preset-wrapper>
-              <label class="form-label">Готовое поле</label>
-              <select class="form-select" data-bot-question-preset${presetsAvailable ? '' : ' disabled'}>
-                ${presetOptions}
-              </select>
-              <div class="form-text small text-muted" data-bot-question-preset-hint>${html(hintText)}</div>
-              <div class="alert alert-warning small py-2 px-3 mt-2 mb-0${presetAlertText ? '' : ' d-none'}" data-bot-question-preset-alert>${html(presetAlertText)}</div>
-            </div>
-          </div>
-          <div class="row g-3 mt-1 align-items-stretch${isPreset ? ' d-none' : ''}" data-bot-question-answer-wrapper>
-            <div class="col-lg-8">
-              <div class="border rounded-3 bg-light p-3 h-100 bot-question-surface bot-question-info-surface">
-                <div class="small text-uppercase text-muted fw-semibold mb-2">Поле ответа</div>
-                <div class="small mb-1 bot-question-answer-copy">Ответ клиента будет сохранён как свободный текст для этого вопроса.</div>
-                <div class="form-text mb-0">Если выключить обязательность, клиент сможет написать "Пропустить" и перейти дальше.</div>
-              </div>
-            </div>
-            <div class="col-lg-4">
-              <div class="border rounded-3 p-3 h-100 bot-question-surface bot-question-switch-surface">
-                <div class="small text-uppercase text-muted fw-semibold mb-2">Обязательность ответа</div>
-                <div class="form-check form-switch mb-0 bot-question-switch-control">
-                  <input class="form-check-input" type="checkbox" data-bot-question-required${isRequired ? ' checked' : ''}${isBusiness ? ' disabled' : ''}>
-                  <label class="form-check-label">Ответ обязателен</label>
-                </div>
-                <div class="form-text mb-0">Оставьте включённым, если клиент должен ответить перед переходом к следующему шагу.</div>
-              </div>
-            </div>
-          </div>
-          <div class="mt-3${isPreset ? '' : ' d-none'}" data-bot-question-options-wrapper>
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-              <div class="d-flex align-items-center gap-2">
-                <span class="small fw-semibold">Варианты для отображения</span>
-                <span class="small text-muted" data-bot-question-hidden-summary></span>
-              </div>
-              ${filtersHtml}
-            </div>
-            <div class="small text-muted mb-2">
-              Отметьте галочкой варианты, которые увидит клиент. Нажмите на значок <i class="bi bi-diagram-3"></i>, чтобы увидеть условия показа конкретного варианта.
-            </div>
-            <div class="border rounded-3 p-3 bg-light" data-bot-question-options>
-              ${optionsHtml}
-            </div>
-          </div>
-          ${(isSelect || isPreset) ? buildQuestionRouteControls(question, index, meta) : ''}
-          <div class="mt-3" data-bot-question-preview-wrapper>
-            <div class="bot-question-preview alert alert-light border mb-0" data-bot-question-preview>
-              <div class="small text-uppercase text-muted fw-semibold mb-2">Как увидит клиент</div>
-              <div class="fw-semibold" data-bot-question-preview-title></div>
-              <div class="small text-muted mt-2" data-bot-question-preview-description></div>
-              <div class="d-flex flex-wrap gap-2 mt-2" data-bot-question-preview-options></div>
-              <div class="small text-muted mt-2 d-none" data-bot-question-preview-hint></div>
-            </div>
-          </div>
-        </div>
-      `;
-      questionsContainer.appendChild(card);
-      const typeSelect = card.querySelector('[data-bot-question-type]');
-      if (typeSelect) {
-        typeSelect.innerHTML = `
-          <option value="custom"${!isPreset && !isSelect && !isBusiness ? ' selected' : ''}>Свободный текст</option>
-          <option value="select"${isSelect ? ' selected' : ''}>Выбор из списка</option>
-          <option value="business"${isBusiness ? ' selected' : ''}>Бизнес канала</option>
-          <option value="preset"${isPreset ? ' selected' : ''}${!presetsAvailable && !isPreset ? ' disabled' : ''}>Готовое поле</option>
-        `;
-      }
-      const answerWrapper = card.querySelector('[data-bot-question-answer-wrapper]');
-      if (answerWrapper) {
-        const answerBox = answerWrapper.querySelector('.col-lg-8 .border');
-        if (answerBox) {
-          answerBox.innerHTML = answerBodyHtml;
-        }
-        const analyticsRow = document.createElement('div');
-        analyticsRow.className = 'row g-3 mt-1 align-items-stretch bot-question-analytics-row';
-        analyticsRow.innerHTML = `
-          <div class="col-lg-7">
-            <div class="border rounded-3 bg-light p-3 h-100 bot-question-surface bot-question-info-surface">
-              <label class="form-label">Ключ атрибута</label>
-              <input type="text" class="form-control font-monospace" value="${html(bindingKey)}" data-bot-question-binding placeholder="company">
-              <div class="form-text mb-0">${html(analyticsHint)}</div>
-            </div>
-          </div>
-          <div class="col-lg-5">
-            <div class="border rounded-3 p-3 h-100 bot-question-surface bot-question-switch-surface bot-question-analytics-surface">
-              <div class="small text-uppercase text-muted fw-semibold mb-2">Аналитика</div>
-              <div class="form-check form-switch mb-0 bot-question-switch-control">
-                <input class="form-check-input" type="checkbox" data-bot-question-dashboard${question.includeInDashboard ? ' checked' : ''}>
-                <label class="form-check-label">Отображать в дашборде</label>
-              </div>
-              <div class="form-text mb-0">Включайте для вопросов, которые должны попадать в агрегаты и виджеты дашборда.</div>
-            </div>
-          </div>
-        `;
-        answerWrapper.insertAdjacentElement('afterend', analyticsRow);
-        const bindingSurface = analyticsRow.querySelector('.col-lg-7 .bot-question-info-surface');
-        if (bindingSurface instanceof HTMLElement) {
-          bindingSurface.innerHTML = buildBindingEditorHtml(question, bindingKey, analyticsHint);
-          if (isBusiness) {
-            const bindingInput = bindingSurface.querySelector('[data-bot-question-binding]');
-            if (bindingInput instanceof HTMLInputElement || bindingInput instanceof HTMLSelectElement) {
-              bindingInput.value = 'business';
-              bindingInput.disabled = true;
-            }
-            const dashboardInput = analyticsRow.querySelector('[data-bot-question-dashboard]');
-            if (dashboardInput instanceof HTMLInputElement) {
-              dashboardInput.checked = true;
-              dashboardInput.disabled = true;
-            }
-          }
-        }
-      }
-      sanitizeQuestionRoutes(question, index, meta).forEach((route) => {
-        const routeSelect = card.querySelector(`[data-bot-question-route-target="${escapeSelectorValue(route.valueId)}"]`);
-        if (routeSelect instanceof HTMLSelectElement) {
-          routeSelect.value = route.nextQuestionId;
-        }
-      });
-      const routeSurface = card.querySelector('.bot-question-route-surface');
-      if (routeSurface instanceof HTMLElement) {
-        const routeTargets = resolveQuestionRouteTargets(index);
-        const hasIntermediateTargets = routeTargets.some((target) => target.id !== QUESTION_ROUTE_PROBLEM_ID);
-        const title = routeSurface.querySelector('.small.text-uppercase.text-muted.fw-semibold');
-        if (title instanceof HTMLElement) {
-          title.textContent = 'Маршрутизация';
-        }
-        const headerHint = routeSurface.querySelector('.d-flex.justify-content-between .small.text-muted');
-        if (headerHint instanceof HTMLElement) {
-          headerHint.textContent = 'Если маршрут не задан, бот задаст следующий вопрос по порядку.';
-        }
-        const routeGrid = routeSurface.querySelector('.bot-question-route-grid');
-        if (routeGrid instanceof HTMLElement && !routeSurface.querySelector('[data-bot-question-route-note]')) {
-          const note = document.createElement('div');
-          note.className = 'small text-muted mb-3';
-          note.dataset.botQuestionRouteNote = 'true';
-          note.textContent = 'В списке показываются только вопросы ниже текущего. Сначала добавьте следующие шаги сценария, и затем они появятся здесь.';
-          routeGrid.insertAdjacentElement('beforebegin', note);
-        }
-        const footer = routeSurface.querySelector('.form-text.mt-2.mb-0');
-        if (footer instanceof HTMLElement) {
-          footer.textContent = hasIntermediateTargets
-            ? 'Можно отправить клиента к следующему релевантному вопросу или сразу к финальному описанию проблемы.'
-            : 'Пока ниже нет дополнительных вопросов, поэтому доступен только переход по порядку или сразу к финальному описанию проблемы.';
-        }
-      }
-      const sections = [
-        ['options', '[data-bot-question-options-wrapper]', 'Варианты ответа'],
-        ['analytics', '.bot-question-analytics-row', 'Аналитика и ключ ответа'],
-        ['routes', '.bot-question-route-rowset', 'Переходы по ответам'],
-        ['preview', '[data-bot-question-preview-wrapper]', 'Предпросмотр для клиента'],
-      ];
-      sections.forEach(([key, selector, label]) => {
-        const content = card.querySelector(selector);
-        if (!content || content.classList.contains('d-none')) return;
-        const details = document.createElement('details');
-        details.className = 'bot-question-disclosure';
-        details.dataset.questionSection = key;
-        const summary = document.createElement('summary');
-        summary.textContent = label;
-        if (key === 'analytics' && question.includeInDashboard) summary.textContent += ' · включена';
-        if (key === 'routes' && question.routes?.length) summary.textContent += ` · ${question.routes.length}`;
-        content.before(details);
-        details.append(summary, content);
-      });
-      card.__questionMeta = meta;
-      if (isPreset) {
-        const select = card.querySelector('[data-bot-question-preset]');
-        if (select) {
-          select.value = presetValue;
-        }
-      }
-      const filterSelects = card.querySelectorAll('[data-bot-question-filter]');
-      filterSelects.forEach((select) => {
-        if (!(select instanceof HTMLSelectElement)) {
-          return;
-        }
-        const filterKey = select.dataset.botQuestionFilter;
-        if (filterKey === 'business') {
-          select.value = card.dataset.filterBusiness || '';
-        } else if (filterKey === 'location_type') {
-          select.value = card.dataset.filterLocationType || '';
-        }
-      });
-      applyQuestionFilters(card);
-      renderHiddenSummary(card, question, meta);
-      renderQuestionPreview(card, question, meta);
-    });
-    renderPresetHints();
-    if (uiState) {
-      restoreQuestionEditorUiState(uiState);
-    }
-  }
-  function openTemplateEditor(index) {
-    if (!canManageChildModal(templateModalEl)) {
-      return;
-    }
-    if (typeof index === 'number' && index >= 0 && index < state.templates.length) {
-      const template = state.templates[index];
-      editorState.index = index;
-      editorState.templateId = template.id;
-      editorState.name = template.name;
-      editorState.description = template.description;
-      editorState.startMessage = template.startMessage || '';
-      editorState.unifiedFields = Boolean(template.unifiedFields || template.scope_mode === 'UNIFIED_FIELDS');
-      editorState.questionFlow = template.questionFlow.map((question) => cloneQuestion(question));
-    } else {
-      editorState.index = -1;
-      editorState.templateId = generateTemplateId();
-      editorState.name = 'Новый шаблон вопросов';
-      editorState.description = '';
-      editorState.startMessage = '';
-      editorState.unifiedFields = false;
-      editorState.questionFlow = [];
-    }
-    if (templateNameInput) {
-      templateNameInput.value = editorState.name || '';
-    }
-    if (templateDescriptionInput) {
-      templateDescriptionInput.value = editorState.description || '';
-    }
-    if (templateStartMessageInput) {
-      templateStartMessageInput.value = editorState.startMessage || '';
-    }
-    if (templateUnifiedFieldsInput) {
-      templateUnifiedFieldsInput.checked = Boolean(editorState.unifiedFields);
-    }
-    setTemplateStatus('', false);
-    renderQuestions();
-    if (!hasPresetDefinitions()) {
-      void ensurePresetDefinitionsLoaded();
-    }
-    showChildModal(templateModalEl);
-  }
+  function renderQuestions(...args) { return questionEditor.renderQuestions(...args); }
 
-  async function saveTemplateFromEditor() {
-    const name = templateNameInput ? templateNameInput.value.trim() : '';
-    const description = templateDescriptionInput ? templateDescriptionInput.value.trim() : '';
-    const startMessage = templateStartMessageInput ? templateStartMessageInput.value.trim() : '';
-    if (!name) {
-      setTemplateStatus('Укажите название шаблона.', true);
-      if (templateNameInput) {
-        templateNameInput.focus();
-      }
-      return false;
-    }
-    if (!editorState.questionFlow.length) {
-      setTemplateStatus('Добавьте хотя бы один вопрос.', true);
-      return false;
-    }
-    for (let i = 0; i < editorState.questionFlow.length; i += 1) {
-      const question = editorState.questionFlow[i];
-      if (question.type === 'custom') {
-        if (!question.text || !question.text.trim()) {
-          setTemplateStatus(`Укажите текст для вопроса №${i + 1}.`, true);
-          return false;
-        }
-      } else if (question.type === 'preset' && (!question.preset || !presetExists(question.preset.group, question.preset.field))) {
-        setTemplateStatus(`Выберите готовое поле для вопроса №${i + 1}.`, true);
-        return false;
-      }
-    }
-    const questionFlowError = validateQuestionFlow(editorState.questionFlow, name);
-    if (questionFlowError) {
-      setTemplateStatus(questionFlowError, true);
-      return false;
-    }
-    const normalizedQuestions = editorState.questionFlow.map((question, index) => serializeQuestion(question, index));
 
-    const templatePayload = {
-      id: editorState.templateId || generateTemplateId(),
-      name,
-      description,
-      startMessage,
-      questionFlow: normalizedQuestions.map((question) => ({
-        id: question.id,
-        type: question.type,
-        text: question.text,
-        order: question.order,
-        required: question.required !== false,
-        preset: question.preset ? { group: question.preset.group, field: question.preset.field } : undefined,
-        options: Array.isArray(question.options) ? question.options.map((option) => ({ id: option.id, label: option.label })) : [],
-        bindingKey: question.binding_key || '',
-        includeInDashboard: Boolean(question.include_in_dashboard),
-        routes: Array.isArray(question.routes)
-          ? question.routes.map((route) => ({ valueId: route.value_id, nextQuestionId: route.next_question_id }))
-          : [],
-        excludedOptions: Array.isArray(question.excluded_options)
-          ? question.excluded_options.slice()
-          : Array.isArray(question.excludedOptions)
-            ? question.excludedOptions.slice()
-            : [],
-      })),
-    };
 
-    const previousTemplates = state.templates.map((template) => cloneTemplate(template));
-    const previousActiveTemplateId = state.activeTemplateId;
-    if (editorState.index >= 0 && editorState.index < state.templates.length) {
-      state.templates[editorState.index] = {
-        id: templatePayload.id,
-        name: templatePayload.name,
-        description: templatePayload.description,
-        startMessage: templatePayload.startMessage,
-        questionFlow: templatePayload.questionFlow.map((question) => ({
-          id: question.id,
-          type: question.type,
-          text: question.text,
-          order: question.order,
-          required: question.required !== false,
-          preset: question.preset ? { group: question.preset.group, field: question.preset.field } : null,
-          options: Array.isArray(question.options) ? question.options.map((option) => ({ id: option.id, label: option.label })) : [],
-          bindingKey: question.bindingKey || '',
-          includeInDashboard: Boolean(question.includeInDashboard),
-          routes: Array.isArray(question.routes)
-            ? question.routes.map((route) => ({ valueId: route.valueId, nextQuestionId: route.nextQuestionId }))
-            : [],
-          excludedOptions: Array.isArray(question.excludedOptions) ? question.excludedOptions : [],
-        })),
-      };
-    } else {
-      state.templates.push({
-        id: templatePayload.id,
-        name: templatePayload.name,
-        description: templatePayload.description,
-        startMessage: templatePayload.startMessage,
-        questionFlow: templatePayload.questionFlow.map((question) => ({
-          id: question.id,
-          type: question.type,
-          text: question.text,
-          order: question.order,
-          required: question.required !== false,
-          preset: question.preset ? { group: question.preset.group, field: question.preset.field } : null,
-          options: Array.isArray(question.options) ? question.options.map((option) => ({ id: option.id, label: option.label })) : [],
-          bindingKey: question.bindingKey || '',
-          includeInDashboard: Boolean(question.includeInDashboard),
-          routes: Array.isArray(question.routes)
-            ? question.routes.map((route) => ({ valueId: route.valueId, nextQuestionId: route.nextQuestionId }))
-            : [],
-          excludedOptions: Array.isArray(question.excludedOptions) ? question.excludedOptions : [],
-        })),
-      });
-      if (!state.activeTemplateId) {
-        state.activeTemplateId = templatePayload.id;
-      }
-    }
-
-    const originalSaveText = templateSaveButton ? templateSaveButton.textContent : '';
-    if (templateSaveButton) {
-      templateSaveButton.disabled = true;
-      templateSaveButton.textContent = 'Сохраняем...';
-    }
-    if (templateCancelButton) {
-      templateCancelButton.disabled = true;
-    }
-    setTemplateStatus('Сохраняем шаблон и общие настройки бота...', false);
-    try {
-      await persistBotSettingsPayload(collectPayload());
-      await refreshLinkedBotSettingsConsumers().catch(() => undefined);
-      setTemplateStatus('Шаблон сохранён.', false);
-      hideChildModal(templateModalEl);
-      return true;
-    } catch (error) {
-      state.templates = previousTemplates.map((template) => cloneTemplate(template));
-      state.activeTemplateId = previousActiveTemplateId;
-      renderTemplates();
-      const message = error && error.message ? error.message : String(error);
-      setTemplateStatus(`Ошибка сохранения: ${message}`, true);
-      return false;
-    } finally {
-      if (templateSaveButton) {
-        templateSaveButton.disabled = false;
-        templateSaveButton.textContent = originalSaveText || 'Сохранить шаблон';
-      }
-      if (templateCancelButton) {
-        templateCancelButton.disabled = false;
-      }
-    }
-  }
 
   function addQuestion(type) {
     if (type === 'preset' && !hasPresetDefinitions()) {
@@ -2997,93 +1007,9 @@
     setStatus('', false);
   }
 
-  function serializeQuestion(question, index) {
-    const bindingKey = normalizeBindingKey(question.bindingKey || question.binding_key || '');
-    const includeInDashboard = Boolean(question.includeInDashboard || question.include_in_dashboard);
-    const meta = question.type === 'preset' && question.preset
-      ? getPresetMeta(question.preset.group, question.preset.field)
-      : null;
-    const routes = cloneQuestionRoutes(question.routes);
-    const entry = {
-      id: question.id || generateQuestionId(),
-      type: question.type === 'preset' ? 'preset' : (question.type === 'select' ? 'select' : (question.type === 'business' ? 'business' : 'custom')),
-      text: String(question.text || '').trim(),
-      order: index + 1,
-      required: question.type === 'preset' || question.type === 'business' ? true : question.required !== false,
-    };
-    if (entry.type === 'preset' && question.preset && question.preset.group && question.preset.field) {
-      entry.preset = { group: question.preset.group, field: question.preset.field };
-      const excluded = Array.isArray(question.excludedOptions)
-        ? question.excludedOptions.map((value) => (value || '').toString().trim()).filter((value) => value)
-        : [];
-      if (excluded.length) {
-        entry.excluded_options = Array.from(new Set(excluded));
-      }
-    }
-    if (entry.type === 'select') {
-      entry.options = normalizeEditableQuestionOptions(question.options);
-    }
-    if (entry.type === 'business') {
-      entry.binding_key = 'business';
-      entry.include_in_dashboard = true;
-    } else if (bindingKey) {
-      entry.binding_key = bindingKey;
-    }
-    if (includeInDashboard) {
-      entry.include_in_dashboard = true;
-    }
-    if (routes.length) {
-      entry.routes = routes.map((route) => ({
-        value_id: route.valueId,
-        next_question_id: route.nextQuestionId,
-      }));
-    }
-    return entry;
-  }
+  function serializeQuestion(...args) { return questionModel.serializeQuestion(...args); }
 
-  function collectPayload() {
-    const templatesPayload = state.templates.map((template) => ({
-      id: template.id,
-      name: template.name,
-      description: template.description,
-      start_message: String(template.startMessage || template.start_message || '').trim(),
-      question_flow: template.questionFlow.map(serializeQuestion),
-    }));
-    let activeTemplateId = state.activeTemplateId;
-    if (!templatesPayload.some((template) => template.id === activeTemplateId)) {
-      activeTemplateId = templatesPayload.length ? templatesPayload[0].id : null;
-    }
-    const activeTemplate = templatesPayload.find((template) => template.id === activeTemplateId);
-    const ratingTemplatesPayload = state.ratingTemplates.map((template) => {
-      const scale = normalizeScale(template.scaleSize || template.scale_size || 5);
-      const ensured = normalizeRatingResponses(template.responses || {}, scale);
-      const responses = [];
-      for (let value = 1; value <= Math.max(1, scale); value += 1) {
-        const key = String(value);
-        responses.push({ value, text: String(ensured[key] || '').trim() });
-      }
-      return {
-        id: template.id,
-        name: String(template.name || '').trim() || 'Шаблон оценок',
-        description: String(template.description || '').trim(),
-        prompt_text: String(template.promptText || template.prompt_text || '').trim(),
-        scale_size: scale,
-        responses,
-      };
-    });
-    let activeRatingTemplateId = state.activeRatingTemplateId;
-    if (!ratingTemplatesPayload.some((template) => template.id === activeRatingTemplateId)) {
-      activeRatingTemplateId = ratingTemplatesPayload.length ? ratingTemplatesPayload[0].id : null;
-    }
-    const activeRatingTemplate = ratingTemplatesPayload.find((template) => template.id === activeRatingTemplateId) || null;
-    return {
-      question_templates: templatesPayload,
-      active_template_id: activeTemplateId,
-      rating_templates: ratingTemplatesPayload,
-      active_rating_template_id: activeRatingTemplateId,
-      unblock_request_cooldown_minutes: state.unblockCooldownMinutes,
-    };
-  }
+
 
   async function persistBotSettingsPayload(payload) {
     const response = await fetch('/settings', {
@@ -3107,78 +1033,7 @@
     renderRatingTemplates();
   }
 
-  function validatePayload(payload) {
-    const templates = Array.isArray(payload.question_templates) ? payload.question_templates : [];
-    if (!templates.length) {
-      return 'Добавьте хотя бы один шаблон вопросов.';
-    }
-    const activeId = payload.active_template_id;
-    const activeTemplate = templates.find((template) => template.id === activeId) || templates[0];
-    const activeFlow = Array.isArray(activeTemplate && activeTemplate.question_flow)
-      ? activeTemplate.question_flow
-      : [];
-    if (!activeFlow.length) {
-      return 'Активный шаблон должен содержать хотя бы один вопрос.';
-    }
-    for (let i = 0; i < activeFlow.length; i += 1) {
-      const question = activeFlow[i];
-      if (question.type === 'preset') {
-        if (!question.preset || !question.preset.group || !question.preset.field) {
-          return `Выберите готовое поле для вопроса №${i + 1}.`;
-        }
-      } else if (!question.text) {
-        return `Укажите текст для вопроса №${i + 1}.`;
-      }
-    }
-    for (const template of templates) {
-      if (!template) {
-        continue;
-      }
-      const flow = Array.isArray(template.question_flow) ? template.question_flow : [];
-      if (!flow.length) {
-        return `Шаблон "${String(template.name || '').trim() || 'Шаблон вопросов'}" должен содержать хотя бы один вопрос.`;
-      }
-      const flowError = validateQuestionFlow(flow, String(template.name || '').trim(), false);
-      if (flowError) {
-        return flowError;
-      }
-    }
-    const ratingTemplates = Array.isArray(payload.rating_templates) ? payload.rating_templates : [];
-    if (!ratingTemplates.length) {
-      return 'Добавьте хотя бы один шаблон оценок.';
-    }
-    if (payload.unblock_request_cooldown_minutes != null) {
-      const parsed = Number.parseInt(payload.unblock_request_cooldown_minutes, 10);
-      if (!Number.isFinite(parsed) || parsed < 0) {
-        return 'Укажите корректный интервал между запросами на разблокировку (в минутах).';
-      }
-    }
-    const activeRatingId = payload.active_rating_template_id;
-    const nameForMessage = (template) => String(template?.name || '').trim() || 'Шаблон оценок';
-    for (const template of ratingTemplates) {
-      if (!template) {
-        continue;
-      }
-      const prompt = String(template.prompt_text || template.prompt || '').trim();
-      if (!prompt) {
-        return `Укажите текст запроса оценки в шаблоне "${nameForMessage(template)}".`;
-      }
-      const scale = normalizeScale(template.scale_size || template.scale || template.scaleSize);
-      const responses = Array.isArray(template.responses) ? template.responses : [];
-      if (responses.length < Math.max(1, scale)) {
-        return `Добавьте ответы для всех значений шкалы в шаблоне "${nameForMessage(template)}".`;
-      }
-      for (const response of responses) {
-        if (!response || !String(response.text || '').trim()) {
-          return `Каждое значение оценки должно иметь текст ответа в шаблоне "${nameForMessage(template)}".`;
-        }
-      }
-    }
-    if (!ratingTemplates.some((template) => template && template.id === activeRatingId)) {
-      return 'Выберите активный шаблон оценок.';
-    }
-    return null;
-  }
+
 
   async function saveBotSettings() {
     if (!saveButton) {
@@ -3523,365 +1378,17 @@
     });
   }
 
-  function buildDashboardBindingOptions(selectedValue) {
-    const normalized = isDashboardBindingKeyAllowed(selectedValue) ? selectedValue.trim() : '';
-    return ['<option value="">Выберите атрибут</option>']
-      .concat(DASHBOARD_ATTRIBUTE_KEYS.map((item) => (
-        `<option value="${html(item.value)}"${item.value === normalized ? ' selected' : ''}>${html(item.label)}</option>`
-      )))
-      .join('');
-  }
+  function buildDashboardBindingOptions(...args) { return questionEditor.buildDashboardBindingOptions(...args); }
 
-  function buildBindingEditorHtml(question, bindingKey, analyticsHint) {
-    const includeInDashboard = Boolean(question && (question.includeInDashboard || question.include_in_dashboard));
-    if (includeInDashboard) {
-      return `
-        <label class="form-label">Атрибут дашборда</label>
-        <select class="form-select" data-bot-question-binding>
-          ${buildDashboardBindingOptions(bindingKey)}
-        </select>
-        <div class="form-text mb-0">Для дашборда можно выбирать только разрешённые атрибуты, чтобы не создавать ошибки в аналитике.</div>
-      `;
-    }
-    return `
-      <label class="form-label">Ключ атрибута</label>
-      <input type="text" class="form-control font-monospace" value="${html(bindingKey)}" data-bot-question-binding placeholder="company">
-      <div class="form-text mb-0">${html(analyticsHint)}</div>
-    `;
-  }
+  function buildBindingEditorHtml(...args) { return questionEditor.buildBindingEditorHtml(...args); }
 
-  function openTemplateEditor(index) {
-    if (!canManageChildModal(templateModalEl)) {
-      return;
-    }
-    if (typeof index === 'number' && index >= 0 && index < state.templates.length) {
-      const template = state.templates[index];
-      editorState.index = index;
-      editorState.templateId = template.id;
-      editorState.name = template.name;
-      editorState.description = template.description;
-      editorState.startMessage = template.startMessage || '';
-      editorState.firstResponseTimeoutMinutes = normalizeFirstResponseTimeoutMinutesValue(
-        template.firstResponseTimeoutMinutes ?? template.first_response_timeout_minutes
-      );
-      editorState.firstResponseTimeoutMessage = normalizeFirstResponseTimeoutMessageValue(
-        template.firstResponseTimeoutMessage ?? template.first_response_timeout_message
-      );
-      editorState.unifiedFields = Boolean(template.unifiedFields || template.scope_mode === 'UNIFIED_FIELDS');
-      editorState.questionFlow = template.questionFlow.map((question) => cloneQuestion(question));
-    } else {
-      editorState.index = -1;
-      editorState.templateId = generateTemplateId();
-      editorState.name = 'Новый шаблон вопросов';
-      editorState.description = '';
-      editorState.startMessage = '';
-      editorState.firstResponseTimeoutMinutes = DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES;
-      editorState.firstResponseTimeoutMessage = DEFAULT_FIRST_RESPONSE_TIMEOUT_MESSAGE;
-      editorState.unifiedFields = false;
-      editorState.questionFlow = [];
-    }
-    if (templateNameInput) {
-      templateNameInput.value = editorState.name || '';
-    }
-    if (templateDescriptionInput) {
-      templateDescriptionInput.value = editorState.description || '';
-    }
-    if (templateStartMessageInput) {
-      templateStartMessageInput.value = editorState.startMessage || '';
-    }
-    if (templateFirstResponseTimeoutInput) {
-      templateFirstResponseTimeoutInput.value = editorState.firstResponseTimeoutMinutes;
-    }
-    if (templateFirstResponseTimeoutMessageInput) {
-      templateFirstResponseTimeoutMessageInput.value = editorState.firstResponseTimeoutMessage || '';
-    }
-    if (templateUnifiedFieldsInput) {
-      templateUnifiedFieldsInput.checked = Boolean(editorState.unifiedFields);
-    }
-    setTemplateStatus('', false);
-    renderQuestions();
-    if (!hasPresetDefinitions()) {
-      void ensurePresetDefinitionsLoaded();
-    }
-    showChildModal(templateModalEl);
-  }
+  function openTemplateEditor(...args) { return questionEditor.openTemplateEditor(...args); }
 
-  async function saveTemplateFromEditor() {
-    const name = templateNameInput ? templateNameInput.value.trim() : '';
-    const description = templateDescriptionInput ? templateDescriptionInput.value.trim() : '';
-    const startMessage = templateStartMessageInput ? templateStartMessageInput.value.trim() : '';
-    const rawTimeoutValue = templateFirstResponseTimeoutInput ? templateFirstResponseTimeoutInput.value : '';
-    const firstResponseTimeoutMinutes = normalizeFirstResponseTimeoutMinutesValue(
-      rawTimeoutValue !== '' ? rawTimeoutValue : editorState.firstResponseTimeoutMinutes
-    );
-    const firstResponseTimeoutMessage = normalizeFirstResponseTimeoutMessageValue(
-      templateFirstResponseTimeoutMessageInput ? templateFirstResponseTimeoutMessageInput.value : editorState.firstResponseTimeoutMessage
-    );
-    const unifiedFields = Boolean(templateUnifiedFieldsInput && templateUnifiedFieldsInput.checked)
-      || editorState.questionFlow.some((question) => question && question.type === 'business');
-    if (!name) {
-      setTemplateStatus('Укажите название шаблона.', true);
-      if (templateNameInput) {
-        templateNameInput.focus();
-      }
-      return false;
-    }
-    if (templateFirstResponseTimeoutInput) {
-      const parsed = Number.parseInt(rawTimeoutValue, 10);
-      if (rawTimeoutValue !== '' && (!Number.isFinite(parsed) || parsed < 0)) {
-        setTemplateStatus('Укажите корректный таймаут первого ответа в минутах.', true);
-        templateFirstResponseTimeoutInput.focus();
-        return false;
-      }
-    }
-    if (!editorState.questionFlow.length) {
-      setTemplateStatus('Добавьте хотя бы один вопрос.', true);
-      return false;
-    }
-    for (let i = 0; i < editorState.questionFlow.length; i += 1) {
-      const question = editorState.questionFlow[i];
-      if (question.type === 'custom') {
-        if (!question.text || !question.text.trim()) {
-          setTemplateStatus(`Укажите текст для вопроса №${i + 1}.`, true);
-          return false;
-        }
-      } else if (question.type === 'preset' && (!question.preset || !presetExists(question.preset.group, question.preset.field))) {
-        setTemplateStatus(`Выберите готовое поле для вопроса №${i + 1}.`, true);
-        return false;
-      }
-    }
-    const questionFlowError = validateQuestionFlow(editorState.questionFlow, name);
-    if (questionFlowError) {
-      setTemplateStatus(questionFlowError, true);
-      return false;
-    }
+  function saveTemplateFromEditor(...args) { return questionEditor.saveTemplateFromEditor(...args); }
 
-    const normalizedQuestions = editorState.questionFlow.map((question, index) => serializeQuestion(question, index));
-    const templatePayload = {
-      id: editorState.templateId || generateTemplateId(),
-      name,
-      description,
-      startMessage,
-      firstResponseTimeoutMinutes,
-      firstResponseTimeoutMessage,
-      unifiedFields,
-      questionFlow: normalizedQuestions.map((question) => ({
-        id: question.id,
-        type: question.type,
-        text: question.text,
-        order: question.order,
-        required: question.required !== false,
-        preset: question.preset ? { group: question.preset.group, field: question.preset.field } : undefined,
-        options: Array.isArray(question.options) ? question.options.map((option) => ({ id: option.id, label: option.label })) : [],
-        bindingKey: question.binding_key || '',
-        includeInDashboard: Boolean(question.include_in_dashboard),
-        routes: Array.isArray(question.routes)
-          ? question.routes.map((route) => ({ valueId: route.value_id, nextQuestionId: route.next_question_id }))
-          : [],
-        excludedOptions: Array.isArray(question.excluded_options)
-          ? question.excluded_options.slice()
-          : Array.isArray(question.excludedOptions)
-            ? question.excludedOptions.slice()
-            : [],
-      })),
-    };
+  function collectPayload(...args) { return questionEditor.collectPayload(...args); }
 
-    const previousTemplates = state.templates.map((template) => cloneTemplate(template));
-    const previousActiveTemplateId = state.activeTemplateId;
-    const normalizedTemplateState = {
-      id: templatePayload.id,
-      name: templatePayload.name,
-      description: templatePayload.description,
-      startMessage: templatePayload.startMessage,
-      firstResponseTimeoutMinutes: templatePayload.firstResponseTimeoutMinutes,
-      firstResponseTimeoutMessage: templatePayload.firstResponseTimeoutMessage,
-      unifiedFields: templatePayload.unifiedFields,
-      questionFlow: templatePayload.questionFlow.map((question) => ({
-        id: question.id,
-        type: question.type,
-        text: question.text,
-        order: question.order,
-        required: question.required !== false,
-        preset: question.preset ? { group: question.preset.group, field: question.preset.field } : null,
-        options: Array.isArray(question.options) ? question.options.map((option) => ({ id: option.id, label: option.label })) : [],
-        bindingKey: question.bindingKey || '',
-        includeInDashboard: Boolean(question.includeInDashboard),
-        routes: Array.isArray(question.routes)
-          ? question.routes.map((route) => ({ valueId: route.valueId, nextQuestionId: route.nextQuestionId }))
-          : [],
-        excludedOptions: Array.isArray(question.excludedOptions) ? question.excludedOptions : [],
-      })),
-    };
-
-    if (editorState.index >= 0 && editorState.index < state.templates.length) {
-      state.templates[editorState.index] = normalizedTemplateState;
-    } else {
-      state.templates.push(normalizedTemplateState);
-      if (!state.activeTemplateId) {
-        state.activeTemplateId = templatePayload.id;
-      }
-    }
-
-    const originalSaveText = templateSaveButton ? templateSaveButton.textContent : '';
-    if (templateSaveButton) {
-      templateSaveButton.disabled = true;
-      templateSaveButton.textContent = 'Сохраняем...';
-    }
-    if (templateCancelButton) {
-      templateCancelButton.disabled = true;
-    }
-    setTemplateStatus('Сохраняем шаблон и общие настройки бота...', false);
-    try {
-      await persistBotSettingsPayload(collectPayload());
-      await refreshLinkedBotSettingsConsumers().catch(() => undefined);
-      setTemplateStatus('Шаблон сохранён.', false);
-      hideChildModal(templateModalEl);
-      return true;
-    } catch (error) {
-      state.templates = previousTemplates.map((template) => cloneTemplate(template));
-      state.activeTemplateId = previousActiveTemplateId;
-      renderTemplates();
-      const message = error && error.message ? error.message : String(error);
-      setTemplateStatus(`Ошибка сохранения: ${message}`, true);
-      return false;
-    } finally {
-      if (templateSaveButton) {
-        templateSaveButton.disabled = false;
-        templateSaveButton.textContent = originalSaveText || 'Сохранить шаблон';
-      }
-      if (templateCancelButton) {
-        templateCancelButton.disabled = false;
-      }
-    }
-  }
-
-  function collectPayload() {
-    const templatesPayload = state.templates.map((template) => ({
-      id: template.id,
-      name: template.name,
-      description: template.description,
-      start_message: String(template.startMessage || template.start_message || '').trim(),
-      first_response_timeout_minutes: normalizeFirstResponseTimeoutMinutesValue(
-        template.firstResponseTimeoutMinutes ?? template.first_response_timeout_minutes
-      ),
-      first_response_timeout_message: normalizeFirstResponseTimeoutMessageValue(
-        template.firstResponseTimeoutMessage ?? template.first_response_timeout_message
-      ),
-      scope_mode: template.unifiedFields ? 'UNIFIED_FIELDS' : undefined,
-      question_flow: template.questionFlow.map(serializeQuestion),
-    }));
-    let activeTemplateId = state.activeTemplateId;
-    if (!templatesPayload.some((template) => template.id === activeTemplateId)) {
-      activeTemplateId = templatesPayload.length ? templatesPayload[0].id : null;
-    }
-    const ratingTemplatesPayload = state.ratingTemplates.map((template) => {
-      const scale = normalizeScale(template.scaleSize || template.scale_size || 5);
-      const ensured = normalizeRatingResponses(template.responses || {}, scale);
-      const responses = [];
-      for (let value = 1; value <= Math.max(1, scale); value += 1) {
-        const key = String(value);
-        responses.push({ value, text: String(ensured[key] || '').trim() });
-      }
-      return {
-        id: template.id,
-        name: String(template.name || '').trim() || 'Шаблон оценок',
-        description: String(template.description || '').trim(),
-        prompt_text: String(template.promptText || template.prompt_text || '').trim(),
-        scale_size: scale,
-        responses,
-      };
-    });
-    let activeRatingTemplateId = state.activeRatingTemplateId;
-    if (!ratingTemplatesPayload.some((template) => template.id === activeRatingTemplateId)) {
-      activeRatingTemplateId = ratingTemplatesPayload.length ? ratingTemplatesPayload[0].id : null;
-    }
-    return {
-      question_templates: templatesPayload,
-      active_template_id: activeTemplateId,
-      rating_templates: ratingTemplatesPayload,
-      active_rating_template_id: activeRatingTemplateId,
-      unblock_request_cooldown_minutes: state.unblockCooldownMinutes,
-    };
-  }
-
-  function validatePayload(payload) {
-    const templates = Array.isArray(payload.question_templates) ? payload.question_templates : [];
-    if (!templates.length) {
-      return 'Добавьте хотя бы один шаблон вопросов.';
-    }
-    const activeId = payload.active_template_id;
-    const activeTemplate = templates.find((template) => template.id === activeId) || templates[0];
-    const activeFlow = Array.isArray(activeTemplate && activeTemplate.question_flow)
-      ? activeTemplate.question_flow
-      : [];
-    if (!activeFlow.length) {
-      return 'Активный шаблон должен содержать хотя бы один вопрос.';
-    }
-    for (let i = 0; i < activeFlow.length; i += 1) {
-      const question = activeFlow[i];
-      if (question.type === 'preset') {
-        if (!question.preset || !question.preset.group || !question.preset.field) {
-          return `Выберите готовое поле для вопроса №${i + 1}.`;
-        }
-      } else if (!question.text) {
-        return `Укажите текст для вопроса №${i + 1}.`;
-      }
-    }
-    for (const template of templates) {
-      if (!template) {
-        continue;
-      }
-      if (template.first_response_timeout_minutes != null) {
-        const parsedTimeout = Number.parseInt(template.first_response_timeout_minutes, 10);
-        if (!Number.isFinite(parsedTimeout) || parsedTimeout < 0) {
-          return `Укажите корректный таймаут первого ответа в шаблоне "${String(template.name || '').trim() || 'Шаблон вопросов'}".`;
-        }
-      }
-      const flow = Array.isArray(template.question_flow) ? template.question_flow : [];
-      if (!flow.length) {
-        return `Шаблон "${String(template.name || '').trim() || 'Шаблон вопросов'}" должен содержать хотя бы один вопрос.`;
-      }
-      const flowError = validateQuestionFlow(flow, String(template.name || '').trim(), false);
-      if (flowError) {
-        return flowError;
-      }
-    }
-    const ratingTemplates = Array.isArray(payload.rating_templates) ? payload.rating_templates : [];
-    if (!ratingTemplates.length) {
-      return 'Добавьте хотя бы один шаблон оценок.';
-    }
-    if (payload.unblock_request_cooldown_minutes != null) {
-      const parsed = Number.parseInt(payload.unblock_request_cooldown_minutes, 10);
-      if (!Number.isFinite(parsed) || parsed < 0) {
-        return 'Укажите корректный интервал между запросами на разблокировку (в минутах).';
-      }
-    }
-    const activeRatingId = payload.active_rating_template_id;
-    const nameForMessage = (template) => String(template?.name || '').trim() || 'Шаблон оценок';
-    for (const template of ratingTemplates) {
-      if (!template) {
-        continue;
-      }
-      const prompt = String(template.prompt_text || template.prompt || '').trim();
-      if (!prompt) {
-        return `Укажите текст запроса оценки в шаблоне "${nameForMessage(template)}".`;
-      }
-      const scale = normalizeScale(template.scale_size || template.scale || template.scaleSize);
-      const responses = Array.isArray(template.responses) ? template.responses : [];
-      if (responses.length < Math.max(1, scale)) {
-        return `Добавьте ответы для всех значений шкалы в шаблоне "${nameForMessage(template)}".`;
-      }
-      for (const response of responses) {
-        if (!response || !String(response.text || '').trim()) {
-          return `Каждое значение оценки должно иметь текст ответа в шаблоне "${nameForMessage(template)}".`;
-        }
-      }
-    }
-    if (!ratingTemplates.some((template) => template && template.id === activeRatingId)) {
-      return 'Выберите активный шаблон оценок.';
-    }
-    return null;
-  }
+  function validatePayload(...args) { return questionEditor.validatePayload(...args); }
 
   if (templateSaveButton) {
     templateSaveButton.addEventListener('click', async () => {

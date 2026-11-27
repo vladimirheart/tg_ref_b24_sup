@@ -12,7 +12,10 @@ const contents = inputs.map(file => fs.readFileSync(path.join(root, file), 'utf8
 const sources = inputs.map((file, i) => ({ file, sha256: crypto.createHash('sha256').update(contents[i]).digest('hex') }));
 const csrfEnd = contents[2].indexOf('// Функция для показа уведомлений');
 assert(csrfEnd > 0, 'Expected the production CSRF wrapper before notifications');
-const payload = { source: contents[0], fragment: contents[1], csrf: contents[2].slice(0, csrfEnd) };
+const controllerFiles = ['photo','user','roles','organization'].map(name => 'spring-panel/src/main/resources/static/js/auth-management-' + name + '.js');
+const controllerSources = controllerFiles.map(file => fs.readFileSync(path.join(root, file), 'utf8'));
+controllerFiles.forEach((file, i) => sources.push({ file, sha256: crypto.createHash('sha256').update(controllerSources[i]).digest('hex') }));
+const payload = { source: controllerSources.join('\n') + '\n' + contents[0], fragment: contents[1], csrf: contents[2].slice(0, csrfEnd) };
 
 async function sseCases() {
   const start = contents[3].indexOf('  function connectPanelEvents() {');

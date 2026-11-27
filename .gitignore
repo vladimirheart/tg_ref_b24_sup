@@ -49,3 +49,10 @@ attachments/
 /repair-*.ps1
 /finalize-*.ps1
 /resume-*.ps1
+
+# Historical recovery data is kept in a verified external archive (task 01-330).
+/spring-panel/recovery-*/
+/spring-panel/db-backup-*/
+/spring-panel/panel_runtime.db.corrupt-*
+/temp-recovery/*
+!/temp-recovery/README.md

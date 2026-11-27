@@ -44,7 +44,7 @@ async function main() {
     <script src="/js/ui-preferences.js"></script><script src="/js/theme.js"></script><script src="/js/common.js"></script></head>
     <body data-ui-page="settings"><button id="open" class="btn btn-primary">Пользователи и роли</button>${capture}
     <script src="/vendor/bootstrap/5.3.0/bootstrap.bundle.min.js"></script><script src="/js/modal-helpers.js"></script><script src="/js/modal-resize.js"></script>
-    <script src="/js/settings-permissions.js"></script><script src="/js/permission-editor.js"></script><script src="/js/user-permissions.js"></script><script src="/js/auth-management.js"></script>
+    <script src="/js/settings-permissions.js"></script><script src="/js/permission-editor.js"></script><script src="/js/user-permissions.js"></script><script src="/js/auth-management-photo.js"></script><script src="/js/auth-management-user.js"></script><script src="/js/auth-management-roles.js"></script><script src="/js/auth-management-organization.js"></script><script src="/js/auth-management.js"></script>
     <script>AuthManagement.mount(document.querySelector('[data-auth-management]'));document.getElementById('open').onclick=()=>bootstrap.Modal.getOrCreateInstance(document.getElementById('usersModal')).show();</script></body></html>`;
   fs.writeFileSync(path.join(out, 'fixture.html'), html);
   const server = http.createServer((req, res) => {

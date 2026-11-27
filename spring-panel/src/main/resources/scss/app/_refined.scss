@@ -1,41 +1,5 @@
 /* 01-297: quieter chrome, stronger content hierarchy; preserve all page mechanics. */
-body[data-ui-page] {
-  --ui-panel-radius: 0.625rem;
-  --ui-panel-padding: 1rem;
-  --ui-panel-padding-lg: 1.25rem;
-  --control-radius: 0.42rem;
-  --surface-interactive: var(--color-surface-soft);
-  --surface-selected: color-mix(in srgb, var(--foreground) 7%, var(--card));
-  background: var(--surface-page);
-  font-weight: 400;
-  -webkit-font-smoothing: antialiased;
 
-  :is(h1, h2, h3, .page-title, .dialogs-title) { font-weight: 600; letter-spacing: -0.025em; }
-  :is(h4, h5, h6, .card-title, .modal-title) { font-weight: 500; }
-  :is(.page-title, .dialogs-title) { font-size: 1.65rem; }
-  :is(.page-kicker, .section-kicker) { font-size: 0.86rem; font-weight: 400; letter-spacing: 0; text-transform: none; }
-  :is(.page-header-card, .reports-page-header, .dialogs-hero) {
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
-  }
-  .btn { font-weight: 500; letter-spacing: 0; }
-  .btn-primary { color: var(--primary-foreground); }
-  .btn-primary:hover, .btn-primary:focus-visible { color: var(--primary-foreground); }
-  :is(.btn-outline-secondary, .btn-light) { background: var(--surface-card); border-color: var(--color-border); color: var(--color-text); }
-  :is(.form-control, .form-select) { border-color: var(--input); background-color: var(--surface-card); color: var(--color-text); }
-  :is(.form-control, .form-select):focus { border-color: var(--ring); }
-  :is(.form-control, .form-select).is-invalid,
-  .was-validated :is(.form-control, .form-select):invalid { border-color: var(--state-danger); }
-  :is(.form-control, .form-select).is-valid,
-  .was-validated :is(.form-control, .form-select):valid { border-color: var(--state-success); }
-  .table { --bs-table-bg: transparent; --bs-table-color: var(--color-text); --bs-table-border-color: var(--color-border); }
-  .table thead th { color: var(--color-text-muted); font-weight: 500; text-transform: none; letter-spacing: 0; }
-  :is(.nav-tabs, .ops-tab-nav, .reports-tab-nav) .nav-link { font-weight: 500; }
-  :is(.modal-content, .dropdown-menu) { background: var(--popover); color: var(--popover-foreground); border-color: var(--color-border); }
-  .text-muted { color: var(--color-text-muted) !important; }
-}
 
 body[data-ui-page='dialogs'][data-ui-visual='neutral-ops'] {
   .dialogs-toolbar-card { border: 0; border-bottom: 1px solid var(--color-border); border-radius: 0; }
@@ -90,9 +54,7 @@ body[data-ui-page='dashboard'][data-ui-visual='neutral-ops'] {
 @media (max-width: 767.98px) {
   body[data-ui-page='dashboard'][data-ui-visual='neutral-ops'] .metrics-panel .metric-card + .metric-card { border-left: 0; }
 }
-:root[data-theme='dark'] body[data-ui-page] .btn-close {
-  filter: invert(1) grayscale(100%) brightness(200%);
-}
+
 @media (prefers-reduced-motion: reduce) {
   body[data-ui-page] :is(.btn, .nav-link) { transition: none; }
 }

@@ -555,6 +555,9 @@ body[data-ui-page=public] {
     --gradient-angle: 360deg;
   }
 }
+/* notifications component; emitted at its original position by style/base. */
+/* controls component; emitted at its original position by style/base. */
+/* modal-resize component; emitted at its original position by style/base. */
 html {
   background-color: var(--color-bg);
   min-width: 0;
@@ -679,11 +682,6 @@ p {
 }
 
 /* Bootstrap close button — theme-aware */
-html[data-theme=dark] .btn-close {
-  --bs-btn-close-bg:
-    url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='%23f5f7fa' d='M.293.293a1 1 0 0 1 1.414 0L8 6.586 14.293.293a1 1 0 1 1 1.414 1.414L9.414 8l6.293 6.293a1 1 0 0 1-1.414 1.414L8 9.414l-6.293 6.293A1 1 0 0 1 .293 14.293L6.586 8 .293 1.707A1 1 0 0 1 .293.293z'/%3e%3c/svg%3e");
-}
-
 /* Resizable Bootstrap modals */
 .modal-dialog.modal-resizable {
   position: relative;
@@ -1494,12 +1492,6 @@ a:not([class]) {
 .modal-title {
   font-weight: 700;
   color: var(--color-text);
-}
-
-.btn-close {
-  border-radius: var(--radius-pill);
-  background-color: var(--surface-interactive);
-  box-shadow: none;
 }
 
 [data-theme=dark] .bg-light {
@@ -2668,4 +2660,19 @@ h1.page-title, .content h1, .container h1 {
   --color-warning-bg: #3b3224;
   --color-success-bg: #25382b;
   --color-info-bg: #26364b;
+}
+
+/* Shared Bootstrap 5.3.0/5.3.3 close control. Feature styles may adjust spacing, never invert the icon. */
+.btn-close {
+  border-radius: var(--radius-pill);
+  background-color: var(--surface-interactive);
+  box-shadow: none;
+}
+
+:root[data-theme=dark] .btn-close,
+:root.dark .btn-close {
+  --bs-btn-close-bg:
+      url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='%23f5f7fa' d='M.293.293a1 1 0 0 1 1.414 0L8 6.586 14.293.293a1 1 0 1 1 1.414 1.414L9.414 8l6.293 6.293a1 1 0 0 1-1.414 1.414L8 9.414l-6.293 6.293A1 1 0 0 1 .293 14.293L6.586 8 .293 1.707A1 1 0 0 1 .293.293z'/%3e%3c/svg%3e");
+  background-image: var(--bs-btn-close-bg);
+  filter: none;
 }

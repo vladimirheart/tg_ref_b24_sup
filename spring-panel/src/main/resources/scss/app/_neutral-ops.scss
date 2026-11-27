@@ -4,76 +4,7 @@
  * rules below affect visual treatment only, not DOM or runtime behaviour.
  */
 
-body[data-ui-page] {
-  --ui-panel-radius: 0.72rem;
-  --ui-panel-padding: 0.9rem;
-  --ui-panel-padding-lg: 1rem;
-  --ui-panel-shadow: none;
-  --radius: 0.72rem;
-  --radius-lg: 0.72rem;
-  --radius-xl: 0.9rem;
-  --control-radius: 0.52rem;
-  --surface-raised: var(--surface-card);
-  --surface-interactive: color-mix(in srgb, var(--primary) 5%, var(--surface-card));
-  --surface-selected: color-mix(in srgb, var(--primary) 11%, var(--surface-card));
 
-  .page-kicker,
-  .section-kicker {
-    padding: 0;
-    background: transparent;
-    color: var(--color-text-muted);
-    font-size: 0.66rem;
-    letter-spacing: 0.1em;
-  }
-
-  .page-header-card,
-  .dialogs-toolbar-card,
-  .dialogs-table-card,
-  .workspace-shell-card,
-  .reports-page-header,
-  .filter-panel,
-  .metrics-panel,
-  .chart-panel {
-    border: 1px solid var(--color-border);
-    border-radius: var(--ui-panel-radius);
-    background: var(--surface-card);
-    box-shadow: none;
-  }
-
-  .gradient-border-hover::before,
-  .filter-panel::before,
-  .metrics-panel::before,
-  .chart-panel::before {
-    display: none;
-  }
-
-  .page-title,
-  .panel-head h3,
-  .chart-panel-title,
-  .dialogs-title {
-    letter-spacing: -0.025em;
-  }
-
-  .btn,
-  .form-control,
-  .form-select,
-  .select2-container--default .select2-selection--multiple {
-    border-radius: var(--control-radius);
-    box-shadow: none;
-  }
-
-  .btn-primary {
-    border-color: var(--primary);
-    background: var(--primary);
-  }
-
-  .btn-primary:hover,
-  .btn-primary:focus-visible {
-    border-color: var(--color-accent-strong);
-    background: var(--color-accent-strong);
-    box-shadow: none;
-  }
-}
 
 body[data-ui-page='dialogs'][data-ui-visual='neutral-ops'] {
   background: var(--color-bg);
