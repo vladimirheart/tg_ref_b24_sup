@@ -36,6 +36,64 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 class DialogReplyTransportServiceTest {
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"init,413","binary,413","init,429","binary,429","init,200","binary,200"})
+    void maxUploadPreservesActualRejectionAtEitherStage(String stage,int status) throws Exception {
+        HttpClient http=mock(HttpClient.class);var network=mock(IntegrationNetworkService.class);
+        when(network.createChannelHttpClient(any(),any(Duration.class))).thenReturn(http);
+        List<HttpRequest> requests=new ArrayList<>();
+        when(http.send(any(HttpRequest.class),any(HttpResponse.BodyHandler.class))).thenAnswer(call->{
+            HttpRequest request=call.getArgument(0);requests.add(request);
+            if(stage.equals("binary")&&request.uri().getPath().equals("/uploads"))
+                return responseFor(request,new ArrayList<>(),"{\"url\":\"https://upload.okcdn.ru/file\"}",200);
+            return responseFor(request,new ArrayList<>(),"{\"code\":\"upload.rejected\",\"message\":\"Provider upload limit is 73 MiB\"}",status);
+        });
+        var transport=new DialogReplyTransportService(mock(com.example.panel.repository.ChannelRepository.class),network,new ObjectMapper());
+        var result=transport.sendMedia(maxChannel(),42L,new MockMultipartFile("file","file.bin","application/octet-stream",new byte[]{1}),"",null,null);
+        assertThat(result.success()).isFalse();assertThat(result.error()).contains("73 MiB","upload.rejected").doesNotContain("50 МБ","25 МБ");
+        assertThat(result.httpStatus()).isEqualTo(status);assertThat(requests).hasSize(stage.equals("init")?1:2);
+        assertThat(requests).noneMatch(r->r.uri().getPath().equals("/messages"));
+    }
+
+    @ParameterizedTest @ValueSource(strings={"init","binary"})
+    void uncertainMaxUploadStopsWithoutSendingOrTryingAnotherHost(String stage) throws Exception {
+        HttpClient http=mock(HttpClient.class);var network=mock(IntegrationNetworkService.class);
+        when(network.createChannelHttpClient(any(),any(Duration.class))).thenReturn(http);
+        List<HttpRequest> requests=new ArrayList<>();
+        when(http.send(any(HttpRequest.class),any(HttpResponse.BodyHandler.class))).thenAnswer(call->{
+            HttpRequest request=call.getArgument(0);requests.add(request);
+            if(stage.equals("binary")&&request.uri().getPath().equals("/uploads"))
+                return responseFor(request,new ArrayList<>(),"{\"url\":\"https://upload.okcdn.ru/file\"}",200);
+            throw new IOException("Authorization: Bearer private");
+        });
+        var transport=new DialogReplyTransportService(mock(com.example.panel.repository.ChannelRepository.class),network,new ObjectMapper());
+        var result=transport.sendMedia(maxChannel(),42L,new MockMultipartFile("file","file.bin","application/octet-stream",new byte[]{1}),"",null,null);
+        assertThat(result.error()).contains("не подтвержден").doesNotContain("private");
+        assertThat(requests).hasSize(stage.equals("init")?1:2);
+    }
+
+    @Test void successfulMaxUploadStillSendsOneMessageAndLongTelegramCaptionReachesApi() throws Exception {
+        HttpClient http=mock(HttpClient.class);var network=mock(IntegrationNetworkService.class);
+        when(network.createChannelHttpClient(any(),any(Duration.class))).thenReturn(http);
+        List<HttpRequest> requests=new ArrayList<>();
+        when(http.send(any(HttpRequest.class),any(HttpResponse.BodyHandler.class))).thenAnswer(call->{
+            HttpRequest request=call.getArgument(0);requests.add(request);
+            String body=switch(request.uri().getPath()){
+                case "/uploads"->"{\"url\":\"https://upload.okcdn.ru/file\"}";
+                case "/file"->"{\"token\":\"fixture-upload-token\"}";
+                case "/messages"->"{\"message\":{\"body\":{\"mid\":\"77\"}}}";
+                default->"{\"ok\":false,\"description\":\"Bad Request: caption is too long\"}";
+            };
+            return responseFor(request,new ArrayList<>(),body,request.uri().getPath().endsWith("/sendDocument")?400:200);
+        });
+        var transport=new DialogReplyTransportService(mock(com.example.panel.repository.ChannelRepository.class),network,new ObjectMapper());
+        var file=new MockMultipartFile("file","file.bin","application/octet-stream",new byte[]{1});
+        assertThat(transport.sendMedia(maxChannel(),42L,file,"",null,null).success()).isTrue();
+        assertThat(requests).hasSize(3);
+        var result=transport.sendMedia(telegramChannel(),42L,file,"x".repeat(1100),null,null);
+        assertThat(result.error()).contains("caption is too long").doesNotContain("1024");
+        assertThat(requests).hasSize(4);
+    }
     @ParameterizedTest @ValueSource(ints={502,503,504})
     void ambiguousLegacyGatewayDoesNotSilentlyResendTelegramPost(int status) throws Exception {
         HttpClient http=mock(HttpClient.class), direct=mock(HttpClient.class);
@@ -293,8 +351,13 @@ class DialogReplyTransportServiceTest {
     }
 
     @Test
-    void sendMediaRejectsFileLargerThanFiftyMegabytes() {
+    void sendMediaPassesFileAboveFormerLimitToApiAndUsesItsActualResponse() throws Exception {
+        HttpClient http = mock(HttpClient.class);
         IntegrationNetworkService integrationNetworkService = mock(IntegrationNetworkService.class);
+        when(integrationNetworkService.createChannelHttpClient(any(), any(Duration.class))).thenReturn(http);
+        when(http.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+            .thenAnswer(call -> responseFor(call.getArgument(0),new ArrayList<>(),
+                "{\"ok\":false,\"error_code\":413,\"description\":\"Request rejected by upstream proxy: upload exceeds 73 MiB\"}",413));
         DialogReplyTransportService service = new DialogReplyTransportService(
                 mock(com.example.panel.repository.ChannelRepository.class),
                 integrationNetworkService,
@@ -352,9 +415,10 @@ class DialogReplyTransportServiceTest {
                 null
         );
 
-        assertThat(result.error()).isEqualTo("Файл слишком большой для Telegram. Максимальный размер — 50 МБ.");
+        assertThat(result.error()).contains("73 MiB", "upstream proxy", "413").doesNotContain("50 МБ");
+        assertThat(result.httpStatus()).isEqualTo(413);
         assertThat(result.telegramMessageId()).isNull();
-        verify(integrationNetworkService, never()).createChannelHttpClient(any(), any(Duration.class));
+        verify(http).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
     }
 
     @Test

@@ -46,8 +46,6 @@ public class DialogReplyTransportService {
     private static final Duration TELEGRAM_REQUEST_TIMEOUT = Duration.ofSeconds(15);
     private static final Duration TELEGRAM_MEDIA_REQUEST_TIMEOUT = Duration.ofSeconds(120);
     private static final Duration GENERIC_PROVIDER_REQUEST_TIMEOUT = Duration.ofSeconds(20);
-    private static final long TELEGRAM_MAX_DOCUMENT_BYTES = 50L * 1024L * 1024L;
-    private static final int TELEGRAM_MAX_CAPTION_LENGTH = 1024;
     private static final String MULTIPART_BOUNDARY = "----BENDER-DIALOGS-BOUNDARY";
     private static final String TELEGRAM_MEDIA_METHOD = "sendDocument";
 
@@ -275,7 +273,11 @@ public class DialogReplyTransportService {
                                                 Long replyToTelegramId) {
         String platform = normalizePlatform(channel != null ? channel.getPlatform() : null);
         if ("max".equals(platform)) {
-            return sendMaxMedia(channel, userId, file, caption, originalName, replyToTelegramId);
+            try {
+                return sendMaxMedia(channel, userId, file, caption, originalName, replyToTelegramId);
+            } catch (UploadFailure failure) {
+                return failure.result;
+            }
         }
         if ("telegram".equals(platform)) {
             return sendTelegramMediaSafely(channel, userId, file, caption, originalName, replyToTelegramId,()->true);
@@ -538,7 +540,7 @@ public class DialogReplyTransportService {
             );
         }
         String normalizedCaption = normalizeCaption(caption);
-        String validationError = validateTelegramMedia(file, normalizedCaption);
+        String validationError = validateTelegramMedia(file);
         if (validationError != null) {
             return DialogReplyTransportResult.failure(
                 validationError,
@@ -779,26 +781,38 @@ public class DialogReplyTransportService {
         }
     }
 
-    private Map<String, Object> createMaxUpload(Channel channel, String token, String uploadType) {
-        for (String apiRoot : DEFAULT_MAX_API_ROOT_URLS) {
-            try {
-                HttpClient client = integrationNetworkService.createChannelHttpClient(channel, GENERIC_PROVIDER_REQUEST_TIMEOUT);
-                HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(apiRoot + "/uploads?type=" + URLEncoder.encode(uploadType, StandardCharsets.UTF_8)))
-                    .timeout(GENERIC_PROVIDER_REQUEST_TIMEOUT)
-                    .header("Authorization", token)
-                    .POST(HttpRequest.BodyPublishers.noBody())
-                    .build();
-                HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-                if (response.statusCode() / 100 != 2) {
-                    continue;
-                }
-                return readJsonObject(response.body());
-            } catch (Exception ignored) {
-                // Try the next known MAX API root.
-            }
+    private static final class UploadFailure extends RuntimeException {
+        final DialogReplyTransportResult result;
+        UploadFailure(DialogReplyTransportResult result) { super(result.error()); this.result = result; }
+    }
+
+    private Map<String, Object> requireMaxUploadResponse(HttpResponse<String> response) {
+        Map<String,Object> payload = readJsonObject(response.body());
+        if (response.statusCode() / 100 != 2 || payload == null || payload.isEmpty()
+                || payload.containsKey("code") || payload.containsKey("error")
+                || Boolean.FALSE.equals(payload.get("success"))) {
+            throw new UploadFailure(resolveMaxTransportResult(response, "MAX не подтвердил загрузку файла.", null));
         }
-        return null;
+        return payload;
+    }
+
+    private Map<String, Object> createMaxUpload(Channel channel, String token, String uploadType) {
+        try {
+            HttpClient client = integrationNetworkService.createChannelHttpClient(channel, GENERIC_PROVIDER_REQUEST_TIMEOUT);
+            HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(DEFAULT_MAX_API_ROOT_URLS.get(0) + "/uploads?type=" + URLEncoder.encode(uploadType, StandardCharsets.UTF_8)))
+                .timeout(GENERIC_PROVIDER_REQUEST_TIMEOUT)
+                .header("Authorization", token)
+                .POST(HttpRequest.BodyPublishers.noBody()).build();
+            return requireMaxUploadResponse(client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)));
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new UploadFailure(failureForException("Не удалось дождаться ответа MAX при создании загрузки.",
+                "unknown_error", "critical", "transient", ex, null));
+        } catch (IOException ex) {
+            throw new UploadFailure(failureForException("Не удалось дождаться ответа MAX при создании загрузки.",
+                "network_error", "critical", "transient", ex, null));
+        }
     }
 
     private Map<String, Object> uploadMaxBinary(Channel channel,
@@ -817,15 +831,15 @@ public class DialogReplyTransportService {
                 .timeout(GENERIC_PROVIDER_REQUEST_TIMEOUT)
                 .header("Authorization", token)
                 .header("Content-Type", "multipart/form-data; boundary=" + MULTIPART_BOUNDARY)
-                .POST(HttpRequest.BodyPublishers.ofFile(multipartFile))
-                .build();
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            if (response.statusCode() / 100 != 2) {
-                return null;
-            }
-            return readJsonObject(response.body());
-        } catch (Exception ex) {
-            return null;
+                .POST(HttpRequest.BodyPublishers.ofFile(multipartFile)).build();
+            return requireMaxUploadResponse(client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)));
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new UploadFailure(failureForException("Не удалось дождаться ответа MAX при загрузке файла.",
+                "unknown_error", "critical", "transient", ex, null));
+        } catch (IOException ex) {
+            throw new UploadFailure(failureForException("Не удалось дождаться ответа MAX при загрузке файла.",
+                "network_error", "critical", "transient", ex, null));
         } finally {
             deleteTempFileQuietly(multipartFile);
         }
@@ -1215,21 +1229,11 @@ public class DialogReplyTransportService {
     }
 
 
-    private String validateTelegramMedia(MultipartFile file, String caption) {
+    private String validateTelegramMedia(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             return "Файл не выбран.";
         }
-        if (safeSize(file) > TELEGRAM_MAX_DOCUMENT_BYTES) {
-            return telegramTooLargeError();
-        }
-        if (caption != null && caption.length() > TELEGRAM_MAX_CAPTION_LENGTH) {
-            return "Подпись к файлу слишком длинная. Максимум — 1024 символа.";
-        }
         return null;
-    }
-
-    private String telegramTooLargeError() {
-        return "Файл слишком большой для Telegram. Максимальный размер — 50 МБ.";
     }
 
     private String normalizeCaption(String caption) {

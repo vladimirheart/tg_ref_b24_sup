@@ -16,9 +16,6 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.MultipartException;
-import org.springframework.boot.autoconfigure.web.servlet.MultipartProperties;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.util.unit.DataSize;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
@@ -30,14 +27,6 @@ import java.time.OffsetDateTime;
 public class RestExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(RestExceptionHandler.class);
-    private DataSize maxFileSize = DataSize.ofMegabytes(50);
-    private DataSize maxRequestSize = DataSize.ofMegabytes(60);
-
-    @Autowired(required = false)
-    void configureUploadLimits(MultipartProperties properties) {
-        maxFileSize = properties.getMaxFileSize();
-        maxRequestSize = properties.getMaxRequestSize();
-    }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiErrorResponse> handleAccessDenied(AccessDeniedException ex,
@@ -74,8 +63,7 @@ public class RestExceptionHandler {
         return build(HttpStatus.PAYLOAD_TOO_LARGE,
                 ex.getMaxUploadSize() > 0
                     ? "Размер загрузки превышает ограничение " + formatBytes(ex.getMaxUploadSize()) + ". Уменьшите файл или число вложений."
-                    : "Превышен допустимый размер загрузки. Один файл — до " + formatBytes(maxFileSize.toBytes())
-                        + ", весь запрос — до " + formatBytes(maxRequestSize.toBytes()) + ".",
+                    : "Сервер отклонил загрузку из-за размера. Допустимый размер не указан в ответе.",
                 "FILE_TOO_LARGE",
                 request);
     }

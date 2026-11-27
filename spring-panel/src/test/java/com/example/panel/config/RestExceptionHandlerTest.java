@@ -11,15 +11,12 @@ import org.springframework.web.context.request.async.AsyncRequestTimeoutExceptio
 import static org.assertj.core.api.Assertions.assertThat;
 
 class RestExceptionHandlerTest {
-    @Test void uploadFailureUsesActualLimitAndUnknownLimitUsesBoundConfiguration() {
+    @Test void uploadFailureUsesOnlyActualRejectionAndNeverInventsAnUnknownLimit() {
         var handler = new RestExceptionHandler();
-        var properties = new org.springframework.boot.autoconfigure.web.servlet.MultipartProperties();
-        properties.setMaxFileSize(org.springframework.util.unit.DataSize.ofMegabytes(7));
-        properties.setMaxRequestSize(org.springframework.util.unit.DataSize.ofMegabytes(9));
-        handler.configureUploadLimits(properties);
         var request = new MockHttpServletRequest("POST", "/api/dialog-ticket/media");
         assertThat(handler.handleMaxUploadSize(new MaxUploadSizeExceededException(5 * 1024 * 1024), request).getBody().error()).contains("5 МБ").doesNotContain("50");
-        assertThat(handler.handleMaxUploadSize(new MaxUploadSizeExceededException(-1), request).getBody().error()).contains("7 МБ", "9 МБ");
+        assertThat(handler.handleMaxUploadSize(new MaxUploadSizeExceededException(-1), request).getBody().error())
+            .contains("не указан").doesNotContain("50", "60", "-1", "МБ");
     }
     @Test void uploadIoAndMalformedMultipartReturnReadableJsonWithoutRawDetails() {
         var handler = new RestExceptionHandler();

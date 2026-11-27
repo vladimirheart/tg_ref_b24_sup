@@ -10,7 +10,7 @@ server {
     listen 80;
     server_name ${IGUANA_PUBLIC_HOST};
 
-    client_max_body_size 25m;
+    client_max_body_size 0;
 
     location = /nginx-health {
         access_log off;
