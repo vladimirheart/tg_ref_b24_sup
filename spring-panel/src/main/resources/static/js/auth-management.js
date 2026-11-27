@@ -2834,7 +2834,7 @@
 
     createRoleCard(role, catalog) {
       const card = document.createElement('div');
-      card.className = 'card shadow-sm role-card';
+      card.className = 'card role-card';
       card.dataset.roleId = String(role.id);
       card.dataset.initialName = role.name || '';
       card.dataset.initialDescription = role.description || '';
@@ -2855,12 +2855,11 @@
       const collapseId = `roleDetails${role.id != null ? role.id : Math.random().toString(16).slice(2)}`;
 
       const header = document.createElement('div');
-      header.className = 'card-header d-flex align-items-center gap-2';
+      header.className = 'role-card__header';
 
       const toggleButton = document.createElement('button');
       toggleButton.type = 'button';
-      toggleButton.className =
-        'role-card__toggle d-flex align-items-center flex-grow-1 text-start bg-transparent border-0 p-0';
+      toggleButton.className = 'role-card__toggle';
       toggleButton.dataset.bsToggle = 'collapse';
       toggleButton.dataset.bsTarget = `#${collapseId}`;
       toggleButton.setAttribute('aria-expanded', 'false');
@@ -2886,7 +2885,7 @@
       const badgeWrapper = document.createElement('div');
       badgeWrapper.className = 'text-end align-self-center ms-2';
       const badge = document.createElement('span');
-      badge.className = 'badge rounded-pill ' + (role.is_admin ? 'bg-danger' : 'bg-secondary');
+      badge.className = 'role-card__badge';
       badge.textContent = role.is_admin ? 'Администратор' : 'Роль';
       badgeWrapper.appendChild(badge);
       header.appendChild(badgeWrapper);
@@ -2898,9 +2897,11 @@
       const body = document.createElement('div');
       body.className = 'card-body';
 
-      const nameGroup = document.createElement('div');
+      const metadata = document.createElement('div');
+      metadata.className = 'role-card__metadata';
+      const nameGroup = document.createElement('label');
       nameGroup.className = 'mb-3';
-      const nameLabel = document.createElement('label');
+      const nameLabel = document.createElement('span');
       nameLabel.className = 'form-label small mb-1';
       nameLabel.textContent = 'Название';
       const nameInput = document.createElement('input');
@@ -2912,11 +2913,11 @@
       nameInput.autocomplete = 'off';
       nameGroup.appendChild(nameLabel);
       nameGroup.appendChild(nameInput);
-      body.appendChild(nameGroup);
+      metadata.appendChild(nameGroup);
 
-      const descriptionGroup = document.createElement('div');
+      const descriptionGroup = document.createElement('label');
       descriptionGroup.className = 'mb-3';
-      const descriptionLabel = document.createElement('label');
+      const descriptionLabel = document.createElement('span');
       descriptionLabel.className = 'form-label small mb-1';
       descriptionLabel.textContent = 'Описание';
       const descriptionInput = document.createElement('textarea');
@@ -2927,32 +2928,36 @@
       descriptionInput.value = role.description || '';
       descriptionGroup.appendChild(descriptionLabel);
       descriptionGroup.appendChild(descriptionInput);
-      body.appendChild(descriptionGroup);
+      metadata.appendChild(descriptionGroup);
+      body.appendChild(metadata);
 
-      const pagesGroup = this.buildPermissionGroup(
+      const editor = window.PermissionEditor.create({ label: 'Поиск разрешений роли' });
+      body.appendChild(editor.element);
+
+      this.buildPermissionGroup(
         'pages',
         catalog.pages || [],
         role.permissions?.pages || [],
-        canEditPages
+        canEditPages,
+        editor
       );
-      body.appendChild(pagesGroup);
 
-      const fieldsEditGroup = this.buildPermissionGroup(
+      this.buildPermissionGroup(
         'fields-edit',
         catalog.fields?.edit || [],
         role.permissions?.fields?.edit || [],
-        canEditFieldsEdit
+        canEditFieldsEdit,
+        editor
       );
-      body.appendChild(fieldsEditGroup);
 
-      const fieldsViewGroup = this.buildPermissionGroup(
+      this.buildPermissionGroup(
         'fields-view',
         catalog.fields?.view || [],
         role.permissions?.fields?.view || [],
         canEditFieldsView,
-        'permissions-view'
+        editor
       );
-      body.appendChild(fieldsViewGroup);
+      editor.refresh();
 
       const footer = document.createElement('div');
       footer.className = 'card-footer d-flex justify-content-between gap-2';
@@ -3001,37 +3006,19 @@
       return card;
     }
 
-    buildPermissionGroup(groupKey, options, selectedValues, canEdit, typeSuffix) {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'mb-3';
-      const label = document.createElement('label');
-      label.className = 'form-label small mb-1';
-      switch (groupKey) {
-        case 'pages':
-          label.textContent = 'Доступ к страницам';
-          break;
-        case 'fields-edit':
-          label.textContent = 'Права на редактирование полей';
-          break;
-        case 'fields-view':
-          label.textContent = 'Права на просмотр полей';
-          break;
-        default:
-          label.textContent = 'Права';
-      }
-      wrapper.appendChild(label);
-
-      const row = document.createElement('div');
-      row.className = 'row row-cols-1 row-cols-sm-2 g-2';
+    buildPermissionGroup(groupKey, options, selectedValues, canEdit, editor) {
+      const [title, hint] = ({ pages: ['Просмотр страниц', 'Разделы панели, доступные участникам роли'],
+        'fields-edit': ['Изменение и управление', 'Настройки, поля и действия, которые можно изменять'],
+        'fields-view': ['Просмотр полей', 'Дополнительные данные, доступные для просмотра'] })[groupKey];
+      const group = editor.addGroup(title, hint, { choices: true });
+      const row = group.body;
       row.dataset.permissionGroup = groupKey;
 
       const selected = new Set(selectedValues || []);
       const hasWildcard = selected.has(PERMISSION_WILDCARD);
 
-      const wildcardCol = document.createElement('div');
-      wildcardCol.className = 'col';
-      const wildcardCheckWrapper = document.createElement('div');
-      wildcardCheckWrapper.className = 'form-check';
+      const wildcardCheckWrapper = document.createElement('label');
+      wildcardCheckWrapper.className = 'permissions-editor__choice permissions-editor__choice--all';
       const wildcardCheckbox = document.createElement('input');
       wildcardCheckbox.className = 'form-check-input';
       wildcardCheckbox.type = 'checkbox';
@@ -3040,19 +3027,15 @@
       wildcardCheckbox.checked = hasWildcard;
       wildcardCheckbox.disabled = !canEdit;
       wildcardCheckbox.dataset.locked = (!canEdit).toString();
-      const wildcardLabel = document.createElement('label');
-      wildcardLabel.className = 'form-check-label';
+      const wildcardLabel = document.createElement('span');
       wildcardLabel.textContent = groupKey === 'pages' ? 'Все страницы' : 'Все элементы';
       wildcardCheckWrapper.appendChild(wildcardCheckbox);
       wildcardCheckWrapper.appendChild(wildcardLabel);
-      wildcardCol.appendChild(wildcardCheckWrapper);
-      row.appendChild(wildcardCol);
+      editor.track(group, wildcardCheckWrapper, wildcardLabel.textContent, () => false, { count: false });
 
       options.forEach((option) => {
-        const col = document.createElement('div');
-        col.className = 'col';
-        const checkWrapper = document.createElement('div');
-        checkWrapper.className = 'form-check';
+        const checkWrapper = document.createElement('label');
+        checkWrapper.className = 'permissions-editor__choice';
         const checkbox = document.createElement('input');
         checkbox.className = 'form-check-input';
         checkbox.type = 'checkbox';
@@ -3061,27 +3044,25 @@
         checkbox.dataset.locked = (!canEdit).toString();
         checkbox.checked = selected.has(option.key);
         checkbox.disabled = !canEdit || hasWildcard;
-        const optionLabel = document.createElement('label');
-        optionLabel.className = 'form-check-label';
+        const optionLabel = document.createElement('span');
         optionLabel.textContent = option.label || option.key;
         checkWrapper.appendChild(checkbox);
         checkWrapper.appendChild(optionLabel);
-        col.appendChild(checkWrapper);
-        row.appendChild(col);
+        editor.track(group, checkWrapper, optionLabel.textContent + ' ' + option.key,
+          () => wildcardCheckbox.checked || checkbox.checked);
       });
 
-      wrapper.appendChild(row);
       if (groupKey === 'pages') {
         const legacyPages = new Set(this.state.catalog?.legacy_pages || []);
         row.dataset.preservedPermissions = JSON.stringify([...selected].filter(key => legacyPages.has(key)));
         if (this.state.catalog?.page_access_note) {
           const note = document.createElement('p');
-          note.className = 'form-text mb-0';
+          note.className = 'permissions-editor__footnote';
           note.textContent = this.state.catalog.page_access_note;
-          wrapper.appendChild(note);
+          group.element.appendChild(note);
         }
       }
-      return wrapper;
+      return group.element;
     }
 
     handlePermissionToggle(event) {

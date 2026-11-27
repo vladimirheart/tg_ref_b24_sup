@@ -12,16 +12,16 @@ const rows = [
   { kind: 'settings', key: 'backup', label: 'Резервное копирование', authority: 'EDIT_SETTINGS_BACKUP', inherited: false, override: 'inherit', effective: false },
 ];
 const fixture = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="_csrf" content="fixture-token"><meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css"><link rel="stylesheet" href="/css/style.css"></head>
+<link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css"><link rel="stylesheet" href="/css/style.css"><link rel="stylesheet" href="/css/app.css"><link rel="stylesheet" href="/css/permission-editor.css"></head>
 <body><main class="container py-3"><h1>Настройки</h1>
 <section id="categoriesModal" class="card p-3"><h2 class="h5">Категории обращений</h2><input id="category" class="form-control" value="Касса">
 <select class="form-select"><option>P1</option><option>P2</option></select><button id="saveCategories">Сохранить</button>
 <button data-dialog-template-toggle>Посмотреть категории</button></section>
 <section id="backupSettingsModal" class="card p-3 my-3"><h2 class="h5">Резервное копирование</h2><input id="backupPath" value="/backups"><button id="saveBackup">Сохранить</button></section>
-<section id="channelsModal" class="card p-3"><h2 class="h5">Каналы</h2><button id="createChannel">Создать канал</button>
+<section id="channelsModal" class="card p-3"><h2 class="h5">Каналы</h2><section id="channels-manage-bots"><button id="createChannel">Создать канал</button></section>
 <section id="channels-templates"><h3 class="h6">Шаблоны</h3><input id="botTemplate" value="Вопросы"><button id="saveTemplate">Сохранить шаблон</button></section></section>
 <button class="btn btn-primary mt-3" data-user-permissions="7">Права пользователя</button></main>
-<script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js"></script><script src="/js/common.js"></script><script src="/js/settings-permissions.js"></script><script src="/js/user-permissions.js"></script></body></html>`;
+<script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js"></script><script src="/js/common.js"></script><script src="/js/settings-permissions.js"></script><script src="/js/permission-editor.js"></script><script src="/js/user-permissions.js"></script></body></html>`;
 
 async function main() {
   fs.mkdirSync(output, { recursive: true });
@@ -65,18 +65,22 @@ async function main() {
       assert.equal(await page.locator('#backupPath').isDisabled(), true);
       assert.equal(await page.locator('#saveBackup').isDisabled(), true);
       assert.equal(await page.locator('#createChannel').isDisabled(), true);
+      assert.equal(await page.locator('#channels-manage-bots').isVisible(), false);
       assert.equal(await page.locator('#botTemplate').isDisabled(), mode === 'viewer');
       assert.equal(await page.locator('[data-dialog-template-toggle]').isDisabled(), false);
       await page.evaluate(() => { const input = document.createElement('input'); input.id = 'dynamicBackup'; document.getElementById('backupSettingsModal').append(input); });
       await page.waitForFunction(() => document.getElementById('dynamicBackup').disabled);
       await page.locator('[data-user-permissions]').click();
       await page.locator('#userPermissionsModal.show').waitFor();
-      await page.locator('#userPermissionsModal tbody tr').first().waitFor();
+      await page.locator('#userPermissionsModal select[data-authority]').first().waitFor({ state: 'attached' });
+      await page.locator('#userPermissionsModal .permissions-editor__search input').fill('');
+      await page.locator('#userPermissionsModal details > summary').nth(1).click();
       const setting = page.locator('select[data-authority="EDIT_SETTINGS_DIALOGS"]');
       assert.equal(await setting.isDisabled(), mode === 'viewer');
       assert.equal(await page.locator('[data-permissions-save]').isDisabled(), mode === 'viewer');
       if (mode === 'editor') {
         await setting.selectOption('allow');
+        await page.locator('#userPermissionsModal details > summary').first().click();
         await page.locator('select[data-authority="PAGE_SETTINGS"]').selectOption('deny');
         await page.locator('[data-permissions-save]').click();
         await page.waitForFunction(() => document.querySelector('[data-permissions-message]').textContent.includes('Права сохранены'));

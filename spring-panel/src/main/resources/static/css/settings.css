@@ -1972,37 +1972,6 @@
 }
 
 /* ---------- users and access ---------- */
-#usersModal [data-auth-role-create] {
-  padding: 0.75rem 0.8rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--surface-raised);
-}
-
-#usersModal [data-auth-roles-container] {
-  gap: 0.6rem !important;
-}
-
-#usersModal .role-card {
-  border-radius: var(--radius-md) !important;
-  box-shadow: none !important;
-}
-
-#usersModal .role-card .card-header {
-  padding: 0.65rem 0.75rem;
-  background: var(--surface-raised);
-  text-align: left;
-}
-
-#usersModal .role-card .card-body {
-  padding: 0.8rem;
-}
-
-#usersModal .role-card__summary {
-  margin-top: 0.12rem;
-  line-height: 1.35;
-}
-
 #usersModal .org-tree-wrapper {
   min-height: 4rem;
   padding: 0;
@@ -2803,9 +2772,6 @@
   }
 }
 @media (max-width: 767.98px) {
-  #usersModal [data-auth-role-create] {
-    padding: 0.7rem;
-  }
   #locationsModal .location-type-body {
     padding-left: 0.5rem;
   }

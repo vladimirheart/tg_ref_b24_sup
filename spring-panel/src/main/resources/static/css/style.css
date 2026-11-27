@@ -2011,56 +2011,6 @@ h1.page-title, .content h1, .container h1 {
   color: var(--state-danger);
 }
 
-.role-card {
-  overflow: hidden;
-}
-
-.role-card__toggle {
-  background: none;
-  border: 0;
-  padding: 0;
-  margin: 0;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: inherit;
-  text-align: left;
-  text-decoration: none;
-  font: inherit;
-}
-
-.role-card__toggle:hover,
-.role-card__toggle:focus {
-  color: inherit;
-  text-decoration: none;
-  box-shadow: none;
-  outline: none;
-}
-
-.role-card__toggle:focus-visible {
-  border-radius: var(--radius-sm);
-  outline: 2px solid var(--ring);
-  outline-offset: 3px;
-}
-
-.role-card__chevron {
-  transition: transform 0.2s ease;
-}
-
-.role-card__toggle[aria-expanded=true] .role-card__chevron {
-  transform: rotate(180deg);
-}
-
-.role-card__summary {
-  line-height: 1.3;
-}
-
-.role-card__summary--empty {
-  font-style: italic;
-  color: var(--color-text-muted);
-}
-
 /* Пользовательские фото */
 .auth-user-photo-uploader {
   display: flex;

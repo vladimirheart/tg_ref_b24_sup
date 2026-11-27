@@ -1,0 +1,173 @@
+/* Shared permission editors. Keep role/user presentation here, using panel tokens. */
+.permissions-editor {
+  min-width: 0;
+  color: var(--color-text);
+
+  [hidden] { display: none !important; }
+
+  &__toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.6rem 1rem;
+    margin-bottom: 0.85rem;
+  }
+
+  &__search { flex: 1 1 14rem; max-width: 28rem; min-width: 0; }
+  &__total, &__caption, &__hint, &__footnote, &__intro { color: var(--color-text-muted); }
+  &__total { margin-left: auto; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+  .form-control, .form-select { font-size: 0.95rem; }
+  &__groups { display: grid; gap: 0.6rem; }
+  &__group { border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+
+  &__summary {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.8rem;
+    border-radius: inherit;
+    background: var(--surface-raised);
+    cursor: pointer;
+    list-style: none;
+  }
+  &__summary::-webkit-details-marker { display: none; }
+  &__summary:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+  &__heading { display: grid; flex: 1; min-width: 0; gap: 0.15rem; }
+  &__title { font-size: 1rem; font-weight: 650; overflow-wrap: anywhere; }
+  &__hint { font-size: 0.85rem; line-height: 1.4; }
+  &__count { color: var(--color-text-muted); font-size: 0.85rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  &__chevron::before { content: '›'; display: block; font-size: 1.2rem; line-height: 1; }
+  &__group[open] > summary &__chevron { transform: rotate(90deg); }
+  &__group[open] > summary { border-bottom: 1px solid var(--color-border); border-radius: var(--radius-md) var(--radius-md) 0 0; }
+  &__body { padding: 0 0.8rem; }
+
+  &__row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 6.1rem 9.5rem 6.2rem;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.8rem 0;
+    border-bottom: 1px solid var(--color-border);
+    font-size: 0.95rem;
+  }
+  &__row:last-child { border-bottom: 0; }
+  &__name { min-width: 0; overflow-wrap: anywhere; line-height: 1.45; }
+  &__value, &__control { display: grid; min-width: 0; align-content: start; gap: 0.3rem; margin: 0; }
+  &__caption { font-size: 0.78rem; }
+  &__state { display: inline-flex; align-items: center; gap: 0.35rem; }
+  &__state::before { content: '−'; color: var(--color-text-muted); font-weight: 700; }
+  &__state[data-allowed='true']::before { content: '✓'; color: var(--state-success); }
+  &__row--override &__control > .permissions-editor__caption { color: var(--primary); font-weight: 600; }
+
+  &__body--choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.25rem; }
+  &__choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    min-width: 0;
+    padding: 0.8rem 0;
+    border-bottom: 1px solid var(--color-border);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    cursor: pointer;
+  }
+  &__choice > input { flex: 0 0 auto; margin: 0.22rem 0 0; }
+  &__choice > span { overflow-wrap: anywhere; }
+  &__choice:has(input:disabled) { cursor: default; color: var(--color-text-muted); }
+  &__choice--all { grid-column: 1 / -1; font-weight: 600; }
+  &__body--choices > :nth-last-child(-n+2):not(.permissions-editor__choice--all) { border-bottom: 0; }
+  &__empty, &__message { padding: 0.75rem 0; color: var(--color-text-muted); font-size: 0.9rem; }
+  &__intro, &__footnote { font-size: 0.88rem; line-height: 1.5; }
+  &__intro { margin-bottom: 1rem; }
+  &__footnote { margin: 0.8rem 0 0; }
+  &__group > &__footnote { padding: 0 0.8rem 0.8rem; }
+}
+
+.permissions-modal {
+  .modal-dialog {
+    width: min(960px, calc(100vw - 1.7rem));
+    max-width: min(960px, calc(100vw - 1.7rem));
+    height: auto;
+    min-height: 0;
+    max-height: calc(100dvh - 1.7rem);
+    margin: 0.85rem auto;
+  }
+  .modal-content { min-height: 0; max-height: calc(100dvh - 1.7rem); }
+  .modal-body { min-height: 0; padding: 1rem 1.15rem; background: var(--surface-card); }
+  .modal-title { overflow-wrap: anywhere; min-width: 0; }
+  .modal-footer { flex-shrink: 0; }
+  [data-permissions-message][hidden] { display: none; }
+}
+
+/* Bootstrap 5.3.0 uses a literal background; 5.3.3 uses this theme variable. */
+html[data-theme='dark'] :is(#usersModal, .permissions-modal) .btn-close {
+  background-image: var(--bs-btn-close-bg);
+  filter: none; // The shared app filter would invert the already light SVG again.
+}
+
+#usersModal {
+  [data-auth-role-create] {
+    padding: 0.75rem 0.8rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--surface-raised);
+  }
+  [data-auth-roles-container] { gap: 0.75rem; }
+  .role-card { min-width: 0; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: none; }
+  .role-card__header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.8rem;
+    border-radius: inherit;
+    background: var(--surface-raised);
+    text-align: left;
+  }
+  .role-card .card-body { padding: 0.9rem; }
+  .role-card .card-footer { padding: 0.75rem 0.9rem; background: var(--surface-card); }
+  .role-card__toggle {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    min-width: 0;
+    gap: 0.75rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--color-text);
+    font: inherit;
+    text-align: left;
+  }
+  .role-card__toggle > div { min-width: 0; }
+  .role-card__toggle:hover { color: var(--primary); }
+  .role-card__toggle:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; border-radius: var(--radius-sm); }
+  .role-card__title { overflow-wrap: anywhere; }
+  .role-card__chevron { transition: transform 0.2s ease; }
+  .role-card__toggle[aria-expanded='true'] .role-card__chevron { transform: rotate(180deg); }
+  .role-card__summary { margin-top: 0.15rem; line-height: 1.4; overflow-wrap: anywhere; }
+  .role-card__badge { color: var(--color-text-muted); font-size: 0.72rem; }
+  .role-card__metadata { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 0.75rem; }
+}
+
+@media (max-width: 767.98px) {
+  .permissions-editor {
+    &__row { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; align-items: start; }
+    &__name { grid-column: 1 / -1; font-weight: 600; }
+    &__body--choices { grid-template-columns: minmax(0, 1fr); }
+    &__body--choices > :nth-last-child(2) { border-bottom: 1px solid var(--color-border); }
+    &__summary { gap: 0.55rem; }
+  }
+  #usersModal .role-card__metadata { grid-template-columns: minmax(0, 1fr); gap: 0; }
+}
+
+@media (max-width: 399.98px) {
+  .permissions-editor {
+    &__body { padding: 0 0.65rem; }
+    &__row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    &__control { grid-column: 1 / -1; grid-row: 3; }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #usersModal .role-card__chevron { transition: none; }
+}
