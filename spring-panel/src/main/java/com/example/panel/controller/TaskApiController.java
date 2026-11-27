@@ -396,8 +396,18 @@ public class TaskApiController {
         for (String identity : parseIdentityList(watchers)) {
             addTaskPeopleRole(fresh, task, "watcher", identity);
         }
+        for (TaskPerson person : fresh) {
+            // Preserve a previous binding, including NULL after deletion. A reused
+            // username cannot inherit an unchanged participant's historical access.
+            TaskPerson previous = existing.stream()
+                    .filter(item -> item.getRole() != null && List.of("assignee", "co", "watcher").contains(item.getRole()))
+                    .filter(item -> person.getIdentity().equals(item.getIdentity()))
+                    .findFirst().orElse(null);
+            person.setUserId(previous != null ? previous.getUserId()
+                    : sharedAccess.taskParticipantAccount(person.getIdentity()));
+        }
         if (!fresh.isEmpty()) {
-            taskPersonRepository.saveAll(fresh);
+            taskPersonRepository.saveAllAndFlush(fresh);
         }
     }
 

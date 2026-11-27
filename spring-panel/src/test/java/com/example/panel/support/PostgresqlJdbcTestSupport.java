@@ -27,7 +27,7 @@ public final class PostgresqlJdbcTestSupport {
             }
             int port = java.net.URI.create(NATIVE_URL.substring(5)).getPort();
             if (port <= 1024 || port == 5432 || port > 65535) throw new IllegalArgumentException("Disposable port required");
-            JdbcTemplate admin = new JdbcTemplate(new DriverManagerDataSource(NATIVE_URL, "r290_test", ""));
+            JdbcTemplate admin = new JdbcTemplate(nativeDataSource(NATIVE_URL));
             if (!nonce.equals(admin.queryForObject("SELECT nonce FROM r290_native_owner", String.class))) {
                 throw new IllegalStateException("Native test cluster ownership mismatch");
             }
@@ -61,7 +61,18 @@ public final class PostgresqlJdbcTestSupport {
     private static DriverManagerDataSource dataSource(String url) {
         return NATIVE_URL == null
             ? new DriverManagerDataSource(url, POSTGRES.getUsername(), POSTGRES.getPassword())
-            : new DriverManagerDataSource(url, "r290_test", "");
+            : nativeDataSource(url);
+    }
+
+    private static DriverManagerDataSource nativeDataSource(String url) {
+        var source = new DriverManagerDataSource(url, "r290_test", "");
+        // This branch only accepts the nonce-owned loopback test cluster above.
+        // It has no TLS; skip the optional SSL probe, which can time out during
+        // Windows backend process startup. Container and production paths are unchanged.
+        var properties = new java.util.Properties();
+        properties.setProperty("sslmode", "disable");
+        source.setConnectionProperties(properties);
+        return source;
     }
 
     private static String jdbcUrl() {

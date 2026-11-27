@@ -47,7 +47,7 @@ class SharedWorkMainHttpPostgresTest {
         jdbc=PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType("shared_main_http");
         String schema=jdbc.queryForObject("SELECT current_schema()",String.class);
         Flyway.configure().dataSource(jdbc.getDataSource()).schemas(schema).defaultSchema(schema)
-            .locations("classpath:db/migration/postgresql").target("89").load().migrate();
+            .locations("classpath:db/migration/postgresql").target("109").load().migrate();
         context=new AnnotationConfigWebApplicationContext();context.setServletContext(new org.springframework.mock.web.MockServletContext());
         context.register(Config.class);context.refresh();
         mvc=MockMvcBuilders.webAppContextSetup(context)
@@ -75,12 +75,97 @@ class SharedWorkMainHttpPostgresTest {
     }
     static long task(long who,String title)throws Exception {
         return id(mvc.perform(multipart("/api/tasks").param("title",title).param("body_html","<p>description</p>")
-            .param("assignee","viewer").param("creator","forged creator").param("status","Новая")
+            .param("assignee",who==ADMIN?ADMIN_NAME:"owner").param("creator","forged creator").param("status","Новая")
             .with(authentication(actor(who))).with(csrf())).andExpect(status().isOk()).andReturn(),"id");
+    }
+    @Test void historicalCreatorDoesNotSuppressANewExplicitParticipantBinding()throws Exception {
+        long task=task(ADMIN,"historical creator");
+        jdbc.update("UPDATE task_people SET identity='viewer',user_id=NULL WHERE task_id=? AND role='creator'",task);
+        jdbc.update("INSERT INTO task_people(task_id,identity,role) VALUES(?,'viewer',NULL)",task);
+        mvc.perform(get("/api/tasks/"+task).with(authentication(actor(VIEWER)))).andExpect(status().isNotFound());
+        mvc.perform(multipart("/api/tasks").param("id",""+task).param("title","new participant").param("body_html","<p>private</p>")
+            .param("assignee",ADMIN_NAME).param("co","viewer").with(authentication(actor(ADMIN))).with(csrf())).andExpect(status().isOk());
+        mvc.perform(get("/api/tasks/"+task).with(authentication(actor(VIEWER)))).andExpect(status().isOk());
+    }
+    @Test void inFlightParticipantReadLocksRosterUntilDeliveryFinishes()throws Exception {
+        long task=id(mvc.perform(multipart("/api/tasks").param("title","locked roster").param("body_html","<p>private</p>")
+            .param("assignee",ADMIN_NAME).param("watchers","viewer").with(authentication(actor(ADMIN))).with(csrf()))
+            .andExpect(status().isOk()).andReturn(),"id");
+        var access=context.getBean(SharedWorkAccessService.class);
+        var entered=new CountDownLatch(1); var release=new CountDownLatch(1); var pool=Executors.newFixedThreadPool(2);
+        try {
+            var read=pool.submit(()->access.deliverIfReadable(SharedWorkAccessService.Kind.TASK,task,VIEWER,"viewer",()->{
+                entered.countDown();try{if(!release.await(5,TimeUnit.SECONDS))throw new IllegalStateException("Timed out");}
+                catch(InterruptedException error){Thread.currentThread().interrupt();throw new IllegalStateException(error);}
+            }));
+            assertThat(entered.await(5,TimeUnit.SECONDS)).isTrue();
+            var write=pool.submit(()->save(ADMIN,task,"removed watcher","").getResponse().getStatus());
+            assertThatThrownBy(()->write.get(200,TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
+            release.countDown();assertThat(read.get(5,TimeUnit.SECONDS)).isTrue();assertThat(write.get(5,TimeUnit.SECONDS)).isEqualTo(200);
+            mvc.perform(get("/api/tasks/"+task).with(authentication(actor(VIEWER)))).andExpect(status().isNotFound());
+        } finally {release.countDown();pool.shutdownNow();}
     }
     static long project(long who,String name)throws Exception{
         return id(mvc.perform(post("/api/projects").contentType("application/json").content(json.writeValueAsString(Map.of("name",name)))
             .with(authentication(actor(who))).with(csrf())).andExpect(status().isOk()).andReturn(),"project.id");
+    }
+
+    @Test void assignedParticipantsReadTaskAndMineButCannotWriteOrManage()throws Exception {
+        for(String role:List.of("assignee","co","watcher")) {
+            var request=multipart("/api/tasks").param("title","Assigned "+role).param("body_html","<p>private</p>")
+                .param("assignee",role.equals("assignee")?"viewer":ADMIN_NAME);
+            if(!role.equals("assignee"))request.param(role.equals("co")?"co":"watchers","viewer");
+            long task=id(mvc.perform(request.with(authentication(actor(ADMIN))).with(csrf()))
+                .andExpect(status().isOk()).andReturn(),"id");
+            assertThat(jdbc.queryForObject("SELECT user_id FROM task_people WHERE task_id=? AND role=?",Long.class,task,role)).isEqualTo(VIEWER);
+            mvc.perform(get("/api/tasks/"+task).with(authentication(actor(VIEWER)))).andExpect(status().isOk());
+            mvc.perform(get("/api/tasks").param("mine","true").with(authentication(actor(VIEWER))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(List.of("assignee","co","watcher").indexOf(role)+1));
+            mvc.perform(get("/api/shared-work/TASK/"+task+"/access").with(authentication(actor(VIEWER))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.canWrite").value(false)).andExpect(jsonPath("$.canManage").value(false));
+            assertThat(save(VIEWER,task,"forbidden","").getResponse().getStatus()).isEqualTo(404);
+            mvc.perform(put("/api/shared-work/TASK/"+task+"/members/"+USER).contentType("application/json").content("{\"role\":\"EDITOR\"}")
+                .with(authentication(actor(VIEWER))).with(csrf())).andExpect(status().isNotFound());
+        }
+    }
+    @Test void participantRemovalRevokesReadsAndNotificationsButExplicitMembershipSurvives()throws Exception {
+        long task=task(ADMIN,"participation");
+        mvc.perform(multipart("/api/tasks").param("id",""+task).param("title","participation").param("body_html","<p>private</p>")
+            .param("assignee",ADMIN_NAME).param("watchers","viewer").with(authentication(actor(ADMIN))).with(csrf())).andExpect(status().isOk());
+        var access=context.getBean(SharedWorkAccessService.class);
+        assertThat(as(ADMIN,()->access.readableRecipients(SharedWorkAccessService.Kind.TASK,task,Set.of("viewer")))).containsExactly("viewer");
+        mvc.perform(multipart("/api/tasks").param("id",""+task).param("title","removed").param("body_html","<p>private</p>")
+            .param("assignee",ADMIN_NAME).with(authentication(actor(ADMIN))).with(csrf())).andExpect(status().isOk());
+        mvc.perform(get("/api/tasks/"+task).with(authentication(actor(VIEWER)))).andExpect(status().isNotFound());
+        assertThat(as(ADMIN,()->access.readableRecipients(SharedWorkAccessService.Kind.TASK,task,Set.of("viewer")))).isEmpty();
+        member("TASK",task,VIEWER,"VIEWER");
+        mvc.perform(get("/api/tasks/"+task).with(authentication(actor(VIEWER)))).andExpect(status().isOk());
+    }
+    @Test void participantAccountAndModuleRevocationRemainAuthoritative()throws Exception {
+        long task=id(mvc.perform(multipart("/api/tasks").param("title","grant").param("body_html","<p>private</p>")
+            .param("assignee","viewer").with(authentication(actor(ADMIN))).with(csrf())).andExpect(status().isOk()).andReturn(),"id");
+        for(String deny:List.of("UPDATE users SET is_blocked=TRUE WHERE id=12","UPDATE users SET enabled=FALSE WHERE id=12",
+                "UPDATE shared_work_grants SET can_read=FALSE WHERE user_id=12","DELETE FROM user_authorities WHERE user_id=12")) {
+            jdbc.execute(deny);
+            mvc.perform(get("/api/tasks/"+task).with(authentication(actor(VIEWER)))).andExpect(status().isNotFound());
+            jdbc.execute("UPDATE users SET enabled=TRUE,is_blocked=FALSE WHERE id=12;UPDATE shared_work_grants SET can_read=TRUE WHERE user_id=12;INSERT INTO user_authorities VALUES(12,'PAGE_TASKS') ON CONFLICT DO NOTHING");
+        }
+    }
+    @Test void numericParticipantSurvivesRenameAndCannotBeClaimedByReusedUsername()throws Exception {
+        long task=id(mvc.perform(multipart("/api/tasks").param("title","stable account").param("body_html","<p>private</p>")
+            .param("assignee","viewer").with(authentication(actor(ADMIN))).with(csrf())).andExpect(status().isOk()).andReturn(),"id");
+        jdbc.execute("UPDATE users SET username='renamed' WHERE id=12;INSERT INTO users(id,username,password) OVERRIDING SYSTEM VALUE VALUES(13,'viewer','unused');INSERT INTO user_authorities VALUES(13,'PAGE_TASKS');INSERT INTO shared_work_grants(user_id,can_read) VALUES(13,TRUE)");
+        var renamed=UsernamePasswordAuthenticationToken.authenticated(new PanelUserPrincipal(VIEWER,"renamed","unused",true,List.of(new SimpleGrantedAuthority("PAGE_TASKS"))),null,List.of(new SimpleGrantedAuthority("PAGE_TASKS")));
+        var reused=UsernamePasswordAuthenticationToken.authenticated(new PanelUserPrincipal(13,"viewer","unused",true,List.of(new SimpleGrantedAuthority("PAGE_TASKS"))),null,List.of(new SimpleGrantedAuthority("PAGE_TASKS")));
+        mvc.perform(get("/api/tasks/"+task).with(authentication(renamed))).andExpect(status().isOk());
+        mvc.perform(get("/api/tasks").param("mine","true").with(authentication(renamed))).andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1));
+        mvc.perform(get("/api/tasks/"+task).with(authentication(reused))).andExpect(status().isNotFound());
+        assertThat(save(ADMIN,task,"unchanged participant","").getResponse().getStatus()).isEqualTo(200);
+        assertThat(jdbc.queryForObject("SELECT user_id FROM task_people WHERE task_id=? AND role='assignee'",Long.class,task)).isEqualTo(VIEWER);
+        jdbc.update("DELETE FROM users WHERE id=?",VIEWER);
+        assertThat(jdbc.queryForObject("SELECT user_id FROM task_people WHERE task_id=? AND role='assignee'",Long.class,task)).isNull();
+        assertThat(save(ADMIN,task,"deleted historical account","").getResponse().getStatus()).isEqualTo(200);
+        mvc.perform(get("/api/tasks/"+task).with(authentication(reused))).andExpect(status().isNotFound());
     }
     static void creationGrant(long who)throws Exception{
         mvc.perform(put("/api/shared-work-admin/access/"+who).contentType("application/json")
@@ -92,8 +177,9 @@ class SharedWorkMainHttpPostgresTest {
             .content(json.writeValueAsString(Map.of("role",role))).with(authentication(actor(ADMIN))).with(csrf())).andExpect(status().isNoContent());
     }
     static MvcResult save(long who,long object,String title,String projects)throws Exception{
+        var assignees=jdbc.queryForList("SELECT assignee FROM tasks WHERE id=?",String.class,object);
         return mvc.perform(multipart("/api/tasks").param("id",Long.toString(object)).param("title",title)
-            .param("body_html","<p>changed</p>").param("assignee","viewer").param("project_ids",projects)
+            .param("body_html","<p>changed</p>").param("assignee",assignees.isEmpty()?ADMIN_NAME:assignees.get(0)).param("project_ids",projects)
             .with(authentication(actor(who))).with(csrf())).andReturn();
     }
     @Test void panelCapabilitiesUseCurrentAdminAndStringIdentity()throws Exception {

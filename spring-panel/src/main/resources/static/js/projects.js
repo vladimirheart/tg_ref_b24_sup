@@ -12,7 +12,14 @@
   const saveBtn = document.getElementById('saveProjectBtn');
   const archiveBtn = document.getElementById('archiveProjectBtn');
   const meta = document.getElementById('projectModalMeta');
+  const title = document.getElementById('projectModalTitle');
+  const memberTab = document.getElementById('project-members-tab');
+  const infoTab = document.getElementById('project-info-tab');
+  const memberCount = document.getElementById('projectMemberCount');
+  const hint = document.getElementById('projectSaveHint');
   let items = [];
+  let savingProject = false;
+  let projectWritable = false;
 
   const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content') || '';
   const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content') || 'X-XSRF-TOKEN';
@@ -71,7 +78,8 @@
         </div>
         <div class="project-card-actions">
           <a class="btn btn-sm btn-outline-primary" href="/tasks?project=${encodeURIComponent(project.id)}">Открыть задачи</a>
-          <button class="btn btn-sm btn-outline-secondary" type="button" data-project-edit="${esc(project.id)}" aria-label="Редактировать проект" title="Редактировать"><i class="bi bi-pencil"></i></button>
+          <button class="btn btn-sm btn-outline-secondary" type="button" data-project-members="${esc(project.id)}" aria-label="Участники проекта ${esc(project.name)}"><i class="bi bi-people" aria-hidden="true"></i> Участники</button>
+          <button class="btn btn-sm btn-outline-secondary" type="button" data-project-edit="${esc(project.id)}" aria-label="Настройки проекта ${esc(project.name)}" title="Настройки проекта"><i class="bi bi-gear" aria-hidden="true"></i></button>
         </div>
       </article>`).join('');
   }
@@ -82,7 +90,7 @@
     render();
   }
 
-  function openProject(project) {
+  function openProject(project, participants = false) {
     form.reset();
     form.elements.id.value = project?.id || '';
     form.elements.name.value = project?.name || '';
@@ -92,22 +100,55 @@
     form.elements.description.value = project?.description || '';
     archiveBtn.hidden = !project?.id || project?.status === 'archived';
     meta.textContent = project?.project_key || 'Новый проект';
+    title.textContent = project?.name || 'Новый проект';
+    memberTab.disabled = !project?.id;
+    memberCount.hidden = true;
+    modalEl.querySelectorAll('details').forEach(details => { details.open = false; });
+    bootstrap.Tab.getOrCreateInstance(participants && project?.id ? memberTab : infoTab).show();
+    syncTab();
     window.SharedWorkAccess?.openObject('PROJECT', project?.id ? String(project.id) : null);
     modal().show();
   }
 
   window.addEventListener('shared-work:changed', () => load().catch(showLoadError));
-  window.addEventListener('shared-work:denied', event => { if (event.detail?.kind === 'PROJECT') { modal().hide(); load().catch(showLoadError); } });
+  window.addEventListener('shared-work:writable', event => {
+    if (event.detail?.kind !== 'PROJECT') return;
+    projectWritable = !!event.detail.allowed;
+    saveBtn.disabled = !projectWritable || savingProject;
+    form.querySelectorAll('input:not([name="id"]),select,textarea').forEach(control => { control.disabled = !event.detail.allowed; });
+    if (infoTab.classList.contains('active')) hint.textContent = event.detail.allowed ? '' : 'Доступно только чтение.';
+  });
+  window.addEventListener('shared-work:loaded', event => {
+    if (event.detail?.kind !== 'PROJECT' || event.detail.id !== form.elements.id.value) return;
+    memberCount.textContent = String(event.detail.count); memberCount.hidden = false;
+  });
+  function syncTab() {
+    const members = memberTab.classList.contains('active');
+    saveBtn.hidden = members;
+    hint.textContent = members ? 'Изменения состава сохраняются сразу.' : (saveBtn.disabled && form.elements.id.value ? 'Доступно только чтение.' : '');
+  }
+  modalEl.addEventListener('shown.bs.tab', syncTab);
+  window.addEventListener('shared-work:denied', event => {
+    if (event.detail?.kind !== 'PROJECT') return;
+    const deniedId = form.elements.id.value;
+    modal().hide();
+    // Bootstrap ignores hide while the opening transition is running.
+    if (modalEl.classList.contains('show')) modalEl.addEventListener('shown.bs.modal', () => {
+      if (form.elements.id.value === deniedId) modal().hide();
+    }, { once: true });
+    load().catch(showLoadError);
+  });
   createBtn.addEventListener('click', () => openProject(null));
   includeArchived.addEventListener('change', () => load().catch(showLoadError));
   grid.addEventListener('click', (event) => {
-    const button = event.target.closest('[data-project-edit]');
+    const button = event.target.closest('[data-project-edit],[data-project-members]');
     if (!button) return;
-    openProject(items.find((item) => String(item.id) === String(button.dataset.projectEdit)) || null);
+    const projectId = button.dataset.projectMembers || button.dataset.projectEdit;
+    openProject(items.find((item) => String(item.id) === String(projectId)) || null, !!button.dataset.projectMembers);
   });
 
   saveBtn.addEventListener('click', async () => {
-    if (!form.reportValidity()) return;
+    if (savingProject || !projectWritable || !form.reportValidity()) return;
     const id = String(form.elements.id.value || '').trim();
     const payload = {
       name: form.elements.name.value.trim(),
@@ -117,16 +158,22 @@
       description: form.elements.description.value.trim() || null,
     };
 
+    savingProject = true;
+    saveBtn.disabled = true;
     try {
-      await request(id ? `/api/projects/${id}` : '/api/projects', {
+      const result = await request(id ? `/api/projects/${id}` : '/api/projects', {
         method: id ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      modal().hide();
-      await load();
+      if (!id && result.project?.id) openProject(result.project, true);
+      else modal().hide();
+      await load().catch(showLoadError);
     } catch (error) {
       showAppModalMessage({ title: 'Не удалось сохранить проект', message: error.message, variant: 'danger' });
+    } finally {
+      savingProject = false;
+      saveBtn.disabled = !projectWritable;
     }
   });
 

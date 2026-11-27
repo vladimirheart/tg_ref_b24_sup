@@ -12,19 +12,19 @@
   <link th:href="@{/css/style.css(v='20261119-refined-r1')}" rel="stylesheet">
   <link th:href="@{/css/app.css(v='20261119-refined-r1')}" rel="stylesheet">
   <link th:href="@{/css/sidebar.css(v='20261119-refined-r1')}" rel="stylesheet">
+  <link th:href="@{/css/project-settings.css(v='20261126-project-members-r1')}" rel="stylesheet">
 </head>
 <body class="with-sidebar sidebar-pinned" data-ui-page="projects">
   <div th:replace="~{fragments/navbar :: navbar('projects')}"></div>
   <datalist id="projectUsersList"><option th:each="u : ${users}" th:value="${u.username}" th:label="${u.fullName != null and !#strings.isEmpty(u.fullName) ? u.fullName + ' · ' + u.username : u.username}"></option></datalist>
 
   <main class="main-content container-fluid py-4 page-shell projects-page-shell ops-page-shell">
-    <section th:replace="~{fragments/shared-work-access :: moduleAccess}"></section>
     <div class="page-header-card projects-header-card ops-list-shell">
       <div class="projects-header-row ops-page-head">
         <div>
           <span class="page-kicker">Рабочий контур</span>
           <h1 class="page-title">Проекты</h1>
-          <p class="page-subtitle mb-0">Контейнеры для задач: создавайте проект, назначайте руководителя и открывайте его task scope.</p>
+          <p class="page-subtitle mb-0">Проекты, участники и связанные задачи.</p>
         </div>
         <div class="ops-page-actions">
           <a class="btn btn-outline-secondary" th:href="@{/tasks}"><i class="bi bi-list-task"></i><span>Задачи</span></a>
@@ -48,27 +48,42 @@
     <div id="projectsGrid" class="projects-grid" aria-live="polite">
       <div class="projects-empty-state">Загрузка проектов…</div>
     </div>
+    <section th:replace="~{fragments/shared-work-access :: moduleAccess}"></section>
 
-    <div class="modal fade" id="projectModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-centered">
+    <div class="modal fade" id="projectModal" tabindex="-1" aria-labelledby="projectModalTitle" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <div><span id="projectModalMeta" class="text-muted small">Новый проект</span><h5 class="modal-title">Проект</h5></div>
+            <div><span id="projectModalMeta" class="text-muted small">Новый проект</span><h5 class="modal-title" id="projectModalTitle">Новый проект</h5></div>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
-            <form id="projectForm" class="row g-3">
+            <nav class="nav nav-tabs project-settings-tabs" role="tablist" aria-label="Настройки проекта">
+              <button class="nav-link active" id="project-info-tab" data-bs-toggle="tab" data-bs-target="#project-info" role="tab" aria-controls="project-info" aria-selected="true" type="button">Сведения</button>
+              <button class="nav-link" id="project-members-tab" data-bs-toggle="tab" data-bs-target="#project-members" role="tab" aria-controls="project-members" aria-selected="false" tabindex="-1" type="button">Участники <span id="projectMemberCount" class="badge text-bg-secondary" hidden></span></button>
+            </nav>
+            <div class="tab-content">
+            <section id="project-info" class="tab-pane active" role="tabpanel" aria-labelledby="project-info-tab" tabindex="0">
+            <form id="projectForm" class="row g-3 mt-0">
               <input type="hidden" name="id">
-              <div class="col-12"><label class="form-label">Название</label><input class="form-control" name="name" required></div>
-              <div class="col-md-6"><label class="form-label">Код</label><input class="form-control" name="project_key" placeholder="автоматически PRJ_…"></div>
-              <div class="col-md-6"><label class="form-label">Статус</label><select class="form-select" name="status"><option value="active">Активный</option><option value="paused">Пауза</option><option value="done">Завершён</option></select></div>
-              <div class="col-12"><label class="form-label">Руководитель</label><input class="form-control" name="lead_identity" list="projectUsersList" placeholder="логин пользователя"></div>
-              <div class="col-12"><label class="form-label">Описание</label><textarea class="form-control" name="description" rows="4"></textarea></div>
+              <div class="col-12"><label class="form-label" for="projectName">Название</label><input id="projectName" class="form-control" name="name" required></div>
+              <div class="col-sm-6"><label class="form-label" for="projectLead">Руководитель</label><input id="projectLead" class="form-control" name="lead_identity" list="projectUsersList" placeholder="Выберите сотрудника"><div class="form-text">Участие руководителя настраивается на вкладке «Участники».</div></div>
+              <div class="col-sm-6"><label class="form-label" for="projectStatus">Статус</label><select id="projectStatus" class="form-select" name="status"><option value="active">Активный</option><option value="paused">Пауза</option><option value="done">Завершён</option></select></div>
+              <div class="col-12"><label class="form-label" for="projectDescription">Описание</label><textarea id="projectDescription" class="form-control" name="description" rows="3" placeholder="Цель и важные сведения о проекте"></textarea></div>
+              <div class="col-12"><details class="project-settings-advanced">
+                <summary>Дополнительно</summary>
+                <label class="form-label mt-3" for="projectKey">Код проекта</label><input id="projectKey" class="form-control" name="project_key" placeholder="Назначается автоматически">
+                <button id="archiveProjectBtn" data-work-write disabled class="btn btn-sm btn-outline-danger mt-3" type="button" hidden>Архивировать проект</button>
+              </details></div>
             </form>
+            </section>
+            <section id="project-members" class="tab-pane" role="tabpanel" aria-labelledby="project-members-tab" tabindex="0">
+              <section th:replace="~{fragments/shared-work-access :: objectAccess('PROJECT')}"></section>
+            </section>
+            </div>
           </div>
-          <section th:replace="~{fragments/shared-work-access :: objectAccess('PROJECT')}"></section>
           <div class="modal-footer">
-            <button id="archiveProjectBtn" data-work-write disabled class="btn btn-outline-danger me-auto" type="button" hidden>Архивировать</button>
+            <span id="projectSaveHint" class="small text-muted me-auto" role="status" aria-live="polite"></span>
             <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Закрыть</button>
             <button id="saveProjectBtn" data-work-write disabled class="btn btn-primary" type="button">Сохранить</button>
           </div>
@@ -79,8 +94,8 @@
 
   <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
   <script th:src="@{/js/modal-helpers.js}"></script>
-  <script th:src="@{/js/shared-work-access.js?v=20261125-employee-preview-r1}"></script>
-  <script th:src="@{/js/projects.js?v=20261109-r304}"></script>
+  <script th:src="@{/js/shared-work-access.js?v=20261126-project-members-r1}"></script>
+  <script th:src="@{/js/projects.js?v=20261126-project-members-r1}"></script>
   <script th:src="@{/js/modal-transitions.js}"></script>
 </body>
 </html>

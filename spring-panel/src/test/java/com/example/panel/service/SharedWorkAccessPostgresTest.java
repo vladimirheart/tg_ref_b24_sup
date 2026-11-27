@@ -47,6 +47,9 @@ class SharedWorkAccessPostgresTest {
         jdbc.execute(new ClassPathResource("db/migration/postgresql/V88__shared_work_access.sql").getContentAsString(StandardCharsets.UTF_8));
         jdbc.execute("CREATE TABLE notifications(id BIGINT,url TEXT,created_at TIMESTAMPTZ,ticket_scope_kind TEXT,ticket_user_id BIGINT,ticket_id TEXT,ticket_public_id TEXT,ticket_business_id BIGINT)");
         jdbc.execute(new ClassPathResource("db/migration/postgresql/V89__shared_work_lifecycle.sql").getContentAsString(StandardCharsets.UTF_8));
+        jdbc.execute("CREATE TABLE task_people(id BIGSERIAL PRIMARY KEY,task_id BIGINT REFERENCES tasks(id) ON DELETE CASCADE,identity TEXT,role TEXT)");
+        jdbc.execute("ALTER TABLE tasks ADD COLUMN assignee TEXT");
+        jdbc.execute(new ClassPathResource("db/migration/postgresql/V109__task_participant_account_binding.sql").getContentAsString(StandardCharsets.UTF_8));
         assertThat(jdbc.queryForObject("SELECT shared_owner_user_id FROM tasks WHERE id=7",Long.class)).isNull();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM shared_work_grants",Integer.class)).isZero();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM shared_project_members",Integer.class)).isZero();

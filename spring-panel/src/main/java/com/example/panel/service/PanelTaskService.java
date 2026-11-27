@@ -81,6 +81,7 @@ public class PanelTaskService {
         Task task=new Task();task.setSeq(sharedAccess.nextTaskSequence());applyPayload(task,payload,now);
         task.setCreator("auto_close");task.setAssignee(owner.username());task.setSharedOwnerUserId(ownerId);
         taskRepository.saveAndFlush(task);sharedAccess.registerSystemCreated(task.getId(),ownerId,owner.username());
+        savePeople(task,"assignee",List.of(owner.username()));
         taskDomainFoundationService.recordSystemCreated(task,"auto_close",payload.tag(),payload.projectIds(),ownerId,owner.username());
         var accepted=new ArrayList<String>();
         for(String candidate:sanitizeValues(payload.coExecutors())) {
@@ -123,6 +124,7 @@ public class PanelTaskService {
             person.setTask(task);
             person.setRole(role);
             person.setIdentity(identity);
+            person.setUserId(sharedAccess.taskParticipantAccount(identity));
             taskPersonRepository.save(person);
         }
     }

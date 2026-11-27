@@ -143,14 +143,15 @@
         const identity = node('span');
         if (window.EmployeeProfiles) identity.innerHTML = window.EmployeeProfiles.link(member.username);
         else identity.textContent = member.username;
-        row.append(identity, node('span', labels[member.role] || member.role, 'small text-muted'));
-        if (view.canManage && member.role !== 'OWNER') {
+        row.append(identity, node('span', member.taskParticipant ? 'Участник задачи · чтение' : (labels[member.role] || member.role), 'small text-muted'));
+        if (view.canManage && member.role !== 'OWNER' && !member.taskParticipant) {
           const remove = node('button', 'Отозвать', 'btn btn-sm btn-outline-danger ms-auto');
           remove.type = 'button'; remove.addEventListener('click', () => mutate(state, '/members/' + member.userId, 'DELETE')); row.appendChild(remove);
         }
         $(root, '[data-work-members]').appendChild(row);
       }
       window.EmployeeProfiles?.refresh(root);
+      window.dispatchEvent(new CustomEvent('shared-work:loaded', { detail: { kind, id: objectId, count: view.members.length } }));
       status(root, view.canWrite ? 'Доступ к редактированию подтверждён.' : 'Доступно только чтение.');
       if (view.canManage) { await people(state); if (same(state)) await history(root, base(state) + '/history', () => same(state)); }
     } catch (error) { deny(root, error, state); }

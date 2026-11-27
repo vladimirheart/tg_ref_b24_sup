@@ -28,7 +28,9 @@ public class SharedWorkAccessService {
     public enum Role { VIEWER, EDITOR }
     public record Grant(boolean canRead,boolean canCreateTask,boolean canCreateProject) {}
     public record AccountGrant(String userId,String username,boolean canRead,boolean canCreateTask,boolean canCreateProject) {}
-    public record Member(String userId,String username,String role) {}
+    public record Member(String userId,String username,String role,boolean taskParticipant) {
+        public Member(String userId,String username,String role){this(userId,username,role,false);}
+    }
 
     public record Capabilities(String userId,boolean systemAdmin,boolean canCreateTask,boolean canCreateProject) {}
     public record ObjectAccess(String kind,String id,boolean canWrite,boolean canManage,List<Member> members) {}
@@ -180,10 +182,24 @@ public class SharedWorkAccessService {
                    AND (member.access_role<>'OWNER' OR member.user_id=root.shared_owner_user_id)
                  FOR SHARE OF member
             )
+            """.formatted(kind.key,kind.members,kind.roots,kind.key)+participantReadCte(kind,"reader",null)+"""
             SELECT root.id FROM %s root CROSS JOIN reader
              WHERE reader.system_admin OR EXISTS(SELECT 1 FROM readable_members member WHERE member.root_id=root.id)
+                %s
              ORDER BY root.id
-            """.formatted(kind.key,kind.members,kind.roots,kind.key,kind.roots),actorArgs(authentication),(rs,row)->rs.getString("id"));
+            """.formatted(kind.roots,
+                kind==Kind.TASK?"OR (root.shared_owner_user_id IS NOT NULL AND EXISTS(SELECT 1 FROM task_participant_read participant WHERE participant.task_id=root.id))":""),actorArgs(authentication),(rs,row)->rs.getString("id"));
+    }
+
+    private static String participantReadCte(Kind kind,String reader,String owner) {
+        if(kind!=Kind.TASK)return "";
+        return """
+            , task_participant_read AS MATERIALIZED (
+                SELECT person.task_id FROM task_people person JOIN %s ON person.user_id=%s
+                 WHERE person.role IN ('assignee','co','watcher') %s FOR SHARE OF person
+            )
+            """.formatted(reader,owner==null?reader+".id":owner,
+                owner==null?"":"AND person.task_id=owned.id");
     }
 
     @Transactional(propagation=Propagation.MANDATORY)
@@ -230,11 +246,18 @@ public class SharedWorkAccessService {
 
     public List<Member> members(Kind kind,long id,Authentication authentication) {
         lock(kind,id,Access.READ,authentication);
-        return sql.query("""
+        var result=new java.util.ArrayList<>(sql.query("""
             SELECT account.id,account.username,member.access_role FROM %s member JOIN users account ON account.id=member.user_id
              WHERE member.%s=:id ORDER BY account.id
             """.formatted(kind.members,kind.key),new MapSqlParameterSource("id",id),
-            (rs,row)->new Member(rs.getString("id"),rs.getString("username"),rs.getString("access_role")));
+            (rs,row)->new Member(rs.getString("id"),rs.getString("username"),rs.getString("access_role"))));
+        if(kind==Kind.TASK)result.addAll(jdbc.query("""
+            SELECT DISTINCT account.id,account.username FROM task_people person JOIN users account ON account.id=person.user_id
+             WHERE person.task_id=? AND person.role IN ('assignee','co','watcher')
+               AND NOT EXISTS(SELECT 1 FROM shared_task_members member WHERE member.task_id=person.task_id AND member.user_id=person.user_id)
+             ORDER BY account.id
+            """,(rs,row)->new Member(rs.getString("id"),rs.getString("username"),"VIEWER",true),id));
+        return result;
     }
 
     public void setMember(Kind kind,long id,long targetId,Role role,Authentication authentication) {
@@ -276,9 +299,11 @@ public class SharedWorkAccessService {
                    AND (member.access_role<>'OWNER' OR member.user_id=owned.shared_owner_user_id)
                  FOR SHARE OF member
             )
+            """.formatted(kind.roots,rootLock,kind.members,kind.key,roles)+(access==Access.READ?participantReadCte(kind,"owned","owned.actor_id"):"")+"""
             SELECT COALESCE(shared_owner_user_id,0) FROM owned
-             WHERE system_admin OR EXISTS(SELECT 1 FROM membership)
-            """.formatted(kind.roots,rootLock,kind.members,kind.key,roles),args,(rs,row)->rs.getLong(1));
+             WHERE system_admin OR EXISTS(SELECT 1 FROM membership) %s
+            """.formatted(
+                kind==Kind.TASK&&access==Access.READ?"OR EXISTS(SELECT 1 FROM task_participant_read)":""),args,(rs,row)->rs.getLong(1));
         if(owners.size()!=1)throw missing();
         return owners.get(0);
     }
@@ -299,6 +324,14 @@ public class SharedWorkAccessService {
         if(people.size()!=1)return null;
         try{requireEligibleTarget(Long.parseLong(people.get(0).userId()));return people.get(0);}
         catch(ResponseStatusException denied){if(denied.getStatusCode().value()==404)return null;throw denied;}
+    }
+
+    /** Assignment writes bind the current exact account once; module permission remains independent. */
+    @Transactional(propagation=Propagation.MANDATORY)
+    public Long taskParticipantAccount(String identity) {
+        if(identity==null)return null;
+        var ids=jdbc.query("SELECT id FROM users WHERE username=? FOR SHARE",(rs,row)->rs.getLong(1),identity);
+        return ids.size()==1?ids.get(0):null;
     }
     @Transactional(propagation=Propagation.MANDATORY)
     public void requireStored(Kind kind,long id,Access access,long userId,String username) {
@@ -367,13 +400,8 @@ public class SharedWorkAccessService {
             if(ids.size()!=1)continue;
             var user=GeneralTicketActor.stored(ids.get(0),name);
             var args=storedArgs(user,PanelRolePermissionSnapshot.capture(jdbc,user.userId(),name)).addValue("id",id);
-            boolean allowed=Boolean.TRUE.equals(sql.queryForObject(READER+"""
-                SELECT EXISTS(SELECT 1 FROM reader CROSS JOIN %s root WHERE root.id=:id AND
-                  (reader.system_admin OR (root.shared_owner_user_id IS NOT NULL AND EXISTS(
-                    SELECT 1 FROM %s member WHERE member.%s=root.id AND member.user_id=reader.id
-                    AND (member.access_role<>'OWNER' OR member.user_id=root.shared_owner_user_id)))))
-                """.formatted(kind.roots,kind.members,kind.key),args,Boolean.class));
-            if(allowed)result.add(name);
+            try{lockStored(kind,id,Access.READ,args);result.add(name);}
+            catch(ResponseStatusException denied){if(denied.getStatusCode().value()!=404)throw denied;}
         }
         return result;
     }

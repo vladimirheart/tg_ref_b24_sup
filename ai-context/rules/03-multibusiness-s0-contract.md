@@ -7414,3 +7414,15 @@ Append-only transfer audit и два scoped invalidation events атомарны
 Ошибка обязательного write откатывает перенос. Клиентская история и отдельная
 внутренняя переписка следуют стабильному numeric/raw/public owner, но читаются
 только после проверки текущего бизнеса root. GENERAL не переклассифицируется.
+
+## 01-327 — 2026-11-26: READ задачи для её участников
+
+R302–R305 дополнены производным READ через numeric task_people.user_id для
+assignee/co/watcher; WRITE/OWNER и project-to-task boundary прежние. V109 связывает
+существующий exact, однозначный roster один раз. Нынешние account/module/owned-root
+проверки сохраняются, legacy creator/lead не получают владение. «Мои задачи»,
+list/direct READ и notification recipients используют то же участие. Удаление
+участника не отзывает независимое явное назначение; смена/повторное использование
+логина не подменяет привязанный ID. Контракт и детали UI проекта зафиксированы в
+`13-project-members-and-task-participant-read.md`. Миграция подготовлена в source,
+production deployment/DB backfill агентом не выполняются.

@@ -86,6 +86,19 @@ test('module grants save once and are re-read from server',async()=>{
   assert.equal(f.moduleEl('accounts').children[0].querySelectorAll('input')[0].checked,false);
   assert.match(f.moduleEl('module-status').textContent,/повторно прочитаны/);
 });
+test('task roster distinguishes participant read from independently revocable access',async()=>{
+  const f=fixture();
+  f.responses.set('/api/shared-work/TASK/7/access',f.response({kind:'TASK',id:'7',canWrite:true,canManage:true,members:[
+    {userId:'12',username:'participant',role:'VIEWER',taskParticipant:true},
+    {userId:'13',username:'explicit',role:'VIEWER',taskParticipant:false}
+  ]}));
+  await f.open('7');
+  const rows=f.el('members').children;
+  assert.match(rows[0].children[1].textContent,/Участник задачи.*чтение/);
+  assert.equal(rows[0].querySelectorAll('button').length,0);
+  assert.equal(rows[1].querySelectorAll('button').length,1);
+  assert(f.events.some(event=>event.type==='shared-work:loaded'&&event.detail.count===2));
+});
 test('member save uses numeric candidate and reloads object permissions',async()=>{
   const f=fixture();await f.open('7');f.el('role').value='EDITOR';await f.el('add').fire();
   const put=f.requests.find(r=>r.method==='PUT');assert.equal(put.url,'/api/shared-work/TASK/7/members/9007199254740993');
@@ -135,8 +148,8 @@ test('tasks and projects include access panels and updated scripts',()=>{
   for(const page of ['tasks','projects']){
     const html=fs.readFileSync(path.resolve(__dirname,'../../main/resources/templates',page,'index.html'),'utf8');
     assert(html.includes('fragments/shared-work-access :: moduleAccess'));assert(html.includes('fragments/shared-work-access :: objectAccess'));
-    assert(html.includes('shared-work-access.js?v=20261125-employee-preview-r1'));
-    assert(html.includes(page === 'tasks' ? 'tasks.js?v=20261124-task-card-r3' : 'projects.js?v=20261109-r304'));
+    assert(html.includes('shared-work-access.js?v=20261126-project-members-r1'));
+    assert(html.includes(page === 'tasks' ? 'tasks.js?v=20261124-task-card-r3' : 'projects.js?v=20261126-project-members-r1'));
     assert(html.includes('data-work-write disabled'));assert(html.includes('data-work-create='));
   }
 });

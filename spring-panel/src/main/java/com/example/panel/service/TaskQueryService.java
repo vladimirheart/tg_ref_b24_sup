@@ -105,6 +105,7 @@ public class TaskQueryService {
                                                    Long projectId,
                                                    boolean mine,
                                                    String currentUser) {
+        Long currentAccountId = mine ? sharedAccess.currentUserId() : null;
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -163,21 +164,17 @@ public class TaskQueryService {
                 ));
             }
 
-            String user = clean(currentUser);
-            if (mine && user != null) {
+            if (mine && currentAccountId != null) {
                 Subquery<Long> peopleSubquery = query.subquery(Long.class);
                 var person = peopleSubquery.from(TaskPerson.class);
                 peopleSubquery.select(person.get("task").get("id").as(Long.class));
                 peopleSubquery.where(
                     cb.and(
-                        cb.equal(cb.lower(person.<String>get("identity")), user.toLowerCase(Locale.ROOT)),
-                        person.get("role").in("assignee", "co")
+                        cb.equal(person.get("userId"), currentAccountId),
+                        person.get("role").in("assignee", "co", "watcher")
                     )
                 );
-                predicates.add(cb.or(
-                    cb.equal(cb.lower(root.<String>get("assignee")), user.toLowerCase(Locale.ROOT)),
-                    root.get("id").in(peopleSubquery)
-                ));
+                predicates.add(root.get("id").in(peopleSubquery));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

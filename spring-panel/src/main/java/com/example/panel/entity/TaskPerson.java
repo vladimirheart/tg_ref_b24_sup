@@ -28,4 +28,8 @@ public class TaskPerson {
     private String role;
 
     private String identity;
+
+    /** Stable account binding; identity remains the historical display value. */
+    @jakarta.persistence.Column(name = "user_id")
+    private Long userId;
 }
