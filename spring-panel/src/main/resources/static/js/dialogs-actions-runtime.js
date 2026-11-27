@@ -812,7 +812,7 @@
               replyToTelegramId,
             }),
           });
-          const payload = await response.json();
+          const payload = await (window.PanelErrors ? window.PanelErrors.read(response, { sending: true }) : response.json());
           if (!response.ok || !payload?.success) {
             throw new Error(payload?.error || `Ошибка ${response.status}`);
           }
@@ -832,7 +832,7 @@
           }
           options.updateDetailsStatusSummary?.('ожидает ответа клиента', 'waiting_client');
         } catch (error) {
-          notify(error?.message || 'Не удалось отправить сообщение', 'error');
+          notify((error?.isPanelError ? error : window.PanelErrors?.network(error, { sending: true }) || error)?.message || 'Не удалось отправить сообщение', 'error');
         } finally {
           delete elements.detailsReplySend.dataset.replyInFlight;
           elements.detailsReplySend.disabled = false;

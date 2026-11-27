@@ -72,6 +72,7 @@ async function boot(options = {}) {
     },
   };
   const window = {
+    location: {search:options.search||''},
     clearTimeout() {}, setTimeout() { return 1; },
     requestAnimationFrame(fn) { fn(); },
   };

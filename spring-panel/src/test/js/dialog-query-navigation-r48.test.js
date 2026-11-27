@@ -70,5 +70,37 @@ const resolveLocationTicket = evaluate(locationBusiness, 'resolveTicketId', {
   document: { getElementById: () => null },
 });
 assert.equal(resolveLocationTicket(), exactId);
-assert.match(profile, /openDialog\.href = `\/dialogs\?ticketId=\$\{encodeURIComponent\(ticketId\)\}/);
-console.log('DIALOG_QUERY_NAVIGATION_RESULT=GREEN');
+// The server supplies the scope-aware URL; execute its transfer into the preview link.
+(async()=>{
+  const link={hidden:false,href:'',removeAttribute(name){if(name==='href')this.href='';}};
+  const elements={clientHistoryMeta:{},clientHistoryOpenDialog:link,clientHistoryMessages:{}};
+  const window={},requests=[],pending=new Map(),rendered=[];
+  const start=profile.indexOf('    let clientHistoryModalInstance = null;');
+  const end=profile.indexOf('    const ticketsSearch',start);
+  assert(start>=0&&end>start);
+  vm.runInNewContext(profile.slice(start,end),{
+    window,document:{getElementById:id=>elements[id]||null},
+    bootstrap:{Modal:class{show(){}}},renderClientHistory(history){rendered.push(history);},encodeURIComponent,
+    escapeClientHistoryHtml:evaluate(profile,'escapeClientHistoryHtml'),
+    fetch:async url=>{
+      requests.push(url);const key=decodeURIComponent(new URL(url,'https://panel.test').pathname.slice('/api/dialogs/'.length));
+      return pending.get(key)||{ok:true,json:async()=>({summary:{},history:[]})};
+    }
+  });
+  await window.openClientHistory({dataset:{ticketId:exactId,channelId:'7',dialogUrl:target+'&channelId=7'}});
+  assert.equal(link.href,target+'&channelId=7');assert.equal(link.hidden,false);
+  assert.equal(new URL(requests[0],'https://panel.test').pathname,'/api/dialogs/'+encodeURIComponent(exactId));
+  await window.openClientHistory({dataset:{ticketId:'B'}});
+  assert.equal(link.hidden,true);assert.equal(link.href,'');
+  await window.openClientHistory({dataset:{ticketId:'GENERAL',dialogUrl:'/general-dialog-work/'+'a'.repeat(32)}});
+  assert.equal(link.href,'/general-dialog-work/'+'a'.repeat(32));assert.equal(link.hidden,false);
+  let releaseA;pending.set('RACE_A',new Promise(resolve=>{releaseA=resolve;}));
+  const first=window.openClientHistory({dataset:{ticketId:'RACE_A',dialogUrl:'/dialogs?ticketId=RACE_A'}});
+  await window.openClientHistory({dataset:{ticketId:'RACE_B',dialogUrl:'/dialogs?ticketId=RACE_B'}});
+  releaseA({ok:true,json:async()=>({summary:{},history:[{message:'OLD_A'}]})});await first;
+  assert(!rendered.at(-1).some(row=>row.message==='OLD_A'),'Late A must not replace B history');
+  pending.set('ERROR',{ok:false,json:async()=>({error:'<img src=x onerror=alert(1)>'})});
+  await window.openClientHistory({dataset:{ticketId:'ERROR'}});
+  assert(!elements.clientHistoryMessages.innerHTML.includes('<img'),'Error text must not become HTML');
+  console.log('DIALOG_QUERY_NAVIGATION_RESULT=GREEN');
+})().catch(error=>{console.error(error);process.exitCode=1;});

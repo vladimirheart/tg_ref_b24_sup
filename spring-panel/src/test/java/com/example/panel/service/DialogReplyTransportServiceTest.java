@@ -32,9 +32,56 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 class DialogReplyTransportServiceTest {
+    @ParameterizedTest @ValueSource(ints={502,503,504})
+    void ambiguousLegacyGatewayDoesNotSilentlyResendTelegramPost(int status) throws Exception {
+        HttpClient http=mock(HttpClient.class), direct=mock(HttpClient.class);
+        var network=mock(IntegrationNetworkService.class);
+        when(network.createChannelHttpClient(any(),any(Duration.class))).thenReturn(http);
+        when(network.createDirectHttpClient(any(Duration.class))).thenReturn(direct);
+        when(network.resolveTelegramLegacyBotApiBaseUrl(any())).thenReturn("https://telegram.ftl-dev.ru");
+        when(http.send(any(HttpRequest.class),any(HttpResponse.BodyHandler.class))).thenAnswer(call->
+            responseFor(call.getArgument(0),new ArrayList<>(),"<html>gateway error</html>",status));
+        when(direct.send(any(HttpRequest.class),any(HttpResponse.BodyHandler.class))).thenAnswer(call->
+            responseFor(call.getArgument(0),new ArrayList<>(),"{\"ok\":true,\"result\":{\"message_id\":99}}",200));
+        Channel channel=new Channel();channel.setPlatform("telegram");channel.setToken("fixture-token");
+        var service=new DialogReplyTransportService(mock(com.example.panel.repository.ChannelRepository.class),network,new ObjectMapper());
+        var result=service.sendTextGuarded(channel,42L,"Проверка",null,()->true);
+        assertThat(result.success()).isFalse();assertThat(result.error()).contains("не подтвержден");
+        verify(http,times(1)).send(any(HttpRequest.class),any(HttpResponse.BodyHandler.class));
+        verify(direct,never()).send(any(HttpRequest.class),any(HttpResponse.BodyHandler.class));
+    }
+    @ParameterizedTest @ValueSource(strings={"gateway","malformed","network"})
+    void uncertainMaxMediaPostDoesNotFallThroughToAnotherHost(String kind) throws Exception {
+        HttpClient http=mock(HttpClient.class);var network=mock(IntegrationNetworkService.class);
+        when(network.createChannelHttpClient(any(),any(Duration.class))).thenReturn(http);
+        if(kind.equals("network"))when(http.send(any(HttpRequest.class),any(HttpResponse.BodyHandler.class))).thenThrow(new IOException("private transport details"));
+        else when(http.send(any(HttpRequest.class),any(HttpResponse.BodyHandler.class))).thenAnswer(call->
+            responseFor(call.getArgument(0),new ArrayList<>(),"<html>gateway error</html>",kind.equals("gateway")?502:200));
+        Channel channel=new Channel();channel.setPlatform("max");channel.setToken("fixture-token");
+        var service=new DialogReplyTransportService(mock(com.example.panel.repository.ChannelRepository.class),network,new ObjectMapper());
+        var result=(DialogReplyTransportService.DialogReplyTransportResult)org.springframework.test.util.ReflectionTestUtils.invokeMethod(
+            service,"sendMaxMediaMessage",channel,"fixture-token",42L,java.util.Map.of("text","Проверка"),1L);
+        assertThat(result.success()).isFalse();assertThat(result.error()).containsAnyOf("не подтвержден","подтвердить");
+        verify(http,times(1)).send(any(HttpRequest.class),any(HttpResponse.BodyHandler.class));
+    }
+    @ParameterizedTest @ValueSource(strings={"telegram","vk","max"})
+    void malformedSuccessfulHttpResponseNeverAcknowledgesMessage(String platform) throws Exception {
+        HttpClient http = mock(HttpClient.class);
+        var network = mock(IntegrationNetworkService.class);
+        when(network.createChannelHttpClient(any(),any(Duration.class))).thenReturn(http);
+        when(http.send(any(HttpRequest.class),any(HttpResponse.BodyHandler.class))).thenAnswer(call ->
+            responseFor(call.getArgument(0),new ArrayList<>(),"<html>gateway error</html>",200));
+        Channel channel = new Channel();channel.setPlatform(platform);channel.setToken("fixture-token");
+        var service = new DialogReplyTransportService(mock(com.example.panel.repository.ChannelRepository.class),network,new ObjectMapper());
+        var result = service.sendTextGuarded(channel,42L,"Проверка",null,()->true);
+        assertThat(result.success()).isFalse();
+        assertThat(result.error()).contains("подтвердить").doesNotContain("<html>");
+        assertThat(result.telegramMessageId()).isNull();
+    }
 
     @ParameterizedTest @ValueSource(strings={"telegram","vk","max"})
     void guardedTextUsesFrozenRequestChannelDespiteMutableNetworkSetup(String platform) throws Exception {
@@ -67,7 +114,7 @@ class DialogReplyTransportServiceTest {
     }
 
     @Test
-    void retriesTelegramTextDirectlyWhenLegacyMirrorReturnsGatewayError() throws Exception {
+    void retriesTelegramTextDirectlyOnlyAfterExplicitLegacyMirrorRejection() throws Exception {
         HttpClient mirrorClient = mock(HttpClient.class);
         HttpClient directClient = mock(HttpClient.class);
         IntegrationNetworkService network = mock(IntegrationNetworkService.class);
@@ -79,7 +126,7 @@ class DialogReplyTransportServiceTest {
         when(network.resolveTelegramLegacyBotApiBaseUrl(channel)).thenReturn("https://telegram.ftl-dev.ru");
         when(network.createDirectHttpClient(Duration.ofSeconds(15))).thenReturn(directClient);
         when(mirrorClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-            .thenAnswer(call -> responseFor(call.getArgument(0), new ArrayList<>(), "<html>502 Bad Gateway</html>", 502));
+            .thenAnswer(call -> responseFor(call.getArgument(0), new ArrayList<>(), "{\"ok\":false,\"error_code\":502,\"description\":\"Request rejected\"}", 502));
         List<HttpRequest> directRequests = new ArrayList<>();
         when(directClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
             .thenAnswer(call -> {
@@ -333,7 +380,7 @@ class DialogReplyTransportServiceTest {
                 null
         );
 
-        assertThat(result.error()).isEqualTo("Не удалось отправить файл в Telegram: превышено время ожидания загрузки.");
+        assertThat(result.error()).startsWith("Не удалось отправить файл в Telegram: превышено время ожидания загрузки.").contains("Результат операции не подтвержден", "Проверьте историю");
         assertThat(result.telegramMessageId()).isNull();
     }
 
@@ -364,8 +411,8 @@ class DialogReplyTransportServiceTest {
                 null
         );
 
-        assertThat(result.error()).isEqualTo("Telegram: Bad Request: wrong file identifier/HTTP URL specified");
-        assertThat(result.error()).doesNotContain("Р");
+        assertThat(result.error()).startsWith("Telegram:").contains("wrong file identifier/HTTP URL specified");
+        assertThat(result.error()).doesNotContain("Рќ", "Рµ", "Рѕ");
         assertThat(result.telegramMessageId()).isNull();
         assertThat(methodCalls).containsExactly("sendDocument");
     }
@@ -396,7 +443,7 @@ class DialogReplyTransportServiceTest {
                 null
         );
 
-        assertThat(result.error()).isEqualTo("Файл слишком большой для Telegram. Максимальный размер — 50 МБ.");
+        assertThat(result.error()).contains("Telegram:", "Превышен допустимый размер", "file is too big").doesNotContain("50 МБ");
         assertThat(result.telegramMessageId()).isNull();
     }
 
@@ -463,8 +510,8 @@ class DialogReplyTransportServiceTest {
                 null
         );
 
-        assertThat(result.error()).isEqualTo("Не удалось отправить файл в Telegram. Проверьте сеть и повторите попытку.");
-        assertThat(result.error()).doesNotContain("Р");
+        assertThat(result.error()).contains("Не удалось отправить файл в Telegram", "Результат операции не подтвержден", "Проверьте историю");
+        assertThat(result.error()).doesNotContain("Рќ", "Рµ", "Рѕ");
         assertThat(result.telegramMessageId()).isNull();
     }
 

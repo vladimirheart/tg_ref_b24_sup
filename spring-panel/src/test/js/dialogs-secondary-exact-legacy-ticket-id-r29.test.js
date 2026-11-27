@@ -113,7 +113,11 @@ function evalFn(text,name,ctx={}){
   assert.doesNotMatch(flow,/business-dialog-assignment/);
   assert.doesNotMatch(businessSelection,/business-dialog-assignment/);
   assert.match(template,/Открыть диалог/);
-  assert.match(businessSelection,/new URLSearchParams\(\{ ticketId: activeContext\.ticketId \}\)/);
+  const {script}=require('./fixtures/asset-contract.cjs');
+  assert(script(template,'dialogs-operator-collaboration.js')<script(template,'dialogs-business-selection-runtime.js'));
+  assert.match(businessSelection,/api\.matches\(payload\.owner, row\(\)\)/);
+  assert.match(businessSelection,/businessTargetId/);
+  assert.match(businessSelection,/revision/);
  });
  if(passed!==11)throw Error('TEST_COUNT_RED:'+passed);
  console.log('UI_EXACT_ID_TESTS_GREEN='+passed);

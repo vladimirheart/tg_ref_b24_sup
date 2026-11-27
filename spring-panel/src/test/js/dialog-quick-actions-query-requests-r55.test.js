@@ -24,7 +24,8 @@ function functionSource(file, name) {
   throw new Error('unbalanced ' + name);
 }
 function loadFunction(file, name, context) {
-  return vm.runInNewContext(functionSource(file, name) + '\n' + name + ';', context);
+  return vm.runInNewContext(functionSource(file, name) + '\n' + name + ';',
+    {...context,window:require('./fixtures/panel-error-context.cjs')(context.window)});
 }
 class Node {
   constructor() { this.dataset = {}; this.value = ''; this.listeners = {}; this.disabled = false; }
@@ -227,9 +228,10 @@ async function workspaceReplyIsOptimisticAndReportsDeliveryFailureInHistory() {
 
   resolveResponse({ ok: false, status: 503, json: async () => ({ error: 'transport unavailable' }) });
   await new Promise(resolve => setTimeout(resolve, 0));
-  assert.deepEqual(deliveryStates, [[1, 'failed']]);
+  assert.deepEqual(deliveryStates, [[1, 'unknown']]);
   assert.equal(appended[1].senderRole, 'system');
   assert.match(appended[1].messageText, /transport unavailable/);
+  assert.match(appended[1].messageText, /историю/);
 }
 
 (async () => {
@@ -241,10 +243,7 @@ async function workspaceReplyIsOptimisticAndReportsDeliveryFailureInHistory() {
   await workspaceReplyIsOptimisticAndReportsDeliveryFailureInHistory();
   const template = fs.readFileSync(path.resolve(__dirname, '../../main/resources/templates/dialogs/index.html'), 'utf8');
   for (const file of ['actions', 'details-history', 'workspace', 'participants', 'templates']) {
-    const version = file === 'actions' ? '20261126-operator-r322' : file === 'participants' ? '20261126-dialog-layout-r1' : file === 'details-history'
-      ? '20261126-realtime-r326'
-      : (file === 'workspace' ? '20261125-employee-preview-r1' : '20261012-01-278-r55');
-    assert.ok(template.includes('dialogs-' + file + "-runtime.js(v='" + version + "')"));
+    require('./fixtures/asset-contract.cjs').script(template,'dialogs-'+file+'-runtime.js');
   }
   console.log('DIALOG_QUICK_ACTIONS_QUERY_R55_RESULT=GREEN;URL_CALL_SITES=16;EXECUTED_FETCHES=11');
 })().catch(error => { console.error(error); process.exitCode = 1; });

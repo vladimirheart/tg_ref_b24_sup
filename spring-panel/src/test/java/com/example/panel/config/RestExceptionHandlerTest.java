@@ -11,6 +11,33 @@ import org.springframework.web.context.request.async.AsyncRequestTimeoutExceptio
 import static org.assertj.core.api.Assertions.assertThat;
 
 class RestExceptionHandlerTest {
+    @Test void uploadFailureUsesActualLimitAndUnknownLimitUsesBoundConfiguration() {
+        var handler = new RestExceptionHandler();
+        var properties = new org.springframework.boot.autoconfigure.web.servlet.MultipartProperties();
+        properties.setMaxFileSize(org.springframework.util.unit.DataSize.ofMegabytes(7));
+        properties.setMaxRequestSize(org.springframework.util.unit.DataSize.ofMegabytes(9));
+        handler.configureUploadLimits(properties);
+        var request = new MockHttpServletRequest("POST", "/api/dialog-ticket/media");
+        assertThat(handler.handleMaxUploadSize(new MaxUploadSizeExceededException(5 * 1024 * 1024), request).getBody().error()).contains("5 МБ").doesNotContain("50");
+        assertThat(handler.handleMaxUploadSize(new MaxUploadSizeExceededException(-1), request).getBody().error()).contains("7 МБ", "9 МБ");
+    }
+    @Test void uploadIoAndMalformedMultipartReturnReadableJsonWithoutRawDetails() {
+        var handler = new RestExceptionHandler();
+        var request = new MockHttpServletRequest("POST", "/api/operator-dialogs/1/attachments/upload");
+        var io = handler.handleIo(new java.io.IOException("internal path and token"), request);
+        assertThat(io.getBody()).isInstanceOf(ApiErrorResponse.class);
+        assertThat(((ApiErrorResponse)io.getBody()).error()).doesNotContain("internal", "token");
+        var malformed = handler.handleMultipart(new org.springframework.web.multipart.MultipartException("secret body"), request);
+        assertThat(malformed.getStatusCode().value()).isEqualTo(400);
+        assertThat(malformed.getBody().error()).contains("вложения").doesNotContain("secret");
+    }
+    @Test void ordinaryTimeoutHasJsonButBinaryDownloadStillHasNoJsonBody() {
+        var handler = new RestExceptionHandler();
+        var timeout = handler.handleAsyncTimeout(new AsyncRequestTimeoutException(), new MockHttpServletRequest("POST", "/api/dialog-ticket/reply"));
+        assertThat(timeout.getBody()).isInstanceOf(ApiErrorResponse.class);
+        var binary = handler.handleIo(new java.io.IOException("storage unavailable"), new MockHttpServletRequest("GET", "/api/operator-dialogs/1/attachments/file"));
+        assertThat(binary.getBody()).isNull();
+    }
 
     @Test
     void missingMultipartPartReturnsBadRequestEnvelope() {

@@ -526,7 +526,7 @@ public class MaxWebhookController {
                 history.add(new MaxConversationSession.HistoryEvent(session.userId(),answer,item.type(),stored.storageKey(),stored.name(),providerId.toString(),time,batch.sourceLink()));
             }
         }catch(AttachmentService.MediaSizeException rejected){return rejectInitialQuestionnaireMedia(claim,channel,session);}
-        catch(java.io.IOException failure){throw new IllegalStateException("MAX questionnaire media storage failed");}
+        catch(java.io.IOException failure){throw new com.example.supportbot.service.InboundMediaException("max",failure);}
         catch(InterruptedException interrupted){Thread.currentThread().interrupt();throw new IllegalStateException("MAX questionnaire media interrupted");}
         session.recordMediaAnswer(answer,history);session.acceptEvent(eventKey);saveSession(session);
         if(session.isComplete()) {
@@ -563,7 +563,7 @@ public class MaxWebhookController {
                 stored.add(new com.example.supportbot.service.InboundClientMessageEvent.MediaItem(file.type(),file.storageKey(),file.name()));
             }
         }catch(AttachmentService.MediaSizeException invalid){return rejectQuestionnaireMedia(claim,channel,userId,null);}
-        catch(IOException failure){throw new IllegalStateException("MAX followup media storage failed");}
+        catch(IOException failure){throw new com.example.supportbot.service.InboundMediaException("max",failure);}
         catch(InterruptedException interrupted){Thread.currentThread().interrupt();throw new IllegalStateException("MAX followup media interrupted",interrupted);}
         // This transaction commits the entire immutable batch before webhook acknowledgement.
         // Retry reads it above, without rebuilding timestamps, profile, files or the current root.

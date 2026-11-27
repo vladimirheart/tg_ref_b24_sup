@@ -15,6 +15,10 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.boot.autoconfigure.web.servlet.MultipartProperties;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.util.unit.DataSize;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
@@ -26,6 +30,14 @@ import java.time.OffsetDateTime;
 public class RestExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(RestExceptionHandler.class);
+    private DataSize maxFileSize = DataSize.ofMegabytes(50);
+    private DataSize maxRequestSize = DataSize.ofMegabytes(60);
+
+    @Autowired(required = false)
+    void configureUploadLimits(MultipartProperties properties) {
+        maxFileSize = properties.getMaxFileSize();
+        maxRequestSize = properties.getMaxRequestSize();
+    }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiErrorResponse> handleAccessDenied(AccessDeniedException ex,
@@ -60,9 +72,22 @@ public class RestExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleMaxUploadSize(MaxUploadSizeExceededException ex,
                                                                 HttpServletRequest request) {
         return build(HttpStatus.PAYLOAD_TOO_LARGE,
-                "Файл превышает допустимый размер загрузки (до 50 МБ)",
+                ex.getMaxUploadSize() > 0
+                    ? "Размер загрузки превышает ограничение " + formatBytes(ex.getMaxUploadSize()) + ". Уменьшите файл или число вложений."
+                    : "Превышен допустимый размер загрузки. Один файл — до " + formatBytes(maxFileSize.toBytes())
+                        + ", весь запрос — до " + formatBytes(maxRequestSize.toBytes()) + ".",
                 "FILE_TOO_LARGE",
                 request);
+    }
+
+    @ExceptionHandler(MultipartException.class)
+    public ResponseEntity<ApiErrorResponse> handleMultipart(MultipartException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "Не удалось прочитать вложения. Выберите файлы заново и проверьте формат запроса.",
+            "MALFORMED_MULTIPART", request);
+    }
+
+    private String formatBytes(long bytes) {
+        return bytes % (1024 * 1024) == 0 ? bytes / (1024 * 1024) + " МБ" : bytes + " байт";
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -113,11 +138,13 @@ public class RestExceptionHandler {
     }
 
     @ExceptionHandler(AsyncRequestTimeoutException.class)
-    public ResponseEntity<Void> handleAsyncTimeout(AsyncRequestTimeoutException ex,
+    public ResponseEntity<?> handleAsyncTimeout(AsyncRequestTimeoutException ex,
                                                    HttpServletRequest request) {
         String path = request != null ? request.getRequestURI() : "unknown";
         log.info("Async request timeout on {}", path);
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        if (isEventStreamRequest(request)) return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        return build(HttpStatus.SERVICE_UNAVAILABLE, "Превышено время ожидания ответа панели. Проверьте результат действия перед повтором.",
+            "REQUEST_TIMEOUT", request);
     }
 
     @ExceptionHandler(Exception.class)
@@ -134,7 +161,8 @@ public class RestExceptionHandler {
                                                    String message,
                                                    String code,
                                                    HttpServletRequest request) {
-        String safeMessage = message != null && !message.isBlank() ? message : status.getReasonPhrase();
+        String safeMessage = com.example.panel.service.MessagingErrorParser.safe(message);
+        if (safeMessage.isBlank()) safeMessage = "Не удалось обработать запрос.";
         ApiErrorResponse body = new ApiErrorResponse(
                 false,
                 safeMessage,
@@ -142,7 +170,7 @@ public class RestExceptionHandler {
                 request != null ? request.getRequestURI() : null,
                 OffsetDateTime.now()
         );
-        return ResponseEntity.status(status).body(body);
+        return ResponseEntity.status(status).header("X-Error-Source", "panel").body(body);
     }
 
     private String resolveValidationCode(FieldError fieldError) {
@@ -171,6 +199,7 @@ public class RestExceptionHandler {
         if (request == null) {
             return false;
         }
+        if (!"GET".equals(request.getMethod()) && !"HEAD".equals(request.getMethod())) return false;
         String accept = request.getHeader("Accept");
         if (accept != null) {
             String normalized = accept.toLowerCase();

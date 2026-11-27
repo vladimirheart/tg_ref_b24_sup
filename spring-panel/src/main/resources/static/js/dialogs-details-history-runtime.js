@@ -1420,20 +1420,8 @@
             method: 'POST',
             body: formData,
           });
-          const rawBody = await resp.text();
-          let data = null;
-          if (rawBody) {
-            try {
-              data = JSON.parse(rawBody);
-            } catch (_error) {
-              data = null;
-            }
-          }
+          const data = await (window.PanelErrors ? window.PanelErrors.read(resp, { sending: true }) : resp.json());
           if (!resp.ok || !data?.success) {
-            const fallbackError = rawBody && !rawBody.trim().startsWith('<')
-              ? rawBody.trim()
-              : `Ошибка ${resp.status}`;
-            throw new Error(data?.error || fallbackError);
             throw new Error(data?.error || `Ошибка ${resp.status}`);
           }
           options.updateDetailsResponsible?.(data.responsible || activeDialogState.context?.operatorName || '');
@@ -1466,7 +1454,7 @@
         }
         return true;
       } catch (error) {
-        notify(error.message || sendOptions.errorMessage || 'Не удалось отправить медиа', 'error');
+        notify((error?.isPanelError ? error : window.PanelErrors?.network(error, { sending: true }) || error).message || sendOptions.errorMessage || 'Не удалось отправить медиа', 'error');
         return false;
       } finally {
         if (sendButton) sendButton.disabled = false;

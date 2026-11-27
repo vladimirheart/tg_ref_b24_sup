@@ -1145,7 +1145,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             }
         } catch(AttachmentService.MediaSizeException ex) {
             sendQuestionnaireText(actor,session.peerId(),"Файл должен содержать от 1 байта до 10 МиБ. Отправьте ответ заново.",null);return;
-        } catch(IOException ex) {throw new IllegalStateException("VK questionnaire media is unavailable",ex);}
+        } catch(IOException ex) {throw new com.example.supportbot.service.InboundMediaException("vk",ex);}
         session.recordAnswer(answer);
         session.history.remove(session.history.size()-1); // Replace the synthetic text entry with the original provider media entries.
         session.history.addAll(history);
@@ -1189,7 +1189,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             }
         } catch(AttachmentService.MediaSizeException ex) {
             sendQuestionnaireText(actor,session.peerId(),"Файл должен содержать от 1 байта до 10 МиБ. Отправьте сообщение заново.",null);return;
-        } catch(IOException ex) {throw new IllegalStateException("VK questionnaire media is unavailable",ex);}
+        } catch(IOException ex) {throw new com.example.supportbot.service.InboundMediaException("vk",ex);}
         session.pendingMedia=new PendingMedia(eventKey,profile.identity(),profile.username(),profile.clientName(),history);
         session.acceptEvent(eventKey); // Also fences the previous consumer, which requires submission to be the last accepted event.
         saveSession(session);

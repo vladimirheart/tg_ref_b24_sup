@@ -62,6 +62,17 @@ class MaxQuestionnaireDownloadTest {
         assertThatThrownBy(()->client.downloadQuestionnaireAttachment(url)).isInstanceOf(IOException.class).hasMessageNotContaining("secret").hasCause(null);
         verify(subscription,atLeastOnce()).cancel();
     }
+    @ParameterizedTest @ValueSource(ints={403,404,413})
+    void knownHttpRejectionKeepsOnlySafeStatusForReceiveDiagnostics(int status) {
+        response(status,List.of("3"),new byte[]{1,2,3});
+        try {
+            client.downloadQuestionnaireAttachment(url);
+            fail("A rejected download must not succeed");
+        } catch(Exception failure) {
+            assertThat(failure).hasMessageContaining(Integer.toString(status)).hasMessageNotContaining("secret").hasCause(null);
+            assertThat(com.example.supportbot.service.InboundMediaFailure.describe(failure).code()).isIn("INBOUND_PROVIDER_ACCESS","INBOUND_FILE_UNAVAILABLE","INBOUND_FILE_TOO_LARGE");
+        }
+    }
     @ParameterizedTest @ValueSource(strings={"0","-1","10485761","9223372036854775808","+3","3,3","bad"})
     void invalidLengthCancelsWithoutSuccess(String length) {
         response(200,List.of(length),new byte[]{1,2,3});

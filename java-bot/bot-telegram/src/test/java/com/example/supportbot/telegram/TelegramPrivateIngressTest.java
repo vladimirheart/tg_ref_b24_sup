@@ -49,4 +49,21 @@ class TelegramPrivateIngressTest {
         }
         bot.onUpdateReceived(update);verifyNoInteractions(boundaries.toArray());
     }
+    @Test void rejectedAttachmentHasOneReadableClientNoticeWithoutRawProviderSecrets() throws Exception {
+        var sender=spy(bot);
+        doReturn(new Message()).when(sender).execute(any(org.telegram.telegrambots.meta.api.methods.send.SendMessage.class));
+        var message=new Message();var chat=new Chat();chat.setId(1001L);chat.setType("private");message.setChat(chat);
+        sender.reportAttachmentFailure(message,new java.io.IOException("HTTP 413 token=private https://private.example"),false);
+        var notice=org.mockito.ArgumentCaptor.forClass(org.telegram.telegrambots.meta.api.methods.send.SendMessage.class);
+        verify(sender).execute(notice.capture());
+        org.assertj.core.api.Assertions.assertThat(notice.getValue().getText()).contains("INBOUND_FILE_TOO_LARGE","размера").doesNotContain("private","https://");
+        org.assertj.core.api.Assertions.assertThat(notice.getValue().getChatId()).isEqualTo("1001");
+        verifyNoInteractions(boundaries.toArray());
+    }
+    @Test void cleanupFailureAfterAcceptedAttachmentDoesNotAskClientToResend() throws Exception {
+        var sender=spy(bot);var message=new Message();var chat=new Chat();chat.setId(1001L);message.setChat(chat);
+        sender.reportAttachmentFailure(message,new java.io.IOException("stream close failed"),true);
+        verify(sender,never()).execute(any(org.telegram.telegrambots.meta.api.methods.send.SendMessage.class));
+        verifyNoInteractions(boundaries.toArray());
+    }
 }

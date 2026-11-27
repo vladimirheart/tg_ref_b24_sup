@@ -1017,15 +1017,9 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ bot_settings: payload }),
     });
-    let data = null;
-    let rawText = '';
-    try {
-      data = await response.json();
-    } catch (jsonError) {
-      rawText = await response.text();
-    }
+    const data = await (window.PanelErrors ? window.PanelErrors.read(response, { mutating: true }) : response.json());
     if (!response.ok || (data && data.success === false)) {
-      throw new Error((data && data.error) || rawText || `HTTP ${response.status}`);
+      throw new Error((data && data.error) || 'Не удалось сохранить настройки бота.');
     }
     initialState = payload;
     hydrateStateFrom(initialState);

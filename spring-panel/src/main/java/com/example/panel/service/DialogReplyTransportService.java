@@ -48,8 +48,6 @@ public class DialogReplyTransportService {
     private static final Duration GENERIC_PROVIDER_REQUEST_TIMEOUT = Duration.ofSeconds(20);
     private static final long TELEGRAM_MAX_DOCUMENT_BYTES = 50L * 1024L * 1024L;
     private static final int TELEGRAM_MAX_CAPTION_LENGTH = 1024;
-    private static final int RESPONSE_BODY_LOG_LIMIT = 1_000;
-    private static final int RESPONSE_EXCERPT_LIMIT = 800;
     private static final String MULTIPART_BOUNDARY = "----BENDER-DIALOGS-BOUNDARY";
     private static final String TELEGRAM_MEDIA_METHOD = "sendDocument";
 
@@ -373,7 +371,10 @@ public class DialogReplyTransportService {
         if (response == null || !isGatewayFailure(response.statusCode())) {
             return false;
         }
-        return StringUtils.hasText(integrationNetworkService.resolveTelegramLegacyBotApiBaseUrl(channel));
+        // A gateway HTML/empty response does not prove the first POST was rejected.
+        // Only an explicit Bot API rejection can safely use the legacy direct fallback.
+        return isTelegramApiFailure(response.body())
+            && StringUtils.hasText(integrationNetworkService.resolveTelegramLegacyBotApiBaseUrl(channel));
     }
 
     private boolean isGatewayFailure(int statusCode) {
@@ -1041,8 +1042,8 @@ public class DialogReplyTransportService {
                         ex,
                         durationMs
                     );
-                    log.warn("MAX media message request failed via host {}: {}", URI.create(apiRoot).getHost(), ex.getMessage());
-                    break;
+                    log.warn("MAX media message request failed via host {}: {}", URI.create(apiRoot).getHost(), ex.getClass().getSimpleName());
+                    return lastFailure;
                 }
                 DialogReplyTransportResult result = resolveMaxTransportResult(
                     response,
@@ -1053,6 +1054,7 @@ public class DialogReplyTransportService {
                     return result;
                 }
                 lastFailure = result;
+                if ("unknown_error".equals(result.classification()) || result.httpStatus() != null && result.httpStatus() >= 500) return result;
                 String responseBody = response.body();
                 if (!"attachment.not.ready".equalsIgnoreCase(resolveMaxApiErrorCode(responseBody))) {
                     break;
@@ -1169,162 +1171,36 @@ public class DialogReplyTransportService {
         };
     }
 
-    private DialogReplyTransportResult resolveTelegramTransportResult(HttpResponse<String> response,
-                                                                      String fallbackError,
-                                                                      Long durationMs) {
-        if (response == null) {
-            return DialogReplyTransportResult.failure(
-                fallbackError,
-                "unknown_error",
-                "critical",
-                "transient",
-                null,
-                null,
-                null,
-                null,
-                durationMs
-            );
-        }
-        String responseBody = response.body();
-        if (response.statusCode() / 100 != 2 || isTelegramApiFailure(responseBody)) {
-            String providerMessage = resolveTelegramError(response.statusCode(), responseBody, fallbackError);
-            String providerCode = resolveTelegramErrorCode(responseBody);
-            return classifyFailure(
-                providerMessage,
-                response.statusCode(),
-                providerCode,
-                providerMessage,
-                responseBody,
-                durationMs
-            );
-        }
-        return DialogReplyTransportResult.success(extractTelegramMessageId(responseBody), durationMs);
+    private DialogReplyTransportResult resolveTelegramTransportResult(HttpResponse<String> response, String fallbackError, Long durationMs) {
+        return resolveProviderTransportResult("telegram", response, fallbackError, durationMs);
     }
 
     private DialogReplyTransportResult resolveVkTransportResult(HttpResponse<String> response, Long durationMs) {
-        if (response == null) {
-            return DialogReplyTransportResult.failure(
-                "Не удалось отправить сообщение в VK.",
-                "unknown_error",
-                "critical",
-                "transient",
-                null,
-                null,
-                null,
-                null,
-                durationMs
-            );
-        }
-        String responseBody = response.body();
-        if (response.statusCode() / 100 != 2) {
-            return classifyFailure(
-                "Не удалось отправить сообщение в VK.",
-                response.statusCode(),
-                null,
-                "VK HTTP " + response.statusCode(),
-                responseBody,
-                durationMs
-            );
-        }
-        try {
-            JsonNode root = objectMapper.readTree(responseBody);
-            JsonNode error = root.path("error");
-            if (!error.isMissingNode() && !error.isNull()) {
-                String errorCode = firstNonBlank(
-                    error.path("error_code").asText(""),
-                    error.path("code").asText("")
-                );
-                String providerMessage = firstNonBlank(
-                    error.path("error_msg").asText(""),
-                    error.path("message").asText(""),
-                    "VK: unknown error"
-                );
-                return classifyFailure(
-                    "VK: " + providerMessage,
-                    response.statusCode(),
-                    errorCode,
-                    providerMessage,
-                    responseBody,
-                    durationMs
-                );
-            }
-            return DialogReplyTransportResult.success(extractVkMessageId(responseBody), durationMs);
-        } catch (IOException ex) {
-            return DialogReplyTransportResult.success(null, durationMs);
-        }
+        return resolveProviderTransportResult("vk", response, "Не удалось отправить сообщение в VK.", durationMs);
     }
 
-    private DialogReplyTransportResult resolveMaxTransportResult(HttpResponse<String> response,
-                                                                 String fallbackError,
-                                                                 Long durationMs) {
-        if (response == null) {
-            return DialogReplyTransportResult.failure(
-                fallbackError,
-                "unknown_error",
-                "critical",
-                "transient",
-                null,
-                null,
-                null,
-                null,
-                durationMs
-            );
-        }
-        String responseBody = response.body();
-        if (response.statusCode() / 100 == 2 && !looksLikeMaxErrorResponse(responseBody)) {
-            return DialogReplyTransportResult.success(null, durationMs);
-        }
-        String providerCode = resolveMaxApiErrorCode(responseBody);
-        String providerMessage = resolveMaxApiError(responseBody, fallbackError);
-        return classifyFailure(
-            providerMessage,
-            response.statusCode(),
-            providerCode,
-            providerMessage,
-            responseBody,
-            durationMs
-        );
+    private DialogReplyTransportResult resolveMaxTransportResult(HttpResponse<String> response, String fallbackError, Long durationMs) {
+        return resolveProviderTransportResult("max", response, fallbackError, durationMs);
     }
 
-    private String resolveTelegramError(int statusCode, String responseBody, String fallbackError) {
-        if (statusCode == 413) {
-            return telegramTooLargeError();
+    private DialogReplyTransportResult resolveProviderTransportResult(String platform, HttpResponse<String> response, String fallbackError, Long durationMs) {
+        String body = response != null ? response.body() : null;
+        Integer status = response != null ? response.statusCode() : null;
+        if (status != null && status / 100 == 2 && MessagingErrorParser.confirmedSuccess(platform, body)) {
+            Long id = "telegram".equals(platform) ? extractTelegramMessageId(body) : "vk".equals(platform) ? extractVkMessageId(body) : null;
+            return DialogReplyTransportResult.success(id, durationMs);
         }
-        if (!StringUtils.hasText(responseBody)) {
-            return fallbackError;
+        var failure = MessagingErrorParser.parse(platform, status, null, fallbackError, body);
+        String message = failure.message();
+        if ("rate_limited".equals(failure.classification()) && !message.contains(" сек.")
+                && response != null && response.headers() != null) {
+            String retry = response.headers().firstValue("Retry-After").orElse("");
+            if (retry.matches("[1-9][0-9]{0,8}")) message += " Повтор возможен через " + retry + " сек.";
         }
-        try {
-            JsonNode root = objectMapper.readTree(responseBody);
-            String description = firstNonBlank(
-                root.path("description").asText(""),
-                root.path("error").asText(""),
-                root.path("message").asText("")
-            );
-            if (StringUtils.hasText(description)) {
-                String normalized = description.toLowerCase(Locale.ROOT);
-                if (normalized.contains("too big") || normalized.contains("entity too large")) {
-                    return telegramTooLargeError();
-                }
-                return "Telegram: " + description.trim();
-            }
-        } catch (IOException ignored) {
-            // Ignore parse issues and fallback below.
-        }
-        return fallbackError;
+        return DialogReplyTransportResult.failure(message, failure.classification(), failure.severity(), failure.retryState(),
+            status, failure.code(), failure.description(), failure.description(), durationMs);
     }
 
-    private String resolveTelegramErrorCode(String responseBody) {
-        if (!StringUtils.hasText(responseBody)) {
-            return null;
-        }
-        try {
-            JsonNode root = objectMapper.readTree(responseBody);
-            JsonNode code = root.path("error_code");
-            return code.isMissingNode() || code.isNull() ? null : code.asText();
-        } catch (IOException ex) {
-            return null;
-        }
-    }
 
     private boolean isTelegramApiFailure(String responseBody) {
         if (!StringUtils.hasText(responseBody)) {
@@ -1338,12 +1214,6 @@ public class DialogReplyTransportService {
         }
     }
 
-    private boolean looksLikeMaxErrorResponse(String responseBody) {
-        if (!StringUtils.hasText(responseBody)) {
-            return false;
-        }
-        return StringUtils.hasText(resolveMaxApiErrorCode(responseBody));
-    }
 
     private String validateTelegramMedia(MultipartFile file, String caption) {
         if (file == null || file.isEmpty()) {
@@ -1460,8 +1330,7 @@ public class DialogReplyTransportService {
             contentType,
             fileSize,
             ex.getClass().getSimpleName(),
-            ex.getMessage(),
-            ex
+            MessagingErrorParser.safe(ex.getMessage())
         );
     }
 
@@ -1482,15 +1351,8 @@ public class DialogReplyTransportService {
             sanitizedFilename,
             contentType,
             fileSize,
-            truncateForLog(responseBody, RESPONSE_BODY_LOG_LIMIT)
+            MessagingErrorParser.safe(responseBody)
         );
-    }
-
-    private String truncateForLog(String value, int maxLength) {
-        if (!StringUtils.hasText(value) || value.length() <= maxLength) {
-            return value;
-        }
-        return value.substring(0, maxLength) + "...";
     }
 
     private DialogReplyTransportResult failureForException(String error,
@@ -1499,7 +1361,9 @@ public class DialogReplyTransportService {
                                                            String retryState,
                                                            Exception ex,
                                                            Long durationMs) {
-        String providerMessage = ex != null && StringUtils.hasText(ex.getMessage()) ? ex.getMessage().trim() : null;
+        String providerMessage = ex != null ? MessagingErrorParser.safe(ex.getMessage()) : null;
+        error = error.replace("Проверьте сеть и повторите попытку.", "Проверьте соединение.")
+            + " Результат операции не подтвержден. Проверьте историю диалога перед повтором.";
         return DialogReplyTransportResult.failure(
             error,
             classification,
@@ -1513,132 +1377,7 @@ public class DialogReplyTransportService {
         );
     }
 
-    private DialogReplyTransportResult classifyFailure(String error,
-                                                       Integer httpStatus,
-                                                       String providerErrorCode,
-                                                       String providerMessage,
-                                                       String responseBody,
-                                                       Long durationMs) {
-        String normalizedMessage = providerMessage != null ? providerMessage.toLowerCase(Locale.ROOT) : "";
-        String normalizedCode = providerErrorCode != null ? providerErrorCode.toLowerCase(Locale.ROOT) : "";
 
-        if (httpStatus != null && httpStatus == 429
-            || "6".equals(normalizedCode)
-            || normalizedCode.contains("rate")
-            || normalizedMessage.contains("too many requests")
-            || normalizedMessage.contains("rate limit")) {
-            return DialogReplyTransportResult.failure(
-                error,
-                "rate_limited",
-                "warning",
-                "transient",
-                httpStatus,
-                providerErrorCode,
-                providerMessage,
-                excerpt(responseBody),
-                durationMs
-            );
-        }
-        if (normalizedMessage.contains("too big")) {
-            return DialogReplyTransportResult.failure(
-                telegramTooLargeError(),
-                "validation_error",
-                "warning",
-                "terminal",
-                httpStatus,
-                providerErrorCode,
-                providerMessage,
-                excerpt(responseBody),
-                durationMs
-            );
-        }
-        if (httpStatus != null && (httpStatus == 400 || httpStatus == 404)
-            || "901".equals(normalizedCode)
-            || "900".equals(normalizedCode)
-            || "902".equals(normalizedCode)
-            || normalizedMessage.contains("chat not found")
-            || normalizedMessage.contains("can't send")
-            || normalizedMessage.contains("cannot send")
-            || normalizedMessage.contains("peer_id")) {
-            return DialogReplyTransportResult.failure(
-                error,
-                "client_error",
-                "warning",
-                "terminal",
-                httpStatus,
-                providerErrorCode,
-                providerMessage,
-                excerpt(responseBody),
-                durationMs
-            );
-        }
-        if (httpStatus != null && (httpStatus == 401 || httpStatus == 403)
-            || "5".equals(normalizedCode)
-            || normalizedMessage.contains("unauthorized")
-            || normalizedMessage.contains("forbidden")
-            || normalizedMessage.contains("invalid token")
-            || normalizedMessage.contains("access denied")) {
-            return DialogReplyTransportResult.failure(
-                error,
-                "client_error",
-                "critical",
-                "terminal",
-                httpStatus,
-                providerErrorCode,
-                providerMessage,
-                excerpt(responseBody),
-                durationMs
-            );
-        }
-        if ("attachment.not.ready".equals(normalizedCode)) {
-            return DialogReplyTransportResult.failure(
-                error,
-                "provider_error",
-                "warning",
-                "transient",
-                httpStatus,
-                providerErrorCode,
-                providerMessage,
-                excerpt(responseBody),
-                durationMs
-            );
-        }
-        if (httpStatus != null && httpStatus >= 500) {
-            return DialogReplyTransportResult.failure(
-                error,
-                "provider_error",
-                "critical",
-                "transient",
-                httpStatus,
-                providerErrorCode,
-                providerMessage,
-                excerpt(responseBody),
-                durationMs
-            );
-        }
-        return DialogReplyTransportResult.failure(
-            error,
-            "unknown_error",
-            "critical",
-            "transient",
-            httpStatus,
-            providerErrorCode,
-            providerMessage,
-            excerpt(responseBody),
-            durationMs
-        );
-    }
-
-    private String excerpt(String responseBody) {
-        if (!StringUtils.hasText(responseBody)) {
-            return null;
-        }
-        String trimmed = responseBody.trim();
-        if (trimmed.length() <= RESPONSE_EXCERPT_LIMIT) {
-            return trimmed;
-        }
-        return trimmed.substring(0, RESPONSE_EXCERPT_LIMIT) + "...";
-    }
 
     private Long elapsedMillis(long startedAtNs) {
         return Math.max(0L, (System.nanoTime() - startedAtNs) / 1_000_000L);

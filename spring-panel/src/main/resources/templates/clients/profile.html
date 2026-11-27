@@ -700,6 +700,7 @@
 
     let clientHistoryModalInstance = null;
     let clientHistoryTicketId = null;
+    let clientHistoryRequestSerial = 0;
 
     window.openClientHistory = async function (button) {
         const ticketId = button?.dataset?.ticketId;
@@ -708,6 +709,7 @@
         const location = String(button?.dataset?.location || '').trim();
         const business = String(button?.dataset?.business || '').trim();
         if (!ticketId) return;
+        const requestSerial = ++clientHistoryRequestSerial;
         clientHistoryTicketId = ticketId;
         const meta = document.getElementById('clientHistoryMeta');
         const openDialog = document.getElementById('clientHistoryOpenDialog');
@@ -730,7 +732,8 @@
         try {
             const query = channelId ? `?channelId=${encodeURIComponent(channelId)}` : '';
             const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}${query}`, { credentials: 'same-origin' });
-            const payload = await response.json();
+            const payload = await (window.PanelErrors ? window.PanelErrors.read(response) : response.json());
+            if (requestSerial !== clientHistoryRequestSerial || clientHistoryTicketId !== ticketId) return;
             if (!response.ok) {
                 throw new Error(payload?.error || 'Не удалось загрузить историю');
             }
@@ -742,8 +745,9 @@
             if (meta) meta.textContent = [summaryRequest ? `№ ${summaryRequest}` : ticketId, summaryBusiness, summaryLocation ? `Локация: ${summaryLocation}` : '', summaryStatus].filter(Boolean).join(' · ');
             renderClientHistory(payload.history || []);
         } catch (error) {
+            if (requestSerial !== clientHistoryRequestSerial || clientHistoryTicketId !== ticketId) return;
             if (container) {
-                container.innerHTML = `<div class="text-danger">${error?.message || 'Ошибка соединения'}</div>`;
+                container.innerHTML = `<div class="text-danger">${escapeClientHistoryHtml(error?.message || 'Ошибка соединения')}</div>`;
             }
         }
     };

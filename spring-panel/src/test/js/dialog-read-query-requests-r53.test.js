@@ -70,7 +70,9 @@ async function workspaceRequests() {
 function node() {
   const classes = new Set();
   return {
-    style: {}, innerHTML: '', textContent: '',
+    style: {}, innerHTML: '', textContent: '',children:[],
+    replaceChildren(...children){this.children=children;},
+    append(...children){this.children.push(...children);},
     classList: {
       add: value => classes.add(value),
       remove: value => classes.delete(value),
@@ -92,7 +94,7 @@ async function notesRequests() {
   let notesForbidden = false;
   vm.runInNewContext(read('dialogs-details-runtime.js'), {
     window,
-    document: { getElementById: id => nodes[id] || null },
+    document: { getElementById: id => nodes[id] || null,createElement:()=>node() },
     fetch: async url => {
       urls.push(url);
       const isNotes = url.includes('/notes');
@@ -157,8 +159,7 @@ async function participantsRequests() {
   await participantsRequests();
   const template = fs.readFileSync(path.resolve(__dirname, '../../main/resources/templates/dialogs/index.html'), 'utf8');
   for (const file of ['dialogs-workspace-runtime', 'dialogs-details-runtime', 'dialogs-participants-runtime']) {
-    const version = file === 'dialogs-details-runtime' ? '20261012-01-278-r53' : '20261012-01-278-r55';
-    assert.ok(template.includes(file + ".js(v='" + version + "')"), 'missing cache key for ' + file);
+    require('./fixtures/asset-contract.cjs').script(template,file+'.js');
   }
   console.log('DIALOG_READ_QUERY_REQUESTS_R53_RESULT=GREEN');
 })().catch(error => { console.error(error); process.exitCode = 1; });

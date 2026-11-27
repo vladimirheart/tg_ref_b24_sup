@@ -505,7 +505,7 @@
           },
           body: JSON.stringify({ message, target_mode: targetMode, recipient }),
         });
-        const payload = await response.json().catch(() => ({}));
+        const payload = await (window.PanelErrors ? window.PanelErrors.read(response, { sending: true }) : response.json());
         if (!response.ok || payload.success === false) {
           throw new Error(payload.error || ('HTTP ' + response.status));
         }
@@ -513,7 +513,7 @@
         const failedCount = Array.isArray(payload.failed) ? payload.failed.length : 0;
         setTestStatus(`успешно: ${sentCount}, ошибок: ${failedCount}`);
         if (failedCount > 0) {
-          popup('Тест отправлен частично. Проверьте chat_id и права бота.');
+          popup(payload.warning || 'Тест отправлен частично. Проверьте адресата и права бота.');
         }
       } catch (error) {
         setTestStatus(`ошибка: ${error.message}`);

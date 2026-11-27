@@ -196,7 +196,7 @@ public class TelegramQuestionnaireHandler {
         try(InputStream input=fileSource.apply(item.fileId())) {
             stored=attachments.storeQuestionnaire(state.channelId,state.selected.businessId(),state.userId,state.catalog.catalogSha256(),message.getMessageId().longValue(),item.extension(),input);
         } catch(AttachmentService.MediaSizeException ex) {send(sender,state.chatId,"Файл должен содержать от 1 байта до 10 МиБ. Отправьте другой файл или текст.");return;}
-        catch(IOException ex) {throw new IllegalStateException("Telegram questionnaire media storage failed",ex);}
+        catch(IOException ex) {throw new com.example.supportbot.service.InboundMediaException("telegram",ex);}
         if(stored==null || !QuestionnaireMedia.matches(stored.storageKey(),state.channelId,state.selected.businessId(),state.userId,state.catalog.catalogSha256(),message.getMessageId().longValue()))
             throw new IllegalStateException("Telegram media storage returned a foreign key");
         String answer=message.getCaption()!=null && !message.getCaption().isBlank()?message.getCaption().strip():item.fallback();
@@ -276,7 +276,7 @@ public class TelegramQuestionnaireHandler {
             stored=attachments.storeQuestionnaire(state.channelId,state.selected.businessId(),state.userId,state.catalog.catalogSha256(),
                 message.getMessageId().longValue(),item.extension(),input);
         } catch(AttachmentService.MediaSizeException ex) {send(sender,state.chatId,"Файл должен содержать от 1 байта до 10 МиБ. Отправьте другой файл или текст.");return;}
-        catch(IOException ex) {throw new IllegalStateException("Telegram follow-up media storage failed",ex);}
+        catch(IOException ex) {throw new com.example.supportbot.service.InboundMediaException("telegram",ex);}
         if(stored==null || !QuestionnaireMedia.matches(stored.storageKey(),state.channelId,state.selected.businessId(),state.userId,state.catalog.catalogSha256(),message.getMessageId().longValue()))
             throw new IllegalStateException("Telegram follow-up media has a foreign storage key");
         String text=message.getCaption()!=null && !message.getCaption().isBlank()?message.getCaption().strip():item.fallback();

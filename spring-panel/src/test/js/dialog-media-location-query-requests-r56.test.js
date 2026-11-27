@@ -43,6 +43,7 @@ async function mediaRequests() {
   const button = { disabled: false }, input = {};
   let failed = false, completed = 0;
   const context = {
+    window:require('./fixtures/panel-error-context.cjs')(),
     FormData: Form, elements: {}, getActiveDialogState: () => state,
     getActiveWorkspaceState: () => ({ ticketId: 'TRIMMED-SIBLING' }),
     resolvePendingMediaFileName: file => file.name,
@@ -181,6 +182,6 @@ async function locationRequests() {
   await mediaRequests();
   await locationRequests();
   const template = fs.readFileSync(path.resolve(__dirname, '../../main/resources/templates/dialogs/index.html'), 'utf8');
-  assert.ok(template.includes("dialogs-details-history-runtime.js(v='20261126-realtime-r326')"));
+  require('./fixtures/asset-contract.cjs').script(template,'dialogs-details-history-runtime.js');
   console.log('DIALOG_MEDIA_LOCATION_QUERY_R56_RESULT=GREEN');
 })().catch(error => { console.error(error); process.exitCode = 1; });

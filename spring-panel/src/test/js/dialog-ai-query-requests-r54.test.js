@@ -125,9 +125,11 @@ async function reviewActionRequests() {
   await reviewActionRequests();
   const template = fs.readFileSync(path.resolve(__dirname, '../../main/resources/templates/dialogs/index.html'), 'utf8');
   const aiOpsTemplate = fs.readFileSync(path.resolve(__dirname, '../../main/resources/templates/dialogs/ai-ops.html'), 'utf8');
-  assert.ok(template.includes("dialogs-ai-runtime.js(v='20261012-01-278-r54')"));
-  assert.ok(template.includes("dialogsAssetVersion='20261112-first-paint'"));
-  assert.ok(template.includes('dialogs.js(v=${dialogsAssetVersion})'));
-  assert.ok(aiOpsTemplate.includes("ai-ops.js(v='20261112-page-permissions')"));
+  const {script}=require('./fixtures/asset-contract.cjs');
+  script(template,'dialogs-ai-runtime.js');
+  assert.match(template,/dialogsAssetVersion='[A-Za-z0-9-]+'/);
+  assert.ok(template.includes('dialogs-shell-runtime.js(v=${dialogsAssetVersion})'));
+  script(template,'dialogs.js');
+  script(aiOpsTemplate,'ai-ops.js');
   console.log('DIALOG_AI_QUERY_REQUESTS_R54_RESULT=GREEN');
 })().catch(error => { console.error(error); process.exitCode = 1; });

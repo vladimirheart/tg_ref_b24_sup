@@ -82,7 +82,10 @@ class MaxInitialQuestionnaireMediaTest {
         if(kind.equals("cas"))doReturn(Optional.empty()).when(f.store()).saveIfUnchanged(eq("max"),eq(55L),eq(1001L),anyString(),any());
         if(kind.equals("handshake"))assertThat(media("retry-media",2,"Caption","ok").getBody()).containsEntry("restart_questionnaire",true);
         else if(kind.equals("cas"))assertThat(media("retry-media",2,"Caption","ok").getStatusCode().value()).isEqualTo(503);
-        else assertThatThrownBy(()->media("retry-media",2,"Caption","ok")).hasMessageContaining("storage failed");
+        else assertThatThrownBy(()->media("retry-media",2,"Caption","ok"))
+            .isInstanceOf(com.example.supportbot.service.InboundMediaException.class)
+            .hasMessageContaining("получить или сохранить")
+            .satisfies(failure->assertThat(((com.example.supportbot.service.InboundMediaException)failure).failure().code()).isEqualTo("INBOUND_MEDIA_UNAVAILABLE"));
         assertThat(base.r268Raw()).isEqualTo(before);verify(f.tickets(),never()).createConversationTicket(any());
         if(kind.equals("handshake"))base.r268ResetDeliveryCache();
         when(f.runtime().confirmMaxQuestionnaireMedia(any(),any(),any())).thenReturn(true);

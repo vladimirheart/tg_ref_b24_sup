@@ -342,18 +342,22 @@ public class ChannelTransportService {
 
         List<String> failedRecipients = new ArrayList<>();
         List<String> sentRecipients = new ArrayList<>();
+        List<String> failureMessages = new ArrayList<>();
         for (String target : uniqueRecipients) {
-            if (sendTelegramMessage(channel, expected, target, message)) {
+            TelegramSendAttempt attempt = sendTelegramMessageAttempt(channel, expected, target, message);
+            if (attempt.sent()) {
                 sentRecipients.add(target);
             } else {
                 failedRecipients.add(target);
+                failureMessages.add(attempt.error());
             }
         }
         log.info("Test message requested for channel {} to {} targets ({} chars)", channelId, uniqueRecipients.size(), message.length());
         if (sentRecipients.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Не удалось отправить сообщение ни одному получателю", "failed", failedRecipients));
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", String.join(" ", failureMessages.stream().distinct().limit(3).toList()), "failed", failedRecipients));
         }
-        return ResponseEntity.ok(Map.of("success", true, "sent", sentRecipients, "failed", failedRecipients));
+        return ResponseEntity.ok(Map.of("success", true, "sent", sentRecipients, "failed", failedRecipients,
+            "warning", String.join(" ", failureMessages.stream().distinct().limit(3).toList())));
     }
 
     public String resolveConfiguredRecipient(Long channelId, String target, String customChatId) {
@@ -783,10 +787,18 @@ public class ChannelTransportService {
 
     private boolean sendTelegramMessage(Channel channel, ChannelDeliverySnapshot expected,
                                         String recipient, String message) {
+        return sendTelegramMessageAttempt(channel, expected, recipient, message).sent();
+    }
+
+    private record TelegramSendAttempt(boolean sent, String error) {}
+
+    private TelegramSendAttempt sendTelegramMessageAttempt(Channel channel, ChannelDeliverySnapshot expected,
+                                        String recipient, String message) {
         try {
             // Re-resolve for every recipient, not just the earlier endpoint preflight.
             BotCredential credential = resolveTelegramCredential(channel);
-            if (credential == null || !hasCurrentDeliveryState(channel, expected)) return false;
+            if (credential == null || !hasCurrentDeliveryState(channel, expected))
+                return new TelegramSendAttempt(false, "Ключ или настройки канала изменились. Обновите настройки.");
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("chat_id", recipient);
             payload.put("text", message);
@@ -801,17 +813,20 @@ public class ChannelTransportService {
             // Client/network setup may perform I/O. Never hand off a request built
             // with credentials revoked or rebound while that setup was in progress.
             if (!hasCurrentDeliveryState(channel, expected)
-                    || !Objects.equals(credential, resolveTelegramCredential(channel))) return false;
+                    || !Objects.equals(credential, resolveTelegramCredential(channel)))
+                return new TelegramSendAttempt(false, "Ключ или настройки канала изменились. Обновите настройки.");
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() >= 400) {
+            if (response.statusCode() / 100 != 2 || !MessagingErrorParser.confirmedSuccess("telegram", response.body())) {
                 log.warn("Telegram sendMessage failed for {}: HTTP {}", recipient, response.statusCode());
-                return false;
+                return new TelegramSendAttempt(false, MessagingErrorParser.parse("telegram", response.statusCode(), null, null, response.body()).message());
             }
-            JsonNode root = objectMapper.readTree(response.body());
-            return root.path("ok").asBoolean(false);
+            return new TelegramSendAttempt(true, null);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            return new TelegramSendAttempt(false, "Отправка прервана. Результат не подтвержден; проверьте историю перед повтором.");
         } catch (Exception ex) {
             log.warn("Telegram sendMessage failed: {}", ex.getClass().getSimpleName());
-            return false;
+            return new TelegramSendAttempt(false, "Не удалось подтвердить отправку в Telegram. Проверьте соединение и историю перед повтором.");
         }
     }
 

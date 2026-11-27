@@ -38,7 +38,7 @@
       credentials: 'same-origin',
       ...options,
     });
-    const data = await response.json().catch(() => ({}));
+    const data = await (window.PanelErrors ? window.PanelErrors.read(response, { sending: url.endsWith('/test-message') }) : response.json());
     if (!response.ok || data.success === false) {
       const error = data.error || response.statusText || 'Не удалось выполнить запрос';
       throw new Error(error);
@@ -306,11 +306,11 @@
       return;
     }
     try {
-      await fetchJSON(`/api/channels/${channelId}/test-message`, {
+      const result = await fetchJSON(`/api/channels/${channelId}/test-message`, {
         method: 'POST',
         body: JSON.stringify({ recipient, message }),
       });
-      showAlert(testMessageAlert, 'Тестовое сообщение поставлено в очередь на отправку');
+      showAlert(testMessageAlert, result.warning || 'Тестовое сообщение принято мессенджером.', result.warning ? 'warning' : 'success');
       testMessageForm.reset();
       await loadNotifications();
     } catch (error) {

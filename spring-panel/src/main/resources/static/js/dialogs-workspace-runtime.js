@@ -654,7 +654,7 @@
       if (!(statusNode instanceof HTMLElement)) return;
       statusNode.textContent = deliveryState === 'sent'
         ? ' · Отправлено'
-        : (deliveryState === 'failed' ? ' · Не отправлено' : ' · Отправка…');
+        : (deliveryState === 'unknown' ? ' · Доставка не подтверждена' : deliveryState === 'failed' ? ' · Не отправлено' : ' · Отправка…');
     }
 
     function scrollWorkspaceMessagesToBottom() {
@@ -728,16 +728,18 @@
       });
 
       void (async () => {
+        let deliveryConfirmed = false;
         try {
         const resp = await fetch(`/api/dialog-ticket/reply?ticketId=${encodeURIComponent(activeState.composerTicketId)}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message, replyToTelegramId }),
         });
-        const data = await resp.json();
+        const data = await (window.PanelErrors ? window.PanelErrors.read(resp, { sending: true }) : resp.json());
         if (!resp.ok || !data?.success) {
           throw new Error(data?.error || `Ошибка ${resp.status}`);
         }
+        deliveryConfirmed = true;
         updateWorkspaceMessageDeliveryState(localMessageId, 'sent');
         if (activeState.row) {
           options.updateRowStatus?.(activeState.row, activeState.row.dataset.statusRaw || '', 'ожидает ответа клиента', 'waiting_client', 0);
@@ -745,11 +747,13 @@
           options.applyFilters?.();
         }
       } catch (error) {
-        updateWorkspaceMessageDeliveryState(localMessageId, 'failed');
+        const failure = error?.isPanelError ? error : window.PanelErrors?.network(error, { sending: true }) || error;
+        if (!deliveryConfirmed) updateWorkspaceMessageDeliveryState(localMessageId, failure.deliveryUnknown ? 'unknown' : 'failed');
         appendWorkspaceMessage({
           senderName: 'Система',
           senderRole: 'system',
-          messageText: `Не удалось отправить сообщение: ${error?.message || 'неизвестная ошибка'}`,
+          messageText: deliveryConfirmed ? 'Сообщение отправлено. Не удалось обновить карточку диалога. Обновите страницу.'
+            : failure?.message || 'Не удалось отправить сообщение.',
           sentAt: new Date().toISOString(),
         });
       }

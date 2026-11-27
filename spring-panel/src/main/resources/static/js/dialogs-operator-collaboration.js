@@ -16,8 +16,8 @@
     if (token) headers[header] = token;
     const response = await fetch(path, { method: body ? 'POST' : 'GET', credentials: 'same-origin', cache: 'no-store',
       signal: AbortSignal.timeout(multipart ? 120000 : 15000), headers, ...(body ? { body: multipart ? body : JSON.stringify(body) } : {}) })
-      .catch(() => { throw new Error('Не удалось дождаться ответа сервера. Повторите действие.'); });
-    const data = await response.json().catch(() => { throw new Error('Не удалось прочитать ответ сервера. Повторите действие.'); });
+      .catch(error => { throw window.PanelErrors?.network(error, { mutating: Boolean(body), sending: Boolean(body) && path.includes('/internal-messages') }) || new Error('Не удалось дождаться ответа сервера. Проверьте результат действия перед повтором.'); });
+    const data = await (window.PanelErrors ? window.PanelErrors.read(response, { mutating: Boolean(body), sending: Boolean(body) && path.includes('/internal-messages') }) : response.json());
     if (!response.ok) throw new Error(response.status === 409 ? 'Данные или права изменились. Обновите диалог.'
       : response.status === 403 ? 'Недостаточно прав для действия.' : 'Не удалось загрузить или сохранить данные диалога.');
     return data;

@@ -513,8 +513,9 @@
             ...csrfHeaders(),
             ...optionHeaders
         }
-    });
+    }).catch(error => { throw window.PanelErrors?.network(error, { mutating: String(requestOptions.method || 'GET').toUpperCase() !== 'GET' }) || error; });
 
+    if (window.PanelErrors) return window.PanelErrors.read(response, { mutating: String(requestOptions.method || 'GET').toUpperCase() !== 'GET' });
     if (!response.ok) {
         let message =
 			`Ошибка запроса: HTTP ${response.status}`;

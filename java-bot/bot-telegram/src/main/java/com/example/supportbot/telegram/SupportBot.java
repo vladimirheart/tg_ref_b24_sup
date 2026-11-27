@@ -272,7 +272,7 @@ public class SupportBot extends TelegramLongPollingBot {
                     catch (TelegramApiException ex) { throw new IllegalStateException("Telegram questionnaire delivery failed", ex); }
                 }, privateMessage.getFrom() == null || !conversations.containsKey(privateMessage.getFrom().getId()), fileId -> {
                     try { return fetchFile(fileId); }
-                    catch (TelegramApiException ex) { throw new IllegalStateException("Telegram questionnaire media download failed", ex); }
+                    catch (TelegramApiException ex) { throw new com.example.supportbot.service.InboundMediaException("telegram", ex); }
                 })) {
             if (privateMessage.getFrom() != null) conversations.remove(privateMessage.getFrom().getId());
             return;
@@ -457,8 +457,22 @@ public class SupportBot extends TelegramLongPollingBot {
         return true;
     }
 
+    void reportAttachmentFailure(Message message, Exception cause, boolean accepted) {
+        var failure = com.example.supportbot.service.InboundMediaFailure.describe(cause);
+        log.warn("Telegram attachment processing failed: channel={} user={} code={} accepted={}",
+            properties.getChannelId(), message.getChatId(), failure.code(), accepted);
+        if (accepted) return; // A cleanup failure must not tell the client to resend an accepted file.
+        try {
+            execute(SendMessage.builder().chatId(message.getChatId())
+                .text(failure.message() + " Код: " + failure.code() + ".").build());
+        } catch (TelegramApiException warningFailure) {
+            log.warn("Telegram attachment error notice unavailable: code={}", failure.code());
+        }
+    }
+
     private void handleDocument(Message message, ConversationSession session) {
         Document document = message.getDocument();
+        boolean accepted = false;
         try (InputStream data = fetchFile(document.getFileId())) {
             AttachmentService.StoredAttachment stored = attachmentService.store(getChannelPublicId(), getExtension(document.getFileName()), data);
             log.info("Document saved for user {} as {}", message.getFrom().getId(), stored.storageKey());
@@ -469,8 +483,9 @@ public class SupportBot extends TelegramLongPollingBot {
             } else {
                 handleActiveAttachment(message, "document", stored.storageKey(), document.getFileName(), message.getCaption(), true);
             }
+            accepted = true;
         } catch (IOException | TelegramApiException e) {
-            log.error("Failed to store document", e);
+            reportAttachmentFailure(message, e, accepted);
         }
     }
 
@@ -480,6 +495,7 @@ public class SupportBot extends TelegramLongPollingBot {
         if (largest == null) {
             return;
         }
+        boolean accepted = false;
         try (InputStream data = fetchFile(largest.getFileId())) {
             AttachmentService.StoredAttachment stored = attachmentService.store(getChannelPublicId(), "jpg", data);
             log.info("Photo saved for user {} as {}", message.getFrom().getId(), stored.storageKey());
@@ -490,8 +506,9 @@ public class SupportBot extends TelegramLongPollingBot {
             } else {
                 handleActiveAttachment(message, "photo", stored.storageKey(), null, message.getCaption(), true);
             }
+            accepted = true;
         } catch (IOException | TelegramApiException e) {
-            log.error("Failed to store photo", e);
+            reportAttachmentFailure(message, e, accepted);
         }
     }
 
@@ -500,6 +517,7 @@ public class SupportBot extends TelegramLongPollingBot {
         if (video == null) {
             return;
         }
+        boolean accepted = false;
         try (InputStream data = fetchFile(video.getFileId())) {
             AttachmentService.StoredAttachment stored = attachmentService.store(getChannelPublicId(), "mp4", data);
             log.info("Video saved for user {} as {}", message.getFrom().getId(), stored.storageKey());
@@ -510,8 +528,9 @@ public class SupportBot extends TelegramLongPollingBot {
             } else {
                 handleActiveAttachment(message, "video", stored.storageKey(), null, message.getCaption(), true);
             }
+            accepted = true;
         } catch (IOException | TelegramApiException e) {
-            log.error("Failed to store video", e);
+            reportAttachmentFailure(message, e, accepted);
         }
     }
 
@@ -521,6 +540,7 @@ public class SupportBot extends TelegramLongPollingBot {
             return;
         }
         String extension = extensionFromMime(voice.getMimeType(), "ogg");
+        boolean accepted = false;
         try (InputStream data = fetchFile(voice.getFileId())) {
             AttachmentService.StoredAttachment stored = attachmentService.store(getChannelPublicId(), extension, data);
             log.info("Voice saved for user {} as {}", message.getFrom().getId(), stored.storageKey());
@@ -531,8 +551,9 @@ public class SupportBot extends TelegramLongPollingBot {
             } else {
                 handleActiveAttachment(message, "voice", stored.storageKey(), null, message.getCaption(), true);
             }
+            accepted = true;
         } catch (IOException | TelegramApiException e) {
-            log.error("Failed to store voice", e);
+            reportAttachmentFailure(message, e, accepted);
         }
     }
 
@@ -543,6 +564,7 @@ public class SupportBot extends TelegramLongPollingBot {
         }
         String extension = Optional.ofNullable(getExtension(audio.getFileName()))
                 .orElseGet(() -> extensionFromMime(audio.getMimeType(), "mp3"));
+        boolean accepted = false;
         try (InputStream data = fetchFile(audio.getFileId())) {
             AttachmentService.StoredAttachment stored = attachmentService.store(getChannelPublicId(), extension, data);
             log.info("Audio saved for user {} as {}", message.getFrom().getId(), stored.storageKey());
@@ -553,8 +575,9 @@ public class SupportBot extends TelegramLongPollingBot {
             } else {
                 handleActiveAttachment(message, "audio", stored.storageKey(), audio.getFileName(), message.getCaption(), true);
             }
+            accepted = true;
         } catch (IOException | TelegramApiException e) {
-            log.error("Failed to store audio", e);
+            reportAttachmentFailure(message, e, accepted);
         }
     }
 
@@ -565,6 +588,7 @@ public class SupportBot extends TelegramLongPollingBot {
         }
         String extension = Optional.ofNullable(getExtension(animation.getFileName()))
                 .orElse("mp4");
+        boolean accepted = false;
         try (InputStream data = fetchFile(animation.getFileId())) {
             AttachmentService.StoredAttachment stored = attachmentService.store(getChannelPublicId(), extension, data);
             log.info("Animation saved for user {} as {}", message.getFrom().getId(), stored.storageKey());
@@ -575,8 +599,9 @@ public class SupportBot extends TelegramLongPollingBot {
             } else {
                 handleActiveAttachment(message, "animation", stored.storageKey(), animation.getFileName(), message.getCaption(), true);
             }
+            accepted = true;
         } catch (IOException | TelegramApiException e) {
-            log.error("Failed to store animation", e);
+            reportAttachmentFailure(message, e, accepted);
         }
     }
 
@@ -588,6 +613,7 @@ public class SupportBot extends TelegramLongPollingBot {
         String extension = sticker.getIsAnimated() != null && sticker.getIsAnimated()
                 ? "tgs"
                 : (sticker.getIsVideo() != null && sticker.getIsVideo() ? "webm" : "webp");
+        boolean accepted = false;
         try (InputStream data = fetchFile(sticker.getFileId())) {
             AttachmentService.StoredAttachment stored = attachmentService.store(getChannelPublicId(), extension, data);
             log.info("Sticker saved for user {} as {}", message.getFrom().getId(), stored.storageKey());
@@ -598,8 +624,9 @@ public class SupportBot extends TelegramLongPollingBot {
             } else {
                 handleActiveAttachment(message, "sticker", stored.storageKey(), null, null, true);
             }
+            accepted = true;
         } catch (IOException | TelegramApiException e) {
-            log.error("Failed to store sticker", e);
+            reportAttachmentFailure(message, e, accepted);
         }
     }
 
@@ -608,6 +635,7 @@ public class SupportBot extends TelegramLongPollingBot {
         if (note == null) {
             return;
         }
+        boolean accepted = false;
         try (InputStream data = fetchFile(note.getFileId())) {
             AttachmentService.StoredAttachment stored = attachmentService.store(getChannelPublicId(), "mp4", data);
             log.info("Video note saved for user {} as {}", message.getFrom().getId(), stored.storageKey());
@@ -618,8 +646,9 @@ public class SupportBot extends TelegramLongPollingBot {
             } else {
                 handleActiveAttachment(message, "video_note", stored.storageKey(), null, message.getCaption(), true);
             }
+            accepted = true;
         } catch (IOException | TelegramApiException e) {
-            log.error("Failed to store video note", e);
+            reportAttachmentFailure(message, e, accepted);
         }
     }
 

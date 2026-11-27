@@ -32,14 +32,18 @@ final class MaxQuestionnaireDownload {
         } catch(ExecutionException failure) {
             cancelled.set(true);response.cancel(true);cancel(subscriber);
             if(failure.getCause() instanceof com.example.supportbot.service.AttachmentService.MediaSizeException size)throw size;
-            throw new IOException("MAX scoped media download failed or exceeded its deadline");
+            if(failure.getCause() instanceof MediaHttpStatusException status)throw status;
+            throw new IOException("MAX scoped media download failed");
         } catch(TimeoutException|CancellationException failure) {
             cancelled.set(true);response.cancel(true);cancel(subscriber);
             // CDN URLs can contain credentials: neither the URL nor transport exception becomes persisted/logged metadata.
-            throw new IOException("MAX scoped media download failed or exceeded its deadline");
+            throw new java.net.SocketTimeoutException("MAX scoped media download timed out");
         }
     }
     private static void cancel(AtomicReference<LimitedBody> ref) {var body=ref.get();if(body!=null)body.cancel();}
+    private static final class MediaHttpStatusException extends IOException {
+        MediaHttpStatusException(int status) {super("MAX media download HTTP "+status);}
+    }
 
     static final class LimitedBody implements HttpResponse.BodySubscriber<MaxApiClient.DownloadedQuestionnaireAttachment> {
         private final CompletableFuture<MaxApiClient.DownloadedQuestionnaireAttachment> result=new CompletableFuture<>();
@@ -50,7 +54,7 @@ final class MaxQuestionnaireDownload {
         private boolean done;
         LimitedBody(HttpResponse.ResponseInfo info) {
             try {
-                if(info.statusCode()!=200)throw new IOException("Invalid MAX scoped media status");
+                if(info.statusCode()!=200){failStatus(info.statusCode());return;}
                 var lengths=info.headers().allValues("Content-Length");
                 if(lengths.size()>1)throw new IOException("Ambiguous MAX scoped media length");
                 if(!lengths.isEmpty()) {
@@ -88,6 +92,11 @@ final class MaxQuestionnaireDownload {
         private void failSize() {
             if(done)return;done=true;bytes.reset();
             result.completeExceptionally(new com.example.supportbot.service.AttachmentService.MediaSizeException());
+            if(subscription!=null)subscription.cancel();
+        }
+        private void failStatus(int status) {
+            if(done)return;done=true;bytes.reset();
+            result.completeExceptionally(new MediaHttpStatusException(status));
             if(subscription!=null)subscription.cancel();
         }
         private void fail() {
