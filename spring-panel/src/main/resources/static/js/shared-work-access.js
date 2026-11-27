@@ -93,13 +93,13 @@
       if (!same(state) || searchGeneration !== state.searchGeneration) return;
       for (const person of rows) {
         if (!id(person.userId)) throw new Error('Некорректный ответ списка пользователей.');
-        const option = node('option', window.EmployeeProfiles?.get(person.username).fullName || person.username); option.value = person.userId; selector.appendChild(option);
-        window.EmployeeProfiles?.load(person.username).then(profile => { if (same(state) && option.isConnected) option.textContent = profile.fullName || profile.username; }).catch(() => {});
+        const option = node('option', person.fullName || window.EmployeeProfiles?.get(person.username).fullName || person.username); option.value = person.userId; selector.appendChild(option);
+        window.EmployeeProfiles?.load(person.username).then(profile => { if (same(state) && option.isConnected) option.textContent = profile.fullName || person.fullName || profile.username; }).catch(() => {});
       }
       selector.value = rows[0]?.userId || '';
       const enabled = rows.length > 0;
       $(root, '[data-work-add]').disabled = !enabled; $(root, '[data-work-transfer]').disabled = !enabled;
-      status(root, enabled ? 'Доступ сохранится сразу после действия.' : 'Пользователи не найдены. Уточните поиск или выдайте допуск к модулю.');
+      status(root, enabled ? 'Доступ сохранится сразу после действия.' : 'Подходящих сотрудников нет. Проверьте имя, доступ к странице «Задачи» и явный запрет чтения раздела.');
     } catch (error) { if (same(state) && searchGeneration === state.searchGeneration) deny(root, error, state); }
   }
   async function mutate(state, suffix, method, body) {

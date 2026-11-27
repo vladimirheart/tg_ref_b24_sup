@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.web.server.ResponseStatusException;
 
-/** Independent shared-work grants and numeric membership. Never infers access from business or display names. */
+/** Page access plus numeric object participation. Explicit module denials remain authoritative. */
 @Service
 @Transactional
 public class SharedWorkAccessService {
@@ -34,7 +34,9 @@ public class SharedWorkAccessService {
 
     public record Capabilities(String userId,boolean systemAdmin,boolean canCreateTask,boolean canCreateProject) {}
     public record ObjectAccess(String kind,String id,boolean canWrite,boolean canManage,List<Member> members) {}
-    public record Person(String userId,String username) {}
+    public record Person(String userId,String username,String fullName) {
+        public Person(String userId,String username){this(userId,username,null);}
+    }
 
     public Capabilities capabilities(Authentication authentication) {
         var result=sql.query(READER+"SELECT id,system_admin,can_create_task,can_create_project FROM reader",
@@ -56,9 +58,9 @@ public class SharedWorkAccessService {
         if(!access.canManage())throw missing();
         if(query==null)query="";
         if(query.length()>100)throw badRequest();
-        var candidates=jdbc.query("SELECT account.id,account.username FROM users account WHERE "+ACCOUNT+
-            " AND position(lower(?) IN lower(account.username))>0 ORDER BY account.id LIMIT 100",
-            (rs,row)->new Person(rs.getString(1),rs.getString(2)),query);
+        var candidates=jdbc.query("SELECT account.id,account.username,to_jsonb(account)->>'full_name' AS full_name FROM users account WHERE "+ACCOUNT+
+            " AND (position(lower(?) IN lower(account.username))>0 OR position(lower(?) IN lower(COALESCE(to_jsonb(account)->>'full_name','')))>0) ORDER BY account.id LIMIT 100",
+            (rs,row)->new Person(rs.getString(1),rs.getString(2),rs.getString(3)),query,query);
         var result=new java.util.ArrayList<Person>();
         for(var person:candidates){
             try{requireEligibleTarget(Long.parseLong(person.userId()));result.add(person);}
@@ -89,9 +91,9 @@ public class SharedWorkAccessService {
         """;
     private static final String READER = ADMIN+"""
         , granted_reader AS MATERIALIZED (
-            SELECT permission.user_id,permission.can_create_task,permission.can_create_project
+            SELECT permission.user_id,permission.can_read,permission.can_create_task,permission.can_create_project
               FROM shared_work_grants permission JOIN actor ON actor.id=permission.user_id
-             WHERE permission.can_read FOR SHARE OF permission
+             FOR SHARE OF permission
         ), direct_tasks AS MATERIALIZED (
             SELECT authority.user_id FROM user_authorities authority JOIN actor ON actor.id=authority.user_id
              WHERE authority.authority='PAGE_TASKS' FOR SHARE OF authority
@@ -100,7 +102,7 @@ public class SharedWorkAccessService {
                    (EXISTS(SELECT 1 FROM administrator) OR COALESCE(permission.can_create_task,FALSE)) AS can_create_task,
                    (EXISTS(SELECT 1 FROM administrator) OR COALESCE(permission.can_create_project,FALSE)) AS can_create_project
               FROM actor LEFT JOIN granted_reader permission ON permission.user_id=actor.id
-             WHERE EXISTS(SELECT 1 FROM administrator) OR (permission.user_id IS NOT NULL
+             WHERE EXISTS(SELECT 1 FROM administrator) OR (COALESCE(permission.can_read,TRUE)
                 AND (EXISTS(SELECT 1 FROM direct_tasks) OR (:assignedTasks AND EXISTS(SELECT 1 FROM assigned))))
         )
         """;
@@ -110,7 +112,7 @@ public class SharedWorkAccessService {
 
     public List<AccountGrant> accounts(Authentication authentication) {
         var result=sql.query(ADMIN+"""
-            SELECT account.id,account.username,COALESCE(permission.can_read,FALSE) can_read,
+            SELECT account.id,account.username,COALESCE(permission.can_read,TRUE) can_read,
                    COALESCE(permission.can_create_task,FALSE) can_create_task,
                    COALESCE(permission.can_create_project,FALSE) can_create_project
               FROM administrator CROSS JOIN users account
@@ -130,10 +132,12 @@ public class SharedWorkAccessService {
         var args=adminArgs(authentication).addValue("targetId",targetId,Types.BIGINT)
             .addValue("read",grant.canRead()).addValue("task",grant.canCreateTask()).addValue("project",grant.canCreateProject());
         var result=sql.queryForMap(ADMIN+"""
-            , changed AS (
+            , target AS MATERIALIZED (
+                SELECT account.id FROM users account CROSS JOIN administrator
+                 WHERE account.id=:targetId FOR UPDATE OF account
+            ), changed AS (
                 INSERT INTO shared_work_grants(user_id,can_read,can_create_task,can_create_project)
-                SELECT account.id,:read,:task,:project FROM users account CROSS JOIN administrator
-                 WHERE account.id=:targetId
+                SELECT id,:read,:task,:project FROM target
                 ON CONFLICT(user_id) DO UPDATE SET can_read=EXCLUDED.can_read,
                     can_create_task=EXCLUDED.can_create_task,can_create_project=EXCLUDED.can_create_project,
                     updated_at=CURRENT_TIMESTAMP RETURNING user_id
@@ -178,17 +182,16 @@ public class SharedWorkAccessService {
             , readable_members AS MATERIALIZED (
                 SELECT member.%s AS root_id FROM %s member JOIN reader ON reader.id=member.user_id
                  JOIN %s root ON root.id=member.%s
-                 WHERE root.shared_owner_user_id IS NOT NULL
-                   AND (member.access_role<>'OWNER' OR member.user_id=root.shared_owner_user_id)
+                 WHERE (member.access_role<>'OWNER' OR member.user_id=root.shared_owner_user_id)
                  FOR SHARE OF member
             )
-            """.formatted(kind.key,kind.members,kind.roots,kind.key)+participantReadCte(kind,"reader",null)+"""
+            """.formatted(kind.key,kind.members,kind.roots,kind.key)+participantReadCte(kind,"reader",null)+projectTaskReadCte(kind,"reader",false)+"""
             SELECT root.id FROM %s root CROSS JOIN reader
              WHERE reader.system_admin OR EXISTS(SELECT 1 FROM readable_members member WHERE member.root_id=root.id)
                 %s
              ORDER BY root.id
             """.formatted(kind.roots,
-                kind==Kind.TASK?"OR (root.shared_owner_user_id IS NOT NULL AND EXISTS(SELECT 1 FROM task_participant_read participant WHERE participant.task_id=root.id))":""),actorArgs(authentication),(rs,row)->rs.getString("id"));
+                kind==Kind.TASK?"OR EXISTS(SELECT 1 FROM task_participant_read participant WHERE participant.task_id=root.id) OR EXISTS(SELECT 1 FROM project_task_read inherited WHERE inherited.task_id=root.id)":""),actorArgs(authentication),(rs,row)->rs.getString("id"));
     }
 
     private static String participantReadCte(Kind kind,String reader,String owner) {
@@ -200,6 +203,20 @@ public class SharedWorkAccessService {
             )
             """.formatted(reader,owner==null?reader+".id":owner,
                 owner==null?"":"AND person.task_id=owned.id");
+    }
+
+    private static String projectTaskReadCte(Kind kind,String reader,boolean singleTask) {
+        if(kind!=Kind.TASK)return "";
+        return """
+            , project_task_read AS MATERIALIZED (
+                SELECT link.task_id FROM task_project_memberships link
+                  JOIN projects project_root ON project_root.id=link.project_id
+                  JOIN shared_project_members member ON member.project_id=project_root.id
+                  JOIN %s ON member.user_id=%s
+                 WHERE (member.access_role<>'OWNER' OR member.user_id=project_root.shared_owner_user_id) %s
+                 FOR SHARE OF link,member,project_root
+            )
+            """.formatted(reader,reader+(singleTask?".actor_id":".id"),singleTask?"AND link.task_id=owned.id":"");
     }
 
     @Transactional(propagation=Propagation.MANDATORY)
@@ -248,13 +265,16 @@ public class SharedWorkAccessService {
         lock(kind,id,Access.READ,authentication);
         var result=new java.util.ArrayList<>(sql.query("""
             SELECT account.id,account.username,member.access_role FROM %s member JOIN users account ON account.id=member.user_id
-             WHERE member.%s=:id ORDER BY account.id
-            """.formatted(kind.members,kind.key),new MapSqlParameterSource("id",id),
+             JOIN %s root ON root.id=member.%s WHERE member.%s=:id
+               AND (member.access_role<>'OWNER' OR member.user_id=root.shared_owner_user_id) ORDER BY account.id
+            """.formatted(kind.members,kind.roots,kind.key,kind.key),new MapSqlParameterSource("id",id),
             (rs,row)->new Member(rs.getString("id"),rs.getString("username"),rs.getString("access_role"))));
         if(kind==Kind.TASK)result.addAll(jdbc.query("""
             SELECT DISTINCT account.id,account.username FROM task_people person JOIN users account ON account.id=person.user_id
              WHERE person.task_id=? AND person.role IN ('assignee','co','watcher')
-               AND NOT EXISTS(SELECT 1 FROM shared_task_members member WHERE member.task_id=person.task_id AND member.user_id=person.user_id)
+               AND NOT EXISTS(SELECT 1 FROM shared_task_members member JOIN tasks root ON root.id=member.task_id
+                   WHERE member.task_id=person.task_id AND member.user_id=person.user_id
+                   AND (member.access_role<>'OWNER' OR member.user_id=root.shared_owner_user_id))
              ORDER BY account.id
             """,(rs,row)->new Member(rs.getString("id"),rs.getString("username"),"VIEWER",true),id));
         return result;
@@ -292,18 +312,18 @@ public class SharedWorkAccessService {
         var owners=sql.query(READER+"""
             , owned AS MATERIALIZED (
                 SELECT root.id,root.shared_owner_user_id,reader.id actor_id,reader.system_admin FROM %s root CROSS JOIN reader
-                 WHERE root.id=:id AND (reader.system_admin OR root.shared_owner_user_id IS NOT NULL)%s
+                 WHERE root.id=:id %s
             ), membership AS MATERIALIZED (
                 SELECT member.user_id FROM %s member JOIN owned ON member.%s=owned.id
                  WHERE member.user_id=owned.actor_id AND member.access_role IN (%s)
                    AND (member.access_role<>'OWNER' OR member.user_id=owned.shared_owner_user_id)
                  FOR SHARE OF member
             )
-            """.formatted(kind.roots,rootLock,kind.members,kind.key,roles)+(access==Access.READ?participantReadCte(kind,"owned","owned.actor_id"):"")+"""
+            """.formatted(kind.roots,rootLock,kind.members,kind.key,roles)+(access==Access.READ?participantReadCte(kind,"owned","owned.actor_id")+projectTaskReadCte(kind,"owned",true):"")+"""
             SELECT COALESCE(shared_owner_user_id,0) FROM owned
              WHERE system_admin OR EXISTS(SELECT 1 FROM membership) %s
             """.formatted(
-                kind==Kind.TASK&&access==Access.READ?"OR EXISTS(SELECT 1 FROM task_participant_read)":""),args,(rs,row)->rs.getLong(1));
+                kind==Kind.TASK&&access==Access.READ?"OR EXISTS(SELECT 1 FROM task_participant_read) OR EXISTS(SELECT 1 FROM project_task_read)":""),args,(rs,row)->rs.getLong(1));
         if(owners.size()!=1)throw missing();
         return owners.get(0);
     }
@@ -413,6 +433,10 @@ public class SharedWorkAccessService {
         jdbc.query("SELECT pg_advisory_xact_lock(hashtextextended('shared-work-mutations',0))",(rs,row)->true);
     }
     private MapSqlParameterSource storedArgs(GeneralTicketActor actor,PanelRolePermissionSnapshot snapshot) {
+        // Lock before starting the permission statement: its fresh READ COMMITTED
+        // snapshot must see a first denial inserted while this account lock waited.
+        jdbc.query("SELECT account.id FROM users account WHERE account.id=? AND account.username=? AND "+ACCOUNT+" FOR SHARE OF account",
+            (rs,row)->rs.getLong(1),actor.userId(),actor.username());
         boolean tasks=snapshot.hasPage("PAGE_TASKS");
         return snapshot.bind(actor.bind(new MapSqlParameterSource())).addValue("assignedTasks",tasks);
     }
@@ -420,8 +444,7 @@ public class SharedWorkAccessService {
         var actor=GeneralTicketActor.from(authentication);
         if(actor==null||!actor.valid())throw missing();
         var snapshot=PanelRolePermissionSnapshot.capture(jdbc,actor.userId(),actor.username());
-        boolean tasks=snapshot.hasPage("PAGE_TASKS");
-        return snapshot.bind(actor.bind(new MapSqlParameterSource())).addValue("assignedTasks",tasks);
+        return storedArgs(actor,snapshot);
     }
     private MapSqlParameterSource adminArgs(Authentication authentication) {
         var actor=GeneralTicketActor.from(authentication);

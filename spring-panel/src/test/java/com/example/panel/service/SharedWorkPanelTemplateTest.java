@@ -33,7 +33,7 @@ class SharedWorkPanelTemplateTest {
                 "<section th:replace=\"~{fragments/shared-work-access :: moduleAccess}\"></section>"+
                 "<section th:replace=\"~{fragments/shared-work-access :: objectAccess('"+kind+"')}\"></section></body></html>",new Context());
             assertThat(html).contains("data-work-object=\""+kind+"\"","data-work-module","data-work-transfer",
-                "Доступ и участники","Допуск к модулю").doesNotContain("th:replace","th:attr");
+                "Доступ и участники","Общие права задач и проектов").doesNotContain("th:replace","th:attr");
         }
     }
     @Test void adminWithoutPageCanDiscoverTasksAndProjectsInNavigation() {

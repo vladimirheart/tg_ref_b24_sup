@@ -42,7 +42,7 @@ async function main(){
       if(revoked)return route.fulfill({status:404,json:{}});
       const id=match[1];
       if(match[2]==='access')return route.fulfill({json:{kind:'PROJECT',id,canManage,canWrite,members:roster.get(id)||[]}});
-      if(match[2]==='people')return route.fulfill({json:[{userId:big,username:'andrey'}]});
+      if(match[2]==='people')return route.fulfill({json:[{userId:big,username:'andrey',fullName:'Андрей Участник'}]});
       return route.fulfill({json:[]});
      }
      return route.fulfill({json:{success:true,items:[],notifications:[],settings:{},preferences:{}}});
@@ -69,11 +69,15 @@ async function main(){
    page.on('pageerror',error=>errors.push(error.message));page.on('response',response=>{if(response.status()===404&&/\.(js|css)(\?|$)/.test(response.url()))missing.push(response.url());});
    const modal=page.locator('#projectModal'),members=modal.locator('[data-work-members]');
    const open=async id=>{await page.locator(`[data-project-members="${id}"]`).click();await modal.waitFor({state:'visible'});await modal.locator('[data-work-add]').waitFor({state:'attached'});};
-   const close=async()=>{await modal.locator('.modal-header .btn-close').click();await modal.waitFor({state:'hidden'});};
+   const close=async()=>{
+    await modal.evaluate(el=>{window.qaModalHidden=false;el.addEventListener('hidden.bs.modal',()=>{window.qaModalHidden=true;},{once:true});});
+    await modal.locator('.modal-header .btn-close').click();await page.waitForFunction(()=>window.qaModalHidden);
+   };
    const waitRows=async count=>page.waitForFunction(count=>document.querySelectorAll('#projectModal [data-work-members]>li').length===count,count);
    const add=async()=>{
     await modal.locator('.work-access-add > summary').click();await modal.locator('[data-work-search]').fill('andrey');await modal.locator('[data-work-find]').click();
     await page.waitForFunction(big=>document.querySelector('#projectModal [data-work-person]').value===big,big);
+    assert.equal(await modal.locator('[data-work-person] option:checked').textContent(),'Андрей Участник');
     await modal.locator('[data-work-role]').selectOption('EDITOR');await modal.locator('[data-work-add]').dblclick();
    };
    await page.goto(origin+'/projects',{waitUntil:'networkidle'});await page.locator('[data-project-members="77"]').waitFor();
@@ -112,7 +116,16 @@ async function main(){
    await close();canWrite=false;canManage=false;await open(77);await waitRows(20);
    assert(await modal.locator('[data-work-manage]').isHidden());
    await modal.locator('#project-info-tab').click();assert(await modal.locator('#projectName').isDisabled());assert(await modal.locator('#saveProjectBtn').isDisabled());
-   await close();revoked=true;await page.locator('[data-project-members="77"]').click();await modal.waitFor({state:'hidden'});
+   await close();revoked=true;
+   await page.addStyleTag({content:'.modal-backdrop.fade { transition: opacity 0.5s linear !important; }'});
+   await modal.evaluate(el=>{
+    window.qaModalHidden=false;window.qaDeniedBeforeShow=false;
+    el.addEventListener('hidden.bs.modal',()=>{window.qaModalHidden=true;},{once:true});
+    window.addEventListener('shared-work:denied',()=>{window.qaDeniedBeforeShow=!el.classList.contains('show');},{once:true});
+   });
+   await page.locator('[data-project-members="77"]').click();await page.waitForFunction(()=>window.qaModalHidden);
+   assert(await page.evaluate(()=>window.qaDeniedBeforeShow),'Denial must be tested during backdrop opening');
+   assert(await modal.isHidden());
    await page.locator('.projects-empty-state').filter({hasText:'Проектов пока нет'}).waitFor();assert.equal(await members.locator('li').count(),0);
    assert.equal(writes.length,7);assert.deepEqual(errors,[]);assert.deepEqual(missing,[]);
    report.push({theme,width,height,writes:7,bounds,errors,missing,status:'GREEN'});await context.close();

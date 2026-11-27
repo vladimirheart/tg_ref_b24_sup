@@ -45,7 +45,7 @@ function fixture(options={}){
     if(url==='/api/shared-work-admin/access/11'){Object.assign(accounts[0],JSON.parse(opts.body));return response(null,204);}
     if(url.includes('/history'))return response([{id:'9007199254740993',action:'MEMBER_SET',actorName:'<img actor>',occurredAt:'date',beforeState:'{}',afterState:'{"role":"EDITOR"}'}]);
     if(url.endsWith('/access'))return revoked?response({},404):response({kind:'TASK',id:url.split('/')[4],canWrite:options.write!==false,canManage:manage,members});
-    if(url.includes('/people?'))return options.peopleDenied?response({},403):response([{userId:'9007199254740993',username:' SysAdmin/Ю '}]);
+    if(url.includes('/people?'))return options.peopleDenied?response({},403):response([{userId:'9007199254740993',username:' SysAdmin/Ю ',fullName:options.candidateName}]);
     if(opts.method==='PUT'||opts.method==='DELETE'){
       if(failMutation){failMutation=false;return response({},500);}
       if(url.includes('/owner/'))manage=false;
@@ -73,6 +73,13 @@ test('owner sees current roster and exact BIGINT candidate without interpreting 
   const f=fixture();await f.open('7');assert.equal(f.el('manage').hidden,false);
   assert.equal(f.el('person').value,'9007199254740993');assert.match(f.el('members').children[1].children[0].textContent,/ SysAdmin\/Ю /);
   assert.equal(f.write.disabled,false);
+});
+test('candidate label uses employee full name and selection keeps exact numeric id',async()=>{
+  const f=fixture({candidateName:'Ильнур Ахманов'});await f.open('7');
+  assert.equal(f.el('person').children[0].textContent,'Ильнур Ахманов');
+  assert.equal(f.el('person').value,'9007199254740993');
+  f.el('search').value='Ильнур';await f.el('find').fire();
+  assert(f.requests.some(r=>r.url.includes('people?q='+encodeURIComponent('Ильнур'))));
 });
 test('module grants save once and are re-read from server',async()=>{
   const f=fixture();await tick();await f.moduleEl('toggle').fire();
@@ -148,8 +155,8 @@ test('tasks and projects include access panels and updated scripts',()=>{
   for(const page of ['tasks','projects']){
     const html=fs.readFileSync(path.resolve(__dirname,'../../main/resources/templates',page,'index.html'),'utf8');
     assert(html.includes('fragments/shared-work-access :: moduleAccess'));assert(html.includes('fragments/shared-work-access :: objectAccess'));
-    assert(html.includes('shared-work-access.js?v=20261126-project-members-r1'));
-    assert(html.includes(page === 'tasks' ? 'tasks.js?v=20261124-task-card-r3' : 'projects.js?v=20261126-project-members-r1'));
+    assert(html.includes('shared-work-access.js?v=20261127-work-access-r328'));
+    assert(html.includes(page === 'tasks' ? 'tasks.js?v=20261124-task-card-r3' : 'projects.js?v=20261127-work-access-r328'));
     assert(html.includes('data-work-write disabled'));assert(html.includes('data-work-create='));
   }
 });

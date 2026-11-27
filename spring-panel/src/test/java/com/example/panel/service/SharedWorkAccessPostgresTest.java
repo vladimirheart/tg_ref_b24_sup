@@ -41,6 +41,7 @@ class SharedWorkAccessPostgresTest {
         jdbc.execute("CREATE TABLE users(id BIGINT PRIMARY KEY,username TEXT,enabled BOOLEAN DEFAULT TRUE,is_blocked BOOLEAN DEFAULT FALSE,role_id BIGINT)");
         jdbc.execute("CREATE TABLE roles(id BIGINT PRIMARY KEY,name TEXT,permissions TEXT);CREATE TABLE user_authorities(user_id BIGINT,authority TEXT,PRIMARY KEY(user_id,authority))");
         jdbc.execute("CREATE TABLE tasks(id BIGINT PRIMARY KEY,creator TEXT);CREATE TABLE projects(id BIGINT PRIMARY KEY,lead_identity TEXT)");
+        jdbc.execute("CREATE TABLE task_project_memberships(task_id BIGINT REFERENCES tasks(id) ON DELETE CASCADE,project_id BIGINT REFERENCES projects(id) ON DELETE CASCADE,PRIMARY KEY(task_id,project_id))");
         jdbc.execute("CREATE TABLE business_access_grants(user_id BIGINT,grant_scope TEXT,role_code TEXT,is_active BOOLEAN)");
         jdbc.update("INSERT INTO users(id,username) VALUES(1,'legacy')");
         jdbc.execute("INSERT INTO tasks VALUES(7,'legacy');INSERT INTO projects VALUES(7,'legacy')");
@@ -154,8 +155,9 @@ class SharedWorkAccessPostgresTest {
         service.setMember(kind,ID,READER,Role.VIEWER,owner);service.require(kind,ID,Access.READ,reader);
         denied(()->service.require(kind,ID,Access.READ,bound(READER,"reader")));
     }
-    @ParameterizedTest @EnumSource(Kind.class) void invalidTargetsAndMissingGlobalReadNeverChangeMembership(Kind kind) {
+    @ParameterizedTest @EnumSource(Kind.class) void invalidTargetsAndExplicitReadDenialNeverChangeMembership(Kind kind) {
         var before=service.members(kind,ID,owner);
+        service.setGrant(owner,OTHER,new Grant(false,false,false));
         denied(()->service.setMember(kind,ID,OTHER,Role.VIEWER,owner));
         service.setGrant(owner,OTHER,new Grant(true,false,false));
         jdbc.execute("UPDATE users SET is_blocked=TRUE WHERE id=99");
@@ -181,6 +183,56 @@ class SharedWorkAccessPostgresTest {
         assertThatThrownBy(()->jdbc.update("INSERT INTO "+kind.members+"("+kind.key+",user_id,access_role) VALUES(?,12345,'VIEWER')",ID)).isInstanceOf(DataAccessException.class);
     }
     static Stream<Arguments> revocations(){return Arrays.stream(Kind.values()).flatMap(k->Stream.of(false,true).map(grant->Arguments.of(k,grant)));}
+    @ParameterizedTest @EnumSource(Kind.class) void firstExplicitDenialWaitsForReaderWithoutGrantRow(Kind kind) throws Exception {
+        jdbc.update("DELETE FROM shared_work_grants WHERE user_id=?",READER);
+        service.setMember(kind,7,READER,Role.VIEWER,owner);
+        var entered=new CountDownLatch(1);var release=new CountDownLatch(1);var executor=Executors.newFixedThreadPool(2);
+        try {
+            var read=executor.submit(()->new TransactionTemplate(manager).executeWithoutResult(s->{
+                service.require(kind,7,Access.READ,reader);entered.countDown();
+                try{if(!release.await(10,TimeUnit.SECONDS))throw new AssertionError("release missing");}
+                catch(InterruptedException e){Thread.currentThread().interrupt();throw new AssertionError(e);}
+            }));
+            assertThat(entered.await(5,TimeUnit.SECONDS)).isTrue();
+            var revoke=executor.submit(()->service.setGrant(owner,READER,new Grant(false,false,false)));
+            long deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(5);
+            while(System.nanoTime()<deadline&&!Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM pg_locks WHERE NOT granted)",Boolean.class)))Thread.sleep(20);
+            assertThat(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM pg_locks WHERE NOT granted)",Boolean.class)).isTrue();
+            assertThat(revoke.isDone()).isFalse();release.countDown();read.get(10,TimeUnit.SECONDS);revoke.get(10,TimeUnit.SECONDS);
+            denied(()->service.require(kind,7,Access.READ,reader));
+        }finally{release.countDown();executor.shutdownNow();}
+    }
+    @ParameterizedTest @EnumSource(Kind.class) void firstExplicitDenialCommittedBeforeReadIsAuthoritative(Kind kind) throws Exception {
+        jdbc.update("DELETE FROM shared_work_grants WHERE user_id=?",READER);
+        service.setMember(kind,ID,READER,Role.VIEWER,owner);
+        var entered=new CountDownLatch(1);var release=new CountDownLatch(1);var executor=Executors.newFixedThreadPool(2);
+        try {
+            var revoke=executor.submit(()->new TransactionTemplate(manager).executeWithoutResult(s->{
+                service.setGrant(owner,READER,new Grant(false,false,false));entered.countDown();
+                try{if(!release.await(10,TimeUnit.SECONDS))throw new AssertionError("release missing");}
+                catch(InterruptedException e){Thread.currentThread().interrupt();throw new AssertionError(e);}
+            }));
+            assertThat(entered.await(5,TimeUnit.SECONDS)).isTrue();
+            var read=executor.submit(()->service.require(kind,ID,Access.READ,reader));
+            long deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(5);
+            while(System.nanoTime()<deadline&&!Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM pg_locks WHERE NOT granted)",Boolean.class)))Thread.sleep(20);
+            assertThat(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM pg_locks WHERE NOT granted)",Boolean.class)).isTrue();
+            release.countDown();revoke.get(10,TimeUnit.SECONDS);
+            assertThatThrownBy(()->read.get(10,TimeUnit.SECONDS)).isInstanceOf(ExecutionException.class).hasCauseInstanceOf(ResponseStatusException.class);
+        }finally{release.countDown();executor.shutdownNow();}
+    }
+    @ParameterizedTest @EnumSource(Kind.class) void explicitLegacyMembershipNeedsNoOwnerBackfillOrExtraAllow(Kind kind) {
+        service.setMember(kind,7,OTHER,Role.EDITOR,owner);
+        assertThat(service.visibleIds(kind,other)).containsExactly("7");
+        service.require(kind,7,Access.WRITE,other);
+        denied(()->service.require(kind,7,Access.OWNER,other));
+        assertThat(service.objectAccess(kind,7,other).canManage()).isFalse();
+        assertThat(jdbc.queryForObject("SELECT shared_owner_user_id FROM "+kind.roots+" WHERE id=7",Long.class)).isNull();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM shared_work_grants WHERE user_id=?",Integer.class,OTHER)).isZero();
+        jdbc.update("UPDATE "+kind.members+" SET access_role='OWNER' WHERE "+kind.key+"=7 AND user_id=?",OTHER);
+        denied(()->service.require(kind,7,Access.READ,other));
+        assertThat(service.visibleIds(kind,other)).isEmpty();
+    }
     @ParameterizedTest @MethodSource("revocations") void concurrentRevokeWaitsForTheOwningTransaction(Kind kind,boolean grant) throws Exception {
         service.setMember(kind,ID,READER,Role.VIEWER,owner);
         var entered=new CountDownLatch(1);var release=new CountDownLatch(1);var executor=Executors.newFixedThreadPool(2);

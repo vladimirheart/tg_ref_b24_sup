@@ -7426,3 +7426,19 @@ list/direct READ и notification recipients используют то же уч�
 логина не подменяет привязанный ID. Контракт и детали UI проекта зафиксированы в
 `13-project-members-and-task-participant-read.md`. Миграция подготовлена в source,
 production deployment/DB backfill агентом не выполняются.
+
+## 01-328 — 2026-11-27: назначение без скрытого дополнительного допуска
+
+Корректировка R327 для существующих данных: PAGE_TASKS + numeric участие дают READ
+своей задачи и при NULL владельце. Явное EDITOR/VIEWER участие открывает выбранный
+объект без owner backfill. Отсутствие shared_work_grants больше не запрещает участие;
+явный can_read=false, blocked/disabled, текущая identity и права страницы сохраняются.
+WRITE/OWNER не выводятся из assignee/co/watcher; orphan OWNER не действует. Создание
+требует прежнего отдельного допуска. Поиск кандидатов проекта учитывает ФИО и логин.
+По явному уточнению пользователя участник проекта читает все его связанные задачи;
+«Мои задачи» дополнительно требуют личного assignee/co/watcher участия. Project EDITOR
+не получает task WRITE. Отзыв project membership/link сериализуется с READ/доставкой.
+Общий запрет сериализуется с READ через account lock и при первом INSERT допуска.
+Схема V109 не меняется. Актуальный контракт — в
+`13-project-members-and-task-participant-read.md`; исторические R302–R327 описывают
+состояние до этой корректировки.

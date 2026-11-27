@@ -20,6 +20,7 @@
   let items = [];
   let savingProject = false;
   let projectWritable = false;
+  let deniedProjectId = null;
 
   const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content') || '';
   const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content') || 'X-XSRF-TOKEN';
@@ -91,6 +92,7 @@
   }
 
   function openProject(project, participants = false) {
+    deniedProjectId = null;
     form.reset();
     form.elements.id.value = project?.id || '';
     form.elements.name.value = project?.name || '';
@@ -128,14 +130,14 @@
     hint.textContent = members ? 'Изменения состава сохраняются сразу.' : (saveBtn.disabled && form.elements.id.value ? 'Доступно только чтение.' : '');
   }
   modalEl.addEventListener('shown.bs.tab', syncTab);
+  // Denial may arrive while Bootstrap is still opening the backdrop.
+  modalEl.addEventListener('shown.bs.modal', () => {
+    if (deniedProjectId !== null && form.elements.id.value === deniedProjectId) modal().hide();
+  });
   window.addEventListener('shared-work:denied', event => {
     if (event.detail?.kind !== 'PROJECT') return;
-    const deniedId = form.elements.id.value;
+    deniedProjectId = form.elements.id.value;
     modal().hide();
-    // Bootstrap ignores hide while the opening transition is running.
-    if (modalEl.classList.contains('show')) modalEl.addEventListener('shown.bs.modal', () => {
-      if (form.elements.id.value === deniedId) modal().hide();
-    }, { once: true });
     load().catch(showLoadError);
   });
   createBtn.addEventListener('click', () => openProject(null));

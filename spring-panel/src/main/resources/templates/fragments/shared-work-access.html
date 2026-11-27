@@ -2,10 +2,10 @@
 <html lang="ru" xmlns:th="http://www.thymeleaf.org">
 <body>
 <section th:fragment="moduleAccess" data-work-module class="mb-3">
-  <button type="button" data-work-toggle class="btn btn-sm btn-outline-secondary" hidden>Допуск к разделу задач и проектов</button>
+  <button type="button" data-work-toggle class="btn btn-sm btn-outline-secondary" hidden>Общие права задач и проектов</button>
   <div data-work-grants class="card card-body mt-2" hidden>
-    <h2 class="h5">Допуск к модулю</h2>
-    <p class="text-muted">Чтение разрешает участие в выбранных задачах и проектах. Состав каждого объекта настраивается отдельно. Системный администратор имеет полный доступ.</p>
+    <h2 class="h5">Общие права раздела</h2>
+    <p class="text-muted">При доступе к странице «Задачи» сотрудник видит выбранные для него задачи и проекты без дополнительного допуска. Здесь можно явно запретить чтение или разрешить создание. Эти настройки не открывают чужие объекты. Системный администратор имеет полный доступ.</p>
     <button type="button" data-work-reload class="btn btn-sm btn-outline-secondary align-self-start">Обновить</button>
     <div data-work-accounts class="mt-2"></div>
     <details class="mt-3"><summary>Журнал изменений доступа</summary>
@@ -23,7 +23,7 @@
     <details class="work-access-add mb-3"><summary>Добавить участника</summary>
     <p class="small text-muted mt-2">Найдите сотрудника, выберите права и нажмите «Добавить / изменить». Изменение сохраняется сразу.</p>
     <div class="input-group mb-2">
-      <input data-work-search class="form-control" type="search" maxlength="100" placeholder="Поиск пользователя" aria-label="Поиск пользователя">
+      <input data-work-search class="form-control" type="search" maxlength="100" placeholder="ФИО или логин сотрудника" aria-label="ФИО или логин сотрудника">
       <button data-work-find class="btn btn-outline-secondary" type="button">Найти</button>
     </div>
     <div class="d-flex gap-2 flex-wrap">
@@ -33,7 +33,7 @@
       </select>
       <button data-work-add class="btn btn-outline-primary" type="button" disabled>Добавить / изменить</button>
     </div>
-    <p class="small text-muted mt-2 mb-0">В списке — сотрудники с допуском к разделу задач и проектов. Допуск выдаёт системный администратор.</p>
+    <p class="small text-muted mt-2 mb-0">В списке — активные сотрудники с доступом к странице «Задачи», без явного запрета чтения раздела. Добавление открывает только выбранный объект.</p>
     </details>
     <details class="work-access-advanced"><summary>Дополнительно</summary>
       <p class="small text-muted mt-2">Для передачи владения выберите сотрудника в форме добавления выше. Прежний владелец останется редактором.</p>
@@ -44,7 +44,7 @@
       </details>
     </details>
   </div>
-  <p class="small text-muted mt-3 mb-0" th:text="${kind == 'PROJECT' ? 'Участие в проекте открывает сам проект. Доступ к каждой задаче определяется её участниками и правами.' : 'Ответственный, соисполнители и наблюдатели читают задачу при наличии допуска к разделу. Редактирование задаётся отдельно.'}"></p>
+  <p class="small text-muted mt-3 mb-0" th:text="${kind == 'PROJECT' ? 'Участник проекта видит все его задачи. В «Моих задачах» остаются только задачи с личным участием. Редактирование задач задаётся отдельно.' : 'Задачу видят её ответственный, соисполнители, наблюдатели и участники связанных проектов при доступе к странице «Задачи». Явный запрет чтения сохраняется; редактирование задаётся отдельно.'}"></p>
 </section>
 </body>
 </html>
